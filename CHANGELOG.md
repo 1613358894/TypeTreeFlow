@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.1 - 2026-05-21
+
 - Added Apache-2.0 license, NOTICE, citation metadata, contribution guidance,
   security policy, and GitHub Actions CI.
 
