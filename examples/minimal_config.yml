@@ -1,0 +1,8 @@
+genus: Bacillus
+query_genome: data/query.fna
+query_16s: data/query_16s.fasta
+outdir: results
+threads: 4
+skip_ani: false
+skip_tree: false
+

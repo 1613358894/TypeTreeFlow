@@ -1,0 +1,6 @@
+accession	gtdb_taxonomy	ncbi_genbank_assembly_accession	ncbi_organism_name	ncbi_taxid	ncbi_strain_identifiers	gtdb_type_designation	ncbi_type_material	genome_size
+RS_GCF_000011805.1	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Vibrionales;f__Vibrionaceae;g__Aliivibrio;s__Aliivibrio fischeri	GCF_000011805.1	Aliivibrio fischeri ES114	312309	ES114	type strain	assembly from type material	4270000
+RS_GCF_000017705.1	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Vibrionales;f__Vibrionaceae;g__Aliivibrio;s__Aliivibrio wodanis	GCF_000017705.1	Aliivibrio wodanis LMG 24053	80854	LMG 24053	type material		3820000
+RS_GCF_000196515.1	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Vibrionales;f__Vibrionaceae;g__Aliivibrio;s__Aliivibrio salmonicida	GCF_000196515.1	Aliivibrio salmonicida LFI1238	316275	LFI1238	not type material		4650000
+RS_GCF_000009765.2	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Vibrionales;f__Vibrionaceae;g__Vibrio;s__Vibrio cholerae	GCF_000009765.2	Vibrio cholerae N16961	243277	N16961	type strain	assembly from type material	4030000
+RS_GCF_000006745.1	d__Bacteria;p__Pseudomonadota;c__Gammaproteobacteria;o__Vibrionales;f__Vibrionaceae;g__Photobacterium;s__Photobacterium profundum	GCF_000006745.1	Photobacterium profundum SS9	298386	SS9	type strain		6400000

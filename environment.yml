@@ -1,0 +1,16 @@
+name: typetreeflow
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.10
+  - biopython
+  - pandas
+  - seaborn
+  - pytest
+  - ncbi-datasets-cli
+  - barrnap
+  - fastani
+  - mafft
+  - trimal
+  - iqtree
