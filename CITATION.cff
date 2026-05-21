@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use TypeTreeFlow in academic work, please cite this software."
+title: "TypeTreeFlow"
+version: "0.2.0"
+date-released: "2026-05-21"
+abstract: "A guarded command-line workflow for microbial type-strain genome and 16S phylogeny analysis."
+authors:
+  - name: "TypeTreeFlow developers"
+repository-code: "https://github.com/1613358894/TypeTreeFlow"
+license: "Apache-2.0"

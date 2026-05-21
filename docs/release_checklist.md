@@ -28,6 +28,16 @@ Check the CLI entry point:
 python typetreeflow.py --help
 ```
 
+Confirm project governance files are present:
+
+```bash
+test -f LICENSE
+test -f CITATION.cff
+test -f CONTRIBUTING.md
+test -f SECURITY.md
+test -f .github/workflows/ci.yml
+```
+
 Build a wheel:
 
 ```bash
@@ -126,6 +136,7 @@ Validated smoke coverage for this release is documented in `docs/real_run_checkl
 ## Before Tagging
 
 - Confirm `pyproject.toml` version and `typetreeflow.__version__` match the intended tag.
+- Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended license.
 - Confirm the wheel filename contains the intended version.
 - Confirm `README.md` and docs reflect the current guarded execution state.
 - Confirm the test suite, CLI help, and wheel build commands pass from a clean checkout.

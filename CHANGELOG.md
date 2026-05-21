@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added Apache-2.0 license, NOTICE, citation metadata, contribution guidance,
+  security policy, and GitHub Actions CI.
+
 ## 0.2.0 - 2026-05-21
 
 - Added user-provided species checklist audit via `--species-checklist`.

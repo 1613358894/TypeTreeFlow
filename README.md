@@ -227,6 +227,23 @@ The main output files are:
 
 See `docs/output_layout.md` for the full layout and `docs/statuses.md` for status field meanings.
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local
+setup, validation commands, and pull request expectations.
+
+Security issues should be reported privately; see [SECURITY.md](SECURITY.md).
+
+## Citation
+
+If you use TypeTreeFlow in academic work, please cite the software using the
+metadata in [CITATION.cff](CITATION.cff).
+
+## License
+
+TypeTreeFlow is licensed under the Apache License, Version 2.0. See
+[LICENSE](LICENSE) and [NOTICE](NOTICE).
+
 ## Validated real smoke runs
 
 - `Aalborgiella`: real downloads, barrnap 16S extraction, and FastANI self-query
