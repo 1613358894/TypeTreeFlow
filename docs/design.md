@@ -30,6 +30,8 @@ The workflow libraries for barrnap, FastANI, MAFFT, trimAl, and IQ-TREE are fake
 
 Type-strain selection reads a local GTDB metadata TSV, filters type-material records for the target genus, normalizes record IDs, writes `manifest.tsv`, and writes `name_map.tsv`.
 
+The selection boundary is intentionally GTDB-based. GTDB metadata provides genome-centric taxonomy and type-material genome records; it is not a substitute for LPSN nomenclatural coverage. LPSN remains the authority for validly published and legitimate prokaryotic names, so TypeTreeFlow v0.1.0 cannot guarantee that a selected manifest covers every currently validly published species in a genus.
+
 Genome download planning writes `cache/ncbi/download_plan.tsv`. Guarded real downloads write NCBI Datasets ZIP files under `cache/ncbi/`, then Python extraction installs selected reference FASTA files as `genomes/references/<normalized_id>.fna`.
 
 Local 16S preparation planning writes `rrna/rrna_plan.tsv`. The controlled barrnap wrapper writes GFF output to `rrna/barrnap/<normalized_id>.gff`, and the extractor writes longest 16S sequences to `rrna/sequences/<normalized_id>.16s.fasta`. `rrna/all_16S.fasta` can combine ready reference 16S FASTA files with an optional query 16S FASTA.
@@ -41,6 +43,8 @@ ANI planning writes `ani/ani_plan.tsv` and `ani/references.txt`. The controlled 
 Phylogeny planning inspects `rrna/all_16S.fasta` and writes `phylo/phylo_plan.tsv`. The current IQ-TREE command uses ultrafast bootstrap, so planning requires at least 4 FASTA records and records smaller inputs as `phylo_skipped_too_few_sequences`. Controlled wrappers cover MAFFT alignment at `phylo/all_16S.aln.fasta`, trimAl output at `phylo/all_16S.trimmed.fasta`, and IQ-TREE Newick output at `phylo/iqtree/all_16S.treefile`.
 
 Report generation writes `report/summary.md` from existing manifest and output files. It reports status distribution, genome and 16S readiness, optional ANI summary contents, key output file existence, and problem records. It does not run tools, draw figures, or make final species assignments.
+
+For publication-facing novel species work, users should manually compare `manifest.tsv`, `name_map.tsv`, and `report/summary.md` with LPSN or an equivalent authoritative checklist. The report is a reproducible computation summary, not a nomenclatural or species-assignment decision.
 
 ## Resume and force
 

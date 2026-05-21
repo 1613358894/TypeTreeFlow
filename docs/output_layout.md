@@ -37,6 +37,8 @@ typetreeflow_out/
     all_16S.trimmed.fasta
     iqtree/
       all_16S.treefile
+  taxonomy/
+    checklist_comparison.tsv
   report/
     summary.md
     figures/
@@ -45,6 +47,27 @@ typetreeflow_out/
 `manifest.tsv` is the central resume file and should be updated after each completed workflow stage. `name_map.tsv` links file-safe identifiers to display names used in reports and tree labels.
 
 `report/summary.md` is a read-only Markdown run summary. It reports current manifest counts, manifest status distribution, genome and 16S readiness, optional ANI summary fields from `ani/ani_summary.tsv`, key output file existence, failed/skipped/missing-style problem records, and notes. Creating this report does not execute external tools or assign final species conclusions.
+
+`taxonomy/checklist_comparison.tsv` is written when the CLI receives
+`--species-checklist PATH` during dry-run or resume workflows. It compares the
+user-provided species checklist to the selected manifest records and preserves
+both checklist names and GTDB names for review. Report-only mode does not
+regenerate this file, but `report/summary.md` reads an existing comparison and
+adds a `Taxonomic Audit` section. The checklist is user-supplied; TypeTreeFlow
+does not crawl LPSN or make nomenclatural conclusions.
+
+Fields:
+
+- `checklist_name`: full checklist binomial when the row came from the checklist.
+- `gtdb_name`: full GTDB-selected name when a manifest record is represented.
+- `genus`: normalized genus used for comparison.
+- `species`: normalized species epithet used for comparison.
+- `status`: checklist status value when available.
+- `comparison_status`: taxonomy audit status such as `matched`, `missing_from_gtdb`, `extra_in_gtdb`, `possible_name_mismatch`, `missing_genome`, or `manual_review_required`.
+- `gtdb_record_id`: manifest record identifier when available.
+- `assembly_accession`: assembly accession from the manifest when available.
+- `normalized_id`: TypeTreeFlow normalized manifest identifier when available.
+- `notes`: audit notes for mismatch, missing genome, synonym, or manual review context.
 
 `cache/ncbi/download_plan.tsv` records the NCBI Datasets genome download plan before execution. It does not imply that any download has been executed. Fields:
 

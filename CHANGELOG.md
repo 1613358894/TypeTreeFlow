@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+## 0.2.0 - 2026-05-21
+
+- Added user-provided species checklist audit via `--species-checklist`.
+- Added `taxonomy/checklist_comparison.tsv`.
+- Added Taxonomic Audit report section.
+- Added species checklist docs and example TSV.
+- Clarified GTDB/LPSN taxonomic scope.
+
 ## 0.1.0 - 2026-05-21
 
 - Initial MVP release.

@@ -55,6 +55,9 @@ from typetreeflow.rrna.workflow import prepare_local_16s
 from typetreeflow.selection.type_strains import select_type_strains
 from typetreeflow.sources.entrez import BiopythonEntrezClient
 from typetreeflow.sources.gtdb import load_gtdb_metadata, metadata_row_to_record
+from typetreeflow.taxonomy.audit import compare_checklist_to_records
+from typetreeflow.taxonomy.checklist import read_species_checklist
+from typetreeflow.taxonomy.output import write_checklist_comparison
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.resume import load_existing_manifest, should_reuse_manifest
 
@@ -88,6 +91,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-key", help="API key for remote data sources.")
     parser.add_argument("--gtdb-metadata", type=Path, help="GTDB metadata TSV path.")
     parser.add_argument("--gtdb-release", help="GTDB release identifier.")
+    parser.add_argument(
+        "--species-checklist",
+        type=Path,
+        help="User-provided species checklist TSV for taxonomy audit.",
+    )
     parser.add_argument("--resume", action="store_true", help="Resume from manifest state.")
     parser.add_argument("--force", action="store_true", help="Overwrite existing outputs.")
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs without execution.")
@@ -145,6 +153,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         api_key=args.api_key,
         gtdb_metadata=args.gtdb_metadata,
         gtdb_release=args.gtdb_release,
+        species_checklist=args.species_checklist,
         resume=args.resume,
         force=args.force,
         dry_run=args.dry_run,
@@ -191,6 +200,8 @@ def main(
                 _write_ani_plan_if_ready(records, paths, config)
                 _write_phylo_plan(records, paths, config)
                 write_manifest(records, paths.manifest)
+                if config.species_checklist is not None:
+                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
             elif config.enable_fastani:
                 if fastani_runner is None and not config.skip_ani:
@@ -198,6 +209,8 @@ def main(
                     fastani_runner = SubprocessRunner()
                 run_ani_stage(records, paths, config, runner=fastani_runner)
                 write_manifest(records, paths.manifest)
+                if config.species_checklist is not None:
+                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
             elif config.enable_phylo:
                 if phylo_runner is None and not config.skip_tree:
@@ -207,6 +220,8 @@ def main(
                     phylo_runner = SubprocessRunner()
                 run_phylo_stage(records, paths, config, runner=phylo_runner)
                 write_manifest(records, paths.manifest)
+                if config.species_checklist is not None:
+                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
             elif config.enable_barrnap:
                 if barrnap_runner is None and not _cli_real_action_allowed(
@@ -215,6 +230,8 @@ def main(
                     return 2
                 run_rrna_stage(records, paths, config, runner=barrnap_runner)
                 write_manifest(records, paths.manifest)
+                if config.species_checklist is not None:
+                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
             elif config.enable_entrez:
                 if not config.email:
@@ -222,6 +239,8 @@ def main(
                     return 2
                 _execute_entrez_fallback(records, paths, config)
                 write_manifest(records, paths.manifest)
+                if config.species_checklist is not None:
+                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
             elif config.enable_downloads:
                 if not _cli_real_action_allowed(
@@ -232,6 +251,11 @@ def main(
                 if not _all_reference_genomes_ready(records):
                     run_downloads_stage(records, paths, config, runner=download_runner)
                 write_manifest(records, paths.manifest)
+                if config.species_checklist is not None:
+                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
+                _write_run_summary(records, paths, config)
+            elif config.species_checklist is not None:
+                run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
             else:
                 if _needs_fastani_execution(config):
@@ -258,6 +282,12 @@ def main(
         phylo_status = _write_phylo_plan(selected_records, paths, config)
         write_manifest(selected_records, paths.manifest)
         write_name_map(selected_records, paths.name_map)
+        if config.species_checklist is not None:
+            try:
+                run_taxonomy_audit_stage(selected_records, paths, config.species_checklist)
+            except ValueError as error:
+                LOGGER.error("%s", error)
+                return 2
         _write_run_summary(selected_records, paths, config)
         pipeline_result = PipelineResult(
             manifest_path=paths.manifest,
@@ -310,6 +340,12 @@ def main(
             _execute_entrez_fallback(selected_records, paths, config)
         write_manifest(selected_records, paths.manifest)
         write_name_map(selected_records, paths.name_map)
+        if config.species_checklist is not None:
+            try:
+                run_taxonomy_audit_stage(selected_records, paths, config.species_checklist)
+            except ValueError as error:
+                LOGGER.error("%s", error)
+                return 2
         _write_run_summary(selected_records, paths, config)
         LOGGER.info(
             "Selected %d GTDB type-material records for genus %s.",
@@ -351,6 +387,14 @@ def _write_run_summary(records, paths, config: AppConfig) -> None:
     markdown = build_run_summary_markdown(records, paths, config)
     summary_path = write_run_summary(markdown, paths.run_summary_path)
     LOGGER.info("Wrote run summary: %s.", summary_path)
+
+
+def run_taxonomy_audit_stage(records, paths, checklist_path: Path) -> Path:
+    checklist_entries = read_species_checklist(checklist_path)
+    comparisons = compare_checklist_to_records(checklist_entries, list(records))
+    output_path = write_checklist_comparison(comparisons, paths.checklist_comparison_path)
+    LOGGER.info("Wrote taxonomy checklist comparison: %s.", output_path)
+    return output_path
 
 
 def _needs_fastani_execution(config: AppConfig) -> bool:

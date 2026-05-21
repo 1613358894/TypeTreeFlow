@@ -8,6 +8,9 @@ This run reuses the existing real Aalborgiella outputs. It is intended as a
 staged end-to-end rehearsal of the completed pipeline surfaces without opening
 new execution flags or downloading more genera.
 
+These real smoke runs validate the GTDB/NCBI genome workflow paths; they do not
+validate completeness against LPSN.
+
 ### Covered stages
 
 | Stage | Evidence | Result |

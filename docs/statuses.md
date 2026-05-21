@@ -105,6 +105,18 @@ input. That file is the phylogeny input checked by `phylo_planned`,
 - `phylo_iqtree_failed`: Workflow stopped because IQ-TREE did not complete successfully.
 - `phylo_tree_ready`: Full controlled phylogeny workflow produced or reused the expected treefile.
 
+## Taxonomy Checklist Comparison
+
+These statuses are written to `taxonomy/checklist_comparison.tsv` in the
+`comparison_status` column when a user supplies `--species-checklist`.
+
+- `matched`: Checklist species and GTDB-selected species match after accepted normalization.
+- `missing_from_gtdb`: Checklist species has no corresponding GTDB-selected record.
+- `extra_in_gtdb`: GTDB-selected species is not present in the checklist and is not linked by a user-provided synonym.
+- `possible_name_mismatch`: Names are close but not automatically equivalent, including GTDB suffix or genus-name mismatch cases.
+- `missing_genome`: A matching GTDB-selected record exists but has no registered genome artifact in the manifest state.
+- `manual_review_required`: The row cannot be classified safely, including synonym-supported matches that require user review.
+
 ## Report And Pipeline
 
 - `dry_run_completed`: CLI dry-run completed selection and planning successfully.

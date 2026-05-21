@@ -5,7 +5,9 @@ from typetreeflow.cli import main
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
     build_run_summary_markdown,
+    read_optional_checklist_comparison,
     read_optional_ani_summary,
+    summarize_checklist_comparison,
     summarize_manifest,
     summarize_output_files,
     summarize_phylo_status,
@@ -13,6 +15,7 @@ from typetreeflow.report.summary import (
     summarize_status_counts,
     write_run_summary,
 )
+from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -74,6 +77,34 @@ def _write_ani_summary(path: Path) -> None:
                 "notes": "advisory only",
             }
         )
+
+
+def _write_checklist_comparison(path: Path, rows: list[dict[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=CHECKLIST_COMPARISON_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _comparison_row(status: str, checklist_name: str = "Aliivibrio fischeri") -> dict[str, str]:
+    return {
+        "checklist_name": checklist_name,
+        "gtdb_name": checklist_name,
+        "genus": "aliivibrio",
+        "species": "fischeri",
+        "status": "current",
+        "comparison_status": status,
+        "gtdb_record_id": "ref1",
+        "assembly_accession": "GCF_000000001.1",
+        "normalized_id": "ref1",
+        "notes": "",
+    }
 
 
 def test_summarize_manifest_counts_record_roles_and_ready_states():
@@ -165,6 +196,64 @@ def test_read_optional_ani_summary_returns_none_when_missing(tmp_path):
     assert read_optional_ani_summary(tmp_path / "ani_summary.tsv") is None
 
 
+def test_read_optional_checklist_comparison_returns_none_when_missing(tmp_path):
+    assert read_optional_checklist_comparison(tmp_path / "checklist_comparison.tsv") is None
+
+
+def test_read_optional_checklist_comparison_returns_empty_list_for_header_only(tmp_path):
+    path = tmp_path / "taxonomy" / "checklist_comparison.tsv"
+    _write_checklist_comparison(path, [])
+
+    assert read_optional_checklist_comparison(path) == []
+
+
+def test_summarize_checklist_comparison_counts_statuses(tmp_path):
+    path = tmp_path / "taxonomy" / "checklist_comparison.tsv"
+    _write_checklist_comparison(
+        path,
+        [
+            _comparison_row("matched"),
+            _comparison_row("missing_from_gtdb"),
+            _comparison_row("extra_in_gtdb"),
+            _comparison_row("possible_name_mismatch"),
+            _comparison_row("missing_genome"),
+            _comparison_row("manual_review_required"),
+            _comparison_row("manual_review_required"),
+        ],
+    )
+
+    summary = summarize_checklist_comparison(read_optional_checklist_comparison(path) or [])
+
+    assert summary == {
+        "total_rows": 7,
+        "checklist_species_count": 1,
+        "gtdb_selected_count": 1,
+        "matched": 1,
+        "missing_from_gtdb": 1,
+        "extra_in_gtdb": 1,
+        "possible_name_mismatch": 1,
+        "missing_genome": 1,
+        "manual_review_required": 2,
+    }
+
+
+def test_read_optional_checklist_comparison_rejects_malformed_tsv(tmp_path):
+    path = tmp_path / "taxonomy" / "checklist_comparison.tsv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\t".join(CHECKLIST_COMPARISON_FIELDS) + "\n"
+        "Aliivibrio fischeri\tAliivibrio fischeri\taliivibrio\n",
+        encoding="utf-8",
+    )
+
+    try:
+        read_optional_checklist_comparison(path)
+    except ValueError as error:
+        assert "Malformed checklist comparison TSV at line 2" in str(error)
+    else:
+        raise AssertionError("Expected malformed checklist comparison TSV to fail")
+
+
 def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     paths = get_output_paths(tmp_path)
 
@@ -175,6 +264,47 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "Status: phylo_skipped_too_few_sequences" in markdown
     assert "manifest has 0 16S-ready records" in markdown
     assert "No failed, skipped, missing, ambiguous, or not-found records." in markdown
+    assert "Taxonomic checklist comparison not available." in markdown
+
+
+def test_report_includes_taxonomic_audit_counts_from_existing_comparison(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_checklist_comparison(
+        paths.checklist_comparison_path,
+        [
+            _comparison_row("matched"),
+            _comparison_row("matched"),
+            _comparison_row("missing_from_gtdb"),
+            _comparison_row("extra_in_gtdb"),
+            _comparison_row("possible_name_mismatch"),
+            _comparison_row("missing_genome"),
+            _comparison_row("manual_review_required"),
+        ],
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Taxonomic Audit" in markdown
+    assert "- Total rows: 7" in markdown
+    assert "- Matched: 2" in markdown
+    assert "- Missing from GTDB: 1" in markdown
+    assert "- Extra in GTDB: 1" in markdown
+    assert "- Possible name mismatch: 1" in markdown
+    assert "- Missing genome: 1" in markdown
+    assert "- Manual review required: 1" in markdown
+    assert "does not make nomenclatural conclusions" in markdown
+
+
+def test_report_includes_taxonomic_audit_for_header_only_comparison(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_checklist_comparison(paths.checklist_comparison_path, [])
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "- Total rows: 0" in markdown
+    assert "- Matched: 0" in markdown
+    assert "- Manual review required: 0" in markdown
+    assert "does not make nomenclatural conclusions" in markdown
 
 
 def test_summarize_phylo_status_reports_too_few_manifest_16s_records(tmp_path):

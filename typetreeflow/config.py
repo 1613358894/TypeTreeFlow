@@ -24,6 +24,7 @@ class AppConfig:
     api_key: str | None
     gtdb_metadata: Path | None
     gtdb_release: str | None
+    species_checklist: Path | None
     resume: bool
     force: bool
     dry_run: bool

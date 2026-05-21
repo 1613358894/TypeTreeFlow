@@ -12,6 +12,7 @@ def test_readme_mentions_guarded_cli_flags():
         "--resume",
         "--force",
         "--gtdb-metadata",
+        "--species-checklist",
         "--query-genome",
         "--query-16s",
         "--email",
@@ -50,6 +51,7 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.aligned_16s_fasta_path,
         paths.trimmed_16s_fasta_path,
         paths.iqtree_treefile_path,
+        paths.checklist_comparison_path,
         paths.run_summary_path,
     ]
 

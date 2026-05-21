@@ -16,11 +16,25 @@ The long-term goal is to collect type-strain genomes and 16S sequences, compare 
 - Plan ANI runs, fake-run FastANI wrappers, and parse existing `ani/fastani_raw.tsv`.
 - Summarize parsed ANI results into `ani/ani_summary.tsv`.
 - Plan and run guarded resume-mode MAFFT, trimAl, and IQ-TREE workflow wrappers.
+- Audit selected records against a user-provided species checklist TSV.
 - Write `report/summary.md` from existing files without making species conclusions.
 
 The CLI can run guarded resume-mode FastANI and write an ANI PNG from parsed results. It does not parse Newick trees. Guarded phylogeny execution writes a Newick treefile only; it does not render a tree figure.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
+## Taxonomic scope
+
+TypeTreeFlow selects type-material genome records from local GTDB metadata. GTDB is a genome-centric taxonomy and is not equivalent to LPSN.
+
+LPSN is the naming authority for validly published and legitimate prokaryotic names. TypeTreeFlow does not guarantee coverage of all currently validly published LPSN species, and `report/summary.md` does not make species conclusions. It only reports traceable computational results from the recorded manifest and output files.
+
+For formal new-species publication work, manually cross-check the generated `manifest.tsv`, `name_map.tsv`, and `report/summary.md` against LPSN or an equivalent authoritative nomenclatural checklist before drawing taxonomic conclusions.
+
+User-supplied species checklist auditing is documented in
+[docs/species_checklist_audit.md](docs/species_checklist_audit.md). The
+implementation breakdown is tracked in
+[docs/species_checklist_implementation_plan.md](docs/species_checklist_implementation_plan.md).
 
 ## Installation
 
@@ -62,6 +76,22 @@ python typetreeflow.py \
   --outdir output_dry_run \
   --dry-run
 ```
+
+Run a safe dry run with a user-provided species checklist audit:
+
+```bash
+python typetreeflow.py \
+  --genus Aliivibrio \
+  --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
+  --species-checklist examples/species_checklist_minimal.tsv \
+  --dry-run
+```
+
+`--species-checklist` expects a user-provided TSV. TypeTreeFlow does not crawl
+or query LPSN, does not decide nomenclatural validity, and does not make final
+species conclusions. When supplied, the audit writes
+`taxonomy/checklist_comparison.tsv`; `report/summary.md` then includes a
+`Taxonomic Audit` section with comparison counts.
 
 Dry-run with query inputs for downstream planning:
 
@@ -192,6 +222,7 @@ The main output files are:
 - `rrna/all_16S.fasta`: combined reference and optional query 16S FASTA.
 - `ani/ani_plan.tsv`, `ani/references.txt`, `ani/fastani_raw.tsv`, `ani/ani_query_vs_refs.tsv`, `ani/ani_summary.tsv`, `ani/ani_query_vs_refs.png`: ANI planning, raw output, parsed output, summary, and PNG artifacts.
 - `phylo/phylo_plan.tsv`, `phylo/all_16S.aln.fasta`, `phylo/all_16S.trimmed.fasta`, `phylo/iqtree/all_16S.treefile`: phylogeny planning and controlled-run artifacts.
+- `taxonomy/checklist_comparison.tsv`: user-provided species checklist audit against selected records.
 - `report/summary.md`: read-only run summary of final recorded manifest state.
 
 See `docs/output_layout.md` for the full layout and `docs/statuses.md` for status field meanings.
@@ -225,3 +256,4 @@ The tests use fake runners and temporary fixtures for downloads, barrnap, FastAN
 - The 95% ANI threshold in summaries is advisory only; TypeTreeFlow does not assign species names.
 - GTDB metadata is read from a local TSV; this release does not download GTDB metadata for you.
 - Entrez fallback can contact NCBI only when explicitly enabled with `--enable-entrez --email`.
+- Species checklist audit requires a user-provided TSV; TypeTreeFlow does not crawl LPSN or make nomenclatural conclusions.

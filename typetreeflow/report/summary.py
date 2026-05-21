@@ -7,7 +7,26 @@ from typing import Iterable
 
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
+from typetreeflow.taxonomy.audit import (
+    EXTRA_IN_GTDB,
+    MANUAL_REVIEW_REQUIRED,
+    MATCHED,
+    MISSING_FROM_GTDB,
+    MISSING_GENOME,
+    POSSIBLE_NAME_MISMATCH,
+)
+from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.workflow.paths import OutputPaths
+
+
+CHECKLIST_COMPARISON_STATUSES = {
+    MATCHED,
+    MISSING_FROM_GTDB,
+    EXTRA_IN_GTDB,
+    POSSIBLE_NAME_MISMATCH,
+    MISSING_GENOME,
+    MANUAL_REVIEW_REQUIRED,
+}
 
 
 @dataclass(frozen=True)
@@ -91,6 +110,83 @@ def read_optional_ani_summary(path: str | Path) -> dict[str, str] | None:
     return {}
 
 
+def read_optional_checklist_comparison(path: str | Path) -> list[dict[str, str]] | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+
+    with input_path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if reader.fieldnames is None:
+            raise ValueError(f"Checklist comparison TSV is missing a header: {input_path}")
+
+        missing_fields = [
+            field for field in CHECKLIST_COMPARISON_FIELDS if field not in reader.fieldnames
+        ]
+        if missing_fields:
+            raise ValueError(
+                "Checklist comparison TSV is missing required column(s): "
+                + ", ".join(missing_fields)
+            )
+
+        rows: list[dict[str, str]] = []
+        for line_number, row in enumerate(reader, start=2):
+            if None in row:
+                raise ValueError(
+                    f"Malformed checklist comparison TSV at line {line_number}: "
+                    "unexpected extra field(s)."
+                )
+            if any(row.get(field) is None for field in CHECKLIST_COMPARISON_FIELDS):
+                raise ValueError(
+                    f"Malformed checklist comparison TSV at line {line_number}: "
+                    "missing field(s)."
+                )
+
+            status = (row.get("comparison_status") or "").strip()
+            if not status:
+                raise ValueError(
+                    f"Checklist comparison TSV line {line_number} has empty comparison_status."
+                )
+            if status not in CHECKLIST_COMPARISON_STATUSES:
+                raise ValueError(
+                    f"Checklist comparison TSV line {line_number} has invalid "
+                    f"comparison_status: {status}"
+                )
+
+            rows.append(dict(row))
+
+    return rows
+
+
+def summarize_checklist_comparison(rows: list[dict[str, str]]) -> dict[str, int]:
+    checklist_species: set[str] = set()
+    gtdb_records: set[str] = set()
+    summary = {
+        "total_rows": len(rows),
+        "checklist_species_count": 0,
+        "gtdb_selected_count": 0,
+        MATCHED: 0,
+        MISSING_FROM_GTDB: 0,
+        EXTRA_IN_GTDB: 0,
+        POSSIBLE_NAME_MISMATCH: 0,
+        MISSING_GENOME: 0,
+        MANUAL_REVIEW_REQUIRED: 0,
+    }
+    for row in rows:
+        checklist_key = _checklist_species_summary_key(row)
+        if checklist_key:
+            checklist_species.add(checklist_key)
+        gtdb_record_id = row.get("gtdb_record_id", "").strip()
+        if gtdb_record_id:
+            gtdb_records.add(gtdb_record_id)
+        status = row.get("comparison_status", "")
+        if status in CHECKLIST_COMPARISON_STATUSES:
+            summary[status] += 1
+    summary["checklist_species_count"] = len(checklist_species)
+    summary["gtdb_selected_count"] = len(gtdb_records)
+    return summary
+
+
 def summarize_phylo_status(
     paths: OutputPaths,
     rrna_ready_count: int,
@@ -154,6 +250,14 @@ def build_run_summary_markdown(
     problem_records = summarize_problem_records(record_list)
     ani_summary = read_optional_ani_summary(paths.ani_summary_path)
     phylo_status = summarize_phylo_status(paths, manifest_summary["rrna_ready_count"])
+    checklist_comparison_error = ""
+    try:
+        checklist_comparison = read_optional_checklist_comparison(
+            paths.checklist_comparison_path
+        )
+    except ValueError as error:
+        checklist_comparison = None
+        checklist_comparison_error = str(error)
 
     lines = [
         "# TypeTreeFlow Summary",
@@ -220,6 +324,46 @@ def build_run_summary_markdown(
                 f"- Top fraction: {ani_summary.get('top_fraction', '')}",
                 f"- Hits above 95 ANI: {ani_summary.get('hits_above_95', '')}",
                 f"- Notes: {ani_summary.get('notes', '')}",
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Taxonomic Audit",
+            "",
+        ]
+    )
+    if checklist_comparison_error:
+        lines.append(
+            "Taxonomic checklist comparison could not be read: "
+            f"{checklist_comparison_error}"
+        )
+    elif checklist_comparison is None:
+        lines.append("Taxonomic checklist comparison not available.")
+    else:
+        checklist_summary = summarize_checklist_comparison(checklist_comparison)
+        lines.extend(
+            [
+                f"- Total rows: {checklist_summary['total_rows']}",
+                (
+                    "- Checklist species: "
+                    f"{checklist_summary['checklist_species_count']}"
+                ),
+                f"- GTDB-selected records: {checklist_summary['gtdb_selected_count']}",
+                f"- Matched: {checklist_summary[MATCHED]}",
+                f"- Missing from GTDB: {checklist_summary[MISSING_FROM_GTDB]}",
+                f"- Extra in GTDB: {checklist_summary[EXTRA_IN_GTDB]}",
+                f"- Possible name mismatch: {checklist_summary[POSSIBLE_NAME_MISMATCH]}",
+                f"- Missing genome: {checklist_summary[MISSING_GENOME]}",
+                (
+                    "- Manual review required: "
+                    f"{checklist_summary[MANUAL_REVIEW_REQUIRED]}"
+                ),
+                (
+                    "This section is an audit aid and does not make "
+                    "nomenclatural conclusions."
+                ),
             ]
         )
 
@@ -350,6 +494,19 @@ def _read_first_tsv_row(path: str | Path) -> dict[str, str]:
         for row in reader:
             return dict(row)
     return {}
+
+
+def _checklist_species_summary_key(row: dict[str, str]) -> str:
+    checklist_name = row.get("checklist_name", "").strip().lower()
+    if checklist_name:
+        return checklist_name
+    if not row.get("status", "").strip():
+        return ""
+    genus = row.get("genus", "").strip().lower()
+    species = row.get("species", "").strip().lower()
+    if genus or species:
+        return f"{genus} {species}".strip()
+    return ""
 
 
 def _markdown_cell(value: str) -> str:
