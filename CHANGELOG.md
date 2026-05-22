@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.4.0 - 2026-05-22
+
 - Added the documented minimal offline checklist-guided workflow covering LPSN
   Child taxa TSV conversion, local discovery-cache candidate generation,
   selection preparation, selection dry-run planning, guarded selection-driven
