@@ -13,6 +13,12 @@ from typetreeflow.sources.entrez import (
     build_16s_query,
     select_best_16s_candidate,
 )
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    read_sequence_source_audits,
+    write_sequence_source_audits,
+)
+from typetreeflow.workflow.paths import get_output_paths
 
 
 def _record(
@@ -171,6 +177,98 @@ def test_execute_entrez_fallback_plan_mock_success_writes_fasta_and_updates_mani
     assert reloaded[0].status == "rrna_16s_ready"
 
 
+def test_execute_entrez_fallback_plan_mock_success_writes_source_audit(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("NR_000001", 1300, strain="ES114")]
+
+    paths = get_output_paths(tmp_path)
+    records = [_record()]
+    plan = build_entrez_fallback_plan(records, paths)
+
+    execute_entrez_fallback_plan(
+        plan,
+        records,
+        MockClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    assert len(audits) == 1
+    assert audits[0].species == "Aliivibrio fischeri"
+    assert audits[0].genome_accession == "GCF_000011805.1"
+    assert audits[0].genome_strain == "ES114"
+    assert audits[0].rrna_source == "Entrez"
+    assert audits[0].rrna_accession == "NR_000001"
+    assert audits[0].rrna_strain == "ES114"
+    assert audits[0].audit_status == "strain_text_match"
+
+
+def test_entrez_source_audit_uses_culture_evidence_for_status(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [
+                EntrezCandidate(
+                    accession="NR_000020",
+                    organism="Aliivibrio fischeri",
+                    title="Aliivibrio fischeri type strain ATCC 7744 16S ribosomal RNA",
+                    sequence="A" * 1300,
+                    length=1300,
+                    strain="not-the-same-text",
+                )
+            ]
+
+    record = _record()
+    record.strain = "type strain ATCC7744"
+    paths = get_output_paths(tmp_path)
+
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan([record], paths),
+        [record],
+        MockClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    assert audits[0].audit_status == "same_culture_collection_id"
+    assert audits[0].rrna_culture_ids == "ATCC 7744"
+
+
+def test_entrez_source_audit_does_not_overwrite_barrnap_audit_row(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("NR_000001", 1300, strain="ES114")]
+
+    paths = get_output_paths(tmp_path)
+    barrnap_audit = SequenceSourceAudit(
+        species="Aliivibrio fischeri",
+        genome_accession="GCF_000011805.1",
+        genome_strain="ES114",
+        rrna_source="barrnap",
+        audit_status="same_genome_internal_16s",
+        notes="existing barrnap audit",
+    )
+    write_sequence_source_audits([barrnap_audit], paths.sequence_source_audit_path)
+    records = [_record()]
+
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan(records, paths),
+        records,
+        MockClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    assert len(audits) == 2
+    barrnap_rows = [audit for audit in audits if audit.rrna_source == "barrnap"]
+    entrez_rows = [audit for audit in audits if audit.rrna_source == "Entrez"]
+    assert barrnap_rows == [barrnap_audit]
+    assert entrez_rows[0].rrna_accession == "NR_000001"
+
+
 def test_execute_entrez_fallback_plan_accepts_biopython_client_like_object(tmp_path):
     class BiopythonLikeClient:
         def search_16s(self, query: str, retmax: int = 10):
@@ -199,10 +297,18 @@ def test_execute_entrez_fallback_plan_no_results_marks_not_found(tmp_path):
     records = [_record()]
     plan = build_entrez_fallback_plan(records, tmp_path)
 
-    results = execute_entrez_fallback_plan(plan, records, EmptyClient(), dry_run=False)
+    paths = get_output_paths(tmp_path)
+    results = execute_entrez_fallback_plan(
+        plan,
+        records,
+        EmptyClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
 
     assert results[0].status == "entrez_16s_not_found"
     assert records[0].status == "entrez_16s_not_found"
+    assert not paths.sequence_source_audit_path.exists()
 
 
 def test_execute_entrez_fallback_plan_client_error_marks_failed(tmp_path):
@@ -213,11 +319,38 @@ def test_execute_entrez_fallback_plan_client_error_marks_failed(tmp_path):
     records = [_record()]
     plan = build_entrez_fallback_plan(records, tmp_path)
 
-    results = execute_entrez_fallback_plan(plan, records, BrokenClient(), dry_run=False)
+    paths = get_output_paths(tmp_path)
+    results = execute_entrez_fallback_plan(
+        plan,
+        records,
+        BrokenClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
 
     assert results[0].status == "entrez_16s_failed"
     assert records[0].status == "entrez_16s_failed"
     assert records[0].notes == "boom"
+    assert not paths.sequence_source_audit_path.exists()
+
+
+def test_execute_entrez_fallback_plan_dry_run_does_not_write_source_audit(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("NR_000001", 1300, strain="ES114")]
+
+    paths = get_output_paths(tmp_path)
+    records = [_record()]
+
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan(records, paths),
+        records,
+        MockClient(),
+        dry_run=True,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    assert not paths.sequence_source_audit_path.exists()
 
 
 def test_existing_16s_is_skipped_without_force(tmp_path):

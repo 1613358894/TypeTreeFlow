@@ -7,6 +7,7 @@ REAL_ACTION_FLAGS = {
     "downloads": "--enable-downloads",
     "barrnap": "--enable-barrnap",
     "entrez": "--enable-entrez",
+    "ncbi_discovery": "--enable-ncbi-discovery",
     "fastani": "--enable-fastani",
     "phylo": "--enable-phylo",
 }
@@ -25,6 +26,12 @@ class AppConfig:
     gtdb_metadata: Path | None
     gtdb_release: str | None
     species_checklist: Path | None
+    lpsn_child_taxa: Path | None
+    write_species_checklist: Path | None
+    write_excluded_lpsn_taxa: Path | None
+    discover_assembly_candidates: bool
+    discovery_cache: Path | None
+    enable_ncbi_discovery: bool
     prepare_selection: bool
     selection_tsv: Path | None
     strains_per_species: int

@@ -7,6 +7,7 @@ from typetreeflow.taxonomy.source_audit import (
     SequenceSourceAudit,
     audit_sequence_sources,
     read_sequence_source_audits,
+    upsert_sequence_source_audits,
     write_sequence_source_audits,
 )
 from typetreeflow.workflow.paths import get_output_paths
@@ -189,6 +190,26 @@ def test_sequence_source_audits_header_only_returns_empty_list(tmp_path):
     )
 
     assert read_sequence_source_audits(path) == []
+
+
+def test_sequence_source_audits_upsert_updates_key_and_keeps_other_rows(tmp_path):
+    path = tmp_path / "sequence_source_audit.tsv"
+    existing = _audit(rrna_source="barrnap")
+    other = _audit(species="Bacillus velezensis", rrna_source="barrnap")
+    write_sequence_source_audits([existing, other], path)
+
+    updated = _audit(
+        audit_status="same_genome_internal_16s",
+        rrna_source="barrnap",
+        notes="updated",
+    )
+    output_path = upsert_sequence_source_audits([updated], path)
+
+    audits = read_sequence_source_audits(output_path)
+    assert len(audits) == 2
+    assert audits[0].rrna_source == "barrnap"
+    assert audits[0].notes == "updated"
+    assert audits[1] == other
 
 
 def test_sequence_source_audits_malformed_row_errors(tmp_path):

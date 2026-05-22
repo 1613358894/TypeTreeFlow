@@ -141,14 +141,25 @@ Recommended fields:
 | `assembly_accession` | Assembly accession from the manifest when available. |
 | `normalized_id` | TypeTreeFlow normalized record ID when available. |
 | `notes` | Audit notes, including mismatch reason or manual review details. |
+| `source` | Checklist `source` value when the row came from the checklist; empty for GTDB-only extra rows. |
+| `nomenclatural_status` | Checklist nomenclatural status text when provided, commonly from an LPSN-derived checklist. |
+| `taxonomic_status` | Checklist taxonomic status text when provided, commonly from an LPSN-derived checklist. |
+| `type_strain` | Checklist type strain text when provided. |
+| `lpsn_record_number` | LPSN record number or equivalent authority record identifier when provided. |
+| `lpsn_url` | LPSN URL or equivalent checklist source URL when provided. |
 
 The table includes rows for checklist-only names, GTDB-only names, and
 matched names. This keeps the audit complete and traceable.
+Checklist-side source and status fields are preserved for `matched`,
+`missing_from_gtdb`, `missing_genome`, `possible_name_mismatch`, and
+`manual_review_required` rows. They are intentionally empty for
+`extra_in_gtdb` rows because those rows do not originate from a checklist
+entry.
 
 ## Report Section
 
 When `taxonomy/checklist_comparison.tsv` exists, `report/summary.md` adds a
-`Taxonomic Audit` section with counts:
+`Taxonomic Audit Summary` section with counts:
 
 - total comparison rows
 - checklist species count
@@ -160,8 +171,9 @@ When `taxonomy/checklist_comparison.tsv` exists, `report/summary.md` adds a
 - missing_genome count
 - manual_review_required count
 
-The report states that these are audit counts from a user-provided checklist
-and do not represent a final species conclusion.
+The report states that these are audit counts from the existing checklist
+comparison and do not represent nomenclatural or final species conclusions.
+When the comparison file is absent, the report omits this section.
 
 ## Limitations
 

@@ -16,6 +16,7 @@ from typetreeflow.taxonomy.audit import (
     POSSIBLE_NAME_MISMATCH,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
+from typetreeflow.taxonomy.source_audit import read_sequence_source_audits
 from typetreeflow.workflow.paths import OutputPaths
 
 
@@ -27,6 +28,17 @@ CHECKLIST_COMPARISON_STATUSES = {
     MISSING_GENOME,
     MANUAL_REVIEW_REQUIRED,
 }
+
+SOURCE_AUDIT_STATUSES = [
+    "same_genome_internal_16s",
+    "same_biosample",
+    "same_culture_collection_id",
+    "strain_text_match",
+    "mismatch",
+    "genome_only",
+    "rrna_only",
+    "manual_review_required",
+]
 
 
 @dataclass(frozen=True)
@@ -187,6 +199,29 @@ def summarize_checklist_comparison(rows: list[dict[str, str]]) -> dict[str, int]
     return summary
 
 
+def read_optional_sequence_source_audit(path: str | Path) -> list[dict[str, str]] | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+
+    return [
+        {
+            "species": audit.species,
+            "audit_status": audit.audit_status,
+        }
+        for audit in read_sequence_source_audits(input_path)
+    ]
+
+
+def summarize_sequence_source_audit(rows: list[dict[str, str]]) -> dict[str, int]:
+    summary = {"total_rows": len(rows), **{status: 0 for status in SOURCE_AUDIT_STATUSES}}
+    for row in rows:
+        status = row.get("audit_status", "").strip()
+        if status in summary:
+            summary[status] += 1
+    return summary
+
+
 def summarize_phylo_status(
     paths: OutputPaths,
     rrna_ready_count: int,
@@ -258,6 +293,14 @@ def build_run_summary_markdown(
     except ValueError as error:
         checklist_comparison = None
         checklist_comparison_error = str(error)
+    source_audit_error = ""
+    try:
+        source_audit = read_optional_sequence_source_audit(
+            paths.sequence_source_audit_path
+        )
+    except ValueError as error:
+        source_audit = None
+        source_audit_error = str(error)
 
     lines = [
         "# TypeTreeFlow Summary",
@@ -327,45 +370,98 @@ def build_run_summary_markdown(
             ]
         )
 
-    lines.extend(
-        [
-            "",
-            "## Taxonomic Audit",
-            "",
-        ]
-    )
     if checklist_comparison_error:
-        lines.append(
-            "Taxonomic checklist comparison could not be read: "
-            f"{checklist_comparison_error}"
+        lines.extend(
+            [
+                "",
+                "## Taxonomic Audit Summary",
+                "",
+                "Taxonomic checklist comparison could not be read: "
+                f"{checklist_comparison_error}",
+            ]
         )
-    elif checklist_comparison is None:
-        lines.append("Taxonomic checklist comparison not available.")
-    else:
+    elif checklist_comparison is not None:
         checklist_summary = summarize_checklist_comparison(checklist_comparison)
         lines.extend(
             [
+                "",
+                "## Taxonomic Audit Summary",
+                "",
                 f"- Total rows: {checklist_summary['total_rows']}",
                 (
-                    "- Checklist species: "
+                    "- Checklist species count: "
                     f"{checklist_summary['checklist_species_count']}"
                 ),
                 f"- GTDB-selected records: {checklist_summary['gtdb_selected_count']}",
-                f"- Matched: {checklist_summary[MATCHED]}",
-                f"- Missing from GTDB: {checklist_summary[MISSING_FROM_GTDB]}",
-                f"- Extra in GTDB: {checklist_summary[EXTRA_IN_GTDB]}",
-                f"- Possible name mismatch: {checklist_summary[POSSIBLE_NAME_MISMATCH]}",
-                f"- Missing genome: {checklist_summary[MISSING_GENOME]}",
+                f"- Matched count: {checklist_summary[MATCHED]}",
+                f"- Missing from GTDB count: {checklist_summary[MISSING_FROM_GTDB]}",
+                f"- Extra in GTDB count: {checklist_summary[EXTRA_IN_GTDB]}",
                 (
-                    "- Manual review required: "
+                    "- Possible name mismatch count: "
+                    f"{checklist_summary[POSSIBLE_NAME_MISMATCH]}"
+                ),
+                f"- Missing genome count: {checklist_summary[MISSING_GENOME]}",
+                (
+                    "- Manual review required count: "
                     f"{checklist_summary[MANUAL_REVIEW_REQUIRED]}"
                 ),
                 (
-                    "This section is an audit aid and does not make "
-                    "nomenclatural conclusions."
+                    "These counts summarize the existing checklist comparison "
+                    "audit and do not make nomenclatural or final species "
+                    "conclusions."
                 ),
             ]
         )
+
+    if source_audit_error:
+        lines.extend(
+            [
+                "",
+                "## Source Audit Summary",
+                "",
+                "Sequence source consistency audit could not be read: "
+                f"{source_audit_error}",
+            ]
+        )
+    elif source_audit is not None:
+        source_audit_summary = summarize_sequence_source_audit(source_audit)
+        lines.extend(
+            [
+                "",
+                "## Source Audit Summary",
+                "",
+                f"- Total rows: {source_audit_summary['total_rows']}",
+                (
+                    "- Same-genome internal 16S count: "
+                    f"{source_audit_summary['same_genome_internal_16s']}"
+                ),
+                f"- Same BioSample count: {source_audit_summary['same_biosample']}",
+                (
+                    "- Same culture collection ID count: "
+                    f"{source_audit_summary['same_culture_collection_id']}"
+                ),
+                f"- Strain text match count: {source_audit_summary['strain_text_match']}",
+                f"- Mismatch count: {source_audit_summary['mismatch']}",
+                f"- Genome-only count: {source_audit_summary['genome_only']}",
+                f"- rRNA-only count: {source_audit_summary['rrna_only']}",
+                (
+                    "- Manual review required count: "
+                    f"{source_audit_summary['manual_review_required']}"
+                ),
+                (
+                    "These counts summarize the existing source consistency audit "
+                    "and do not make taxonomic conclusions."
+                ),
+            ]
+        )
+        if (
+            source_audit_summary["mismatch"]
+            or source_audit_summary["manual_review_required"]
+        ):
+            lines.append(
+                "Review source_audit/sequence_source_audit.tsv for mismatch or "
+                "manual-review rows."
+            )
 
     lines.extend(
         [
@@ -497,11 +593,11 @@ def _read_first_tsv_row(path: str | Path) -> dict[str, str]:
 
 
 def _checklist_species_summary_key(row: dict[str, str]) -> str:
+    if row.get("comparison_status", "").strip() == EXTRA_IN_GTDB:
+        return ""
     checklist_name = row.get("checklist_name", "").strip().lower()
     if checklist_name:
         return checklist_name
-    if not row.get("status", "").strip():
-        return ""
     genus = row.get("genus", "").strip().lower()
     species = row.get("species", "").strip().lower()
     if genus or species:

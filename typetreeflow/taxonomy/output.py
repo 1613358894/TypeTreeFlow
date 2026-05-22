@@ -18,6 +18,12 @@ CHECKLIST_COMPARISON_FIELDS = [
     "assembly_accession",
     "normalized_id",
     "notes",
+    "source",
+    "nomenclatural_status",
+    "taxonomic_status",
+    "type_strain",
+    "lpsn_record_number",
+    "lpsn_url",
 ]
 
 

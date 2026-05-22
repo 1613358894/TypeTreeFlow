@@ -1,7 +1,9 @@
 import csv
+import zipfile
 from pathlib import Path
 
 from typetreeflow.cli import main
+from typetreeflow.external.runner import CommandResult
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.candidates import AssemblyCandidate, write_assembly_candidates
@@ -15,6 +17,23 @@ from typetreeflow.workflow.paths import get_output_paths
 
 
 FIXTURE = Path("tests/fixtures/gtdb_metadata_small.tsv")
+
+
+class FakeDatasetsRunner:
+    def __init__(self):
+        self.commands: list[list[str]] = []
+
+    def run(self, command: list[str], cwd=None) -> CommandResult:
+        self.commands.append(command)
+        zip_path = Path(command[command.index("--filename") + 1])
+        accession = command[command.index("accession") + 1]
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            archive.writestr(
+                f"ncbi_dataset/data/{accession}/{accession}_genomic.fna",
+                ">fake\nACGT\n",
+            )
+        return CommandResult(command=command, returncode=0, stdout="", stderr="")
 
 
 def _candidate(**kwargs) -> AssemblyCandidate:
@@ -194,6 +213,360 @@ def test_selection_tsv_valid_reports_selected_count_without_outputs(tmp_path, ca
     assert result == 0
     assert "2 selected accession(s)" in caplog.text
     assert not outdir.exists()
+
+
+def test_selection_tsv_enable_downloads_downloads_only_selected_rows(
+    tmp_path,
+    monkeypatch,
+):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    runner = FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    write_user_selection(
+        [
+            _selection_row(
+                species="Bacillus subtilis",
+                assembly_accession="GCF_000001405.1",
+                strain="DSM 10",
+                selected=True,
+            ),
+            _selection_row(
+                species="Bacillus velezensis",
+                assembly_accession="GCF_000001406.1",
+                strain="FZB42",
+                selected=False,
+            ),
+            _selection_row(
+                species="Bacillus pumilus",
+                assembly_accession="GCF_000001407.1",
+                strain="ATCC 7061",
+                selected=True,
+            ),
+        ],
+        selection_path,
+    )
+
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+        ],
+        download_runner=runner,
+    )
+
+    paths = get_output_paths(outdir)
+    manifest_rows = _read_tsv(paths.manifest)
+    plan_rows = _read_tsv(paths.cache_dir / "ncbi" / "download_plan.tsv")
+    accessions_in_commands = [
+        command[command.index("accession") + 1] for command in runner.commands
+    ]
+    assert result == 0
+    assert [row["assembly_accession"] for row in manifest_rows] == [
+        "GCF_000001405.1",
+        "GCF_000001407.1",
+    ]
+    assert [row["assembly_accession"] for row in plan_rows] == [
+        "GCF_000001405.1",
+        "GCF_000001407.1",
+    ]
+    assert accessions_in_commands == ["GCF_000001405.1", "GCF_000001407.1"]
+    assert "GCF_000001406.1" not in accessions_in_commands
+    assert paths.ncbi_download_results_path.exists()
+    assert {row["status"] for row in manifest_rows} == {"genome_ready"}
+    assert all(Path(row["genome_path"]).exists() for row in manifest_rows)
+    assert paths.run_summary_path.exists()
+
+
+def test_selection_tsv_enable_downloads_existing_manifest_requires_force(
+    tmp_path,
+    monkeypatch,
+    caplog,
+):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    runner = FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    write_user_selection([_selection_row()], selection_path)
+    write_manifest([_ready_record(tmp_path)], paths.manifest)
+
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+        ],
+        download_runner=runner,
+    )
+
+    assert result == 2
+    assert runner.commands == []
+    assert "use --force to rebuild outputs from --selection-tsv" in caplog.text
+
+
+def test_selection_tsv_enable_downloads_force_rebuilds_outputs(
+    tmp_path,
+    monkeypatch,
+):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    runner = FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    write_user_selection([_selection_row(assembly_accession="GCF_000001405.1")], selection_path)
+    write_manifest([_ready_record(tmp_path)], paths.manifest)
+
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+            "--force",
+        ],
+        download_runner=runner,
+    )
+
+    manifest_rows = _read_tsv(paths.manifest)
+    plan_rows = _read_tsv(paths.cache_dir / "ncbi" / "download_plan.tsv")
+    assert result == 0
+    assert [row["assembly_accession"] for row in manifest_rows] == ["GCF_000001405.1"]
+    assert [row["assembly_accession"] for row in plan_rows] == ["GCF_000001405.1"]
+    assert len(runner.commands) == 1
+
+
+def test_selection_tsv_dry_run_writes_manifest_plan_and_report(tmp_path):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    write_user_selection(
+        [
+            _selection_row(
+                species="Bacillus subtilis",
+                assembly_accession="GCF_000001405.1",
+                strain="DSM 10",
+                selected=True,
+            ),
+            _selection_row(
+                species="Bacillus velezensis",
+                assembly_accession="GCF_000001406.1",
+                strain="FZB42",
+                selected=False,
+            ),
+            _selection_row(
+                species="Bacillus pumilus",
+                assembly_accession="GCF_000001407.1",
+                strain="ATCC 7061",
+                selected=True,
+            ),
+        ],
+        selection_path,
+    )
+
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    manifest_rows = _read_tsv(paths.manifest)
+    plan_rows = _read_tsv(paths.cache_dir / "ncbi" / "download_plan.tsv")
+    assert result == 0
+    assert paths.manifest.exists()
+    assert paths.name_map.exists()
+    assert paths.run_summary_path.exists()
+    assert not paths.ncbi_download_results_path.exists()
+    assert [row["assembly_accession"] for row in manifest_rows] == [
+        "GCF_000001405.1",
+        "GCF_000001407.1",
+    ]
+    assert [row["assembly_accession"] for row in plan_rows] == [
+        "GCF_000001405.1",
+        "GCF_000001407.1",
+    ]
+    assert {row["status"] for row in plan_rows} == {"planned"}
+
+
+def test_selection_tsv_dry_run_manifest_can_resume_dry_run(tmp_path):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    write_user_selection([_selection_row()], selection_path)
+
+    initial_result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+    resume_result = main(["--outdir", str(outdir), "--resume", "--dry-run"])
+
+    paths = get_output_paths(outdir)
+    manifest_rows = _read_tsv(paths.manifest)
+    name_map_rows = _read_tsv(paths.name_map)
+    assert initial_result == 0
+    assert resume_result == 0
+    assert paths.phylo_plan_path.exists()
+    assert not paths.rrna_plan_path.exists()
+    assert not paths.ani_plan_path.exists()
+    assert manifest_rows[0]["source"] == "user_selection"
+    assert manifest_rows[0]["assembly_source"] == "user_selection"
+    assert name_map_rows[0]["normalized_id"] == manifest_rows[0]["normalized_id"]
+
+
+def test_selection_tsv_downloaded_manifest_resume_dry_run_writes_rrna_plan(
+    tmp_path,
+    monkeypatch,
+):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    runner = FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    write_user_selection([_selection_row()], selection_path)
+
+    download_result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+        ],
+        download_runner=runner,
+    )
+    resume_result = main(["--outdir", str(outdir), "--resume", "--dry-run"])
+
+    paths = get_output_paths(outdir)
+    manifest_rows = _read_tsv(paths.manifest)
+    rrna_plan_rows = _read_tsv(paths.rrna_plan_path)
+    normalized_id = manifest_rows[0]["normalized_id"]
+    assert download_result == 0
+    assert resume_result == 0
+    assert manifest_rows[0]["has_genome"] == "true"
+    assert Path(manifest_rows[0]["genome_path"]).exists()
+    assert rrna_plan_rows[0]["status"] == "rrna_extraction_planned"
+    assert rrna_plan_rows[0]["normalized_id"] == normalized_id
+    expected_gff_path = Path(rrna_plan_rows[0]["expected_gff_path"])
+    expected_rrna_fasta_path = Path(rrna_plan_rows[0]["expected_rrna_fasta_path"])
+    assert expected_gff_path.name == f"{normalized_id}.gff"
+    assert expected_gff_path.parent.name == "barrnap"
+    assert expected_gff_path.parent.parent.name == "rrna"
+    assert expected_rrna_fasta_path.name == f"{normalized_id}.16s.fasta"
+    assert expected_rrna_fasta_path.parent.name == "sequences"
+    assert expected_rrna_fasta_path.parent.parent.name == "rrna"
+
+
+def test_selection_tsv_downloaded_manifest_resume_dry_run_writes_ani_plan(
+    tmp_path,
+    monkeypatch,
+):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    query = tmp_path / "query.fna"
+    runner = FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    write_user_selection([_selection_row()], selection_path)
+    query.write_text(">query\nACGT\n", encoding="utf-8")
+
+    download_result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+        ],
+        download_runner=runner,
+    )
+    resume_result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--dry-run",
+            "--query-genome",
+            str(query),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    manifest_rows = _read_tsv(paths.manifest)
+    ani_plan_rows = _read_tsv(paths.ani_plan_path)
+    assert download_result == 0
+    assert resume_result == 0
+    assert ani_plan_rows[0]["status"] == "ani_planned"
+    assert ani_plan_rows[0]["normalized_id"] == manifest_rows[0]["normalized_id"]
+    assert ani_plan_rows[0]["reference_genome_path"] == manifest_rows[0]["genome_path"]
+    assert ani_plan_rows[0]["query_genome_path"] == str(query)
+    assert paths.fastani_reference_list_path.read_text(encoding="utf-8") == (
+        f"{manifest_rows[0]['genome_path']}\n"
+    )
+
+
+def test_selection_tsv_dry_run_invalid_selected_row_errors(tmp_path, caplog):
+    selection_path = tmp_path / "bad_selection.tsv"
+    write_user_selection(
+        [
+            _selection_row(
+                species="Bacillus subtilis subsp. subtilis",
+                assembly_accession="GCF_000001405.1",
+                selected=True,
+            ),
+            _selection_row(
+                species="Bacillus velezensis",
+                assembly_accession="GCF_000001406.1",
+                selected=False,
+            ),
+        ],
+        selection_path,
+    )
+
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(tmp_path / "out"),
+            "--dry-run",
+        ]
+    )
+
+    assert result == 2
+    assert "species must be a binomial name" in caplog.text
+
+
+def test_selection_tsv_dry_run_existing_manifest_requires_force(tmp_path, caplog):
+    selection_path = tmp_path / "user_selection.tsv"
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_user_selection([_selection_row()], selection_path)
+    write_manifest([_ready_record(tmp_path)], paths.manifest)
+
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+
+    assert result == 2
+    assert "use --force to rebuild outputs from --selection-tsv" in caplog.text
 
 
 def test_selection_tsv_malformed_errors(tmp_path, caplog):

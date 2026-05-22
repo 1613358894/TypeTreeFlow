@@ -40,6 +40,8 @@ class OutputPaths:
     run_summary_path: Path
     candidates_dir: Path
     assembly_candidates_path: Path
+    assembly_candidate_diagnostics_path: Path
+    discovery_records_path: Path
     source_audit_dir: Path
     sequence_source_audit_path: Path
     selection_dir: Path
@@ -86,6 +88,10 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         run_summary_path=root / "report" / "summary.md",
         candidates_dir=root / "candidates",
         assembly_candidates_path=root / "candidates" / "assembly_candidates.tsv",
+        assembly_candidate_diagnostics_path=root
+        / "candidates"
+        / "assembly_candidate_diagnostics.tsv",
+        discovery_records_path=root / "candidates" / "discovery_records.tsv",
         source_audit_dir=root / "source_audit",
         sequence_source_audit_path=root
         / "source_audit"

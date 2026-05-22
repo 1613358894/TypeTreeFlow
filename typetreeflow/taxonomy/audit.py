@@ -33,6 +33,12 @@ class ChecklistComparison:
     assembly_accession: str
     normalized_id: str
     notes: str = ""
+    source: str = ""
+    nomenclatural_status: str = ""
+    taxonomic_status: str = ""
+    type_strain: str = ""
+    lpsn_record_number: str = ""
+    lpsn_url: str = ""
 
 
 def compare_checklist_to_records(
@@ -74,6 +80,12 @@ def compare_checklist_to_records(
                 gtdb_record_id="",
                 assembly_accession="",
                 normalized_id="",
+                source=entry.source,
+                nomenclatural_status=entry.nomenclatural_status,
+                taxonomic_status=entry.taxonomic_status,
+                type_strain=entry.type_strain,
+                lpsn_record_number=entry.lpsn_record_number,
+                lpsn_url=entry.lpsn_url,
             )
         )
 
@@ -160,6 +172,12 @@ def _comparison_for_record(
         assembly_accession=record.assembly_accession,
         normalized_id=record.normalized_id,
         notes=notes,
+        source=entry.source,
+        nomenclatural_status=entry.nomenclatural_status,
+        taxonomic_status=entry.taxonomic_status,
+        type_strain=entry.type_strain,
+        lpsn_record_number=entry.lpsn_record_number,
+        lpsn_url=entry.lpsn_url,
     )
 
 

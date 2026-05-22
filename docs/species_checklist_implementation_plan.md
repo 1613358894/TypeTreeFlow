@@ -214,7 +214,7 @@ round-trips representative rows, and does not require CLI integration.
 ### Goal
 
 Teach report generation to read an existing
-`taxonomy/checklist_comparison.tsv` and include a summary-only `Taxonomic Audit`
+`taxonomy/checklist_comparison.tsv` and include a summary-only `Taxonomic Audit Summary`
 section.
 
 ### Modify/Add Files
@@ -337,7 +337,7 @@ implemented v0.2.0 behavior and limitations.
 - The audit engine emits traceable rows for matched, missing, extra, possible
   mismatch, missing genome, and manual review cases.
 - `taxonomy/checklist_comparison.tsv` is written with the documented schema.
-- `report/summary.md` includes a `Taxonomic Audit` section when comparison data
+- `report/summary.md` includes a `Taxonomic Audit Summary` section when comparison data
   exists.
 - The report explicitly avoids species conclusions and states that the audit is
   based on a user-provided checklist.

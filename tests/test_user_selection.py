@@ -3,12 +3,15 @@ from pathlib import Path
 import pytest
 
 from typetreeflow.taxonomy.candidates import AssemblyCandidate
+from typetreeflow.genomes.plan import build_genome_download_plan
+from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.taxonomy.selection import (
     SELECTION_FIELDS,
     StrainSelectionRow,
     candidates_to_selection_rows,
     read_user_selection,
     selected_assembly_accessions,
+    selection_rows_to_strain_records,
     write_user_selection,
 )
 from typetreeflow.workflow.paths import get_output_paths
@@ -213,6 +216,130 @@ def test_selected_assembly_accessions_preserves_file_order():
         "GCF_000001405.1",
         "GCF_000001407.1",
     ]
+
+
+def test_selection_rows_to_strain_records_converts_selected_rows_only():
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                species="Fusobacterium nucleatum",
+                assembly_accession="GCF_000007325.1",
+                strain="ATCC 25586",
+                is_type_material=True,
+            ),
+            _selection_row(
+                species="Fusobacterium periodonticum",
+                assembly_accession="GCF_000007326.1",
+                selected=False,
+            ),
+        ]
+    )
+
+    assert len(records) == 1
+    record = records[0]
+    assert record.canonical_name == "Fusobacterium nucleatum"
+    assert record.genus == "Fusobacterium"
+    assert record.species == "nucleatum"
+    assert record.strain == "ATCC 25586"
+    assert record.display_name == "Fusobacterium nucleatum ATCC 25586"
+    assert record.assembly_accession == "GCF_000007325.1"
+    assert record.assembly_source == "user_selection"
+    assert record.source == "user_selection"
+    assert record.is_type_material is True
+    assert record.status == "selected"
+
+
+def test_selection_rows_to_strain_records_requires_selected_accession():
+    with pytest.raises(ValueError, match="missing assembly_accession"):
+        selection_rows_to_strain_records(
+            [_selection_row(assembly_accession="", selected=True)]
+        )
+
+
+def test_selection_rows_to_strain_records_rejects_duplicate_selected_accessions():
+    with pytest.raises(ValueError, match="Duplicate selected assembly_accession"):
+        selection_rows_to_strain_records(
+            [
+                _selection_row(assembly_accession="GCF_000001405.1", selected=True),
+                _selection_row(assembly_accession="GCF_000001405.1", selected=True),
+            ]
+        )
+
+
+def test_selection_rows_to_strain_records_rejects_non_binomial_species():
+    with pytest.raises(ValueError, match="species must be a binomial name"):
+        selection_rows_to_strain_records(
+            [
+                _selection_row(
+                    species="Fusobacterium nucleatum subsp. nucleatum",
+                    selected=True,
+                )
+            ]
+        )
+
+
+def test_selection_rows_to_strain_records_preserves_audit_notes():
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                culture_collection_ids="ATCC 25586; DSM 15643",
+                selection_reason="manual_review",
+                notes="curator note\nsecond line",
+            )
+        ]
+    )
+
+    assert "culture_collection_ids=ATCC 25586; DSM 15643" in records[0].notes
+    assert "selection_reason=manual_review" in records[0].notes
+    assert "selection_notes=curator note second line" in records[0].notes
+
+
+def test_selection_rows_to_strain_records_builds_stable_unique_normalized_ids():
+    rows = [
+        _selection_row(
+            species="Fusobacterium nucleatum",
+            assembly_accession="GCF_000007325.1",
+            strain="ATCC 25586",
+        ),
+        _selection_row(
+            species="Fusobacterium nucleatum",
+            assembly_accession="GCF_000007326.1",
+            strain="ATCC 25586",
+        ),
+    ]
+
+    first = selection_rows_to_strain_records(rows)
+    second = selection_rows_to_strain_records(rows)
+
+    assert [record.normalized_id for record in first] == [
+        "Fusobacterium_nucleatum_ATCC_25586_GCF_000007325.1",
+        "Fusobacterium_nucleatum_ATCC_25586_GCF_000007326.1",
+    ]
+    assert [record.normalized_id for record in first] == [
+        record.normalized_id for record in second
+    ]
+    assert len({record.normalized_id for record in first}) == 2
+
+
+def test_selection_rows_to_strain_records_manifest_round_trip(tmp_path):
+    records = selection_rows_to_strain_records([_selection_row()])
+    path = tmp_path / "manifest.tsv"
+
+    write_manifest(records, path)
+
+    assert read_manifest(path) == records
+
+
+def test_selection_rows_to_strain_records_can_build_genome_plan(tmp_path):
+    records = selection_rows_to_strain_records([_selection_row()])
+
+    plan = build_genome_download_plan(records, tmp_path)
+
+    assert len(plan) == 1
+    assert plan[0].record_id == records[0].record_id
+    assert plan[0].normalized_id == records[0].normalized_id
+    assert plan[0].assembly_accession == "GCF_000001405.1"
+    assert plan[0].status == "planned"
 
 
 def test_user_selection_header_only_returns_empty_list(tmp_path):

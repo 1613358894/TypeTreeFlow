@@ -22,6 +22,11 @@ from typetreeflow.rrna.plan import (
     mark_rrna_planned_records,
     write_rrna_plan,
 )
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    audit_sequence_sources,
+    upsert_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import OutputPaths
 
 
@@ -90,6 +95,11 @@ def prepare_local_16s(
         barrnap_results,
         force=force,
     )
+    _write_barrnap_internal_16s_audits(
+        record_list,
+        extraction_results,
+        paths.sequence_source_audit_path,
+    )
 
     all_16s_path = ""
     if query_16s_path is not None or collect_reference_16s(record_list):
@@ -127,3 +137,40 @@ def _summarize_statuses(statuses: list[str]) -> str:
     for status in statuses:
         summary[status] = summary.get(status, 0) + 1
     return ", ".join(f"{status}={count}" for status, count in sorted(summary.items()))
+
+
+def _write_barrnap_internal_16s_audits(
+    records: Iterable[StrainRecord],
+    extraction_results: Iterable[Rrna16sExtractionResult],
+    path: Path,
+) -> Path | None:
+    records_by_id = {record.record_id: record for record in records}
+    audits: list[SequenceSourceAudit] = []
+    for result in extraction_results:
+        if result.status not in {"rrna_16s_ready", "rrna_16s_skipped_existing"}:
+            continue
+        record = records_by_id.get(result.record_id)
+        if record is None:
+            continue
+        audits.append(_barrnap_internal_16s_audit(record, result))
+    if not audits:
+        return None
+    return upsert_sequence_source_audits(audits, path)
+
+
+def _barrnap_internal_16s_audit(
+    record: StrainRecord,
+    result: Rrna16sExtractionResult,
+) -> SequenceSourceAudit:
+    species = record.canonical_name.strip() or " ".join(
+        part.strip() for part in (record.genus, record.species) if part.strip()
+    )
+    note_value = result.rrna_16s_path or result.normalized_id
+    return audit_sequence_sources(
+        species=species,
+        genome_accession=record.assembly_accession,
+        genome_strain=record.strain,
+        rrna_source="barrnap",
+        rrna_strain=record.strain,
+        notes=f"16S sequence: {note_value}",
+    )

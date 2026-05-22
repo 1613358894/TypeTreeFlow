@@ -6,16 +6,23 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
     build_run_summary_markdown,
     read_optional_checklist_comparison,
+    read_optional_sequence_source_audit,
     read_optional_ani_summary,
     summarize_checklist_comparison,
     summarize_manifest,
     summarize_output_files,
     summarize_phylo_status,
+    summarize_sequence_source_audit,
     summarize_problem_records,
     summarize_status_counts,
     write_run_summary,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
+from typetreeflow.taxonomy.source_audit import (
+    SOURCE_AUDIT_FIELDS,
+    SequenceSourceAudit,
+    write_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -105,6 +112,15 @@ def _comparison_row(status: str, checklist_name: str = "Aliivibrio fischeri") ->
         "normalized_id": "ref1",
         "notes": "",
     }
+
+
+def _source_audit(status: str) -> SequenceSourceAudit:
+    return SequenceSourceAudit(
+        species="Aliivibrio fischeri",
+        genome_accession="GCF_000000001.1",
+        rrna_source="entrez",
+        audit_status=status,
+    )
 
 
 def test_summarize_manifest_counts_record_roles_and_ready_states():
@@ -200,6 +216,10 @@ def test_read_optional_checklist_comparison_returns_none_when_missing(tmp_path):
     assert read_optional_checklist_comparison(tmp_path / "checklist_comparison.tsv") is None
 
 
+def test_read_optional_sequence_source_audit_returns_none_when_missing(tmp_path):
+    assert read_optional_sequence_source_audit(tmp_path / "sequence_source_audit.tsv") is None
+
+
 def test_read_optional_checklist_comparison_returns_empty_list_for_header_only(tmp_path):
     path = tmp_path / "taxonomy" / "checklist_comparison.tsv"
     _write_checklist_comparison(path, [])
@@ -264,7 +284,8 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "Status: phylo_skipped_too_few_sequences" in markdown
     assert "manifest has 0 16S-ready records" in markdown
     assert "No failed, skipped, missing, ambiguous, or not-found records." in markdown
-    assert "Taxonomic checklist comparison not available." in markdown
+    assert "Taxonomic Audit Summary" not in markdown
+    assert "Source Audit Summary" not in markdown
 
 
 def test_report_includes_taxonomic_audit_counts_from_existing_comparison(tmp_path):
@@ -284,15 +305,46 @@ def test_report_includes_taxonomic_audit_counts_from_existing_comparison(tmp_pat
 
     markdown = build_run_summary_markdown([_record("ref1")], paths)
 
-    assert "## Taxonomic Audit" in markdown
+    assert "## Taxonomic Audit Summary" in markdown
     assert "- Total rows: 7" in markdown
-    assert "- Matched: 2" in markdown
-    assert "- Missing from GTDB: 1" in markdown
-    assert "- Extra in GTDB: 1" in markdown
-    assert "- Possible name mismatch: 1" in markdown
-    assert "- Missing genome: 1" in markdown
-    assert "- Manual review required: 1" in markdown
-    assert "does not make nomenclatural conclusions" in markdown
+    assert "- Checklist species count: 1" in markdown
+    assert "- Matched count: 2" in markdown
+    assert "- Missing from GTDB count: 1" in markdown
+    assert "- Extra in GTDB count: 1" in markdown
+    assert "- Possible name mismatch count: 1" in markdown
+    assert "- Missing genome count: 1" in markdown
+    assert "- Manual review required count: 1" in markdown
+    assert "do not make nomenclatural or final species conclusions" in markdown
+
+
+def test_report_deduplicates_checklist_species_with_multiple_gtdb_matches(tmp_path):
+    paths = get_output_paths(tmp_path)
+    first_match = _comparison_row("matched", checklist_name="Aliivibrio fischeri")
+    second_match = {
+        **_comparison_row("matched", checklist_name="Aliivibrio fischeri"),
+        "gtdb_record_id": "ref2",
+        "assembly_accession": "GCF_000000002.1",
+        "normalized_id": "ref2",
+    }
+    missing = _comparison_row("missing_from_gtdb", checklist_name="")
+    missing["gtdb_record_id"] = ""
+    missing["assembly_accession"] = ""
+    missing["normalized_id"] = ""
+    _write_checklist_comparison(
+        paths.checklist_comparison_path,
+        [first_match, second_match, missing],
+    )
+
+    summary = summarize_checklist_comparison(
+        read_optional_checklist_comparison(paths.checklist_comparison_path) or []
+    )
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert summary["checklist_species_count"] == 1
+    assert summary["gtdb_selected_count"] == 2
+    assert summary["matched"] == 2
+    assert "- Checklist species count: 1" in markdown
+    assert "- Matched count: 2" in markdown
 
 
 def test_report_includes_taxonomic_audit_for_header_only_comparison(tmp_path):
@@ -302,9 +354,86 @@ def test_report_includes_taxonomic_audit_for_header_only_comparison(tmp_path):
     markdown = build_run_summary_markdown([_record("ref1")], paths)
 
     assert "- Total rows: 0" in markdown
-    assert "- Matched: 0" in markdown
-    assert "- Manual review required: 0" in markdown
-    assert "does not make nomenclatural conclusions" in markdown
+    assert "- Checklist species count: 0" in markdown
+    assert "- Matched count: 0" in markdown
+    assert "- Manual review required count: 0" in markdown
+    assert "do not make nomenclatural or final species conclusions" in markdown
+
+
+def test_report_includes_source_audit_counts_from_existing_audit(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_sequence_source_audits(
+        [
+            _source_audit("same_genome_internal_16s"),
+            _source_audit("same_biosample"),
+            _source_audit("same_biosample"),
+            _source_audit("same_culture_collection_id"),
+            _source_audit("strain_text_match"),
+            _source_audit("mismatch"),
+            _source_audit("genome_only"),
+            _source_audit("rrna_only"),
+            _source_audit("manual_review_required"),
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+    summary = summarize_sequence_source_audit(
+        read_optional_sequence_source_audit(paths.sequence_source_audit_path) or []
+    )
+
+    assert summary == {
+        "total_rows": 9,
+        "same_genome_internal_16s": 1,
+        "same_biosample": 2,
+        "same_culture_collection_id": 1,
+        "strain_text_match": 1,
+        "mismatch": 1,
+        "genome_only": 1,
+        "rrna_only": 1,
+        "manual_review_required": 1,
+    }
+    assert "## Source Audit Summary" in markdown
+    assert "- Total rows: 9" in markdown
+    assert "- Same-genome internal 16S count: 1" in markdown
+    assert "- Same BioSample count: 2" in markdown
+    assert "- Same culture collection ID count: 1" in markdown
+    assert "- Strain text match count: 1" in markdown
+    assert "- Mismatch count: 1" in markdown
+    assert "- Genome-only count: 1" in markdown
+    assert "- rRNA-only count: 1" in markdown
+    assert "- Manual review required count: 1" in markdown
+    assert "source consistency audit" in markdown
+    assert "do not make taxonomic conclusions" in markdown
+
+
+def test_report_source_audit_review_note_for_mismatch_or_manual_review(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_sequence_source_audits(
+        [_source_audit("mismatch"), _source_audit("manual_review_required")],
+        paths.sequence_source_audit_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "Review source_audit/sequence_source_audit.tsv" in markdown
+    assert "manual-review rows" in markdown
+
+
+def test_report_source_audit_malformed_tsv_writes_unavailable_note(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.sequence_source_audit_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.sequence_source_audit_path.write_text(
+        "\t".join(SOURCE_AUDIT_FIELDS) + "\n"
+        "Aliivibrio fischeri\tGCF_000000001.1\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Source Audit Summary" in markdown
+    assert "Sequence source consistency audit could not be read" in markdown
+    assert "Malformed sequence source audit row 2" in markdown
 
 
 def test_summarize_phylo_status_reports_too_few_manifest_16s_records(tmp_path):

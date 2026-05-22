@@ -10,6 +10,17 @@ from typetreeflow.taxonomy.candidates import (
     select_candidates_per_species,
     write_assembly_candidates,
 )
+from typetreeflow.taxonomy.candidate_discovery import (
+    DISCOVERY_RECORD_FIELDS,
+    AssemblyDiscoveryRecord,
+    CandidateDiscoveryResult,
+    LocalAssemblyDiscoveryCacheClient,
+    LocalAssemblyDiscoveryRecord,
+    discover_assembly_candidates,
+    read_discovery_records,
+    write_discovery_records,
+)
+from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -37,6 +48,34 @@ def _write(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+class _FakeAssemblyDiscoveryClient:
+    def __init__(self, records_by_species: dict[str, list[AssemblyDiscoveryRecord]]):
+        self.records_by_species = records_by_species
+        self.calls: list[str] = []
+
+    def search_species_assemblies(
+        self,
+        species_name: str,
+    ) -> list[AssemblyDiscoveryRecord]:
+        self.calls.append(species_name)
+        return self.records_by_species.get(species_name, [])
+
+
+def _checklist_entry(
+    genus: str = "Fusobacterium",
+    species: str = "nucleatum",
+    synonyms: str = "",
+) -> SpeciesChecklistEntry:
+    return SpeciesChecklistEntry(
+        genus=genus,
+        species=species,
+        status="expected",
+        type_strain="",
+        source="test",
+        synonyms=synonyms,
+    )
 
 
 def test_assembly_candidates_round_trip(tmp_path):
@@ -230,3 +269,203 @@ def test_output_paths_include_assembly_candidates_path(tmp_path):
     assert paths.assembly_candidates_path == (
         tmp_path / "candidates" / "assembly_candidates.tsv"
     )
+    assert paths.assembly_candidate_diagnostics_path == (
+        tmp_path / "candidates" / "assembly_candidate_diagnostics.tsv"
+    )
+    assert paths.discovery_records_path == (
+        tmp_path / "candidates" / "discovery_records.tsv"
+    )
+
+
+def test_discovery_records_round_trip(tmp_path):
+    path = tmp_path / "cache" / "discovery_records.tsv"
+    records = [
+        LocalAssemblyDiscoveryRecord(
+            species="Fusobacterium nucleatum",
+            record=AssemblyDiscoveryRecord(
+                assembly_accession="GCF_000007325.1",
+                organism_name="Fusobacterium nucleatum ATCC 25586",
+                strain="ATCC 25586",
+                biosample="SAMN00000002",
+                bioproject="PRJNA000002",
+                assembly_level="Complete Genome",
+                refseq_category="reference genome",
+                is_type_material=True,
+                source="local_fixture",
+                notes="line one\nline two",
+            ),
+        )
+    ]
+
+    output_path = write_discovery_records(records, path)
+
+    assert output_path == path
+    assert path.read_text(encoding="utf-8").startswith(
+        "\t".join(DISCOVERY_RECORD_FIELDS) + "\n"
+    )
+    read_records = read_discovery_records(path)
+    assert read_records == [
+        LocalAssemblyDiscoveryRecord(
+            species="Fusobacterium nucleatum",
+            record=AssemblyDiscoveryRecord(
+                assembly_accession="GCF_000007325.1",
+                organism_name="Fusobacterium nucleatum ATCC 25586",
+                strain="ATCC 25586",
+                biosample="SAMN00000002",
+                bioproject="PRJNA000002",
+                assembly_level="Complete Genome",
+                refseq_category="reference genome",
+                is_type_material=True,
+                source="local_fixture",
+                notes="line one line two",
+            ),
+        )
+    ]
+
+
+def test_local_discovery_cache_client_matches_species_exactly(tmp_path):
+    records = [
+        LocalAssemblyDiscoveryRecord(
+            species="Fusobacterium nucleatum",
+            record=AssemblyDiscoveryRecord(assembly_accession="GCF_000007325.1"),
+        ),
+        LocalAssemblyDiscoveryRecord(
+            species="Fusobacterium necrophorum",
+            record=AssemblyDiscoveryRecord(assembly_accession="GCF_000009925.1"),
+        ),
+    ]
+    client = LocalAssemblyDiscoveryCacheClient(records)
+
+    assert [
+        record.assembly_accession
+        for record in client.search_species_assemblies("Fusobacterium nucleatum")
+    ] == ["GCF_000007325.1"]
+    assert client.search_species_assemblies("Fusobacterium") == []
+
+
+def test_discover_assembly_candidates_calls_fake_client_once_per_species():
+    entries = [
+        _checklist_entry("Fusobacterium", "nucleatum"),
+        _checklist_entry("Bacillus", "subtilis"),
+    ]
+    client = _FakeAssemblyDiscoveryClient(
+        {
+            "Fusobacterium nucleatum": [],
+            "Bacillus subtilis": [],
+        }
+    )
+
+    discover_assembly_candidates(entries, client)
+
+    assert client.calls == ["Fusobacterium nucleatum", "Bacillus subtilis"]
+
+
+def test_discover_assembly_candidates_normalizes_records_to_candidates():
+    client = _FakeAssemblyDiscoveryClient(
+        {
+            "Fusobacterium nucleatum": [
+                AssemblyDiscoveryRecord(
+                    assembly_accession=" GCF_000007325.1 ",
+                    organism_name="Fusobacterium nucleatum subsp. nucleatum ATCC 25586",
+                    strain="ATCC25586",
+                    biosample="SAMN00000002",
+                    bioproject="PRJNA000002",
+                    assembly_level="Complete Genome",
+                    refseq_category="reference genome",
+                    is_type_material=True,
+                    source="ncbi_assembly_fixture",
+                    notes="type strain; DSM 15643",
+                )
+            ]
+        }
+    )
+
+    result = discover_assembly_candidates([_checklist_entry()], client)
+
+    assert isinstance(result, CandidateDiscoveryResult)
+    assert result.diagnostics == []
+    assert result.candidates == [
+        AssemblyCandidate(
+            species="Fusobacterium nucleatum",
+            assembly_accession="GCF_000007325.1",
+            organism_name="Fusobacterium nucleatum subsp. nucleatum ATCC 25586",
+            strain="ATCC25586",
+            biosample="SAMN00000002",
+            bioproject="PRJNA000002",
+            assembly_level="Complete Genome",
+            refseq_category="reference genome",
+            is_type_material=True,
+            culture_collection_ids="ATCC 25586; DSM 15643",
+            has_recognized_deposit_id=True,
+            source="ncbi_assembly_fixture",
+            notes="type strain; DSM 15643",
+        )
+    ]
+
+
+def test_discover_assembly_candidates_uses_checklist_name_not_synonyms():
+    entry = _checklist_entry(
+        genus="Bacillus",
+        species="subtilis",
+        synonyms="Bacillus globigii",
+    )
+    client = _FakeAssemblyDiscoveryClient(
+        {
+            "Bacillus subtilis": [
+                AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000009045.1",
+                    organism_name="Bacillus subtilis",
+                )
+            ],
+            "Bacillus globigii": [
+                AssemblyDiscoveryRecord(assembly_accession="GCF_999999999.1")
+            ],
+        }
+    )
+
+    result = discover_assembly_candidates([entry], client)
+
+    assert client.calls == ["Bacillus subtilis"]
+    assert [candidate.species for candidate in result.candidates] == [
+        "Bacillus subtilis"
+    ]
+    assert result.candidates[0].assembly_accession == "GCF_000009045.1"
+
+
+def test_discover_assembly_candidates_missing_accession_is_diagnostic():
+    client = _FakeAssemblyDiscoveryClient(
+        {
+            "Fusobacterium nucleatum": [
+                AssemblyDiscoveryRecord(
+                    assembly_accession="",
+                    organism_name="Fusobacterium nucleatum",
+                    strain="ATCC 25586",
+                ),
+                AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000007325.1",
+                    organism_name="Fusobacterium nucleatum",
+                ),
+            ]
+        }
+    )
+
+    result = discover_assembly_candidates([_checklist_entry()], client)
+
+    assert [candidate.assembly_accession for candidate in result.candidates] == [
+        "GCF_000007325.1"
+    ]
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].species == "Fusobacterium nucleatum"
+    assert result.diagnostics[0].code == "missing_assembly_accession"
+    assert "requires assembly_accession" in result.diagnostics[0].message
+
+
+def test_discover_assembly_candidates_empty_species_result_is_diagnostic():
+    client = _FakeAssemblyDiscoveryClient({"Fusobacterium nucleatum": []})
+
+    result = discover_assembly_candidates([_checklist_entry()], client)
+
+    assert result.candidates == []
+    assert len(result.diagnostics) == 1
+    assert result.diagnostics[0].species == "Fusobacterium nucleatum"
+    assert result.diagnostics[0].code == "no_records"

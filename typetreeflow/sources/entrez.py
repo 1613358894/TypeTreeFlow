@@ -17,6 +17,7 @@ class EntrezCandidate:
     sequence: str
     length: int
     strain: str | None = None
+    biosample: str | None = None
     is_type_material: bool = False
 
 
@@ -155,6 +156,7 @@ def _record_to_candidate(record) -> EntrezCandidate:
         sequence=sequence,
         length=len(sequence),
         strain=_parse_strain(description),
+        biosample=_parse_biosample(description),
         is_type_material=_looks_like_type_material(description),
     )
 
@@ -190,6 +192,14 @@ def _parse_strain(description: str) -> str | None:
             index = lowered.index(marker)
             if index + 1 < len(words):
                 return words[index + 1].strip("[]()")
+    return None
+
+
+def _parse_biosample(description: str) -> str | None:
+    for word in description.replace(",", " ").replace(";", " ").split():
+        cleaned = word.strip("[]()")
+        if cleaned.upper().startswith("SAMN"):
+            return cleaned
     return None
 
 

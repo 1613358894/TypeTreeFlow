@@ -11,13 +11,28 @@ from typetreeflow.taxonomy.audit import (
 from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry
 
 
-def _entry(genus="Bacillus", species="subtilis", status="current", synonyms=""):
+def _entry(
+    genus="Bacillus",
+    species="subtilis",
+    status="current",
+    synonyms="",
+    source="fixture",
+    nomenclatural_status="",
+    taxonomic_status="",
+    type_strain="DSM 10",
+    lpsn_record_number="",
+    lpsn_url="",
+):
     return SpeciesChecklistEntry(
         genus=genus,
         species=species,
         status=status,
-        type_strain="DSM 10",
-        source="fixture",
+        type_strain=type_strain,
+        source=source,
+        nomenclatural_status=nomenclatural_status,
+        taxonomic_status=taxonomic_status,
+        lpsn_record_number=lpsn_record_number,
+        lpsn_url=lpsn_url,
         synonyms=synonyms,
     )
 
@@ -74,6 +89,48 @@ def test_extra_in_gtdb():
     assert rows[0].comparison_status == EXTRA_IN_GTDB
     assert rows[0].checklist_name == ""
     assert rows[0].gtdb_name == "Bacillus subtilis"
+    assert rows[0].source == ""
+    assert rows[0].nomenclatural_status == ""
+    assert rows[0].taxonomic_status == ""
+    assert rows[0].type_strain == ""
+    assert rows[0].lpsn_record_number == ""
+    assert rows[0].lpsn_url == ""
+
+
+def test_lpsn_checklist_fields_are_preserved_for_checklist_rows():
+    lpsn_entry = _entry(
+        source="LPSN child taxa TSV",
+        nomenclatural_status="validly published under the ICNP",
+        taxonomic_status="correct name",
+        type_strain="DSM 10; ATCC 6051",
+        lpsn_record_number="123456",
+        lpsn_url="https://lpsn.dsmz.de/species/bacillus-subtilis",
+    )
+
+    matched = compare_checklist_to_records([lpsn_entry], [_record()])[0]
+    missing = compare_checklist_to_records([lpsn_entry], [])[0]
+    manual_review = compare_checklist_to_records(
+        [_entry(
+            genus="Bacillus",
+            species="subtilis",
+            synonyms="Bacillus natto",
+            source="LPSN child taxa TSV",
+            nomenclatural_status="validly published under the ICNP",
+            taxonomic_status="correct name",
+            type_strain="DSM 10; ATCC 6051",
+            lpsn_record_number="123456",
+            lpsn_url="https://lpsn.dsmz.de/species/bacillus-subtilis",
+        )],
+        [_record(genus="Bacillus", species="natto")],
+    )[0]
+
+    for row in [matched, missing, manual_review]:
+        assert row.source == "LPSN child taxa TSV"
+        assert row.nomenclatural_status == "validly published under the ICNP"
+        assert row.taxonomic_status == "correct name"
+        assert row.type_strain == "DSM 10; ATCC 6051"
+        assert row.lpsn_record_number == "123456"
+        assert row.lpsn_url == "https://lpsn.dsmz.de/species/bacillus-subtilis"
 
 
 def test_possible_name_mismatch_for_gtdb_suffix_genus():

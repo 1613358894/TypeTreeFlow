@@ -20,6 +20,12 @@ def _comparison(notes=""):
         assembly_accession="GCA_000001",
         normalized_id="bacillus_subtilis_dsm_10",
         notes=notes,
+        source="LPSN child taxa TSV",
+        nomenclatural_status="validly published under the ICNP",
+        taxonomic_status="correct name",
+        type_strain="DSM 10",
+        lpsn_record_number="123456",
+        lpsn_url="https://lpsn.dsmz.de/species/bacillus-subtilis",
     )
 
 
@@ -46,6 +52,12 @@ def test_write_checklist_comparison_writes_normal_rows(tmp_path):
             "assembly_accession": "GCA_000001",
             "normalized_id": "bacillus_subtilis_dsm_10",
             "notes": "",
+            "source": "LPSN child taxa TSV",
+            "nomenclatural_status": "validly published under the ICNP",
+            "taxonomic_status": "correct name",
+            "type_strain": "DSM 10",
+            "lpsn_record_number": "123456",
+            "lpsn_url": "https://lpsn.dsmz.de/species/bacillus-subtilis",
         }
     ]
 
@@ -67,6 +79,12 @@ def test_checklist_comparison_field_order_is_stable(tmp_path):
         "assembly_accession",
         "normalized_id",
         "notes",
+        "source",
+        "nomenclatural_status",
+        "taxonomic_status",
+        "type_strain",
+        "lpsn_record_number",
+        "lpsn_url",
     ]
     assert header == CHECKLIST_COMPARISON_FIELDS
 

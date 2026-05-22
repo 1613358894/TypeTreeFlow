@@ -1,0 +1,4 @@
+species	assembly_accession	organism_name	strain	biosample	bioproject	assembly_level	refseq_category	is_type_material	source	notes
+Fusobacterium nucleatum	GCF_900000001.1	Fusobacterium nucleatum strain ATCC 25586	ATCC 25586	SAMN90000001	PRJNA900001	Complete Genome	reference genome	true	example_local_cache	example only; type material candidate with recognized deposit id
+Fusobacterium nucleatum	GCF_900000002.1	Fusobacterium nucleatum strain laboratory isolate FN-2	FN-2	SAMN90000002	PRJNA900002	Contig		false	example_local_cache	example only; non-type candidate without recognized deposit id
+Fusobacterium necrophorum	GCF_900000003.1	Fusobacterium necrophorum strain NCTC 10575	NCTC 10575	SAMN90000003	PRJNA900003	Scaffold	representative genome	true	example_local_cache	example only; recognized deposit id candidate

@@ -6,9 +6,15 @@ from typing import Iterable
 
 from typetreeflow.models import StrainRecord
 from typetreeflow.sources.entrez import (
+    EntrezCandidate,
     EntrezClient,
     build_16s_query,
     select_best_16s_candidate,
+)
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    audit_sequence_sources,
+    upsert_sequence_source_audits,
 )
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
 
@@ -79,6 +85,7 @@ def execute_entrez_fallback_plan(
     client: EntrezClient | None,
     dry_run: bool = True,
     force: bool = False,
+    sequence_source_audit_path: str | Path | None = None,
 ) -> list[EntrezFallbackResult]:
     item_list = list(plan_items)
     records_by_id = {record.record_id: record for record in records}
@@ -109,6 +116,7 @@ def execute_entrez_fallback_plan(
         ]
 
     results: list[EntrezFallbackResult] = []
+    audits: list[SequenceSourceAudit] = []
     for item in item_list:
         record = records_by_id[item.record_id]
         output_path = Path(item.expected_rrna_fasta_path)
@@ -158,6 +166,7 @@ def execute_entrez_fallback_plan(
         record.status = "rrna_16s_ready"
         record.source = _append_source(record.source, "entrez")
         record.notes = f"Entrez 16S accession: {candidate.accession}"
+        audits.append(_entrez_16s_audit(record, candidate))
         results.append(
             EntrezFallbackResult(
                 record_id=item.record_id,
@@ -168,6 +177,8 @@ def execute_entrez_fallback_plan(
                 notes=record.notes,
             )
         )
+    if audits and sequence_source_audit_path is not None:
+        upsert_sequence_source_audits(audits, Path(sequence_source_audit_path))
     return results
 
 
@@ -206,3 +217,32 @@ def _append_source(existing: str, value: str) -> str:
     if value not in parts:
         parts.append(value)
     return ";".join(parts)
+
+
+def _entrez_16s_audit(
+    record: StrainRecord,
+    candidate: EntrezCandidate,
+) -> SequenceSourceAudit:
+    species = record.canonical_name.strip() or " ".join(
+        part.strip() for part in (record.genus, record.species) if part.strip()
+    )
+    rrna_text = " ".join(
+        value
+        for value in (
+            candidate.title,
+            candidate.organism,
+        )
+        if value
+    )
+    notes = f"Entrez 16S accession: {candidate.accession}"
+    return audit_sequence_sources(
+        species=species,
+        genome_accession=record.assembly_accession,
+        genome_strain=record.strain,
+        rrna_source="Entrez",
+        rrna_accession=candidate.accession,
+        rrna_strain=candidate.strain or "",
+        rrna_biosample=candidate.biosample or "",
+        rrna_text=rrna_text,
+        notes=notes,
+    )

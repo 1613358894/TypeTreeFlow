@@ -1,10 +1,21 @@
 # LPSN-First Acquisition Design
 
-This document defines a future acquisition route for starting from LPSN or an
-equivalent authoritative checklist before discovering available genome and 16S
-data. LF-1 through LF-7 now provide offline scaffolding only: stable schemas,
-TSV helpers, local parsers/audits, and CLI preparation/readback for user
-selection. The implemented scaffolding does not add network access.
+This document defines an acquisition route for starting from LPSN-derived or
+equivalent authoritative checklist data before discovering available genome and
+16S data. LF-1 through LF-8 provide the implemented offline scaffolding: stable
+schemas, TSV helpers, local parsers/audits, LPSN Child taxa TSV conversion,
+local-cache candidate discovery, selection preparation/readback, and
+selection-driven planning. Selected rows that already include assembly
+accessions can drive the existing guarded NCBI Datasets download stage with
+`--enable-downloads`.
+
+The implemented route still does not add a real LPSN API/download client and
+does not scrape LPSN HTML. NCBI assembly candidate discovery is available either
+from a user-provided local discovery cache TSV or from guarded Entrez-backed
+discovery with `--enable-ncbi-discovery --email`; neither mode performs synonym
+resolution or guarantees genome availability for every checklist species. User
+review of the generated selection TSV remains required or strongly recommended
+before downloads.
 
 ## Purpose
 
@@ -58,6 +69,9 @@ and GTDB for available type-material genome or sequence records. The planned
 candidate table is:
 
 `candidates/assembly_candidates.tsv`
+
+See `docs/ncbi_candidate_discovery_plan.md` for the Phase 22A implementation
+boundary and follow-on breakdown for NCBI assembly candidate discovery.
 
 | Field | Meaning |
 | --- | --- |
@@ -284,6 +298,25 @@ The boolean fields record the actual BioSample, culture collection ID, and
 strain-text comparisons independently of the final status, so stronger evidence
 can determine the status while weaker matching evidence remains visible.
 
+Phase 23A status: implemented for barrnap/internal-genome 16S extraction.
+After successful local barrnap extraction, TypeTreeFlow writes or updates
+`source_audit/sequence_source_audit.tsv` rows with
+`rrna_source=barrnap` and `audit_status=same_genome_internal_16s`. Existing
+rows with other species, genome accessions, or 16S sources are preserved.
+
+Phase 23B status: implemented for successful Entrez fallback 16S retrieval.
+After a selected Entrez candidate is written to
+`rrna/sequences/<normalized_id>.16s.fasta`, TypeTreeFlow writes or updates a
+`source_audit/sequence_source_audit.tsv` row with `rrna_source=Entrez`.
+Species, genome accession, and genome strain come from the manifest record;
+16S accession, parsed strain, parsed BioSample when present, and description
+text come from the selected Entrez candidate. The normal
+`audit_sequence_sources` hierarchy assigns `same_biosample`,
+`same_culture_collection_id`, `strain_text_match`, `mismatch`, or
+`manual_review_required`; Entrez rows are not forced to
+`same_genome_internal_16s`. Failed, not-found, skipped, and dry-run fallback
+records do not write successful source-audit rows.
+
 ### LF-6 User Selection TSV
 
 Add preparation of `selection/strain_candidates.tsv` and
@@ -325,33 +358,38 @@ candidates per species according to `--strains-per-species`, which defaults to
 1 and must be at least 1.
 
 `--selection-tsv PATH` validates a user-edited selection table and reports the
-number of selected assembly accessions. It does not alter genome download plans,
-does not trigger external tools, and does not contact NCBI. Missing candidate
-tables, malformed selection TSVs, and invalid `--strains-per-species` values
-are clear CLI errors. `--report-only` remains report-only and does not generate
-selection files.
+number of selected assembly accessions when no execution guard is supplied. In
+dry-run mode it writes selection-driven manifest, name map, download plan, and
+summary outputs without contacting NCBI. With `--enable-downloads`, selected
+rows that contain assembly accessions are converted to manifest records and
+passed through the existing guarded downloads stage. Missing candidate tables,
+malformed selection TSVs, and invalid `--strains-per-species` values are clear
+CLI errors. `--report-only` remains report-only and does not generate selection
+files.
 
-This phase intentionally does not implement NCBI discovery or change existing
-downloads, barrnap, FastANI, phylogeny, or species-checklist behavior.
+This phase intentionally does not implement NCBI candidate discovery or change
+GTDB-based downloads, barrnap, FastANI, phylogeny, or species-checklist
+behavior.
 
 ### LF-8 Docs/Examples/Release Prep
 
 Update README, output-layout docs, examples, and release notes to describe the
-new LPSN-first acquisition flow. Include a minimal checklist and selection TSV
-example. Stop when full tests and CLI help pass without requiring network access
-or external bioinformatics tools.
+LPSN/checklist-first acquisition flow. Include a minimal checklist, local
+discovery cache, and selection TSV example. Stop when full tests and CLI help
+pass without requiring network access or external bioinformatics tools.
 
-Current closeout scope: README usage, output-layout documentation, status
-documentation, changelog notes, and minimal example candidate/selection TSVs.
-The examples are offline fixtures for demonstrating the table contracts and CLI
-selection preparation path.
+Implemented status: complete for README usage, output-layout documentation,
+Phase 22E parser fixture calibration, minimal example candidate,
+discovery-cache, LPSN Child taxa, and selection TSVs, plus the Phase 24A
+offline end-to-end smoke workflow. The examples are offline fixtures for
+demonstrating the table contracts, CLI selection preparation path,
+selection-driven dry-run planning, fake-runner tested guarded downloads, and
+resume dry-run downstream planning.
 
 Still not implemented:
 
 - Real LPSN API or official-download client.
-- Real NCBI candidate discovery.
-- Selection-driven downloads or automatic integration of selected accessions
-  into download plans.
+- Synonym-aware NCBI candidate discovery.
 
 ## Non-Goals
 

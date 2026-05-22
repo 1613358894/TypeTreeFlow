@@ -4,6 +4,7 @@ from typetreeflow.cli import main
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.manifest import read_manifest, write_manifest, write_name_map
 from typetreeflow.models import StrainRecord
+from typetreeflow.taxonomy.source_audit import read_sequence_source_audits
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -90,6 +91,13 @@ def test_resume_enable_barrnap_fake_success_updates_manifest_and_report(
     assert (paths.rrna_sequences_dir / "Aliivibrio_fischeri_ES114.16s.fasta").exists()
     assert records[0].has_16s is True
     assert records[0].status == "rrna_16s_ready"
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    assert len(audits) == 1
+    assert audits[0].species == "Aliivibrio fischeri"
+    assert audits[0].genome_accession == "GCF_000011805.1"
+    assert audits[0].genome_strain == "ES114"
+    assert audits[0].rrna_source == "barrnap"
+    assert audits[0].audit_status == "same_genome_internal_16s"
     assert "- 16S-ready records: 1" in summary
     assert "| rrna_16s_ready | 1 |" in summary
 
@@ -110,6 +118,7 @@ def test_resume_enable_barrnap_fake_failure_writes_manifest_and_report(tmp_path)
     assert len(runner.commands) == 1
     assert records[0].status == "barrnap_failed"
     assert records[0].has_16s is False
+    assert not paths.sequence_source_audit_path.exists()
     assert paths.run_summary_path.exists()
     summary = paths.run_summary_path.read_text(encoding="utf-8")
     assert "| barrnap_failed | 1 |" in summary
@@ -222,6 +231,7 @@ def test_resume_dry_run_enable_barrnap_does_not_call_runner_or_make_outputs(tmp_
     assert runner.commands == []
     assert not paths.rrna_barrnap_dir.exists()
     assert not paths.rrna_sequences_dir.exists()
+    assert not paths.sequence_source_audit_path.exists()
 
 
 def test_resume_enable_barrnap_with_query_16s_writes_combined_fasta(tmp_path):

@@ -6,6 +6,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.models import StrainRecord
+from typetreeflow.naming import (
+    build_display_name,
+    build_file_safe_id,
+    make_unique_identifier,
+)
 from typetreeflow.taxonomy.candidates import (
     AssemblyCandidate,
     rank_assembly_candidates,
@@ -156,6 +162,69 @@ def selected_assembly_accessions(rows: Iterable[StrainSelectionRow]) -> list[str
     return [row.assembly_accession for row in rows if row.selected]
 
 
+def selection_rows_to_strain_records(
+    rows: Iterable[StrainSelectionRow],
+) -> list[StrainRecord]:
+    records: list[StrainRecord] = []
+    seen_accessions: set[str] = set()
+    seen_record_ids: set[str] = set()
+    seen_normalized_ids: set[str] = set()
+
+    for index, row in enumerate(rows, start=1):
+        if not row.selected:
+            continue
+
+        accession = row.assembly_accession.strip()
+        if not accession:
+            raise ValueError(
+                f"Selected user selection row {index} is missing assembly_accession"
+            )
+        if accession in seen_accessions:
+            raise ValueError(
+                "Duplicate selected assembly_accession in user selection: "
+                f"{accession}"
+            )
+        seen_accessions.add(accession)
+
+        canonical_name, genus, species = _parse_binomial_species(row.species)
+        strain = row.strain.strip()
+        base_id = build_file_safe_id(genus, species, strain, accession)
+        normalized_id = make_unique_identifier(
+            base_id,
+            seen_normalized_ids,
+            accession,
+            len(records) + 1,
+        )
+        seen_normalized_ids.add(normalized_id)
+        record_id = make_unique_identifier(
+            normalized_id,
+            seen_record_ids,
+            accession,
+            len(records) + 1,
+        )
+        seen_record_ids.add(record_id)
+
+        records.append(
+            StrainRecord(
+                record_id=record_id,
+                canonical_name=canonical_name,
+                display_name=build_display_name(genus, species, strain),
+                genus=genus,
+                species=species,
+                strain=strain,
+                assembly_accession=accession,
+                assembly_source="user_selection",
+                is_type_material=row.is_type_material,
+                normalized_id=normalized_id,
+                source="user_selection",
+                status="selected",
+                notes=_selection_record_notes(row),
+            )
+        )
+
+    return records
+
+
 def _selection_row_to_tsv(row: StrainSelectionRow) -> dict[str, str]:
     return {
         "species": row.species,
@@ -173,6 +242,31 @@ def _selection_row_to_tsv(row: StrainSelectionRow) -> dict[str, str]:
 
 def _sanitize_tsv_text(value: str) -> str:
     return str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
+def _parse_binomial_species(value: str) -> tuple[str, str, str]:
+    canonical_name = " ".join(str(value).split())
+    parts = canonical_name.split(" ")
+    if len(parts) != 2 or not all(parts):
+        raise ValueError(
+            "Selected user selection species must be a binomial name: "
+            f"{value!r}"
+        )
+    return canonical_name, parts[0], parts[1]
+
+
+def _selection_record_notes(row: StrainSelectionRow) -> str:
+    parts = []
+    culture_collection_ids = _sanitize_tsv_text(row.culture_collection_ids).strip()
+    selection_reason = _sanitize_tsv_text(row.selection_reason).strip()
+    notes = _sanitize_tsv_text(row.notes).strip()
+    if culture_collection_ids:
+        parts.append(f"culture_collection_ids={culture_collection_ids}")
+    if selection_reason:
+        parts.append(f"selection_reason={selection_reason}")
+    if notes:
+        parts.append(f"selection_notes={notes}")
+    return "; ".join(parts)
 
 
 def _format_bool(value: bool) -> str:

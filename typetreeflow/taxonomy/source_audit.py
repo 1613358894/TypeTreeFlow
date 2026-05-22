@@ -163,6 +163,20 @@ def write_sequence_source_audits(
     return output_path
 
 
+def upsert_sequence_source_audits(
+    audits: Iterable[SequenceSourceAudit],
+    path: Path,
+) -> Path:
+    output_path = Path(path)
+    existing = read_sequence_source_audits(output_path) if output_path.exists() else []
+    merged: dict[tuple[str, str, str], SequenceSourceAudit] = {
+        _source_audit_key(audit): audit for audit in existing
+    }
+    for audit in audits:
+        merged[_source_audit_key(audit)] = audit
+    return write_sequence_source_audits(merged.values(), output_path)
+
+
 def read_sequence_source_audits(path: Path) -> list[SequenceSourceAudit]:
     input_path = Path(path)
     if not input_path.exists():
@@ -227,6 +241,14 @@ def read_sequence_source_audits(path: Path) -> list[SequenceSourceAudit]:
             )
 
     return audits
+
+
+def _source_audit_key(audit: SequenceSourceAudit) -> tuple[str, str, str]:
+    return (
+        audit.species.strip(),
+        audit.genome_accession.strip(),
+        audit.rrna_source.strip().lower(),
+    )
 
 
 def _extract_normalized_collection_ids(*values: str) -> list[str]:

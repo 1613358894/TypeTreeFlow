@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added the documented minimal offline checklist-guided workflow covering LPSN
+  Child taxa TSV conversion, local discovery-cache candidate generation,
+  selection preparation, selection dry-run planning, guarded selection-driven
+  downloads, and resume dry-run downstream planning.
+- Added Phase 19-24 acquisition workflow polish: LPSN Child taxa to checklist
+  conversion, taxonomy/source audit reporting, selection-driven planning and
+  downloads, local-cache and guarded NCBI assembly candidate discovery, and an
+  offline end-to-end smoke workflow.
+
 ## 0.3.0 - 2026-05-22
 
 - Added LPSN-first acquisition design documentation.

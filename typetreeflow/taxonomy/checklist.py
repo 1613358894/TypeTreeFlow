@@ -6,6 +6,19 @@ from pathlib import Path
 
 
 REQUIRED_FIELDS = ["genus", "species", "status", "type_strain", "source", "notes"]
+SPECIES_CHECKLIST_FIELDS = [
+    "genus",
+    "species",
+    "status",
+    "type_strain",
+    "source",
+    "notes",
+    "nomenclatural_status",
+    "taxonomic_status",
+    "lpsn_record_number",
+    "lpsn_url",
+    "synonyms",
+]
 
 
 @dataclass
@@ -69,6 +82,38 @@ def read_species_checklist(path: Path) -> list[SpeciesChecklistEntry]:
     return entries
 
 
+def write_species_checklist(entries: list[SpeciesChecklistEntry], path: Path) -> Path:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=SPECIES_CHECKLIST_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        for entry in entries:
+            writer.writerow(
+                {
+                    "genus": entry.genus,
+                    "species": entry.species,
+                    "status": entry.status,
+                    "type_strain": entry.type_strain,
+                    "source": entry.source,
+                    "notes": _clean_tsv_value(entry.notes),
+                    "nomenclatural_status": entry.nomenclatural_status,
+                    "taxonomic_status": entry.taxonomic_status,
+                    "lpsn_record_number": entry.lpsn_record_number,
+                    "lpsn_url": entry.lpsn_url,
+                    "synonyms": entry.synonyms,
+                }
+            )
+
+    return output_path
+
+
 def is_lpsn_correct_name_entry(entry: SpeciesChecklistEntry) -> bool:
     nomenclatural_status = entry.nomenclatural_status.strip().lower()
     return (
@@ -76,3 +121,7 @@ def is_lpsn_correct_name_entry(entry: SpeciesChecklistEntry) -> bool:
         and "not validly published" not in nomenclatural_status
         and entry.taxonomic_status.strip().lower() == "correct name"
     )
+
+
+def _clean_tsv_value(value: object) -> str:
+    return str(value).replace("\r", " ").replace("\n", " ")
