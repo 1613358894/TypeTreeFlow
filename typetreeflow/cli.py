@@ -56,8 +56,16 @@ from typetreeflow.selection.type_strains import select_type_strains
 from typetreeflow.sources.entrez import BiopythonEntrezClient
 from typetreeflow.sources.gtdb import load_gtdb_metadata, metadata_row_to_record
 from typetreeflow.taxonomy.audit import compare_checklist_to_records
+from typetreeflow.taxonomy.candidates import read_assembly_candidates
 from typetreeflow.taxonomy.checklist import read_species_checklist
+from typetreeflow.taxonomy.culture_collections import annotate_candidates_culture_ids
 from typetreeflow.taxonomy.output import write_checklist_comparison
+from typetreeflow.taxonomy.selection import (
+    candidates_to_selection_rows,
+    read_user_selection,
+    selected_assembly_accessions,
+    write_user_selection,
+)
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.resume import load_existing_manifest, should_reuse_manifest
 
@@ -95,6 +103,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--species-checklist",
         type=Path,
         help="User-provided species checklist TSV for taxonomy audit.",
+    )
+    parser.add_argument(
+        "--prepare-selection",
+        action="store_true",
+        help=(
+            "Prepare selection/user_selection.tsv from an existing "
+            "candidates/assembly_candidates.tsv table."
+        ),
+    )
+    parser.add_argument(
+        "--selection-tsv",
+        type=Path,
+        help="Validate a user-edited offline selection TSV and report selected count.",
+    )
+    parser.add_argument(
+        "--strains-per-species",
+        type=int,
+        default=1,
+        help="Number of top-ranked strains to preselect per species; default: 1.",
     )
     parser.add_argument("--resume", action="store_true", help="Resume from manifest state.")
     parser.add_argument("--force", action="store_true", help="Overwrite existing outputs.")
@@ -154,6 +181,9 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         gtdb_metadata=args.gtdb_metadata,
         gtdb_release=args.gtdb_release,
         species_checklist=args.species_checklist,
+        prepare_selection=args.prepare_selection,
+        selection_tsv=args.selection_tsv,
+        strains_per_species=args.strains_per_species,
         resume=args.resume,
         force=args.force,
         dry_run=args.dry_run,
@@ -180,10 +210,18 @@ def main(
     config = parse_args(argv)
     setup_logging(config.log_level)
     try:
+        if config.strains_per_species < 1:
+            raise ValueError("--strains-per-species must be at least 1")
         paths = get_output_paths(config.outdir)
         if config.report_only:
             records = load_existing_manifest(config.outdir)
             _write_run_summary(records, paths, config)
+            return 0
+        if config.prepare_selection:
+            run_selection_prepare_stage(paths, config.strains_per_species)
+            return 0
+        if config.selection_tsv is not None:
+            run_selection_read_stage(config.selection_tsv)
             return 0
         if should_reuse_manifest(config.outdir, config.resume, config.force):
             records = load_existing_manifest(config.outdir)
@@ -395,6 +433,37 @@ def run_taxonomy_audit_stage(records, paths, checklist_path: Path) -> Path:
     output_path = write_checklist_comparison(comparisons, paths.checklist_comparison_path)
     LOGGER.info("Wrote taxonomy checklist comparison: %s.", output_path)
     return output_path
+
+
+def run_selection_prepare_stage(paths, strains_per_species: int) -> Path:
+    if not paths.assembly_candidates_path.exists():
+        raise ValueError(
+            f"candidate table not found: {paths.assembly_candidates_path}"
+        )
+    candidates = read_assembly_candidates(paths.assembly_candidates_path)
+    annotated_candidates = annotate_candidates_culture_ids(candidates)
+    selection_rows = candidates_to_selection_rows(
+        annotated_candidates,
+        strains_per_species=strains_per_species,
+    )
+    write_user_selection(selection_rows, paths.strain_candidates_path)
+    output_path = write_user_selection(selection_rows, paths.user_selection_path)
+    LOGGER.info(
+        "Wrote strain candidate selection table: %s.",
+        paths.strain_candidates_path,
+    )
+    LOGGER.info("Wrote user selection table: %s.", output_path)
+    return output_path
+
+
+def run_selection_read_stage(selection_tsv: Path) -> list[str]:
+    rows = read_user_selection(selection_tsv)
+    selected_accessions = selected_assembly_accessions(rows)
+    LOGGER.info(
+        "Read user selection table: %d selected accession(s).",
+        len(selected_accessions),
+    )
+    return selected_accessions
 
 
 def _needs_fastani_execution(config: AppConfig) -> bool:

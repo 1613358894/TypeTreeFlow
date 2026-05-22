@@ -1,0 +1,4 @@
+species	assembly_accession	organism_name	strain	culture_collection_ids	is_type_material	selection_rank	selected	selection_reason	notes
+Bacillus subtilis	GCF_900000001.1	Bacillus subtilis strain DSM 10	DSM 10	DSM 10	true	1	yes	auto_selected_top_ranked	example only; type material candidate with recognized deposit id
+Bacillus subtilis	GCF_900000002.1	Bacillus subtilis strain laboratory isolate BS-2	BS-2		false	2	no	available_not_selected	example only; non-type candidate without recognized deposit id
+Bacillus velezensis	GCF_900000003.1	Bacillus velezensis strain ATCC 700200	ATCC 700200	ATCC 700200	true	1	yes	auto_selected_top_ranked	example only; recognized deposit id candidate

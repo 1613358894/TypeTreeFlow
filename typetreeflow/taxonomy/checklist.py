@@ -16,6 +16,8 @@ class SpeciesChecklistEntry:
     type_strain: str
     source: str
     notes: str = ""
+    taxonomic_status: str = ""
+    lpsn_record_number: str = ""
     lpsn_url: str = ""
     nomenclatural_status: str = ""
     synonyms: str = ""
@@ -56,6 +58,8 @@ def read_species_checklist(path: Path) -> list[SpeciesChecklistEntry]:
                     type_strain=row_data["type_strain"].strip(),
                     source=row_data["source"].strip(),
                     notes=row_data.get("notes", ""),
+                    taxonomic_status=row_data.get("taxonomic_status", ""),
+                    lpsn_record_number=row_data.get("lpsn_record_number", ""),
                     lpsn_url=row_data.get("lpsn_url", ""),
                     nomenclatural_status=row_data.get("nomenclatural_status", ""),
                     synonyms=row_data.get("synonyms", ""),
@@ -63,3 +67,12 @@ def read_species_checklist(path: Path) -> list[SpeciesChecklistEntry]:
             )
 
     return entries
+
+
+def is_lpsn_correct_name_entry(entry: SpeciesChecklistEntry) -> bool:
+    nomenclatural_status = entry.nomenclatural_status.strip().lower()
+    return (
+        "validly published" in nomenclatural_status
+        and "not validly published" not in nomenclatural_status
+        and entry.taxonomic_status.strip().lower() == "correct name"
+    )

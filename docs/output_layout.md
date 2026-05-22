@@ -37,6 +37,13 @@ typetreeflow_out/
     all_16S.trimmed.fasta
     iqtree/
       all_16S.treefile
+  candidates/
+    assembly_candidates.tsv
+  source_audit/
+    sequence_source_audit.tsv
+  selection/
+    strain_candidates.tsv
+    user_selection.tsv
   taxonomy/
     checklist_comparison.tsv
   report/
@@ -68,6 +75,63 @@ Fields:
 - `assembly_accession`: assembly accession from the manifest when available.
 - `normalized_id`: TypeTreeFlow normalized manifest identifier when available.
 - `notes`: audit notes for mismatch, missing genome, synonym, or manual review context.
+
+`candidates/assembly_candidates.tsv` is the offline LPSN-first acquisition
+candidate table. In the current scaffolding it must already exist before
+`--prepare-selection` is used; TypeTreeFlow does not yet perform real NCBI
+candidate discovery. Fields:
+
+- `species`: checklist species name being represented.
+- `assembly_accession`: candidate assembly accession.
+- `organism_name`: source organism name.
+- `strain`: source strain text.
+- `biosample`: BioSample accession when available.
+- `bioproject`: BioProject accession when available.
+- `assembly_level`: assembly level such as `Complete Genome`, `Scaffold`, or `Contig`.
+- `refseq_category`: RefSeq category when available.
+- `is_type_material`: whether the source marks or supports type-material status.
+- `culture_collection_ids`: parsed recognized culture collection IDs.
+- `has_recognized_deposit_id`: whether a recognized culture collection ID was found.
+- `source`: candidate source label.
+- `notes`: diagnostics or manual-review notes.
+
+`selection/strain_candidates.tsv` and `selection/user_selection.tsv` are
+written by `--prepare-selection` from an existing candidate table. Both use the
+same fields; `user_selection.tsv` is intended for user editing. The `selected`
+column accepts yes/no-style boolean values, and `--selection-tsv PATH` validates
+the table and reports the selected accession count. Current selection readback
+does not trigger downloads or alter download plans. Fields:
+
+- `species`: species represented by the candidate row.
+- `assembly_accession`: selected or available assembly accession.
+- `organism_name`: source organism name.
+- `strain`: source strain text.
+- `culture_collection_ids`: recognized culture collection IDs.
+- `is_type_material`: type-material evidence flag.
+- `selection_rank`: deterministic rank within species.
+- `selected`: user-editable yes/no selection value.
+- `selection_reason`: generated or user-edited selection note.
+- `notes`: diagnostics or manual-review notes.
+
+`source_audit/sequence_source_audit.tsv` records offline same-strain source
+checks between genome and 16S provenance. It is a source-consistency audit only
+and does not make taxonomic conclusions. Fields:
+
+- `species`: checklist species name.
+- `genome_accession`: genome or assembly accession.
+- `genome_strain`: genome-side strain text.
+- `genome_biosample`: genome-side BioSample accession.
+- `genome_culture_ids`: parsed genome-side culture collection IDs.
+- `rrna_source`: 16S source label such as genome, barrnap, Entrez, or user input.
+- `rrna_accession`: 16S accession when available.
+- `rrna_strain`: 16S-side strain text.
+- `rrna_biosample`: 16S-side BioSample accession.
+- `rrna_culture_ids`: parsed 16S-side culture collection IDs.
+- `same_biosample`: whether BioSample accessions match.
+- `same_culture_collection_id`: whether recognized culture collection IDs overlap.
+- `same_strain_text`: whether normalized strain text matches.
+- `audit_status`: source audit status.
+- `notes`: audit notes.
 
 `cache/ncbi/download_plan.tsv` records the NCBI Datasets genome download plan before execution. It does not imply that any download has been executed. Fields:
 

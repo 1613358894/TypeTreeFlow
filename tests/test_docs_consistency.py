@@ -1,5 +1,7 @@
 from typetreeflow.cli import build_parser
 from typetreeflow.config import REAL_ACTION_FLAGS
+from typetreeflow.taxonomy.candidates import CANDIDATE_FIELDS
+from typetreeflow.taxonomy.selection import SELECTION_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -13,6 +15,9 @@ def test_readme_mentions_guarded_cli_flags():
         "--force",
         "--gtdb-metadata",
         "--species-checklist",
+        "--prepare-selection",
+        "--selection-tsv",
+        "--strains-per-species",
         "--query-genome",
         "--query-16s",
         "--email",
@@ -51,6 +56,10 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.aligned_16s_fasta_path,
         paths.trimmed_16s_fasta_path,
         paths.iqtree_treefile_path,
+        paths.assembly_candidates_path,
+        paths.sequence_source_audit_path,
+        paths.strain_candidates_path,
+        paths.user_selection_path,
         paths.checklist_comparison_path,
         paths.run_summary_path,
     ]
@@ -59,6 +68,15 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         assert path.relative_to(tmp_path).as_posix() in docs
 
 
+def test_example_selection_tsv_headers_match_schemas():
+    assert _header("examples/assembly_candidates_minimal.tsv") == CANDIDATE_FIELDS
+    assert _header("examples/user_selection_minimal.tsv") == SELECTION_FIELDS
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as handle:
         return handle.read()
+
+
+def _header(path: str) -> list[str]:
+    return _read(path).splitlines()[0].split("\t")

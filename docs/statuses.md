@@ -117,6 +117,25 @@ These statuses are written to `taxonomy/checklist_comparison.tsv` in the
 - `missing_genome`: A matching GTDB-selected record exists but has no registered genome artifact in the manifest state.
 - `manual_review_required`: The row cannot be classified safely, including synonym-supported matches that require user review.
 
+## Offline Selection And Source Audit
+
+Selection tables use `selected=yes` or `selected=no` rather than manifest
+statuses. Generated `selection_reason` values are:
+
+- `auto_selected_top_ranked`: Row was preselected by deterministic candidate ranking.
+- `available_not_selected`: Row is available for review but was not preselected.
+
+Sequence source audits write these values in `audit_status`:
+
+- `same_genome_internal_16s`: 16S came from the same genome source.
+- `same_biosample`: Genome and 16S provenance share a BioSample accession.
+- `same_culture_collection_id`: Parsed recognized culture collection IDs overlap.
+- `strain_text_match`: Normalized strain text matches.
+- `genome_only`: Genome-side source data exists without 16S-side source data.
+- `rrna_only`: 16S-side source data exists without genome-side source data.
+- `mismatch`: Both sides exist but no consistency evidence matches.
+- `manual_review_required`: Source data is insufficient for an automatic audit status.
+
 ## Report And Pipeline
 
 - `dry_run_completed`: CLI dry-run completed selection and planning successfully.

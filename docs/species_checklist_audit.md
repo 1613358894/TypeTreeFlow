@@ -43,7 +43,7 @@ Implemented behavior:
 The recommended checklist format is TSV with one species-level row per
 checklist name.
 
-Required fields:
+Current minimal required fields:
 
 | Field | Description |
 | --- | --- |
@@ -54,16 +54,35 @@ Required fields:
 | `source` | Checklist source label, such as LPSN export date or local curated checklist name. |
 | `notes` | Free-text user notes. |
 
-Optional fields:
+Optional LPSN-derived compatibility fields:
 
 | Field | Description |
 | --- | --- |
+| `taxonomic_status` | Authority-specific taxonomic status text, such as `correct name` or `synonym`. |
+| `lpsn_record_number` | LPSN record number or equivalent stable authority record identifier. |
 | `lpsn_url` | Source URL or local reference pointer for the checklist entry. |
 | `nomenclatural_status` | Authority-specific nomenclatural status text. |
 | `synonyms` | User-provided synonym names, separated by semicolons. |
 
+Older checklist TSV files that include only the current minimal required fields
+remain valid. Optional LPSN-derived fields are read when present but do not
+change audit filtering or CLI behavior.
+
 Malformed rows fail validation with row-level diagnostics. Missing required
 columns stop audit generation with a clear error.
+
+## LPSN Compatibility Helper
+
+`is_lpsn_correct_name_entry(entry)` is available as a future filtering helper.
+It returns true only when `nomenclatural_status` contains `validly published`
+case-insensitively, does not contain `not validly published`, and
+`taxonomic_status` equals `correct name` case-insensitively after trimming
+surrounding whitespace. Missing fields, synonyms, and not-validly-published
+entries return false.
+
+This helper is not applied by `read_species_checklist`, does not force a
+correct-name filter in the current audit, and does not determine valid
+publication status.
 
 ## Normalization Rules
 

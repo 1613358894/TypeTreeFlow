@@ -17,6 +17,7 @@ The long-term goal is to collect type-strain genomes and 16S sequences, compare 
 - Summarize parsed ANI results into `ani/ani_summary.tsv`.
 - Plan and run guarded resume-mode MAFFT, trimAl, and IQ-TREE workflow wrappers.
 - Audit selected records against a user-provided species checklist TSV.
+- Prepare and validate offline strain-selection TSVs from an existing candidate table.
 - Write `report/summary.md` from existing files without making species conclusions.
 
 The CLI can run guarded resume-mode FastANI and write an ANI PNG from parsed results. It does not parse Newick trees. Guarded phylogeny execution writes a Newick treefile only; it does not render a tree figure.
@@ -35,6 +36,17 @@ User-supplied species checklist auditing is documented in
 [docs/species_checklist_audit.md](docs/species_checklist_audit.md). The
 implementation breakdown is tracked in
 [docs/species_checklist_implementation_plan.md](docs/species_checklist_implementation_plan.md).
+
+### Planned LPSN-first acquisition
+
+A planned future route will start from a user-provided checklist or official
+LPSN data to define validly published correct species, then use NCBI/GTDB only
+to discover available genome and 16S data. The design is documented in
+[docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md).
+
+The v0.3.0 release is scaffolding only: the real LPSN API is not implemented,
+real NCBI candidate discovery is not implemented, and a selection TSV does not
+yet drive downloads.
 
 ## Installation
 
@@ -92,6 +104,35 @@ or query LPSN, does not decide nomenclatural validity, and does not make final
 species conclusions. When supplied, the audit writes
 `taxonomy/checklist_comparison.tsv`; `report/summary.md` then includes a
 `Taxonomic Audit` section with comparison counts.
+
+Prepare an offline user selection TSV from an existing candidate table:
+
+```bash
+mkdir -p results/candidates
+cp examples/assembly_candidates_minimal.tsv results/candidates/assembly_candidates.tsv
+```
+
+```bash
+python typetreeflow.py \
+  --outdir results \
+  --prepare-selection \
+  --strains-per-species 1
+```
+
+This reads `results/candidates/assembly_candidates.tsv`, writes
+`results/selection/strain_candidates.tsv` and
+`results/selection/user_selection.tsv`, and does not run downloads or external
+tools. Edit `selected` values in `results/selection/user_selection.tsv`, then
+validate the edited table:
+
+```bash
+python typetreeflow.py \
+  --selection-tsv results/selection/user_selection.tsv
+```
+
+At this stage the selection TSV is validated and counted only. It does not
+automatically trigger or modify genome downloads; selection-driven downloads are
+reserved for a later release.
 
 Dry-run with query inputs for downstream planning:
 
@@ -222,6 +263,9 @@ The main output files are:
 - `rrna/all_16S.fasta`: combined reference and optional query 16S FASTA.
 - `ani/ani_plan.tsv`, `ani/references.txt`, `ani/fastani_raw.tsv`, `ani/ani_query_vs_refs.tsv`, `ani/ani_summary.tsv`, `ani/ani_query_vs_refs.png`: ANI planning, raw output, parsed output, summary, and PNG artifacts.
 - `phylo/phylo_plan.tsv`, `phylo/all_16S.aln.fasta`, `phylo/all_16S.trimmed.fasta`, `phylo/iqtree/all_16S.treefile`: phylogeny planning and controlled-run artifacts.
+- `candidates/assembly_candidates.tsv`: offline candidate table for LPSN-first selection preparation.
+- `source_audit/sequence_source_audit.tsv`: offline genome/16S same-strain source audit table.
+- `selection/strain_candidates.tsv`, `selection/user_selection.tsv`: generated review table and user-editable selection TSV.
 - `taxonomy/checklist_comparison.tsv`: user-provided species checklist audit against selected records.
 - `report/summary.md`: read-only run summary of final recorded manifest state.
 
@@ -274,3 +318,5 @@ The tests use fake runners and temporary fixtures for downloads, barrnap, FastAN
 - GTDB metadata is read from a local TSV; this release does not download GTDB metadata for you.
 - Entrez fallback can contact NCBI only when explicitly enabled with `--enable-entrez --email`.
 - Species checklist audit requires a user-provided TSV; TypeTreeFlow does not crawl LPSN or make nomenclatural conclusions.
+- Offline selection preparation requires an existing `candidates/assembly_candidates.tsv`; real NCBI candidate discovery is not implemented.
+- Selection TSV validation does not yet drive downloads.

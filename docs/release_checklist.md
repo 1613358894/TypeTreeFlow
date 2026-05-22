@@ -44,6 +44,25 @@ Build a wheel:
 python -m pip wheel . --no-deps -w .dist_test
 ```
 
+For v0.3.0 scaffolding, confirm candidate and selection examples are present:
+
+```bash
+test -f examples/assembly_candidates_minimal.tsv
+test -f examples/user_selection_minimal.tsv
+```
+
+Run the offline selection smoke test:
+
+```bash
+mkdir -p <tmp>/candidates
+cp examples/assembly_candidates_minimal.tsv <tmp>/candidates/assembly_candidates.tsv
+python typetreeflow.py --outdir <tmp> --prepare-selection --strains-per-species 1
+test -f <tmp>/selection/user_selection.tsv
+```
+
+The v0.3.0 scaffolding tests and selection smoke require no network access and
+no external bioinformatics tools.
+
 Run a safe dry run from local GTDB metadata:
 
 ```bash

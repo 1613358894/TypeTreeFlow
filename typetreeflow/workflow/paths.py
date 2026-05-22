@@ -38,6 +38,13 @@ class OutputPaths:
     checklist_comparison_path: Path
     report_dir: Path
     run_summary_path: Path
+    candidates_dir: Path
+    assembly_candidates_path: Path
+    source_audit_dir: Path
+    sequence_source_audit_path: Path
+    selection_dir: Path
+    strain_candidates_path: Path
+    user_selection_path: Path
 
 
 def get_output_paths(outdir: str | Path) -> OutputPaths:
@@ -77,4 +84,13 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         checklist_comparison_path=root / "taxonomy" / "checklist_comparison.tsv",
         report_dir=root / "report",
         run_summary_path=root / "report" / "summary.md",
+        candidates_dir=root / "candidates",
+        assembly_candidates_path=root / "candidates" / "assembly_candidates.tsv",
+        source_audit_dir=root / "source_audit",
+        sequence_source_audit_path=root
+        / "source_audit"
+        / "sequence_source_audit.tsv",
+        selection_dir=root / "selection",
+        strain_candidates_path=root / "selection" / "strain_candidates.tsv",
+        user_selection_path=root / "selection" / "user_selection.tsv",
     )
