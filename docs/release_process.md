@@ -33,8 +33,11 @@ TypeTreeFlow vX.Y.Z
 Public tags are not rewritten by default. If rewriting a public tag is
 explicitly approved, create a backup first and record the reason.
 
-Historical note: `v0.2.1` is a lightweight tag and is retained as historical
-record. Starting with `v0.3.0`, release tags use annotated tags.
+Historical note: `v0.2.1` was originally published as a lightweight tag. To
+standardize release tag records, it has since been replaced with an annotated
+tag while preserving the peeled commit:
+`cc4534a704623009038f31c23cb04e2b13274750`. The original lightweight tag is
+backed up as `backup/v0.2.1-lightweight`.
 
 ## GitHub Release Policy
 
