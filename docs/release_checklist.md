@@ -1,6 +1,8 @@
 # Release Checklist
 
 Use this checklist before tagging a TypeTreeFlow release.
+Release policy and release-record audit rules are documented in
+`docs/release_process.md`.
 
 ## Environment Prerequisites
 
