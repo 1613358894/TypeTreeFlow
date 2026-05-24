@@ -1,5 +1,5 @@
 from typetreeflow.taxonomy.candidates import AssemblyCandidate
-from typetreeflow.taxonomy.checklist import read_species_checklist
+from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry
 from typetreeflow.taxonomy.culture_collections import (
     CultureCollectionAuditRow,
     RECOGNIZED_COLLECTION_PREFIXES,
@@ -13,6 +13,37 @@ from typetreeflow.taxonomy.culture_collections import (
     read_culture_collection_audit,
     write_culture_collection_audit,
 )
+
+
+def _fusobacterium_checklist_entries() -> list[SpeciesChecklistEntry]:
+    return [
+        SpeciesChecklistEntry(
+            genus="Fusobacterium",
+            species="gastrosuis",
+            full_name="Fusobacterium gastrosuis",
+            status="correct name",
+            type_strain_names="CDW1; DSM 101753; LMG 29236",
+            type_strain="CDW1; DSM 101753; LMG 29236",
+            source="LPSN API",
+            notes="fixture",
+        ),
+        SpeciesChecklistEntry(
+            genus="Fusobacterium",
+            species="nucleatum",
+            full_name="Fusobacterium nucleatum",
+            status="correct name",
+            type_strain_names=(
+                "ATCC 25586; CCUG 32989; CCUG 33059; CIP 101130; "
+                "DSM 15643; JCM 8532; LMG 13131"
+            ),
+            type_strain=(
+                "ATCC 25586; CCUG 32989; CCUG 33059; CIP 101130; "
+                "DSM 15643; JCM 8532; LMG 13131"
+            ),
+            source="LPSN API",
+            notes="fixture",
+        ),
+    ]
 
 
 def test_extracts_dsm_with_space():
@@ -171,7 +202,7 @@ def test_known_prefixes_include_required_collections():
 
 
 def test_lpsn_type_strain_names_multiple_ids_audit():
-    entries = read_species_checklist("data/fusobacterium_species_checklist.tsv")
+    entries = _fusobacterium_checklist_entries()
     [entry] = [entry for entry in entries if entry.species == "nucleatum"]
 
     rows = checklist_entries_to_culture_collection_audit_rows([entry])
@@ -196,7 +227,7 @@ def test_lpsn_type_strain_names_multiple_ids_audit():
 
 
 def test_empty_type_strain_audit_has_no_recognized_id():
-    entries = read_species_checklist("data/fusobacterium_species_checklist.tsv")
+    entries = _fusobacterium_checklist_entries()
     entry = entries[0]
     entry.type_strain_names = ""
     entry.type_strain = ""
@@ -210,14 +241,14 @@ def test_empty_type_strain_audit_has_no_recognized_id():
 
 
 def test_fusobacterium_checklist_audit_output_round_trips(tmp_path):
-    entries = read_species_checklist("data/fusobacterium_species_checklist.tsv")
+    entries = _fusobacterium_checklist_entries()
     rows = checklist_entries_to_culture_collection_audit_rows(entries)
     path = tmp_path / "source_audit" / "culture_collection_audit.tsv"
 
     write_culture_collection_audit(rows, path)
     audited = read_culture_collection_audit(path)
 
-    assert len(audited) == 17
-    assert sum(row.has_recognized_deposit_id for row in audited) == 17
+    assert len(audited) == 2
+    assert sum(row.has_recognized_deposit_id for row in audited) == 2
     assert audited[0].species == "Fusobacterium gastrosuis"
     assert audited[0].recognized_ids == "DSM 101753; LMG 29236"

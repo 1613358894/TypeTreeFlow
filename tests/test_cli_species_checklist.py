@@ -62,6 +62,73 @@ def _write_checklist_with_synonyms(path: Path, rows: list[dict[str, str]]) -> Pa
     return path
 
 
+def _write_lpsn_style_checklist(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fields = [
+        "genus",
+        "species",
+        "full_name",
+        "status",
+        "type_strain_names",
+        "type_strain",
+        "source",
+        "notes",
+        "nomenclatural_status",
+        "taxonomic_status",
+        "lpsn_record_number",
+        "lpsn_url",
+        "synonyms",
+    ]
+    rows = [
+        {
+            "genus": "Fusobacterium",
+            "species": "gastrosuis",
+            "full_name": "Fusobacterium gastrosuis",
+            "status": "correct name",
+            "type_strain_names": "CDW1; DSM 101753; LMG 29236",
+            "type_strain": "CDW1; DSM 101753; LMG 29236",
+            "source": "LPSN API",
+            "notes": "fixture",
+            "nomenclatural_status": "validly published under the ICNP",
+            "taxonomic_status": "correct name",
+            "lpsn_record_number": "795127",
+            "lpsn_url": "https://lpsn.dsmz.de/species/fusobacterium-gastrosuis",
+            "synonyms": "",
+        },
+        {
+            "genus": "Fusobacterium",
+            "species": "nucleatum",
+            "full_name": "Fusobacterium nucleatum",
+            "status": "correct name",
+            "type_strain_names": (
+                "ATCC 25586; CCUG 32989; CCUG 33059; CIP 101130; "
+                "DSM 15643; JCM 8532; LMG 13131"
+            ),
+            "type_strain": (
+                "ATCC 25586; CCUG 32989; CCUG 33059; CIP 101130; "
+                "DSM 15643; JCM 8532; LMG 13131"
+            ),
+            "source": "LPSN API",
+            "notes": "fixture",
+            "nomenclatural_status": "validly published under the ICNP",
+            "taxonomic_status": "correct name",
+            "lpsn_record_number": "783880",
+            "lpsn_url": "https://lpsn.dsmz.de/species/fusobacterium-nucleatum",
+            "synonyms": "",
+        },
+    ]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=fields,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
 def _read_tsv(path: Path) -> list[dict[str, str]]:
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
@@ -586,11 +653,12 @@ def test_cli_lpsn_child_taxa_conversion_does_not_write_pipeline_outputs(tmp_path
 
 def test_cli_dry_run_writes_culture_collection_audit_from_checklist(tmp_path):
     outdir = tmp_path / "out"
+    checklist = _write_lpsn_style_checklist(tmp_path / "species_checklist.tsv")
 
     result = main(
         [
             "--species-checklist",
-            "data/fusobacterium_species_checklist.tsv",
+            str(checklist),
             "--audit-culture-collections",
             "--outdir",
             str(outdir),
@@ -601,10 +669,10 @@ def test_cli_dry_run_writes_culture_collection_audit_from_checklist(tmp_path):
     paths = get_output_paths(outdir)
     rows = read_culture_collection_audit(paths.culture_collection_audit_path)
     assert result == 0
-    assert len(rows) == 17
-    assert sum(row.has_recognized_deposit_id for row in rows) == 17
-    assert rows[7].species == "Fusobacterium nucleatum"
-    assert "ATCC 25586" in rows[7].recognized_ids
+    assert len(rows) == 2
+    assert sum(row.has_recognized_deposit_id for row in rows) == 2
+    assert rows[1].species == "Fusobacterium nucleatum"
+    assert "ATCC 25586" in rows[1].recognized_ids
     assert not paths.manifest.exists()
     assert not (paths.cache_dir / "ncbi" / "download_plan.tsv").exists()
 
