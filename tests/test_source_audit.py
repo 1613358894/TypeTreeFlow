@@ -6,6 +6,8 @@ from typetreeflow.taxonomy.source_audit import (
     SOURCE_AUDIT_FIELDS,
     SequenceSourceAudit,
     audit_sequence_sources,
+    evaluate_sequence_source_audit_policy,
+    evaluate_sequence_source_audits,
     read_sequence_source_audits,
     upsert_sequence_source_audits,
     write_sequence_source_audits,
@@ -62,6 +64,22 @@ def test_same_biosample_status():
 
     assert audit.audit_status == "same_biosample"
     assert audit.same_biosample is True
+
+
+def test_same_biosample_status_can_parse_biosample_from_text():
+    audit = audit_sequence_sources(
+        species="Bacillus subtilis",
+        genome_accession="GCF_000001405.1",
+        genome_text="assembly BioSample SAMN00000001",
+        rrna_source="entrez",
+        rrna_accession="NR_000001.1",
+        rrna_text="16S record BioSample SAMN00000001",
+    )
+
+    assert audit.audit_status == "same_biosample"
+    assert audit.genome_biosample == "SAMN00000001"
+    assert audit.rrna_biosample == "SAMN00000001"
+    assert evaluate_sequence_source_audits([audit], policy="strict").passed is True
 
 
 def test_same_culture_collection_id_status():
@@ -257,3 +275,71 @@ def test_output_paths_include_sequence_source_audit_path(tmp_path):
     assert paths.sequence_source_audit_path == (
         tmp_path / "source_audit" / "sequence_source_audit.tsv"
     )
+
+
+def test_source_audit_policy_strict_allows_strong_evidence():
+    result = evaluate_sequence_source_audits(
+        [
+            _audit(audit_status="same_genome_internal_16s"),
+            _audit(audit_status="same_biosample"),
+            _audit(audit_status="same_culture_collection_id"),
+        ],
+        policy="strict",
+    )
+
+    assert result.passed is True
+    assert result.blocking_count == 0
+
+
+def test_source_audit_policy_strict_blocks_strain_text_match():
+    result = evaluate_sequence_source_audits(
+        [_audit(audit_status="strain_text_match")],
+        policy="strict",
+    )
+
+    assert result.passed is False
+    assert result.weak_evidence_count == 1
+    assert result.blocking_count == 1
+
+
+def test_source_audit_policy_strict_blocks_mismatch():
+    result = evaluate_sequence_source_audits(
+        [_audit(audit_status="mismatch")],
+        policy="strict",
+    )
+
+    assert result.passed is False
+    assert result.mismatch_count == 1
+    assert result.blocking_count == 1
+
+
+def test_source_audit_policy_strict_blocks_manual_review_required():
+    result = evaluate_sequence_source_audits(
+        [_audit(audit_status="manual_review_required")],
+        policy="strict",
+    )
+
+    assert result.passed is False
+    assert result.manual_review_required_count == 1
+    assert result.blocking_count == 1
+
+
+def test_source_audit_policy_warn_and_permissive_do_not_block(tmp_path):
+    path = tmp_path / "sequence_source_audit.tsv"
+    write_sequence_source_audits(
+        [
+            _audit(audit_status="mismatch"),
+            _audit(audit_status="manual_review_required"),
+            _audit(audit_status="strain_text_match"),
+        ],
+        path,
+    )
+
+    warn_result = evaluate_sequence_source_audit_policy(path, "warn")
+    permissive_result = evaluate_sequence_source_audit_policy(path, "permissive")
+
+    assert warn_result.passed is True
+    assert warn_result.mismatch_count == 1
+    assert warn_result.manual_review_required_count == 1
+    assert warn_result.weak_evidence_count == 1
+    assert permissive_result.passed is True

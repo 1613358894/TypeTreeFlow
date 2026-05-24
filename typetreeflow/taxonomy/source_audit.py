@@ -28,6 +28,13 @@ SOURCE_AUDIT_FIELDS = [
     "audit_status",
     "notes",
 ]
+SOURCE_AUDIT_POLICIES = {"permissive", "warn", "strict"}
+STRICT_BLOCKING_SOURCE_AUDIT_STATUSES = {
+    "mismatch",
+    "manual_review_required",
+    "strain_text_match",
+}
+WEAK_SOURCE_AUDIT_STATUSES = {"strain_text_match"}
 
 
 @dataclass
@@ -49,6 +56,18 @@ class SequenceSourceAudit:
     notes: str = ""
 
 
+@dataclass(frozen=True)
+class SourceAuditPolicyResult:
+    policy: str
+    passed: bool
+    total_rows: int = 0
+    mismatch_count: int = 0
+    manual_review_required_count: int = 0
+    weak_evidence_count: int = 0
+    blocking_count: int = 0
+    notes: str = ""
+
+
 def audit_sequence_sources(
     species: str,
     genome_accession: str = "",
@@ -62,6 +81,14 @@ def audit_sequence_sources(
     rrna_text: str = "",
     notes: str = "",
 ) -> SequenceSourceAudit:
+    genome_biosample = genome_biosample or _extract_biosample_accession(
+        genome_text,
+        genome_strain,
+    )
+    rrna_biosample = rrna_biosample or _extract_biosample_accession(
+        rrna_text,
+        rrna_strain,
+    )
     genome_culture_ids = _extract_normalized_collection_ids(
         genome_accession,
         genome_strain,
@@ -161,6 +188,77 @@ def write_sequence_source_audits(
         for audit in audits:
             writer.writerow(_audit_to_row(audit))
     return output_path
+
+
+def evaluate_sequence_source_audit_policy(
+    path: Path,
+    policy: str = "warn",
+) -> SourceAuditPolicyResult:
+    normalized_policy = _normalize_source_audit_policy(policy)
+    if normalized_policy == "permissive":
+        return SourceAuditPolicyResult(
+            policy=normalized_policy,
+            passed=True,
+            notes="permissive policy records source audit findings without blocking.",
+        )
+
+    input_path = Path(path)
+    if not input_path.exists():
+        return SourceAuditPolicyResult(
+            policy=normalized_policy,
+            passed=True,
+            notes=f"sequence source audit table does not exist: {input_path}",
+        )
+
+    audits = read_sequence_source_audits(input_path)
+    return evaluate_sequence_source_audits(audits, normalized_policy)
+
+
+def evaluate_sequence_source_audits(
+    audits: Iterable[SequenceSourceAudit],
+    policy: str = "warn",
+) -> SourceAuditPolicyResult:
+    normalized_policy = _normalize_source_audit_policy(policy)
+    audit_list = list(audits)
+    mismatch_count = sum(
+        1 for audit in audit_list if audit.audit_status == "mismatch"
+    )
+    manual_review_count = sum(
+        1 for audit in audit_list if audit.audit_status == "manual_review_required"
+    )
+    weak_evidence_count = sum(
+        1 for audit in audit_list if audit.audit_status in WEAK_SOURCE_AUDIT_STATUSES
+    )
+    blocking_count = sum(
+        1
+        for audit in audit_list
+        if audit.audit_status in STRICT_BLOCKING_SOURCE_AUDIT_STATUSES
+    )
+    passed = normalized_policy != "strict" or blocking_count == 0
+    if normalized_policy == "permissive":
+        notes = "permissive policy records source audit findings without blocking."
+    elif normalized_policy == "warn":
+        notes = (
+            "warn policy highlights mismatch, manual-review, and weak-evidence "
+            "rows without blocking."
+        )
+    elif passed:
+        notes = "strict policy passed source audit checks."
+    else:
+        notes = (
+            "strict policy blocks critical stages when mismatch, manual-review, "
+            "or strain-text-only evidence is present."
+        )
+    return SourceAuditPolicyResult(
+        policy=normalized_policy,
+        passed=passed,
+        total_rows=len(audit_list),
+        mismatch_count=mismatch_count,
+        manual_review_required_count=manual_review_count,
+        weak_evidence_count=weak_evidence_count,
+        blocking_count=blocking_count,
+        notes=notes,
+    )
 
 
 def upsert_sequence_source_audits(
@@ -263,6 +361,12 @@ def _normalize_strain_text(value: str) -> str:
     return re.sub(r"\s+", " ", str(value or "").strip().lower())
 
 
+def _extract_biosample_accession(*values: str) -> str:
+    text = " ".join(value for value in values if value)
+    match = re.search(r"\bSAM[END][A-Z0-9]*\d+\b", text, flags=re.IGNORECASE)
+    return match.group(0).upper() if match else ""
+
+
 def _audit_to_row(audit: SequenceSourceAudit) -> dict[str, str]:
     return {
         "species": audit.species,
@@ -303,3 +407,13 @@ def _parse_bool(value: str, *, field: str, row_number: int) -> bool:
         f"Invalid boolean value for {field} on sequence source audit row "
         f"{row_number}: {value!r}"
     )
+
+
+def _normalize_source_audit_policy(policy: str) -> str:
+    normalized = str(policy or "warn").strip().lower()
+    if normalized not in SOURCE_AUDIT_POLICIES:
+        allowed = ", ".join(sorted(SOURCE_AUDIT_POLICIES))
+        raise ValueError(
+            f"Invalid source audit policy: {policy!r}; expected one of {allowed}."
+        )
+    return normalized

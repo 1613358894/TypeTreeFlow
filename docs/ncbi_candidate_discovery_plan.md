@@ -3,12 +3,19 @@
 Current status: local discovery-cache candidate generation and guarded
 Entrez-backed NCBI assembly discovery are implemented. The repeatable path is
 still the offline cache workflow: generate or review a discovery records TSV,
-produce `candidates/assembly_candidates.tsv`, prepare a user selection TSV, and
-then use selection dry-run or guarded downloads. Real discovery requires
-`--enable-ncbi-discovery --email` and can contact NCBI Entrez. Selection-driven
-downloads require `--enable-downloads`, the NCBI Datasets executable, and
-network access to NCBI. None of these paths perform synonym resolution, scrape
-LPSN HTML, or guarantee that every checklist species has an available genome.
+produce `candidates/assembly_candidates.tsv`, optionally enrich candidates from
+`cache/ncbi/biosample_records.tsv`, prepare a user selection TSV, and then use
+selection dry-run or guarded downloads. Real assembly discovery requires
+`--enable-ncbi-discovery --email`; real BioSample enrichment requires
+`--enable-biosample-entrez --email`. Both can contact NCBI Entrez only after
+explicit opt-in. Selection-driven downloads require `--enable-downloads`, the
+NCBI Datasets executable, and network access to NCBI. Synonym-aware discovery
+is available only when `--enable-synonym-discovery` is supplied. It is a recall
+enhancement, not automatic name replacement: correct names are queried first,
+synonym hits stay assigned to the checklist correct species, and every
+synonym-supported candidate is marked for manual review. None of these paths
+scrape LPSN HTML or guarantee that every checklist species has an available
+genome.
 
 Phase 22A is a design-convergence step for generating
 `candidates/assembly_candidates.tsv` from a species checklist in a later phase.
@@ -67,7 +74,10 @@ assembly candidates once they exist.
 - Culture collection parser:
   `typetreeflow.taxonomy.culture_collections` extracts recognized deposit IDs,
   normalizes them, and annotates assembly candidates with
-  `culture_collection_ids` and `has_recognized_deposit_id`.
+  `culture_collection_ids`, `ncbi_culture_collection_ids`,
+  `has_recognized_deposit_id`, and LPSN type-strain match evidence. These
+  columns are auditable selection evidence from parsed deposit-ID strings, not
+  taxonomic conclusions.
 - User selection: `typetreeflow.taxonomy.selection` converts assembly
   candidates into reviewable `selection/strain_candidates.tsv` and editable
   `selection/user_selection.tsv` rows.
@@ -92,7 +102,7 @@ The first implementation should be deliberately narrow:
 - No 16S discovery.
 - No LPSN API access.
 - No HTML scraping.
-- No synonym resolution in the first version.
+- Synonym expansion is off by default and must remain auditable when enabled.
 - No automatic final selection; generated candidates remain a review table for
   the existing selection flow.
 
@@ -182,7 +192,7 @@ The generated candidate rows should use the existing schema exactly.
 
 | Candidate field | Recommended mapping |
 | --- | --- |
-| `species` | Checklist binomial from `SpeciesChecklistEntry.genus` and `.species`; do not replace with NCBI synonyms in the first version. |
+| `species` | Checklist binomial from `SpeciesChecklistEntry.genus` and `.species`; do not replace it with a synonym. |
 | `assembly_accession` | NCBI assembly accession, preferably RefSeq `GCF_...` when present; preserve GenBank `GCA_...` when that is the returned accession. |
 | `organism_name` | Source organism name from NCBI assembly metadata. |
 | `strain` | Source strain/isolate/infraspecific strain text when available. |
@@ -193,6 +203,12 @@ The generated candidate rows should use the existing schema exactly.
 | `is_type_material` | Source type-material flag when available; otherwise conservative inference from explicit type-material/type-strain metadata only. |
 | `culture_collection_ids` | Parsed recognized deposit IDs from strain, organism name, and relevant source metadata. |
 | `has_recognized_deposit_id` | `true` when the culture collection parser finds at least one recognized ID. |
+| `discovery_name` | Name used for the source query or local-cache lookup. |
+| `discovery_name_type` | `correct_name` or `synonym`. |
+| `matched_correct_name` | Checklist correct species represented by the row. |
+| `synonym_used` | Synonym text used for discovery, blank for correct-name discovery. |
+| `synonym_evidence` | Checklist/LPSN traceability for synonym-supported discovery. |
+| `requires_manual_review` | `true` for synonym-supported rows and other review-required candidates. |
 | `source` | Stable source label such as `ncbi_assembly` or `ncbi_assembly_cache`. |
 | `notes` | Manual-review diagnostics, ambiguity warnings, query used, cache status, or missing metadata notes. |
 
@@ -210,9 +226,11 @@ The first real discovery strategy should be conservative and auditable:
   preselection later.
 - Preserve non-type and ambiguous records in the candidate TSV for review
   instead of silently discarding them.
-- Avoid synonym resolution in the first version, even if the checklist includes
-  synonym text. Synonym-aware expansion should be a later opt-in behavior with
-  explicit notes.
+- Avoid synonym expansion unless `--enable-synonym-discovery` is supplied.
+  When enabled, query the checklist correct name first and only query synonyms
+  for species with no usable correct-name candidates. Synonym hits must remain
+  assigned to the checklist correct species and must carry explicit manual
+  review fields.
 - Do not use LPSN or HTML pages as a fallback discovery source.
 
 Candidate generation should record enough notes to explain why a row was kept,
@@ -357,8 +375,8 @@ selection-driven downloads.
 Remaining boundaries after 22E:
 
 - No real-network test is added; all calibration fixtures are local.
-- No synonym resolution is implemented; checklist species names are queried or
-  matched exactly.
+- Synonym-aware discovery is implemented as an opt-in recall path only.
+  Synonym hits are never silent replacements for checklist correct names.
 - No LPSN API/download client is implemented.
 - Candidate discovery does not guarantee that every checklist species has an
   available genome.

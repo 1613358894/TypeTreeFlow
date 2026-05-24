@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from typetreeflow.ani.workflow import prepare_ani
@@ -54,14 +54,23 @@ from typetreeflow.rrna.plan import (
 from typetreeflow.rrna.workflow import prepare_local_16s
 from typetreeflow.selection.type_strains import select_type_strains
 from typetreeflow.sources.entrez import BiopythonEntrezClient
+from typetreeflow.sources.ncbi_biosample import (
+    BioSampleClient,
+    LocalBioSampleCacheClient,
+    NcbiBioSampleClient,
+    read_biosample_records,
+    write_biosample_records,
+)
 from typetreeflow.sources.gtdb import load_gtdb_metadata, metadata_row_to_record
 from typetreeflow.sources.ncbi_assembly import NcbiAssemblyDiscoveryClient
 from typetreeflow.taxonomy.audit import compare_checklist_to_records
 from typetreeflow.taxonomy.candidate_discovery import (
     AssemblyDiscoveryClient,
+    CandidateDiscoveryResult,
     LocalAssemblyDiscoveryCacheClient,
     LocalAssemblyDiscoveryRecord,
     discover_assembly_candidates,
+    enrich_assembly_candidates_with_biosamples,
     read_discovery_records,
     write_candidate_discovery_diagnostics,
     write_discovery_records,
@@ -75,11 +84,30 @@ from typetreeflow.taxonomy.checklist import (
     write_species_checklist,
 )
 from typetreeflow.taxonomy.culture_collections import annotate_candidates_culture_ids
+from typetreeflow.taxonomy.culture_collections import (
+    checklist_entries_to_culture_collection_audit_rows,
+    lpsn_records_to_culture_collection_audit_rows,
+    write_culture_collection_audit,
+)
 from typetreeflow.taxonomy.lpsn_child_taxa import (
     filter_lpsn_child_taxa,
     lpsn_child_taxa_to_checklist_entries,
     read_lpsn_child_taxa,
     write_excluded_lpsn_child_taxa,
+)
+from typetreeflow.taxonomy.lpsn import (
+    OfficialLpsnApiClient,
+    annotate_lpsn_checklist_entries,
+    filter_lpsn_correct_species,
+    lpsn_records_to_checklist_entries,
+    read_lpsn_species_cache,
+    write_excluded_lpsn_species_records,
+    write_lpsn_species_cache,
+)
+from typetreeflow.taxonomy.manual_review import (
+    apply_curator_evidence_to_candidates,
+    species_without_selected_rows,
+    write_manual_review_outputs,
 )
 from typetreeflow.taxonomy.output import write_checklist_comparison
 from typetreeflow.taxonomy.selection import (
@@ -87,7 +115,11 @@ from typetreeflow.taxonomy.selection import (
     read_user_selection,
     selected_assembly_accessions,
     selection_rows_to_strain_records,
+    validate_user_selection,
     write_user_selection,
+)
+from typetreeflow.taxonomy.source_audit import (
+    evaluate_sequence_source_audit_policy,
 )
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.resume import (
@@ -117,6 +149,13 @@ def build_parser() -> argparse.ArgumentParser:
         description="Prepare type-strain ANI and 16S phylogeny workflows.",
     )
     parser.add_argument("--genus", help="Target genus name.")
+    parser.add_argument(
+        "--acquire-genus",
+        help=(
+            "Run the LPSN-first genus acquisition dry-run workflow for this genus, "
+            "preserving each intermediate table under --outdir."
+        ),
+    )
     parser.add_argument("--query-genome", type=Path, help="Query genome FASTA path.")
     parser.add_argument("--query-16s", type=Path, help="Query 16S FASTA path.")
     parser.add_argument("--outgroup", help="Optional outgroup taxon or strain.")
@@ -135,6 +174,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--lpsn-child-taxa",
         type=Path,
         help="User-provided LPSN Child taxa TSV to convert to a species checklist.",
+    )
+    parser.add_argument(
+        "--lpsn-genus",
+        help="Fetch official LPSN species records for this genus, or filter --lpsn-cache.",
+    )
+    parser.add_argument(
+        "--lpsn-cache",
+        type=Path,
+        help="Offline LPSN species cache TSV to convert to a species checklist.",
+    )
+    parser.add_argument(
+        "--write-lpsn-cache",
+        type=Path,
+        help="Write fetched official LPSN genus species records to this cache TSV.",
     )
     parser.add_argument(
         "--write-species-checklist",
@@ -156,6 +209,32 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--write-manual-review-template",
+        action="store_true",
+        help=(
+            "Write manual deposit-evidence and species-gap TSVs for species "
+            "that remain unselected in --selection-tsv. This is offline and "
+            "does not change selected rows or download genomes."
+        ),
+    )
+    parser.add_argument(
+        "--apply-curator-evidence",
+        type=Path,
+        help=(
+            "Apply filled manual_deposit_evidence_template.tsv curator evidence "
+            "to an assembly candidate TSV, write updated candidates, and prepare "
+            "a strict offline selection table under --outdir."
+        ),
+    )
+    parser.add_argument(
+        "--candidate-tsv",
+        type=Path,
+        help=(
+            "Assembly candidate TSV to read for --write-manual-review-template. "
+            "Defaults to candidates/assembly_candidates.tsv under --outdir."
+        ),
+    )
+    parser.add_argument(
         "--discovery-cache",
         type=Path,
         help="Local assembly discovery records TSV for --discover-assembly-candidates.",
@@ -166,6 +245,56 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Explicitly allow real NCBI Entrez assembly discovery for "
             "--discover-assembly-candidates. Requires --email."
+        ),
+    )
+    parser.add_argument(
+        "--enable-synonym-discovery",
+        action="store_true",
+        help=(
+            "Expand assembly candidate discovery to checklist synonyms when the "
+            "correct name has insufficient candidates. Synonym hits remain assigned "
+            "to the checklist correct name and require manual review."
+        ),
+    )
+    parser.add_argument(
+        "--enrich-biosample",
+        action="store_true",
+        help=(
+            "Enrich assembly candidates from BioSample metadata using a local "
+            "cache or guarded Entrez BioSample access."
+        ),
+    )
+    parser.add_argument(
+        "--biosample-cache",
+        type=Path,
+        help=(
+            "BioSample metadata TSV cache. Defaults to "
+            "cache/ncbi/biosample_records.tsv under --outdir when present or "
+            "when --enable-biosample-entrez writes a refreshed cache."
+        ),
+    )
+    parser.add_argument(
+        "--enable-biosample-entrez",
+        action="store_true",
+        help=(
+            "Explicitly allow real NCBI Entrez BioSample lookups for "
+            "--enrich-biosample. Requires --email."
+        ),
+    )
+    parser.add_argument(
+        "--enable-lpsn-api",
+        action="store_true",
+        help=(
+            "Explicitly allow official LPSN API access for --lpsn-genus. "
+            "Reads credentials only from environment variables."
+        ),
+    )
+    parser.add_argument(
+        "--audit-culture-collections",
+        action="store_true",
+        help=(
+            "Write source_audit/culture_collection_audit.tsv from "
+            "--species-checklist or --lpsn-cache without contacting external services."
         ),
     )
     parser.add_argument(
@@ -180,6 +309,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--selection-tsv",
         type=Path,
         help="Validate a user-edited offline selection TSV and report selected count.",
+    )
+    parser.add_argument(
+        "--selection-policy",
+        choices=["strict", "balanced", "review-only"],
+        default="balanced",
+        help=(
+            "Automatic selection policy for --prepare-selection and validation "
+            "policy for --selection-tsv; default: balanced."
+        ),
+    )
+    parser.add_argument(
+        "--source-audit-policy",
+        choices=["permissive", "warn", "strict"],
+        default="warn",
+        help=(
+            "Sequence source audit policy for report/download/phylo gates; "
+            "default: warn."
+        ),
     )
     parser.add_argument(
         "--strains-per-species",
@@ -234,6 +381,7 @@ def build_parser() -> argparse.ArgumentParser:
 def parse_args(argv: list[str] | None = None) -> AppConfig:
     args = build_parser().parse_args(argv)
     return AppConfig(
+        acquire_genus=args.acquire_genus,
         genus=args.genus,
         query_genome=args.query_genome,
         query_16s=args.query_16s,
@@ -246,13 +394,27 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         gtdb_release=args.gtdb_release,
         species_checklist=args.species_checklist,
         lpsn_child_taxa=args.lpsn_child_taxa,
+        lpsn_genus=args.lpsn_genus,
+        lpsn_cache=args.lpsn_cache,
+        write_lpsn_cache=args.write_lpsn_cache,
         write_species_checklist=args.write_species_checklist,
         write_excluded_lpsn_taxa=args.write_excluded_lpsn_taxa,
+        enable_lpsn_api=args.enable_lpsn_api,
+        audit_culture_collections=args.audit_culture_collections,
         discover_assembly_candidates=args.discover_assembly_candidates,
+        write_manual_review_template=args.write_manual_review_template,
+        apply_curator_evidence=args.apply_curator_evidence,
+        candidate_tsv=args.candidate_tsv,
         discovery_cache=args.discovery_cache,
         enable_ncbi_discovery=args.enable_ncbi_discovery,
+        enable_synonym_discovery=args.enable_synonym_discovery,
+        enrich_biosample=args.enrich_biosample,
+        biosample_cache=args.biosample_cache,
+        enable_biosample_entrez=args.enable_biosample_entrez,
         prepare_selection=args.prepare_selection,
         selection_tsv=args.selection_tsv,
+        selection_policy=args.selection_policy,
+        source_audit_policy=args.source_audit_policy,
         strains_per_species=args.strains_per_species,
         resume=args.resume,
         force=args.force,
@@ -277,6 +439,8 @@ def main(
     fastani_runner=None,
     phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
+    biosample_client: BioSampleClient | None = None,
+    lpsn_client=None,
 ) -> int:
     config = parse_args(argv)
     setup_logging(config.log_level)
@@ -284,25 +448,56 @@ def main(
         if config.strains_per_species < 1:
             raise ValueError("--strains-per-species must be at least 1")
         paths = get_output_paths(config.outdir)
+        if config.acquire_genus is not None:
+            run_genus_acquisition_workflow(
+                paths,
+                config,
+                assembly_discovery_client=assembly_discovery_client,
+                biosample_client=biosample_client,
+                lpsn_client=lpsn_client,
+            )
+            return 0
+        if config.audit_culture_collections:
+            run_culture_collection_audit_stage(paths, config)
+            return 0
+        if config.write_manual_review_template:
+            run_manual_review_template_stage(paths, config)
+            return 0
+        if config.apply_curator_evidence is not None:
+            run_curator_evidence_apply_stage(paths, config)
+            return 0
         if (
             config.lpsn_child_taxa is not None
             or config.write_species_checklist is not None
+            or config.lpsn_genus is not None
+            or config.lpsn_cache is not None
+            or config.write_lpsn_cache is not None
         ):
-            run_lpsn_child_taxa_checklist_conversion(config)
+            if config.lpsn_child_taxa is not None:
+                run_lpsn_child_taxa_checklist_conversion(config)
+            else:
+                run_lpsn_species_checklist_conversion(config, lpsn_client=lpsn_client)
             return 0
         if config.report_only:
             records = load_existing_manifest(config.outdir)
             _write_run_summary(records, paths, config)
+            if not _source_audit_policy_allows_stage(paths, config, "report"):
+                return 2
             return 0
         if config.discover_assembly_candidates:
             run_candidate_discovery_stage(
                 paths,
                 config,
                 assembly_discovery_client=assembly_discovery_client,
+                biosample_client=biosample_client,
             )
             return 0
         if config.prepare_selection:
-            run_selection_prepare_stage(paths, config.strains_per_species)
+            run_selection_prepare_stage(
+                paths,
+                config,
+                biosample_client=biosample_client,
+            )
             return 0
         if config.selection_tsv is not None:
             if config.dry_run:
@@ -310,7 +505,7 @@ def main(
             elif config.enable_downloads:
                 run_selection_download_stage(paths, config, runner=download_runner)
             else:
-                run_selection_read_stage(config.selection_tsv)
+                run_selection_read_stage(config)
             return 0
         if should_reuse_manifest(config.outdir, config.resume, config.force):
             records = load_existing_manifest(config.outdir)
@@ -340,6 +535,9 @@ def main(
                     run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
             elif config.enable_phylo:
+                if not _source_audit_policy_allows_stage(paths, config, "phylo"):
+                    _write_run_summary(records, paths, config)
+                    return 2
                 if phylo_runner is None and not config.skip_tree:
                     require_executable(MAFFT.executable)
                     require_executable(TRIMAL.executable)
@@ -369,7 +567,12 @@ def main(
                 if config.species_checklist is not None:
                     run_taxonomy_audit_stage(records, paths, config.species_checklist)
                 _write_run_summary(records, paths, config)
+                if not _source_audit_policy_allows_stage(paths, config, "report"):
+                    return 2
             elif config.enable_downloads:
+                if not _source_audit_policy_allows_stage(paths, config, "download"):
+                    _write_run_summary(records, paths, config)
+                    return 2
                 if not _cli_real_action_allowed(
                     "downloads", config.enable_downloads, wired=True
                 ):
@@ -462,6 +665,9 @@ def main(
         ensure_unique_record_ids(selected_records)
         ensure_unique_normalized_ids(selected_records)
         if config.enable_downloads:
+            if not _source_audit_policy_allows_stage(paths, config, "download"):
+                _write_run_summary(selected_records, paths, config)
+                return 2
             run_downloads_stage(selected_records, paths, config, runner=download_runner)
         if config.enable_entrez:
             _execute_entrez_fallback(selected_records, paths, config)
@@ -474,6 +680,12 @@ def main(
                 LOGGER.error("%s", error)
                 return 2
         _write_run_summary(selected_records, paths, config)
+        if config.enable_entrez and not _source_audit_policy_allows_stage(
+            paths,
+            config,
+            "report",
+        ):
+            return 2
         LOGGER.info(
             "Selected %d GTDB type-material records for genus %s.",
             len(selected_records),
@@ -516,6 +728,43 @@ def _write_run_summary(records, paths, config: AppConfig) -> None:
     LOGGER.info("Wrote run summary: %s.", summary_path)
 
 
+def _source_audit_policy_allows_stage(
+    paths,
+    config: AppConfig,
+    stage_name: str,
+) -> bool:
+    result = evaluate_sequence_source_audit_policy(
+        paths.sequence_source_audit_path,
+        config.source_audit_policy,
+    )
+    if result.passed:
+        if config.source_audit_policy == "warn" and (
+            result.mismatch_count
+            or result.manual_review_required_count
+            or result.weak_evidence_count
+        ):
+            LOGGER.warning(
+                "Sequence source audit warning before %s: mismatch=%d, "
+                "manual_review_required=%d, weak_evidence=%d.",
+                stage_name,
+                result.mismatch_count,
+                result.manual_review_required_count,
+                result.weak_evidence_count,
+            )
+        return True
+    LOGGER.error(
+        "Sequence source audit policy '%s' blocked %s: mismatch=%d, "
+        "manual_review_required=%d, weak_evidence=%d. Review %s.",
+        result.policy,
+        stage_name,
+        result.mismatch_count,
+        result.manual_review_required_count,
+        result.weak_evidence_count,
+        paths.sequence_source_audit_path,
+    )
+    return False
+
+
 def run_taxonomy_audit_stage(records, paths, checklist_path: Path) -> Path:
     checklist_entries = read_species_checklist(checklist_path)
     comparisons = compare_checklist_to_records(checklist_entries, list(records))
@@ -524,10 +773,125 @@ def run_taxonomy_audit_stage(records, paths, checklist_path: Path) -> Path:
     return output_path
 
 
+def run_genus_acquisition_workflow(
+    paths,
+    config: AppConfig,
+    assembly_discovery_client: AssemblyDiscoveryClient | None = None,
+    biosample_client: BioSampleClient | None = None,
+    lpsn_client=None,
+) -> Path:
+    genus = str(config.acquire_genus or "").strip()
+    if not genus:
+        raise ValueError("--acquire-genus requires a genus name.")
+    if config.enable_downloads:
+        raise ValueError(
+            "--acquire-genus prepares a dry-run acquisition plan only; review "
+            "selection/user_selection.tsv, then run --selection-tsv with "
+            "--enable-downloads for guarded downloads."
+        )
+    if config.lpsn_cache is None and not config.enable_lpsn_api:
+        raise ValueError(
+            "--acquire-genus requires --lpsn-cache for offline LPSN input, or "
+            "--enable-lpsn-api for official LPSN access; HTML fallback is not supported."
+        )
+    if config.discovery_cache is None and not config.enable_ncbi_discovery:
+        raise ValueError(
+            "--acquire-genus requires --discovery-cache for offline assembly "
+            "discovery, or --enable-ncbi-discovery --email for real NCBI "
+            "assembly discovery."
+        )
+
+    species_checklist_path = config.write_species_checklist or (
+        config.outdir / "species_checklist.tsv"
+    )
+    excluded_lpsn_path = config.write_excluded_lpsn_taxa or (
+        config.outdir / "excluded_lpsn_taxa.tsv"
+    )
+    lpsn_cache_output = config.write_lpsn_cache
+    if lpsn_cache_output is None and config.enable_lpsn_api:
+        lpsn_cache_output = config.outdir / "taxonomy" / "lpsn_species_cache.tsv"
+
+    acquisition_config = replace(
+        config,
+        lpsn_genus=genus,
+        write_lpsn_cache=lpsn_cache_output,
+        write_species_checklist=species_checklist_path,
+        write_excluded_lpsn_taxa=excluded_lpsn_path,
+        species_checklist=species_checklist_path,
+        dry_run=True,
+        discover_assembly_candidates=True,
+        prepare_selection=True,
+        selection_tsv=paths.user_selection_path,
+        enable_downloads=False,
+    )
+
+    LOGGER.info("Starting genus acquisition dry-run for %s.", genus)
+    run_lpsn_species_checklist_conversion(
+        acquisition_config,
+        lpsn_client=lpsn_client,
+    )
+    run_culture_collection_audit_stage(paths, acquisition_config)
+    run_candidate_discovery_stage(
+        paths,
+        acquisition_config,
+        assembly_discovery_client=assembly_discovery_client,
+        biosample_client=biosample_client,
+    )
+    run_selection_prepare_stage(
+        paths,
+        acquisition_config,
+        biosample_client=biosample_client,
+    )
+    run_selection_dry_run_stage(paths, acquisition_config)
+    LOGGER.info(
+        "Completed genus acquisition dry-run for %s; review %s before guarded downloads.",
+        genus,
+        paths.user_selection_path,
+    )
+    return paths.user_selection_path
+
+
+def run_culture_collection_audit_stage(paths, config: AppConfig) -> Path:
+    if config.species_checklist is not None:
+        entries = read_species_checklist(config.species_checklist)
+        rows = checklist_entries_to_culture_collection_audit_rows(entries)
+        source_label = "species checklist"
+    elif config.lpsn_cache is not None:
+        records = read_lpsn_species_cache(config.lpsn_cache)
+        if config.lpsn_genus is not None:
+            requested = config.lpsn_genus.strip().lower()
+            records = [
+                record
+                for record in records
+                if record.genus.strip().lower() == requested
+            ]
+        rows = lpsn_records_to_culture_collection_audit_rows(records)
+        source_label = "LPSN species cache"
+    else:
+        raise ValueError(
+            "--audit-culture-collections requires --species-checklist or --lpsn-cache."
+        )
+
+    output_path = write_culture_collection_audit(
+        rows,
+        paths.culture_collection_audit_path,
+    )
+    recognized_count = sum(row.has_recognized_deposit_id for row in rows)
+    LOGGER.info(
+        "Wrote culture collection audit from %s: %s (%d/%d row(s) with recognized IDs).",
+        source_label,
+        output_path,
+        recognized_count,
+        len(rows),
+    )
+    return output_path
+
+
 def run_candidate_discovery_stage(
     paths,
     config: AppConfig,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
+    biosample_client: BioSampleClient | None = None,
 ) -> Path:
     if config.species_checklist is None:
         raise ValueError("--discover-assembly-candidates requires --species-checklist.")
@@ -569,11 +933,27 @@ def run_candidate_discovery_stage(
             email=config.email,
             api_key=config.api_key,
         )
-        local_records = _collect_discovery_records(checklist_entries, client)
+        local_records = _collect_discovery_records(
+            checklist_entries,
+            client,
+            enable_synonym_discovery=config.enable_synonym_discovery,
+        )
         client = LocalAssemblyDiscoveryCacheClient(local_records)
         source_label = "NCBI assembly discovery"
 
-    result = discover_assembly_candidates(checklist_entries, client)
+    result = discover_assembly_candidates(
+        checklist_entries,
+        client,
+        enable_synonym_discovery=config.enable_synonym_discovery,
+    )
+    if config.enrich_biosample:
+        result = _enrich_candidate_result_with_biosamples(
+            result,
+            checklist_entries,
+            paths,
+            config,
+            biosample_client=biosample_client,
+        )
     candidate_path = write_assembly_candidates(
         result.candidates,
         paths.assembly_candidates_path,
@@ -608,9 +988,92 @@ def run_candidate_discovery_stage(
     return candidate_path
 
 
+def _enrich_candidate_result_with_biosamples(
+    result,
+    checklist_entries,
+    paths,
+    config: AppConfig,
+    biosample_client: BioSampleClient | None = None,
+):
+    client, fetched_records, cache_path = _build_biosample_enrichment_client(
+        result.candidates,
+        paths,
+        config,
+        biosample_client=biosample_client,
+    )
+    enrichment_result = enrich_assembly_candidates_with_biosamples(
+        result.candidates,
+        checklist_entries,
+        client,
+    )
+    if fetched_records is not None:
+        write_biosample_records(fetched_records, cache_path)
+        LOGGER.info(
+            "Wrote BioSample cache: %s (%d row(s)).",
+            cache_path,
+            len(fetched_records),
+        )
+    LOGGER.info(
+        "BioSample enrichment diagnostics: %d row(s).",
+        len(enrichment_result.diagnostics),
+    )
+    return type(result)(
+        candidates=enrichment_result.candidates,
+        diagnostics=result.diagnostics + enrichment_result.diagnostics,
+    )
+
+
+class _RecordingBioSampleClient:
+    def __init__(self, client: BioSampleClient):
+        self.client = client
+        self.records = []
+        self._seen: set[str] = set()
+
+    def fetch_biosample(self, biosample_accession: str):
+        record = self.client.fetch_biosample(biosample_accession)
+        if record is not None and record.biosample.strip().upper() not in self._seen:
+            self._seen.add(record.biosample.strip().upper())
+            self.records.append(record)
+        return record
+
+
+def _build_biosample_enrichment_client(
+    candidates,
+    paths,
+    config: AppConfig,
+    biosample_client: BioSampleClient | None = None,
+) -> tuple[BioSampleClient, list | None, Path]:
+    cache_path = config.biosample_cache or paths.biosample_records_path
+    if biosample_client is not None:
+        return biosample_client, None, cache_path
+    if config.enable_biosample_entrez:
+        if config.dry_run:
+            raise ValueError(
+                "BioSample Entrez lookup is not executed during --dry-run; "
+                "use --biosample-cache for offline enrichment or omit --dry-run."
+            )
+        if not config.email:
+            raise ValueError(
+                "Real NCBI BioSample lookup requires --email with "
+                "--enable-biosample-entrez."
+            )
+        client = _RecordingBioSampleClient(
+            NcbiBioSampleClient(email=config.email, api_key=config.api_key)
+        )
+        return client, client.records, cache_path
+    if Path(cache_path).exists():
+        return LocalBioSampleCacheClient.from_tsv(cache_path), None, cache_path
+    raise ValueError(
+        "--enrich-biosample requires a local --biosample-cache TSV, an existing "
+        f"default cache at {cache_path}, or --enable-biosample-entrez --email."
+    )
+
+
 def _collect_discovery_records(
     checklist_entries,
     client: AssemblyDiscoveryClient,
+    *,
+    enable_synonym_discovery: bool = False,
 ) -> list[LocalAssemblyDiscoveryRecord]:
     records: list[LocalAssemblyDiscoveryRecord] = []
     for entry in checklist_entries:
@@ -619,13 +1082,33 @@ def _collect_discovery_records(
             for part in (entry.genus, entry.species)
             if part and part.strip()
         )
-        for record in client.search_species_assemblies(species_name):
+        correct_records = client.search_species_assemblies(species_name)
+        for record in correct_records:
             records.append(
                 LocalAssemblyDiscoveryRecord(
                     species=species_name,
                     record=record,
                 )
             )
+        if not enable_synonym_discovery or any(
+            str(record.assembly_accession or "").strip()
+            for record in correct_records
+        ):
+            continue
+        for query_name in entry.synonyms.split(";"):
+            normalized_query_name = " ".join(str(query_name).split())
+            if not normalized_query_name:
+                continue
+            synonym_records = client.search_species_assemblies(normalized_query_name)
+            for record in synonym_records:
+                records.append(
+                    LocalAssemblyDiscoveryRecord(
+                        species=normalized_query_name,
+                        record=record,
+                    )
+                )
+            if any(str(record.assembly_accession or "").strip() for record in synonym_records):
+                break
     return records
 
 
@@ -655,16 +1138,112 @@ def run_lpsn_child_taxa_checklist_conversion(config: AppConfig) -> Path:
     return checklist_path
 
 
-def run_selection_prepare_stage(paths, strains_per_species: int) -> Path:
+def run_lpsn_species_checklist_conversion(config: AppConfig, lpsn_client=None) -> Path:
+    if config.write_species_checklist is None:
+        raise ValueError(
+            "--lpsn-genus or --lpsn-cache requires --write-species-checklist."
+        )
+    if config.lpsn_cache is not None and config.enable_lpsn_api:
+        raise ValueError(
+            "--lpsn-cache and --enable-lpsn-api are mutually exclusive; use the "
+            "cache for offline reuse or omit it for an official refresh."
+        )
+    if config.lpsn_cache is None and config.lpsn_genus is None:
+        raise ValueError(
+            "--write-species-checklist requires --lpsn-child-taxa, --lpsn-cache, "
+            "or --lpsn-genus."
+        )
+    if config.lpsn_cache is None and not config.enable_lpsn_api:
+        raise ValueError(
+            "--lpsn-genus requires --enable-lpsn-api for official LPSN access, "
+            "or use --lpsn-cache for offline reuse; HTML fallback is not supported."
+        )
+
+    if config.lpsn_cache is not None:
+        records = read_lpsn_species_cache(config.lpsn_cache)
+        source_label = "LPSN species cache"
+    else:
+        client = lpsn_client or OfficialLpsnApiClient.from_env()
+        records = client.fetch_genus_species(config.lpsn_genus or "")
+        source_label = "official LPSN API"
+        if config.write_lpsn_cache is not None:
+            write_lpsn_species_cache(
+                records,
+                config.write_lpsn_cache,
+                annotate_metadata=True,
+                genus=config.lpsn_genus,
+                source_label=source_label,
+            )
+            LOGGER.info(
+                "Wrote LPSN species cache: %s (%d row(s)).",
+                config.write_lpsn_cache,
+                len(records),
+            )
+
+    if config.lpsn_genus is not None and config.lpsn_cache is not None:
+        requested = config.lpsn_genus.strip().lower()
+        records = [
+            record
+            for record in records
+            if record.genus.strip().lower() == requested
+        ]
+    kept_records = filter_lpsn_correct_species(records)
+    entries = annotate_lpsn_checklist_entries(
+        lpsn_records_to_checklist_entries(records),
+        source_label=source_label,
+        genus=config.lpsn_genus,
+    )
+    checklist_path = write_species_checklist(entries, config.write_species_checklist)
+    LOGGER.info(
+        "Converted %s to species checklist: kept=%d, excluded=%d.",
+        source_label,
+        len(kept_records),
+        len(records) - len(kept_records),
+    )
+    LOGGER.info("Wrote species checklist: %s.", checklist_path)
+    if config.write_excluded_lpsn_taxa is not None:
+        excluded_path = write_excluded_lpsn_species_records(
+            records,
+            config.write_excluded_lpsn_taxa,
+            genus=config.lpsn_genus,
+            source_label=source_label,
+        )
+        LOGGER.info("Wrote excluded LPSN species records: %s.", excluded_path)
+    return checklist_path
+
+
+def run_selection_prepare_stage(
+    paths,
+    config: AppConfig,
+    biosample_client: BioSampleClient | None = None,
+) -> Path:
     if not paths.assembly_candidates_path.exists():
         raise ValueError(
             f"candidate table not found: {paths.assembly_candidates_path}"
         )
     candidates = read_assembly_candidates(paths.assembly_candidates_path)
+    if config.enrich_biosample:
+        if config.species_checklist is None:
+            raise ValueError("--enrich-biosample with --prepare-selection requires --species-checklist.")
+        checklist_entries = read_species_checklist(config.species_checklist)
+        result = _enrich_candidate_result_with_biosamples(
+            CandidateDiscoveryResult(candidates=candidates, diagnostics=[]),
+            checklist_entries,
+            paths,
+            config,
+            biosample_client=biosample_client,
+        )
+        candidates = result.candidates
+        write_assembly_candidates(candidates, paths.assembly_candidates_path)
+        write_candidate_discovery_diagnostics(
+            result.diagnostics,
+            paths.assembly_candidate_diagnostics_path,
+        )
     annotated_candidates = annotate_candidates_culture_ids(candidates)
     selection_rows = candidates_to_selection_rows(
         annotated_candidates,
-        strains_per_species=strains_per_species,
+        strains_per_species=config.strains_per_species,
+        selection_policy=config.selection_policy,
     )
     write_user_selection(selection_rows, paths.strain_candidates_path)
     output_path = write_user_selection(selection_rows, paths.user_selection_path)
@@ -676,8 +1255,82 @@ def run_selection_prepare_stage(paths, strains_per_species: int) -> Path:
     return output_path
 
 
-def run_selection_read_stage(selection_tsv: Path) -> list[str]:
-    rows = read_user_selection(selection_tsv)
+def run_manual_review_template_stage(paths, config: AppConfig):
+    candidate_path = config.candidate_tsv or paths.assembly_candidates_path
+    biosample_cache_path = config.biosample_cache or paths.biosample_records_path
+    selection_path = config.selection_tsv or paths.user_selection_path
+    if not candidate_path.exists():
+        raise ValueError(f"candidate table not found: {candidate_path}")
+    if not biosample_cache_path.exists():
+        raise ValueError(f"BioSample cache not found: {biosample_cache_path}")
+    if not selection_path.exists():
+        raise ValueError(f"user selection table not found: {selection_path}")
+
+    candidates = read_assembly_candidates(candidate_path)
+    biosample_records = read_biosample_records(biosample_cache_path)
+    selection_rows = read_user_selection(selection_path)
+    target_species = species_without_selected_rows(selection_rows)
+    output = write_manual_review_outputs(
+        candidates=candidates,
+        biosample_records=biosample_records,
+        target_species=target_species,
+        evidence_template_path=config.outdir / "manual_deposit_evidence_template.tsv",
+        species_gap_summary_path=config.outdir / "manual_species_gap_summary.tsv",
+    )
+    LOGGER.info(
+        "Wrote manual deposit evidence template: %s.",
+        output.evidence_template_path,
+    )
+    LOGGER.info(
+        "Wrote manual species gap summary: %s.",
+        output.species_gap_summary_path,
+    )
+    LOGGER.info("Manual review species count: %d.", len(target_species))
+    return output
+
+
+def run_curator_evidence_apply_stage(paths, config: AppConfig) -> Path:
+    candidate_path = config.candidate_tsv or paths.assembly_candidates_path
+    if not candidate_path.exists():
+        raise ValueError(f"candidate table not found: {candidate_path}")
+    candidates = read_assembly_candidates(candidate_path)
+    result = apply_curator_evidence_to_candidates(
+        candidates,
+        config.apply_curator_evidence,
+        strains_per_species=config.strains_per_species,
+    )
+    candidate_output_path = write_assembly_candidates(
+        result.candidates,
+        paths.assembly_candidates_path,
+    )
+    selection_rows = candidates_to_selection_rows(
+        result.candidates,
+        strains_per_species=config.strains_per_species,
+        selection_policy="strict",
+    )
+    write_user_selection(selection_rows, paths.strain_candidates_path)
+    output_path = write_user_selection(selection_rows, paths.user_selection_path)
+    selected_count = len(selected_assembly_accessions(selection_rows))
+    LOGGER.info(
+        "Applied curator evidence to candidates: applied=%d.",
+        result.applied_count,
+    )
+    LOGGER.info("Wrote updated assembly candidates: %s.", candidate_output_path)
+    LOGGER.info(
+        "Wrote strict curator-applied user selection table: %s (%d selected).",
+        output_path,
+        selected_count,
+    )
+    return output_path
+
+
+def run_selection_read_stage(config: AppConfig) -> list[str]:
+    rows = read_user_selection(config.selection_tsv)
+    validate_user_selection(
+        rows,
+        strains_per_species=config.strains_per_species,
+        selection_policy=config.selection_policy,
+    )
     selected_accessions = selected_assembly_accessions(rows)
     LOGGER.info(
         "Read user selection table: %d selected accession(s).",
@@ -707,6 +1360,12 @@ def run_selection_download_stage(paths, config: AppConfig, runner=None) -> list:
         raise ValueError("Downloads were not enabled.")
 
     records = _selection_tsv_to_records(paths, config)
+    if not _source_audit_policy_allows_stage(paths, config, "download"):
+        _write_run_summary(records, paths, config)
+        raise ValueError(
+            "Sequence source audit policy blocked download stage; review "
+            f"{paths.sequence_source_audit_path}."
+        )
     _write_genome_download_plan(records, paths)
     write_manifest(records, paths.manifest)
     write_name_map(records, paths.name_map)
@@ -732,6 +1391,11 @@ def _selection_tsv_to_records(paths, config: AppConfig) -> list:
         )
 
     rows = read_user_selection(config.selection_tsv)
+    validate_user_selection(
+        rows,
+        strains_per_species=config.strains_per_species,
+        selection_policy=config.selection_policy,
+    )
     records = selection_rows_to_strain_records(rows)
     ensure_unique_names(records)
     ensure_unique_record_ids(records)

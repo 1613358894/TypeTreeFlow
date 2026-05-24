@@ -19,6 +19,38 @@ CANDIDATE_FIELDS = [
     "is_type_material",
     "culture_collection_ids",
     "has_recognized_deposit_id",
+    "lpsn_type_strain_ids",
+    "ncbi_culture_collection_ids",
+    "curator_culture_collection_ids",
+    "matched_lpsn_type_strain_ids",
+    "has_lpsn_type_strain_match",
+    "match_evidence",
+    "curator_evidence_source",
+    "curator_notes",
+    "curator_evidence_applied",
+    "discovery_name",
+    "discovery_name_type",
+    "matched_correct_name",
+    "synonym_used",
+    "synonym_evidence",
+    "requires_manual_review",
+    "manual_review_reason",
+    "source",
+    "notes",
+]
+
+REQUIRED_CANDIDATE_FIELDS = [
+    "species",
+    "assembly_accession",
+    "organism_name",
+    "strain",
+    "biosample",
+    "bioproject",
+    "assembly_level",
+    "refseq_category",
+    "is_type_material",
+    "culture_collection_ids",
+    "has_recognized_deposit_id",
     "source",
     "notes",
 ]
@@ -37,6 +69,22 @@ class AssemblyCandidate:
     is_type_material: bool = False
     culture_collection_ids: str = ""
     has_recognized_deposit_id: bool = False
+    lpsn_type_strain_ids: str = ""
+    ncbi_culture_collection_ids: str = ""
+    curator_culture_collection_ids: str = ""
+    matched_lpsn_type_strain_ids: str = ""
+    has_lpsn_type_strain_match: bool = False
+    match_evidence: str = ""
+    curator_evidence_source: str = ""
+    curator_notes: str = ""
+    curator_evidence_applied: bool = False
+    discovery_name: str = ""
+    discovery_name_type: str = "correct_name"
+    matched_correct_name: str = ""
+    synonym_used: str = ""
+    synonym_evidence: str = ""
+    requires_manual_review: bool = False
+    manual_review_reason: str = ""
     source: str = ""
     notes: str = ""
 
@@ -76,7 +124,9 @@ def read_assembly_candidates(path: Path) -> list[AssemblyCandidate]:
                 f"Could not read assembly candidate table header: {exc}"
             ) from exc
 
-        missing_fields = [field for field in CANDIDATE_FIELDS if field not in header]
+        missing_fields = [
+            field for field in REQUIRED_CANDIDATE_FIELDS if field not in header
+        ]
         if missing_fields:
             missing = ", ".join(missing_fields)
             raise ValueError(
@@ -92,6 +142,9 @@ def read_assembly_candidates(path: Path) -> list[AssemblyCandidate]:
                 )
             row_data = dict(zip(header, row))
             try:
+                manual_review_reason = (
+                    row_data.get("manual_review_reason", "") or ""
+                )
                 candidate = AssemblyCandidate(
                     species=(row_data["species"] or "").strip(),
                     assembly_accession=(
@@ -114,6 +167,47 @@ def read_assembly_candidates(path: Path) -> list[AssemblyCandidate]:
                         field="has_recognized_deposit_id",
                         row_number=row_number,
                     ),
+                    lpsn_type_strain_ids=row_data.get("lpsn_type_strain_ids", "") or "",
+                    ncbi_culture_collection_ids=(
+                        row_data.get("ncbi_culture_collection_ids", "") or ""
+                    ),
+                    curator_culture_collection_ids=(
+                        row_data.get("curator_culture_collection_ids", "") or ""
+                    ),
+                    matched_lpsn_type_strain_ids=(
+                        row_data.get("matched_lpsn_type_strain_ids", "") or ""
+                    ),
+                    has_lpsn_type_strain_match=_parse_bool(
+                        row_data.get("has_lpsn_type_strain_match", ""),
+                        field="has_lpsn_type_strain_match",
+                        row_number=row_number,
+                    ),
+                    match_evidence=row_data.get("match_evidence", "") or "",
+                    curator_evidence_source=(
+                        row_data.get("curator_evidence_source", "") or ""
+                    ),
+                    curator_notes=row_data.get("curator_notes", "") or "",
+                    curator_evidence_applied=_parse_bool(
+                        row_data.get("curator_evidence_applied", ""),
+                        field="curator_evidence_applied",
+                        row_number=row_number,
+                    ),
+                    discovery_name=row_data.get("discovery_name", "") or "",
+                    discovery_name_type=(
+                        row_data.get("discovery_name_type", "") or "correct_name"
+                    ),
+                    matched_correct_name=row_data.get("matched_correct_name", "") or "",
+                    synonym_used=row_data.get("synonym_used", "") or "",
+                    synonym_evidence=row_data.get("synonym_evidence", "") or "",
+                    requires_manual_review=(
+                        _parse_bool(
+                            row_data.get("requires_manual_review", ""),
+                            field="requires_manual_review",
+                            row_number=row_number,
+                        )
+                        or bool(manual_review_reason)
+                    ),
+                    manual_review_reason=manual_review_reason,
                     source=row_data["source"] or "",
                     notes=row_data["notes"] or "",
                 )
@@ -166,6 +260,28 @@ def _candidate_to_row(candidate: AssemblyCandidate) -> dict[str, str]:
         "has_recognized_deposit_id": _format_bool(
             candidate.has_recognized_deposit_id
         ),
+        "lpsn_type_strain_ids": candidate.lpsn_type_strain_ids,
+        "ncbi_culture_collection_ids": candidate.ncbi_culture_collection_ids,
+        "curator_culture_collection_ids": candidate.curator_culture_collection_ids,
+        "matched_lpsn_type_strain_ids": candidate.matched_lpsn_type_strain_ids,
+        "has_lpsn_type_strain_match": _format_bool(
+            candidate.has_lpsn_type_strain_match
+        ),
+        "match_evidence": _sanitize_tsv_text(candidate.match_evidence),
+        "curator_evidence_source": _sanitize_tsv_text(
+            candidate.curator_evidence_source
+        ),
+        "curator_notes": _sanitize_tsv_text(candidate.curator_notes),
+        "curator_evidence_applied": _format_bool(
+            candidate.curator_evidence_applied
+        ),
+        "discovery_name": candidate.discovery_name,
+        "discovery_name_type": candidate.discovery_name_type,
+        "matched_correct_name": candidate.matched_correct_name,
+        "synonym_used": candidate.synonym_used,
+        "synonym_evidence": _sanitize_tsv_text(candidate.synonym_evidence),
+        "requires_manual_review": _format_bool(candidate.requires_manual_review),
+        "manual_review_reason": _sanitize_tsv_text(candidate.manual_review_reason),
         "source": candidate.source,
         "notes": _sanitize_tsv_text(candidate.notes),
     }
@@ -191,8 +307,9 @@ def _parse_bool(value: str, *, field: str, row_number: int) -> bool:
     )
 
 
-def _ranking_key(candidate: AssemblyCandidate) -> tuple[int, int, int, int, str]:
+def _ranking_key(candidate: AssemblyCandidate) -> tuple[int, int, int, int, int, str]:
     return (
+        -int(candidate.has_lpsn_type_strain_match),
         -int(candidate.is_type_material),
         -int(candidate.has_recognized_deposit_id),
         -_refseq_category_priority(candidate.refseq_category),

@@ -243,6 +243,15 @@ def _entrez_16s_audit(
         rrna_accession=candidate.accession,
         rrna_strain=candidate.strain or "",
         rrna_biosample=candidate.biosample or "",
+        genome_text=" ".join(
+            value
+            for value in (
+                record.display_name,
+                record.assembly_source,
+                record.source,
+            )
+            if value
+        ),
         rrna_text=rrna_text,
         notes=notes,
     )

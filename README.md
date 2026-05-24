@@ -15,13 +15,20 @@ The long-term goal is to collect type-strain genomes and 16S sequences, compare 
   same-genome source audit rows for successful internal 16S extraction.
 - Guard real Entrez 16S fallback behind `--enable-entrez --email`, including
   source audit rows for successful Entrez 16S retrieval.
+- Gate source-audit-sensitive stages with
+  `--source-audit-policy permissive|warn|strict`.
 - Plan ANI runs, fake-run FastANI wrappers, and parse existing `ani/fastani_raw.tsv`.
 - Summarize parsed ANI results into `ani/ani_summary.tsv`.
 - Plan and run guarded resume-mode MAFFT, trimAl, and IQ-TREE workflow wrappers.
 - Audit selected records against a user-provided species checklist TSV.
+- Write culture collection evidence audits from checklist/LPSN type-strain text.
 - Generate assembly candidates from a user-provided local discovery cache, or
   from guarded real NCBI assembly discovery with explicit opt-in.
 - Prepare and validate offline strain-selection TSVs from an existing candidate table.
+- Run a one-command genus acquisition dry run that preserves the LPSN checklist,
+  excluded-taxa audit, culture collection audit, assembly candidates, optional
+  BioSample-enriched candidates, selection TSVs, download plan, manifest, name
+  map, and summary.
 - Drive guarded NCBI Datasets downloads from selected selection-TSV rows.
 - Write `report/summary.md` from existing files without making species conclusions.
 
@@ -36,26 +43,47 @@ TypeTreeFlow selects type-material genome records from local GTDB metadata. GTDB
 LPSN is the naming authority for validly published and legitimate prokaryotic names. TypeTreeFlow does not guarantee coverage of all currently validly published LPSN species, and `report/summary.md` does not make species conclusions. It only reports traceable computational results from the recorded manifest and output files.
 
 For formal new-species publication work, manually cross-check the generated `manifest.tsv`, `name_map.tsv`, and `report/summary.md` against LPSN or an equivalent authoritative nomenclatural checklist before drawing taxonomic conclusions.
+Use `--source-audit-policy strict` for formal downloads or publication-facing
+analyses when genome and 16S records are mixed from different sources. At
+minimum, keep the default `warn` policy and review every mismatch,
+manual-review, or strain-text-only row in
+`source_audit/sequence_source_audit.tsv`.
 
 User-supplied species checklist auditing is documented in
 [docs/species_checklist_audit.md](docs/species_checklist_audit.md). The
 implementation breakdown is tracked in
 [docs/species_checklist_implementation_plan.md](docs/species_checklist_implementation_plan.md).
 
-### Planned LPSN-first acquisition
+### LPSN-first acquisition workflow
 
-A planned future route will start from a user-provided checklist or official
-LPSN data to define validly published correct species, then use NCBI/GTDB only
-to discover available genome and 16S data. The design is documented in
+A LPSN-first route starts from a user-provided checklist or official LPSN data
+to define validly published correct species, then uses NCBI/GTDB only to
+discover available genome and 16S data. The design is documented in
 [docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md).
 
-The LPSN-first route is still partly scaffolded: the real LPSN API is not
-implemented. The CLI can generate candidate rows from a user-provided local
-discovery cache TSV, or from guarded real NCBI assembly discovery when
+The LPSN-first route now has a minimal official-LPSN adapter boundary. It can
+convert an offline LPSN species cache TSV into `species_checklist.tsv` and an
+optional excluded-taxa audit TSV, or call the official LPSN API through the
+optional official `lpsn` Python client when `--enable-lpsn-api` is supplied and
+credentials are present in environment variables. It does not scrape LPSN HTML.
+The CLI can generate candidate rows from a user-provided local discovery cache
+TSV, or from guarded real NCBI assembly discovery when
 `--enable-ncbi-discovery --email` is supplied. The local cache mode remains the
 recommended repeatable path. A selection TSV can drive guarded downloads only
 for assembly accessions already present in generated or user-provided
 candidate/selection rows.
+
+The strict type-strain workflow and a regular-deposit representative workflow
+are different targets. Strict type-strain selection requires evidence tying an
+NCBI Assembly accession to the species type-strain equivalence set. A regular
+culture collection deposit for the same species is not enough unless it is
+explicitly part of, or proven equivalent to, that type strain. For the current
+Fusobacterium strict NCBI Assembly audit, the accepted result is 16/17:
+`Fusobacterium mortiferum` remains pending because no high-confidence NCBI
+Assembly accession was found for `ATCC 25557 / CCUG 14475 / DSM 19809 / VPI
+4123A / 350A`. An external ATCC Genome Portal type genome exists for ATCC
+25557, but ingesting that source is a future separate feature and must not
+pollute the NCBI strict workflow.
 
 ## Installation
 
@@ -128,6 +156,63 @@ TypeTreeFlow does not access LPSN, crawl HTML, or fetch remote nomenclature
 data. The generated species checklist can be passed to the existing
 `--species-checklist` audit workflow.
 
+Convert a local LPSN species cache into a species checklist:
+
+```bash
+python typetreeflow.py \
+  --lpsn-cache data/lpsn_species_cache.tsv \
+  --lpsn-genus Fusobacterium \
+  --write-species-checklist data/species_checklist_from_lpsn.tsv \
+  --write-excluded-lpsn-taxa data/excluded_lpsn_taxa.tsv \
+  --dry-run
+```
+
+The cache format is the stable `typetreeflow.taxonomy.lpsn.LPSN_CACHE_FIELDS`
+TSV with one species row per LPSN-derived record. The generated checklist keeps
+validly published ICNP correct-name species, including official LPSN
+`correct name (...)` annotations. The optional excluded table keeps synonym,
+misspelling, not-validly-published, preferred/pro-correct name, and
+`Candidatus` rows with exclusion reasons. This path is fully offline and is the
+preferred repeatable dry-run path.
+
+Fetch official LPSN records for a genus and write both a cache and filtered
+species checklist:
+
+```powershell
+$env:TYPETREEFLOW_LPSN_USERNAME = "user@example.org"
+$env:TYPETREEFLOW_LPSN_PASSWORD = "your-lpsn-password"
+python typetreeflow.py `
+  --lpsn-genus Fusobacterium `
+  --enable-lpsn-api `
+  --write-lpsn-cache data/fusobacterium_lpsn_species_cache.tsv `
+  --write-species-checklist data/fusobacterium_species_checklist.tsv `
+  --write-excluded-lpsn-taxa data/fusobacterium_lpsn_excluded_taxa.tsv
+```
+
+`TYPETREEFLOW_LPSN_EMAIL` can be used instead of
+`TYPETREEFLOW_LPSN_USERNAME`. The optional official `lpsn` Python package must
+be installed separately for this API mode. Without `--enable-lpsn-api` or
+without credentials, TypeTreeFlow exits with a clear error and does not fall
+back to HTML scraping. `--write-lpsn-cache` preserves the official API result
+for offline reuse; `--write-species-checklist` writes the retained species set;
+`--write-excluded-lpsn-taxa` writes the rejected records and reasons.
+
+Write a culture collection evidence audit from an LPSN-derived checklist:
+
+```bash
+python typetreeflow.py \
+  --species-checklist data/fusobacterium_species_checklist.tsv \
+  --audit-culture-collections \
+  --outdir results/fusobacterium_lpsn_audit \
+  --dry-run
+```
+
+This writes `source_audit/culture_collection_audit.tsv`. The table preserves
+original type-strain text and normalized recognized culture collection IDs such
+as `ATCC 25586`, `DSM 15643`, or `CGMCC 1.32833`. It is an evidence table for
+manual review, not a final taxonomic conclusion and not proof that an NCBI
+assembly is the type strain.
+
 ### Minimal offline checklist-guided workflow
 
 This is the shortest checked workflow for starting from a local LPSN Child taxa
@@ -165,14 +250,16 @@ not write a manifest or download plan.
 python typetreeflow.py \
   --outdir results/offline_smoke \
   --prepare-selection \
+  --selection-policy balanced \
   --strains-per-species 1
 ```
 
 This preparation step is offline. It writes
 `results/offline_smoke/selection/strain_candidates.tsv` and
-`results/offline_smoke/selection/user_selection.tsv`. Review the generated
-`user_selection.tsv` and keep or edit `selected=yes` rows before planning or
-downloading.
+`results/offline_smoke/selection/user_selection.tsv`. The default
+`--selection-policy balanced` preselects the top-ranked N rows per species.
+Review the generated `user_selection.tsv` and keep or edit `selected=yes` rows
+before planning or downloading.
 
 ```bash
 python typetreeflow.py \
@@ -245,6 +332,84 @@ The local discovery cache mode is the recommended repeatable workflow: inspect
 or version the cache TSV, regenerate candidates from it with `--dry-run`, then
 prepare a user selection table.
 
+### One-command genus acquisition dry run
+
+`--acquire-genus` stitches the LPSN-first preparation stages together while
+leaving every intermediate table visible under `--outdir`. It always prepares a
+dry-run download plan and never executes NCBI Datasets downloads; after review,
+use `--selection-tsv ... --enable-downloads` for the guarded download step.
+
+Recommended offline Fusobacterium dry run from local caches:
+
+```bash
+python typetreeflow.py \
+  --acquire-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --biosample-cache data/fusobacterium_biosample_records.tsv \
+  --enrich-biosample \
+  --selection-policy strict \
+  --source-audit-policy strict \
+  --strains-per-species 1 \
+  --outdir results/fusobacterium_acquisition \
+  --dry-run
+```
+
+This writes `species_checklist.tsv`, `excluded_lpsn_taxa.tsv`,
+`source_audit/culture_collection_audit.tsv`,
+`candidates/assembly_candidates.tsv`,
+`candidates/assembly_candidate_diagnostics.tsv`,
+`selection/strain_candidates.tsv`, `selection/user_selection.tsv`,
+`manifest.tsv`, `name_map.tsv`, `cache/ncbi/download_plan.tsv`, and
+`report/summary.md`.
+
+Official LPSN plus guarded NCBI Assembly discovery dry run:
+
+```bash
+python typetreeflow.py \
+  --acquire-genus Fusobacterium \
+  --enable-lpsn-api \
+  --enable-ncbi-discovery \
+  --email user@example.org \
+  --enable-synonym-discovery \
+  --selection-policy strict \
+  --source-audit-policy strict \
+  --strains-per-species 1 \
+  --outdir results/fusobacterium_acquisition \
+  --dry-run
+```
+
+Set `TYPETREEFLOW_LPSN_USERNAME` or `TYPETREEFLOW_LPSN_EMAIL`, plus
+`TYPETREEFLOW_LPSN_PASSWORD`, before using official LPSN access. This mode
+writes `taxonomy/lpsn_species_cache.tsv` for later offline reuse and
+`candidates/discovery_records.tsv` as the normalized NCBI discovery cache.
+
+After manually reviewing and editing
+`results/fusobacterium_acquisition/selection/user_selection.tsv`, execute the
+guarded download:
+
+```bash
+python typetreeflow.py \
+  --outdir results/fusobacterium_acquisition \
+  --selection-tsv results/fusobacterium_acquisition/selection/user_selection.tsv \
+  --selection-policy strict \
+  --source-audit-policy strict \
+  --strains-per-species 1 \
+  --enable-downloads \
+  --force
+```
+
+By default candidate discovery queries only the checklist correct name. To use
+checklist synonyms as an opt-in recall aid, add
+`--enable-synonym-discovery`. Synonym discovery first queries the correct name
+and only expands to checklist `synonyms` when the correct-name query has no
+usable candidate. Synonym-hit rows remain assigned to the checklist correct
+species and record `discovery_name`, `discovery_name_type=synonym`,
+`matched_correct_name`, `synonym_used`, `synonym_evidence`,
+`requires_manual_review=true`, and
+`manual_review_reason=synonym_supported_match`. This is not automatic name
+replacement; every synonym-supported row must be reviewed before use.
+
 To refresh candidates from real NCBI Assembly through Entrez, omit
 `--discovery-cache` and explicitly opt in:
 
@@ -266,6 +431,38 @@ in this release. Real discovery writes
 cache `results/candidates/discovery_records.tsv` for later offline reuse. It
 does not write a manifest, download plan, or execute downloads.
 
+Optionally enrich existing candidate rows with BioSample metadata. The
+repeatable offline form reads a BioSample TSV cache and never contacts NCBI:
+
+```bash
+python typetreeflow.py \
+  --outdir results \
+  --prepare-selection \
+  --species-checklist data/species_checklist_from_lpsn.tsv \
+  --enrich-biosample \
+  --biosample-cache results/cache/ncbi/biosample_records.tsv \
+  --dry-run
+```
+
+The cache fields are `biosample`, `organism`, `strain`, `isolate`,
+`type_material`, `culture_collection`, `collected_text`, `attributes_text`,
+`source`, and `notes`. BioSample `strain`, `isolate`, `type material`,
+`culture collection`, `specimen voucher`, and `bio_material` attributes are
+used as candidate-selection evidence. They can strengthen
+`is_type_material`, `ncbi_culture_collection_ids`, and
+`matched_lpsn_type_strain_ids`, but they are not taxonomic conclusions. Real
+BioSample lookups require explicit opt-in and an Entrez email:
+
+```bash
+python typetreeflow.py \
+  --outdir results \
+  --prepare-selection \
+  --species-checklist data/species_checklist_from_lpsn.tsv \
+  --enrich-biosample \
+  --enable-biosample-entrez \
+  --email user@example.org
+```
+
 Prepare an offline user selection TSV from an existing candidate table:
 
 ```bash
@@ -277,14 +474,22 @@ cp examples/assembly_candidates_minimal.tsv results/candidates/assembly_candidat
 python typetreeflow.py \
   --outdir results \
   --prepare-selection \
+  --selection-policy balanced \
   --strains-per-species 1
 ```
 
 This reads `results/candidates/assembly_candidates.tsv`, writes
 `results/selection/strain_candidates.tsv` and
 `results/selection/user_selection.tsv`, and does not run downloads or external
-tools. Edit `selected` values in `results/selection/user_selection.tsv`, then
-validate the edited table:
+tools. `--selection-policy` controls the generated defaults:
+`strict` selects only candidates with `has_lpsn_type_strain_match=true` and no
+manual-review requirement, and sends unmatched or synonym-supported candidates
+to manual review; use it for formal type-strain downloads. `balanced` is the
+default and selects the current top-ranked N rows, prioritizing LPSN matches
+while allowing NCBI type-material or deposit-ID evidence for exploratory
+candidate collection. `review-only` selects nothing and produces a full
+manual-review table. Edit `selected` values in
+`results/selection/user_selection.tsv`, then validate the edited table:
 
 ```bash
 python typetreeflow.py \
@@ -292,8 +497,11 @@ python typetreeflow.py \
 ```
 
 Without `--dry-run` or `--enable-downloads`, the selection TSV is validated and
-counted only. To build selection-driven planning outputs without network access
-or external tools, run:
+counted only. Validation rejects more than N selected rows per species,
+selected rows without assembly accessions, duplicate selected accessions, and
+strict-policy selected rows without LPSN type-strain matches. To build
+selection-driven planning outputs without network access or external tools,
+run:
 
 ```bash
 python typetreeflow.py \
@@ -322,6 +530,53 @@ This uses the existing NCBI Datasets download stage, writes
 genomes in `manifest.tsv`, and refreshes `report/summary.md`. It is not NCBI
 candidate discovery; users must first provide candidate rows and mark selected
 assembly accessions in the selection TSV.
+
+Generate a manual deposit-evidence review package for species that remain
+unselected in a strict selection table:
+
+```bash
+python typetreeflow.py \
+  --write-manual-review-template \
+  --candidate-tsv results/fusobacterium_acquisition_enriched_dryrun/candidates/assembly_candidates.tsv \
+  --biosample-cache results/fusobacterium_acquisition_enriched_dryrun/cache/ncbi/biosample_records.tsv \
+  --selection-tsv results/fusobacterium_acquisition_enriched_dryrun/selection/user_selection.tsv \
+  --outdir results/fusobacterium_manual_review
+```
+
+This offline step writes
+`manual_deposit_evidence_template.tsv` and
+`manual_species_gap_summary.tsv`. It does not select rows, download genomes,
+query NCBI, or infer type-strain status. Curators should fill only the blank
+`curator_confirmed_deposit_id`, `curator_evidence_source`, and
+`curator_notes` columns when a source publication, collection page, or
+BioSample/INSDC record confirms equivalence to an LPSN type-strain deposit.
+Do not confirm a candidate from strain-name similarity alone.
+
+Import filled curator evidence into a fresh output directory and prepare a
+strict offline selection without downloading:
+
+```bash
+python typetreeflow.py \
+  --apply-curator-evidence results/fusobacterium_manual_review/manual_deposit_evidence_template.tsv \
+  --candidate-tsv results/fusobacterium_acquisition_enriched_dryrun/candidates/assembly_candidates.tsv \
+  --selection-policy strict \
+  --strains-per-species 1 \
+  --outdir results/fusobacterium_manual_review_applied
+```
+
+Only rows with a non-empty `curator_confirmed_deposit_id` are applied, and the
+confirmed ID must parse as one of that species' `lpsn_type_strain_ids`.
+Mismatched IDs, missing species/accession candidates, and multiple curator
+confirmed candidates for one species under `--strains-per-species 1` are
+errors. Applied rows record `curator_culture_collection_ids`,
+`curator_evidence_source`, `curator_notes`, and
+`curator_evidence_applied=true`, add curator evidence to `match_evidence`, and
+clear only resolved deposit-ID review reasons. The historical
+`requires_manual_review` flag is retained conservatively, but strict selection
+treats `curator_evidence_applied=true` with no remaining
+`manual_review_reason` as resolved and does not require a second manual review.
+If the curator columns are still blank, the command reports zero applied rows
+and the strict selection remains unchanged.
 
 Dry-run with query inputs for downstream planning:
 
@@ -374,7 +629,8 @@ It may write manifests, name maps, download plans, ANI plans, phylogeny plans,
 and `report/summary.md`, but it never calls external tools or network clients.
 Candidate discovery is an acquisition stage: local `--discovery-cache` mode is
 offline and dry-run only, while real NCBI discovery is controlled by
-`--enable-ncbi-discovery --email`.
+`--enable-ncbi-discovery --email`. BioSample enrichment is cache-only unless
+`--enable-biosample-entrez --email` is supplied.
 
 Real actions are opt-in and stage-specific. Without the matching enable flag, non-dry-run CLI execution is rejected with a stable message such as:
 
@@ -386,6 +642,18 @@ Some real actions are resume-only. Direct non-resume execution from `--genus` an
 
 Real Entrez fallback requires both `--enable-entrez` and `--email`. `--api-key` is optional and is passed through to Biopython Entrez when provided.
 
+`--source-audit-policy` controls how existing
+`source_audit/sequence_source_audit.tsv` rows affect critical stages:
+`permissive` records and reports findings without blocking; `warn` is the
+default and highlights mismatch, manual-review, and weak strain-text-only
+evidence in `report/summary.md`; `strict` returns non-zero before guarded
+download, report-only, or phylogeny stages when any row has
+`audit_status=mismatch`, `manual_review_required`, or `strain_text_match`.
+Successful barrnap/internal-genome 16S rows are
+`same_genome_internal_16s` and always pass strict. Entrez fallback rows are
+audited from accession, strain, BioSample, and culture-ID evidence; they are
+not treated as same-genome evidence by default.
+
 ## Guarded real execution flags
 
 | Stage | Flag | Current CLI state |
@@ -395,7 +663,9 @@ Real Entrez fallback requires both `--enable-entrez` and `--email`. `--api-key` 
 | FastANI | `--enable-fastani` | Guarded; fake tested; real local execution is available on resume when `fastANI` is installed and `--query-genome` is provided. |
 | phylo | `--enable-phylo` | Guarded; fake tested; real local execution is available on resume when `mafft`, `trimal`, and `iqtree2` are installed. |
 | Entrez | `--enable-entrez --email user@example.org` | Guarded real fallback is wired; dry runs never contact Entrez. |
+| LPSN API | `--enable-lpsn-api` plus environment credentials | Guarded official LPSN API adapter is wired for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery is wired for `--discover-assembly-candidates`; local `--discovery-cache` mode remains offline. |
+| NCBI BioSample enrichment | `--enable-biosample-entrez --email user@example.org` | Guarded real BioSample lookup is wired for `--enrich-biosample`; local `--biosample-cache` mode remains offline. |
 
 Example guarded downloads command:
 
@@ -457,10 +727,12 @@ The main output files are:
 - `rrna/all_16S.fasta`: combined reference and optional query 16S FASTA.
 - `ani/ani_plan.tsv`, `ani/references.txt`, `ani/fastani_raw.tsv`, `ani/ani_query_vs_refs.tsv`, `ani/ani_summary.tsv`, `ani/ani_query_vs_refs.png`: ANI planning, raw output, parsed output, summary, and PNG artifacts.
 - `phylo/phylo_plan.tsv`, `phylo/all_16S.aln.fasta`, `phylo/all_16S.trimmed.fasta`, `phylo/iqtree/all_16S.treefile`: phylogeny planning and controlled-run artifacts.
-- `candidates/assembly_candidates.tsv`: offline candidate table for LPSN-first selection preparation.
+- `candidates/assembly_candidates.tsv`: offline candidate table for LPSN-first selection preparation, including parsed NCBI culture collection IDs, LPSN type-strain ID match evidence, and optional synonym-discovery audit fields. The LPSN match is selection evidence only, not a taxonomic conclusion; synonym-discovery fields are recall evidence only and never silently replace checklist correct names.
 - `candidates/assembly_candidate_diagnostics.tsv`: local discovery-cache candidate generation diagnostics.
 - `candidates/discovery_records.tsv`: normalized NCBI assembly discovery cache written by guarded real discovery for later offline reuse.
+- `cache/ncbi/biosample_records.tsv`: optional BioSample metadata cache used to enrich candidate evidence without network access.
 - `source_audit/sequence_source_audit.tsv`: offline genome/16S same-strain source audit table, including successful barrnap internal 16S extraction and Entrez fallback rows.
+- `source_audit/culture_collection_audit.tsv`: checklist/LPSN type-strain evidence table with original text and normalized recognized culture collection IDs.
 - `selection/strain_candidates.tsv`, `selection/user_selection.tsv`: generated review table and user-editable selection TSV.
 - `taxonomy/checklist_comparison.tsv`: user-provided species checklist audit against selected records.
 - `report/summary.md`: read-only run summary of final recorded manifest state, including source audit counts when `source_audit/sequence_source_audit.tsv` exists.
@@ -513,7 +785,8 @@ The tests use fake runners and temporary fixtures for downloads, barrnap, FastAN
 - The 95% ANI threshold in summaries is advisory only; TypeTreeFlow does not assign species names.
 - GTDB metadata is read from a local TSV; this release does not download GTDB metadata for you.
 - Entrez fallback can contact NCBI only when explicitly enabled with `--enable-entrez --email`.
-- Species checklist audit requires a user-provided TSV; TypeTreeFlow does not crawl LPSN or make nomenclatural conclusions.
+- Species checklist audit requires a user-provided TSV or a generated LPSN-derived TSV; TypeTreeFlow does not crawl LPSN HTML or make nomenclatural conclusions.
 - Candidate generation can read a user-provided local discovery cache, or contact NCBI only with `--enable-ncbi-discovery --email`.
+- Synonym-aware candidate discovery is off by default and available only with `--enable-synonym-discovery`; synonym hits require manual review and remain assigned to the checklist correct species.
 - Offline selection preparation requires an existing `candidates/assembly_candidates.tsv`.
 - Selection-driven downloads only use selected rows with assembly accessions already present in the user-provided selection TSV; they do not discover new NCBI candidates.

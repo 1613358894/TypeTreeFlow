@@ -25,6 +25,7 @@ def test_readme_mentions_guarded_cli_flags():
         "--species-checklist",
         "--prepare-selection",
         "--selection-tsv",
+        "--selection-policy",
         "--strains-per-species",
         "--query-genome",
         "--query-16s",

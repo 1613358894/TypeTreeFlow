@@ -342,6 +342,55 @@ def test_enable_entrez_success_writes_source_audit(tmp_path, monkeypatch):
     assert {audit.rrna_accession for audit in audits} == {"NR_000001"}
 
 
+def test_enable_entrez_strict_source_audit_returns_nonzero_after_audit(tmp_path, monkeypatch):
+    class MockEntrezClient:
+        def __init__(self, email: str, api_key: str | None = None):
+            assert email == "user@example.org"
+
+        def search_16s(self, query: str, retmax: int = 10):
+            return [
+                EntrezCandidate(
+                    accession="NR_000001",
+                    organism="Aliivibrio fischeri",
+                    title="Aliivibrio fischeri strain ES114 16S ribosomal RNA",
+                    sequence="A" * 1300,
+                    length=1300,
+                    strain="ES114",
+                )
+            ]
+
+    monkeypatch.setattr("typetreeflow.cli.BiopythonEntrezClient", MockEntrezClient)
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+
+    result = main(
+        [
+            "--genus",
+            "Aliivibrio",
+            "--gtdb-metadata",
+            str(FIXTURE),
+            "--outdir",
+            str(outdir),
+            "--enable-entrez",
+            "--email",
+            "user@example.org",
+            "--source-audit-policy",
+            "strict",
+        ]
+    )
+
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 2
+    assert {audit.audit_status for audit in audits} == {
+        "strain_text_match",
+        "mismatch",
+    }
+    assert "- Source audit policy result: blocked" in summary
+    assert "- Weak evidence count: 1" in summary
+    assert "- Mismatch count: 1" in summary
+
+
 def test_dry_run_enable_entrez_without_email_does_not_create_client(tmp_path, monkeypatch):
     def fail_if_called(*args, **kwargs):
         raise AssertionError("dry-run must not instantiate Entrez client")

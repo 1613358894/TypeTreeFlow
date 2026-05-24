@@ -9,7 +9,9 @@ REQUIRED_FIELDS = ["genus", "species", "status", "type_strain", "source", "notes
 SPECIES_CHECKLIST_FIELDS = [
     "genus",
     "species",
+    "full_name",
     "status",
+    "type_strain_names",
     "type_strain",
     "source",
     "notes",
@@ -28,6 +30,8 @@ class SpeciesChecklistEntry:
     status: str
     type_strain: str
     source: str
+    full_name: str = ""
+    type_strain_names: str = ""
     notes: str = ""
     taxonomic_status: str = ""
     lpsn_record_number: str = ""
@@ -70,6 +74,8 @@ def read_species_checklist(path: Path) -> list[SpeciesChecklistEntry]:
                     status=row_data["status"].strip(),
                     type_strain=row_data["type_strain"].strip(),
                     source=row_data["source"].strip(),
+                    full_name=row_data.get("full_name", ""),
+                    type_strain_names=row_data.get("type_strain_names", ""),
                     notes=row_data.get("notes", ""),
                     taxonomic_status=row_data.get("taxonomic_status", ""),
                     lpsn_record_number=row_data.get("lpsn_record_number", ""),
@@ -99,7 +105,9 @@ def write_species_checklist(entries: list[SpeciesChecklistEntry], path: Path) ->
                 {
                     "genus": entry.genus,
                     "species": entry.species,
+                    "full_name": entry.full_name,
                     "status": entry.status,
+                    "type_strain_names": entry.type_strain_names,
                     "type_strain": entry.type_strain,
                     "source": entry.source,
                     "notes": _clean_tsv_value(entry.notes),
@@ -116,10 +124,13 @@ def write_species_checklist(entries: list[SpeciesChecklistEntry], path: Path) ->
 
 def is_lpsn_correct_name_entry(entry: SpeciesChecklistEntry) -> bool:
     nomenclatural_status = entry.nomenclatural_status.strip().lower()
+    taxonomic_status = entry.taxonomic_status.strip().lower()
     return (
-        "validly published" in nomenclatural_status
-        and "not validly published" not in nomenclatural_status
-        and entry.taxonomic_status.strip().lower() == "correct name"
+        nomenclatural_status == "validly published under the icnp"
+        and (
+            taxonomic_status == "correct name"
+            or taxonomic_status.startswith("correct name (")
+        )
     )
 
 

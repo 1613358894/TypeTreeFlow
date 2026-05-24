@@ -3,6 +3,10 @@ from pathlib import Path
 from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    write_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -92,3 +96,106 @@ def test_report_only_excludes_existing_skips_but_keeps_real_problems(tmp_path):
     assert "existing-gff |" not in summary
     for record_id in ("failed", "missing", "ambiguous", "not-found", "invalid", "no-genome"):
         assert f"| {record_id} |" in summary
+
+
+def test_report_only_strict_source_audit_returns_nonzero_after_summary(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "rrna_16s_ready", has_16s=True)], paths.manifest)
+    write_sequence_source_audits(
+        [
+            SequenceSourceAudit(
+                species="Aliivibrio fischeri",
+                genome_accession="GCF_000011805.1",
+                rrna_source="Entrez",
+                rrna_accession="NR_000001",
+                audit_status="manual_review_required",
+            )
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--report-only",
+            "--source-audit-policy",
+            "strict",
+        ]
+    )
+
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 2
+    assert "- Source audit policy: strict" in summary
+    assert "- Source audit policy result: blocked" in summary
+    assert "- Manual review required count: 1" in summary
+
+
+def test_report_only_warn_source_audit_does_not_block_and_highlights_counts(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "rrna_16s_ready", has_16s=True)], paths.manifest)
+    write_sequence_source_audits(
+        [
+            SequenceSourceAudit(
+                species="Aliivibrio fischeri",
+                genome_accession="GCF_000011805.1",
+                rrna_source="Entrez",
+                rrna_accession="NR_000001",
+                audit_status="mismatch",
+            ),
+            SequenceSourceAudit(
+                species="Aliivibrio fischeri",
+                genome_accession="GCF_000011805.1",
+                rrna_source="Entrez",
+                rrna_accession="NR_000002",
+                audit_status="strain_text_match",
+            ),
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    result = main(["--outdir", str(outdir), "--report-only"])
+
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert "- Source audit policy: warn" in summary
+    assert "- Source audit policy result: passed" in summary
+    assert "- Mismatch count: 1" in summary
+    assert "- Weak evidence count: 1" in summary
+    assert "strain-text-only rows" in summary
+
+
+def test_report_only_permissive_source_audit_does_not_block_but_reports_counts(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "rrna_16s_ready", has_16s=True)], paths.manifest)
+    write_sequence_source_audits(
+        [
+            SequenceSourceAudit(
+                species="Aliivibrio fischeri",
+                genome_accession="GCF_000011805.1",
+                rrna_source="Entrez",
+                rrna_accession="NR_000001",
+                audit_status="manual_review_required",
+            )
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--report-only",
+            "--source-audit-policy",
+            "permissive",
+        ]
+    )
+
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert "- Source audit policy: permissive" in summary
+    assert "- Source audit policy result: passed" in summary
+    assert "- Manual review required count: 1" in summary

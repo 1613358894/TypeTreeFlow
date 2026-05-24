@@ -6,12 +6,18 @@ from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.checklist import read_species_checklist
+from typetreeflow.taxonomy.lpsn import (
+    FakeLpsnClient,
+    LpsnSpeciesRecord,
+    write_lpsn_species_cache,
+)
 from typetreeflow.taxonomy.candidate_discovery import (
     AssemblyDiscoveryRecord,
     LocalAssemblyDiscoveryRecord,
     write_discovery_records,
 )
 from typetreeflow.taxonomy.candidates import read_assembly_candidates
+from typetreeflow.taxonomy.culture_collections import read_culture_collection_audit
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
 
@@ -25,6 +31,29 @@ def _write_checklist(path: Path, rows: list[dict[str, str]]) -> Path:
         writer = csv.DictWriter(
             handle,
             fieldnames=["genus", "species", "status", "type_strain", "source", "notes"],
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def _write_checklist_with_synonyms(path: Path, rows: list[dict[str, str]]) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fields = [
+        "genus",
+        "species",
+        "status",
+        "type_strain",
+        "source",
+        "notes",
+        "synonyms",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=fields,
             delimiter="\t",
             lineterminator="\n",
         )
@@ -49,6 +78,26 @@ def _write_lpsn_child_taxa(path: Path) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+def _lpsn_record(
+    species: str,
+    *,
+    genus: str = "Fusobacterium",
+    nomenclatural_status: str = "validly published under the ICNP",
+    taxonomic_status: str = "correct name",
+) -> LpsnSpeciesRecord:
+    return LpsnSpeciesRecord(
+        genus=genus,
+        species=species,
+        full_name=f"{genus} {species}",
+        nomenclatural_status=nomenclatural_status,
+        taxonomic_status=taxonomic_status,
+        type_strain="ATCC 25586",
+        lpsn_record_number=f"lpsn-{species}",
+        lpsn_url=f"https://lpsn.dsmz.de/taxon/lpsn-{species}",
+        source="fixture",
+    )
 
 
 def _checklist_rows() -> list[dict[str, str]]:
@@ -320,6 +369,159 @@ def test_cli_lpsn_child_taxa_writes_species_checklist(tmp_path, caplog):
     assert "kept=2, excluded=2" in caplog.text
 
 
+def test_cli_lpsn_cache_writes_species_checklist_without_api_credentials(tmp_path, caplog):
+    caplog.set_level(logging.INFO)
+    cache = tmp_path / "lpsn_species_cache.tsv"
+    checklist = tmp_path / "species_checklist.tsv"
+    write_lpsn_species_cache(
+        [
+            _lpsn_record("nucleatum"),
+            _lpsn_record("necrophorum"),
+            _lpsn_record("russii", taxonomic_status="synonym"),
+            _lpsn_record("pseudoperiodonticum", nomenclatural_status="not validly published"),
+        ],
+        cache,
+    )
+
+    result = main(
+        [
+            "--lpsn-cache",
+            str(cache),
+            "--lpsn-genus",
+            "Fusobacterium",
+            "--write-species-checklist",
+            str(checklist),
+            "--dry-run",
+        ]
+    )
+
+    entries = read_species_checklist(checklist)
+    assert result == 0
+    assert [(entry.genus, entry.species) for entry in entries] == [
+        ("Fusobacterium", "nucleatum"),
+        ("Fusobacterium", "necrophorum"),
+    ]
+    assert entries[0].full_name == "Fusobacterium nucleatum"
+    assert entries[0].type_strain_names == "ATCC 25586"
+    assert "lpsn_source=LPSN species cache" in entries[0].notes
+    assert "lpsn_genus=Fusobacterium" in entries[0].notes
+    assert "generated_at_utc=" in entries[0].notes
+    assert "Converted LPSN species cache to species checklist: kept=2, excluded=2" in caplog.text
+
+
+def test_cli_lpsn_cache_writes_excluded_species_records(tmp_path):
+    cache = tmp_path / "lpsn_species_cache.tsv"
+    checklist = tmp_path / "species_checklist.tsv"
+    excluded = tmp_path / "excluded_lpsn_taxa.tsv"
+    write_lpsn_species_cache(
+        [
+            _lpsn_record("nucleatum"),
+            _lpsn_record("russii", taxonomic_status="synonym"),
+            _lpsn_record("pseudoperiodonticum", nomenclatural_status="not validly published"),
+        ],
+        cache,
+    )
+
+    result = main(
+        [
+            "--lpsn-cache",
+            str(cache),
+            "--lpsn-genus",
+            "Fusobacterium",
+            "--write-species-checklist",
+            str(checklist),
+            "--write-excluded-lpsn-taxa",
+            str(excluded),
+            "--dry-run",
+        ]
+    )
+
+    excluded_rows = _read_tsv(excluded)
+    assert result == 0
+    assert len(read_species_checklist(checklist)) == 1
+    assert [row["species"] for row in excluded_rows] == [
+        "russii",
+        "pseudoperiodonticum",
+    ]
+    assert [row["exclusion_reason"] for row in excluded_rows] == [
+        "taxonomic status is synonym",
+        "not validly published",
+    ]
+    assert excluded_rows[0]["original_name"] == "Fusobacterium russii"
+    assert excluded_rows[0]["type_strain_names"] == "ATCC 25586"
+    assert "lpsn_source=LPSN species cache" in excluded_rows[0]["notes"]
+
+
+def test_cli_lpsn_genus_without_api_opt_in_errors(tmp_path, caplog):
+    result = main(
+        [
+            "--lpsn-genus",
+            "Fusobacterium",
+            "--write-species-checklist",
+            str(tmp_path / "species_checklist.tsv"),
+        ]
+    )
+
+    assert result == 2
+    assert "--enable-lpsn-api" in caplog.text
+    assert "HTML fallback is not supported" in caplog.text
+
+
+def test_cli_lpsn_api_without_credentials_errors(tmp_path, caplog, monkeypatch):
+    monkeypatch.delenv("TYPETREEFLOW_LPSN_USERNAME", raising=False)
+    monkeypatch.delenv("TYPETREEFLOW_LPSN_EMAIL", raising=False)
+    monkeypatch.delenv("TYPETREEFLOW_LPSN_PASSWORD", raising=False)
+
+    result = main(
+        [
+            "--lpsn-genus",
+            "Fusobacterium",
+            "--enable-lpsn-api",
+            "--write-species-checklist",
+            str(tmp_path / "species_checklist.tsv"),
+        ]
+    )
+
+    assert result == 2
+    assert "requires credentials" in caplog.text
+    assert "no HTML fallback is available" in caplog.text
+
+
+def test_cli_lpsn_api_fake_client_writes_cache_and_species_checklist(tmp_path):
+    checklist = tmp_path / "species_checklist.tsv"
+    cache = tmp_path / "lpsn_species_cache.tsv"
+    client = FakeLpsnClient(
+        {
+            "Fusobacterium": [
+                _lpsn_record(f"species{i}") for i in range(17)
+            ]
+            + [
+                _lpsn_record("russii", taxonomic_status="synonym"),
+                _lpsn_record("candidate", taxonomic_status="pro-correct name"),
+            ]
+        }
+    )
+
+    result = main(
+        [
+            "--lpsn-genus",
+            "Fusobacterium",
+            "--enable-lpsn-api",
+            "--write-lpsn-cache",
+            str(cache),
+            "--write-species-checklist",
+            str(checklist),
+        ],
+        lpsn_client=client,
+    )
+
+    entries = read_species_checklist(checklist)
+    assert result == 0
+    assert client.calls == ["Fusobacterium"]
+    assert len(entries) == 17
+    assert cache.exists()
+
+
 def test_cli_lpsn_child_taxa_writes_excluded_tsv(tmp_path):
     child_taxa = _write_lpsn_child_taxa(tmp_path / "lpsn_child_taxa.tsv")
     checklist = tmp_path / "species_checklist.tsv"
@@ -358,7 +560,7 @@ def test_cli_write_species_checklist_requires_lpsn_child_taxa(tmp_path, caplog):
     result = main(["--write-species-checklist", str(tmp_path / "species_checklist.tsv")])
 
     assert result == 2
-    assert "--write-species-checklist requires --lpsn-child-taxa" in caplog.text
+    assert "--write-species-checklist requires --lpsn-child-taxa, --lpsn-cache, or --lpsn-genus" in caplog.text
 
 
 def test_cli_lpsn_child_taxa_conversion_does_not_write_pipeline_outputs(tmp_path):
@@ -380,6 +582,31 @@ def test_cli_lpsn_child_taxa_conversion_does_not_write_pipeline_outputs(tmp_path
     assert not (outdir / "manifest.tsv").exists()
     assert not (outdir / "report" / "summary.md").exists()
     assert not (outdir / "cache" / "ncbi" / "download_plan.tsv").exists()
+
+
+def test_cli_dry_run_writes_culture_collection_audit_from_checklist(tmp_path):
+    outdir = tmp_path / "out"
+
+    result = main(
+        [
+            "--species-checklist",
+            "data/fusobacterium_species_checklist.tsv",
+            "--audit-culture-collections",
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    rows = read_culture_collection_audit(paths.culture_collection_audit_path)
+    assert result == 0
+    assert len(rows) == 17
+    assert sum(row.has_recognized_deposit_id for row in rows) == 17
+    assert rows[7].species == "Fusobacterium nucleatum"
+    assert "ATCC 25586" in rows[7].recognized_ids
+    assert not paths.manifest.exists()
+    assert not (paths.cache_dir / "ncbi" / "download_plan.tsv").exists()
 
 
 def test_cli_discover_assembly_candidates_from_local_cache(tmp_path):
@@ -458,6 +685,80 @@ def test_cli_discover_assembly_candidates_from_local_cache(tmp_path):
     assert not paths.manifest.exists()
     assert not (paths.cache_dir / "ncbi" / "download_plan.tsv").exists()
     assert not paths.run_summary_path.exists()
+
+
+def test_cli_discover_assembly_candidates_synonym_discovery_from_local_cache(tmp_path):
+    outdir = tmp_path / "out"
+    checklist = _write_checklist_with_synonyms(
+        tmp_path / "species_checklist.tsv",
+        [
+            {
+                "genus": "Bacillus",
+                "species": "subtilis",
+                "status": "current",
+                "type_strain": "DSM 10",
+                "source": "fixture",
+                "notes": "",
+                "synonyms": "Bacillus globigii",
+            }
+        ],
+    )
+    discovery_cache = tmp_path / "discovery_records.tsv"
+    write_discovery_records(
+        [
+            LocalAssemblyDiscoveryRecord(
+                species="Bacillus globigii",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_999999999.1",
+                    organism_name="Bacillus globigii DSM 2277",
+                    strain="DSM 2277",
+                    source="local_discovery_cache",
+                ),
+            )
+        ],
+        discovery_cache,
+    )
+
+    default_result = main(
+        [
+            "--species-checklist",
+            str(checklist),
+            "--discover-assembly-candidates",
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+    default_candidates = read_assembly_candidates(
+        get_output_paths(outdir).assembly_candidates_path
+    )
+
+    synonym_result = main(
+        [
+            "--species-checklist",
+            str(checklist),
+            "--discover-assembly-candidates",
+            "--discovery-cache",
+            str(discovery_cache),
+            "--enable-synonym-discovery",
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+            "--force",
+        ]
+    )
+    synonym_candidates = read_assembly_candidates(
+        get_output_paths(outdir).assembly_candidates_path
+    )
+
+    assert default_result == 0
+    assert default_candidates == []
+    assert synonym_result == 0
+    assert synonym_candidates[0].species == "Bacillus subtilis"
+    assert synonym_candidates[0].discovery_name == "Bacillus globigii"
+    assert synonym_candidates[0].requires_manual_review is True
 
 
 def test_cli_discover_assembly_candidates_writes_missing_accession_diagnostic(

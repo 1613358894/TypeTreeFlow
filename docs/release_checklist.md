@@ -137,6 +137,7 @@ Validated smoke coverage for this release is documented in `docs/real_run_checkl
 - `.dist_test/`
 - `build/`
 - `dist/`
+- `results/`
 - `*.egg-info/`
 - `__pycache__/`
 - `.pytest_cache/`

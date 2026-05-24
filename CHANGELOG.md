@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added official LPSN API/cache support for species checklist generation and
+  excluded-taxa audits.
+- Added one-command genus acquisition dry runs that preserve intermediate
+  checklist, candidate, selection, planning, and summary outputs.
+- Added BioSample enrichment from offline caches or guarded Entrez lookup.
+- Added `strict`, `balanced`, and `review-only` selection policies.
+- Added source audit policy gating for publication-facing guarded stages.
+- Added manual review template generation and curator evidence import.
+- Polished the Fusobacterium strict workflow and documented the remaining
+  strict NCBI Assembly gap.
+
 ## 0.4.0 - 2026-05-22
 
 - Added the documented minimal offline checklist-guided workflow covering LPSN

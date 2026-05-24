@@ -97,7 +97,9 @@ def lpsn_child_taxon_to_checklist_entry(row: LpsnChildTaxon) -> SpeciesChecklist
     return SpeciesChecklistEntry(
         genus=row.genus,
         species=row.species,
+        full_name=row.name,
         status="correct name",
+        type_strain_names="",
         type_strain="",
         source=LPSN_CHILD_TAXA_CHECKLIST_SOURCE,
         notes=f"original_name={row.name}; imported_from=LPSN child taxa",
@@ -183,7 +185,10 @@ def exclusion_reason(
     ):
         if excluded_status in normalized_taxonomic_status:
             return f"taxonomic status is {excluded_status}"
-    if normalized_taxonomic_status != "correct name":
+    if not (
+        normalized_taxonomic_status == "correct name"
+        or normalized_taxonomic_status.startswith("correct name (")
+    ):
         return f"taxonomic status is {taxonomic_status.strip() or 'missing'}"
     return ""
 

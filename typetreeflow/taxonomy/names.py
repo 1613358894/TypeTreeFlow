@@ -42,5 +42,18 @@ def synonym_keys(entry: SpeciesChecklistEntry) -> set[str]:
     return keys
 
 
+def synonym_names(entry: SpeciesChecklistEntry) -> list[str]:
+    return split_synonyms(entry.synonyms)
+
+
+def synonym_evidence(entry: SpeciesChecklistEntry, synonym: str) -> str:
+    parts = ["checklist_synonyms"]
+    if entry.lpsn_record_number:
+        parts.append(f"correct_lpsn_record_number={entry.lpsn_record_number}")
+    if entry.lpsn_url:
+        parts.append(f"correct_lpsn_url={entry.lpsn_url}")
+    return "; ".join(parts + [f"synonym={synonym}"])
+
+
 def _clean_taxon_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.replace("_", " ")).strip()

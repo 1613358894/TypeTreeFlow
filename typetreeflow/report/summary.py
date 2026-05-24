@@ -16,7 +16,11 @@ from typetreeflow.taxonomy.audit import (
     POSSIBLE_NAME_MISMATCH,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
-from typetreeflow.taxonomy.source_audit import read_sequence_source_audits
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    evaluate_sequence_source_audits,
+    read_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import OutputPaths
 
 
@@ -312,6 +316,7 @@ def build_run_summary_markdown(
         f"- Query 16S: {_config_value(args, 'query_16s')}",
         f"- Outgroup: {_config_value(args, 'outgroup')}",
         f"- Dry run: {_config_value(args, 'dry_run')}",
+        f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
         "",
         "## Records",
         "",
@@ -425,11 +430,28 @@ def build_run_summary_markdown(
         )
     elif source_audit is not None:
         source_audit_summary = summarize_sequence_source_audit(source_audit)
+        source_audit_policy = _config_value(args, "source_audit_policy")
+        source_audit_policy_result = evaluate_sequence_source_audits(
+            [
+                _sequence_source_audit_summary_row_to_object(row)
+                for row in source_audit
+            ],
+            policy=(
+                source_audit_policy
+                if source_audit_policy != "not provided"
+                else "warn"
+            ),
+        )
         lines.extend(
             [
                 "",
                 "## Source Audit Summary",
                 "",
+                f"- Source audit policy: {source_audit_policy_result.policy}",
+                (
+                    "- Source audit policy result: "
+                    f"{'passed' if source_audit_policy_result.passed else 'blocked'}"
+                ),
                 f"- Total rows: {source_audit_summary['total_rows']}",
                 (
                     "- Same-genome internal 16S count: "
@@ -441,6 +463,10 @@ def build_run_summary_markdown(
                     f"{source_audit_summary['same_culture_collection_id']}"
                 ),
                 f"- Strain text match count: {source_audit_summary['strain_text_match']}",
+                (
+                    "- Weak evidence count: "
+                    f"{source_audit_policy_result.weak_evidence_count}"
+                ),
                 f"- Mismatch count: {source_audit_summary['mismatch']}",
                 f"- Genome-only count: {source_audit_summary['genome_only']}",
                 f"- rRNA-only count: {source_audit_summary['rrna_only']}",
@@ -448,6 +474,11 @@ def build_run_summary_markdown(
                     "- Manual review required count: "
                     f"{source_audit_summary['manual_review_required']}"
                 ),
+                (
+                    "- Strict blocking count: "
+                    f"{source_audit_policy_result.blocking_count}"
+                ),
+                f"- Policy notes: {source_audit_policy_result.notes}",
                 (
                     "These counts summarize the existing source consistency audit "
                     "and do not make taxonomic conclusions."
@@ -457,10 +488,11 @@ def build_run_summary_markdown(
         if (
             source_audit_summary["mismatch"]
             or source_audit_summary["manual_review_required"]
+            or source_audit_summary["strain_text_match"]
         ):
             lines.append(
                 "Review source_audit/sequence_source_audit.tsv for mismatch or "
-                "manual-review rows."
+                "manual-review rows, and for strain-text-only rows."
             )
 
     lines.extend(
@@ -607,3 +639,10 @@ def _checklist_species_summary_key(row: dict[str, str]) -> str:
 
 def _markdown_cell(value: str) -> str:
     return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _sequence_source_audit_summary_row_to_object(row: dict[str, str]):
+    return SequenceSourceAudit(
+        species=row.get("species", ""),
+        audit_status=row.get("audit_status", ""),
+    )

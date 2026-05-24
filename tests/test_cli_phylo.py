@@ -4,6 +4,10 @@ from typetreeflow.cli import main
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.manifest import write_manifest, write_name_map
 from typetreeflow.models import StrainRecord
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    write_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -203,3 +207,40 @@ def test_resume_skip_tree_does_not_call_runner(tmp_path):
     assert paths.phylo_plan_path.exists()
     assert not paths.aligned_16s_fasta_path.exists()
     assert paths.run_summary_path.exists()
+
+
+def test_resume_enable_phylo_strict_source_audit_blocks_before_runner(tmp_path):
+    outdir = tmp_path / "out"
+    _write_resume_state(outdir)
+    paths = get_output_paths(outdir)
+    write_sequence_source_audits(
+        [
+            SequenceSourceAudit(
+                species="Aliivibrio fischeri",
+                genome_accession="GCF_000011805.1",
+                rrna_source="Entrez",
+                rrna_accession="NR_000001",
+                audit_status="strain_text_match",
+            )
+        ],
+        paths.sequence_source_audit_path,
+    )
+    runner = FakePhyloRunner()
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--enable-phylo",
+            "--source-audit-policy",
+            "strict",
+        ],
+        phylo_runner=runner,
+    )
+
+    assert result == 2
+    assert runner.commands == []
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert "- Source audit policy result: blocked" in summary
+    assert "- Weak evidence count: 1" in summary

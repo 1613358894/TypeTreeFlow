@@ -173,6 +173,107 @@ def test_prepare_selection_strains_per_species_two(tmp_path):
     assert [row.selected for row in rows] == [True, True, False]
 
 
+def test_prepare_selection_strict_policy_selects_only_lpsn_matches(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_assembly_candidates(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                is_type_material=True,
+                has_lpsn_type_strain_match=False,
+                manual_review_reason="no_lpsn_type_strain_id_match",
+            ),
+            _candidate(
+                assembly_accession="GCF_000000002.1",
+                has_lpsn_type_strain_match=True,
+                match_evidence="lpsn_type_strain_match:strain=DSM 10",
+            ),
+        ],
+        paths.assembly_candidates_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--selection-policy",
+            "strict",
+        ]
+    )
+
+    rows = read_user_selection(paths.user_selection_path)
+    assert result == 0
+    assert [row.assembly_accession for row in rows] == [
+        "GCF_000000002.1",
+        "GCF_000000001.1",
+    ]
+    assert [row.selected for row in rows] == [True, False]
+    assert rows[1].manual_review_reason == "no_lpsn_type_strain_id_match"
+
+
+def test_prepare_selection_strict_policy_does_not_auto_select_synonym_review_candidate(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_assembly_candidates(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                has_lpsn_type_strain_match=True,
+                discovery_name="Bacillus globigii",
+                discovery_name_type="synonym",
+                matched_correct_name="Bacillus subtilis",
+                synonym_used="Bacillus globigii",
+                synonym_evidence="checklist_synonyms; synonym=Bacillus globigii",
+                requires_manual_review=True,
+                manual_review_reason="synonym_supported_match",
+            )
+        ],
+        paths.assembly_candidates_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--selection-policy",
+            "strict",
+        ]
+    )
+
+    rows = read_user_selection(paths.user_selection_path)
+    assert result == 0
+    assert rows[0].selected is False
+    assert rows[0].policy_decision == "manual_review_required"
+    assert rows[0].manual_review_reason == "synonym_supported_match"
+
+
+def test_prepare_selection_review_only_policy_selects_none(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_assembly_candidates(
+        [_candidate(has_lpsn_type_strain_match=True)],
+        paths.assembly_candidates_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--selection-policy",
+            "review-only",
+        ]
+    )
+
+    rows = read_user_selection(paths.user_selection_path)
+    assert result == 0
+    assert [row.selected for row in rows] == [False]
+    assert rows[0].manual_review_reason == "review_only_policy"
+
+
 def test_prepare_selection_missing_candidate_table_errors(tmp_path, caplog):
     result = main(["--outdir", str(tmp_path / "out"), "--prepare-selection"])
 
@@ -208,11 +309,61 @@ def test_selection_tsv_valid_reports_selected_count_without_outputs(tmp_path, ca
         selection_path,
     )
 
-    result = main(["--selection-tsv", str(selection_path), "--outdir", str(outdir)])
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--outdir",
+            str(outdir),
+            "--strains-per-species",
+            "2",
+        ]
+    )
 
     assert result == 0
     assert "2 selected accession(s)" in caplog.text
     assert not outdir.exists()
+
+
+def test_selection_tsv_reports_error_when_selected_rows_exceed_n(tmp_path, caplog):
+    selection_path = tmp_path / "user_selection.tsv"
+    write_user_selection(
+        [
+            _selection_row(assembly_accession="GCF_000001405.1"),
+            _selection_row(assembly_accession="GCF_000001406.1"),
+        ],
+        selection_path,
+    )
+
+    result = main(["--selection-tsv", str(selection_path), "--strains-per-species", "1"])
+
+    assert result == 2
+    assert "exceeds --strains-per-species 1" in caplog.text
+
+
+def test_selection_tsv_strict_policy_rejects_selected_non_match(tmp_path, caplog):
+    selection_path = tmp_path / "user_selection.tsv"
+    write_user_selection(
+        [
+            _selection_row(
+                assembly_accession="GCF_000001405.1",
+                has_lpsn_type_strain_match=False,
+            )
+        ],
+        selection_path,
+    )
+
+    result = main(
+        [
+            "--selection-tsv",
+            str(selection_path),
+            "--selection-policy",
+            "strict",
+        ]
+    )
+
+    assert result == 2
+    assert "Strict selection policy requires" in caplog.text
 
 
 def test_selection_tsv_enable_downloads_downloads_only_selected_rows(

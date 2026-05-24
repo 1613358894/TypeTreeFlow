@@ -7,11 +7,13 @@ from typetreeflow.genomes.plan import build_genome_download_plan
 from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.taxonomy.selection import (
     SELECTION_FIELDS,
+    REQUIRED_SELECTION_FIELDS,
     StrainSelectionRow,
     candidates_to_selection_rows,
     read_user_selection,
     selected_assembly_accessions,
     selection_rows_to_strain_records,
+    validate_user_selection,
     write_user_selection,
 )
 from typetreeflow.workflow.paths import get_output_paths
@@ -45,8 +47,13 @@ def _selection_row(**kwargs) -> StrainSelectionRow:
         "strain": "DSM 10",
         "culture_collection_ids": "DSM 10",
         "is_type_material": True,
+        "has_lpsn_type_strain_match": True,
+        "match_evidence": "lpsn_type_strain_match:strain=DSM 10",
         "selection_rank": 1,
         "selected": True,
+        "selection_policy": "balanced",
+        "policy_decision": "auto_selected_lpsn_type_strain_match",
+        "manual_review_reason": "",
         "selection_reason": "auto_selected_top_ranked",
         "notes": "review",
     }
@@ -90,6 +97,81 @@ def test_candidates_to_selection_rows_default_selects_top_one_per_species():
         "auto_selected_top_ranked",
         "available_not_selected",
     ]
+
+
+def test_strict_policy_selects_only_lpsn_matches():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                has_lpsn_type_strain_match=False,
+                is_type_material=True,
+            ),
+            _candidate(
+                assembly_accession="GCF_000000002.1",
+                has_lpsn_type_strain_match=True,
+            ),
+        ],
+        selection_policy="strict",
+    )
+
+    assert [row.assembly_accession for row in rows] == [
+        "GCF_000000002.1",
+        "GCF_000000001.1",
+    ]
+    assert [row.selected for row in rows] == [True, False]
+    assert rows[0].policy_decision == "auto_selected_lpsn_type_strain_match"
+
+
+def test_strict_policy_unmatched_candidate_is_review_only():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                has_lpsn_type_strain_match=False,
+                manual_review_reason="no_lpsn_type_strain_id_match",
+            )
+        ],
+        selection_policy="strict",
+    )
+
+    assert rows[0].selected is False
+    assert rows[0].policy_decision == "manual_review_required"
+    assert rows[0].manual_review_reason == "no_lpsn_type_strain_id_match"
+
+
+def test_balanced_policy_selects_top_n():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(assembly_accession="GCF_000000003.1"),
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                has_recognized_deposit_id=True,
+            ),
+            _candidate(
+                assembly_accession="GCF_000000002.1",
+                refseq_category="representative genome",
+            ),
+        ],
+        strains_per_species=2,
+        selection_policy="balanced",
+    )
+
+    assert [row.assembly_accession for row in rows] == [
+        "GCF_000000001.1",
+        "GCF_000000002.1",
+        "GCF_000000003.1",
+    ]
+    assert [row.selected for row in rows] == [True, True, False]
+
+
+def test_review_only_policy_selects_none():
+    rows = candidates_to_selection_rows(
+        [_candidate(has_lpsn_type_strain_match=True)],
+        selection_policy="review-only",
+    )
+
+    assert [row.selected for row in rows] == [False]
+    assert rows[0].policy_decision == "manual_review_required"
 
 
 def test_candidates_to_selection_rows_strains_per_species_two():
@@ -138,8 +220,8 @@ def test_user_selection_writes_yes_no_and_reads_bool_values(tmp_path):
 
     assert output_path == path
     text = path.read_text(encoding="utf-8")
-    assert "\ttrue\t1\tyes\t" in text
-    assert "\tfalse\t2\tno\t" in text
+    assert "\ttrue\ttrue\tlpsn_type_strain_match:strain=DSM 10\t1\tyes\t" in text
+    assert "\tfalse\ttrue\tlpsn_type_strain_match:strain=DSM 10\t2\tno\t" in text
     assert read_user_selection(path) == rows
 
 
@@ -152,8 +234,13 @@ def test_user_selection_reads_selected_bool_variants(tmp_path):
             "",
             "",
             "true",
+            "true",
+            "lpsn_type_strain_match:strain=DSM 10",
             "1",
             "1",
+            "balanced",
+            "auto_selected_lpsn_type_strain_match",
+            "",
             "edited",
             "",
         ],
@@ -164,8 +251,13 @@ def test_user_selection_reads_selected_bool_variants(tmp_path):
             "",
             "",
             "false",
+            "false",
+            "",
             "2",
             "false",
+            "balanced",
+            "available_not_selected",
+            "",
             "edited",
             "",
         ],
@@ -191,8 +283,13 @@ def test_user_selection_rejects_invalid_selected_value(tmp_path):
         "",
         "",
         "true",
+        "true",
+        "",
         "1",
         "maybe",
+        "balanced",
+        "auto_selected_lpsn_type_strain_match",
+        "",
         "edited",
         "",
     ]
@@ -264,6 +361,69 @@ def test_selection_rows_to_strain_records_rejects_duplicate_selected_accessions(
                 _selection_row(assembly_accession="GCF_000001405.1", selected=True),
             ]
         )
+
+
+def test_validate_user_selection_rejects_too_many_selected_per_species():
+    with pytest.raises(ValueError, match="exceeds --strains-per-species 1"):
+        validate_user_selection(
+            [
+                _selection_row(assembly_accession="GCF_000001405.1"),
+                _selection_row(assembly_accession="GCF_000001406.1"),
+            ],
+            strains_per_species=1,
+        )
+
+
+def test_validate_user_selection_rejects_missing_accession_and_duplicate():
+    with pytest.raises(ValueError, match="missing assembly_accession"):
+        validate_user_selection([_selection_row(assembly_accession="")])
+
+    with pytest.raises(ValueError, match="Duplicate selected assembly_accession"):
+        validate_user_selection(
+            [
+                _selection_row(assembly_accession="GCF_000001405.1"),
+                _selection_row(assembly_accession="GCF_000001405.1"),
+            ],
+            strains_per_species=2,
+        )
+
+
+def test_validate_user_selection_strict_rejects_selected_non_match():
+    with pytest.raises(ValueError, match="Strict selection policy requires"):
+        validate_user_selection(
+            [
+                _selection_row(
+                    assembly_accession="GCF_000001405.1",
+                    has_lpsn_type_strain_match=False,
+                )
+            ],
+            selection_policy="strict",
+        )
+
+
+def test_legacy_selection_tsv_without_policy_fields_still_reads(tmp_path):
+    row = [
+        "Bacillus subtilis",
+        "GCF_000001405.1",
+        "",
+        "",
+        "",
+        "true",
+        "1",
+        "yes",
+        "edited",
+        "",
+    ]
+    path = _write(
+        tmp_path / "legacy_user_selection.tsv",
+        "\t".join(REQUIRED_SELECTION_FIELDS) + "\n" + "\t".join(row) + "\n",
+    )
+
+    parsed = read_user_selection(path)
+
+    assert parsed[0].selected is True
+    assert parsed[0].selection_policy == "balanced"
+    assert parsed[0].has_lpsn_type_strain_match is False
 
 
 def test_selection_rows_to_strain_records_rejects_non_binomial_species():

@@ -7,6 +7,7 @@ REAL_ACTION_FLAGS = {
     "downloads": "--enable-downloads",
     "barrnap": "--enable-barrnap",
     "entrez": "--enable-entrez",
+    "biosample_entrez": "--enable-biosample-entrez",
     "ncbi_discovery": "--enable-ncbi-discovery",
     "fastani": "--enable-fastani",
     "phylo": "--enable-phylo",
@@ -15,6 +16,7 @@ REAL_ACTION_FLAGS = {
 
 @dataclass(frozen=True)
 class AppConfig:
+    acquire_genus: str | None
     genus: str | None
     query_genome: Path | None
     query_16s: Path | None
@@ -27,13 +29,27 @@ class AppConfig:
     gtdb_release: str | None
     species_checklist: Path | None
     lpsn_child_taxa: Path | None
+    lpsn_genus: str | None
+    lpsn_cache: Path | None
+    write_lpsn_cache: Path | None
     write_species_checklist: Path | None
     write_excluded_lpsn_taxa: Path | None
+    enable_lpsn_api: bool
+    audit_culture_collections: bool
     discover_assembly_candidates: bool
+    write_manual_review_template: bool
+    apply_curator_evidence: Path | None
+    candidate_tsv: Path | None
     discovery_cache: Path | None
     enable_ncbi_discovery: bool
+    enable_synonym_discovery: bool
+    enrich_biosample: bool
+    biosample_cache: Path | None
+    enable_biosample_entrez: bool
     prepare_selection: bool
     selection_tsv: Path | None
+    selection_policy: str
+    source_audit_policy: str
     strains_per_species: int
     resume: bool
     force: bool

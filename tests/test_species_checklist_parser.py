@@ -194,6 +194,34 @@ def test_is_lpsn_correct_name_entry_returns_false_for_synonym():
     assert is_lpsn_correct_name_entry(entry) is False
 
 
+def test_is_lpsn_correct_name_entry_accepts_lpsn_correct_name_annotation():
+    entry = SpeciesChecklistEntry(
+        genus="Fusobacterium",
+        species="nucleatum",
+        status="current",
+        type_strain="ATCC 25586",
+        source="LPSN API",
+        nomenclatural_status="validly published under the ICNP",
+        taxonomic_status="correct name (and explicitly recommended for medical use)",
+    )
+
+    assert is_lpsn_correct_name_entry(entry) is True
+
+
+def test_is_lpsn_correct_name_entry_rejects_pro_correct_name():
+    entry = SpeciesChecklistEntry(
+        genus="Bacillus",
+        species="example",
+        status="review",
+        type_strain="",
+        source="LPSN export",
+        nomenclatural_status="validly published under the ICNP",
+        taxonomic_status="pro-correct name",
+    )
+
+    assert is_lpsn_correct_name_entry(entry) is False
+
+
 def test_is_lpsn_correct_name_entry_returns_false_when_not_validly_published():
     entry = SpeciesChecklistEntry(
         genus="Bacillus",

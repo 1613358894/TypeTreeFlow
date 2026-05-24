@@ -31,8 +31,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+lpsn = ["lpsn>=1.0.0"]
 test = ["pytest"]
-dev = ["pytest"]
+dev = ["lpsn>=1.0.0", "pytest"]
 
 [project.scripts]
 typetreeflow = "typetreeflow.cli:main"

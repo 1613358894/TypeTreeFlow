@@ -51,6 +51,7 @@ def _candidate(
     length: int,
     strain: str | None = None,
     is_type_material: bool = False,
+    biosample: str | None = None,
 ) -> EntrezCandidate:
     return EntrezCandidate(
         accession=accession,
@@ -59,6 +60,7 @@ def _candidate(
         sequence="A" * length,
         length=length,
         strain=strain,
+        biosample=biosample,
         is_type_material=is_type_material,
     )
 
@@ -203,6 +205,31 @@ def test_execute_entrez_fallback_plan_mock_success_writes_source_audit(tmp_path)
     assert audits[0].rrna_accession == "NR_000001"
     assert audits[0].rrna_strain == "ES114"
     assert audits[0].audit_status == "strain_text_match"
+    assert audits[0].audit_status != "same_genome_internal_16s"
+
+
+def test_entrez_source_audit_uses_biosample_evidence_for_status(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("NR_000001", 1300, strain="other", biosample="SAMN12345678")]
+
+    paths = get_output_paths(tmp_path)
+    record = _record()
+    record.assembly_source = "BioSample SAMN12345678"
+
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan([record], paths),
+        [record],
+        MockClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    assert audits[0].genome_biosample == "SAMN12345678"
+    assert audits[0].rrna_biosample == "SAMN12345678"
+    assert audits[0].audit_status == "same_biosample"
+    assert audits[0].audit_status != "same_genome_internal_16s"
 
 
 def test_entrez_source_audit_uses_culture_evidence_for_status(tmp_path):

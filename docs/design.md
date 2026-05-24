@@ -30,7 +30,7 @@ The workflow libraries for barrnap, FastANI, MAFFT, trimAl, and IQ-TREE are fake
 
 Type-strain selection reads a local GTDB metadata TSV, filters type-material records for the target genus, normalizes record IDs, writes `manifest.tsv`, and writes `name_map.tsv`.
 
-The selection boundary is intentionally GTDB-based. GTDB metadata provides genome-centric taxonomy and type-material genome records; it is not a substitute for LPSN nomenclatural coverage. LPSN remains the authority for validly published and legitimate prokaryotic names, so TypeTreeFlow v0.1.0 cannot guarantee that a selected manifest covers every currently validly published species in a genus.
+The selection boundary is intentionally GTDB-based. GTDB metadata provides genome-centric taxonomy and type-material genome records; it is not a substitute for LPSN nomenclatural coverage. LPSN remains the authority for validly published and legitimate prokaryotic names, so TypeTreeFlow cannot guarantee that a selected manifest covers every currently validly published species in a genus.
 
 Genome download planning writes `cache/ncbi/download_plan.tsv`. Guarded real downloads write NCBI Datasets ZIP files under `cache/ncbi/`, then Python extraction installs selected reference FASTA files as `genomes/references/<normalized_id>.fna`.
 

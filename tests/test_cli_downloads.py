@@ -5,6 +5,10 @@ from pathlib import Path
 from typetreeflow.cli import main
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.manifest import read_manifest
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    write_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -183,6 +187,47 @@ def test_dry_run_enable_downloads_does_not_require_tool_or_run(tmp_path, monkeyp
     assert result == 0
     assert runner.commands == []
     assert get_output_paths(outdir).manifest.exists()
+
+
+def test_enable_downloads_strict_source_audit_blocks_before_runner(tmp_path, monkeypatch):
+    runner = FakeDatasetsRunner(returncode=0, zip_mode="valid")
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_sequence_source_audits(
+        [
+            SequenceSourceAudit(
+                species="Aliivibrio fischeri",
+                genome_accession="GCF_000011805.1",
+                rrna_source="Entrez",
+                rrna_accession="NR_000001",
+                audit_status="mismatch",
+            )
+        ],
+        paths.sequence_source_audit_path,
+    )
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "--genus",
+            "Aliivibrio",
+            "--gtdb-metadata",
+            str(FIXTURE),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+            "--source-audit-policy",
+            "strict",
+        ],
+        download_runner=runner,
+    )
+
+    assert result == 2
+    assert runner.commands == []
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert "- Source audit policy: strict" in summary
+    assert "- Source audit policy result: blocked" in summary
+    assert "- Mismatch count: 1" in summary
 
 
 def _download_result_rows(paths):

@@ -5,6 +5,7 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.rrna.workflow import prepare_local_16s
 from typetreeflow.taxonomy.source_audit import (
     SequenceSourceAudit,
+    evaluate_sequence_source_audit_policy,
     read_sequence_source_audits,
     write_sequence_source_audits,
 )
@@ -146,6 +147,10 @@ def test_fake_barrnap_success_writes_gff_extracts_16s_and_updates_manifest(tmp_p
     assert audits[0].rrna_strain == "ES114"
     assert audits[0].audit_status == "same_genome_internal_16s"
     assert "Aliivibrio_fischeri_ES114.16s.fasta" in audits[0].notes
+    assert evaluate_sequence_source_audit_policy(
+        paths.sequence_source_audit_path,
+        "strict",
+    ).passed is True
 
 
 def test_barrnap_audit_upsert_preserves_unrelated_existing_rows(tmp_path):

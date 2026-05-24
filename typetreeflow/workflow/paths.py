@@ -11,6 +11,7 @@ class OutputPaths:
     logs_dir: Path
     cache_dir: Path
     ncbi_cache_dir: Path
+    biosample_records_path: Path
     ncbi_download_results_path: Path
     ncbi_extracted_dir: Path
     genomes_references_dir: Path
@@ -44,6 +45,7 @@ class OutputPaths:
     discovery_records_path: Path
     source_audit_dir: Path
     sequence_source_audit_path: Path
+    culture_collection_audit_path: Path
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
@@ -59,6 +61,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         logs_dir=root / "logs",
         cache_dir=cache_dir,
         ncbi_cache_dir=ncbi_cache_dir,
+        biosample_records_path=ncbi_cache_dir / "biosample_records.tsv",
         ncbi_download_results_path=ncbi_cache_dir / "download_results.tsv",
         ncbi_extracted_dir=ncbi_cache_dir / "extracted",
         genomes_references_dir=root / "genomes" / "references",
@@ -96,6 +99,9 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         sequence_source_audit_path=root
         / "source_audit"
         / "sequence_source_audit.tsv",
+        culture_collection_audit_path=root
+        / "source_audit"
+        / "culture_collection_audit.tsv",
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",
