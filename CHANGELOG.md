@@ -2,16 +2,27 @@
 
 ## Unreleased
 
-- Added official LPSN API/cache support for species checklist generation and
-  excluded-taxa audits.
-- Added one-command genus acquisition dry runs that preserve intermediate
-  checklist, candidate, selection, planning, and summary outputs.
-- Added BioSample enrichment from offline caches or guarded Entrez lookup.
-- Added `strict`, `balanced`, and `review-only` selection policies.
-- Added source audit policy gating for publication-facing guarded stages.
-- Added manual review template generation and curator evidence import.
-- Polished the Fusobacterium strict workflow and documented the remaining
-  strict NCBI Assembly gap.
+## 0.5.0 - 2026-05-24
+
+- Added LPSN-first strict type-strain acquisition workflow for correct-valid
+  species.
+- Added official LPSN API/cache support and checklist-compatible acquisition
+  inputs.
+- Added validly published and correct-name filtering for acquisition
+  candidates.
+- Added culture collection audit and synonym-aware discovery support.
+- Added NCBI Assembly and BioSample enrichment for candidate evidence.
+- Added strict, balanced, and review-only selection policies.
+- Added source audit policy for genome and same-genome 16S provenance.
+- Added manual curator evidence workflow and review templates.
+- Added Fusobacterium strict NCBI type-strain delivery case study support.
+- Documented Fusobacterium strict NCBI completion as 16/17 correct-valid LPSN
+  species, with F. mortiferum remaining outside the current high-confidence
+  NCBI Assembly workflow.
+- Note: External ATCC Genome Portal ingestion is not implemented in v0.5.0.
+- Note: v0.5.0 does not claim Fusobacterium 17/17 NCBI completion.
+- Note: External type-genome ingestion should be designed separately for a
+  later release.
 
 ## 0.4.0 - 2026-05-22
 
