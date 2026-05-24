@@ -37,3 +37,12 @@ phase11c_*/
 phase15b_*/
 phase15c_*/
 results/
+
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.cache/
+*.prof
+*.tmp
