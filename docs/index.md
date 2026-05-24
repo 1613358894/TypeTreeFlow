@@ -34,18 +34,19 @@ move, archive, or deletion.
 
 ## Historical plans
 
-- [ncbi_candidate_discovery_plan.md](ncbi_candidate_discovery_plan.md):
+- [archive/ncbi_candidate_discovery_phase22.md](archive/ncbi_candidate_discovery_phase22.md):
   Historical Phase 22 candidate-discovery design and implementation record.
   Current implemented status is noted in the document, but it is not a new
   release plan.
-- [species_checklist_implementation_plan.md](species_checklist_implementation_plan.md):
+- [archive/species_checklist_implementation_plan.md](archive/species_checklist_implementation_plan.md):
   Historical v0.2.0 implementation breakdown for species checklist auditing.
 
 ## Run evidence
 
-- [real_run_checklist.md](real_run_checklist.md): Historical real smoke-run and
-  release evidence for staged Aalborgiella, Actinocorallia, and phylogeny
-  validations. It is not the current required user workflow.
+- [archive/runs/phase15_real_run_checklist.md](archive/runs/phase15_real_run_checklist.md):
+  Historical real smoke-run and release evidence for staged Aalborgiella,
+  Actinocorallia, and phylogeny validations. It is not the current required
+  user workflow.
 
 ## Local run artifacts
 

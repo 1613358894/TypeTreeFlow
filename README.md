@@ -82,7 +82,7 @@ manual-review, or strain-text-only row in
 User-supplied species checklist auditing is documented in
 [docs/species_checklist_audit.md](docs/species_checklist_audit.md). The
 implementation breakdown is tracked in
-[docs/species_checklist_implementation_plan.md](docs/species_checklist_implementation_plan.md).
+[docs/archive/species_checklist_implementation_plan.md](docs/archive/species_checklist_implementation_plan.md).
 
 ### LPSN-first acquisition workflow
 
@@ -797,7 +797,7 @@ TypeTreeFlow is licensed under the Apache License, Version 2.0. See
   `rrna/all_16S.fasta` assembly, and MAFFT/trimAl/IQ-TREE tree generation were
   validated on a five-record multi-species run.
 
-See `docs/real_run_checklist.md` for staged commands and expected checkpoints.
+See `docs/archive/runs/phase15_real_run_checklist.md` for staged commands and expected checkpoints.
 
 ## Testing
 

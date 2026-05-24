@@ -267,7 +267,7 @@ candidate table is:
 
 `candidates/assembly_candidates.tsv`
 
-See `docs/ncbi_candidate_discovery_plan.md` for the Phase 22A implementation
+See `docs/archive/ncbi_candidate_discovery_phase22.md` for the Phase 22A implementation
 boundary and follow-on breakdown for NCBI assembly candidate discovery.
 
 | Field | Meaning |
