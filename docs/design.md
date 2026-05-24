@@ -1,12 +1,20 @@
 # TypeTreeFlow Design
 
-TypeTreeFlow is organized around a stable manifest and guarded stage execution. Each selected reference, optional outgroup, and future query entry is represented as a `StrainRecord` and persisted to `manifest.tsv`. Resume behavior treats that manifest as the source of truth.
+TypeTreeFlow is organized around LPSN-first acquisition evidence, a stable
+manifest, and guarded stage execution. Each selected reference, optional
+outgroup, and future query entry is represented as a `StrainRecord` and
+persisted to `manifest.tsv`. Resume behavior treats that manifest as the source
+of truth.
 
-The current MVP has three priorities:
+The current workflow has four priorities:
 
-1. Keep output paths and status values stable enough for downstream development.
-2. Make dry-run planning useful without requiring external tools or network access.
-3. Keep real execution opt-in, stage-specific, and testable through injected fake runners.
+1. Start genus acquisition from LPSN-derived or equivalent authoritative
+   checklist data for validly published correct names.
+2. Keep NCBI Assembly, BioSample, culture collection, and manual curator
+   evidence auditable before selection or download.
+3. Keep output paths and status values stable enough for downstream development.
+4. Keep real execution opt-in, stage-specific, and testable through injected
+   fake runners.
 
 ## Core contracts
 
@@ -28,9 +36,23 @@ The workflow libraries for barrnap, FastANI, MAFFT, trimAl, and IQ-TREE are fake
 
 ## Implemented workflow surface
 
-Type-strain selection reads a local GTDB metadata TSV, filters type-material records for the target genus, normalizes record IDs, writes `manifest.tsv`, and writes `name_map.tsv`.
+LPSN-first acquisition can read official LPSN API data into a local cache, read
+an existing local LPSN cache, or use a user-provided equivalent checklist. The
+retained `species_checklist.tsv` is the expected validly published correct-name
+species set; rejected LPSN rows can be preserved in `excluded_lpsn_taxa.tsv`
+with explicit reasons.
 
-The selection boundary is intentionally GTDB-based. GTDB metadata provides genome-centric taxonomy and type-material genome records; it is not a substitute for LPSN nomenclatural coverage. LPSN remains the authority for validly published and legitimate prokaryotic names, so TypeTreeFlow cannot guarantee that a selected manifest covers every currently validly published species in a genus.
+Candidate discovery and selection are evidence-based. NCBI Assembly and
+BioSample metadata, parsed culture collection deposit identifiers, synonym
+traceability, and imported manual curator evidence are preserved in auditable
+TSV outputs. Strict type-strain selection requires evidence that the candidate
+is tied to the checklist/LPSN type-strain equivalence set; name similarity or a
+regular representative deposit is not enough.
+
+Legacy GTDB type-material selection still reads a local GTDB metadata TSV,
+filters type-material records for the target genus, normalizes record IDs,
+writes `manifest.tsv`, and writes `name_map.tsv`. GTDB remains a genome-centric
+source layer, not the primary nomenclatural boundary for LPSN-first acquisition.
 
 Genome download planning writes `cache/ncbi/download_plan.tsv`. Guarded real downloads write NCBI Datasets ZIP files under `cache/ncbi/`, then Python extraction installs selected reference FASTA files as `genomes/references/<normalized_id>.fna`.
 
@@ -44,7 +66,10 @@ Phylogeny planning inspects `rrna/all_16S.fasta` and writes `phylo/phylo_plan.ts
 
 Report generation writes `report/summary.md` from existing manifest and output files. It reports status distribution, genome and 16S readiness, optional ANI summary contents, key output file existence, and problem records. It does not run tools, draw figures, or make final species assignments.
 
-For publication-facing novel species work, users should manually compare `manifest.tsv`, `name_map.tsv`, and `report/summary.md` with LPSN or an equivalent authoritative checklist. The report is a reproducible computation summary, not a nomenclatural or species-assignment decision.
+For publication-facing novel species work, users should review the LPSN or
+equivalent checklist, candidate evidence tables, source audits, `manifest.tsv`,
+`name_map.tsv`, and `report/summary.md` together. The report is a reproducible
+computation summary, not a nomenclatural or species-assignment decision.
 
 ## Resume and force
 
@@ -54,4 +79,9 @@ Genome resume behavior prefers durable artifacts in this order: installed refere
 
 ## Current limitations
 
-Newick parsing, tree rendering, and final species conclusions are outside the current MVP.
+Newick parsing, tree rendering, final species conclusions, and external
+registered type-genome ingestion are outside the current implemented workflow.
+External registered genomes should be modeled later with explicit provenance and
+status fields instead of being treated as NCBI `assembly_accession` values. See
+[`external_type_genome_ingestion.md`](external_type_genome_ingestion.md) for the
+future ingestion design.

@@ -1,12 +1,31 @@
 # TypeTreeFlow
 
-TypeTreeFlow is a command-line workflow for microbial novel species studies. The MVP helps select GTDB type-strain records for a target genus, plan and register reference genome downloads, prepare 16S/ANI/phylogeny workflow artifacts, and write stable manifests and run summaries. It is intentionally guarded: dry runs are safe by default, and real execution requires explicit opt-in flags.
+TypeTreeFlow is a command-line workflow for microbial novel species studies. The current workflow is LPSN-first: it starts from validly published correct species, discovers NCBI Assembly candidates, enriches evidence from BioSample and culture collection metadata, prepares curator-reviewable type-strain selections, and writes stable manifests and run summaries. It is intentionally guarded: dry runs are safe by default, and real execution requires explicit opt-in flags.
 
-The long-term goal is to collect type-strain genomes and 16S sequences, compare a query genome against references with ANI, build a 16S phylogeny, and report reproducible tables, figures, name maps, and summaries. The current release focuses on stable I/O contracts, resume behavior, fake-runner tested execution wrappers, and clear safety boundaries.
+The long-term goal is to collect auditable type-strain genomes and 16S sequences, compare a query genome against references with ANI, build a 16S phylogeny, and report reproducible tables, figures, name maps, and summaries. The current release focuses on the LPSN-first acquisition workflow, strict evidence boundaries, stable I/O contracts, resume behavior, fake-runner tested execution wrappers, and clear safety controls.
 
-## Current MVP capabilities
+## Current capabilities
 
-- Select type-material records from a local GTDB metadata TSV for a target genus.
+- Build a species checklist from an offline LPSN cache or guarded official LPSN
+  API access, retaining validly published ICNP correct-name species and writing
+  excluded-taxa audit rows.
+- Preserve user-provided checklist workflows for cases where users already have
+  an authoritative nomenclatural source.
+- Generate NCBI Assembly candidates from a user-provided local discovery cache,
+  or from guarded real NCBI assembly discovery with explicit opt-in.
+- Enrich candidate evidence from local or guarded Entrez BioSample metadata.
+- Parse culture collection deposit IDs from LPSN/checklist, NCBI Assembly,
+  BioSample, strain, organism, and notes text as auditable evidence.
+- Prepare and validate offline strain-selection TSVs from candidate evidence,
+  with `strict`, `balanced`, and `review-only` policies.
+- Apply manual curator evidence from a review template when a source
+  publication, culture collection page, or explicit BioSample/INSDC field
+  confirms equivalence to an LPSN type-strain deposit.
+- Run a one-command genus acquisition dry run that preserves the LPSN checklist,
+  excluded-taxa audit, culture collection audit, assembly candidates, optional
+  BioSample-enriched candidates, selection TSVs, download plan, manifest, name
+  map, and summary.
+- Drive guarded NCBI Datasets downloads from selected selection-TSV rows.
 - Write `manifest.tsv` and `name_map.tsv` with stable normalized IDs.
 - Plan NCBI Datasets genome downloads in `cache/ncbi/download_plan.tsv`.
 - Guard real NCBI Datasets ZIP downloads behind `--enable-downloads`.
@@ -20,16 +39,9 @@ The long-term goal is to collect type-strain genomes and 16S sequences, compare 
 - Plan ANI runs, fake-run FastANI wrappers, and parse existing `ani/fastani_raw.tsv`.
 - Summarize parsed ANI results into `ani/ani_summary.tsv`.
 - Plan and run guarded resume-mode MAFFT, trimAl, and IQ-TREE workflow wrappers.
+- Select type-material records from a local GTDB metadata TSV for legacy or
+  direct GTDB-based workflows.
 - Audit selected records against a user-provided species checklist TSV.
-- Write culture collection evidence audits from checklist/LPSN type-strain text.
-- Generate assembly candidates from a user-provided local discovery cache, or
-  from guarded real NCBI assembly discovery with explicit opt-in.
-- Prepare and validate offline strain-selection TSVs from an existing candidate table.
-- Run a one-command genus acquisition dry run that preserves the LPSN checklist,
-  excluded-taxa audit, culture collection audit, assembly candidates, optional
-  BioSample-enriched candidates, selection TSVs, download plan, manifest, name
-  map, and summary.
-- Drive guarded NCBI Datasets downloads from selected selection-TSV rows.
 - Write `report/summary.md` from existing files without making species conclusions.
 
 The CLI can run guarded resume-mode FastANI and write an ANI PNG from parsed results. It does not parse Newick trees. Guarded phylogeny execution writes a Newick treefile only; it does not render a tree figure.
@@ -38,11 +50,23 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Taxonomic scope
 
-TypeTreeFlow selects type-material genome records from local GTDB metadata. GTDB is a genome-centric taxonomy and is not equivalent to LPSN.
+TypeTreeFlow's primary acquisition route is LPSN-first. LPSN or an equivalent
+authoritative checklist defines the expected species set; NCBI Assembly,
+BioSample, GTDB, and local caches are evidence/discovery layers for available
+genome and sequence data.
 
-LPSN is the naming authority for validly published and legitimate prokaryotic names. TypeTreeFlow does not guarantee coverage of all currently validly published LPSN species, and `report/summary.md` does not make species conclusions. It only reports traceable computational results from the recorded manifest and output files.
+LPSN is the naming authority for validly published and legitimate prokaryotic
+names. TypeTreeFlow can filter LPSN-derived records to validly published
+correct-name species, including official `correct name (...)` annotations, and
+write excluded synonym, misspelling, not-validly-published, pro-correct, and
+`Candidatus` rows for review. It still does not make species conclusions:
+`report/summary.md` only reports traceable computational results from recorded
+manifests and output files.
 
-For formal new-species publication work, manually cross-check the generated `manifest.tsv`, `name_map.tsv`, and `report/summary.md` against LPSN or an equivalent authoritative nomenclatural checklist before drawing taxonomic conclusions.
+For formal new-species publication work, review the generated checklist,
+candidate, selection, source-audit, `manifest.tsv`, `name_map.tsv`, and
+`report/summary.md` against LPSN or an equivalent authoritative checklist
+before drawing taxonomic conclusions.
 Use `--source-audit-policy strict` for formal downloads or publication-facing
 analyses when genome and 16S records are mixed from different sources. At
 minimum, keep the default `warn` policy and review every mismatch,
@@ -61,7 +85,7 @@ to define validly published correct species, then uses NCBI/GTDB only to
 discover available genome and 16S data. The design is documented in
 [docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md).
 
-The LPSN-first route now has a minimal official-LPSN adapter boundary. It can
+The LPSN-first route has a minimal official-LPSN adapter boundary. It can
 convert an offline LPSN species cache TSV into `species_checklist.tsv` and an
 optional excluded-taxa audit TSV, or call the official LPSN API through the
 optional official `lpsn` Python client when `--enable-lpsn-api` is supplied and
@@ -82,8 +106,9 @@ Fusobacterium strict NCBI Assembly audit, the accepted result is 16/17:
 `Fusobacterium mortiferum` remains pending because no high-confidence NCBI
 Assembly accession was found for `ATCC 25557 / CCUG 14475 / DSM 19809 / VPI
 4123A / 350A`. An external ATCC Genome Portal type genome exists for ATCC
-25557, but ingesting that source is a future separate feature and must not
-pollute the NCBI strict workflow.
+25557, but external type-genome ingestion is a future design direction. ATCC
+Genome Portal automation is not implemented in v0.5.0, and external genomes
+must not be represented as NCBI `GCF_` or `GCA_` assembly accessions.
 
 ## Installation
 
@@ -734,6 +759,7 @@ The main output files are:
 - `source_audit/sequence_source_audit.tsv`: offline genome/16S same-strain source audit table, including successful barrnap internal 16S extraction and Entrez fallback rows.
 - `source_audit/culture_collection_audit.tsv`: checklist/LPSN type-strain evidence table with original text and normalized recognized culture collection IDs.
 - `selection/strain_candidates.tsv`, `selection/user_selection.tsv`: generated review table and user-editable selection TSV.
+- `manual_deposit_evidence_template.tsv`, `manual_species_gap_summary.tsv`: offline curator-review package for strict-selection gaps.
 - `taxonomy/checklist_comparison.tsv`: user-provided species checklist audit against selected records.
 - `report/summary.md`: read-only run summary of final recorded manifest state, including source audit counts when `source_audit/sequence_source_audit.tsv` exists.
 
@@ -790,3 +816,8 @@ The tests use fake runners and temporary fixtures for downloads, barrnap, FastAN
 - Synonym-aware candidate discovery is off by default and available only with `--enable-synonym-discovery`; synonym hits require manual review and remain assigned to the checklist correct species.
 - Offline selection preparation requires an existing `candidates/assembly_candidates.tsv`.
 - Selection-driven downloads only use selected rows with assembly accessions already present in the user-provided selection TSV; they do not discover new NCBI candidates.
+- `assembly_accession` means an NCBI Assembly accession in the current workflow;
+  external type genomes must not be entered as fake `GCF_` or `GCA_` values.
+- External type-genome ingestion, including ATCC Genome Portal type genomes, is
+  a future design direction and is not implemented in v0.5.0.
+- ATCC Genome Portal automation is not an implemented capability.

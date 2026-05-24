@@ -61,6 +61,11 @@ typetreeflow_out/
 
 `manifest.tsv` is the central resume file and should be updated after each completed workflow stage. `name_map.tsv` links file-safe identifiers to display names used in reports and tree labels.
 
+External registered type-genome ingestion is not implemented. Future support
+should use separate provenance and status fields for external registered genome
+evidence, and must not reuse NCBI `assembly_accession` for non-NCBI accessions
+or portal identifiers.
+
 `species_checklist.tsv` and `excluded_lpsn_taxa.tsv` are written by
 `--acquire-genus` as the default LPSN-first checklist and excluded-taxa audit
 outputs. The checklist contains retained validly published correct-name

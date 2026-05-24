@@ -20,6 +20,9 @@
   species, with F. mortiferum remaining outside the current high-confidence
   NCBI Assembly workflow.
 - Note: External ATCC Genome Portal ingestion is not implemented in v0.5.0.
+- Note: External registered type genomes are not represented as NCBI
+  `assembly_accession` values in v0.5.0 and need separate provenance/status
+  fields in a future design.
 - Note: v0.5.0 does not claim Fusobacterium 17/17 NCBI completion.
 - Note: External type-genome ingestion should be designed separately for a
   later release.

@@ -2,6 +2,10 @@
 
 `manifest.tsv` stores one `status` value per `StrainRecord`. Plan and workflow result objects also use status strings for stage-level reporting. The values below are the statuses currently emitted by the codebase.
 
+External registered type-genome ingestion is not implemented. When added, it
+should use independent provenance/status fields rather than overloading NCBI
+`assembly_accession` or the existing NCBI download statuses.
+
 ## Genome, Download, And Extract
 
 - `pending`: Default status for a newly constructed record when no stage has run.
