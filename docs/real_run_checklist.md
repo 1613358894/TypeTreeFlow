@@ -1,5 +1,9 @@
 # Real Run Checklist
 
+Release/run evidence note: this file records historical real smoke runs and
+release evidence. It is not the current required user workflow; use it to
+understand what was validated at the time of those runs.
+
 ## Phase 15A: Aalborgiella staged smoke run
 
 Run directory: `phase11a_downloads_Aalborgiella/`

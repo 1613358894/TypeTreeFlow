@@ -1,5 +1,10 @@
 # LPSN-First Acquisition Design
 
+This is the detailed design and implementation-history note for the
+LPSN-first acquisition route. Use README and the output/status reference docs as
+the shorter current workflow entry points; the phase sections near the end are
+kept for audit history and should not be read as a new release plan.
+
 This document defines an acquisition route for starting from LPSN-derived or
 equivalent authoritative checklist data before discovering available genome and
 16S data. LF-1 through LF-8 provide the implemented offline scaffolding: stable

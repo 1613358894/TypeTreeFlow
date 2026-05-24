@@ -1,5 +1,10 @@
 # Phase 22A-E NCBI Candidate Discovery Plan
 
+Historical design note: this document records the Phase 22 candidate-discovery
+design and implementation history. It describes the NCBI Assembly/BioSample
+candidate route only and does not define or override any future design for
+external registered type-genome ingestion.
+
 Current status: local discovery-cache candidate generation and guarded
 Entrez-backed NCBI assembly discovery are implemented. The repeatable path is
 still the offline cache workflow: generate or review a discovery records TSV,
@@ -377,7 +382,7 @@ Remaining boundaries after 22E:
 - No real-network test is added; all calibration fixtures are local.
 - Synonym-aware discovery is implemented as an opt-in recall path only.
   Synonym hits are never silent replacements for checklist correct names.
-- No LPSN API/download client is implemented.
+- At Phase 22E time, no LPSN API/download client was implemented.
 - Candidate discovery does not guarantee that every checklist species has an
   available genome.
 - No new CLI parameter, manifest, download, barrnap, FastANI, tree, or Entrez

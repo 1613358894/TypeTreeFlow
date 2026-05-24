@@ -1,5 +1,10 @@
 # Species Checklist Audit Implementation Plan
 
+Historical design note: this document records the v0.2.0 checklist-audit plan
+and implementation breakdown. It is not the current user workflow guide and it
+does not define or override any future design for external registered
+type-genome ingestion.
+
 This document breaks the proposed v0.2.0 species checklist audit feature into
 small implementation phases. It is a planning document only; v0.1.0 does not
 implement `--species-checklist`.
