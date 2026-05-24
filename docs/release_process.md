@@ -1,8 +1,8 @@
 # Release Process
 
-This document records the TypeTreeFlow release process and release-record
-standards. Use it together with `docs/release_checklist.md` before tagging,
-publishing, or auditing a release.
+This document records TypeTreeFlow release policy, process, and release-record
+standards. Use `docs/release_checklist.md` as the execution checklist before
+tagging, publishing, or auditing a release.
 
 ## Version Source of Truth
 
@@ -53,43 +53,16 @@ GitHub Releases must follow these rules:
 The GitHub Release version, tag, title, Latest marker, and wheel asset must all
 refer to the same release version.
 
-## Validation Checklist
+## Validation Policy
 
-Run the local test suite without pytest cache output:
+Every release must pass the local validation, packaging, and clean-clone checks
+listed in `docs/release_checklist.md`. Clean-clone verification happens before
+publishing the GitHub Release and must use the exact release tag in a
+disposable directory.
 
-```bash
-pytest -p no:cacheprovider --basetemp .pytest_tmp
-```
-
-Check the CLI entry point:
-
-```bash
-python typetreeflow.py --help
-```
-
-Build the release wheel:
-
-```bash
-python -m pip wheel . --no-deps -w .dist_test
-```
-
-Run the selection smoke workflow:
-
-```bash
-mkdir -p <tmp>/candidates
-cp examples/assembly_candidates_minimal.tsv <tmp>/candidates/assembly_candidates.tsv
-python typetreeflow.py --outdir <tmp> --prepare-selection --strains-per-species 1
-test -f <tmp>/selection/user_selection.tsv
-```
-
-Perform clean clone verification before publishing the GitHub Release:
-
-1. Clone the repository into a disposable directory.
-2. Check out the exact release tag.
-3. Confirm the version files match the tag.
-4. Run the required tests and CLI help check.
-5. Build the wheel and confirm its filename matches the release version.
-6. Confirm the clean clone remains unmodified after verification.
+Required validation is intentionally offline unless a release explicitly plans
+guarded real validation. The default tests and scaffolding checks must not
+require network access or external bioinformatics tools.
 
 ## Safety Rules
 
@@ -102,6 +75,17 @@ Perform clean clone verification before publishing the GitHub Release:
   guarded real validation.
 - Guarded real validation must document the exact command, input data, output
   directory, and reason for running it.
+
+## Clean Clone Verification Standard
+
+Before publishing a GitHub Release:
+
+1. Clone the repository into a disposable directory.
+2. Check out the exact release tag.
+3. Confirm the version files match the tag.
+4. Run the required tests and CLI help check.
+5. Build the wheel and confirm its filename matches the release version.
+6. Confirm the clean clone remains unmodified after verification.
 
 ## Release Record Audit
 

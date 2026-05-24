@@ -28,9 +28,9 @@ move, archive, or deletion.
 ## Operational and release docs
 
 - [release_process.md](release_process.md): Release policy, version-source,
-  tag, GitHub Release, and audit standards.
-- [release_checklist.md](release_checklist.md): Local validation and packaging
-  checklist to use before tagging a release.
+  tag, GitHub Release, clean-clone verification, and audit standards.
+- [release_checklist.md](release_checklist.md): Execution checklist for local
+  validation, packaging, optional real staged validation, and pre-tag checks.
 
 ## Historical plans
 

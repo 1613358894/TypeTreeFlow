@@ -1,8 +1,8 @@
 # Release Checklist
 
-Use this checklist before tagging a TypeTreeFlow release.
-Release policy and release-record audit rules are documented in
-`docs/release_process.md`.
+Use this execution checklist before tagging a TypeTreeFlow release. Release
+policy, tag rules, GitHub Release requirements, and audit standards are
+documented in [release_process.md](release_process.md).
 
 ## Environment Prerequisites
 
@@ -18,19 +18,19 @@ Release policy and release-record audit rules are documented in
 
 ## Required Local Validation
 
-Run tests without pytest cache output:
+- Run tests without pytest cache output:
 
 ```bash
 pytest -p no:cacheprovider --basetemp .pytest_tmp
 ```
 
-Check the CLI entry point:
+- Check the CLI entry point:
 
 ```bash
 python typetreeflow.py --help
 ```
 
-Confirm project governance files are present:
+- Confirm project governance files are present:
 
 ```bash
 test -f LICENSE
@@ -40,20 +40,20 @@ test -f SECURITY.md
 test -f .github/workflows/ci.yml
 ```
 
-Build a wheel:
+- Build a wheel:
 
 ```bash
 python -m pip wheel . --no-deps -w .dist_test
 ```
 
-For v0.3.0 scaffolding, confirm candidate and selection examples are present:
+- Confirm candidate and selection examples are present:
 
 ```bash
 test -f examples/assembly_candidates_minimal.tsv
 test -f examples/user_selection_minimal.tsv
 ```
 
-Run the offline selection smoke test:
+- Run the offline selection smoke test:
 
 ```bash
 mkdir -p <tmp>/candidates
@@ -62,10 +62,7 @@ python typetreeflow.py --outdir <tmp> --prepare-selection --strains-per-species 
 test -f <tmp>/selection/user_selection.tsv
 ```
 
-The v0.3.0 scaffolding tests and selection smoke require no network access and
-no external bioinformatics tools.
-
-Run a safe dry run from local GTDB metadata:
+- Run a safe dry run from local GTDB metadata:
 
 ```bash
 python typetreeflow.py \
@@ -157,10 +154,15 @@ Validated smoke coverage for this release is documented in `docs/archive/runs/ph
 
 ## Before Tagging
 
-- Confirm `pyproject.toml` version and `typetreeflow.__version__` match the intended tag.
-- Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended license.
+- Confirm the version-source files listed in
+  [release_process.md](release_process.md) match the intended tag.
+- Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended
+  license.
 - Confirm the wheel filename contains the intended version.
 - Confirm `README.md` and docs reflect the current guarded execution state.
 - Confirm the test suite, CLI help, and wheel build commands pass from a clean checkout.
 - Remove generated validation artifacts that should not be committed.
-- Review `docs/archive/runs/phase15_real_run_checklist.md` and this checklist for release-date accuracy.
+- Complete the clean-clone verification required by
+  [release_process.md](release_process.md).
+- Review `docs/archive/runs/phase15_real_run_checklist.md` and this checklist
+  for release-date accuracy.

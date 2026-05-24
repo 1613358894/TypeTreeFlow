@@ -1,8 +1,14 @@
 # TypeTreeFlow
 
-TypeTreeFlow is a command-line workflow for microbial novel species studies. The current workflow is LPSN-first: it starts from validly published correct species, discovers NCBI Assembly candidates, enriches evidence from BioSample and culture collection metadata, prepares curator-reviewable type-strain selections, and writes stable manifests and run summaries. It is intentionally guarded: dry runs are safe by default, and real execution requires explicit opt-in flags.
+TypeTreeFlow is a command-line LPSN-first type-strain genome acquisition and audit workflow for microbial novel species studies. The current workflow starts from validly published correct species, discovers NCBI Assembly candidates, enriches evidence from BioSample and culture collection metadata, prepares curator-reviewable type-strain selections, and writes stable manifests and run summaries. It is intentionally guarded: dry runs are safe by default, and real execution requires explicit opt-in flags.
 
 The long-term goal is to collect auditable type-strain genomes and 16S sequences, compare a query genome against references with ANI, build a 16S phylogeny, and report reproducible tables, figures, name maps, and summaries. The current release focuses on the LPSN-first acquisition workflow, strict evidence boundaries, stable I/O contracts, resume behavior, fake-runner tested execution wrappers, and clear safety controls.
+
+GTDB support is retained for legacy/local metadata workflows and as a discovery
+or evidence layer. It is not the authority for species boundaries in the
+current LPSN-first route. External type-genome ingestion, including manual ATCC
+Genome Portal registration, is an active v0.6.0 design and is not implemented
+in the current workflow.
 
 ## Current capabilities
 
@@ -51,8 +57,8 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 ## Documentation
 
 Start with [docs/index.md](docs/index.md) for the documentation map, including
-current contracts, active designs, release docs, historical plans, and run
-evidence.
+current contracts, active designs, release policy and checklist docs,
+historical plans, and run evidence.
 
 ## Taxonomic scope
 
@@ -112,9 +118,10 @@ Fusobacterium strict NCBI Assembly audit, the accepted result is 16/17:
 `Fusobacterium mortiferum` remains pending because no high-confidence NCBI
 Assembly accession was found for `ATCC 25557 / CCUG 14475 / DSM 19809 / VPI
 4123A / 350A`. An external ATCC Genome Portal type genome exists for ATCC
-25557, but external type-genome ingestion is a future design direction. ATCC
-Genome Portal automation is not implemented in v0.5.0, and external genomes
-must not be represented as NCBI `GCF_` or `GCA_` assembly accessions.
+25557, but external type-genome ingestion is tracked as an active v0.6.0
+design. ATCC Genome Portal automation is not implemented in the current
+workflow, and external genomes must not be represented as NCBI `GCF_` or
+`GCA_` assembly accessions.
 
 ## Installation
 
@@ -825,5 +832,5 @@ The tests use fake runners and temporary fixtures for downloads, barrnap, FastAN
 - `assembly_accession` means an NCBI Assembly accession in the current workflow;
   external type genomes must not be entered as fake `GCF_` or `GCA_` values.
 - External type-genome ingestion, including ATCC Genome Portal type genomes, is
-  a future design direction and is not implemented in v0.5.0.
+  an active v0.6.0 design and is not implemented in the current workflow.
 - ATCC Genome Portal automation is not an implemented capability.
