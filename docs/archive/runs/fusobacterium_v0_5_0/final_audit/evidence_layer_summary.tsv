@@ -1,0 +1,18 @@
+species	regular_deposit_ids_seen	type_strain_equivalence_ids	matched_type_strain_ids	external_type_genome_available	external_type_genome_source	workflow_eligible	notes
+Fusobacterium canifelinum		ATCC BAA-689; CCUG 49733; DSM 15542; RMA 1036	DSM 15542	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium gastrosuis		CDW1; DSM 101753; LMG 29236	CDW1	false		true	Selected NCBI Assembly accession has curator-confirmed type-strain equivalence evidence.
+Fusobacterium gonidiaformans		ATCC 25563; CCUG 16790; DSM 19810	ATCC 25563	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium hominis		CGMCC 1.32833; KCTC 25145; NSJ 57	NSJ 57	false		true	Selected NCBI Assembly accession has curator-confirmed type-strain equivalence evidence.
+Fusobacterium mortiferum	ATCC 9817	ATCC 25557; CCUG 14475; DSM 19809; VPI 4123A; 350A		true	https://genomes.atcc.org/genomes/4a4de2c8308b499d	false	No high-confidence NCBI Assembly accession matched the type-strain equivalence set; ATCC 9817 is only a regular deposit observed in NCBI records, and SYC45/GCF_057585585.1 lacks type-strain equivalence evidence.
+Fusobacterium naviforme		ATCC 25832; CCUG 50052; NCTC 13121	ATCC 25832	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium necrogenes		ATCC 25556; CCUG 4949; NCTC 10723	NCTC 10723	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium necrophorum		ATCC 25286; CCUG 9994; CIP 104559; DSM 19788; DSM 21784; JCM 3718; NCTC 13726; VPI 2891	ATCC 25286	false		true	Selected NCBI Assembly accession has curator-confirmed type-strain evidence.
+Fusobacterium nucleatum		ATCC 25586; CCUG 32989; CCUG 33059; CIP 101130; DSM 15643; JCM 8532; LMG 13131	ATCC 25586	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium paranimalis		DSM 119817; NCTC 15132; Vestland19	Vestland19	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium perfoetens		ATCC 29250	ATCC 29250	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium periodonticum		ATCC 33693; CCUG 14345; DSM 19545; EK1-15; JCM 12991	ATCC 33693	false		true	Selected NCBI Assembly accession has curator-confirmed type-strain evidence.
+Fusobacterium russii		ATCC 25533	ATCC 25533	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium simiae		7511 R2-13; ATCC 33568; CCUG 16798; DSM 19848	DSM 19848	false		true	Selected NCBI Assembly accession has strict type-strain deposit evidence.
+Fusobacterium ulcerans		ATCC 49185; CCUG 50053; DSM 19847; NCTC 12111	ATCC 49185	false		true	Selected NCBI Assembly accession has curator-confirmed type-strain evidence.
+Fusobacterium varium		ATCC 8501; CCUG 4858; DSM 19868; NCTC 10560	NCTC 10560	false		true	Selected NCBI Assembly accession has curator-confirmed type-strain evidence; selected current GenBank accession because paired RefSeq was suppressed.
+Fusobacterium watanabei		CCUG 74246; GTC 21791; PAGU 1796	PAGU 1796	false		true	Selected NCBI Assembly accession has curator-confirmed type-strain equivalence evidence.

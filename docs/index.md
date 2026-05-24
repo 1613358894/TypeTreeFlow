@@ -47,6 +47,12 @@ move, archive, or deletion.
   Historical real smoke-run and release evidence for staged Aalborgiella,
   Actinocorallia, and phylogeny validations. It is not the current required
   user workflow.
+- [archive/runs/fusobacterium_v0_5_0/](archive/runs/fusobacterium_v0_5_0/):
+  Compact archived evidence for the Fusobacterium v0.5.0 16/17 delivery,
+  final audit, and mortiferum final review. Large run products are excluded.
+- [archive/runs/phase15_smoke/](archive/runs/phase15_smoke/):
+  Compact Phase 15B Actinocorallia smoke-run checkpoint with summary,
+  manifest, and phylogeny-plan evidence only.
 
 ## Local run artifacts
 
