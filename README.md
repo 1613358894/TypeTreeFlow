@@ -48,6 +48,12 @@ The CLI can run guarded resume-mode FastANI and write an ANI PNG from parsed res
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
+## Documentation
+
+Start with [docs/index.md](docs/index.md) for the documentation map, including
+current contracts, active designs, release docs, historical plans, and run
+evidence.
+
 ## Taxonomic scope
 
 TypeTreeFlow's primary acquisition route is LPSN-first. LPSN or an equivalent
