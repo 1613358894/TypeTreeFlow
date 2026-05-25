@@ -1,5 +1,10 @@
 # Output Layout
 
+This document is the path contract for TypeTreeFlow run directories. It names
+the canonical files, the stages that create them, and the durable invariants
+downstream tools can rely on. TSV/table field definitions live in
+[schemas.md](schemas.md).
+
 Canonical output directory layout:
 
 ```text
@@ -59,383 +64,125 @@ typetreeflow_out/
     figures/
 ```
 
-`manifest.tsv` is the central resume file and should be updated after each completed workflow stage. `name_map.tsv` links file-safe identifiers to display names used in reports and tree labels.
+## Core Invariants
+
+`manifest.tsv` is the central resume file and should be updated after each
+completed workflow stage. `name_map.tsv` links file-safe identifiers to display
+names used in reports and tree labels.
 
 External registered type-genome ingestion is not implemented. Future support
-should use separate provenance and status fields for external registered genome
+must use separate provenance and status fields for external registered genome
 evidence, and must not reuse NCBI `assembly_accession` for non-NCBI accessions
 or portal identifiers.
 
-`species_checklist.tsv` and `excluded_lpsn_taxa.tsv` are written by
-`--acquire-genus` as the default LPSN-first checklist and excluded-taxa audit
-outputs. The checklist contains retained validly published correct-name
-species. The excluded table preserves rejected LPSN rows and exclusion reasons
-for review.
+`report/summary.md` is generated from existing run state. Creating it does not
+execute external tools, assign final species conclusions, or regenerate missing
+inputs. Missing optional artifacts are reported as unavailable.
 
-`report/summary.md` is a read-only Markdown run summary. It reports current manifest counts, manifest status distribution, genome and 16S readiness, optional ANI summary fields from `ani/ani_summary.tsv`, optional checklist comparison audit counts from `taxonomy/checklist_comparison.tsv`, optional source-consistency audit counts from `source_audit/sequence_source_audit.tsv`, the active source-audit policy and policy result, key output file existence, failed/skipped/missing-style problem records, and notes. Creating this report does not execute external tools or assign final species conclusions.
+Resume behavior reuses durable artifacts in this order: an installed
+`genomes/references/<normalized_id>.fna`, an existing extracted directory under
+`cache/ncbi/extracted/<record_id>/`, then a valid ZIP under `cache/ncbi/`.
+`--force` starts from a newly selected manifest and allows extraction and
+genome installation to overwrite prior extracted files and installed FASTA
+files.
 
-`taxonomy/checklist_comparison.tsv` is written when the CLI receives
-`--species-checklist PATH` during dry-run or resume workflows. It compares the
-user-provided species checklist to the selected manifest records and preserves
-both checklist names and GTDB names for review. Report-only mode does not
-regenerate this file, but `report/summary.md` reads an existing comparison and
-adds a `Taxonomic Audit Summary` section. If the comparison file is absent, the
-report omits this section. The checklist is user-supplied; TypeTreeFlow
-does not crawl LPSN or make nomenclatural conclusions.
+## Stage Outputs
 
-Fields:
+`--acquire-genus` writes `species_checklist.tsv` and
+`excluded_lpsn_taxa.tsv`. The checklist contains retained validly published
+correct-name species. The excluded table preserves rejected LPSN rows and
+exclusion reasons for review.
 
-- `checklist_name`: full checklist binomial when the row came from the checklist.
-- `gtdb_name`: full GTDB-selected name when a manifest record is represented.
-- `genus`: normalized genus used for comparison.
-- `species`: normalized species epithet used for comparison.
-- `status`: checklist status value when available.
-- `comparison_status`: taxonomy audit status such as `matched`, `missing_from_gtdb`, `extra_in_gtdb`, `possible_name_mismatch`, `missing_genome`, or `manual_review_required`.
-- `gtdb_record_id`: manifest record identifier when available.
-- `assembly_accession`: assembly accession from the manifest when available.
-- `normalized_id`: TypeTreeFlow normalized manifest identifier when available.
-- `notes`: audit notes for mismatch, missing genome, synonym, or manual review context.
-- `source`: checklist source label when the row came from the checklist; empty for GTDB-only extra rows.
-- `nomenclatural_status`: checklist nomenclatural status text when provided.
-- `taxonomic_status`: checklist taxonomic status text when provided.
-- `type_strain`: checklist type strain text when provided.
-- `lpsn_record_number`: LPSN record number or equivalent authority record identifier when provided.
-- `lpsn_url`: LPSN URL or equivalent checklist source URL when provided.
+`--species-checklist PATH` can write `taxonomy/checklist_comparison.tsv` during
+dry-run or resume workflows. Report-only mode does not regenerate this file,
+but `report/summary.md` reads an existing comparison and adds a taxonomic audit
+summary when available.
 
-Checklist-side source and status fields are preserved for checklist-derived
-comparison rows, including matched, missing, missing-genome, possible-mismatch,
-and manual-review rows. TypeTreeFlow writes these values for audit visibility
-only; it does not infer nomenclatural conclusions, merge synonyms, or suppress
-GTDB-only extra rows from this table.
+`--discover-assembly-candidates` writes
+`candidates/assembly_candidates.tsv` and
+`candidates/assembly_candidate_diagnostics.tsv`. Guarded real NCBI discovery
+can also write `candidates/discovery_records.tsv` as a normalized cache for
+later offline reuse. Local discovery-cache generation does not contact NCBI,
+Entrez, LPSN, or GTDB, and it does not write `manifest.tsv` or
+`cache/ncbi/download_plan.tsv`.
 
-`candidates/assembly_candidates.tsv` is the offline LPSN-first acquisition
-candidate table. It can be user-provided before `--prepare-selection`, or
-generated by `--discover-assembly-candidates --discovery-cache PATH --dry-run`
-from a local discovery records TSV. Local discovery-cache generation does not
-contact NCBI, Entrez, LPSN, or GTDB, and it does not write `manifest.tsv` or
-`cache/ncbi/download_plan.tsv`. It can also be generated by guarded real NCBI
-assembly discovery with `--discover-assembly-candidates
---enable-ncbi-discovery --email USER`. With `--enrich-biosample`, BioSample
-metadata from `cache/ncbi/biosample_records.tsv`, an explicit
-`--biosample-cache PATH`, or guarded Entrez BioSample lookup can add evidence
-to the same candidate rows. Fields:
+`--enrich-biosample` reads `cache/ncbi/biosample_records.tsv`, an explicit
+BioSample cache, or guarded Entrez BioSample lookup and adds evidence to
+candidate rows. BioSample enrichment preserves every candidate; cache misses
+become diagnostics or manual-review reasons.
 
-- `species`: checklist species name being represented.
-- `assembly_accession`: candidate assembly accession.
-- `organism_name`: source organism name.
-- `strain`: source strain text.
-- `biosample`: BioSample accession when available.
-- `bioproject`: BioProject accession when available.
-- `assembly_level`: assembly level such as `Complete Genome`, `Scaffold`, or `Contig`.
-- `refseq_category`: RefSeq category when available.
-- `is_type_material`: whether the source marks or supports type-material status.
-- `culture_collection_ids`: parsed recognized culture collection IDs.
-- `has_recognized_deposit_id`: whether a recognized culture collection ID was found.
-- `lpsn_type_strain_ids`: recognized culture collection IDs parsed from the
-  checklist `type_strain_names` and `type_strain` fields for the same species.
-- `ncbi_culture_collection_ids`: recognized culture collection IDs parsed from
-  the candidate's NCBI-derived strain, organism, BioSample-compatible, and
-  notes text.
-- `matched_lpsn_type_strain_ids`: intersection of LPSN type-strain IDs and
-  candidate NCBI culture collection IDs.
-- `has_lpsn_type_strain_match`: whether at least one LPSN type-strain ID was
-  found in the candidate metadata.
-- `match_evidence`: source field(s) that carried the matched ID, such as
-  `strain`, `organism_name`, `notes`, or later BioSample-enriched text.
-- `curator_culture_collection_ids`: normalized deposit IDs confirmed by an
-  offline curator-evidence import.
-- `curator_evidence_source`: source publication, official collection record,
-  or explicit BioSample/INSDC field used for curator confirmation.
-- `curator_notes`: curator notes copied from the evidence template.
-- `curator_evidence_applied`: whether filled curator evidence was imported
-  into this candidate row.
-- `manual_review_reason`: reason an unmatched row remains in the candidate
-  table, such as `no_lpsn_type_strain_id_match` or
-  `no_ncbi_culture_collection_id`.
-- `source`: candidate source label.
-- `notes`: diagnostics or manual-review notes.
+`--prepare-selection` writes `selection/strain_candidates.tsv` and
+`selection/user_selection.tsv` from an existing candidate table. The user
+selection file is intended for editing. Selection-driven dry-runs convert
+`selected=yes` rows into `manifest.tsv`, `name_map.tsv`,
+`cache/ncbi/download_plan.tsv`, and `report/summary.md`; they plan downloads
+only and do not write download results.
 
-The LPSN match columns are selection evidence only. They document string-level
-agreement between parsed deposit identifiers and do not by themselves assert a
-taxonomic conclusion, synonym merge, or final type-strain determination.
+`--selection-tsv PATH` validates selected rows and reports the selected
+accession count unless guarded downloads are explicitly enabled. With
+`--enable-downloads`, selected rows can drive the NCBI Datasets download stage,
+which writes `cache/ncbi/download_results.tsv`, extracts ZIPs under
+`cache/ncbi/extracted/<record_id>/`, installs
+`genomes/references/<normalized_id>.fna`, registers installed reference genomes
+in `manifest.tsv`, and refreshes `report/summary.md`.
 
-`cache/ncbi/biosample_records.tsv` is the optional BioSample metadata cache for
-candidate enrichment. It is used only when `--enrich-biosample` is supplied.
-Without `--enable-biosample-entrez`, enrichment reads this cache and performs no
-network access. Fields:
-
-- `biosample`: BioSample accession, such as `SAMN...`.
-- `organism`: BioSample organism text.
-- `strain`: parsed BioSample strain attribute.
-- `isolate`: parsed isolate or isolation-source attribute.
-- `type_material`: parsed `type material` or `type_material` attribute.
-- `culture_collection`: parsed culture collection, specimen voucher,
-  bio_material, or related deposit-ID-bearing attribute.
-- `collected_text`: compact descriptive source text retained for review.
-- `attributes_text`: flattened BioSample attribute key/value text.
-- `source`: cache source label, such as `fixture` or `ncbi_biosample_entrez`.
-- `notes`: cache diagnostics or reviewer notes.
-
-BioSample enrichment preserves every candidate. Missing BioSample accessions or
-cache misses become diagnostics and manual-review reasons. BioSample attributes
-can strengthen `is_type_material`, `ncbi_culture_collection_ids`, and
-`matched_lpsn_type_strain_ids`, but remain candidate-selection evidence rather
-than taxonomic conclusions.
-
-`candidates/assembly_candidate_diagnostics.tsv` is written by
-`--discover-assembly-candidates` alongside the candidate table in both local
-cache and guarded real NCBI discovery modes. It records checklist species that
-could not produce a candidate row, including empty exact-match/query results
-and discovery records missing an assembly accession. Fields:
-
-- `species`: checklist species name used for exact local-cache matching.
-- `code`: diagnostic code such as `no_records` or `missing_assembly_accession`.
-- `message`: human-readable diagnostic message.
-- `assembly_accession`: related assembly accession when one is available.
-
-`candidates/discovery_records.tsv` is written by guarded real NCBI assembly
-discovery as a normalized cache for later offline reuse with
-`--discovery-cache`. It is not written by selection-driven downloads and does
-not imply that any genome ZIP was downloaded. A user-provided TSV with the same
-fields can also be used as a local discovery cache. Fields:
-
-- `species`: checklist species name used for the NCBI assembly query.
-- `assembly_accession`: discovered assembly accession.
-- `organism_name`: source organism name.
-- `strain`: source strain text.
-- `biosample`: BioSample accession when available.
-- `bioproject`: BioProject accession when available.
-- `assembly_level`: assembly level such as `Complete Genome`, `Scaffold`, or `Contig`.
-- `refseq_category`: RefSeq category when available.
-- `is_type_material`: whether the source marks or supports type-material status.
-- `source`: source label, typically `ncbi_entrez`.
-- `notes`: source-derived notes or manual-review context.
-
-`selection/strain_candidates.tsv` and `selection/user_selection.tsv` are
-written by `--prepare-selection` from an existing candidate table. Both use the
-same fields; `user_selection.tsv` is intended for user editing. The `selected`
-column accepts yes/no-style boolean values. `--selection-policy` controls the
-generated defaults: `strict` selects only rows with
-`has_lpsn_type_strain_match=true` and requires manual review for non-matches;
-`balanced` is the default and selects the current top-ranked N rows per
-species; `review-only` writes the full table with no automatic selections.
-Without `--dry-run`,
-`--selection-tsv PATH` validates the table and reports the selected accession
-count only unless guarded downloads are explicitly enabled. With `--dry-run`,
-it converts `selected=yes` rows into
-`manifest.tsv`, `name_map.tsv`, `cache/ncbi/download_plan.tsv`, and
-`report/summary.md`; `selected=no` rows are excluded. This plans downloads only
-and does not execute NCBI Datasets or write download results. With
-`--enable-downloads`, the same selected rows can drive the existing guarded
-NCBI Datasets download stage, which writes `download_results.tsv`, extracts
-downloaded ZIPs, registers installed reference genomes in `manifest.tsv`, and
-refreshes `report/summary.md`. This is not NCBI candidate discovery; the
-selection TSV must already contain the candidate assembly accessions to use.
-Selection-driven manifests can be reused with `--resume --dry-run` for the
-same downstream rRNA, ANI, and phylogeny planning rules as other manifests.
-Selection validation rejects more than N selected rows per species, selected
-rows without assembly accessions, duplicate selected accessions, and
-strict-policy selected rows without LPSN type-strain matches. Legacy selection
-TSVs without policy/evidence columns remain readable, but strict validation
-requires the LPSN match column to be present and true for selected rows.
-Fields:
-
-- `species`: species represented by the candidate row.
-- `assembly_accession`: selected or available assembly accession.
-- `organism_name`: source organism name.
-- `strain`: source strain text.
-- `culture_collection_ids`: recognized culture collection IDs.
-- `is_type_material`: type-material evidence flag.
-- `has_lpsn_type_strain_match`: whether the candidate matched a parsed LPSN
-  type-strain ID.
-- `match_evidence`: field-level evidence supporting the LPSN type-strain match.
-- `selection_rank`: deterministic rank within species.
-- `selected`: user-editable yes/no selection value.
-- `selection_policy`: policy used when the row was generated.
-- `policy_decision`: generated policy decision such as
-  `auto_selected_lpsn_type_strain_match`, `auto_selected_top_ranked`,
-  `available_not_selected`, or `manual_review_required`.
-- `manual_review_reason`: reason the row requires review or was not
-  automatically selected under the policy.
-- `selection_reason`: generated or user-edited selection note.
-- `notes`: diagnostics or manual-review notes.
-
+`--write-manual-review-template` writes
 `manual_deposit_evidence_template.tsv` and
-`manual_species_gap_summary.tsv` are written by
-`--write-manual-review-template` from an existing candidate table, BioSample
-cache, and selection TSV. The target set is species with no `selected=yes` row
-in the selection TSV. This command is offline, does not edit selection rows,
-and does not execute downloads. The candidate-level template carries existing
-LPSN, NCBI, and BioSample evidence plus blank curator columns:
-`curator_confirmed_deposit_id`, `curator_evidence_source`, and
-`curator_notes`. The species-level summary counts available candidates and
-records the current `gap_reason` and recommended next step. After curators
-fill confirmed evidence, import it with `--apply-curator-evidence` and review
-the generated strict `selection/user_selection.tsv` before any guarded
-download.
+`manual_species_gap_summary.tsv` for species with no `selected=yes` row in the
+selection TSV. `--apply-curator-evidence PATH` imports filled curator evidence
+into a fresh candidate table and writes a strict
+`selection/user_selection.tsv`.
 
-`--apply-curator-evidence PATH` imports a filled manual evidence template into
-a fresh candidate table and writes a strict selection table under `--outdir`.
-Rows are applied only when `curator_confirmed_deposit_id` is non-empty and
-matches one of the same candidate's `lpsn_type_strain_ids`. The import rejects
-mismatched IDs, species/accession rows absent from the candidate table, and
-multiple curator-confirmed candidates for one species when
-`--strains-per-species 1`. Applied rows keep source traceability in
-`curator_evidence_source`, `curator_notes`, and
-`curator_evidence_applied=true`; name similarity alone is not acceptable
-evidence. The historical `requires_manual_review` flag is retained for audit
-visibility, but strict selection treats applied curator evidence with no
-remaining `manual_review_reason` as resolved.
+The same-strain source audit writes
+`source_audit/sequence_source_audit.tsv`. Barrnap/internal-genome 16S
+extraction upserts rows with `rrna_source=barrnap`; guarded Entrez fallback
+upserts separate rows with `rrna_source=Entrez`. Failed, not-found, skipped,
+and dry-run Entrez fallback records do not write successful source-audit rows.
 
-`source_audit/sequence_source_audit.tsv` records offline same-strain source
-checks between genome and 16S provenance. It is a source-consistency audit only
-and does not make taxonomic conclusions. The barrnap/internal-genome 16S
-workflow writes or updates rows here after successful internal extraction,
-using `audit_status=same_genome_internal_16s`; dry-runs and failed barrnap
-records do not write source-audit rows. Successful Entrez fallback 16S records
-also write or update rows here with `rrna_source=Entrez`; their status is
-assigned by the normal source-audit evidence hierarchy such as BioSample,
-culture collection ID, strain-text match, mismatch, or manual review. Failed,
-not-found, skipped, and dry-run Entrez fallback records do not write successful
-source-audit rows. When this file exists, `report/summary.md` includes a
-`Source Audit Summary` with audit-status counts, weak-evidence counts, strict
-blocking counts, and a review note when mismatch, manual-review, or
-strain-text-only rows are present. `--source-audit-policy` controls how this
-audit affects critical stages:
+`--audit-culture-collections` writes
+`source_audit/culture_collection_audit.tsv` from a local species checklist or
+LPSN cache. This is review evidence only, not proof that an NCBI assembly is
+the type strain.
 
-- `permissive`: write and report audit findings without blocking.
-- `warn`: default; highlight mismatch, manual-review, and weak evidence without
-  blocking.
-- `strict`: return non-zero before guarded download, report-only, or phylogeny
-  stages when any row is `mismatch`, `manual_review_required`, or
-  `strain_text_match`.
+## Download Artifacts
 
-Formal downloads and publication-facing analyses should use `strict`, or at
-least keep `warn` and resolve every flagged row. `same_genome_internal_16s`,
-`same_biosample`, and `same_culture_collection_id` pass strict. `strain_text_match`
-is retained as weak evidence because text-only strain labels are not enough to
-prove same-source provenance. Fields:
+`cache/ncbi/download_plan.tsv` records the NCBI Datasets genome download plan
+before execution. It does not imply that any download has run.
 
-- `species`: checklist species name.
-- `genome_accession`: genome or assembly accession.
-- `genome_strain`: genome-side strain text.
-- `genome_biosample`: genome-side BioSample accession.
-- `genome_culture_ids`: parsed genome-side culture collection IDs.
-- `rrna_source`: 16S source label such as genome, barrnap, Entrez, or user input.
-- `rrna_accession`: 16S accession when available.
-- `rrna_strain`: 16S-side strain text.
-- `rrna_biosample`: 16S-side BioSample accession.
-- `rrna_culture_ids`: parsed 16S-side culture collection IDs.
-- `same_biosample`: whether BioSample accessions match.
-- `same_culture_collection_id`: whether recognized culture collection IDs overlap.
-- `same_strain_text`: whether normalized strain text matches.
-- `audit_status`: source audit status.
-- `notes`: audit notes.
+`cache/ncbi/download_results.tsv` records guarded download execution results,
+including fake-runner results in tests. When downloads are explicitly enabled,
+ZIP files are written under `cache/ncbi/`.
 
-`source_audit/culture_collection_audit.tsv` is written by
-`--audit-culture-collections` from a local `--species-checklist` or
-`--lpsn-cache`. It parses recognized culture collection deposit identifiers
-from checklist/LPSN type-strain text and preserves the original source text
-beside normalized IDs. This is an evidence table for review, not a final
-taxonomic conclusion and not proof that an NCBI assembly is the type strain.
-Fields:
+The extraction step unpacks each ZIP under
+`cache/ncbi/extracted/<record_id>/`, discovers the genomic FASTA, and installs
+the normalized reference genome as `genomes/references/<normalized_id>.fna`.
 
-- `species`: source species name.
-- `source`: checklist or LPSN source label.
-- `source_field`: source field parsed, such as `type_strain_names` or `type_strain`.
-- `source_text`: original type-strain text.
-- `recognized_ids`: normalized recognized culture collection IDs.
-- `has_recognized_deposit_id`: whether at least one recognized ID was parsed.
-- `notes`: parser notes.
+## rRNA, ANI, and Phylogeny Artifacts
 
-Final project audit packages may add a species-level companion outside the
-canonical run directory, for example
-`results/fusobacterium_final_audit_v2/species_completion_status.tsv` and
-`results/fusobacterium_final_audit_v2/evidence_layer_summary.tsv`. These tables
-should preserve evidence layers separately: `type_strain_equivalence_ids` for
-accepted type-strain vocabulary, `regular_deposit_ids_seen` for same-species
-deposits that are not type-strain evidence, `external_type_genome_available`
-for non-NCBI type-genome sources, and `workflow_eligible` for whether the
-record can enter the current NCBI Assembly workflow. This distinction is
-important when an external type genome exists but no high-confidence NCBI
-Assembly accession is available.
+`rrna/rrna_plan.tsv` records the plan for 16S extraction from records that
+already have registered genomes. Dry-run plans expected barrnap-derived
+artifacts only; it does not run barrnap or parse barrnap output. Planned
+barrnap GFF paths are `rrna/barrnap/<normalized_id>.gff`, and planned
+extracted 16S FASTA paths are `rrna/sequences/<normalized_id>.16s.fasta`.
 
-`cache/ncbi/download_plan.tsv` records the NCBI Datasets genome download plan before execution. It does not imply that any download has been executed. Fields:
+The controlled barrnap execution interface writes barrnap stdout to
+`rrna/barrnap/<normalized_id>.gff` and checks for non-empty output. The
+extractor writes `rrna/sequences/<normalized_id>.16s.fasta`. The assembler
+combines ready reference 16S records and an optional query 16S FASTA into
+`rrna/all_16S.fasta`.
 
-- `record_id`: manifest record identifier.
-- `normalized_id`: file-safe identifier used for planned output names.
-- `assembly_accession`: NCBI assembly accession to request.
-- `expected_genome_path`: planned reference FASTA path under `genomes/references/`, named `<normalized_id>.fna`.
-- `datasets_zip_path`: planned NCBI Datasets ZIP path under `cache/ncbi/`.
-- `download_dir`: planned download cache directory.
-- `status`: `planned`, `skipped_existing`, or `skipped_no_accession`.
-- `notes`: human-readable skip reason or other planning note.
+When `--query-genome` is provided and reference records have registered genome
+files, TypeTreeFlow writes `ani/ani_plan.tsv` for debugging and
+`ani/references.txt` with ANI-planned reference genome paths. The controlled
+FastANI wrapper writes/checks `ani/fastani_raw.tsv`. The parser reads existing
+FastANI raw output and writes `ani/ani_query_vs_refs.tsv`,
+`ani/ani_summary.tsv`, and `ani/ani_query_vs_refs.png` when enough data is
+available. The 95% ANI threshold is advisory only; TypeTreeFlow does not
+automatically make species-level conclusions from ANI fields.
 
-`cache/ncbi/download_results.tsv` records the execution result after downloads are run. It is written only by the guarded downloads stage, including when fake runners are injected by tests. Fields:
-
-- `record_id`: manifest record identifier.
-- `normalized_id`: file-safe identifier used for planned output names.
-- `assembly_accession`: NCBI assembly accession requested.
-- `status`: execution status such as `genome_download_succeeded`, `genome_download_failed`, `genome_download_missing_output`, or `skipped_invalid_zip`.
-- `zip_path`: expected or observed ZIP path under `cache/ncbi/`.
-- `returncode`: runner return code, when a command was executed.
-- `stderr`: runner standard error captured for diagnostics.
-- `notes`: human-readable execution note.
-
-When downloads are explicitly enabled with `--enable-downloads`, NCBI Datasets ZIP files are written under `cache/ncbi/`. The extraction step unpacks each ZIP under `cache/ncbi/extracted/<record_id>/`, discovers the genomic FASTA, and installs the normalized reference genome as `genomes/references/<normalized_id>.fna`.
-
-Resume behavior reuses durable artifacts in this order: an installed `genomes/references/<normalized_id>.fna`, an existing extracted directory under `cache/ncbi/extracted/<record_id>/`, then a valid ZIP under `cache/ncbi/`. `--force` starts from a newly selected manifest and allows extraction and genome installation to overwrite prior extracted files and installed FASTA files.
-
-`rrna/rrna_plan.tsv` records the plan for 16S extraction from records that already have registered genomes. Dry-run only plans expected barrnap-derived artifacts; it does not run barrnap or parse barrnap output. Planned barrnap GFF paths are `rrna/barrnap/<normalized_id>.gff`, and planned extracted 16S FASTA paths are `rrna/sequences/<normalized_id>.16s.fasta`.
-
-The controlled barrnap execution interface writes barrnap stdout to `rrna/barrnap/<normalized_id>.gff` and checks for non-empty output.
-
-The extractor reads barrnap GFF files, chooses the longest feature identified as 16S rRNA, extracts the matching 1-based inclusive coordinates from the registered genome FASTA, reverse-complements negative-strand features, and writes `rrna/sequences/<normalized_id>.16s.fasta`. Successful barrnap/internal-genome 16S records also update `source_audit/sequence_source_audit.tsv` keyed by species, genome accession, and `rrna_source=barrnap`, preserving unrelated existing audit rows.
-
-When guarded Entrez fallback succeeds, it writes `rrna/sequences/<normalized_id>.16s.fasta` and upserts a separate `source_audit/sequence_source_audit.tsv` row keyed by species, genome accession, and `rrna_source=Entrez`. The Entrez audit row uses the manifest record for species, genome accession, genome strain, and any BioSample or culture IDs parseable from genome-side source text; it uses the selected Entrez candidate for 16S accession, strain when parsed from the FASTA description, BioSample when present, and description text for culture-ID parsing and review notes. Entrez fallback is never automatically labeled `same_genome_internal_16s`.
-
-The assembler combines ready reference 16S records and, when provided, a user query 16S FASTA into `rrna/all_16S.fasta`. Reference-only assembly is supported, so `--query-16s` is not required for a reference-only tree when enough reference 16S records are ready. Reference headers use manifest `normalized_id`; the query header defaults to `Query`. Headers are normalized to contain no whitespace, and duplicate headers are rejected.
-
-When `--query-genome` is provided and reference records have registered genome files, TypeTreeFlow writes `ani/ani_plan.tsv` for debugging and `ani/references.txt` containing only ANI-planned reference genome paths, one per line.
-
-The controlled FastANI wrapper can execute through an injected runner or through the guarded resume-mode CLI path and writes/checks `ani/fastani_raw.tsv`; a successful command with missing or empty raw output is recorded as `fastani_missing_output`.
-
-The ANI parser reads an existing FastANI raw output file and writes `ani/ani_query_vs_refs.tsv`. It reads the raw five-column FastANI output (`query_path`, `reference_path`, `ani`, `matching_fragments`, `total_fragments`) and does not execute FastANI. The ANI workflow can then write `ani/ani_summary.tsv` and `ani/ani_query_vs_refs.png` from parsed results. Fields:
-
-- `normalized_id`: manifest identifier for the reference genome when `reference_path` matches `StrainRecord.genome_path`.
-- `reference_name`: display name from the manifest when available.
-- `reference_genome_path`: reference genome path reported by FastANI.
-- `ani`: FastANI ANI percentage.
-- `matching_fragments`: number of matching fragments reported by FastANI.
-- `total_fragments`: total fragments reported by FastANI.
-- `fraction`: `matching_fragments / total_fragments`, used as a coverage-like fraction.
-- `above_species_threshold`: `true` when `ani >= 95.0`, otherwise `false`.
-
-The 95% ANI threshold is a common reference point only. TypeTreeFlow does not automatically make species-level conclusions from this field.
-
-In dry-run or resume-style use, TypeTreeFlow can write `ani/ani_plan.tsv`, `ani/references.txt`, and, when a non-empty `ani/fastani_raw.tsv` already exists, parse it into `ani/ani_query_vs_refs.tsv` and write `ani/ani_query_vs_refs.png`. Resume-mode CLI execution with `--enable-fastani` can run real FastANI when `fastANI` is on `PATH` and `--query-genome` is provided.
-
-The read-only ANI summary reads parsed query-vs-reference ANI output. When `ani/ani_query_vs_refs.tsv` exists and is valid, TypeTreeFlow writes `ani/ani_summary.tsv` as a stable one-row table for later report generation. Fields:
-
-- `hit_count`: number of parsed ANI hits.
-- `top_hit_id`: `normalized_id` for the top hit.
-- `top_hit_name`: display/reference name for the top hit.
-- `top_ani`: highest ANI value; ties are resolved by higher `fraction`.
-- `top_fraction`: fragment fraction for the top hit.
-- `hits_above_95`: number of hits where `above_species_threshold` is `true`.
-- `status`: `ani_hits_ready` or `ani_no_hits`.
-- `notes`: reminder that the 95% threshold is advisory only.
-
-The 95% ANI threshold is a common reference point only. TypeTreeFlow does not automatically make species-level conclusions from `ani_summary.tsv`.
-
-`manifest.tsv` and `report/summary.md` represent the final recorded workflow state after completed stages. `report/summary.md` is generated from existing manifest state and already-written output files. If `ani/ani_summary.tsv` or `rrna/all_16S.fasta` is absent, the report marks those artifacts as not available instead of triggering additional analysis.
-
-`report/summary.md` includes `Status Distribution`, `Output Files`, and `Problem Records` sections. Output file rows report path existence only, and problem records are filtered from manifest statuses containing failed, missing, ambiguous, not_found, invalid, or non-existing skipped terms. Normal resume reuse statuses containing `skipped_existing` are not listed as problem records.
-
-Given an existing `rrna/all_16S.fasta`, TypeTreeFlow can write `phylo/phylo_plan.tsv` with the planned MAFFT alignment path `phylo/all_16S.aln.fasta`, trimAl output path `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix `phylo/iqtree/all_16S`, and expected treefile `phylo/iqtree/all_16S.treefile`. The current IQ-TREE command uses ultrafast bootstrap, so the plan requires at least 4 FASTA records; smaller inputs are recorded as `phylo_skipped_too_few_sequences`. CLI dry-runs do not execute MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures.
-
-The controlled MAFFT wrapper writes alignment stdout to `phylo/all_16S.aln.fasta` when invoked through an injected runner and stdout is non-empty.
-
-The controlled trimAl wrapper writes `phylo/all_16S.trimmed.fasta` and verifies that this file exists and is non-empty after trimAl reports success.
-
-The controlled IQ-TREE wrapper writes `phylo/iqtree/all_16S.treefile` and checks only that this treefile exists and is non-empty after a successful return code. Resume-mode CLI execution with `--enable-phylo` can run MAFFT, trimAl, and IQ-TREE when `mafft`, `trimal`, and `iqtree2` are on `PATH`. Some conda IQ-TREE packages expose the executable as `iqtree`; create an `iqtree2` alias or symlink in that environment if needed. TypeTreeFlow does not parse Newick or render tree figures.
+Given an existing `rrna/all_16S.fasta`, TypeTreeFlow can write
+`phylo/phylo_plan.tsv` with the planned MAFFT alignment path
+`phylo/all_16S.aln.fasta`, trimAl output path
+`phylo/all_16S.trimmed.fasta`, IQ-TREE prefix `phylo/iqtree/all_16S`, and
+expected treefile `phylo/iqtree/all_16S.treefile`. CLI dry-runs do not execute
+MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures.

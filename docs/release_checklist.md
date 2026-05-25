@@ -126,7 +126,8 @@ Report-only refresh:
 python typetreeflow.py --outdir <run_dir> --report-only
 ```
 
-Validated smoke coverage for this release is documented in `docs/archive/runs/phase15_real_run_checklist.md`.
+Historical smoke-run evidence is mapped from `docs/index.md`; it can support
+audit review but is not a required input for the current release checklist.
 
 ## Files And Directories Not To Commit
 
@@ -164,5 +165,6 @@ Validated smoke coverage for this release is documented in `docs/archive/runs/ph
 - Remove generated validation artifacts that should not be committed.
 - Complete the clean-clone verification required by
   [release_process.md](release_process.md).
-- Review `docs/archive/runs/phase15_real_run_checklist.md` and this checklist
-  for release-date accuracy.
+- Review this checklist for release-date accuracy. Historical archive evidence
+  mapped from `docs/index.md` may be consulted when validating past claims, but
+  it is not a current release gate.

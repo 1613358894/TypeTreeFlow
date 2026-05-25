@@ -26,6 +26,8 @@ pytest -p no:cacheprovider --basetemp .pytest_tmp
 - Add or update tests for behavior changes.
 - Update `README.md`, `docs/`, or `CHANGELOG.md` when user-visible behavior
   changes.
+- Use `docs/maintenance.md` to decide which documentation contract, design, or
+  release note needs updating.
 - Do not commit generated run outputs, downloaded GTDB metadata, NCBI ZIPs,
   build artifacts, caches, or local environment directories.
 - Keep real external execution behind explicit opt-in flags and preserve dry-run

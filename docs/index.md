@@ -10,6 +10,9 @@ move, archive, or deletion.
   workflow surface.
 - [output_layout.md](output_layout.md): Canonical output directory and file
   layout. Treat as the path contract for runs, tests, and downstream users.
+- [schemas.md](schemas.md): TSV and table field dictionary. Use
+  `output_layout.md` for paths and stage ownership; use this document for
+  field-level contracts.
 - [statuses.md](statuses.md): Current emitted status values for manifests,
   plans, workflow results, source audits, reports, and taxonomy comparisons.
 - [species_checklist_audit.md](species_checklist_audit.md): Implemented CLI and
@@ -20,13 +23,15 @@ move, archive, or deletion.
 - [lpsn_first_acquisition.md](lpsn_first_acquisition.md): Active detailed
   design and implementation-history note for the LPSN-first acquisition route.
   The current behavior is authoritative where it matches README and contract
-  docs; phase sections are audit history.
+  docs; implementation-history notes are audit history.
 - [external_type_genome_ingestion.md](external_type_genome_ingestion.md):
   Proposed v0.6.0 design for manual external type-genome registration. Not
   implemented in the current workflow.
 
 ## Operational and release docs
 
+- [maintenance.md](maintenance.md): Documentation maintenance rules for humans
+  and AI agents, including doc layers, archive boundaries, and validation.
 - [release_process.md](release_process.md): Release policy, version-source,
   tag, GitHub Release, clean-clone verification, and audit standards.
 - [release_checklist.md](release_checklist.md): Execution checklist for local
@@ -34,19 +39,26 @@ move, archive, or deletion.
 
 ## Historical plans
 
+Archive entries are historical plans, implementation notes, or evidence
+snapshots. They are not current behavior contracts or required release gates;
+use the current contract, active design, and operational docs above for current
+workflow decisions.
+
+- [archive/README.md](archive/README.md): Archive inventory, retention rules,
+  and cleanup criteria.
 - [archive/ncbi_candidate_discovery_phase22.md](archive/ncbi_candidate_discovery_phase22.md):
   Historical Phase 22 candidate-discovery design and implementation record.
   Current implemented status is noted in the document, but it is not a new
   release plan.
-- [archive/species_checklist_implementation_plan.md](archive/species_checklist_implementation_plan.md):
-  Historical v0.2.0 implementation breakdown for species checklist auditing.
+- [archive/README.md#species-checklist-implementation-plan](archive/README.md#species-checklist-implementation-plan):
+  Compressed summary for the deleted historical v0.2.0 species checklist audit
+  implementation plan.
 
 ## Run evidence
 
-- [archive/runs/phase15_real_run_checklist.md](archive/runs/phase15_real_run_checklist.md):
-  Historical real smoke-run and release evidence for staged Aalborgiella,
-  Actinocorallia, and phylogeny validations. It is not the current required
-  user workflow.
+- [archive/README.md](archive/README.md#deleted-evidence-summaries): Includes
+  the compressed summary for the deleted Phase 15 real-run checklist covering
+  staged Aalborgiella, Actinocorallia, and phylogeny validation facts.
 - [archive/runs/fusobacterium_v0_5_0/](archive/runs/fusobacterium_v0_5_0/):
   Compact archived evidence for the Fusobacterium v0.5.0 16/17 delivery,
   final audit, and mortiferum final review. Large run products are excluded.

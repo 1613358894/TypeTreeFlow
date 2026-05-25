@@ -1,18 +1,15 @@
 # LPSN-First Acquisition Design
 
-This is the detailed design and implementation-history note for the
-LPSN-first acquisition route. Use README and the output/status reference docs as
-the shorter current workflow entry points; the phase sections near the end are
-kept for audit history and should not be read as a new release plan.
+This is the current workflow note for the LPSN-first acquisition route. Use
+README and the output/status reference docs as the shorter entry points.
 
-This document defines an acquisition route for starting from LPSN-derived or
-equivalent authoritative checklist data before discovering available genome and
-16S data. LF-1 through LF-8 provide the implemented offline scaffolding: stable
-schemas, TSV helpers, local parsers/audits, LPSN Child taxa TSV conversion,
-local-cache candidate discovery, selection preparation/readback, and
-selection-driven planning. Selected rows that already include assembly
-accessions can drive the existing guarded NCBI Datasets download stage with
-`--enable-downloads`.
+This document defines an acquisition route that starts from LPSN-derived or
+equivalent authoritative checklist data, then discovers available genome and
+16S data. The route is offline-first: stable schemas, TSV helpers, local
+parsers/audits, LPSN Child taxa TSV conversion, local-cache candidate
+discovery, selection preparation/readback, and selection-driven planning.
+Selected rows with assembly accessions can drive the guarded NCBI Datasets
+download stage with `--enable-downloads`.
 
 The implemented route now includes a minimal official LPSN API adapter and a
 stable local LPSN species cache reader/writer. Official access is guarded by
@@ -53,13 +50,9 @@ a separate representative-strain workflow, but it must not be promoted to
 type-strain evidence without authoritative equivalence proof.
 
 Project-specific example: the current Fusobacterium strict NCBI Assembly audit
-is 16/17 complete. `Fusobacterium mortiferum` remains pending because the
-accepted type-strain equivalence set is `ATCC 25557; CCUG 14475; DSM 19809; VPI
-4123A; 350A`, while observed NCBI alternatives such as `ATCC 9817` or
-`SYC45/GCF_057585585.1` do not prove equivalence to that set. The ATCC Genome
-Portal reports an external ATCC 25557 type genome, but external ATCC genome
-ingestion is outside the current NCBI Assembly workflow and should be designed
-as a separate feature.
+is 16/17 complete. `Fusobacterium mortiferum` remains pending because observed
+NCBI alternatives do not prove equivalence to the accepted type-strain set, and
+external ATCC genome ingestion is outside the current NCBI Assembly workflow.
 
 ## Data Source Priority
 
@@ -223,14 +216,11 @@ python typetreeflow.py \
   --outdir results/fusobacterium_manual_review
 ```
 
-The command derives target species from `--selection-tsv`: species with no
-`selected=yes` row are included, while already strict-selected species are
-excluded. It writes a candidate-level
-`manual_deposit_evidence_template.tsv` and a species-level
-`manual_species_gap_summary.tsv`. The curator columns are intentionally blank;
-fill them only after external evidence confirms deposit equivalence. Then
-import that curator evidence into the candidate evidence layer and rerun strict
-selection preparation:
+The command targets species with no `selected=yes` row and writes
+`manual_deposit_evidence_template.tsv` plus
+`manual_species_gap_summary.tsv`. Fill curator columns only after external
+evidence confirms deposit equivalence, then import that evidence and rerun
+strict selection preparation:
 
 ```bash
 python typetreeflow.py \
@@ -241,34 +231,25 @@ python typetreeflow.py \
   --outdir results/fusobacterium_manual_review_applied
 ```
 
-This import is offline. It writes a new
-`candidates/assembly_candidates.tsv` and strict
-`selection/user_selection.tsv` under `--outdir`; it does not download genomes,
-query NCBI, enable Entrez 16S fallback, or scrape HTML. Only a non-empty
-`curator_confirmed_deposit_id` that matches the same species'
+This import is offline. It writes a new `candidates/assembly_candidates.tsv`
+and strict `selection/user_selection.tsv`; it does not download genomes, query
+NCBI, enable Entrez 16S fallback, or scrape HTML. Only a non-empty
+`curator_confirmed_deposit_id` matching the same species'
 `lpsn_type_strain_ids` can upgrade a candidate to LPSN type-strain evidence.
-The evidence source should be a source publication, an official culture
-collection page/record, or an explicit BioSample/INSDC field. Name similarity
-alone is not acceptable evidence. The import records
-`curator_culture_collection_ids`, `curator_evidence_source`,
-`curator_notes`, and `curator_evidence_applied=true`, appends curator evidence
-to `match_evidence`, and clears resolved deposit-ID review reasons. For audit
-conservatism, applied candidates retain `requires_manual_review=true`; strict
-selection considers the row resolved only when curator evidence was applied,
-the LPSN type-strain match is true, and no unresolved
-`manual_review_reason` remains. If the template is still blank, zero rows are
-applied and strict selection remains unchanged.
+Name similarity alone is not acceptable evidence. Blank templates apply zero
+rows and leave strict selection unchanged.
 
 ## NCBI/GTDB Candidate Discovery
 
 Candidate discovery should start from the filtered species list and search NCBI
-and GTDB for available type-material genome or sequence records. The planned
-candidate table is:
+and GTDB for available type-material genome or sequence records. The candidate
+table is:
 
 `candidates/assembly_candidates.tsv`
 
-See `docs/archive/ncbi_candidate_discovery_phase22.md` for the Phase 22A implementation
-boundary and follow-on breakdown for NCBI assembly candidate discovery.
+The current candidate table contract is below. Historical implementation
+records are mapped from `docs/index.md` as archive evidence, not as current
+workflow boundaries.
 
 | Field | Meaning |
 | --- | --- |
@@ -312,36 +293,20 @@ equivalence IDs. Fields such as `regular_deposit_ids_seen`,
 audit packages because they prevent a valid same-species deposit from being
 mistaken for type-strain evidence.
 
-BioSample enrichment can be applied after candidate discovery or while
-preparing selection by passing `--enrich-biosample`. The offline mode reads
-`cache/ncbi/biosample_records.tsv` or `--biosample-cache PATH`; guarded real
-Entrez BioSample lookup requires `--enable-biosample-entrez --email`. The cache
-fields are `biosample`, `organism`, `strain`, `isolate`, `type_material`,
+BioSample enrichment can be applied with `--enrich-biosample`. Offline mode
+reads `cache/ncbi/biosample_records.tsv` or `--biosample-cache PATH`; guarded
+real Entrez lookup requires `--enable-biosample-entrez --email`. Cache fields:
+`biosample`, `organism`, `strain`, `isolate`, `type_material`,
 `culture_collection`, `collected_text`, `attributes_text`, `source`, and
-`notes`. Parsed BioSample attributes can add culture collection IDs, LPSN
-type-strain ID matches, and type-material evidence to candidate rows. Missing
-BioSample accessions or missing cache records do not remove candidates; they
-become diagnostics or manual-review reasons. BioSample evidence is still
-candidate-selection evidence, not a final taxonomic conclusion.
+`notes`. Missing BioSample data do not remove candidates; they become
+diagnostics or manual-review reasons.
 
 ## Culture Collection Parser
 
 The culture collection parser scans strain, isolate, type-material, BioSample,
-assembly, and checklist metadata for recognized deposit identifiers. The
-initial recognized prefixes include:
-
-- `DSM`
-- `ATCC`
-- `JCM`
-- `NCTC`
-- `CIP`
-- `LMG`
-- `KCTC`
-- `NBRC`
-- `CCUG`
-- `CCM`
-- `CECT`
-- `CGMCC`
+assembly, and checklist metadata for recognized deposit identifiers. Recognized
+prefixes include `DSM`, `ATCC`, `JCM`, `NCTC`, `CIP`, `LMG`, `KCTC`, `NBRC`,
+`CCUG`, `CCM`, `CECT`, and `CGMCC`.
 
 Regular-expression matches are candidate evidence only. They are not final
 taxonomic determinations and must not be used to automatically decide species
@@ -362,7 +327,7 @@ that an NCBI assembly is the type strain.
 
 When genome and 16S records are both available, TypeTreeFlow should audit
 whether the two data sources plausibly originate from the same strain. The
-planned output is:
+output is:
 
 `source_audit/sequence_source_audit.tsv`
 
@@ -384,33 +349,22 @@ planned output is:
 | `audit_status` | Overall audit status. |
 | `notes` | Explanation, caveats, and manual-review details. |
 
-Allowed audit statuses:
+Allowed audit statuses are `same_genome_internal_16s`, `same_biosample`,
+`same_culture_collection_id`, `strain_text_match`, `mismatch`, `rrna_only`,
+`genome_only`, and `manual_review_required`.
 
-- `same_genome_internal_16s`
-- `same_biosample`
-- `same_culture_collection_id`
-- `strain_text_match`
-- `mismatch`
-- `rrna_only`
-- `genome_only`
-- `manual_review_required`
+Status assignment prefers stronger evidence first: internal 16S extracted from
+the selected genome, same BioSample, same recognized culture collection ID, then
+strain-text match. Text-only matches remain weak evidence.
 
-Status assignment should prefer stronger evidence first: internal 16S extracted
-from the selected genome, same BioSample, same recognized culture collection ID,
-then strain-text match. Text-only matches should remain weaker evidence because
-strain names are often formatted inconsistently across databases.
-
-The CLI exposes `--source-audit-policy permissive|warn|strict`. `permissive`
-records audit rows only. `warn` is the default and surfaces mismatch,
-manual-review, and strain-text-only rows in the summary without blocking.
-`strict` returns non-zero before critical report/download/phylogeny stages if
-any row is `mismatch`, `manual_review_required`, or `strain_text_match`.
-Formal downloads and publication-facing analyses should use `strict`, or at
-least keep `warn` and review all flagged rows.
+`--source-audit-policy permissive|warn|strict` controls enforcement. `warn` is
+the default. `strict` returns non-zero before critical
+report/download/phylogeny stages for `mismatch`, `manual_review_required`, or
+`strain_text_match` rows.
 
 ## User Selection Mechanism
 
-Future acquisition should separate candidate preparation from user selection:
+Acquisition separates candidate preparation from user selection:
 
 - `--prepare-selection` writes candidate and audit tables without committing to
   a final reference set.
@@ -420,17 +374,15 @@ Future acquisition should separate candidate preparation from user selection:
 - `--strains-per-species N` limits how many selected strains may be carried
   forward per species.
 
-Planned selection outputs:
+Selection outputs:
 
 - `selection/strain_candidates.tsv`
 - `selection/user_selection.tsv`
 
-`selection/strain_candidates.tsv` should contain all candidate rows with enough
-evidence fields for review. `selection/user_selection.tsv` should be a stable,
-user-editable TSV where users mark `selected=yes` or `selected=no`. The CLI
-should validate edited selections, report missing or duplicate selected rows,
-and require manual review for ambiguous candidates rather than silently choosing
-for the user.
+`selection/strain_candidates.tsv` contains candidate rows for review.
+`selection/user_selection.tsv` is user-editable with `selected=yes` or
+`selected=no`. The CLI validates edited selections, reports missing or
+duplicate selected rows, and keeps ambiguous candidates in manual review.
 
 Selection policies:
 
@@ -446,219 +398,22 @@ Selection policies:
 - `review-only`: use for complete manual review. It writes all candidates but
   selects none by default.
 
-## Phased Implementation Plan
+## Implementation History Summary
 
-LF-1 through LF-7 are implemented as offline scaffolding. LF-8 is the current
-documentation, examples, and release-prep closeout for that scaffolding.
+The former LF-1 through LF-8 implementation plan is historical. Those items are
+implemented or superseded by current workflow docs, table contracts, examples,
+and tests, and should not be read as an active development plan.
 
-### LF-1 Checklist Schema Compatibility
+The durable outcomes are reflected above: checklist schema compatibility,
+guarded official LPSN API/cache handling, local discovery-cache support,
+candidate and diagnostics tables, culture collection parsing, genome/16S source
+audit policy, user-editable selection TSVs, selection-driven dry-run planning,
+guarded selected-download support, offline examples, and release smoke coverage.
 
-Define a checklist schema that can represent the current user-provided TSV and
-future LPSN-derived fields without breaking existing audits. Add compatibility
-tests for required and optional fields. Stop when the schema can round-trip
-current examples and express nomenclatural/taxonomic status filters.
-
-Implemented status: complete for offline scaffolding. The checklist parser keeps the current minimal required
-fields and accepts optional LPSN-derived compatibility fields for future
-filtering helpers without changing CLI behavior.
-
-### LF-2 LPSN API/Download Adapter Design
-
-Design the adapter boundary for official LPSN API or downloadable data. Keep
-network access behind explicit future opt-in behavior and cache raw source
-metadata for auditability. Stop when adapter inputs, outputs, errors, and cache
-layout are documented, without implementing HTML scraping.
-
-Implemented status: complete for minimal official API/cache closure.
-`typetreeflow.taxonomy.lpsn` defines `LpsnSpeciesRecord`, an `LpsnClient`
-protocol with `fetch_genus_species(genus)`, conversion from LPSN records into
-checklist entries, exact correct-species filtering, stable TSV cache read/write
-helpers, a fake client for tests, a local cache client, and
-`OfficialLpsnApiClient` over the optional official `lpsn` Python package. The
-CLI can convert either `--lpsn-cache` or guarded `--lpsn-genus
---enable-lpsn-api` records to `species_checklist.tsv`, and can write
-`--write-lpsn-cache` for later offline reuse. There is no HTML scraping.
-
-The cache format records one species row per LPSN-derived entry with stable
-fields for genus, species, full name, nomenclatural status, taxonomic status,
-type strain, LPSN record number, LPSN URL, source, and notes. Header-only cache
-files are valid empty caches. Missing required cache columns and malformed rows
-are validation errors. Authentication is environment-only:
-`TYPETREEFLOW_LPSN_USERNAME` or `TYPETREEFLOW_LPSN_EMAIL`, plus
-`TYPETREEFLOW_LPSN_PASSWORD`. Missing credentials, missing optional client
-dependency, HTTP, rate-limit, and transport errors are explicit API-mode
-failures; they do not trigger an HTML fallback.
-
-### LF-3 NCBI Candidate Discovery Planning
-
-Specify how filtered checklist species are translated into NCBI and GTDB
-candidate searches. Define `candidates/assembly_candidates.tsv`, source
-priority, duplicate handling, and diagnostics. Stop when discovery behavior can
-be implemented without changing final manifest selection semantics.
-
-Implemented status: complete for offline scaffolding. `typetreeflow.taxonomy.candidates`
-defines an auditable assembly candidate model and stable
-`candidates/assembly_candidates.tsv` reader/writer. This is an intermediate
-table layer between LPSN correct species and future NCBI/GTDB genome discovery;
-it does not perform real NCBI or GTDB searches, does not download data, and does
-not change final manifest selection semantics.
-
-Candidate ranking is a deterministic heuristic for review order and provisional
-selection: type-material evidence, recognized culture collection deposit
-evidence, RefSeq reference/representative category, assembly level, then
-assembly accession. The ranking is auditable planning metadata only. It is not a
-taxonomic conclusion and must not be treated as automatic nomenclatural or
-species-status resolution.
-
-### LF-4 Culture Collection Parser
-
-Implement a parser for recognized culture collection IDs across checklist,
-assembly, BioSample, and 16S metadata fields. Treat regex matches as evidence,
-not conclusions. Stop when `source_audit/culture_collection_audit.tsv` is
-written and parser behavior is covered by focused tests.
-
-Implemented status: complete for checklist/LPSN audit scaffolding.
-`typetreeflow.taxonomy.culture_collections` recognizes conservative culture
-collection ID patterns for known collection prefixes, normalizes them to
-`PREFIX number`, de-duplicates matches while preserving first occurrence order,
-can annotate assembly candidates with parsed `culture_collection_ids` and
-`has_recognized_deposit_id`, and can write
-`source_audit/culture_collection_audit.tsv` from `--species-checklist` or
-`--lpsn-cache` via `--audit-culture-collections`.
-
-Recognized collection IDs are string evidence for later candidate and
-same-strain audits. They are not final taxonomic proof, do not decide species
-status, and should remain visible in auditable tables so users can review the
-original metadata context.
-
-### LF-5 Same-Strain Source Audit
-
-Compare genome and 16S provenance using internal-genome origin, BioSample,
-culture collection IDs, and normalized strain text. Write
-`source_audit/sequence_source_audit.tsv` with explicit statuses and notes. Stop
-when mismatch, genome-only, rrna-only, and manual-review cases are tested.
-
-Implemented status: complete for offline scaffolding.
-`typetreeflow.taxonomy.source_audit` defines `SequenceSourceAudit`,
-`audit_sequence_sources`, and stable TSV read/write helpers for
-`source_audit/sequence_source_audit.tsv`. The audit compares source consistency
-only; it does not make a nomenclatural, taxonomic, or species-boundary
-conclusion.
-
-Audit status assignment uses this evidence hierarchy:
-
-1. `same_genome_internal_16s` when 16S was extracted internally from the genome
-   source (`rrna_source=genome` or `rrna_source=barrnap`).
-2. `same_biosample` for exact shared BioSample accessions.
-3. `same_culture_collection_id` for overlap among recognized parsed culture
-   collection IDs.
-4. `strain_text_match` for exact matches after simple strain-text
-   normalization.
-5. `genome_only` or `rrna_only` when only one side has source data.
-6. `mismatch` when both sides are present but no consistency evidence matches.
-7. `manual_review_required` when data are insufficient for the above statuses.
-
-The boolean fields record the actual BioSample, culture collection ID, and
-strain-text comparisons independently of the final status, so stronger evidence
-can determine the status while weaker matching evidence remains visible.
-
-Phase 23A status: implemented for barrnap/internal-genome 16S extraction.
-After successful local barrnap extraction, TypeTreeFlow writes or updates
-`source_audit/sequence_source_audit.tsv` rows with
-`rrna_source=barrnap` and `audit_status=same_genome_internal_16s`. Existing
-rows with other species, genome accessions, or 16S sources are preserved.
-
-Phase 23B status: implemented for successful Entrez fallback 16S retrieval.
-After a selected Entrez candidate is written to
-`rrna/sequences/<normalized_id>.16s.fasta`, TypeTreeFlow writes or updates a
-`source_audit/sequence_source_audit.tsv` row with `rrna_source=Entrez`.
-Species, genome accession, and genome strain come from the manifest record;
-genome-side BioSample or culture IDs are used when they are parseable from
-manifest source text. 16S accession, parsed strain, parsed BioSample when
-present, and description text come from the selected Entrez candidate. The normal
-`audit_sequence_sources` hierarchy assigns `same_biosample`,
-`same_culture_collection_id`, `strain_text_match`, `mismatch`, or
-`manual_review_required`; Entrez rows are not forced to
-`same_genome_internal_16s`. Failed, not-found, skipped, and dry-run fallback
-records do not write successful source-audit rows.
-
-Phase 23C status: implemented for source-audit policy enforcement.
-`typetreeflow.taxonomy.source_audit` can read
-`source_audit/sequence_source_audit.tsv` and evaluate the configured policy.
-Barrnap/internal-genome 16S writes `same_genome_internal_16s` and passes strict.
-Rows supported only by identical strain text are counted as weak evidence and
-block strict alongside mismatch and manual-review rows.
-
-### LF-6 User Selection TSV
-
-Add preparation of `selection/strain_candidates.tsv` and
-`selection/user_selection.tsv`, plus validation of user-edited `selected`
-values. Enforce `--strains-per-species N` only after validating the selection
-file. Stop when users can prepare, edit, and re-read a selection without hidden
-automatic choices.
-
-Implemented status: complete for offline scaffolding.
-`typetreeflow.taxonomy.selection` defines `StrainSelectionRow`, stable
-selection fields, conversion from assembly candidates into ranked selection
-rows, validation helpers, and TSV read/write helpers. The same row schema can
-represent the tool-generated `selection/strain_candidates.tsv` and the
-human-editable `selection/user_selection.tsv`.
-
-The user-editable selection file uses `selected=yes` or `selected=no`.
-Generated rows default according to `--selection-policy`, which currently
-supports `balanced`, `strict`, and `review-only`. The table records
-`selection_policy`, `policy_decision`, `manual_review_reason`, and
-`match_evidence` so automated choices and review requirements remain
-auditable. Legacy selection TSVs without these newer fields remain readable.
-
-There is no CLI or workflow integration in this phase. LF-6 only provides the
-offline data structure, TSV round-trip behavior, boolean parsing, and helpers
-for preserving selected assembly accessions in file order.
-
-### LF-7 CLI Integration
-
-Wire the acquisition preparation and selection readback into CLI options:
-`--prepare-selection`, `--selection-tsv`, and `--strains-per-species`. Preserve
-existing dry-run and resume safety rules. Stop when CLI help, dry-run behavior,
-and existing workflows remain stable.
-
-Implemented status: complete for offline scaffolding. `--prepare-selection`
-reads an existing `candidates/assembly_candidates.tsv`, annotates recognized
-culture collection IDs with the offline parser, and writes
-`selection/strain_candidates.tsv` plus `selection/user_selection.tsv`.
-Generated defaults follow `--selection-policy`, which defaults to `balanced`.
-`--strains-per-species` defaults to 1 and must be at least 1.
-
-`--selection-tsv PATH` validates a user-edited selection table and reports the
-number of selected assembly accessions when no execution guard is supplied. In
-dry-run mode it writes selection-driven manifest, name map, download plan, and
-summary outputs without contacting NCBI. With `--enable-downloads`, selected
-rows that contain assembly accessions are converted to manifest records and
-passed through the existing guarded downloads stage. Validation rejects more
-than N selected rows per species, selected rows without assembly accessions,
-duplicate selected accessions, and strict-policy selected rows without LPSN
-type-strain matches. Missing candidate tables, malformed selection TSVs, and
-invalid `--strains-per-species` values are clear CLI errors. `--report-only`
-remains report-only and does not generate selection files.
-
-This phase intentionally does not implement NCBI candidate discovery or change
-GTDB-based downloads, barrnap, FastANI, phylogeny, or species-checklist
-behavior.
-
-### LF-8 Docs/Examples/Release Prep
-
-Update README, output-layout docs, examples, and release notes to describe the
-LPSN/checklist-first acquisition flow. Include a minimal checklist, local
-discovery cache, and selection TSV example. Stop when full tests and CLI help
-pass without requiring network access or external bioinformatics tools.
-
-Implemented status: complete for README usage, output-layout documentation,
-Phase 22E parser fixture calibration, minimal example candidate,
-discovery-cache, LPSN Child taxa, and selection TSVs, plus the Phase 24A
-offline end-to-end smoke workflow. The examples are offline fixtures for
-demonstrating the table contracts, CLI selection preparation path,
-selection-driven dry-run planning, fake-runner tested guarded downloads, and
-resume dry-run downstream planning.
+Detailed historical plans and run evidence are mapped from the historical
+evidence section in `docs/index.md`. Archive records are retained as
+implementation evidence only; current behavior contracts live in this document,
+README, output and status references, examples, tests, and release docs.
 
 Still not implemented:
 

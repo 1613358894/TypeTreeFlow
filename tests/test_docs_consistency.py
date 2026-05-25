@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from typetreeflow.cli import build_parser
 from typetreeflow.config import REAL_ACTION_FLAGS
 from typetreeflow.taxonomy.candidates import CANDIDATE_FIELDS
@@ -11,6 +13,34 @@ from typetreeflow.taxonomy.lpsn_child_taxa import (
 )
 from typetreeflow.taxonomy.selection import SELECTION_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
+
+
+def test_archive_references_stay_in_archive_map_and_boundary_docs():
+    archive_dir = "docs" + "/archive"
+    allowed_paths = {
+        "docs/index.md",
+        "docs/maintenance.md",
+        archive_dir + "/README.md",
+    }
+    forbidden_patterns = [
+        archive_dir,
+        "archive" + "/",
+        "species_checklist" + "_implementation_plan",
+        "phase15_real" + "_run_checklist",
+    ]
+
+    checked_paths = ["README.md"]
+    checked_paths.extend(
+        str(path.as_posix())
+        for path in Path("docs").rglob("*.md")
+    )
+
+    for path in checked_paths:
+        if path in allowed_paths:
+            continue
+        docs = _read(path)
+        for pattern in forbidden_patterns:
+            assert pattern not in docs, f"{path} should not reference {pattern}"
 
 
 def test_readme_mentions_guarded_cli_flags():
@@ -77,6 +107,41 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
 
     for path in key_paths:
         assert path.relative_to(tmp_path).as_posix() in docs
+
+
+def test_schema_docs_mention_key_table_fields():
+    docs = _read("docs/schemas.md")
+
+    required_mentions = {
+        "taxonomy/checklist_comparison.tsv": [
+            "comparison_status",
+            "lpsn_record_number",
+        ],
+        "candidates/assembly_candidates.tsv": [
+            "matched_lpsn_type_strain_ids",
+            "curator_evidence_applied",
+        ],
+        "selection/*.tsv": [
+            "selection_policy",
+            "policy_decision",
+        ],
+        "source_audit/sequence_source_audit.tsv": [
+            "same_culture_collection_id",
+            "audit_status",
+        ],
+        "cache/ncbi/download_plan.tsv": [
+            "expected_genome_path",
+            "datasets_zip_path",
+        ],
+        "ani/ani_query_vs_refs.tsv": [
+            "above_species_threshold",
+        ],
+    }
+
+    for table, fields in required_mentions.items():
+        assert table in docs
+        for field in fields:
+            assert field in docs
 
 
 def test_example_selection_tsv_headers_match_schemas():
