@@ -25,8 +25,9 @@ move, archive, or deletion.
   The current behavior is authoritative where it matches README and contract
   docs; implementation-history notes are audit history.
 - [external_type_genome_ingestion.md](external_type_genome_ingestion.md):
-  Proposed v0.6.0 design for manual external type-genome registration. Not
-  implemented in the current workflow.
+  Manual external type-genome registration design and provider-automation
+  boundary. The local FASTA registration path is implemented; provider portal
+  automation remains future/out of scope.
 
 ## Operational and release docs
 

@@ -5,6 +5,7 @@ from typetreeflow.manifest import (
     ensure_unique_normalized_ids,
     ensure_unique_record_ids,
     find_record,
+    merge_external_registered_records,
     read_manifest,
     update_record_status,
     write_manifest,
@@ -109,3 +110,32 @@ def test_ensure_unique_normalized_ids_uses_accession_or_suffix():
 
     assert first.normalized_id == "duplicate"
     assert second.normalized_id == "duplicate_GCF_000009046.1"
+
+
+def test_merge_external_registered_records_preserves_existing_ids_on_conflict():
+    existing = _record()
+    new = StrainRecord(
+        record_id=existing.record_id,
+        canonical_name="Bacillus subtilis",
+        display_name="Bacillus subtilis external",
+        genus="Bacillus",
+        species="subtilis",
+        strain="External 1",
+        assembly_accession="",
+        assembly_source="external_registered_genome",
+        is_type_material=True,
+        has_genome=True,
+        genome_path="genomes/references/external.fna",
+        normalized_id=existing.normalized_id,
+        source="external_registered_genome",
+        status="external_genome_registered",
+        notes="external_genome_id=external-1",
+    )
+
+    merged = merge_external_registered_records([existing], [new])
+
+    assert merged[0].record_id == "rec-1"
+    assert merged[0].normalized_id == "Bacillus_subtilis_DSM_10"
+    assert merged[1].record_id != "rec-1"
+    assert merged[1].normalized_id != "Bacillus_subtilis_DSM_10"
+    assert merged[1].assembly_accession == ""

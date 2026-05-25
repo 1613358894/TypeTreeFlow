@@ -47,6 +47,8 @@ def _record(
     accession: str = "GCF_000011805.1",
     has_genome: bool = False,
     genome_path: str = "",
+    source: str = "fixture",
+    assembly_source: str = "",
 ) -> StrainRecord:
     return StrainRecord(
         record_id="rec-1",
@@ -60,7 +62,8 @@ def _record(
         has_genome=has_genome,
         genome_path=genome_path,
         normalized_id="Aliivibrio_fischeri_ES114",
-        source="fixture",
+        assembly_source=assembly_source,
+        source=source,
         status="selected",
     )
 
@@ -182,6 +185,26 @@ def test_skipped_no_accession_does_not_call_runner(tmp_path):
     assert runner.commands == []
     assert results[0].status == "skipped_no_accession"
     assert "No assembly accession" in record.notes
+
+
+def test_external_registered_genome_download_not_applicable_does_not_call_runner(tmp_path):
+    record = _record(
+        accession="",
+        has_genome=True,
+        genome_path=str(tmp_path / "external.fna"),
+        source="external_registered_genome",
+        assembly_source="external_registered_genome",
+    )
+    plan = build_genome_download_plan([record], tmp_path)
+    runner = FakeRunner()
+
+    results = execute_download_plan(plan, runner, dry_run=False)
+    apply_download_results_to_records([record], results)
+
+    assert runner.commands == []
+    assert results[0].status == "external_genome_download_not_applicable"
+    assert "NCBI Datasets download is not applicable" in results[0].notes
+    assert record.status == "selected"
 
 
 def test_skipped_existing_without_force_does_not_call_runner(tmp_path):

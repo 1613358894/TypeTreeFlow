@@ -17,6 +17,16 @@ from typetreeflow.external.tools import (
     TRIMAL,
     require_executable,
 )
+from typetreeflow.external_genomes import (
+    build_external_genome_install_plan,
+    execute_external_genome_install_plan,
+    external_install_results_to_strain_records,
+    read_external_genomes,
+    validate_external_genome_records,
+    write_external_genome_install_plan,
+    write_external_genome_install_results,
+    write_external_genome_registration_results,
+)
 from typetreeflow.genomes.download import (
     apply_download_results_to_records,
     execute_download_plan,
@@ -35,6 +45,8 @@ from typetreeflow.logging_utils import setup_logging
 from typetreeflow.manifest import (
     ensure_unique_normalized_ids,
     ensure_unique_record_ids,
+    merge_external_registered_records,
+    read_manifest,
     write_manifest,
     write_name_map,
 )
@@ -320,6 +332,26 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--register-external-genomes",
+        type=Path,
+        help=(
+            "Validate a curator-provided external_genomes.tsv table and write "
+            "external_genome_registration_results.tsv and "
+            "external_genome_install_plan.tsv; non-dry-run also installs FASTA "
+            "files and writes external_genome_install_results.tsv, manifest.tsv, "
+            "and name_map.tsv. Does not automate external provider portals."
+        ),
+    )
+    parser.add_argument(
+        "--merge-manifest",
+        action="store_true",
+        help=(
+            "For --register-external-genomes, merge installed external records into "
+            "an existing manifest, preserving existing NCBI records and keeping "
+            "external assembly_accession values empty."
+        ),
+    )
+    parser.add_argument(
         "--source-audit-policy",
         choices=["permissive", "warn", "strict"],
         default="warn",
@@ -416,6 +448,8 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         selection_policy=args.selection_policy,
         source_audit_policy=args.source_audit_policy,
         strains_per_species=args.strains_per_species,
+        register_external_genomes=args.register_external_genomes,
+        merge_manifest=args.merge_manifest,
         resume=args.resume,
         force=args.force,
         dry_run=args.dry_run,
@@ -448,6 +482,8 @@ def main(
         if config.strains_per_species < 1:
             raise ValueError("--strains-per-species must be at least 1")
         paths = get_output_paths(config.outdir)
+        if config.register_external_genomes is not None:
+            return run_external_genome_registration_stage(paths, config)
         if config.acquire_genus is not None:
             run_genus_acquisition_workflow(
                 paths,
@@ -1339,6 +1375,115 @@ def run_selection_read_stage(config: AppConfig) -> list[str]:
     return selected_accessions
 
 
+def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
+    if config.force and config.merge_manifest:
+        raise ValueError("--merge-manifest and --force cannot be used together.")
+
+    records = read_external_genomes(
+        config.register_external_genomes,
+        validate=False,
+    )
+    results = validate_external_genome_records(
+        records,
+        base_dir=config.register_external_genomes.parent,
+    )
+    output_path = write_external_genome_registration_results(
+        results,
+        paths.external_genome_registration_results_path,
+    )
+    install_plan = build_external_genome_install_plan(
+        records,
+        results,
+        paths,
+        force=config.force,
+    )
+    install_plan_path = write_external_genome_install_plan(
+        install_plan,
+        paths.external_genome_install_plan_path,
+    )
+    valid_count = sum(1 for result in results if result.valid)
+    plan_summary: dict[str, int] = {}
+    for item in install_plan:
+        plan_summary[item.status] = plan_summary.get(item.status, 0) + 1
+    LOGGER.info(
+        "Wrote external genome registration results: %s "
+        "(valid=%d, invalid=%d).",
+        output_path,
+        valid_count,
+        len(results) - valid_count,
+    )
+    LOGGER.info(
+        "Wrote external genome install plan: %s (%s).",
+        install_plan_path,
+        ", ".join(
+            f"{status}={count}" for status, count in sorted(plan_summary.items())
+        ),
+    )
+    if config.dry_run:
+        return 0
+
+    if paths.manifest.exists() and not config.force and not config.merge_manifest:
+        raise ValueError(
+            f"Manifest already exists: {paths.manifest}; use --force to overwrite "
+            "it or --merge-manifest to append eligible external records from "
+            "--register-external-genomes."
+        )
+
+    install_results = execute_external_genome_install_plan(
+        install_plan,
+        force=config.force,
+        source_base_dir=config.register_external_genomes.parent,
+    )
+    install_results_path = write_external_genome_install_results(
+        install_results,
+        paths.external_genome_install_results_path,
+    )
+    install_summary: dict[str, int] = {}
+    for result in install_results:
+        install_summary[result.status] = install_summary.get(result.status, 0) + 1
+    LOGGER.info(
+        "Wrote external genome install results: %s (%s).",
+        install_results_path,
+        ", ".join(
+            f"{status}={count}" for status, count in sorted(install_summary.items())
+        ),
+    )
+    manifest_records = external_install_results_to_strain_records(install_results)
+    if not manifest_records:
+        LOGGER.error(
+            "No external genome install results are eligible for manifest output; "
+            "leaving registration and install result TSVs for review."
+        )
+        return 2
+    ensure_unique_names(manifest_records)
+    ensure_unique_record_ids(manifest_records)
+    ensure_unique_normalized_ids(manifest_records)
+    if config.merge_manifest and paths.manifest.exists():
+        existing_records = read_manifest(paths.manifest)
+        output_records = merge_external_registered_records(
+            existing_records,
+            manifest_records,
+        )
+    else:
+        output_records = manifest_records
+    write_manifest(output_records, paths.manifest)
+    write_name_map(output_records, paths.name_map)
+    LOGGER.info(
+        "Wrote external genome manifest outputs: %s, %s (%d records).",
+        paths.manifest,
+        paths.name_map,
+        len(output_records),
+    )
+    problem_statuses = {
+        "external_genome_install_failed",
+        "external_genome_install_checksum_mismatch",
+        "external_genome_install_skipped_invalid",
+    }
+    if any(result.status in problem_statuses for result in install_results):
+        return 2
+    return 0
+
+
 def run_selection_dry_run_stage(paths, config: AppConfig) -> list:
     records = _selection_tsv_to_records(paths, config)
     _write_genome_download_plan(records, paths)
@@ -1449,7 +1594,7 @@ def _write_ani_plan_if_ready(records, paths, config: AppConfig) -> str:
     if (
         config.query_genome is not None
         and not config.skip_ani
-        and not _has_ani_ready_references(records)
+        and not _has_ani_ready_references(records, paths)
     ):
         LOGGER.info("ANI workflow status: ani_skipped_no_ready_references.")
         return "ani_skipped_no_ready_references"
@@ -1487,14 +1632,23 @@ def run_ani_stage(records, paths, config: AppConfig, runner=None) -> str:
     return result.status
 
 
-def _has_ani_ready_references(records) -> bool:
+def _has_ani_ready_references(records, paths) -> bool:
     return any(
         not record.is_query
         and record.has_genome
         and record.genome_path
-        and Path(record.genome_path).exists()
+        and _manifest_relative_path_exists(record.genome_path, paths)
         for record in records
     )
+
+
+def _manifest_relative_path_exists(path: str, paths) -> bool:
+    candidate = Path(path)
+    if candidate.exists():
+        return True
+    if not candidate.is_absolute():
+        return (paths.manifest.parent / candidate).exists()
+    return False
 
 
 def _write_phylo_plan(records, paths, config: AppConfig) -> str:
@@ -1599,10 +1753,11 @@ def run_downloads_stage(records, paths, config: AppConfig, runner=None) -> None:
 
 
 def _execute_genome_downloads(records, paths, force: bool, runner=None) -> None:
-    require_executable(NCBI_DATASETS.executable)
     plan_items = build_genome_download_plan(records, paths)
     mark_planned_records(records, plan_items)
     write_download_plan(plan_items, paths.cache_dir / "ncbi" / "download_plan.tsv")
+    if any(_download_plan_requires_runner(item, force) for item in plan_items):
+        require_executable(NCBI_DATASETS.executable)
     results = execute_download_plan(
         plan_items,
         runner or SubprocessRunner(),
@@ -1619,6 +1774,12 @@ def _execute_genome_downloads(records, paths, force: bool, runner=None) -> None:
         ", ".join(f"{status}={count}" for status, count in sorted(summary.items())),
     )
     _register_downloaded_genomes(records, plan_items, paths, force)
+
+
+def _download_plan_requires_runner(item, force: bool) -> bool:
+    return item.status == "planned" or (
+        item.status == "skipped_existing" and force and bool(item.assembly_accession)
+    )
 
 
 def _register_existing_downloads(records, paths, force: bool) -> bool:

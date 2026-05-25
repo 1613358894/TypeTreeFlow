@@ -3,10 +3,115 @@
 This document is the field dictionary for TypeTreeFlow TSV/table outputs. For
 canonical paths and stage ownership, see [output_layout.md](output_layout.md).
 
-External registered type-genome ingestion is not implemented. Future schema
-extensions must not reuse NCBI `assembly_accession` for non-NCBI accessions or
-portal identifiers; use separate provenance and status fields for external
-registered genome evidence.
+Registration can validate rows, plan installs, and copy reviewed FASTA files
+into `genomes/references/`. Non-dry-run CLI registration converts successful
+and skipped-existing install results into `manifest.tsv` and `name_map.tsv`
+records without extending the manifest schema. External source identifiers must
+not reuse NCBI `assembly_accession`; external manifest records keep
+`assembly_accession` empty and preserve external provenance in source/status
+fields and notes.
+
+## external_genomes.tsv
+
+Standalone registration table for externally obtained type-genome FASTA files.
+It is validated independently from `manifest.tsv`; `external_genome_id` is an
+external portal/source identifier and must not be treated as an NCBI
+`assembly_accession`.
+
+- `species`: checklist species name represented by the external genome.
+- `strain`: strain label for the registered genome.
+- `type_strain_id`: type-strain deposit identifier or equivalence identifier.
+- `external_source`: stable short source label, such as `atcc_genome_portal`.
+- `external_source_name`: human-readable external source name.
+- `external_genome_id`: source-specific genome identifier, not an assembly accession.
+- `external_source_url`: source URL when available.
+- `genome_fasta_path`: path to a local non-empty genome FASTA file.
+- `sha256`: SHA-256 checksum; when blank, the validator can compute it, and when provided, it must match the FASTA.
+- `is_type_material`: boolean type-material flag.
+- `requires_manual_review`: boolean review flag.
+- `status`: one of `external_genome_registered`, `external_genome_missing_file`, `external_genome_checksum_mismatch`, or `external_genome_manual_review_required`.
+- `notes`: curator notes or registration diagnostics.
+
+## external_genome_registration_results.tsv
+
+Reviewable validation results for `external_genomes.tsv` rows. This table is
+derived only from the external-genome registration records and local FASTA
+checks; it does not create `manifest.tsv` records and does not copy FASTA
+files. Each input row produces one result row, so one missing, empty, or
+checksum-mismatched FASTA does not prevent later rows from being reported.
+Non-dry-run CLI registration can still write manifest records for later valid
+rows after invalid rows are reported.
+
+`valid=true` means the local FASTA exists, is non-empty, and passed checksum
+validation or had a checksum computed. Rows with `requires_manual_review=true`
+are reported as `external_genome_manual_review_required` and `valid=false`
+even when the FASTA and checksum checks pass, because they are not ready for
+automatic downstream use.
+
+- `species`: checklist species name represented by the external genome.
+- `strain`: strain label for the registered genome.
+- `type_strain_id`: type-strain deposit identifier or equivalence identifier.
+- `external_source`: stable short source label, such as `atcc_genome_portal`.
+- `external_genome_id`: source-specific genome identifier, not an assembly accession.
+- `genome_fasta_path`: path to the local genome FASTA checked for this result.
+- `sha256`: SHA-256 checksum supplied in `external_genomes.tsv`, when present.
+- `computed_sha256`: SHA-256 checksum computed from the local FASTA, when the file is readable and non-empty.
+- `status`: one of `external_genome_registered`, `external_genome_missing_file`, `external_genome_checksum_mismatch`, or `external_genome_manual_review_required`.
+- `valid`: boolean registration-readiness flag.
+- `message`: row-level validation result or diagnostic.
+- `notes`: curator notes copied from the registration row.
+
+## external_genome_install_plan.tsv
+
+Plans installation of valid external genome FASTA files into
+`genomes/references/`. This is a planning artifact only: it does not copy FASTA
+files, does not create `manifest.tsv` records, and does not participate in the
+NCBI download workflow. `external_genome_id` remains an external source
+identifier and must not be used as `assembly_accession`.
+
+Rows with `valid=true` in `external_genome_registration_results.tsv` can be
+planned for installation. Invalid registration results are preserved as
+`external_genome_install_skipped_invalid` rows for review instead of raising an
+error.
+
+- `species`: checklist species name represented by the external genome.
+- `strain`: strain label for the registered genome.
+- `type_strain_id`: type-strain deposit identifier or equivalence identifier.
+- `external_source`: stable short source label, such as `atcc_genome_portal`.
+- `external_source_name`: human-readable external source name.
+- `external_genome_id`: source-specific genome identifier, not an assembly accession.
+- `external_source_url`: source URL when available.
+- `source_genome_fasta_path`: local source FASTA path from the external registration row.
+- `installed_genome_path`: planned reference FASTA path under `genomes/references/<normalized_id>.fna`.
+- `sha256`: computed or supplied SHA-256 checksum for the source FASTA when available.
+- `is_type_material`: boolean type-material flag copied from the registration row.
+- `status`: one of `external_genome_install_planned`, `external_genome_install_skipped_invalid`, or `external_genome_install_skipped_existing`.
+- `notes`: skip reason or planning diagnostic.
+
+## external_genome_install_results.tsv
+
+Execution results for `external_genome_install_plan.tsv`. This table is written
+only by non-dry-run external genome registration. Planned rows copy FASTA files
+to `genomes/references/` and verify the installed file checksum against the
+plan `sha256`. Skipped plan rows are preserved as skipped result rows. This
+stage does not write `manifest.tsv`, `name_map.tsv`, or NCBI download workflow
+files by itself. The CLI converts successful and skipped-existing install
+results into external registered genome manifest records after writing this
+table.
+
+- `species`: checklist species name represented by the external genome.
+- `strain`: strain label for the registered genome.
+- `type_strain_id`: type-strain deposit identifier or equivalence identifier.
+- `external_source`: stable short source label, such as `atcc_genome_portal`.
+- `external_source_name`: human-readable external source name.
+- `external_genome_id`: source-specific genome identifier, not an assembly accession.
+- `external_source_url`: source URL when available.
+- `source_genome_fasta_path`: local source FASTA path from the external registration row.
+- `installed_genome_path`: reference FASTA path under `genomes/references/<normalized_id>.fna`.
+- `sha256`: SHA-256 checksum computed from the installed FASTA for successful or checksum-mismatched rows; skipped rows preserve the plan checksum when available.
+- `is_type_material`: boolean type-material flag copied from the install plan.
+- `status`: one of `external_genome_install_succeeded`, `external_genome_install_skipped_invalid`, `external_genome_install_skipped_existing`, `external_genome_install_failed`, or `external_genome_install_checksum_mismatch`.
+- `notes`: execution result, skip reason, or failure diagnostic.
 
 ## taxonomy/checklist_comparison.tsv
 
@@ -219,7 +324,7 @@ imply that any download has been executed.
 - `expected_genome_path`: planned reference FASTA path under `genomes/references/`, named `<normalized_id>.fna`.
 - `datasets_zip_path`: planned NCBI Datasets ZIP path under `cache/ncbi/`.
 - `download_dir`: planned download cache directory.
-- `status`: `planned`, `skipped_existing`, or `skipped_no_accession`.
+- `status`: `planned`, `skipped_existing`, `skipped_no_accession`, or `external_genome_download_not_applicable`.
 - `notes`: human-readable skip reason or other planning note.
 
 ## cache/ncbi/download_results.tsv

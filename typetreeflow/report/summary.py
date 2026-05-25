@@ -76,6 +76,45 @@ def summarize_status_counts(records: Iterable[StrainRecord]) -> dict[str, int]:
     return counts
 
 
+def summarize_provenance_counts(records: Iterable[StrainRecord]) -> dict[str, int]:
+    record_list = list(records)
+    return {
+        "ncbi_assembly_backed_count": sum(
+            1
+            for record in record_list
+            if record.assembly_accession.strip()
+            and not _is_external_registered_genome(record)
+        ),
+        "external_registered_genome_count": sum(
+            1 for record in record_list if _is_external_registered_genome(record)
+        ),
+        "genome_ready_count": sum(
+            1 for record in record_list if record.has_genome or record.status == "genome_ready"
+        ),
+        "missing_genome_count": sum(
+            1
+            for record in record_list
+            if not (record.has_genome or record.genome_path.strip())
+        ),
+    }
+
+
+def summarize_external_registered_genomes(
+    records: Iterable[StrainRecord],
+) -> list[dict[str, str]]:
+    return [
+        {
+            "display_name": record.display_name,
+            "strain": record.strain,
+            "genome_path": record.genome_path,
+            "status": record.status,
+            "provenance": record.notes,
+        }
+        for record in records
+        if _is_external_registered_genome(record)
+    ]
+
+
 def summarize_output_files(
     paths: OutputPaths,
     assume_run_summary_exists: bool = False,
@@ -285,6 +324,8 @@ def build_run_summary_markdown(
     record_list = list(records)
     manifest_summary = summarize_manifest(record_list)
     status_counts = summarize_status_counts(record_list)
+    provenance_counts = summarize_provenance_counts(record_list)
+    external_registered_genomes = summarize_external_registered_genomes(record_list)
     output_files = summarize_output_files(paths, assume_run_summary_exists=True)
     problem_records = summarize_problem_records(record_list)
     ani_summary = read_optional_ani_summary(paths.ani_summary_path)
@@ -341,6 +382,16 @@ def build_run_summary_markdown(
         f"- Genome-ready records: {manifest_summary['genome_ready_count']}",
         f"- Genome references directory: {_display_path(paths.genomes_references_dir, paths)}",
         "",
+        "## Provenance Summary",
+        "",
+        f"- NCBI Assembly-backed records: {provenance_counts['ncbi_assembly_backed_count']}",
+        (
+            "- External registered genome records: "
+            f"{provenance_counts['external_registered_genome_count']}"
+        ),
+        f"- Genome-ready records: {provenance_counts['genome_ready_count']}",
+        f"- Records missing genome: {provenance_counts['missing_genome_count']}",
+        "",
         "## 16S Status",
         "",
         f"- 16S-ready records: {manifest_summary['rrna_ready_count']}",
@@ -350,6 +401,28 @@ def build_run_summary_markdown(
         lines.append(f"- Combined 16S FASTA: {_display_path(paths.all_16s_fasta_path, paths)}")
     else:
         lines.append("- Combined 16S FASTA not available.")
+
+    if external_registered_genomes:
+        lines.extend(
+            [
+                "",
+                "## External Registered Genomes",
+                "",
+                f"- Count: {len(external_registered_genomes)}",
+                "",
+                "| Display Name | Strain | Genome Path | Status | Provenance Notes |",
+                "| --- | --- | --- | --- | --- |",
+                *[
+                    "| "
+                    f"{_markdown_cell(record['display_name'])} | "
+                    f"{_markdown_cell(record['strain'])} | "
+                    f"{_markdown_cell(record['genome_path'])} | "
+                    f"{_markdown_cell(record['status'])} | "
+                    f"{_markdown_cell(record['provenance'])} |"
+                    for record in external_registered_genomes
+                ],
+            ]
+        )
 
     lines.extend(
         [
@@ -588,6 +661,13 @@ def _is_problem_status(status: str) -> bool:
             "not_found",
             "invalid",
         )
+    )
+
+
+def _is_external_registered_genome(record: StrainRecord) -> bool:
+    return (
+        record.source.strip() == "external_registered_genome"
+        or record.assembly_source.strip() == "external_registered_genome"
     )
 
 

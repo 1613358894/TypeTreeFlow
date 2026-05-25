@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+## 0.6.0 - 2026-05-25
+
+- Added manual external genome registration for curator-provided local FASTA
+  files. `--register-external-genomes` validates `external_genomes.tsv`, writes
+  reviewable registration results and install plans, and in non-dry-run mode
+  copies valid FASTA files into `genomes/references/`.
+- Added external registered genome manifest and name-map integration. Installed
+  external records use `external_registered_genome` provenance, keep
+  `assembly_accession` empty, preserve external IDs in notes, and can be
+  appended to an existing manifest with `--merge-manifest`.
+- Added explicit separation from NCBI downloads: external records do not create
+  NCBI Datasets download work, and download plans can mark them as
+  `external_genome_download_not_applicable` instead of missing an accession.
+- Added report-only and downstream planning compatibility for external
+  registered genome records, including provenance counts, an external registered
+  genomes report section, barrnap/ANI/16S phylogeny dry-run planning, and a
+  minimal synthetic external genome smoke workflow.
+- Note: v0.6.0 manual external registration does not automate ATCC Genome
+  Portal or any other provider portal, and performs no external login,
+  scraping, purchasing, or provider download.
+
 ## 0.5.0 - 2026-05-24
 
 - Added LPSN-first strict type-strain acquisition workflow for correct-valid

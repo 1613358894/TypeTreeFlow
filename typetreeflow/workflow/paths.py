@@ -49,6 +49,9 @@ class OutputPaths:
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
+    external_genome_registration_results_path: Path
+    external_genome_install_plan_path: Path
+    external_genome_install_results_path: Path
 
 
 def get_output_paths(outdir: str | Path) -> OutputPaths:
@@ -105,4 +108,9 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",
+        external_genome_registration_results_path=root
+        / "external_genome_registration_results.tsv",
+        external_genome_install_plan_path=root / "external_genome_install_plan.tsv",
+        external_genome_install_results_path=root
+        / "external_genome_install_results.tsv",
     )

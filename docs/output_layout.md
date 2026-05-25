@@ -9,8 +9,12 @@ Canonical output directory layout:
 
 ```text
 typetreeflow_out/
+  external_genomes.tsv                 # optional user input, not generated
   species_checklist.tsv
   excluded_lpsn_taxa.tsv
+  external_genome_registration_results.tsv
+  external_genome_install_plan.tsv
+  external_genome_install_results.tsv
   manifest.tsv
   name_map.tsv
   cache/
@@ -70,14 +74,64 @@ typetreeflow_out/
 completed workflow stage. `name_map.tsv` links file-safe identifiers to display
 names used in reports and tree labels.
 
-External registered type-genome ingestion is not implemented. Future support
-must use separate provenance and status fields for external registered genome
-evidence, and must not reuse NCBI `assembly_accession` for non-NCBI accessions
-or portal identifiers.
+`--register-external-genomes PATH --dry-run` writes
+`external_genome_registration_results.tsv` and
+`external_genome_install_plan.tsv` for review. Non-dry-run external genome
+registration also writes `external_genome_install_results.tsv` and copies
+planned FASTA files under `genomes/references/`. Successful and
+skipped-existing install results are converted into external registered genome
+records in `manifest.tsv` and `name_map.tsv`. These records keep
+`assembly_accession` empty, use `external_registered_genome` provenance, store
+the external genome ID in `notes`, and do not create NCBI download workflow
+files or reports.
+`external_genomes.tsv` is the curator-supplied input table, usually outside the
+run directory unless the user chooses to place it there. TypeTreeFlow reads
+local FASTA paths from that table only; it does not log in to, scrape, or
+download from external provider portals.
+If `manifest.tsv` already exists, non-dry-run registration requires either
+`--force` or `--merge-manifest`. `--force` overwrites the manifest with the
+external registration manifest. `--merge-manifest` reads the existing manifest,
+preserves its records in order, appends eligible new external registered genome
+records, and writes synchronized `manifest.tsv` and `name_map.tsv`. The merge
+skips new external records when an existing external registered genome record
+already has the same `external_genome_id` in `notes`, or when any existing
+record has the same `genome_path`. Existing NCBI records and accessions are not
+modified; external records keep empty `assembly_accession` values. If new
+external records conflict with existing `record_id` or `normalized_id` values,
+only the new records are stabilized to unique values. `--merge-manifest` and
+`--force` are mutually exclusive, and dry-runs never merge the manifest.
+External registered genome records with existing genome paths can participate
+in local downstream barrnap, ANI, and 16S phylogeny planning from resume mode.
+The minimal offline example can be run without network access:
+`typetreeflow --register-external-genomes examples/external_genomes_minimal.tsv --outdir results/external_registration_minimal --dry-run`,
+then rerun without `--dry-run` to install the synthetic fixture FASTA and write
+`manifest.tsv`/`name_map.tsv`, and finally run
+`typetreeflow --outdir results/external_registration_minimal --report-only` to
+refresh `report/summary.md`.
+
+`external_genome_registration_results.tsv` records reviewable validation
+results for standalone external-genome registration rows. It does not create
+manifest records, copy FASTA files, or participate in the NCBI download
+workflow.
+
+`external_genome_install_plan.tsv` records the planned installation path for
+valid external genome FASTA files under `genomes/references/`. Invalid
+registration results are retained as skipped plan rows for review.
+
+`external_genome_install_results.tsv` records non-dry-run external genome
+install execution. It copies only planned rows, preserves skipped-invalid and
+skipped-existing rows, verifies installed FASTA checksums, and does not
+participate in the NCBI download workflow. Successful and skipped-existing rows
+are eligible for the external registration manifest written by the CLI.
 
 `report/summary.md` is generated from existing run state. Creating it does not
 execute external tools, assign final species conclusions, or regenerate missing
-inputs. Missing optional artifacts are reported as unavailable.
+inputs. Missing optional artifacts are reported as unavailable. When
+`manifest.tsv` contains external registered genome records, the summary reports
+their count, display names, strains, installed genome paths, statuses, and
+manifest notes as provenance text, alongside provenance counts for NCBI
+Assembly-backed records, external registered genome records, genome-ready
+records, and records missing genomes.
 
 Resume behavior reuses durable artifacts in this order: an installed
 `genomes/references/<normalized_id>.fna`, an existing extracted directory under
@@ -147,7 +201,11 @@ the type strain.
 ## Download Artifacts
 
 `cache/ncbi/download_plan.tsv` records the NCBI Datasets genome download plan
-before execution. It does not imply that any download has run.
+before execution. It does not imply that any download has run. External
+registered genome manifest records can appear as
+`external_genome_download_not_applicable` rows so users can distinguish already
+installed external FASTA files from ordinary records missing NCBI assembly
+accessions.
 
 `cache/ncbi/download_results.tsv` records guarded download execution results,
 including fake-runner results in tests. When downloads are explicitly enabled,

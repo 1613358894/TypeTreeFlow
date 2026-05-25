@@ -13,6 +13,8 @@ def _record(
     has_genome: bool = False,
     genome_path: str = "",
     is_query: bool = False,
+    source: str = "fixture",
+    assembly_source: str = "",
 ) -> StrainRecord:
     return StrainRecord(
         record_id=record_id,
@@ -27,7 +29,8 @@ def _record(
         has_genome=has_genome,
         genome_path=genome_path,
         normalized_id=normalized_id,
-        source="fixture",
+        assembly_source=assembly_source,
+        source=source,
         status="selected",
     )
 
@@ -51,6 +54,61 @@ def test_records_without_accessions_are_skipped(tmp_path):
     assert len(plan) == 1
     assert plan[0].status == "skipped_no_accession"
     assert "No assembly accession" in plan[0].notes
+
+
+def test_external_registered_genome_download_is_not_applicable(tmp_path):
+    genome_path = tmp_path / "external.fna"
+    genome_path.write_text(">seq\nACGT\n", encoding="utf-8")
+    record = _record(
+        "external-1",
+        "Fusobacterium_mortiferum_ATCC_9817",
+        accession="",
+        has_genome=True,
+        genome_path=str(genome_path),
+        source="external_registered_genome",
+        assembly_source="external_registered_genome",
+    )
+
+    plan = build_genome_download_plan([record], tmp_path)
+
+    assert len(plan) == 1
+    assert plan[0].status == "external_genome_download_not_applicable"
+    assert plan[0].assembly_accession == ""
+    assert "NCBI Datasets download is not applicable" in plan[0].notes
+
+
+def test_external_registered_genome_source_takes_precedence_over_missing_accession(tmp_path):
+    record = _record(
+        "external-1",
+        "Fusobacterium_mortiferum_ATCC_9817",
+        accession="",
+        source="external_registered_genome",
+    )
+
+    plan = build_genome_download_plan([record], tmp_path)
+
+    assert plan[0].status == "external_genome_download_not_applicable"
+    assert plan[0].assembly_accession == ""
+
+
+def test_mixed_external_and_ncbi_download_plan_order_is_stable(tmp_path):
+    external = _record(
+        "external-1",
+        "Fusobacterium_mortiferum_ATCC_9817",
+        accession="",
+        source="external_registered_genome",
+    )
+    ncbi = _record("ncbi-1", "Aliivibrio_fischeri_ES114")
+
+    plan = build_genome_download_plan([external, ncbi], tmp_path)
+
+    assert [item.record_id for item in plan] == ["external-1", "ncbi-1"]
+    assert [item.status for item in plan] == [
+        "external_genome_download_not_applicable",
+        "planned",
+    ]
+    assert plan[0].assembly_accession == ""
+    assert plan[1].assembly_accession == "GCF_000011805.1"
 
 
 def test_existing_genome_records_are_skipped(tmp_path):

@@ -2,9 +2,48 @@
 
 `manifest.tsv` stores one `status` value per `StrainRecord`. Plan and workflow result objects also use status strings for stage-level reporting. The values below are the statuses currently emitted by the codebase.
 
-External registered type-genome ingestion is not implemented. When added, it
-should use independent provenance/status fields rather than overloading NCBI
-`assembly_accession` or the existing NCBI download statuses.
+Manual external registered type-genome integration is implemented for
+curator-provided local FASTA files. External genome registration uses
+independent provenance/status fields rather than overloading NCBI
+`assembly_accession` or the existing NCBI download statuses. The
+`external_genome_registered` value is also the manifest status used for
+successful or skipped-existing external install results after CLI registration
+converts them into external registered genome manifest records.
+
+## External Genome Registration
+
+These statuses are supported by the standalone `external_genomes.tsv` schema
+and validator. They are not manifest statuses and do not represent NCBI
+Assembly accessions.
+
+- `external_genome_registered`: External genome FASTA exists, is non-empty, and checksum validation passed or was computed.
+- `external_genome_missing_file`: External genome registration row refers to a missing FASTA file.
+- `external_genome_checksum_mismatch`: External genome FASTA checksum did not match the TSV-provided `sha256`.
+- `external_genome_manual_review_required`: External genome evidence is present but requires curator review before use.
+
+## External Genome Install Planning
+
+These statuses are written to `external_genome_install_plan.tsv`. They are
+planning statuses only and do not imply that a FASTA was copied or a manifest
+record was created.
+
+- `external_genome_install_planned`: Valid external genome registration row is ready to be installed under `genomes/references/`.
+- `external_genome_install_skipped_invalid`: External genome registration result was invalid, so installation was not planned.
+- `external_genome_install_skipped_existing`: Planned installed FASTA path already exists and `force=false`.
+
+## External Genome Install Results
+
+These statuses are written to `external_genome_install_results.tsv`. They are
+external FASTA installation statuses. In the CLI registration workflow,
+`external_genome_install_succeeded` and `external_genome_install_skipped_existing`
+rows are eligible for external registered genome records in `manifest.tsv` and
+`name_map.tsv`.
+
+- `external_genome_install_succeeded`: Planned external genome FASTA was copied to `genomes/references/` and the installed checksum matched the plan.
+- `external_genome_install_skipped_invalid`: Invalid registration result was preserved without copying.
+- `external_genome_install_skipped_existing`: Existing installed FASTA path was preserved without copying.
+- `external_genome_install_failed`: Copying or checksum preparation failed before a valid installed FASTA could be confirmed.
+- `external_genome_install_checksum_mismatch`: The installed file checksum did not match the install plan checksum.
 
 ## Genome, Download, And Extract
 
@@ -14,6 +53,7 @@ should use independent provenance/status fields rather than overloading NCBI
 - `planned`: Genome download plan item is ready to download.
 - `skipped_existing`: Genome download plan found an existing installed genome.
 - `skipped_no_accession`: Genome download plan skipped a record without an assembly accession.
+- `external_genome_download_not_applicable`: Genome download plan row documents an external registered genome that is already installed and is outside NCBI Datasets download scope.
 - `genome_download_planned`: Manifest record has a planned NCBI Datasets ZIP download.
 - `genome_download_succeeded`: NCBI Datasets ZIP download command succeeded and produced a ZIP.
 - `genome_download_failed`: NCBI Datasets ZIP download command returned a failure.

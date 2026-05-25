@@ -62,6 +62,20 @@ python typetreeflow.py --outdir <tmp> --prepare-selection --strains-per-species 
 test -f <tmp>/selection/user_selection.tsv
 ```
 
+- Run the manual external genome registration smoke path with the bundled
+  synthetic fixture:
+
+```bash
+python typetreeflow.py \
+  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --outdir <tmp>/external_registration \
+  --dry-run
+python typetreeflow.py \
+  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --outdir <tmp>/external_registration
+python typetreeflow.py --outdir <tmp>/external_registration --report-only
+```
+
 - Run a safe dry run from local GTDB metadata:
 
 ```bash

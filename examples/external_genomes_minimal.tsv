@@ -1,0 +1,2 @@
+species	strain	type_strain_id	external_source	external_source_name	external_genome_id	external_source_url	genome_fasta_path	sha256	is_type_material	requires_manual_review	status	notes
+Exampleobacter demonstratus	Synthetic strain 1	SYNTHETIC-TYPE-1	external_registered_fixture	TypeTreeFlow example fixture	EXTERNAL_FIXTURE_0001		external_genome_minimal.fna	082451d786c1249312324b44d9518fbf77555f72450fef13925559c57759400b	true	false	external_genome_registered	Synthetic fixture for workflow demonstration; not a real type-strain genome or provider download.

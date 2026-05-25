@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import Iterable
 
 from typetreeflow.external.runner import CommandResult, CommandRunner
-from typetreeflow.genomes.plan import GenomeDownloadPlanItem
+from typetreeflow.genomes.plan import (
+    EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE,
+    GenomeDownloadPlanItem,
+)
 from typetreeflow.models import StrainRecord
 from typetreeflow.sources.ncbi_datasets import build_datasets_download_command
 
@@ -107,10 +110,14 @@ def execute_download_plan(
             results.append(_planned_result(item, command))
             continue
 
-        if item.status == "skipped_no_accession":
+        if item.status == "skipped_existing" and (
+            not force or not item.assembly_accession
+        ):
             results.append(_skipped_result(item, command))
             continue
-        if item.status == "skipped_existing" and not force:
+        if item.status != "planned" and not (
+            item.status == "skipped_existing" and force and item.assembly_accession
+        ):
             results.append(_skipped_result(item, command))
             continue
 
@@ -146,6 +153,8 @@ def apply_download_results_to_records(
             record.notes = result.notes
         elif result.status == "skipped_no_accession":
             record.notes = result.notes
+        elif result.status == EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE:
+            continue
 
 
 def summarize_download_plan(plan_items: Iterable[GenomeDownloadPlanItem]) -> dict[str, int]:
@@ -162,7 +171,7 @@ def _download_command_for_item(item: GenomeDownloadPlanItem) -> list[str]:
 
 
 def _planned_result(item: GenomeDownloadPlanItem, command: list[str]) -> GenomeDownloadResult:
-    status = item.status if item.status.startswith("skipped") else "planned"
+    status = "planned" if item.status == "planned" else item.status
     return GenomeDownloadResult(
         record_id=item.record_id,
         normalized_id=item.normalized_id,

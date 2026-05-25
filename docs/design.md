@@ -56,6 +56,18 @@ source layer, not the primary nomenclatural boundary for LPSN-first acquisition.
 
 Genome download planning writes `cache/ncbi/download_plan.tsv`. Guarded real downloads write NCBI Datasets ZIP files under `cache/ncbi/`, then Python extraction installs selected reference FASTA files as `genomes/references/<normalized_id>.fna`.
 
+Manual external type-genome registration validates curator-provided
+`external_genomes.tsv` rows and local FASTA paths, writes
+`external_genome_registration_results.tsv` and
+`external_genome_install_plan.tsv`, and in non-dry-run mode copies eligible
+FASTA files to `genomes/references/` with
+`external_genome_install_results.tsv`. Successful and skipped-existing external
+installs can write or merge `manifest.tsv` and `name_map.tsv` records using
+`external_registered_genome` provenance, empty `assembly_accession`, and
+external IDs preserved in notes. This is offline manual registration only; ATCC
+or other provider portal automation, login, scraping, purchasing, and provider
+downloads remain out of scope.
+
 Local 16S preparation planning writes `rrna/rrna_plan.tsv`. The controlled barrnap wrapper writes GFF output to `rrna/barrnap/<normalized_id>.gff`, and the extractor writes longest 16S sequences to `rrna/sequences/<normalized_id>.16s.fasta`. `rrna/all_16S.fasta` can combine ready reference 16S FASTA files with an optional query 16S FASTA.
 
 Entrez fallback builds guarded searches for records still missing 16S sequences, writes accepted sequences to `rrna/sequences/<normalized_id>.16s.fasta`, and can retry combined 16S assembly when query 16S input is present.
@@ -80,8 +92,9 @@ Genome resume behavior prefers durable artifacts in this order: installed refere
 ## Current limitations
 
 Newick parsing, tree rendering, final species conclusions, and external
-registered type-genome ingestion are outside the current implemented workflow.
-External registered genomes should be modeled later with explicit provenance and
-status fields instead of being treated as NCBI `assembly_accession` values. See
+provider automation are outside the current implemented workflow. Manual
+external registered genome ingestion is implemented for local FASTA files with
+explicit provenance and status fields; external records are not treated as NCBI
+`assembly_accession` values. See
 [`external_type_genome_ingestion.md`](external_type_genome_ingestion.md) for the
-future ingestion design.
+manual-registration design and future provider automation boundaries.

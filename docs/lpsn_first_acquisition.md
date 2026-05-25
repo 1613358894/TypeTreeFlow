@@ -52,7 +52,10 @@ type-strain evidence without authoritative equivalence proof.
 Project-specific example: the current Fusobacterium strict NCBI Assembly audit
 is 16/17 complete. `Fusobacterium mortiferum` remains pending because observed
 NCBI alternatives do not prove equivalence to the accepted type-strain set, and
-external ATCC genome ingestion is outside the current NCBI Assembly workflow.
+manual external genome registration remains separate from the NCBI Assembly
+workflow. If a curator registers an external type-genome FASTA, it may support
+an explicitly labeled external-inclusive view, but it must not change the
+NCBI-only completion count.
 
 ## Data Source Priority
 
@@ -239,6 +242,24 @@ NCBI, enable Entrez 16S fallback, or scrape HTML. Only a non-empty
 Name similarity alone is not acceptable evidence. Blank templates apply zero
 rows and leave strict selection unchanged.
 
+## Manual External Genome Registration
+
+For type-strain genomes obtained outside NCBI Assembly, TypeTreeFlow supports a
+manual, offline registration path. The curator supplies `external_genomes.tsv`
+with a local FASTA path, external source label, external genome ID, checksum
+information, type-strain evidence, and review flags. `--register-external-genomes
+PATH --dry-run` writes reviewable registration results and an install plan.
+Running the same command without `--dry-run` copies eligible FASTA files into
+`genomes/references/` and writes external registered genome records to
+`manifest.tsv` and `name_map.tsv`, or appends them to an existing manifest with
+`--merge-manifest`.
+
+This path does not contact ATCC Genome Portal or any other provider portal. It
+does not log in, scrape, purchase, or download external FASTA files, and
+`external_genome_id` is never an NCBI `assembly_accession`. Reports and final
+audit packages should keep NCBI Assembly completion and external-inclusive
+completion explicitly labeled as separate metrics.
+
 ## NCBI/GTDB Candidate Discovery
 
 Candidate discovery should start from the filtered species list and search NCBI
@@ -420,6 +441,10 @@ Still not implemented:
 - Official LPSN downloadable-file client.
 - Automatic synonym replacement. Synonym-aware candidate discovery is opt-in
   recall only and requires manual review for every synonym-supported row.
+- ATCC Genome Portal or other external provider automation. Manual external
+  registered genome ingestion is implemented for curator-provided local FASTA
+  files; provider login, scraping, purchasing, API clients, and portal downloads
+  remain future/out of scope.
 
 ## Non-Goals
 

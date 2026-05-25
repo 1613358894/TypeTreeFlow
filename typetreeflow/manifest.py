@@ -83,6 +83,44 @@ def ensure_unique_normalized_ids(records: Iterable[StrainRecord]) -> None:
         seen.add(record.normalized_id)
 
 
+def merge_external_registered_records(
+    existing_records: Iterable[StrainRecord],
+    new_records: Iterable[StrainRecord],
+) -> list[StrainRecord]:
+    merged = list(existing_records)
+    existing_external_ids = {
+        external_id
+        for record in merged
+        if _is_external_registered_genome(record)
+        for external_id in [_external_genome_id_from_notes(record.notes)]
+        if external_id
+    }
+    existing_genome_paths = {
+        record.genome_path for record in merged if record.genome_path
+    }
+
+    records_to_append: list[StrainRecord] = []
+    for record in new_records:
+        external_id = _external_genome_id_from_notes(record.notes)
+        if external_id and external_id in existing_external_ids:
+            continue
+        if record.genome_path and record.genome_path in existing_genome_paths:
+            continue
+        records_to_append.append(record)
+        if external_id:
+            existing_external_ids.add(external_id)
+        if record.genome_path:
+            existing_genome_paths.add(record.genome_path)
+
+    if not records_to_append:
+        return merged
+
+    _ensure_new_record_ids_are_unique(merged, records_to_append)
+    _ensure_new_normalized_ids_are_unique(merged, records_to_append)
+    merged.extend(records_to_append)
+    return merged
+
+
 def write_name_map(records: Iterable[StrainRecord], path: str | Path) -> None:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,3 +142,52 @@ def _format_value(value: object) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _is_external_registered_genome(record: StrainRecord) -> bool:
+    return (
+        record.source == "external_registered_genome"
+        or record.assembly_source == "external_registered_genome"
+    )
+
+
+def _external_genome_id_from_notes(notes: str) -> str:
+    for part in str(notes).split(";"):
+        key, separator, value = part.strip().partition("=")
+        if separator and key.strip() == "external_genome_id":
+            return value.strip()
+    return ""
+
+
+def _ensure_new_record_ids_are_unique(
+    existing_records: Iterable[StrainRecord],
+    new_records: Iterable[StrainRecord],
+) -> None:
+    seen = {record.record_id for record in existing_records if record.record_id}
+    for index, record in enumerate(new_records, start=len(seen) + 1):
+        base_id = record.record_id or record.normalized_id or record.assembly_accession
+        record.record_id = make_unique_identifier(
+            base_id,
+            seen,
+            record.assembly_accession,
+            index,
+        )
+        seen.add(record.record_id)
+
+
+def _ensure_new_normalized_ids_are_unique(
+    existing_records: Iterable[StrainRecord],
+    new_records: Iterable[StrainRecord],
+) -> None:
+    seen = {
+        record.normalized_id for record in existing_records if record.normalized_id
+    }
+    for index, record in enumerate(new_records, start=len(seen) + 1):
+        base_id = record.normalized_id or record.record_id or record.assembly_accession
+        record.normalized_id = make_unique_identifier(
+            base_id,
+            seen,
+            record.assembly_accession,
+            index,
+        )
+        seen.add(record.normalized_id)

@@ -19,9 +19,14 @@ execution wrappers, and clear safety controls.
 
 GTDB support is retained for legacy/local metadata workflows and as a discovery
 or evidence layer. It is not the authority for species boundaries in the current
-LPSN-first route. External type-genome ingestion, including manual ATCC Genome
-Portal registration, is an active v0.6.0 design and is not implemented in the
-current workflow.
+LPSN-first route. Manual external type-genome registration is implemented for
+curator-provided local FASTA files: TypeTreeFlow can validate
+`external_genomes.tsv`, plan installs, copy reviewed FASTA files into
+`genomes/references/`, and write external `manifest.tsv` and `name_map.tsv`
+records or merge them into an existing manifest when explicitly requested. It
+does not automate ATCC Genome Portal or other provider portals, does not log in,
+scrape, purchase, or download from external portals, and does not treat
+`external_genome_id` as an NCBI `assembly_accession`.
 
 ## Current capabilities
 
@@ -42,6 +47,14 @@ current workflow.
 - Run one-command genus acquisition dry runs that preserve intermediate
   checklist, candidate, audit, selection, manifest, name-map, and summary files.
 - Drive guarded NCBI Datasets downloads from selected selection-TSV rows.
+- Register manually reviewed external genome FASTA files into
+  `genomes/references/`, `manifest.tsv`, and `name_map.tsv` without using NCBI
+  assembly accessions.
+- Keep NCBI Assembly completion separate from external-inclusive completion;
+  external registered genomes can improve local downstream readiness without
+  changing NCBI-only completion counts.
+- Summarize external registered genome records from an existing manifest in
+  report-only mode.
 - Plan and run guarded resume-mode barrnap, FastANI, Entrez 16S fallback, and
   MAFFT/trimAl/IQ-TREE wrappers.
 - Select type-material records from local GTDB metadata TSVs for legacy or
@@ -201,6 +214,75 @@ typetreeflow \
   --selection-tsv results/offline_smoke/selection/user_selection.tsv \
   --dry-run \
   --force
+```
+
+Manual external genome registration dry run:
+
+```bash
+typetreeflow \
+  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --outdir results/external_registration_minimal \
+  --dry-run
+```
+
+This validates `examples/external_genomes_minimal.tsv` and writes
+`external_genome_registration_results.tsv` and
+`external_genome_install_plan.tsv` for review. Valid rows are planned for
+`genomes/references/<normalized_id>.fna`; invalid rows are retained as
+skipped plan rows. It does not create `manifest.tsv`, copy FASTA files, or run
+the NCBI download workflow. The bundled example uses a tiny synthetic FASTA
+fixture and `external_source=external_registered_fixture`; it is only for
+workflow demonstration and is not a real provider or ATCC genome download.
+Relative `genome_fasta_path` values are resolved relative to the TSV location.
+Manual registration assumes the curator has already obtained any external FASTA
+through permitted means outside TypeTreeFlow. The CLI does not log in to,
+scrape, purchase from, or download from external provider portals.
+
+Install reviewed external genome FASTA files:
+
+```bash
+typetreeflow \
+  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --outdir results/external_registration_minimal
+```
+
+Non-dry-run registration writes the same validation results and install plan,
+then copies only planned FASTA files to `genomes/references/` and writes
+`external_genome_install_results.tsv`, `manifest.tsv`, and `name_map.tsv`.
+External manifest rows keep `assembly_accession` empty, use
+`external_registered_genome` provenance, and preserve the external genome ID in
+notes. Invalid rows do not block valid rows from installing or being written to
+the manifest, but the CLI exits non-zero when any row is skipped as invalid,
+fails, has an installed checksum mismatch, or no manifest-eligible row remains.
+This still does not write an NCBI download plan or report.
+
+If `manifest.tsv` already exists, non-dry-run external registration is
+protected by default and exits with an error. Use `--merge-manifest` to append
+eligible external registered genome rows to the existing manifest while
+preserving existing NCBI rows and record order:
+
+```bash
+typetreeflow \
+  --register-external-genomes data/external_genomes.tsv \
+  --outdir results/fusobacterium_acquisition \
+  --merge-manifest
+```
+
+The merge keeps existing records first, appends new external records, skips
+duplicates with the same external genome ID or installed genome path, and
+stabilizes only new conflicting `record_id` or `normalized_id` values.
+`--force` remains the overwrite mode for rebuilding the external registration
+manifest from install results, and cannot be combined with `--merge-manifest`.
+Dry-runs never merge manifest files.
+
+Once the manifest exists, `--report-only` can generate `report/summary.md` with
+an external registered genome section and provenance counts from the recorded
+manifest rows.
+
+```bash
+typetreeflow \
+  --outdir results/external_registration_minimal \
+  --report-only
 ```
 
 Run the LPSN-first genus acquisition path from local caches:
@@ -432,6 +514,6 @@ See [LICENSE](LICENSE).
 - Synonym-aware candidate discovery is off by default and available only with
   `--enable-synonym-discovery`; synonym hits require manual review and remain
   assigned to the checklist correct species.
-- External type-genome ingestion, including manual ATCC Genome Portal
-  registration, is an active v0.6.0 design and is not implemented in the current
-  workflow.
+- External registered genomes are summarized from manifest state; merging is
+  limited to appending installed external records to an existing manifest and
+  does not merge external rows into the NCBI download workflow.

@@ -31,6 +31,7 @@ def build_ani_plan(
     records: Iterable[StrainRecord],
     query_genome_path: str | Path,
     force: bool = False,
+    base_dir: str | Path | None = None,
 ) -> list[AniPlanItem]:
     del force
 
@@ -47,6 +48,7 @@ def build_ani_plan(
         status = "ani_planned"
         notes = ""
         reference_genome_path = record.genome_path
+        resolved_reference_genome_path = _existing_path(record.genome_path, base_dir)
 
         if not record.has_genome:
             status = "skipped_no_genome"
@@ -54,9 +56,11 @@ def build_ani_plan(
         elif not record.genome_path:
             status = "skipped_missing_genome_file"
             notes = "Registered reference genome path is empty."
-        elif not Path(record.genome_path).exists():
+        elif resolved_reference_genome_path is None:
             status = "skipped_missing_genome_file"
             notes = f"Registered reference genome path does not exist: {record.genome_path}"
+        else:
+            reference_genome_path = str(resolved_reference_genome_path)
 
         plan_items.append(
             AniPlanItem(
@@ -70,6 +74,17 @@ def build_ani_plan(
         )
 
     return plan_items
+
+
+def _existing_path(path: str, base_dir: str | Path | None = None) -> Path | None:
+    candidate = Path(path)
+    if candidate.exists():
+        return candidate
+    if base_dir is not None and not candidate.is_absolute():
+        rooted_candidate = Path(base_dir) / candidate
+        if rooted_candidate.exists():
+            return rooted_candidate
+    return None
 
 
 def write_fastani_reference_list(

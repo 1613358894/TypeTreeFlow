@@ -65,7 +65,12 @@ def prepare_ani(
             )
 
     record_list = list(records)
-    plan_items = build_ani_plan(record_list, query_genome_path, force=force)
+    plan_items = build_ani_plan(
+        record_list,
+        query_genome_path,
+        force=force,
+        base_dir=paths.manifest.parent,
+    )
     plan_path = write_ani_plan(plan_items, paths.ani_plan_path)
     mark_ani_planned_records(record_list, plan_items)
 

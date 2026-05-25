@@ -51,6 +51,8 @@ class AppConfig:
     selection_policy: str
     source_audit_policy: str
     strains_per_species: int
+    register_external_genomes: Path | None
+    merge_manifest: bool
     resume: bool
     force: bool
     dry_run: bool

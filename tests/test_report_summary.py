@@ -8,10 +8,12 @@ from typetreeflow.report.summary import (
     read_optional_checklist_comparison,
     read_optional_sequence_source_audit,
     read_optional_ani_summary,
+    summarize_external_registered_genomes,
     summarize_checklist_comparison,
     summarize_manifest,
     summarize_output_files,
     summarize_phylo_status,
+    summarize_provenance_counts,
     summarize_sequence_source_audit,
     summarize_problem_records,
     summarize_status_counts,
@@ -51,6 +53,32 @@ def _record(
         normalized_id=record_id,
         status=status,
         notes=notes,
+    )
+
+
+def _external_record(
+    record_id: str = "external",
+    status: str = "external_genome_registered",
+) -> StrainRecord:
+    return StrainRecord(
+        record_id=record_id,
+        canonical_name="Fusobacterium mortiferum",
+        display_name="Fusobacterium mortiferum ATCC 9817",
+        genus="Fusobacterium",
+        species="mortiferum",
+        strain="ATCC 9817",
+        assembly_source="external_registered_genome",
+        is_type_material=True,
+        has_genome=True,
+        genome_path="genomes/references/Fusobacterium_mortiferum_ATCC_9817.fna",
+        normalized_id=record_id,
+        source="external_registered_genome",
+        status=status,
+        notes=(
+            "external_source=atcc_genome_portal; "
+            "external_genome_id=ATCC_9817_GENOME; "
+            "install_status=external_genome_install_succeeded"
+        ),
     )
 
 
@@ -160,6 +188,43 @@ def test_summarize_status_counts_counts_exact_manifest_statuses():
     }
 
 
+def test_summarize_provenance_counts_mixed_ncbi_and_external_records():
+    records = [
+        _record("ncbi", status="genome_ready", has_genome=True),
+        _external_record("external"),
+        _record("missing", status="selected"),
+    ]
+    records[0].assembly_accession = "GCF_000000001.1"
+    records[0].assembly_source = "NCBI"
+
+    assert summarize_provenance_counts(records) == {
+        "ncbi_assembly_backed_count": 1,
+        "external_registered_genome_count": 1,
+        "genome_ready_count": 2,
+        "missing_genome_count": 1,
+    }
+
+
+def test_summarize_external_registered_genomes_extracts_display_fields():
+    external = _external_record()
+
+    summary = summarize_external_registered_genomes([_record("ncbi"), external])
+
+    assert summary == [
+        {
+            "display_name": "Fusobacterium mortiferum ATCC 9817",
+            "strain": "ATCC 9817",
+            "genome_path": "genomes/references/Fusobacterium_mortiferum_ATCC_9817.fna",
+            "status": "external_genome_registered",
+            "provenance": (
+                "external_source=atcc_genome_portal; "
+                "external_genome_id=ATCC_9817_GENOME; "
+                "install_status=external_genome_install_succeeded"
+            ),
+        }
+    ]
+
+
 def test_summarize_output_files_reports_exists_true_and_false(tmp_path):
     paths = get_output_paths(tmp_path)
     paths.manifest.parent.mkdir(parents=True, exist_ok=True)
@@ -206,6 +271,10 @@ def test_summarize_problem_records_filters_problem_statuses():
         "invalid",
     ]
     assert problems[0]["notes"] == "barrnap failed"
+
+
+def test_external_registered_genome_is_not_a_problem_record():
+    assert summarize_problem_records([_external_record()]) == []
 
 
 def test_read_optional_ani_summary_returns_none_when_missing(tmp_path):
@@ -286,6 +355,42 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "No failed, skipped, missing, ambiguous, or not-found records." in markdown
     assert "Taxonomic Audit Summary" not in markdown
     assert "Source Audit Summary" not in markdown
+    assert "External Registered Genomes" not in markdown
+
+
+def test_report_summary_external_manifest_record_includes_external_section(tmp_path):
+    paths = get_output_paths(tmp_path)
+
+    markdown = build_run_summary_markdown([_external_record()], paths)
+
+    assert "## External Registered Genomes" in markdown
+    assert "- Count: 1" in markdown
+    assert (
+        "| Fusobacterium mortiferum ATCC 9817 | ATCC 9817 | "
+        "genomes/references/Fusobacterium_mortiferum_ATCC_9817.fna | "
+        "external_genome_registered |"
+    ) in markdown
+    assert "external_source=atcc_genome_portal" in markdown
+    assert "external_genome_id=ATCC_9817_GENOME" in markdown
+    assert "install_status=external_genome_install_succeeded" in markdown
+
+
+def test_report_summary_mixed_ncbi_and_external_manifest_shows_provenance_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    ncbi = _record("ncbi", status="genome_ready", has_genome=True)
+    ncbi.assembly_accession = "GCF_000000001.1"
+    ncbi.assembly_source = "NCBI"
+
+    markdown = build_run_summary_markdown(
+        [ncbi, _external_record(), _record("missing")],
+        paths,
+    )
+
+    assert "## Provenance Summary" in markdown
+    assert "- NCBI Assembly-backed records: 1" in markdown
+    assert "- External registered genome records: 1" in markdown
+    assert "- Genome-ready records: 2" in markdown
+    assert "- Records missing genome: 1" in markdown
 
 
 def test_report_includes_taxonomic_audit_counts_from_existing_comparison(tmp_path):
@@ -521,6 +626,7 @@ def test_markdown_contains_main_sections(tmp_path):
         "## Records",
         "## Status Distribution",
         "## Genome Status",
+        "## Provenance Summary",
         "## 16S Status",
         "## ANI Summary",
         "## Phylogeny Status",

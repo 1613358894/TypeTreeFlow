@@ -78,6 +78,8 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
     key_paths = [
         paths.manifest,
         paths.name_map,
+        paths.external_genome_registration_results_path,
+        paths.external_genome_install_plan_path,
         paths.ncbi_cache_dir / "download_plan.tsv",
         paths.ncbi_download_results_path,
         paths.ncbi_extracted_dir / "<record_id>",
@@ -132,6 +134,10 @@ def test_schema_docs_mention_key_table_fields():
         "cache/ncbi/download_plan.tsv": [
             "expected_genome_path",
             "datasets_zip_path",
+        ],
+        "external_genome_install_plan.tsv": [
+            "installed_genome_path",
+            "source_genome_fasta_path",
         ],
         "ani/ani_query_vs_refs.tsv": [
             "above_species_threshold",

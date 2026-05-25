@@ -8,6 +8,14 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
 
 
+EXTERNAL_REGISTERED_GENOME_SOURCE = "external_registered_genome"
+EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE = "external_genome_download_not_applicable"
+EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE_NOTES = (
+    "External registered genome is already installed; "
+    "NCBI Datasets download is not applicable."
+)
+
+
 @dataclass(frozen=True)
 class GenomeDownloadPlanItem:
     record_id: str
@@ -41,7 +49,10 @@ def build_genome_download_plan(
         status = "planned"
         notes = ""
 
-        if record.has_genome and record.genome_path and _path_exists(record.genome_path, paths):
+        if _is_external_registered_genome(record):
+            status = EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE
+            notes = EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE_NOTES
+        elif record.has_genome and record.genome_path and _path_exists(record.genome_path, paths):
             status = "skipped_existing"
             notes = f"Existing genome path found: {record.genome_path}"
         elif not record.assembly_accession:
@@ -62,6 +73,13 @@ def build_genome_download_plan(
         )
 
     return plan_items
+
+
+def _is_external_registered_genome(record: StrainRecord) -> bool:
+    return (
+        record.source == EXTERNAL_REGISTERED_GENOME_SOURCE
+        or record.assembly_source == EXTERNAL_REGISTERED_GENOME_SOURCE
+    )
 
 
 def _path_exists(path: str, paths: OutputPaths) -> bool:

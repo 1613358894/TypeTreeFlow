@@ -63,6 +63,19 @@ def test_genome_ready_reference_is_ani_planned(tmp_path):
     assert plan[0].query_genome_path == str(query)
 
 
+def test_genome_ready_relative_reference_uses_base_dir(tmp_path):
+    query = _query_genome(tmp_path)
+    genome = tmp_path / "out" / "genomes" / "references" / "reference.fna"
+    genome.parent.mkdir(parents=True, exist_ok=True)
+    genome.write_text(">ref\nACGT\n", encoding="utf-8")
+    record = _record(genome_path="genomes/references/reference.fna")
+
+    plan = build_ani_plan([record], query, base_dir=tmp_path / "out")
+
+    assert plan[0].status == "ani_planned"
+    assert plan[0].reference_genome_path == str(genome)
+
+
 def test_record_without_genome_is_skipped(tmp_path):
     query = _query_genome(tmp_path)
     record = _record(has_genome=False, genome_path="")
