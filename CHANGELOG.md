@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.6.1 - 2026-05-25
+
+- Fixed example fixture line-ending attributes so the external genome FASTA
+  checksum remains reproducible on Windows clones with `core.autocrlf=true`.
+
 ## 0.6.0 - 2026-05-25
 
 - Added manual external genome registration for curator-provided local FASTA

@@ -174,6 +174,13 @@ def test_example_discovery_and_lpsn_tsvs_are_readable():
     assert child_taxa[-1].exclusion_reason == "taxonomic status is synonym"
 
 
+def test_gitattributes_pins_example_text_fixtures_to_lf():
+    attributes = set(_read(".gitattributes").splitlines())
+
+    for pattern in ["*.tsv", "*.fna", "*.fasta", "*.fa"]:
+        assert f"{pattern} text eol=lf" in attributes
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as handle:
         return handle.read()

@@ -1,0 +1,6 @@
+*.py text eol=lf
+*.md text eol=lf
+*.tsv text eol=lf
+*.fna text eol=lf
+*.fasta text eol=lf
+*.fa text eol=lf
