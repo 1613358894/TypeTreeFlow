@@ -180,6 +180,29 @@ Sequence source audits write these values in `audit_status`:
 - `mismatch`: Both sides exist but no consistency evidence matches.
 - `manual_review_required`: Source data is insufficient for an automatic audit status.
 
+Completion audits are written by `--write-completion-audit` to
+`source_audit/completion_audit.tsv`. The `genome_evidence_scope` column uses:
+
+- `ncbi_assembly`: Strict type-strain evidence is backed by an NCBI Assembly
+  accession.
+- `external_registered_genome`: Strict type-strain evidence is backed by a
+  validated external registered genome and not by an NCBI Assembly accession.
+- `missing`: No accepted genome evidence is recorded for the expected species.
+- `mixed_conflict`: NCBI and external or duplicate evidence exists, but the
+  records cannot be reconciled automatically.
+
+The same table writes these values in `completion_status`:
+
+- `complete_ncbi`: Species counts toward NCBI strict completion and
+  external-inclusive strict completion.
+- `complete_external_registered`: Species counts only toward strict completion
+  including external registered genomes.
+- `missing_genome`: Species has no accepted genome backing.
+- `conflict`: Completion evidence is contradictory, duplicated, or points to
+  incompatible genome records. The current writer uses this for checklist
+  species that have both NCBI Assembly-backed and external registered genome
+  records in the manifest.
+
 ## Report And Pipeline
 
 - `dry_run_completed`: CLI dry-run completed selection and planning successfully.

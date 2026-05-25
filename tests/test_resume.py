@@ -229,6 +229,11 @@ def test_output_path_planning_does_not_create_analysis_directories(tmp_path):
     assert paths.iqtree_prefix == tmp_path / "phylo" / "iqtree" / "all_16S"
     assert paths.iqtree_treefile_path == tmp_path / "phylo" / "iqtree" / "all_16S.treefile"
     assert paths.report_dir == tmp_path / "report"
+    assert paths.completion_audit_path == tmp_path / "source_audit" / "completion_audit.tsv"
+    assert (
+        paths.completion_summary_path
+        == tmp_path / "source_audit" / "completion_summary.tsv"
+    )
 
     assert not paths.logs_dir.exists()
     assert not paths.cache_dir.exists()

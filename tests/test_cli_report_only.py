@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from typetreeflow.completion import CompletionSummary, write_completion_summary
 from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
@@ -199,3 +200,28 @@ def test_report_only_permissive_source_audit_does_not_block_but_reports_counts(t
     assert "- Source audit policy: permissive" in summary
     assert "- Source audit policy result: passed" in summary
     assert "- Manual review required count: 1" in summary
+
+
+def test_report_only_includes_existing_completion_summary(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    write_completion_summary(
+        CompletionSummary(
+            expected_species_count=3,
+            ncbi_complete_count=1,
+            external_registered_count=1,
+            external_inclusive_complete_count=2,
+            missing_count=1,
+            conflict_count=0,
+        ),
+        paths.completion_summary_path,
+    )
+
+    result = main(["--outdir", str(outdir), "--report-only"])
+
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert "## Completion Audit" in summary
+    assert "- NCBI Assembly strict completion: 1/3" in summary
+    assert "- External-inclusive strict completion: 2/3" in summary

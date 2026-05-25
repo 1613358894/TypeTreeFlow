@@ -56,6 +56,8 @@ typetreeflow_out/
   source_audit/
     culture_collection_audit.tsv
     sequence_source_audit.tsv
+    completion_audit.tsv
+    completion_summary.tsv
   selection/
     strain_candidates.tsv
     user_selection.tsv
@@ -125,13 +127,19 @@ participate in the NCBI download workflow. Successful and skipped-existing rows
 are eligible for the external registration manifest written by the CLI.
 
 `report/summary.md` is generated from existing run state. Creating it does not
-execute external tools, assign final species conclusions, or regenerate missing
-inputs. Missing optional artifacts are reported as unavailable. When
+execute external tools, assign final species conclusions, regenerate missing
+inputs, or generate completion audit files. Missing optional artifacts are
+reported as unavailable. When
 `manifest.tsv` contains external registered genome records, the summary reports
 their count, display names, strains, installed genome paths, statuses, and
 manifest notes as provenance text, alongside provenance counts for NCBI
 Assembly-backed records, external registered genome records, genome-ready
 records, and records missing genomes.
+When `source_audit/completion_summary.tsv` already exists, the report adds a
+Completion Audit section with NCBI strict and external-inclusive completion
+counts. When `source_audit/completion_audit.tsv` also exists, missing and
+conflict rows can be summarized for review. Report-only mode consumes these
+files only; it does not create them.
 
 Resume behavior reuses durable artifacts in this order: an installed
 `genomes/references/<normalized_id>.fna`, an existing extracted directory under
@@ -197,6 +205,15 @@ and dry-run Entrez fallback records do not write successful source-audit rows.
 `source_audit/culture_collection_audit.tsv` from a local species checklist or
 LPSN cache. This is review evidence only, not proof that an NCBI assembly is
 the type strain.
+
+`--write-completion-audit` writes
+`source_audit/completion_audit.tsv` and
+`source_audit/completion_summary.tsv` from `--species-checklist` and an
+existing `manifest.tsv`. These files compare NCBI strict type-strain
+completion with strict completion including external registered genomes while
+preserving the boundary that external registered genomes do not change
+NCBI-only completion counts. The stage is local and does not contact external
+providers or generate reports by itself.
 
 ## Download Artifacts
 

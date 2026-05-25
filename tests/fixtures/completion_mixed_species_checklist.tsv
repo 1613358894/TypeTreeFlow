@@ -1,0 +1,4 @@
+genus	species	full_name	status	type_strain_names	type_strain	source	notes	nomenclatural_status	taxonomic_status	lpsn_record_number	lpsn_url	synonyms
+Examplegenus	alpha	Examplegenus alpha	fixture_current	Alpha Type	Alpha Type	fixture	minimal mixed-provenance fixture	fixture_nomenclature	fixture_taxonomy	fixture-alpha	https://example.org/checklist/alpha	
+Examplegenus	beta	Examplegenus beta	fixture_current	Beta Type	Beta Type	fixture	minimal mixed-provenance fixture	fixture_nomenclature	fixture_taxonomy	fixture-beta	https://example.org/checklist/beta	
+Examplegenus	gamma	Examplegenus gamma	fixture_current	Gamma Type	Gamma Type	fixture	minimal mixed-provenance fixture	fixture_nomenclature	fixture_taxonomy	fixture-gamma	https://example.org/checklist/gamma	

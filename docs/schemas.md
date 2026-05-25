@@ -313,6 +313,49 @@ the type strain.
 - `has_recognized_deposit_id`: whether at least one recognized ID was parsed.
 - `notes`: parser notes.
 
+## source_audit/completion_audit.tsv
+
+Species-level completion audit output written by `--write-completion-audit`
+from `--species-checklist` and an existing `manifest.tsv`. It separates strict
+NCBI Assembly completion from strict completion that also accepts validated
+external registered genomes. External registered genomes must not change NCBI
+strict completion counts, and `external_genome_id` must not be treated as an
+NCBI `assembly_accession`.
+
+- `species`: expected checklist species represented by this audit row.
+- `canonical_name`: canonical display name used for species-level reporting.
+- `type_strain`: checklist or LPSN type-strain text used as the expected
+  equivalence set.
+- `ncbi_assembly_accession`: NCBI `GCF_` or `GCA_` assembly accession when
+  strict NCBI type-strain evidence is accepted.
+- `ncbi_assembly_backed`: boolean indicating whether the row is backed by an
+  accepted strict NCBI Assembly accession.
+- `external_registered_genome_backed`: boolean indicating whether the row is
+  backed by a validated external registered genome.
+- `external_genome_id`: source-specific external genome identifier, not an
+  NCBI assembly accession.
+- `external_source`: stable short source label for the external genome record.
+- `external_source_url`: external source URL when available.
+- `genome_evidence_scope`: one of `ncbi_assembly`,
+  `external_registered_genome`, `missing`, or `mixed_conflict`.
+- `completion_status`: one of `complete_ncbi`,
+  `complete_external_registered`, `missing_genome`, or `conflict`.
+- `notes`: audit notes explaining evidence, missing records, or conflicts.
+
+## source_audit/completion_summary.tsv
+
+Metric table written with `source_audit/completion_audit.tsv` by
+`--write-completion-audit`. It is derived from the audit rows and preserves
+separate NCBI-only and external-inclusive completion metrics. `report/summary.md`
+reads this existing table when present; report-only mode does not generate it.
+
+- `metric`: stable metric key, such as
+  `expected_species_count`, `ncbi_complete_count`,
+  `external_registered_count`, `external_inclusive_complete_count`,
+  `missing_count`, or `conflict_count`.
+- `value`: metric value, usually a count.
+- `notes`: explanation of the numerator, denominator, or evidence boundary.
+
 ## cache/ncbi/download_plan.tsv
 
 Records the NCBI Datasets genome download plan before execution. It does not

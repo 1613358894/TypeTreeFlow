@@ -6,6 +6,12 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from typetreeflow.ani.workflow import prepare_ani
+from typetreeflow.completion import (
+    build_completion_audit,
+    summarize_completion_audit,
+    write_completion_audit,
+    write_completion_summary,
+)
 from typetreeflow.config import AppConfig, ensure_real_action_allowed
 from typetreeflow.exceptions import ManifestError
 from typetreeflow.external.runner import SubprocessRunner
@@ -310,6 +316,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--write-completion-audit",
+        action="store_true",
+        help=(
+            "Write source_audit/completion_audit.tsv and "
+            "source_audit/completion_summary.tsv from --species-checklist and "
+            "an existing manifest.tsv without running workflow stages."
+        ),
+    )
+    parser.add_argument(
         "--prepare-selection",
         action="store_true",
         help=(
@@ -433,6 +448,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         write_excluded_lpsn_taxa=args.write_excluded_lpsn_taxa,
         enable_lpsn_api=args.enable_lpsn_api,
         audit_culture_collections=args.audit_culture_collections,
+        write_completion_audit=args.write_completion_audit,
         discover_assembly_candidates=args.discover_assembly_candidates,
         write_manual_review_template=args.write_manual_review_template,
         apply_curator_evidence=args.apply_curator_evidence,
@@ -495,6 +511,9 @@ def main(
             return 0
         if config.audit_culture_collections:
             run_culture_collection_audit_stage(paths, config)
+            return 0
+        if config.write_completion_audit:
+            run_completion_audit_stage(paths, config)
             return 0
         if config.write_manual_review_template:
             run_manual_review_template_stage(paths, config)
@@ -807,6 +826,38 @@ def run_taxonomy_audit_stage(records, paths, checklist_path: Path) -> Path:
     output_path = write_checklist_comparison(comparisons, paths.checklist_comparison_path)
     LOGGER.info("Wrote taxonomy checklist comparison: %s.", output_path)
     return output_path
+
+
+def run_completion_audit_stage(paths, config: AppConfig) -> tuple[Path, Path]:
+    if config.species_checklist is None:
+        raise ValueError("--write-completion-audit requires --species-checklist.")
+    if not paths.manifest.exists():
+        raise ValueError(f"manifest.tsv not found: {paths.manifest}")
+
+    checklist_entries = read_species_checklist(config.species_checklist)
+    manifest_records = read_manifest(paths.manifest)
+    audit_rows = build_completion_audit(checklist_entries, manifest_records)
+    summary = summarize_completion_audit(audit_rows)
+    audit_path = write_completion_audit(audit_rows, paths.completion_audit_path)
+    summary_path = write_completion_summary(summary, paths.completion_summary_path)
+    LOGGER.info(
+        "Wrote completion audit outputs: %s, %s.",
+        audit_path,
+        summary_path,
+    )
+    LOGGER.info(
+        "Completion audit counts: expected_species_count=%s, "
+        "ncbi_complete_count=%s, external_registered_count=%s, "
+        "external_inclusive_complete_count=%s, missing_count=%s, "
+        "conflict_count=%s.",
+        summary.expected_species_count,
+        summary.ncbi_complete_count,
+        summary.external_registered_count,
+        summary.external_inclusive_complete_count,
+        summary.missing_count,
+        summary.conflict_count,
+    )
+    return audit_path, summary_path
 
 
 def run_genus_acquisition_workflow(

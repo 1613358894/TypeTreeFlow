@@ -2,10 +2,19 @@ import csv
 from pathlib import Path
 
 from typetreeflow.cli import main
+from typetreeflow.completion import (
+    CONFLICT,
+    MISSING_GENOME,
+    CompletionAuditRecord,
+    CompletionSummary,
+    write_completion_audit,
+    write_completion_summary,
+)
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
     build_run_summary_markdown,
     read_optional_checklist_comparison,
+    read_optional_completion_summary,
     read_optional_sequence_source_audit,
     read_optional_ani_summary,
     summarize_external_registered_genomes,
@@ -151,6 +160,48 @@ def _source_audit(status: str) -> SequenceSourceAudit:
     )
 
 
+def _completion_summary(
+    expected_species_count: int = 3,
+    ncbi_complete_count: int = 1,
+    external_registered_count: int = 1,
+    external_inclusive_complete_count: int = 2,
+    missing_count: int = 1,
+    conflict_count: int = 0,
+) -> CompletionSummary:
+    return CompletionSummary(
+        expected_species_count=expected_species_count,
+        ncbi_complete_count=ncbi_complete_count,
+        external_registered_count=external_registered_count,
+        external_inclusive_complete_count=external_inclusive_complete_count,
+        missing_count=missing_count,
+        conflict_count=conflict_count,
+    )
+
+
+def _completion_audit_record(
+    species: str,
+    completion_status: str,
+    *,
+    notes: str = "",
+) -> CompletionAuditRecord:
+    return CompletionAuditRecord(
+        species=species,
+        canonical_name=species,
+        type_strain="type strain",
+        ncbi_assembly_accession="",
+        ncbi_assembly_backed=completion_status == CONFLICT,
+        external_registered_genome_backed=completion_status == CONFLICT,
+        external_genome_id="",
+        external_source="",
+        external_source_url="",
+        genome_evidence_scope="mixed_conflict"
+        if completion_status == CONFLICT
+        else "missing",
+        completion_status=completion_status,
+        notes=notes,
+    )
+
+
 def test_summarize_manifest_counts_record_roles_and_ready_states():
     records = [
         _record("ref1", status="genome_ready", has_genome=True, has_16s=True),
@@ -287,6 +338,10 @@ def test_read_optional_checklist_comparison_returns_none_when_missing(tmp_path):
 
 def test_read_optional_sequence_source_audit_returns_none_when_missing(tmp_path):
     assert read_optional_sequence_source_audit(tmp_path / "sequence_source_audit.tsv") is None
+
+
+def test_read_optional_completion_summary_returns_none_when_missing(tmp_path):
+    assert read_optional_completion_summary(tmp_path / "completion_summary.tsv") is None
 
 
 def test_read_optional_checklist_comparison_returns_empty_list_for_header_only(tmp_path):
@@ -539,6 +594,101 @@ def test_report_source_audit_malformed_tsv_writes_unavailable_note(tmp_path):
     assert "## Source Audit Summary" in markdown
     assert "Sequence source consistency audit could not be read" in markdown
     assert "Malformed sequence source audit row 2" in markdown
+
+
+def test_report_includes_completion_audit_from_existing_summary(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_completion_summary(_completion_summary(), paths.completion_summary_path)
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Completion Audit" in markdown
+    assert "- Expected species: 3" in markdown
+    assert "- NCBI Assembly strict completion: 1/3" in markdown
+    assert "- External registered genomes: 1" in markdown
+    assert "- External-inclusive strict completion: 2/3" in markdown
+    assert "- Missing genome evidence: 1" in markdown
+    assert "- Conflicts requiring review: 0" in markdown
+
+
+def test_report_without_completion_summary_does_not_fail_or_show_section(tmp_path):
+    paths = get_output_paths(tmp_path)
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Completion Audit" not in markdown
+    assert "## Notes" in markdown
+
+
+def test_report_completion_external_inclusive_does_not_change_ncbi_completion(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_completion_summary(
+        _completion_summary(
+            expected_species_count=4,
+            ncbi_complete_count=1,
+            external_registered_count=2,
+            external_inclusive_complete_count=3,
+            missing_count=1,
+        ),
+        paths.completion_summary_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "- NCBI Assembly strict completion: 1/4" in markdown
+    assert "- External registered genomes: 2" in markdown
+    assert "- External-inclusive strict completion: 3/4" in markdown
+
+
+def test_report_completion_conflict_count_displayed_as_review_risk(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_completion_summary(
+        _completion_summary(
+            expected_species_count=2,
+            ncbi_complete_count=1,
+            external_registered_count=0,
+            external_inclusive_complete_count=1,
+            missing_count=0,
+            conflict_count=1,
+        ),
+        paths.completion_summary_path,
+    )
+    write_completion_audit(
+        [
+            _completion_audit_record(
+                "Aliivibrio fischeri",
+                CONFLICT,
+                notes="NCBI and external registered genome evidence both present",
+            )
+        ],
+        paths.completion_audit_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "- Conflicts requiring review: 1" in markdown
+    assert "- Review risk: 1 conflict(s)." in markdown
+    assert "| Aliivibrio fischeri | conflict | mixed_conflict |" in markdown
+
+
+def test_report_completion_audit_table_includes_missing_rows(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_completion_summary(_completion_summary(), paths.completion_summary_path)
+    write_completion_audit(
+        [
+            _completion_audit_record(
+                "Aliivibrio fischeri",
+                MISSING_GENOME,
+                notes="missing manifest genome evidence",
+            )
+        ],
+        paths.completion_audit_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "| Aliivibrio fischeri | missing_genome | missing |" in markdown
+    assert "missing manifest genome evidence" in markdown
 
 
 def test_summarize_phylo_status_reports_too_few_manifest_16s_records(tmp_path):

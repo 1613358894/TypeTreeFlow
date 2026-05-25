@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.completion import (
+    CONFLICT,
+    MISSING_GENOME as COMPLETION_MISSING_GENOME,
+    CompletionAuditRecord,
+    CompletionSummary,
+    read_completion_audit,
+    read_completion_summary,
+)
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
 from typetreeflow.taxonomy.audit import (
@@ -265,6 +273,20 @@ def summarize_sequence_source_audit(rows: list[dict[str, str]]) -> dict[str, int
     return summary
 
 
+def read_optional_completion_summary(path: str | Path) -> CompletionSummary | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_completion_summary(input_path)
+
+
+def read_optional_completion_audit(path: str | Path) -> list[CompletionAuditRecord] | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_completion_audit(input_path)
+
+
 def summarize_phylo_status(
     paths: OutputPaths,
     rrna_ready_count: int,
@@ -346,6 +368,20 @@ def build_run_summary_markdown(
     except ValueError as error:
         source_audit = None
         source_audit_error = str(error)
+    completion_summary_error = ""
+    try:
+        completion_summary = read_optional_completion_summary(
+            paths.completion_summary_path
+        )
+    except ValueError as error:
+        completion_summary = None
+        completion_summary_error = str(error)
+    completion_audit_error = ""
+    try:
+        completion_audit = read_optional_completion_audit(paths.completion_audit_path)
+    except ValueError as error:
+        completion_audit = None
+        completion_audit_error = str(error)
 
     lines = [
         "# TypeTreeFlow Summary",
@@ -568,6 +604,79 @@ def build_run_summary_markdown(
                 "manual-review rows, and for strain-text-only rows."
             )
 
+    if completion_summary_error:
+        lines.extend(
+            [
+                "",
+                "## Completion Audit",
+                "",
+                f"Completion summary could not be read: {completion_summary_error}",
+            ]
+        )
+    elif completion_summary is not None:
+        expected_species_count = str(completion_summary.expected_species_count)
+        ncbi_complete_count = str(completion_summary.ncbi_complete_count)
+        external_registered_count = str(
+            completion_summary.external_registered_count
+        )
+        external_inclusive_complete_count = str(
+            completion_summary.external_inclusive_complete_count
+        )
+        missing_count = str(completion_summary.missing_count)
+        conflict_count = str(completion_summary.conflict_count)
+        lines.extend(
+            [
+                "",
+                "## Completion Audit",
+                "",
+                f"- Expected species: {expected_species_count}",
+                (
+                    "- NCBI Assembly strict completion: "
+                    f"{ncbi_complete_count}/{expected_species_count}"
+                ),
+                f"- External registered genomes: {external_registered_count}",
+                (
+                    "- External-inclusive strict completion: "
+                    f"{external_inclusive_complete_count}/{expected_species_count}"
+                ),
+                f"- Missing genome evidence: {missing_count}",
+                f"- Conflicts requiring review: {conflict_count}",
+            ]
+        )
+        if _has_positive_count(conflict_count):
+            lines.append(f"- Review risk: {conflict_count} conflict(s).")
+        if completion_audit_error:
+            lines.append(
+                f"Completion audit detail could not be read: {completion_audit_error}"
+            )
+        elif completion_audit is not None:
+            review_rows = [
+                row
+                for row in completion_audit
+                if row.completion_status in {COMPLETION_MISSING_GENOME, CONFLICT}
+            ]
+            if review_rows:
+                lines.extend(
+                    [
+                        "",
+                        "| Species | Status | Evidence Scope | Notes |",
+                        "| --- | --- | --- | --- |",
+                        *[
+                            "| "
+                            f"{_markdown_cell(row.species)} | "
+                            f"{_markdown_cell(row.completion_status)} | "
+                            f"{_markdown_cell(row.genome_evidence_scope)} | "
+                            f"{_markdown_cell(row.notes)} |"
+                            for row in review_rows[:5]
+                        ],
+                    ]
+                )
+                if len(review_rows) > 5:
+                    lines.append(
+                        "Completion audit detail truncated to first "
+                        f"5 of {len(review_rows)} missing/conflict rows."
+                    )
+
     lines.extend(
         [
             "",
@@ -719,6 +828,13 @@ def _checklist_species_summary_key(row: dict[str, str]) -> str:
 
 def _markdown_cell(value: str) -> str:
     return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _has_positive_count(value: str) -> bool:
+    try:
+        return int(value) > 0
+    except ValueError:
+        return bool(value.strip()) and value.strip() != "0"
 
 
 def _sequence_source_audit_summary_row_to_object(row: dict[str, str]):

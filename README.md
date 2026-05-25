@@ -53,6 +53,8 @@ scrape, purchase, or download from external portals, and does not treat
 - Keep NCBI Assembly completion separate from external-inclusive completion;
   external registered genomes can improve local downstream readiness without
   changing NCBI-only completion counts.
+- Explicitly write completion audit tables from a species checklist and
+  existing manifest with `--write-completion-audit`.
 - Summarize external registered genome records from an existing manifest in
   report-only mode.
 - Plan and run guarded resume-mode barrnap, FastANI, Entrez 16S fallback, and
@@ -83,6 +85,11 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
   verification checklist.
 - [docs/species_checklist_audit.md](docs/species_checklist_audit.md):
   user-supplied species checklist auditing.
+- [docs/completion_audit.md](docs/completion_audit.md): implemented local
+  mixed-provenance completion audit outputs and split completion metrics.
+- [docs/fusobacterium_external_pilot.md](docs/fusobacterium_external_pilot.md):
+  `F. mortiferum` external registered genome pilot route to external-inclusive
+  17/17 review without changing strict NCBI completion.
 
 Historical plans and run evidence are indexed from [docs/index.md](docs/index.md).
 They are evidence snapshots, not current behavior contracts or required release
@@ -284,6 +291,20 @@ typetreeflow \
   --outdir results/external_registration_minimal \
   --report-only
 ```
+
+To explicitly write completion audit tables from a checklist and existing
+manifest, run:
+
+```bash
+typetreeflow \
+  --species-checklist <path> \
+  --outdir <outdir> \
+  --write-completion-audit
+```
+
+This writes `source_audit/completion_audit.tsv` and
+`source_audit/completion_summary.tsv`. `--report-only` only consumes an
+existing completion summary when present; it does not generate the audit.
 
 Run the LPSN-first genus acquisition path from local caches:
 

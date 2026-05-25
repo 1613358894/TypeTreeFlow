@@ -17,6 +17,8 @@ move, archive, or deletion.
   plans, workflow results, source audits, reports, and taxonomy comparisons.
 - [species_checklist_audit.md](species_checklist_audit.md): Implemented CLI and
   TSV contract for user-supplied species checklist auditing.
+- [completion_audit.md](completion_audit.md): Implemented local
+  mixed-provenance completion audit outputs and split completion metrics.
 
 ## Active designs
 
@@ -28,6 +30,11 @@ move, archive, or deletion.
   Manual external type-genome registration design and provider-automation
   boundary. The local FASTA registration path is implemented; provider portal
   automation remains future/out of scope.
+- [fusobacterium_external_pilot.md](fusobacterium_external_pilot.md):
+  Curator-facing pilot procedure for evaluating whether a manually registered
+  `F. mortiferum` external type genome can make the `Fusobacterium`
+  external-inclusive completion metric reach 17/17 while preserving 16/17
+  strict NCBI completion.
 
 ## Operational and release docs
 

@@ -46,6 +46,8 @@ class OutputPaths:
     source_audit_dir: Path
     sequence_source_audit_path: Path
     culture_collection_audit_path: Path
+    completion_audit_path: Path
+    completion_summary_path: Path
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
@@ -105,6 +107,8 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         culture_collection_audit_path=root
         / "source_audit"
         / "culture_collection_audit.tsv",
+        completion_audit_path=root / "source_audit" / "completion_audit.tsv",
+        completion_summary_path=root / "source_audit" / "completion_summary.tsv",
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",

@@ -36,6 +36,7 @@ class AppConfig:
     write_excluded_lpsn_taxa: Path | None
     enable_lpsn_api: bool
     audit_culture_collections: bool
+    write_completion_audit: bool
     discover_assembly_candidates: bool
     write_manual_review_template: bool
     apply_curator_evidence: Path | None

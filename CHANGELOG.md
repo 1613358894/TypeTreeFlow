@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.7.0 - 2026-05-25
+
+- Added an explicit `--write-completion-audit` workflow for local
+  species-checklist completion auditing.
+- Added `source_audit/completion_audit.tsv` and
+  `source_audit/completion_summary.tsv` outputs for mixed NCBI and external
+  registered genome evidence.
+- Added report consumption of an existing completion summary, with optional
+  completion audit detail when present.
+- Added a minimal mixed-provenance acceptance fixture covering NCBI, external,
+  missing, and conflicting completion states.
+- Documented the implemented `--write-completion-audit` workflow and report
+  consumption boundary for completion audit outputs.
+- Added a `Fusobacterium mortiferum` external registered genome pilot procedure
+  for curator-run external-inclusive 17/17 evaluation without claiming 17/17
+  NCBI completion.
+- Note: v0.7.0 does not automate ATCC Genome Portal or any other provider
+  portal.
+
 ## 0.6.1 - 2026-05-25
 
 - Fixed example fixture line-ending attributes so the external genome FASTA
