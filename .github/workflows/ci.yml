@@ -17,7 +17,15 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            git fetch --depth=1 origin "pull/${{ github.event.pull_request.number }}/merge"
+          else
+            git fetch --depth=1 origin "${GITHUB_SHA}"
+          fi
+          git checkout --detach FETCH_HEAD
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -41,7 +49,15 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        run: |
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            git fetch --depth=1 origin "pull/${{ github.event.pull_request.number }}/merge"
+          else
+            git fetch --depth=1 origin "${GITHUB_SHA}"
+          fi
+          git checkout --detach FETCH_HEAD
 
       - name: Set up Python
         uses: actions/setup-python@v5
