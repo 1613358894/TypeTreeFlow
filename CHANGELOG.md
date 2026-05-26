@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a v0.9.0 provider adapter spike plan that keeps provider work
+  dry-run-only and review-first, without ATCC/provider download automation.
+
 ## 0.8.0 - 2026-05-26
 
 - Clarified v0.8.0 planning, external workflow, and provider-automation

@@ -34,6 +34,11 @@ move, archive, or deletion.
   document for a possible v0.8.0 hardening and validation release. It keeps
   manual external registration and mixed-provenance completion audit in scope,
   and keeps ATCC/provider automation out of the v0.8.0 implementation boundary.
+- [v0_9_0_provider_adapter_spike_plan.md](v0_9_0_provider_adapter_spike_plan.md):
+  Planning document for a possible v0.9.0 provider adapter spike. It defines a
+  dry-run-only, provider-neutral planning boundary that can write reviewable
+  provider plans and proposed external registration rows, not ATCC/provider
+  downloads or direct manifest changes.
 - [lpsn_first_acquisition.md](lpsn_first_acquisition.md): Active detailed
   design and implementation-history note for the LPSN-first acquisition route.
   The current behavior is authoritative where it matches README and contract
