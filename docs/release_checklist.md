@@ -18,11 +18,12 @@ documented in [release_process.md](release_process.md).
 
 ## Required Local Validation
 
-- For v1.0.0rc1 and later v1.0 release candidates, confirm the release is a
-  stability/readiness candidate for the existing LPSN-first acquisition and
-  audit workflow, not a feature-expansion release.
+- For v1.0.0rc1 and final v1.0.0 preparation, confirm the release is
+  stability/readiness work for the existing LPSN-first acquisition and audit
+  workflow, not a feature-expansion release.
 - Review `docs/v1_0_0_readiness_review.md` and
-  `docs/stable_contracts.md` before any release-candidate version bump.
+  `docs/stable_contracts.md` before any v1.0.0 release-candidate or final
+  version bump.
 - Confirm README/current capabilities, quickstart examples, schemas, statuses,
   and output-layout docs agree with the v1.0 stable contracts.
 - Search the repository for release-blocking wording before the version bump:
@@ -189,6 +190,8 @@ audit review but is not a required input for the current release checklist.
   [release_process.md](release_process.md) match the intended tag.
 - For a release candidate, confirm `CHANGELOG.md` has an Unreleased or
   release-candidate entry that clearly states it is not v1.0.0 final.
+- For final v1.0.0, confirm `CHANGELOG.md` has a dated `1.0.0` entry and no
+  release-candidate-only wording in the final entry.
 - Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended
   license.
 - Confirm the wheel filename contains the intended version.

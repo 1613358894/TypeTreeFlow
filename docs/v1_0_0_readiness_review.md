@@ -18,12 +18,16 @@ review-only planning surface.
 
 ## Current Baseline Reviewed
 
-This review was prepared from the v0.9.0 repository state and the current CLI
-help for `python typetreeflow.py --help`. The documents checked for contract
-alignment were:
+This review was updated after the v1.0.0rc1 prerelease from the current
+repository state and the current CLI help for `python typetreeflow.py --help`.
+The documents checked for contract alignment were:
 
 - `README.md`
 - `CHANGELOG.md`
+- `docs/v1_0_0_readiness_review.md`
+- `docs/stable_contracts.md`
+- `docs/release_checklist.md`
+- `docs/release_process.md`
 - `docs/index.md`
 - `docs/schemas.md`
 - `docs/statuses.md`
@@ -170,21 +174,22 @@ external-inclusive completion, `manifest.tsv`, `name_map.tsv`, or
 - `python typetreeflow.py --help` exposes the expected guarded CLI flags and
   provider planning boundary text.
 - Documentation consistency tests pass.
-- No version bump, code implementation, release tag, commit, or push is made
-  as part of this readiness documentation batch.
+- No final version bump, code implementation, final release tag, GitHub
+  Release publication, commit, or push is made as part of this final-readiness
+  documentation batch.
 
-## Open Review Items
+## Final Review Items
 
-- Decide whether provider planning should remain in active designs for v1.0 or
-  be explicitly labeled "review-only stable boundary" in future wording.
-- `docs/release_checklist.md` now includes a dedicated release-candidate gate
-  for misleading ATCC/provider automation claims, provider-planning completion
-  claims, provider IDs in `assembly_accession`, and external-inclusive
-  readiness being mislabeled as NCBI Assembly strict completion.
-- Decide whether `docs/stable_contracts.md` should become the primary contract
-  index for downstream users after v1.0 is tagged.
+- Provider planning is acceptable for v1.0 as a review-only stable boundary,
+  not as acquisition automation.
+- `docs/release_checklist.md` includes a dedicated v1.0 gate for misleading
+  ATCC/provider automation claims, provider-planning completion claims,
+  provider IDs in `assembly_accession`, and external-inclusive readiness being
+  mislabeled as NCBI Assembly strict completion.
+- `docs/stable_contracts.md` is ready to serve as the primary contract index
+  for downstream users after v1.0 is tagged.
 
-No blocker was found in the reviewed documents for starting v1.0 readiness
-work, provided v1.0 is scoped as stable documentation and release hardening for
-the existing LPSN-first acquisition/audit workflow rather than new provider
-automation.
+No blocker was found in the reviewed documents for the final v1.0.0 version
+bump, provided v1.0.0 remains scoped as stable documentation and release
+hardening for the existing LPSN-first acquisition/audit workflow rather than
+new provider automation.
