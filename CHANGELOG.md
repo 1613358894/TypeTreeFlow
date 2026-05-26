@@ -2,12 +2,16 @@
 
 ## Unreleased
 
+## 0.8.0 - 2026-05-26
+
 - Clarified v0.8.0 planning, external workflow, and provider-automation
   boundaries so ATCC/provider automation remains out of scope.
 - Added real `F. mortiferum` external pilot template documentation for local
   curator-provided FASTA evidence packages without committing restricted data.
 - Tightened completion audit and report wording so external-inclusive 17/17
   readiness is not confused with NCBI Assembly strict 17/17 completion.
+- Note: v0.8.0 does not automate ATCC Genome Portal or any other provider
+  portal, and does not include provider download automation.
 
 ## 0.7.0 - 2026-05-25
 
