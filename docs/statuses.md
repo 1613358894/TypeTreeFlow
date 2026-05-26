@@ -22,6 +22,11 @@ and always carry `external_genome_manual_review_required`; they do not use
 `external_genome_registered` until copied into `external_genomes.tsv` and
 validated by the external registration workflow.
 
+The v2.0.0 provider framework skeleton also records provider capability status
+inside review-only notes. Code-level provider registry statuses are
+`unavailable`, `planning_only`, `metadata_only`, and `download_enabled`; these
+are adapter capability labels, not download or installation results.
+
 - `provider_plan_ready_for_review`: Required request fields are present, terms are marked `reviewed_allowed`, the artifact type can map to a proposed external genome row, and the row is ready for curator review.
 - `provider_plan_manual_review_required`: The request is readable but needs curator review, commonly because the artifact type is not `genome_fasta` or `normalized_genome_fasta`.
 - `provider_plan_missing_required_field`: A required request value or provider-native external genome identifier is missing.

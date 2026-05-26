@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 2.0.0rc1 - 2026-05-26
+
+- Added the provider automation framework skeleton with provider adapter
+  interface, registry, policy boundaries, and offline provider planning notes.
+- Added the provider capability registry with fail-closed statuses for
+  unavailable, planning-only, metadata-only, and download-enabled modes.
+- Kept provider network behavior disabled by default, with provider planning
+  continuing to emit review-only rows and no network, download, credential,
+  manifest, name-map, external registration, or NCBI download-plan actions.
+- Added ATCC planning-only behavior gated by an unavailable/not-passed
+  downloader review, including deterministic gate-failure and user-assisted
+  handoff notes.
+- Added a credential-like redaction helper for provider planning outputs.
+- Added private provider cache policy boundaries that keep provider data out of
+  `cache/ncbi/` and do not write provider cache artifacts in this skeleton.
+- Documented that provider planning remains review-only and does not change
+  completion metrics until curator-reviewed external registration occurs.
+- This release candidate does not include an ATCC or provider downloader,
+  provider login, scraping, browser automation, credential storage, terms
+  acceptance, provider manifest/name-map writes, provider download-plan writes,
+  provider `external_genomes.tsv` writes, or completion metric changes from
+  provider planning rows.
+
 ## 1.5.0 - 2026-05-26
 
 - Hardened provider handoff planning so proposal outputs remain explicit

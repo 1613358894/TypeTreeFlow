@@ -5,6 +5,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.providers.base import ProviderContext
+from typetreeflow.providers.registry import build_default_provider_registry
+from typetreeflow.providers.policy import redact_secret_like_text
+
 
 PROVIDER_REQUEST_FIELDS = [
     "request_id",
@@ -456,6 +460,7 @@ def _plan_notes(record: ProviderRequestRecord) -> str:
     if record.requires_manual_review:
         parts.append("next_review=clear requires_manual_review only after evidence review")
     parts.append("local_fasta_not_validated_by_provider_planning=true")
+    parts.extend(_provider_framework_notes(record))
     if record.curator:
         parts.append(f"curator={record.curator}")
     if record.notes:
@@ -491,7 +496,30 @@ def _proposal_notes(record: ProviderRequestRecord) -> str:
         sanitized = _sanitize_tsv_text(value).strip()
         if sanitized:
             parts.append(f"{key}={sanitized}")
+    parts.extend(_provider_framework_notes(record))
     return _sanitize_tsv_text("; ".join(parts))
+
+
+def _provider_framework_notes(record: ProviderRequestRecord) -> list[str]:
+    registry = build_default_provider_registry()
+    entry = registry.get(record.provider)
+    notes = [
+        f"provider_registry_status={entry.capability.status.value}",
+        "provider_default_network_enabled=false",
+    ]
+    if entry.adapter is not None:
+        notes.extend(
+            entry.adapter.plan_notes(
+                ProviderContext(
+                    outdir=Path("."),
+                    network_enabled=False,
+                    mode="planning",
+                )
+            )
+        )
+    elif entry.notes:
+        notes.append(entry.notes)
+    return notes
 
 
 def _write_rows(
@@ -564,4 +592,5 @@ def _parse_bool(value: object, *, field: str, row_number: int) -> bool:
 
 
 def _sanitize_tsv_text(value: object) -> str:
-    return str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    text = redact_secret_like_text(value)
+    return text.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")

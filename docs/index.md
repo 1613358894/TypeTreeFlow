@@ -37,6 +37,18 @@ move, archive, or deletion.
 
 ## Active designs
 
+- [v2_0_0_provider_automation_framework.md](v2_0_0_provider_automation_framework.md):
+  Design-freeze document for a possible v2.0.0 provider automation framework.
+  The target is framework, registry, policy, redaction, and review-only
+  provider request/plan/proposal flow; it is not a default ATCC downloader.
+- [provider_automation_policy.md](provider_automation_policy.md): Policy
+  boundary for provider automation defaults, provider-network opt-in,
+  credentials, terms, adapter writes, identifiers, private cache, reports,
+  completion, and ATCC status choices.
+- [atcc_downloader_gate_review.md](atcc_downloader_gate_review.md): Gate review
+  for ATCC downloader eligibility. The current conclusion is that ATCC remains
+  unavailable/user-assisted or planning-only until legal and technical gates
+  pass.
 - [v1_0_0_readiness_review.md](v1_0_0_readiness_review.md): Readiness review
   for a stable v1.0.0 LPSN-first acquisition/audit release, including
   non-scope, completion boundaries, provider planning boundaries, and a
