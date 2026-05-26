@@ -2,7 +2,9 @@
 
 ## Status
 
-Feasibility design for a possible v0.8.0+ provider automation track. No provider downloader, login flow, scraping flow, API client, credential store, or schema change is implemented by this document.
+Feasibility design for a possible v0.9.0+ provider automation track or a
+separate experimental spike. No provider downloader, login flow, scraping flow,
+API client, credential store, or schema change is implemented by this document.
 
 The recommended route remains user-assisted download plus manual registration
 through `external_genomes.tsv`. Provider automation should not move to
@@ -210,13 +212,14 @@ External-inclusive strict completion is a local readiness metric for reviewed
 external registered genomes. It can include provider-backed local FASTA files
 only after registration validation, checksum capture, type-material review, and
 completion audit. It must always be labeled as external-inclusive and never as
-NCBI completion.
+NCBI Assembly strict completion.
 
 The Fusobacterium external pilot illustrates this boundary: a reviewed external
-`F. mortiferum` row can make the external-inclusive strict metric 17/17, while NCBI
-Assembly strict completion remains 16/17 unless a valid NCBI Assembly accession
-is accepted through the NCBI Assembly strict route. The redistributable pilot fixture is
-synthetic workflow evidence, not a real ATCC genome.
+`F. mortiferum` row can make the external-inclusive strict metric 17/17, while
+NCBI Assembly strict completion remains 16/17 unless a valid NCBI Assembly
+accession is accepted through the NCBI Assembly strict route. The
+redistributable pilot fixture is synthetic workflow validation only, not real
+ATCC genome evidence.
 
 ## Acceptance Criteria Before Implementation
 

@@ -316,11 +316,11 @@ the type strain.
 ## source_audit/completion_audit.tsv
 
 Species-level completion audit output written by `--write-completion-audit`
-from `--species-checklist` and an existing `manifest.tsv`. It separates strict
-NCBI Assembly completion from strict completion that also accepts validated
-external registered genomes. External registered genomes must not change NCBI
-strict completion counts, and `external_genome_id` must not be treated as an
-NCBI `assembly_accession`.
+from `--species-checklist` and an existing `manifest.tsv`. It separates NCBI
+Assembly strict completion from external-inclusive strict completion that also
+accepts validated external registered genomes. External registered genomes must
+not change NCBI Assembly strict completion counts, and `external_genome_id`
+must not be treated as an NCBI `assembly_accession`.
 
 - `species`: expected checklist species represented by this audit row.
 - `canonical_name`: canonical display name used for species-level reporting.

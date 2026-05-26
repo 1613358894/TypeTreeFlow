@@ -27,7 +27,8 @@ curator-accepted NCBI `GCF_` or `GCA_` assembly is available.
 
 The workflow needs a way to use those external registered genomes in later local
 steps, such as barrnap/16S extraction, without weakening the current NCBI
-Assembly contract or making reports imply NCBI completion where none exists.
+Assembly contract or making reports imply NCBI Assembly strict completion where
+none exists.
 
 ## Goals
 
@@ -35,7 +36,7 @@ Assembly contract or making reports imply NCBI completion where none exists.
 - Preserve the existing meaning of `assembly_accession`: only NCBI Assembly
   `GCF_` or `GCA_` accessions are valid values.
 - Keep external genomes out of the NCBI Datasets download plan, download
-  results, NCBI cache, and NCBI completion counts.
+  results, NCBI cache, and NCBI Assembly strict completion counts.
 - Record explicit provider/source provenance for each external registered
   genome.
 - Allow downstream local steps to use registered external FASTA files when the

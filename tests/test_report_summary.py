@@ -607,6 +607,10 @@ def test_report_includes_completion_audit_from_existing_summary(tmp_path):
     assert "- NCBI Assembly strict completion: 1/3" in markdown
     assert "- External registered genomes: 1" in markdown
     assert "- External-inclusive strict completion: 2/3" in markdown
+    assert (
+        "External-inclusive strict completion is a mixed-provenance readiness "
+        "metric and does not change NCBI Assembly strict completion."
+    ) in markdown
     assert "- Missing genome evidence: 1" in markdown
     assert "- Conflicts requiring review: 0" in markdown
 

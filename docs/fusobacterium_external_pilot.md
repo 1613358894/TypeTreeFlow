@@ -114,8 +114,8 @@ Expected pilot interpretation:
   as `complete_external_registered` only when the external registration is
   accepted.
 
-Do not call a successful pilot result "17/17 NCBI completion". The correct
-wording is `external-inclusive strict completion: 17/17`, with
+Do not call a successful pilot result "17/17 NCBI Assembly strict completion".
+The correct wording is `external-inclusive strict completion: 17/17`, with
 `NCBI Assembly strict completion: 16/17` still reported separately.
 
 ## Boundaries
@@ -157,8 +157,9 @@ curator-provided ATCC 25557 FASTA is not available. It uses the archived
 v0.5.0 16-record NCBI Assembly strict delivery accessions plus a tiny synthetic
 `F. mortiferum` ATCC 25557 FASTA fixture.
 
-This fixture is not biological evidence and is not a real ATCC Genome Portal
-download. It exists only to verify the implemented contracts:
+This fixture is workflow validation only. It is not biological evidence or real
+ATCC genome evidence. It is not a real ATCC Genome Portal download. It exists
+only to verify the implemented contracts:
 
 - external registration can append a reviewed external registered genome row;
 - `assembly_accession` stays empty for the external record;

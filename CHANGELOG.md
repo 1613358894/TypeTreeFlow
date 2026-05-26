@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Clarified v0.8.0 planning, external workflow, and provider-automation
+  boundaries so ATCC/provider automation remains out of scope.
+- Added real `F. mortiferum` external pilot template documentation for local
+  curator-provided FASTA evidence packages without committing restricted data.
+- Tightened completion audit and report wording so external-inclusive 17/17
+  readiness is not confused with NCBI Assembly strict 17/17 completion.
+
 ## 0.7.0 - 2026-05-25
 
 - Added an explicit `--write-completion-audit` workflow for local
@@ -17,7 +24,7 @@
   consumption boundary for completion audit outputs.
 - Added a `Fusobacterium mortiferum` external registered genome pilot procedure
   for curator-run external-inclusive 17/17 evaluation without claiming 17/17
-  NCBI completion.
+  NCBI Assembly strict completion.
 - Note: v0.7.0 does not automate ATCC Genome Portal or any other provider
   portal.
 
@@ -61,14 +68,15 @@
 - Added source audit policy for genome and same-genome 16S provenance.
 - Added manual curator evidence workflow and review templates.
 - Added Fusobacterium strict NCBI type-strain delivery case study support.
-- Documented Fusobacterium strict NCBI completion as 16/17 correct-valid LPSN
-  species, with F. mortiferum remaining outside the current high-confidence
-  NCBI Assembly workflow.
+- Documented Fusobacterium strict NCBI Assembly completion as 16/17
+  correct-valid LPSN species, with F. mortiferum remaining outside the current
+  high-confidence NCBI Assembly workflow.
 - Note: External ATCC Genome Portal ingestion is not implemented in v0.5.0.
 - Note: External registered type genomes are not represented as NCBI
   `assembly_accession` values in v0.5.0 and need separate provenance/status
   fields in a future design.
-- Note: v0.5.0 does not claim Fusobacterium 17/17 NCBI completion.
+- Note: v0.5.0 does not claim Fusobacterium 17/17 NCBI Assembly strict
+  completion.
 - Note: External type-genome ingestion should be designed separately for a
   later release.
 

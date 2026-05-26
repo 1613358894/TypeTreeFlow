@@ -130,7 +130,8 @@ External-inclusive strict completion: 17/17
 ```
 
 The labels must be preserved in generated summaries. The external-inclusive
-metric is a mixed-provenance readiness metric, not an NCBI completion claim.
+metric is a mixed-provenance readiness metric, not an NCBI Assembly strict
+completion claim.
 
 For the redistributable `examples/fusobacterium_external_pilot/` package, the
 17/17 external-inclusive result is a workflow fixture result only. Its

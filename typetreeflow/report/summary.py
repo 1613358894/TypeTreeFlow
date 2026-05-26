@@ -639,6 +639,11 @@ def build_run_summary_markdown(
                     "- External-inclusive strict completion: "
                     f"{external_inclusive_complete_count}/{expected_species_count}"
                 ),
+                (
+                    "External-inclusive strict completion is a mixed-provenance "
+                    "readiness metric and does not change NCBI Assembly strict "
+                    "completion."
+                ),
                 f"- Missing genome evidence: {missing_count}",
                 f"- Conflicts requiring review: {conflict_count}",
             ]

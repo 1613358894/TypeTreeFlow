@@ -209,11 +209,11 @@ the type strain.
 `--write-completion-audit` writes
 `source_audit/completion_audit.tsv` and
 `source_audit/completion_summary.tsv` from `--species-checklist` and an
-existing `manifest.tsv`. These files compare NCBI strict type-strain
-completion with strict completion including external registered genomes while
-preserving the boundary that external registered genomes do not change
-NCBI-only completion counts. The stage is local and does not contact external
-providers or generate reports by itself.
+existing `manifest.tsv`. These files compare NCBI Assembly strict completion
+with external-inclusive strict completion while preserving the boundary that
+external registered genomes do not change NCBI Assembly strict completion
+counts. The stage is local and does not contact external providers or generate
+reports by itself.
 
 ## Download Artifacts
 

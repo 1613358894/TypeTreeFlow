@@ -19,9 +19,21 @@ move, archive, or deletion.
   TSV contract for user-supplied species checklist auditing.
 - [completion_audit.md](completion_audit.md): Implemented local
   mixed-provenance completion audit outputs and split completion metrics.
+- [external_workflow_cookbook.md](external_workflow_cookbook.md): Short
+  user-facing workflow for manual external FASTA registration, synthetic
+  fixture validation, real local `F. mortiferum` evidence packages, completion
+  audit, and report-only review.
+- [fusobacterium_real_pilot_template.md](fusobacterium_real_pilot_template.md):
+  Curator template for a local real `F. mortiferum` ATCC 25557 external pilot
+  evidence package without committing real FASTA, provider artifacts, or
+  credentials.
 
 ## Active designs
 
+- [v0_8_0_implementation_plan.md](v0_8_0_implementation_plan.md): Planning
+  document for a possible v0.8.0 hardening and validation release. It keeps
+  manual external registration and mixed-provenance completion audit in scope,
+  and keeps ATCC/provider automation out of the v0.8.0 implementation boundary.
 - [lpsn_first_acquisition.md](lpsn_first_acquisition.md): Active detailed
   design and implementation-history note for the LPSN-first acquisition route.
   The current behavior is authoritative where it matches README and contract
@@ -36,10 +48,10 @@ move, archive, or deletion.
   external-inclusive strict completion metric reach 17/17 while preserving
   16/17 NCBI Assembly strict completion.
 - [provider_automation_feasibility.md](provider_automation_feasibility.md):
-  Feasibility design for possible future external provider automation. It keeps
-  ATCC Genome Portal and similar portal automation off by default, recommends
-  user-assisted download plus manual registration, and defines gates before any
-  provider adapter can move to implementation.
+  Feasibility design for possible v0.9.0+ or experimental external provider
+  automation. It keeps ATCC Genome Portal and similar portal automation off by
+  default, recommends user-assisted download plus manual registration, and
+  defines gates before any provider adapter can move to implementation.
 
 ## Operational and release docs
 

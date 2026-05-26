@@ -193,10 +193,10 @@ Completion audits are written by `--write-completion-audit` to
 
 The same table writes these values in `completion_status`:
 
-- `complete_ncbi`: Species counts toward NCBI strict completion and
+- `complete_ncbi`: Species counts toward NCBI Assembly strict completion and
   external-inclusive strict completion.
-- `complete_external_registered`: Species counts only toward strict completion
-  including external registered genomes.
+- `complete_external_registered`: Species counts only toward
+  external-inclusive strict completion.
 - `missing_genome`: Species has no accepted genome backing.
 - `conflict`: Completion evidence is contradictory, duplicated, or points to
   incompatible genome records. The current writer uses this for checklist
