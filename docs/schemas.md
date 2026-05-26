@@ -11,6 +11,93 @@ not reuse NCBI `assembly_accession`; external manifest records keep
 `assembly_accession` empty and preserve external provenance in source/status
 fields and notes.
 
+## provider_request.tsv
+
+Curator-authored provider planning input for the v0.9.0 provider adapter spike.
+It is a request table only: it does not authorize login, scraping, browser
+automation, terms click-through, credential handling, provider downloads,
+manifest writes, name-map writes, NCBI download-plan writes, or FASTA
+installation. Credential-like schema fields such as cookie, token, password,
+secret, session, credential, or API-key columns are rejected.
+
+- `request_id`: stable local request identifier.
+- `species`: checklist species represented by the requested genome.
+- `strain`: strain label for the requested genome.
+- `type_strain_id`: normalized type-strain or deposit identifier.
+- `provider`: stable short provider key, such as `atcc_genome_portal`.
+- `provider_name`: human-readable provider name.
+- `provider_record_id`: provider-native record identifier, if known.
+- `provider_record_url`: citable provider record URL, if known and permitted.
+- `provider_artifact_id`: provider-native artifact or asset identifier, if known.
+- `provider_artifact_version`: provider artifact version or release text, if known.
+- `artifact_type`: expected artifact type; `genome_fasta` and `normalized_genome_fasta` can be proposed directly, while other values require manual review.
+- `local_fasta_path`: optional curator-supplied local FASTA path; it is not copied or validated by provider planning.
+- `local_sha256`: optional SHA-256 for the local FASTA; it is not checked by provider planning.
+- `terms_review_status`: one of `not_reviewed`, `reviewed_allowed`, `reviewed_restricted`, or `unknown`.
+- `license_notes`: curator notes about allowed local analysis, redistribution, retention, citation, and derivative-use constraints.
+- `retrieval_date`: date the curator obtained or inspected the artifact, when applicable.
+- `is_type_material`: boolean type-material assertion.
+- `requires_manual_review`: boolean review flag.
+- `curator`: optional reviewer name or initials.
+- `notes`: free-text request notes.
+
+## provider_registration_plan.tsv
+
+Dry-run-only provider planning output. Each row describes whether a provider
+request has enough provenance to become a proposed external registration row
+and why it still needs review. Provider planning always writes
+`network_action=none`, `download_action=none`, `credential_action=none`,
+`manifest_action=none`, and `ncbi_download_plan_action=none`.
+
+- `request_id`: copied from `provider_request.tsv`.
+- `species`: copied from the request.
+- `strain`: copied from the request.
+- `type_strain_id`: copied from the request.
+- `provider`: copied from the request.
+- `provider_name`: copied from the request.
+- `provider_record_id`: copied from the request.
+- `provider_record_url`: copied from the request.
+- `provider_artifact_id`: copied from the request.
+- `provider_artifact_version`: copied from the request.
+- `artifact_type`: copied from the request.
+- `status`: one of `provider_plan_ready_for_review`, `provider_plan_manual_review_required`, `provider_plan_missing_required_field`, `provider_plan_terms_review_required`, `provider_plan_credentials_not_supported`, or `provider_plan_download_not_supported`.
+- `planned_action`: planning-only action such as `propose_external_registration`, `needs_curator_review`, or `missing_terms_review`.
+- `network_action`: always `none` in phase one.
+- `download_action`: always `none` in phase one.
+- `credential_action`: always `none` in phase one.
+- `manifest_action`: always `none`.
+- `ncbi_download_plan_action`: always `none`.
+- `eligible_for_proposed_external_genomes`: boolean indicating whether a proposal row can be emitted.
+- `missing_fields`: semicolon-delimited missing request evidence.
+- `blocking_reasons`: semicolon-delimited reasons the row cannot become an installable external registration yet.
+- `manual_review_required`: boolean review flag for the plan row.
+- `terms_review_status`: copied from the request.
+- `license_notes`: copied from the request.
+- `proposed_external_genomes_status`: status that will be placed on the proposed external row.
+- `notes`: dry-run and curator-review diagnostics.
+
+## proposed_external_genomes.tsv
+
+Provider planning proposal output in the same shape as `external_genomes.tsv`.
+It is not consumed automatically, does not validate or copy FASTA files, and
+does not write `manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`, or
+`cache/ncbi/download_plan.tsv`. Provider-native IDs remain in
+`external_genome_id` and must not be written to `assembly_accession`.
+
+- `species`: checklist species represented by the proposed external genome.
+- `strain`: strain label for the proposed external genome.
+- `type_strain_id`: type-strain deposit identifier or equivalence identifier.
+- `external_source`: provider key from `provider_request.tsv`.
+- `external_source_name`: provider name from `provider_request.tsv`.
+- `external_genome_id`: provider-native record or artifact identifier, not an assembly accession.
+- `external_source_url`: citable provider record URL, if known and permitted.
+- `genome_fasta_path`: curator-supplied local FASTA path, when provided; otherwise blank.
+- `sha256`: curator-supplied local SHA-256, when provided; otherwise blank.
+- `is_type_material`: boolean type-material flag copied from the request.
+- `requires_manual_review`: boolean review flag derived from the request and plan.
+- `status`: usually `external_genome_manual_review_required`; can be `external_genome_registered` only when local path, checksum, type-material assertion, and reviewed allowed terms are supplied.
+- `notes`: request ID, provider artifact/version details, retrieval date, terms status, license notes, curator, and request notes.
+
 ## external_genomes.tsv
 
 Standalone registration table for externally obtained type-genome FASTA files.

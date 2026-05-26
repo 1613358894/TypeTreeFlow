@@ -147,8 +147,9 @@ Draft fields:
   known.
 - `provider_artifact_version`: provider artifact version or release text, if
   known.
-- `expected_artifact_type`: expected artifact type, such as `fasta`, `zip`, or
-  `unknown`.
+- `artifact_type`: expected artifact type. Phase-one values that can map
+  directly to proposed external genome rows are `genome_fasta` and
+  `normalized_genome_fasta`; other values require manual review.
 - `local_fasta_path`: optional curator-supplied local FASTA path.
 - `local_sha256`: optional SHA-256 for the local FASTA.
 - `terms_review_status`: `not_reviewed`, `reviewed_allowed`,
@@ -182,7 +183,14 @@ Draft fields:
 - `provider_record_url`
 - `provider_artifact_id`
 - `provider_artifact_version`
-- `expected_artifact_type`
+- `artifact_type`
+- `status`: phase-one provider planning status, one of
+  `provider_plan_ready_for_review`,
+  `provider_plan_manual_review_required`,
+  `provider_plan_missing_required_field`,
+  `provider_plan_terms_review_required`,
+  `provider_plan_credentials_not_supported`, or
+  `provider_plan_download_not_supported`.
 - `planned_action`: phase-one values should be planning-only, such as
   `propose_external_registration`, `needs_curator_review`,
   `missing_local_fasta`, `missing_terms_review`, or
@@ -352,7 +360,7 @@ Future implementation tests, when code is explicitly approved:
 - require `--dry-run` for `--plan-provider-registration`;
 - write deterministic `provider_registration_plan.tsv`;
 - write deterministic `proposed_external_genomes.tsv`;
-- assert every phase-one action column is `none`;
+- assert every phase-one provider action column is `none`;
 - assert no `manifest.tsv`, `name_map.tsv`, `cache/ncbi/download_plan.tsv`, or
   installed FASTA file is created;
 - assert provider IDs never populate `assembly_accession`;

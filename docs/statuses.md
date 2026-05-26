@@ -10,6 +10,21 @@ independent provenance/status fields rather than overloading NCBI
 successful or skipped-existing external install results after CLI registration
 converts them into external registered genome manifest records.
 
+## Provider Registration Planning
+
+These statuses are written to `provider_registration_plan.tsv` by the
+dry-run-only provider adapter spike. They are planning statuses only: they do
+not represent provider access, provider download, FASTA validation, manifest
+registration, name-map updates, NCBI download planning, or NCBI Assembly
+completion.
+
+- `provider_plan_ready_for_review`: Required request fields are present, terms are marked `reviewed_allowed`, the artifact type can map to a proposed external genome row, and the row is ready for curator review.
+- `provider_plan_manual_review_required`: The request is readable but needs curator review, commonly because the artifact type is not `genome_fasta` or `normalized_genome_fasta`.
+- `provider_plan_missing_required_field`: A required request value or provider-native external genome identifier is missing.
+- `provider_plan_terms_review_required`: Terms or license review is absent, unknown, or restricted, so the request cannot be marked ready.
+- `provider_plan_credentials_not_supported`: Credential-bearing provider planning is out of scope; credential-like TSV schema fields are rejected before planning.
+- `provider_plan_download_not_supported`: Provider artifact download is out of scope for the phase-one spike.
+
 ## External Genome Registration
 
 These statuses are supported by the standalone `external_genomes.tsv` schema
