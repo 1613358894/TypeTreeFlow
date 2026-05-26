@@ -4,6 +4,8 @@ from pathlib import Path
 import pytest
 
 from typetreeflow import cli
+from typetreeflow.manifest import write_manifest
+from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
 
@@ -170,6 +172,45 @@ def test_plan_provider_registration_example_fixture_smoke(tmp_path):
     assert not (outdir / "manifest.tsv").exists()
     assert not (outdir / "name_map.tsv").exists()
     assert not (outdir / "cache" / "ncbi" / "download_plan.tsv").exists()
+    assert not (outdir / "external_genomes.tsv").exists()
+    assert not paths.external_genome_registration_results_path.exists()
+    assert not paths.external_genome_install_plan_path.exists()
+    assert not paths.external_genome_install_results_path.exists()
+    assert not paths.genomes_references_dir.exists()
+
+    # Report-only still requires an existing manifest; provider planning must not create it.
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="existing",
+                canonical_name="Examplegenus alpha",
+                display_name="Examplegenus alpha EXAMPLE 1",
+                genus="Examplegenus",
+                species="alpha",
+                strain="EXAMPLE 1",
+                is_type_material=True,
+                normalized_id="existing",
+                status="selected",
+            )
+        ],
+        paths.manifest,
+    )
+
+    report_result = cli.main(["--outdir", str(outdir), "--report-only"])
+
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert report_result == 0
+    assert "## Provider Registration Planning" in summary
+    assert "- Total provider requests: 1" in summary
+    assert "- Proposed external genomes count: 1" in summary
+    assert "report-only mode does not trigger provider planning" in summary
+    assert not (outdir / "name_map.tsv").exists()
+    assert not (outdir / "cache" / "ncbi" / "download_plan.tsv").exists()
+    assert not (outdir / "external_genomes.tsv").exists()
+    assert not paths.external_genome_registration_results_path.exists()
+    assert not paths.external_genome_install_plan_path.exists()
+    assert not paths.external_genome_install_results_path.exists()
+    assert not paths.genomes_references_dir.exists()
 
 
 def test_plan_provider_registration_missing_required_field_writes_review_plan(

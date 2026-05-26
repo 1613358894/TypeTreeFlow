@@ -15,6 +15,10 @@ A minimal synthetic provider planning fixture is available at
 `provider_registration_plan.tsv` and `proposed_external_genomes.tsv` output
 generation only; it is provider-neutral and is not provider automation,
 provider download, login, scraping, credential handling, or terms acceptance.
+Synthetic smoke coverage now exercises this fixture through provider planning
+and report-only summary consumption while asserting that no manifest,
+name-map, NCBI download-plan, or external registration install outputs are
+created by provider planning.
 
 v0.9.0 should not be treated as an ATCC automated-download release. The
 recommended spike is a provider-neutral adapter boundary that can turn
