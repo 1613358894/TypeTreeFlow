@@ -40,6 +40,15 @@ For real provider data, the curator must confirm that terms and license allow
 local analysis. Do not commit the real FASTA, restricted provider bundles, or
 non-redistributable evidence packages.
 
+Provider planning outputs can help prepare this manual path. A curator may
+review `provider/proposed_external_genomes.tsv`, supply or correct the local
+FASTA path, checksum, type-material assertion, and terms/license notes, then
+copy the reviewed rows into a local `external_genomes.tsv` for the existing
+manual registration command. TypeTreeFlow does not automatically copy
+`proposed_external_genomes.tsv` to `external_genomes.tsv`, does not start
+external registration from provider planning, and does not treat review-required
+proposal rows as install-ready.
+
 ## Scenario 1: Synthetic Fixture
 
 From the repository root, run the bundled fixture:

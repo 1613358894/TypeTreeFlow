@@ -2,6 +2,12 @@ from pathlib import Path
 
 import pytest
 
+from typetreeflow.external_genomes import (
+    EXTERNAL_GENOME_FIELDS,
+    calculate_sha256,
+    read_external_genomes,
+    validate_external_genome_records,
+)
 from typetreeflow.provider_plan import (
     PROVIDER_REGISTRATION_PLAN_FIELDS,
     PROVIDER_REQUEST_FIELDS,
@@ -58,6 +64,10 @@ def _write_provider_request(path: Path, **overrides) -> Path:
         + "\t".join(values[field] for field in PROVIDER_REQUEST_FIELDS)
         + "\n",
     )
+
+
+def _fasta(path: Path, text: str = ">seq1\nACGT\n") -> Path:
+    return _write(path, text)
 
 
 def test_valid_request_builds_plan_and_proposed_rows(tmp_path):
@@ -200,3 +210,66 @@ def test_writers_only_create_requested_provider_outputs(tmp_path):
     assert not (tmp_path / "external_genomes.tsv").exists()
     assert not (tmp_path / "cache" / "ncbi" / "download_plan.tsv").exists()
     assert not (tmp_path / "genomes" / "references").exists()
+
+
+def test_proposed_external_genomes_header_matches_external_schema():
+    assert PROPOSED_EXTERNAL_GENOME_FIELDS == EXTERNAL_GENOME_FIELDS
+
+
+def test_ready_provider_proposal_can_be_read_as_external_genome_input(tmp_path):
+    fasta = _fasta(tmp_path / "local_evidence" / "synthetic.fna")
+    checksum = calculate_sha256(fasta)
+    request_path = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_fasta_path=str(fasta),
+        local_sha256=checksum,
+        requires_manual_review="false",
+    )
+    _, proposed_rows = plan_provider_registration(read_provider_requests(request_path))
+    proposed_path = write_proposed_external_genomes(
+        proposed_rows,
+        tmp_path / "provider" / "proposed_external_genomes.tsv",
+    )
+
+    parsed = read_external_genomes(proposed_path)
+    validation = validate_external_genome_records(parsed)
+
+    assert len(parsed) == 1
+    assert parsed[0].external_source == "synthetic_provider"
+    assert parsed[0].genome_fasta_path == str(fasta)
+    assert parsed[0].sha256 == checksum
+    assert parsed[0].requires_manual_review is False
+    assert parsed[0].status == "external_genome_registered"
+    assert validation[0].valid is True
+    assert validation[0].status == "external_genome_registered"
+    assert not (tmp_path / "external_genomes.tsv").exists()
+    assert not (tmp_path / "manifest.tsv").exists()
+    assert not (tmp_path / "name_map.tsv").exists()
+
+
+def test_review_required_provider_proposal_is_not_install_ready(tmp_path):
+    fasta = _fasta(tmp_path / "local_evidence" / "synthetic_review.fna")
+    checksum = calculate_sha256(fasta)
+    request_path = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_fasta_path=str(fasta),
+        local_sha256=checksum,
+        requires_manual_review="true",
+    )
+    _, proposed_rows = plan_provider_registration(read_provider_requests(request_path))
+    proposed_path = write_proposed_external_genomes(
+        proposed_rows,
+        tmp_path / "provider" / "proposed_external_genomes.tsv",
+    )
+
+    parsed = read_external_genomes(proposed_path)
+    validation = validate_external_genome_records(parsed)
+
+    assert parsed[0].requires_manual_review is True
+    assert parsed[0].status == "external_genome_manual_review_required"
+    assert validation[0].valid is False
+    assert validation[0].status == "external_genome_manual_review_required"
+    assert "manual review" in validation[0].message
+    assert not (tmp_path / "external_genomes.tsv").exists()
+    assert not (tmp_path / "manifest.tsv").exists()
+    assert not (tmp_path / "name_map.tsv").exists()

@@ -277,7 +277,9 @@ download or copy FASTA files, write `external_genomes.tsv`, `manifest.tsv`,
 `name_map.tsv`, or create `cache/ncbi/download_plan.tsv`. Existing provider
 planning outputs require `--force` to overwrite. The bundled minimal provider
 request is synthetic and provider-neutral; it validates reviewable plan and
-proposal outputs only, not provider automation.
+proposal outputs only, not provider automation. If a curator accepts proposed
+rows, the handoff is manual: prepare a local `external_genomes.tsv` and run the
+existing external registration workflow explicitly.
 
 Install reviewed external genome FASTA files:
 

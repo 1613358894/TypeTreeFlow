@@ -104,6 +104,31 @@ Minimum contract:
 The adapter should be deterministic from its input TSV. It should be safe to
 run in CI using synthetic or placeholder provider records.
 
+## Manual Handoff Boundary
+
+`proposed_external_genomes.tsv` intentionally uses the same field order as
+`external_genomes.tsv` so that curator-reviewed proposal rows can be reused by
+the existing manual external registration workflow. Schema compatibility is not
+an automatic handoff. TypeTreeFlow writes the proposal only under
+`provider/`, never as `external_genomes.tsv`, and it does not launch external
+registration from provider planning.
+
+The handoff is a curator action:
+
+```text
+provider/proposed_external_genomes.tsv
+  -> human review of provenance, terms, local FASTA path, checksum, and type-material evidence
+  -> curator-prepared local external_genomes.tsv
+  -> typetreeflow --register-external-genomes ... [--dry-run]
+```
+
+A proposal row can be read by the external genome reader only after the curator
+has supplied a local FASTA path and checksum. Rows that keep
+`requires_manual_review=true` or `status=external_genome_manual_review_required`
+remain review evidence, not install-ready registration rows. The external
+registration validator remains the boundary that decides whether a local FASTA
+row is valid enough to install and merge into a manifest.
+
 ## Minimal CLI/API Shape
 
 The planned CLI shape is intentionally narrow:
