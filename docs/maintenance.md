@@ -75,6 +75,36 @@ surfaces:
 If a change touches multiple surfaces, prefer one small update per affected
 contract over repeating the same narrative in several files.
 
+## Commit and CI hygiene
+
+Use one focused commit per behavior, test, documentation, release, or
+maintenance topic. Commit subjects should use one of these prefixes:
+
+- `release:`
+- `feat:`
+- `fix:`
+- `test:`
+- `docs:`
+- `chore:`
+- `ci:`
+
+Release commits use this exact subject format:
+
+```text
+release: vX.Y.Z
+```
+
+Tests must not depend on ignored or local-only paths such as `data/`,
+`results/`, `.pytest_tmp/`, `build/`, `.dist_test/`,
+`typetreeflow.egg-info/`, `output_*`, or `phase*`. Default tests must not
+require network access or external bioinformatics tools.
+
+Before pushing, run at least the focused tests that cover the changed area.
+Before releasing, follow `docs/release_checklist.md`. If `main` CI fails after
+a push, fix it with a follow-up commit by default instead of rewriting history.
+Before considering `main` healthy, confirm the latest `main` CI run succeeded
+and that its `headSha` matches the intended `main` commit.
+
 ## AI agent rules
 
 - Make small, reviewable documentation updates.

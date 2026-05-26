@@ -23,6 +23,7 @@ pytest -p no:cacheprovider --basetemp .pytest_tmp
 ## Pull request expectations
 
 - Keep changes focused on one behavior or documentation area.
+- Follow the commit and CI hygiene rules in `docs/maintenance.md`.
 - Add or update tests for behavior changes.
 - Update `README.md`, `docs/`, or `CHANGELOG.md` when user-visible behavior
   changes.
