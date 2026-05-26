@@ -15,6 +15,9 @@ typetreeflow_out/
   external_genome_registration_results.tsv
   external_genome_install_plan.tsv
   external_genome_install_results.tsv
+  provider/
+    provider_registration_plan.tsv
+    proposed_external_genomes.tsv
   manifest.tsv
   name_map.tsv
   cache/
@@ -90,6 +93,13 @@ files or reports.
 run directory unless the user chooses to place it there. TypeTreeFlow reads
 local FASTA paths from that table only; it does not log in to, scrape, or
 download from external provider portals.
+`--plan-provider-registration PATH` reads a curator-authored
+`provider_request.tsv` and writes only `provider/provider_registration_plan.tsv`
+and `provider/proposed_external_genomes.tsv`. This command is dry-run-only
+whether or not `--dry-run` is supplied. It does not log in, contact provider
+portals, download provider artifacts, copy FASTA files, write
+`external_genomes.tsv`, write `manifest.tsv`, write `name_map.tsv`, or create
+`cache/ncbi/download_plan.tsv`.
 If `manifest.tsv` already exists, non-dry-run registration requires either
 `--force` or `--merge-manifest`. `--force` overwrites the manifest with the
 external registration manifest. `--merge-manifest` reads the existing manifest,
@@ -214,6 +224,11 @@ with external-inclusive strict completion while preserving the boundary that
 external registered genomes do not change NCBI Assembly strict completion
 counts. The stage is local and does not contact external providers or generate
 reports by itself.
+
+`provider/provider_registration_plan.tsv` and
+`provider/proposed_external_genomes.tsv` are review-only provider planning
+outputs. Existing provider planning files are protected unless `--force` is
+supplied.
 
 ## Download Artifacts
 

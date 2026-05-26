@@ -54,6 +54,9 @@ class OutputPaths:
     external_genome_registration_results_path: Path
     external_genome_install_plan_path: Path
     external_genome_install_results_path: Path
+    provider_dir: Path
+    provider_registration_plan_path: Path
+    proposed_external_genomes_path: Path
 
 
 def get_output_paths(outdir: str | Path) -> OutputPaths:
@@ -117,4 +120,11 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         external_genome_install_plan_path=root / "external_genome_install_plan.tsv",
         external_genome_install_results_path=root
         / "external_genome_install_results.tsv",
+        provider_dir=root / "provider",
+        provider_registration_plan_path=root
+        / "provider"
+        / "provider_registration_plan.tsv",
+        proposed_external_genomes_path=root
+        / "provider"
+        / "proposed_external_genomes.tsv",
     )

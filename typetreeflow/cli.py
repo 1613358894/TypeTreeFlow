@@ -58,6 +58,12 @@ from typetreeflow.manifest import (
 )
 from typetreeflow.naming import ensure_unique_names
 from typetreeflow.phylo.workflow import prepare_phylogeny
+from typetreeflow.provider_plan import (
+    plan_provider_registration,
+    read_provider_requests,
+    write_provider_registration_plan,
+    write_proposed_external_genomes,
+)
 from typetreeflow.report.summary import build_run_summary_markdown, write_run_summary
 from typetreeflow.rrna.assemble import assemble_all_16s, collect_reference_16s
 from typetreeflow.rrna.entrez_fallback import (
@@ -358,6 +364,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--plan-provider-registration",
+        type=Path,
+        help=(
+            "Read a curator-authored provider_request.tsv and write dry-run-only "
+            "provider/provider_registration_plan.tsv and "
+            "provider/proposed_external_genomes.tsv for review. Does not log in, "
+            "download, install FASTA files, or write manifest/name-map outputs."
+        ),
+    )
+    parser.add_argument(
         "--merge-manifest",
         action="store_true",
         help=(
@@ -465,6 +481,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         source_audit_policy=args.source_audit_policy,
         strains_per_species=args.strains_per_species,
         register_external_genomes=args.register_external_genomes,
+        plan_provider_registration=args.plan_provider_registration,
         merge_manifest=args.merge_manifest,
         resume=args.resume,
         force=args.force,
@@ -498,6 +515,9 @@ def main(
         if config.strains_per_species < 1:
             raise ValueError("--strains-per-species must be at least 1")
         paths = get_output_paths(config.outdir)
+        if config.plan_provider_registration is not None:
+            run_provider_registration_planning_stage(paths, config)
+            return 0
         if config.register_external_genomes is not None:
             return run_external_genome_registration_stage(paths, config)
         if config.acquire_genus is not None:
@@ -1533,6 +1553,47 @@ def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
     if any(result.status in problem_statuses for result in install_results):
         return 2
     return 0
+
+
+def run_provider_registration_planning_stage(paths, config: AppConfig) -> None:
+    output_paths = [
+        paths.provider_registration_plan_path,
+        paths.proposed_external_genomes_path,
+    ]
+    existing_outputs = [path for path in output_paths if path.exists()]
+    if existing_outputs and not config.force:
+        existing = ", ".join(str(path) for path in existing_outputs)
+        raise ValueError(
+            "Provider planning output already exists: "
+            f"{existing}; use --force to overwrite provider planning outputs."
+        )
+
+    requests = read_provider_requests(config.plan_provider_registration)
+    plan_rows, proposed_rows = plan_provider_registration(requests)
+    plan_path = write_provider_registration_plan(
+        plan_rows,
+        paths.provider_registration_plan_path,
+    )
+    proposed_path = write_proposed_external_genomes(
+        proposed_rows,
+        paths.proposed_external_genomes_path,
+    )
+    LOGGER.info(
+        "Wrote provider registration plan: %s (%d request row(s)).",
+        plan_path,
+        len(plan_rows),
+    )
+    LOGGER.info(
+        "Wrote proposed external genomes: %s (%d proposal row(s)).",
+        proposed_path,
+        len(proposed_rows),
+    )
+    LOGGER.info(
+        "Provider registration planning is dry-run-only; no provider login, "
+        "network access, downloads, FASTA installation, manifest writes, "
+        "name-map writes, external_genomes.tsv writes, or NCBI download-plan "
+        "writes were performed."
+    )
 
 
 def run_selection_dry_run_stage(paths, config: AppConfig) -> list:

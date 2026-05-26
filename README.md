@@ -50,6 +50,10 @@ scrape, purchase, or download from external portals, and does not treat
 - Register manually reviewed external genome FASTA files into
   `genomes/references/`, `manifest.tsv`, and `name_map.tsv` without using NCBI
   assembly accessions.
+- Plan provider registration proposals from curator-authored
+  `provider_request.tsv` files as dry-run-only review outputs under
+  `provider/`, without logging in, downloading, installing FASTA files, or
+  writing manifests.
 - Keep NCBI Assembly completion separate from external-inclusive completion;
   external registered genomes can improve local downstream readiness without
   changing NCBI-only completion counts.
@@ -248,6 +252,29 @@ Relative `genome_fasta_path` values are resolved relative to the TSV location.
 Manual registration assumes the curator has already obtained any external FASTA
 through permitted means outside TypeTreeFlow. The CLI does not log in to,
 scrape, purchase from, or download from external provider portals.
+
+Provider registration planning dry run:
+
+```bash
+typetreeflow \
+  --plan-provider-registration provider_request.tsv \
+  --outdir results/provider_spike
+```
+
+Minimal synthetic provider planning fixture:
+
+```bash
+python typetreeflow.py --plan-provider-registration examples/provider_request_minimal.tsv --outdir results/provider_plan_minimal --force
+```
+
+This writes `provider/provider_registration_plan.tsv` and
+`provider/proposed_external_genomes.tsv` for curator review. The command is
+dry-run-only even without `--dry-run`; it does not contact provider portals,
+download or copy FASTA files, write `external_genomes.tsv`, `manifest.tsv`,
+`name_map.tsv`, or create `cache/ncbi/download_plan.tsv`. Existing provider
+planning outputs require `--force` to overwrite. The bundled minimal provider
+request is synthetic and provider-neutral; it validates reviewable plan and
+proposal outputs only, not provider automation.
 
 Install reviewed external genome FASTA files:
 
@@ -475,6 +502,8 @@ top-level paths are:
 - `candidates/`: assembly candidates and diagnostics.
 - `selection/`: generated and curator-edited selection TSVs.
 - `source_audit/`: genome/16S and culture collection source audit rows.
+- `provider/`: dry-run-only provider registration plans and proposed external
+  genome rows.
 - `cache/ncbi/`: NCBI download plans, discovery caches, and lookup caches.
 - `genomes/references/`: installed genome FASTA references.
 - `rrna/`: 16S plans, extracted sequences, and Entrez fallback outputs.

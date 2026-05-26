@@ -2,10 +2,17 @@
 
 ## Status
 
-Planning document only. No v0.9.0 code, CLI flag, provider downloader, ATCC
-Genome Portal integration, login flow, scraping flow, browser automation,
-credential handling, manifest-writing path, release tag, or provider artifact
-download is implemented by this document.
+Provider planning schema/API and a dry-run-only CLI planning entry point are
+implemented. No provider downloader, ATCC Genome Portal integration, login
+flow, scraping flow, browser automation, credential handling,
+manifest-writing path, release tag, or provider artifact download is
+implemented by this document.
+
+A minimal synthetic provider planning fixture is available at
+`examples/provider_request_minimal.tsv`. It validates reviewable
+`provider_registration_plan.tsv` and `proposed_external_genomes.tsv` output
+generation only; it is provider-neutral and is not provider automation,
+provider download, login, scraping, credential handling, or terms acceptance.
 
 v0.9.0 should not be treated as an ATCC automated-download release. The
 recommended spike is a provider-neutral adapter boundary that can turn
@@ -100,15 +107,16 @@ run in CI using synthetic or placeholder provider records.
 The planned CLI shape is intentionally narrow:
 
 ```text
-typetreeflow --plan-provider-registration provider_request.tsv --outdir results/provider_spike --dry-run
+typetreeflow --plan-provider-registration provider_request.tsv --outdir results/provider_spike
 ```
 
 Expected phase-one behavior:
 
-- require `--dry-run`;
+- behave as dry-run-only planning even when `--dry-run` is not supplied;
+- accept `--dry-run` with identical behavior;
 - reject any command that attempts real provider network access;
-- write `provider_registration_plan.tsv`;
-- write `proposed_external_genomes.tsv` when rows can be represented as
+- write `provider/provider_registration_plan.tsv`;
+- write `provider/proposed_external_genomes.tsv` when rows can be represented as
   proposed external registrations;
 - never write `manifest.tsv`, `name_map.tsv`, `cache/ncbi/download_plan.tsv`,
   `external_genomes.tsv`, or installed FASTA files;
@@ -263,15 +271,14 @@ manifest or report state.
 Scope:
 
 - document the contract;
-- add TSV parsing and validation only when implementation is explicitly
-  approved in a later task;
+- add TSV parsing, validation, and a CLI dry-run planning entry point;
 - write reviewable plan and proposal outputs;
 - use synthetic fixtures only;
 - keep all provider actions as `none`.
 
 Acceptance:
 
-- `--plan-provider-registration` requires `--dry-run`;
+- `--plan-provider-registration` is dry-run-only whether or not `--dry-run` is supplied;
 - no network calls, browser actions, login, credential access, or downloads are
   possible;
 - plan rows show `network_action=none`, `download_action=none`,
@@ -329,6 +336,9 @@ registration.
   automated-download release.
 - The provider-neutral contract is limited to reviewable planning outputs and
   proposed external registration rows.
+- The `--plan-provider-registration` CLI dry-run planning entry point writes
+  `provider/provider_registration_plan.tsv` and
+  `provider/proposed_external_genomes.tsv`.
 - Phase one is dry-run-only and performs no network access, login, scraping,
   terms acceptance, credential handling, downloads, or manifest writes.
 - `provider_request.tsv`, `provider_registration_plan.tsv`, and
@@ -357,7 +367,8 @@ Future implementation tests, when code is explicitly approved:
 
 - parse a minimal `provider_request.tsv` with synthetic provider records;
 - reject malformed required fields;
-- require `--dry-run` for `--plan-provider-registration`;
+- verify `--plan-provider-registration` is dry-run-only with or without
+  `--dry-run`;
 - write deterministic `provider_registration_plan.tsv`;
 - write deterministic `proposed_external_genomes.tsv`;
 - assert every phase-one provider action column is `none`;

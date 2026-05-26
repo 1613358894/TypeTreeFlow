@@ -53,6 +53,7 @@ class AppConfig:
     source_audit_policy: str
     strains_per_species: int
     register_external_genomes: Path | None
+    plan_provider_registration: Path | None
     merge_manifest: bool
     resume: bool
     force: bool
