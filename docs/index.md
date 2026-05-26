@@ -33,8 +33,8 @@ move, archive, or deletion.
 - [fusobacterium_external_pilot.md](fusobacterium_external_pilot.md):
   Curator-facing pilot procedure for evaluating whether a manually registered
   `F. mortiferum` external type genome can make the `Fusobacterium`
-  external-inclusive completion metric reach 17/17 while preserving 16/17
-  strict NCBI completion.
+  external-inclusive strict completion metric reach 17/17 while preserving
+  16/17 NCBI Assembly strict completion.
 
 ## Operational and release docs
 

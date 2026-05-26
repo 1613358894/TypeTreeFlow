@@ -4,13 +4,12 @@
 
 This pilot describes how a curator can evaluate whether a manually registered
 external type-genome FASTA for `Fusobacterium mortiferum` ATCC 25557 makes the
-`Fusobacterium` strict completion metric including external registered genomes
-reach 17/17.
+`Fusobacterium` external-inclusive strict completion metric reach 17/17.
 
-The pilot does not change strict NCBI completion. The strict NCBI Assembly
-workflow remains 16/17 unless an accepted NCBI `GCF_` or `GCA_` Assembly
-accession is selected for `F. mortiferum` through the normal strict NCBI
-evidence route.
+The pilot does not change NCBI Assembly strict completion. The NCBI Assembly
+strict workflow remains 16/17 unless an accepted NCBI `GCF_` or `GCA_`
+Assembly accession is selected for `F. mortiferum` through the normal strict
+NCBI evidence route.
 
 ## Preconditions
 
@@ -18,8 +17,8 @@ evidence route.
   FASTA through permitted manual means.
 - The curator has confirmed that the provider terms allow local analysis.
 - The FASTA file is kept local and is not committed to this repository.
-- The existing `Fusobacterium` manifest contains the 16 accepted strict NCBI
-  Assembly-backed records.
+- The existing `Fusobacterium` manifest contains the 16 accepted NCBI Assembly
+  strict records.
 - The `Fusobacterium` species checklist used for completion audit represents
   the expected 17-species scope.
 
@@ -105,8 +104,8 @@ does not create the completion audit.
 
 Expected pilot interpretation:
 
-- `NCBI strict type-strain completion` remains 16/17.
-- `Strict completion including external registered genomes` may become 17/17
+- `NCBI Assembly strict completion` remains 16/17.
+- `External-inclusive strict completion` may become 17/17
   if the registered ATCC 25557 genome is accepted by validation, manifest
   state, and the completion audit.
 - `report/summary.md` must describe 16 NCBI Assembly genomes plus 1 external
@@ -116,8 +115,8 @@ Expected pilot interpretation:
   accepted.
 
 Do not call a successful pilot result "17/17 NCBI completion". The correct
-wording is an external-inclusive strict completion result, with the NCBI-only
-metric still reported separately.
+wording is `external-inclusive strict completion: 17/17`, with
+`NCBI Assembly strict completion: 16/17` still reported separately.
 
 ## Boundaries
 
@@ -130,8 +129,8 @@ metric still reported separately.
 - Do not enter external provider identifiers in NCBI Assembly fields.
 - Do not commit proprietary, restricted, licensed, or otherwise non-redistributable
   FASTA files.
-- Do not change candidate discovery, strict NCBI selection, or NCBI Datasets
-  download behavior.
+- Do not change candidate discovery, NCBI Assembly strict selection, or NCBI
+  Datasets download behavior.
 
 ## Local Evidence Package
 

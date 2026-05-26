@@ -18,8 +18,9 @@ provider API integration are explicitly out of scope for v0.6.0.
 
 ## Motivation
 
-The v0.5.0 LPSN-first workflow can document strict NCBI type-strain completion
-separately from species that have type-genome evidence outside NCBI Assembly.
+The v0.5.0 LPSN-first workflow can document NCBI Assembly strict type-strain
+completion separately from species that have type-genome evidence outside NCBI
+Assembly.
 That distinction must remain stable. Some taxa may have a legitimate registered
 type genome available through a provider portal or collection source, while no
 curator-accepted NCBI `GCF_` or `GCA_` assembly is available.
@@ -85,7 +86,7 @@ were an NCBI assembly accession.
 v0.6.0 introduces an offline, curator-driven registration step:
 
 1. The user starts from a strict LPSN/checklist workflow and identifies a
-   species missing strict NCBI Assembly completion.
+   species missing NCBI Assembly strict completion.
 2. The curator obtains an external type-genome FASTA through permitted manual
    means outside TypeTreeFlow.
 3. The curator creates or supplies `external_genomes.tsv` with one row per
@@ -206,8 +207,8 @@ external registrations exist.
 Example:
 
 ```text
-NCBI strict type-strain completion: 16/17
-Strict completion including external registered genomes: 17/17
+NCBI Assembly strict completion: 16/17
+External-inclusive strict completion: 17/17
 ```
 
 The NCBI numerator counts only strict selected NCBI Assembly records with valid
@@ -268,8 +269,8 @@ Tests should focus on contract preservation and reporting clarity:
 - NCBI download plan excludes external-only records.
 - Manifest/report distinguish `NCBI Assembly` and
   `external registered genome`.
-- Completion metrics report NCBI strict completion and external-inclusive strict
-  completion separately.
+- Completion metrics report NCBI Assembly strict completion and
+  external-inclusive strict completion separately.
 - Barrnap/16S planning can see validated external registered FASTA paths from
   resume mode after registration.
 - Source audit rows for external registered genomes include provider/source
@@ -277,9 +278,9 @@ Tests should focus on contract preservation and reporting clarity:
 - Resume/report-only mode can read existing `external_genomes.tsv` without
   changing NCBI cache artifacts.
 
-Fixture cases should include at least one species with strict NCBI completion,
-one species completed only by external registration, and one species still
-missing a genome.
+Fixture cases should include at least one species with NCBI Assembly strict
+completion, one species completed only by external registration, and one
+species still missing a genome.
 
 ## Future Provider Automation
 

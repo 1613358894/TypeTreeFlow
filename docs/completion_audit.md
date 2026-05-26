@@ -12,17 +12,18 @@ Manual external registered genome support makes local downstream analysis
 possible for taxa that do not have curator-accepted NCBI Assembly-backed type
 strain completion. Completion reporting therefore needs two explicit metrics:
 
-- NCBI strict type-strain completion.
-- Strict completion including external registered genomes.
+- NCBI Assembly strict completion.
+- External-inclusive strict completion.
 
 These metrics must remain separate. An external registered genome can improve
-local downstream readiness, but it does not change NCBI strict completion.
+local downstream readiness, but it does not change NCBI Assembly strict
+completion.
 
 ## Scope
 
 The completion audit is a species-level source audit under `source_audit/`. It
-summarizes which expected checklist species are backed by a strict NCBI
-Assembly accession, which are backed only by a validated external registered
+summarizes which expected checklist species are backed by an NCBI Assembly
+strict accession, which are backed only by a validated external registered
 genome, which remain missing, and which need manual review because evidence is
 conflicting or ambiguous.
 
@@ -66,10 +67,10 @@ The command requires `--species-checklist` and an existing
 
 `completion_status` is the species-level audit outcome:
 
-- `complete_ncbi`: species counts toward NCBI strict completion and also toward
+- `complete_ncbi`: species counts toward NCBI Assembly strict completion and
+  also toward external-inclusive strict completion.
+- `complete_external_registered`: species counts only toward
   external-inclusive strict completion.
-- `complete_external_registered`: species counts only toward strict completion
-  including external registered genomes.
 - `missing_genome`: species has no accepted genome backing.
 - `conflict`: evidence is contradictory, duplicated, or points to incompatible
   genome records. The current writer emits this when both NCBI Assembly-backed
@@ -89,12 +90,12 @@ source_audit/completion_summary.tsv
 reviewability, not final taxonomic judgment.
 
 `completion_summary.tsv` is a compact metric table for reports and release
-checks. It includes separate counts for NCBI strict completion and strict
-completion including external registered genomes.
+checks. It includes separate counts for NCBI Assembly strict completion and
+external-inclusive strict completion.
 
 ## Counting Rules
 
-NCBI strict completion numerator:
+NCBI Assembly strict completion numerator:
 
 - Count only rows with `completion_status=complete_ncbi`.
 - Require `genome_evidence_scope=ncbi_assembly`.
