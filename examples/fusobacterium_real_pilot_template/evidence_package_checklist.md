@@ -30,6 +30,9 @@ real external evidence.
 
 ## Command Review
 
+- [ ] The selected output directory starts with the reviewed 16-record NCBI
+  Assembly strict `manifest.tsv`.
+- [ ] The completion audit uses the 17-species `Fusobacterium` checklist.
 - [ ] Dry-run registration completed.
 - [ ] `external_genome_registration_results.tsv` has no missing-file,
   checksum-mismatch, or manual-review-required row for ATCC 25557.

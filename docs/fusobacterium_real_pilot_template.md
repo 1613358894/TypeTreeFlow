@@ -56,15 +56,18 @@ or another local restricted-data directory outside tracked repository data.
 ## Minimal Workflow
 
 Prepare a local output directory that already has the 16 accepted NCBI Assembly
-strict `Fusobacterium` manifest rows. For a pilot package, the archived
-synthetic fixture manifest can be used only as a manifest-shape helper; the real
-ATCC evidence must come from the curator-provided FASTA and reviewed
-`external_genomes.tsv`.
+strict `Fusobacterium` manifest rows and use the 17-species `Fusobacterium`
+checklist for the completion audit. For a real evidence package, the 16-row
+manifest must come from an existing reviewed NCBI strict acquisition. The
+archived synthetic fixture manifest can be used only as a manifest-shape helper
+for command rehearsal; the real ATCC evidence must come from the
+curator-provided FASTA and reviewed `external_genomes.tsv`.
 
 ```powershell
 $out = "results/fusobacterium_external_pilot_real_local"
 New-Item -ItemType Directory -Force $out | Out-Null
-Copy-Item examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv "$out/manifest.tsv"
+# For real evidence, copy the reviewed 16-row NCBI strict manifest into:
+# "$out/manifest.tsv"
 ```
 
 Dry-run registration:

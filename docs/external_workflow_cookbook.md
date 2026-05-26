@@ -89,7 +89,7 @@ provenance, type-material, checksum, local-file, and terms/license review.
 
 Then run the same registration and audit shape against a completed
 `Fusobacterium` output directory that already contains the 16 accepted NCBI
-Assembly strict manifest rows:
+Assembly strict manifest rows, and audit against the 17-species checklist:
 
 ```powershell
 $out = "results/fusobacterium_external_pilot_real_local"
@@ -100,9 +100,9 @@ python typetreeflow.py --outdir $out --report-only
 ```
 
 If the 16-row NCBI strict manifest is in a different acquisition directory,
-copy or prepare that manifest in the selected output directory before
+copy or prepare that reviewed manifest in the selected output directory before
 `--merge-manifest`, as shown by the synthetic fixture. Do not use the synthetic
-FASTA as real evidence.
+manifest or synthetic FASTA as real evidence.
 
 ## Key Files to Review
 

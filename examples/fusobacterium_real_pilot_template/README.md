@@ -40,12 +40,18 @@ From the repository root:
 ```powershell
 $out = "results/fusobacterium_external_pilot_real_local"
 New-Item -ItemType Directory -Force $out | Out-Null
-Copy-Item examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv "$out/manifest.tsv"
+# For real evidence, copy the reviewed 16-row NCBI strict manifest into:
+# "$out/manifest.tsv"
 python typetreeflow.py --register-external-genomes examples/fusobacterium_real_pilot_template/external_genomes.tsv --outdir $out --dry-run
 python typetreeflow.py --register-external-genomes examples/fusobacterium_real_pilot_template/external_genomes.tsv --outdir $out --merge-manifest
 python typetreeflow.py --species-checklist examples/fusobacterium_external_pilot/species_checklist.tsv --outdir $out --write-completion-audit
 python typetreeflow.py --outdir $out --report-only
 ```
+
+The selected output directory must already contain the reviewed 16-record NCBI
+Assembly strict `manifest.tsv`, and the completion audit must use the
+17-species `Fusobacterium` checklist. The synthetic fixture manifest can be
+used to rehearse command shape only; it is not real evidence.
 
 Expected wording for an accepted real pilot:
 
