@@ -6,7 +6,9 @@ Provider planning schema/API and a dry-run-only CLI planning entry point are
 implemented. No provider downloader, ATCC Genome Portal integration, login
 flow, scraping flow, browser automation, credential handling,
 manifest-writing path, release tag, or provider artifact download is
-implemented by this document.
+implemented by this document. Report-only summary generation can read existing
+provider planning outputs and display review counts, but it does not trigger
+provider planning or change any downstream state.
 
 A minimal synthetic provider planning fixture is available at
 `examples/provider_request_minimal.tsv`. It validates reviewable
@@ -348,6 +350,10 @@ registration.
 - Provider-native IDs are never written to `assembly_accession`.
 - Provider-only rows do not enter `cache/ncbi/download_plan.tsv`.
 - Provider-only rows do not count toward NCBI Assembly strict completion.
+- Report-only mode may summarize existing `provider/provider_registration_plan.tsv`
+  and `provider/proposed_external_genomes.tsv` counts, but it must not read
+  `provider_request.tsv`, rerun provider planning, write manifests, create NCBI
+  download plans, handle credentials, download, or alter completion metrics.
 - Existing manual external registration remains the only path to install a
   local FASTA and merge an external registered genome manifest row.
 - Docs and tests do not claim ATCC/provider automation has been implemented.

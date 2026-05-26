@@ -15,6 +15,11 @@ from typetreeflow.completion import (
 )
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
+from typetreeflow.provider_plan import (
+    PROPOSED_EXTERNAL_GENOME_FIELDS,
+    PROVIDER_PLAN_STATUSES,
+    PROVIDER_REGISTRATION_PLAN_FIELDS,
+)
 from typetreeflow.taxonomy.audit import (
     EXTRA_IN_GTDB,
     MANUAL_REVIEW_REQUIRED,
@@ -51,6 +56,10 @@ SOURCE_AUDIT_STATUSES = [
     "rrna_only",
     "manual_review_required",
 ]
+
+PROVIDER_PLAN_READY_FOR_REVIEW = "provider_plan_ready_for_review"
+PROVIDER_PLAN_DOWNLOAD_NOT_SUPPORTED = "provider_plan_download_not_supported"
+PROVIDER_PLAN_CREDENTIALS_NOT_SUPPORTED = "provider_plan_credentials_not_supported"
 
 
 @dataclass(frozen=True)
@@ -287,6 +296,52 @@ def read_optional_completion_audit(path: str | Path) -> list[CompletionAuditReco
     return read_completion_audit(input_path)
 
 
+def read_optional_provider_registration_plan(path: str | Path) -> list[dict[str, str]] | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return _read_required_tsv_rows(
+        input_path,
+        PROVIDER_REGISTRATION_PLAN_FIELDS,
+        table_name="Provider registration plan TSV",
+    )
+
+
+def count_optional_proposed_external_genomes(path: str | Path) -> int | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return len(
+        _read_required_tsv_rows(
+            input_path,
+            PROPOSED_EXTERNAL_GENOME_FIELDS,
+            table_name="Proposed external genomes TSV",
+        )
+    )
+
+
+def summarize_provider_registration_plan(rows: list[dict[str, str]]) -> dict[str, int]:
+    summary = {
+        "total_provider_requests": len(rows),
+        "ready_for_review_count": 0,
+        "manual_review_required_count": 0,
+        "download_not_supported_count": 0,
+        "credentials_not_supported_count": 0,
+    }
+    for row in rows:
+        status = row.get("status", "").strip()
+        manual_review_required = row.get("manual_review_required", "").strip().lower()
+        if status == PROVIDER_PLAN_READY_FOR_REVIEW:
+            summary["ready_for_review_count"] += 1
+        if manual_review_required in {"1", "true", "yes", "y"}:
+            summary["manual_review_required_count"] += 1
+        if status == PROVIDER_PLAN_DOWNLOAD_NOT_SUPPORTED:
+            summary["download_not_supported_count"] += 1
+        if status == PROVIDER_PLAN_CREDENTIALS_NOT_SUPPORTED:
+            summary["credentials_not_supported_count"] += 1
+    return summary
+
+
 def summarize_phylo_status(
     paths: OutputPaths,
     rrna_ready_count: int,
@@ -382,6 +437,19 @@ def build_run_summary_markdown(
     except ValueError as error:
         completion_audit = None
         completion_audit_error = str(error)
+    provider_plan_error = ""
+    provider_proposed_count: int | None = None
+    try:
+        provider_plan = read_optional_provider_registration_plan(
+            paths.provider_registration_plan_path
+        )
+        if provider_plan is not None:
+            provider_proposed_count = count_optional_proposed_external_genomes(
+                paths.proposed_external_genomes_path
+            )
+    except ValueError as error:
+        provider_plan = None
+        provider_plan_error = str(error)
 
     lines = [
         "# TypeTreeFlow Summary",
@@ -682,6 +750,54 @@ def build_run_summary_markdown(
                         f"5 of {len(review_rows)} missing/conflict rows."
                     )
 
+    if provider_plan_error:
+        lines.extend(
+            [
+                "",
+                "## Provider Registration Planning",
+                "",
+                f"Provider registration plan could not be read: {provider_plan_error}",
+            ]
+        )
+    elif provider_plan is not None:
+        provider_plan_summary = summarize_provider_registration_plan(provider_plan)
+        lines.extend(
+            [
+                "",
+                "## Provider Registration Planning",
+                "",
+                (
+                    "- Total provider requests: "
+                    f"{provider_plan_summary['total_provider_requests']}"
+                ),
+                (
+                    "- Ready for review count: "
+                    f"{provider_plan_summary['ready_for_review_count']}"
+                ),
+                (
+                    "- Manual review required count: "
+                    f"{provider_plan_summary['manual_review_required_count']}"
+                ),
+                (
+                    "- Download not supported count: "
+                    f"{provider_plan_summary['download_not_supported_count']}"
+                ),
+                (
+                    "- Credentials not supported count: "
+                    f"{provider_plan_summary['credentials_not_supported_count']}"
+                ),
+            ]
+        )
+        if provider_proposed_count is not None:
+            lines.append(
+                f"- Proposed external genomes count: {provider_proposed_count}"
+            )
+        lines.append(
+            "These counts summarize existing provider planning outputs only; "
+            "report-only mode does not trigger provider planning, downloads, "
+            "credential handling, or manifest changes."
+        )
+
     lines.extend(
         [
             "",
@@ -816,6 +932,56 @@ def _read_first_tsv_row(path: str | Path) -> dict[str, str]:
         for row in reader:
             return dict(row)
     return {}
+
+
+def _read_required_tsv_rows(
+    path: Path,
+    required_fields: list[str],
+    *,
+    table_name: str,
+) -> list[dict[str, str]]:
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if reader.fieldnames is None:
+            raise ValueError(f"{table_name} is missing a header: {path}")
+
+        missing_fields = [
+            field for field in required_fields if field not in reader.fieldnames
+        ]
+        if missing_fields:
+            raise ValueError(
+                f"{table_name} is missing required column(s): "
+                + ", ".join(missing_fields)
+            )
+
+        rows: list[dict[str, str]] = []
+        for line_number, row in enumerate(reader, start=2):
+            if None in row:
+                raise ValueError(
+                    f"Malformed {table_name.lower()} at line {line_number}: "
+                    "unexpected extra field(s)."
+                )
+            if any(row.get(field) is None for field in required_fields):
+                raise ValueError(
+                    f"Malformed {table_name.lower()} at line {line_number}: "
+                    "missing field(s)."
+                )
+
+            if required_fields == PROVIDER_REGISTRATION_PLAN_FIELDS:
+                status = row.get("status", "").strip()
+                if not status:
+                    raise ValueError(
+                        f"{table_name} line {line_number} has empty status."
+                    )
+                if status not in PROVIDER_PLAN_STATUSES:
+                    raise ValueError(
+                        f"{table_name} line {line_number} has invalid status: "
+                        f"{status}"
+                    )
+
+            rows.append(dict(row))
+
+    return rows
 
 
 def _checklist_species_summary_key(row: dict[str, str]) -> str:

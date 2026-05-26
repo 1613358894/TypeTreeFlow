@@ -11,10 +11,15 @@ from typetreeflow.completion import (
     write_completion_summary,
 )
 from typetreeflow.models import StrainRecord
+from typetreeflow.provider_plan import (
+    PROPOSED_EXTERNAL_GENOME_FIELDS,
+    PROVIDER_REGISTRATION_PLAN_FIELDS,
+)
 from typetreeflow.report.summary import (
     build_run_summary_markdown,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
+    read_optional_provider_registration_plan,
     read_optional_sequence_source_audit,
     read_optional_ani_summary,
     summarize_external_registered_genomes,
@@ -22,6 +27,7 @@ from typetreeflow.report.summary import (
     summarize_manifest,
     summarize_output_files,
     summarize_phylo_status,
+    summarize_provider_registration_plan,
     summarize_provenance_counts,
     summarize_sequence_source_audit,
     summarize_problem_records,
@@ -200,6 +206,82 @@ def _completion_audit_record(
         completion_status=completion_status,
         notes=notes,
     )
+
+
+def _provider_plan_row(**overrides: str) -> dict[str, str]:
+    row = {field: "" for field in PROVIDER_REGISTRATION_PLAN_FIELDS}
+    row.update(
+        {
+            "request_id": "REQ-001",
+            "species": "Fusobacterium mortiferum",
+            "strain": "ATCC 9817",
+            "type_strain_id": "ATCC 9817",
+            "provider": "synthetic_provider",
+            "provider_name": "Synthetic Provider",
+            "provider_record_id": "SP-9817",
+            "artifact_type": "genome_fasta",
+            "status": "provider_plan_ready_for_review",
+            "planned_action": "propose_external_registration",
+            "network_action": "none",
+            "download_action": "none",
+            "credential_action": "none",
+            "manifest_action": "none",
+            "ncbi_download_plan_action": "none",
+            "eligible_for_proposed_external_genomes": "true",
+            "manual_review_required": "false",
+            "terms_review_status": "reviewed_allowed",
+            "proposed_external_genomes_status": "external_genome_registered",
+            "notes": "dry_run_only=true",
+        }
+    )
+    row.update(overrides)
+    return row
+
+
+def _write_provider_plan(path: Path, rows: list[dict[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=PROVIDER_REGISTRATION_PLAN_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _proposed_external_genome_row(**overrides: str) -> dict[str, str]:
+    row = {field: "" for field in PROPOSED_EXTERNAL_GENOME_FIELDS}
+    row.update(
+        {
+            "species": "Fusobacterium mortiferum",
+            "strain": "ATCC 9817",
+            "type_strain_id": "ATCC 9817",
+            "external_source": "synthetic_provider",
+            "external_source_name": "Synthetic Provider",
+            "external_genome_id": "SP-9817",
+            "is_type_material": "true",
+            "requires_manual_review": "false",
+            "status": "external_genome_registered",
+            "notes": "provider_request_id=REQ-001",
+        }
+    )
+    row.update(overrides)
+    return row
+
+
+def _write_proposed_external_genomes(path: Path, rows: list[dict[str, str]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=PROPOSED_EXTERNAL_GENOME_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def test_summarize_manifest_counts_record_roles_and_ready_states():
@@ -642,6 +724,134 @@ def test_report_completion_external_inclusive_does_not_change_ncbi_completion(tm
     assert "- NCBI Assembly strict completion: 1/4" in markdown
     assert "- External registered genomes: 2" in markdown
     assert "- External-inclusive strict completion: 3/4" in markdown
+
+
+def test_report_with_provider_plan_shows_review_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_provider_plan(
+        paths.provider_registration_plan_path,
+        [
+            _provider_plan_row(
+                request_id="REQ-001",
+                status="provider_plan_ready_for_review",
+                manual_review_required="false",
+            ),
+            _provider_plan_row(
+                request_id="REQ-002",
+                status="provider_plan_manual_review_required",
+                manual_review_required="true",
+            ),
+            _provider_plan_row(
+                request_id="REQ-003",
+                status="provider_plan_download_not_supported",
+                manual_review_required="true",
+            ),
+            _provider_plan_row(
+                request_id="REQ-004",
+                status="provider_plan_credentials_not_supported",
+                manual_review_required="true",
+            ),
+        ],
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+    summary = summarize_provider_registration_plan(
+        read_optional_provider_registration_plan(paths.provider_registration_plan_path)
+        or []
+    )
+
+    assert summary == {
+        "total_provider_requests": 4,
+        "ready_for_review_count": 1,
+        "manual_review_required_count": 3,
+        "download_not_supported_count": 1,
+        "credentials_not_supported_count": 1,
+    }
+    assert "## Provider Registration Planning" in markdown
+    assert "- Total provider requests: 4" in markdown
+    assert "- Ready for review count: 1" in markdown
+    assert "- Manual review required count: 3" in markdown
+    assert "- Download not supported count: 1" in markdown
+    assert "- Credentials not supported count: 1" in markdown
+    assert "report-only mode does not trigger provider planning" in markdown
+
+
+def test_report_without_provider_plan_keeps_section_absent(tmp_path):
+    paths = get_output_paths(tmp_path)
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Provider Registration Planning" not in markdown
+
+
+def test_report_with_provider_plan_shows_proposed_external_genomes_count(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_provider_plan(
+        paths.provider_registration_plan_path,
+        [_provider_plan_row(), _provider_plan_row(request_id="REQ-002")],
+    )
+    _write_proposed_external_genomes(
+        paths.proposed_external_genomes_path,
+        [
+            _proposed_external_genome_row(),
+            _proposed_external_genome_row(external_genome_id="SP-9818"),
+        ],
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Provider Registration Planning" in markdown
+    assert "- Total provider requests: 2" in markdown
+    assert "- Proposed external genomes count: 2" in markdown
+
+
+def test_report_provider_planning_does_not_change_completion_audit_metrics(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_completion_summary(
+        _completion_summary(
+            expected_species_count=4,
+            ncbi_complete_count=1,
+            external_registered_count=1,
+            external_inclusive_complete_count=2,
+            missing_count=2,
+        ),
+        paths.completion_summary_path,
+    )
+    _write_provider_plan(
+        paths.provider_registration_plan_path,
+        [
+            _provider_plan_row(
+                status="provider_plan_ready_for_review",
+                manual_review_required="false",
+            )
+        ],
+    )
+    _write_proposed_external_genomes(
+        paths.proposed_external_genomes_path,
+        [_proposed_external_genome_row()],
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "- NCBI Assembly strict completion: 1/4" in markdown
+    assert "- External registered genomes: 1" in markdown
+    assert "- External-inclusive strict completion: 2/4" in markdown
+    assert "- Proposed external genomes count: 1" in markdown
+
+
+def test_report_provider_plan_malformed_tsv_writes_unavailable_note(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.provider_registration_plan_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.provider_registration_plan_path.write_text(
+        "request_id\tstatus\nREQ-001\tprovider_plan_ready_for_review\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Provider Registration Planning" in markdown
+    assert "Provider registration plan could not be read" in markdown
+    assert "missing required column(s)" in markdown
 
 
 def test_report_completion_conflict_count_displayed_as_review_risk(tmp_path):

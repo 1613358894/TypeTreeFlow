@@ -150,6 +150,13 @@ Completion Audit section with NCBI strict and external-inclusive completion
 counts. When `source_audit/completion_audit.tsv` also exists, missing and
 conflict rows can be summarized for review. Report-only mode consumes these
 files only; it does not create them.
+When `provider/provider_registration_plan.tsv` already exists, the report adds
+a Provider Registration Planning section with provider request, review,
+unsupported-download, unsupported-credential, and optional proposed external
+genome counts. Report-only mode reads only the existing provider planning
+outputs; it does not read `provider_request.tsv`, rerun provider planning,
+download, log in, write `manifest.tsv`, write `name_map.tsv`, write NCBI
+download plans, or alter completion audit metrics.
 
 Resume behavior reuses durable artifacts in this order: an installed
 `genomes/references/<normalized_id>.fna`, an existing extracted directory under

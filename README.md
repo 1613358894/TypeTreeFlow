@@ -61,6 +61,9 @@ scrape, purchase, or download from external portals, and does not treat
   existing manifest with `--write-completion-audit`.
 - Summarize external registered genome records from an existing manifest in
   report-only mode.
+- Summarize existing provider registration planning outputs in report-only mode
+  without triggering provider planning, downloads, credential handling, or
+  manifest changes.
 - Plan and run guarded resume-mode barrnap, FastANI, Entrez 16S fallback, and
   MAFFT/trimAl/IQ-TREE wrappers.
 - Select type-material records from local GTDB metadata TSVs for legacy or
@@ -315,7 +318,11 @@ Dry-runs never merge manifest files.
 
 Once the manifest exists, `--report-only` can generate `report/summary.md` with
 an external registered genome section and provenance counts from the recorded
-manifest rows.
+manifest rows. If existing provider planning outputs are present under
+`provider/`, the same report also adds read-only provider registration planning
+counts for review. It does not read `provider_request.tsv`, rerun provider
+planning, download, log in, install proposed genomes, or change completion
+audit metrics.
 
 ```bash
 typetreeflow \
