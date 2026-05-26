@@ -84,7 +84,7 @@ while preserving existing NCBI rows. The external manifest row must keep
 
 ```bash
 typetreeflow \
-  --species-checklist data/fusobacterium_species_checklist.tsv \
+  --species-checklist examples/fusobacterium_external_pilot/species_checklist.tsv \
   --outdir results/fusobacterium_acquisition \
   --write-completion-audit
 ```

@@ -368,7 +368,7 @@ def test_fusobacterium_external_pilot_synthetic_fixture_reaches_17_of_17(tmp_pat
     audit_result = cli.main(
         [
             "--species-checklist",
-            str(repo_root / "data" / "fusobacterium_species_checklist.tsv"),
+            str(pilot_dir / "species_checklist.tsv"),
             "--outdir",
             str(outdir),
             "--write-completion-audit",

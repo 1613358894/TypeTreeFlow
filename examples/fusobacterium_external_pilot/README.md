@@ -17,7 +17,7 @@ data.
 - `external_genomes.tsv`: one synthetic/local external registration row for
   `Fusobacterium mortiferum` ATCC 25557.
 - `synthetic_mortiferum_atcc25557.fna`: tiny synthetic FASTA fixture.
-- `data/fusobacterium_species_checklist.tsv`: the expected 17-species
+- `species_checklist.tsv`: the expected 17-species
   `Fusobacterium` checklist.
 
 ## Commands
@@ -31,7 +31,7 @@ New-Item -ItemType Directory -Force $out | Out-Null
 Copy-Item examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv "$out/manifest.tsv"
 python typetreeflow.py --register-external-genomes examples/fusobacterium_external_pilot/external_genomes.tsv --outdir $out --dry-run
 python typetreeflow.py --register-external-genomes examples/fusobacterium_external_pilot/external_genomes.tsv --outdir $out --merge-manifest
-python typetreeflow.py --species-checklist data/fusobacterium_species_checklist.tsv --outdir $out --write-completion-audit
+python typetreeflow.py --species-checklist examples/fusobacterium_external_pilot/species_checklist.tsv --outdir $out --write-completion-audit
 python typetreeflow.py --outdir $out --report-only
 ```
 
