@@ -35,6 +35,11 @@ move, archive, or deletion.
   `F. mortiferum` external type genome can make the `Fusobacterium`
   external-inclusive strict completion metric reach 17/17 while preserving
   16/17 NCBI Assembly strict completion.
+- [provider_automation_feasibility.md](provider_automation_feasibility.md):
+  Feasibility design for possible future external provider automation. It keeps
+  ATCC Genome Portal and similar portal automation off by default, recommends
+  user-assisted download plus manual registration, and defines gates before any
+  provider adapter can move to implementation.
 
 ## Operational and release docs
 

@@ -209,6 +209,20 @@ def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     assert "not real ATCC" in example_readme
 
 
+def test_provider_automation_feasibility_preserves_manual_registration_boundary():
+    index = _read("docs/index.md")
+    design = _read("docs/provider_automation_feasibility.md")
+
+    assert "provider_automation_feasibility.md" in index
+    assert "user-assisted download plus manual registration" in design
+    assert "Automated login to ATCC Genome Portal" in design
+    assert "external_genomes.tsv" in design
+    assert "External provider IDs are never written to `assembly_accession`" in design
+    assert "NCBI Assembly strict completion" in design
+    assert "External-inclusive strict completion" in design
+    assert "No provider downloader" in design
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as handle:
         return handle.read()
