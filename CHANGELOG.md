@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.9.0 - 2026-05-26
+
 - Added a v0.9.0 provider adapter spike with a dry-run-only
   `--plan-provider-registration` CLI, `provider_request.tsv` parsing,
   `provider/provider_registration_plan.tsv`, and
