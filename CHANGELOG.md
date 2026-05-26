@@ -2,8 +2,18 @@
 
 ## Unreleased
 
-- Added a v0.9.0 provider adapter spike plan that keeps provider work
-  dry-run-only and review-first, without ATCC/provider download automation.
+- Added a v0.9.0 provider adapter spike with a dry-run-only
+  `--plan-provider-registration` CLI, `provider_request.tsv` parsing,
+  `provider/provider_registration_plan.tsv`, and
+  `provider/proposed_external_genomes.tsv` review outputs.
+- Added provider planning documentation, schema/status/output contracts, a
+  synthetic `examples/provider_request_minimal.tsv` fixture, report-only
+  provider planning counts, overwrite protection, and manual handoff
+  compatibility with the existing `external_genomes.tsv` workflow.
+- Note: v0.9.0 provider planning does not automate ATCC/provider login,
+  scraping, browser automation, credential handling, downloads, FASTA
+  installation, manifest/name-map writes, NCBI download-plan writes, or
+  completion metric changes.
 
 ## 0.8.0 - 2026-05-26
 
