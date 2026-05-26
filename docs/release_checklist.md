@@ -18,14 +18,17 @@ documented in [release_process.md](release_process.md).
 
 ## Required Local Validation
 
-- For v1.0.0rc1 and final v1.0.0 preparation, confirm the release is
+- For v2.0.0rc1 and final v2.0.0 preparation, confirm the release is
   stability/readiness work for the existing LPSN-first acquisition and audit
-  workflow, not a feature-expansion release.
-- Review `docs/v1_0_0_readiness_review.md` and
-  `docs/stable_contracts.md` before any v1.0.0 release-candidate or final
+  workflow plus the guarded provider automation framework skeleton, not a
+  provider-downloader release.
+- Review `docs/v2_0_0_provider_automation_framework.md`,
+  `docs/provider_automation_policy.md`, `docs/atcc_downloader_gate_review.md`,
+  and `docs/stable_contracts.md` before any v2.0.0 release-candidate or final
   version bump.
 - Confirm README/current capabilities, quickstart examples, schemas, statuses,
-  and output-layout docs agree with the v1.0 stable contracts.
+  output-layout docs, and provider framework docs agree with the v2.0 stable
+  contracts.
 - Search the repository for release-blocking wording before the version bump:
   claims that ATCC/provider download automation is implemented, claims that
   provider planning rows are completion evidence, claims that provider IDs can
@@ -189,8 +192,8 @@ audit review but is not a required input for the current release checklist.
 - Confirm the version-source files listed in
   [release_process.md](release_process.md) match the intended tag.
 - For a release candidate, confirm `CHANGELOG.md` has an Unreleased or
-  release-candidate entry that clearly states it is not v1.0.0 final.
-- For final v1.0.0, confirm `CHANGELOG.md` has a dated `1.0.0` entry and no
+  release-candidate entry that clearly states it is not v2.0.0 final.
+- For final v2.0.0, confirm `CHANGELOG.md` has a dated `2.0.0` entry and no
   release-candidate-only wording in the final entry.
 - Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended
   license.

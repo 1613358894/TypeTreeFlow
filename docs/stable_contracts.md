@@ -1,26 +1,27 @@
 # Stable Contracts
 
-This document classifies TypeTreeFlow surfaces for the v1.0.0 readiness target.
-The intended v1.0.0 identity is a stable LPSN-first type-strain acquisition and
-audit workflow. It is not an ATCC/provider downloader release.
+This document classifies TypeTreeFlow surfaces for the v2.0.0 readiness target.
+The intended v2.0.0 identity is a stable LPSN-first type-strain acquisition and
+audit workflow plus a guarded provider automation framework skeleton. It is not
+an ATCC/provider downloader release.
 
 ## Contract Classes
 
-Stable in v1.0 means downstream users and tests may rely on the documented
+Stable in v2.0 means downstream users and tests may rely on the documented
 behavior, paths, schemas, status meanings, and safety boundaries.
 
-Experimental or review-only means the surface may be useful and documented, but
-it must not be treated as acquisition automation or completion evidence unless a
-stable downstream workflow explicitly consumes it.
+Stable review-only means the surface is a supported planning or audit contract,
+but it must not be treated as acquisition automation or completion evidence
+unless a stable downstream workflow explicitly consumes it.
 
 Internal means code structure or helper behavior that should not be promised as
 a public contract.
 
-Post-v1.0 means explicitly out of scope for the v1.0.0 release target.
+Out of scope means explicitly outside the v2.0.0 release target.
 
 ## CLI
 
-Stable in v1.0:
+Stable in v2.0:
 
 - `--dry-run` takes precedence over real execution flags.
 - Real execution requires explicit stage flags such as `--enable-downloads`,
@@ -37,7 +38,7 @@ Stable in v1.0:
   manual external registration, completion audit, and report-only commands are
   documented workflow surfaces.
 
-Experimental or review-only:
+Stable review-only:
 
 - `--plan-provider-registration` reads curator-authored provider requests and
   writes review outputs only. It is dry-run-only even when `--dry-run` is not
@@ -50,7 +51,7 @@ Internal:
 - Parser implementation details, dispatch functions, helper module names, and
   fake-runner wiring.
 
-Post-v1.0:
+Out of scope:
 
 - ATCC/provider downloader flags.
 - Provider login, scraping, browser automation, credential handling, terms
@@ -58,7 +59,7 @@ Post-v1.0:
 
 ## TSV Schema
 
-Stable in v1.0:
+Stable in v2.0:
 
 - `species_checklist.tsv` and `excluded_lpsn_taxa.tsv` as checklist and
   excluded-row review surfaces.
@@ -85,7 +86,7 @@ Stable in v1.0:
 - `rrna`, `ani`, and `phylo` plan/result TSVs documented in
   `docs/schemas.md`.
 
-Experimental or review-only:
+Stable review-only:
 
 - `provider_request.tsv`,
   `provider/provider_registration_plan.tsv`, and
@@ -98,7 +99,7 @@ Internal:
 - Any local output not documented in `docs/output_layout.md` or
   `docs/schemas.md`.
 
-Post-v1.0:
+Out of scope:
 
 - Provider credential tables.
 - Provider artifact cache schemas.
@@ -106,7 +107,7 @@ Post-v1.0:
 
 ## Status Values
 
-Stable in v1.0:
+Stable in v2.0:
 
 - Manifest, download, genome extraction, rRNA, ANI, phylogeny, taxonomy,
   selection, source audit, external registration, external install, completion
@@ -117,7 +118,7 @@ Stable in v1.0:
 - Completion statuses `complete_ncbi`,
   `complete_external_registered`, `missing_genome`, and `conflict`.
 
-Experimental or review-only:
+Stable review-only:
 
 - Provider planning statuses:
   `provider_plan_ready_for_review`,
@@ -134,14 +135,14 @@ Internal:
 - Exception text, debug logs, temporary messages, and test-only statuses not
   documented as emitted workflow values.
 
-Post-v1.0:
+Out of scope:
 
 - Statuses that would imply provider login, provider download, credential use,
   or automated provider artifact installation.
 
 ## Output Layout
 
-Stable in v1.0:
+Stable in v2.0:
 
 - Canonical run layout under `--outdir` as documented in
   `docs/output_layout.md`.
@@ -156,7 +157,7 @@ Stable in v1.0:
   `genomes/references/`, but they keep empty `assembly_accession` values and
   do not create NCBI download work.
 
-Experimental or review-only:
+Stable review-only:
 
 - `provider/provider_registration_plan.tsv`
 - `provider/proposed_external_genomes.tsv`
@@ -170,14 +171,14 @@ Internal:
 - Tool-specific temporary directories, noncanonical local run products, and
   ad hoc scratch files.
 
-Post-v1.0:
+Out of scope:
 
 - Provider artifact cache directories.
 - Credential stores or browser-profile state inside run outputs.
 
 ## Report Semantics
 
-Stable in v1.0:
+Stable in v2.0:
 
 - `report/summary.md` is generated from recorded manifest state and existing
   output files.
@@ -190,7 +191,7 @@ Stable in v1.0:
 - ANI `95%` threshold reporting is advisory only.
 - Reports do not make taxonomic species conclusions.
 
-Experimental or review-only:
+Stable review-only:
 
 - Provider planning report sections are summaries of existing review files.
   They do not imply provider acquisition, installed FASTA files, manifest
@@ -201,14 +202,14 @@ Internal:
 - Markdown formatting details not asserted by tests or documented as user
   contract.
 
-Post-v1.0:
+Out of scope:
 
 - Report sections claiming provider downloads or automated provider acquisition.
 - Automated species assignment conclusions.
 
 ## Safety Boundary
 
-Stable in v1.0:
+Stable in v2.0:
 
 - Dry-run-first workflow behavior.
 - Explicit opt-in for guarded real actions.
@@ -221,7 +222,7 @@ Stable in v1.0:
 - External registered genome completion remains separate from NCBI Assembly
   strict completion.
 
-Experimental or review-only:
+Stable review-only:
 
 - Provider planning can record that credentials or downloads are unsupported,
   but it must not request, store, or use credentials.
@@ -231,7 +232,7 @@ Internal:
 - How the code checks executables, builds commands, or injects subprocess
   runners.
 
-Post-v1.0:
+Out of scope:
 
 - Automated provider access, login, scraping, browser automation, terms
   click-through, purchase flows, or artifact downloads.

@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 2.0.0 - 2026-05-26
+
+- Stable provider automation framework release for guarded, review-only
+  provider planning on top of the stable LPSN-first type-strain acquisition and
+  audit workflow.
+- Stabilized the provider capability registry with explicit unavailable,
+  planning-only, metadata-only, and download-enabled capability states.
+- Kept provider network behavior disabled by default.
+- Stabilized ATCC planning-only behavior behind the downloader gate, so ATCC
+  remains planning-only unless a future review explicitly enables downloader
+  behavior.
+- Added the credential-like redaction helper as a stable safety boundary for
+  provider planning outputs.
+- Documented the private provider cache policy: provider data stays out of
+  `cache/ncbi/`, and this release does not write provider cache artifacts.
+- Stabilized review-only provider planning as a supported planning and audit
+  surface that does not create acquisition evidence or alter completion
+  metrics.
+- This stable release does not include an ATCC or provider downloader, provider
+  login, scraping, browser automation, credential storage, terms acceptance,
+  provider manifest/name-map writes, provider download-plan writes, provider
+  `external_genomes.tsv` writes, or completion metric changes from provider
+  planning rows.
+
 ## 2.0.0rc1 - 2026-05-26
 
 - Added the provider automation framework skeleton with provider adapter
