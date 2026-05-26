@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 1.5.0 - 2026-05-26
+
+- Hardened provider handoff planning so proposal outputs remain explicit
+  review-only rows with local FASTA path, SHA-256, terms, and manual-review
+  prompts before any external registration handoff.
+- Added provider proposal review-only guarantees: provider planning proposals
+  always stay `external_genome_manual_review_required` and must be copied into
+  `external_genomes.tsv` before `--register-external-genomes` can validate and
+  install them.
+- Expanded report-only provider proposal summaries with risk/count reporting
+  for proposed rows, unexpected registered statuses, manual-review rows,
+  missing local FASTA paths, and missing SHA-256 checksums.
+- Polished the real external `F. mortiferum` pilot workflow and templates to
+  clarify reviewed proposal handoff, installed local FASTA evidence, checksum
+  verification, and downstream mixed-provenance readiness.
+- Added a local artifact normalization design for a future offline,
+  curator-supplied FASTA preparation layer before external registration.
+- Kept tests and documentation consistent around provider proposal boundaries,
+  local artifact non-scope, report-only behavior, and completion metric
+  separation.
+- This release does not include an ATCC or provider downloader, provider login,
+  scraping, credential handling, provider download, provider
+  manifest/name-map writes, provider download-plan writes, or completion metric
+  changes from provider proposals or normalization outputs.
+
 ## 1.0.0 - 2026-05-26
 
 - Stable v1.0.0 release of the LPSN-first type-strain acquisition and audit

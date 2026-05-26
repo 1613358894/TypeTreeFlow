@@ -357,6 +357,56 @@ def test_provider_automation_feasibility_preserves_manual_registration_boundary(
     assert "No provider downloader" in design
 
 
+def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
+    readme = _read("README.md")
+    index = _read("docs/index.md")
+    schemas = _read("docs/schemas.md")
+    statuses = _read("docs/statuses.md")
+    feasibility = _read("docs/provider_automation_feasibility.md")
+    normalization = _read("docs/local_artifact_normalization_design.md")
+
+    assert "local_artifact_normalization_design.md" in index
+    assert "Design-only offline normalization boundary" in index
+
+    for docs in [readme, feasibility]:
+        assert "does not automate ATCC" in docs or "No provider downloader" in docs
+        for forbidden in [
+            "ATCC downloader is implemented",
+            "provider downloader is implemented",
+            "automated ATCC downloader",
+            "provider download implemented",
+        ]:
+            assert forbidden not in docs
+
+    assert "always a review-only handoff table" in schemas
+    assert "always `external_genome_manual_review_required`" in schemas
+    assert "`provider/proposed_external_genomes.tsv` rows remain review-only" in statuses
+    for field in [
+        "network_action",
+        "download_action",
+        "credential_action",
+        "manifest_action",
+        "ncbi_download_plan_action",
+        "eligible_for_proposed_external_genomes",
+        "proposed_external_genomes_status",
+    ]:
+        assert field in schemas
+
+    for phrase in [
+        "future offline normalization layer",
+        "does not implement provider network access",
+        "does not log in",
+        "scrape",
+        "process credentials",
+        "does not write `manifest.tsv`, `name_map.tsv`",
+        "`external_genomes.tsv`, or NCBI download plans directly",
+        "No ATCC downloader",
+        "No direct manifest, name-map, cache, or NCBI download-plan writes",
+        "No completion-count changes from normalization outputs or provider proposals",
+    ]:
+        assert phrase in normalization
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as handle:
         return handle.read()

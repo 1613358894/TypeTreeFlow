@@ -307,17 +307,39 @@ def read_optional_provider_registration_plan(path: str | Path) -> list[dict[str,
     )
 
 
-def count_optional_proposed_external_genomes(path: str | Path) -> int | None:
+def summarize_optional_proposed_external_genomes(
+    path: str | Path,
+) -> dict[str, int] | None:
     input_path = Path(path)
     if not input_path.exists():
         return None
-    return len(
-        _read_required_tsv_rows(
-            input_path,
-            PROPOSED_EXTERNAL_GENOME_FIELDS,
-            table_name="Proposed external genomes TSV",
-        )
+    rows = _read_required_tsv_rows(
+        input_path,
+        PROPOSED_EXTERNAL_GENOME_FIELDS,
+        table_name="Proposed external genomes TSV",
     )
+    return {
+        "total": len(rows),
+        "registered_status_count": sum(
+            1
+            for row in rows
+            if row.get("status", "").strip() == "external_genome_registered"
+        ),
+        "manual_review_required_count": sum(
+            1
+            for row in rows
+            if row.get("requires_manual_review", "").strip().lower()
+            in {"1", "true", "yes", "y"}
+            or row.get("status", "").strip()
+            == "external_genome_manual_review_required"
+        ),
+        "missing_local_fasta_count": sum(
+            1 for row in rows if not row.get("genome_fasta_path", "").strip()
+        ),
+        "missing_sha256_count": sum(
+            1 for row in rows if not row.get("sha256", "").strip()
+        ),
+    }
 
 
 def summarize_provider_registration_plan(rows: list[dict[str, str]]) -> dict[str, int]:
@@ -438,13 +460,13 @@ def build_run_summary_markdown(
         completion_audit = None
         completion_audit_error = str(error)
     provider_plan_error = ""
-    provider_proposed_count: int | None = None
+    provider_proposed_summary: dict[str, int] | None = None
     try:
         provider_plan = read_optional_provider_registration_plan(
             paths.provider_registration_plan_path
         )
         if provider_plan is not None:
-            provider_proposed_count = count_optional_proposed_external_genomes(
+            provider_proposed_summary = summarize_optional_proposed_external_genomes(
                 paths.proposed_external_genomes_path
             )
     except ValueError as error:
@@ -498,7 +520,9 @@ def build_run_summary_markdown(
         (
             "NCBI Assembly-backed records require recorded NCBI accessions; "
             "external registered genome records are local FASTA registrations "
-            "and are not counted as NCBI Assembly-backed records."
+            "and are not counted as NCBI Assembly-backed records. Registered "
+            "external genomes with installed local FASTA paths can participate "
+            "in downstream planning as mixed-provenance references."
         ),
         "",
         "## 16S Status",
@@ -518,6 +542,11 @@ def build_run_summary_markdown(
                 "## External Registered Genomes",
                 "",
                 f"- Count: {len(external_registered_genomes)}",
+                (
+                    "External registered genomes listed here came through "
+                    "`--register-external-genomes`; provider proposals alone "
+                    "do not appear in this table."
+                ),
                 "",
                 "| Display Name | Strain | Genome Path | Status | Provenance Notes |",
                 "| --- | --- | --- | --- | --- |",
@@ -796,16 +825,48 @@ def build_run_summary_markdown(
                 ),
             ]
         )
-        if provider_proposed_count is not None:
-            lines.append(
-                "- Proposed external genomes rows for review: "
-                f"{provider_proposed_count}"
+        if provider_proposed_summary is not None:
+            lines.extend(
+                [
+                    (
+                        "- Proposed external genomes rows for review: "
+                        f"{provider_proposed_summary['total']}"
+                    ),
+                    (
+                        "- Proposed rows with registered status (unexpected): "
+                        f"{provider_proposed_summary['registered_status_count']}"
+                    ),
+                    (
+                        "- Proposed rows still requiring manual review: "
+                        f"{provider_proposed_summary['manual_review_required_count']}"
+                    ),
+                    (
+                        "- Proposed rows missing local FASTA path: "
+                        f"{provider_proposed_summary['missing_local_fasta_count']}"
+                    ),
+                    (
+                        "- Proposed rows missing SHA-256 checksum: "
+                        f"{provider_proposed_summary['missing_sha256_count']}"
+                    ),
+                ]
             )
         lines.append(
             "These counts summarize existing provider planning outputs only; "
             "report-only mode does not trigger provider planning, downloads, "
             "credential handling, FASTA installation, manifest changes, or "
             "completion metric changes."
+        )
+        if provider_proposed_summary is not None:
+            lines.append(
+                "Provider proposal review risk is indicated by manual-review "
+                "rows, missing local FASTA paths, missing SHA-256 checksums, or "
+                "any proposal row already marked `external_genome_registered`."
+            )
+        lines.append(
+            "Provider proposals are handoff rows, not installed genomes; copy "
+            "reviewed rows to external_genomes.tsv and run "
+            "`--register-external-genomes` before they can enter downstream "
+            "planning."
         )
 
     lines.extend(

@@ -85,6 +85,11 @@ def test_valid_request_builds_plan_and_proposed_rows(tmp_path):
     assert plan_rows[0].manifest_action == "none"
     assert plan_rows[0].ncbi_download_plan_action == "none"
     assert plan_rows[0].eligible_for_proposed_external_genomes is True
+    assert "local_fasta_path_missing" in plan_rows[0].blocking_reasons
+    assert "local_sha256_missing" in plan_rows[0].blocking_reasons
+    assert "supply local_fasta_path" in plan_rows[0].notes
+    assert "supply local_sha256" in plan_rows[0].notes
+    assert "--register-external-genomes" in plan_rows[0].notes
     assert plan_rows[0].proposed_external_genomes_status == (
         "external_genome_manual_review_required"
     )
@@ -97,6 +102,9 @@ def test_valid_request_builds_plan_and_proposed_rows(tmp_path):
     assert proposed_rows[0].requires_manual_review is True
     assert proposed_rows[0].status == "external_genome_manual_review_required"
     assert "provider_request_id=REQ-001" in proposed_rows[0].notes
+    assert "review_only_provider_proposal=true" in proposed_rows[0].notes
+    assert "missing_local_fasta_path=true" in proposed_rows[0].notes
+    assert "missing_local_sha256=true" in proposed_rows[0].notes
 
 
 def test_missing_required_value_is_plan_error_not_exception(tmp_path):
@@ -124,6 +132,7 @@ def test_terms_review_missing_prevents_ready_status(tmp_path):
     assert plan_rows[0].status == "provider_plan_terms_review_required"
     assert plan_rows[0].planned_action == "missing_terms_review"
     assert "terms_review_required" in plan_rows[0].blocking_reasons
+    assert "confirm provider terms/license" in plan_rows[0].notes
     assert proposed_rows[0].status == "external_genome_manual_review_required"
 
 
@@ -166,7 +175,7 @@ def test_unsupported_artifact_type_requires_manual_review(tmp_path):
     assert proposed_rows[0].status == "external_genome_manual_review_required"
 
 
-def test_complete_local_evidence_can_mark_proposal_registered_without_io(tmp_path):
+def test_complete_local_evidence_still_keeps_provider_proposal_review_only(tmp_path):
     path = _write_provider_request(
         tmp_path / "provider_request.tsv",
         local_fasta_path=str(tmp_path / "missing_but_not_checked.fna"),
@@ -177,10 +186,14 @@ def test_complete_local_evidence_can_mark_proposal_registered_without_io(tmp_pat
     plan_rows, proposed_rows = plan_provider_registration(read_provider_requests(path))
 
     assert plan_rows[0].status == "provider_plan_ready_for_review"
-    assert plan_rows[0].proposed_external_genomes_status == "external_genome_registered"
+    assert plan_rows[0].proposed_external_genomes_status == (
+        "external_genome_manual_review_required"
+    )
+    assert plan_rows[0].manual_review_required is True
     assert proposed_rows[0].genome_fasta_path.endswith("missing_but_not_checked.fna")
     assert proposed_rows[0].sha256 == "a" * 64
-    assert proposed_rows[0].requires_manual_review is False
+    assert proposed_rows[0].requires_manual_review is True
+    assert proposed_rows[0].status == "external_genome_manual_review_required"
     assert not (tmp_path / "missing_but_not_checked.fna").exists()
 
 
@@ -216,7 +229,7 @@ def test_proposed_external_genomes_header_matches_external_schema():
     assert PROPOSED_EXTERNAL_GENOME_FIELDS == EXTERNAL_GENOME_FIELDS
 
 
-def test_ready_provider_proposal_can_be_read_as_external_genome_input(tmp_path):
+def test_ready_provider_proposal_is_still_not_install_ready(tmp_path):
     fasta = _fasta(tmp_path / "local_evidence" / "synthetic.fna")
     checksum = calculate_sha256(fasta)
     request_path = _write_provider_request(
@@ -238,10 +251,11 @@ def test_ready_provider_proposal_can_be_read_as_external_genome_input(tmp_path):
     assert parsed[0].external_source == "synthetic_provider"
     assert parsed[0].genome_fasta_path == str(fasta)
     assert parsed[0].sha256 == checksum
-    assert parsed[0].requires_manual_review is False
-    assert parsed[0].status == "external_genome_registered"
-    assert validation[0].valid is True
-    assert validation[0].status == "external_genome_registered"
+    assert parsed[0].requires_manual_review is True
+    assert parsed[0].status == "external_genome_manual_review_required"
+    assert validation[0].valid is False
+    assert validation[0].status == "external_genome_manual_review_required"
+    assert "manual review" in validation[0].message
     assert not (tmp_path / "external_genomes.tsv").exists()
     assert not (tmp_path / "manifest.tsv").exists()
     assert not (tmp_path / "name_map.tsv").exists()

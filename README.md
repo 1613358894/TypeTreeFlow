@@ -285,7 +285,10 @@ reviewable plan and proposal outputs only, not provider automation. Provider
 proposal rows do not count toward NCBI Assembly strict completion or
 external-inclusive completion. If a curator accepts proposed rows, the handoff
 is manual: prepare a local `external_genomes.tsv` and run the existing external
-registration workflow explicitly.
+registration workflow explicitly. Provider planning notes call out missing
+terms review, local FASTA paths, SHA-256 checksums, and manual-review flags so
+the handoff can be completed without treating proposal rows as installed
+genomes.
 
 Install reviewed external genome FASTA files:
 
@@ -326,11 +329,14 @@ Dry-runs never merge manifest files.
 
 Once the manifest exists, `--report-only` can generate `report/summary.md` from
 existing files. External registered genomes appear in their own section and in
-provenance counts, but remain separate from NCBI Assembly-backed records. If
-existing provider planning outputs are present under `provider/`, the same
-report also adds review-only provider registration planning counts. It does not
-read `provider_request.tsv`, rerun provider planning, download, log in, install
-proposed genomes, write manifests, or change completion audit metrics.
+provenance counts, but remain separate from NCBI Assembly-backed records.
+Registered external genomes with installed local FASTA paths can enter
+downstream planning as mixed-provenance references. If existing provider
+planning outputs are present under `provider/`, the same report also adds
+review-only provider registration planning counts, including proposed rows
+missing local FASTA paths or checksums. It does not read `provider_request.tsv`,
+rerun provider planning, download, log in, install proposed genomes, write
+manifests, or change completion audit metrics.
 
 ```bash
 typetreeflow \

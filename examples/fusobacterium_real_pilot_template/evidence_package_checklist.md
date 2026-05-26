@@ -14,6 +14,8 @@ real external evidence.
   paths or outside the repository.
 - [ ] The provider-native `external_genome_id` is recorded as provenance only
   and is not used as `assembly_accession`.
+- [ ] Any provider planning output was treated as review-only handoff evidence,
+  not as a registered or completion-counted genome.
 
 ## external_genomes.tsv Review
 
@@ -27,6 +29,8 @@ real external evidence.
 - [ ] `is_type_material=true`.
 - [ ] `requires_manual_review=false` only after all review items are resolved.
 - [ ] `status=external_genome_registered`.
+- [ ] The row was copied from any reviewed proposal into the local
+  `external_genomes.tsv` used by `--register-external-genomes`.
 
 ## Command Review
 
@@ -44,6 +48,8 @@ real external evidence.
   registered `F. mortiferum` record.
 - [ ] The external manifest row keeps `assembly_accession` empty.
 - [ ] The external manifest row uses `external_registered_genome` provenance.
+- [ ] The external manifest row points to an installed local FASTA under the
+  selected output directory and is downstream-planning ready.
 - [ ] `--write-completion-audit` completed.
 - [ ] `--report-only` completed.
 

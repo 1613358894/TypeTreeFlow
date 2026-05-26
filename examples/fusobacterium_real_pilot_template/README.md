@@ -33,6 +33,12 @@ examples/fusobacterium_real_pilot_template/local_fasta/
 Fill `external_genomes.tsv`. Keep `external_genome_id` as provider-native
 metadata only; do not use it as `assembly_accession`.
 
+If you generated `provider/proposed_external_genomes.tsv` first, treat it as a
+review draft. Confirm terms/license, fill the local FASTA path and checksum,
+clear `requires_manual_review` only after review, then copy the accepted row to
+this local `external_genomes.tsv`. Provider proposals are not installed genomes
+and do not count toward completion until `--register-external-genomes` succeeds.
+
 ## Commands
 
 From the repository root:
@@ -67,5 +73,8 @@ Do not describe the result as 17/17 NCBI Assembly strict completion.
   credential handling, or provider download.
 - No real FASTA, restricted provider bundle, credential, token, cookie, or
   secret should be committed.
+- No `provider_request.tsv` or `proposed_external_genomes.tsv` row should be
+  treated as downstream-ready without a reviewed `external_genomes.tsv`
+  registration run.
 - The synthetic fixture validates software behavior only; it does not replace
   real ATCC evidence.

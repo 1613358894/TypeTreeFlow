@@ -30,6 +30,10 @@ move, archive, or deletion.
   Curator template for a local real `F. mortiferum` ATCC 25557 external pilot
   evidence package without committing real FASTA, provider artifacts, or
   credentials.
+- [local_artifact_normalization_design.md](local_artifact_normalization_design.md):
+  Design-only offline normalization boundary for curator-provided local FASTA
+  artifacts before `--register-external-genomes`; it excludes provider
+  download, login, scraping, credential handling, and direct manifest writes.
 
 ## Active designs
 

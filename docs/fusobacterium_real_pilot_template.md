@@ -53,6 +53,13 @@ examples/fusobacterium_real_pilot_template/local_fasta/
 
 or another local restricted-data directory outside tracked repository data.
 
+If the pilot starts from provider planning, treat
+`provider/proposed_external_genomes.tsv` as a draft only. Review the proposed
+row, confirm terms/license, supply the local FASTA path and SHA-256, then copy
+the accepted row into the local ignored `external_genomes.tsv`. Do not feed a
+provider proposal directly into completion reporting and do not use a
+provider-native identifier as `assembly_accession`.
+
 ## Minimal Workflow
 
 Prepare a local output directory that already has the 16 accepted NCBI Assembly
@@ -82,7 +89,9 @@ Review:
 - `external_genome_install_plan.tsv`
 
 Resolve missing-file, checksum, manual-review, and provenance issues before
-continuing.
+continuing. A row is ready for merge only when the local FASTA exists, the
+checksum matches, terms/license have been reviewed for local analysis,
+`requires_manual_review=false`, and the external registration result is valid.
 
 Install and merge the accepted external record:
 
@@ -117,6 +126,8 @@ Successful real pilot evidence should show:
   registered `F. mortiferum` row.
 - The external row keeps `assembly_accession` empty.
 - The external row uses `external_registered_genome` provenance.
+- The external row points to an installed local FASTA and can enter downstream
+  planning as mixed-provenance evidence.
 - `source_audit/completion_audit.tsv` marks `Fusobacterium mortiferum` as
   `complete_external_registered`.
 - `source_audit/completion_summary.tsv` reports NCBI Assembly strict completion

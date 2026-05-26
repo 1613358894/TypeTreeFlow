@@ -212,6 +212,12 @@ def test_plan_provider_registration_example_fixture_smoke(tmp_path):
     assert "## Provider Registration Planning" in summary
     assert "- Total provider requests: 1" in summary
     assert "- Proposed external genomes rows for review: 1" in summary
+    assert "- Proposed rows with registered status (unexpected): 0" in summary
+    assert "- Proposed rows still requiring manual review: 1" in summary
+    assert "- Proposed rows missing local FASTA path: 1" in summary
+    assert "- Proposed rows missing SHA-256 checksum: 1" in summary
+    assert "Provider proposal review risk is indicated by" in summary
+    assert "Provider proposals are handoff rows, not installed genomes" in summary
     assert "report-only mode does not trigger provider planning" in summary
     assert not (outdir / "name_map.tsv").exists()
     assert not (outdir / "cache" / "ncbi" / "download_plan.tsv").exists()

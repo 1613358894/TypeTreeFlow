@@ -366,8 +366,10 @@ def _plan_provider_request(
             planned_action = "needs_curator_review"
         blocking_reasons.append("unsupported_artifact_type")
 
-    if not record.local_fasta_path or not record.local_sha256:
-        blocking_reasons.append("local_fasta_and_sha256_not_supplied")
+    if not record.local_fasta_path:
+        blocking_reasons.append("local_fasta_path_missing")
+    if not record.local_sha256:
+        blocking_reasons.append("local_sha256_missing")
 
     proposal_status = _proposed_external_status(record, missing_fields, blocking_reasons)
     manual_review_required = (
@@ -428,21 +430,7 @@ def _proposed_external_status(
     missing_fields: list[str],
     blocking_reasons: list[str],
 ) -> str:
-    if (
-        not missing_fields
-        and not record.requires_manual_review
-        and record.terms_review_status == "reviewed_allowed"
-        and record.license_notes.strip()
-        and record.local_fasta_path
-        and record.local_sha256
-        and record.is_type_material
-        and record.artifact_type in SUPPORTED_PROVIDER_ARTIFACT_TYPES
-        and not any(
-            reason in {"terms_review_required", "unsupported_artifact_type"}
-            for reason in blocking_reasons
-        )
-    ):
-        return "external_genome_registered"
+    _ = record, missing_fields, blocking_reasons
     return "external_genome_manual_review_required"
 
 
@@ -451,7 +439,23 @@ def _external_genome_id(record: ProviderRequestRecord) -> str:
 
 
 def _plan_notes(record: ProviderRequestRecord) -> str:
-    parts = ["dry_run_only=true", "network_action=none", "download_action=none"]
+    parts = [
+        "dry_run_only=true",
+        "network_action=none",
+        "download_action=none",
+        "handoff=review proposed_external_genomes.tsv, copy accepted rows to external_genomes.tsv, then run --register-external-genomes",
+    ]
+    if record.terms_review_status != "reviewed_allowed":
+        parts.append("next_review=confirm provider terms/license allow local analysis")
+    if not record.license_notes.strip():
+        parts.append("next_review=record license_notes before registration")
+    if not record.local_fasta_path:
+        parts.append("next_review=supply local_fasta_path to a curator-provided FASTA")
+    if not record.local_sha256:
+        parts.append("next_review=supply local_sha256 for the local FASTA")
+    if record.requires_manual_review:
+        parts.append("next_review=clear requires_manual_review only after evidence review")
+    parts.append("local_fasta_not_validated_by_provider_planning=true")
     if record.curator:
         parts.append(f"curator={record.curator}")
     if record.notes:
@@ -460,7 +464,19 @@ def _plan_notes(record: ProviderRequestRecord) -> str:
 
 
 def _proposal_notes(record: ProviderRequestRecord) -> str:
-    parts = [f"provider_request_id={record.request_id}"]
+    parts = [
+        f"provider_request_id={record.request_id}",
+        "review_only_provider_proposal=true",
+        "install_requires=copy reviewed row to external_genomes.tsv and run --register-external-genomes",
+    ]
+    if not record.local_fasta_path:
+        parts.append("missing_local_fasta_path=true")
+    if not record.local_sha256:
+        parts.append("missing_local_sha256=true")
+    if record.terms_review_status != "reviewed_allowed":
+        parts.append("terms_review_required=true")
+    if record.requires_manual_review:
+        parts.append("manual_review_required=true")
     optional_parts = [
         ("provider_artifact_id", record.provider_artifact_id),
         ("provider_artifact_version", record.provider_artifact_version),

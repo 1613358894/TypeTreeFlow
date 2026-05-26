@@ -17,6 +17,10 @@ dry-run-only provider adapter spike. They are planning statuses only: they do
 not represent provider access, provider download, FASTA validation, manifest
 registration, name-map updates, NCBI download planning, or NCBI Assembly
 completion.
+`provider/proposed_external_genomes.tsv` rows remain review-only handoff rows
+and always carry `external_genome_manual_review_required`; they do not use
+`external_genome_registered` until copied into `external_genomes.tsv` and
+validated by the external registration workflow.
 
 - `provider_plan_ready_for_review`: Required request fields are present, terms are marked `reviewed_allowed`, the artifact type can map to a proposed external genome row, and the row is ready for curator review.
 - `provider_plan_manual_review_required`: The request is readable but needs curator review, commonly because the artifact type is not `genome_fasta` or `normalized_genome_fasta`.

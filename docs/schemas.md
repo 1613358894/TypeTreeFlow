@@ -84,8 +84,8 @@ secret, session, credential, or API-key columns are rejected.
 - `provider_artifact_id`: provider-native artifact or asset identifier, if known.
 - `provider_artifact_version`: provider artifact version or release text, if known.
 - `artifact_type`: expected artifact type; `genome_fasta` and `normalized_genome_fasta` can be proposed directly, while other values require manual review.
-- `local_fasta_path`: optional curator-supplied local FASTA path; it is not copied or validated by provider planning.
-- `local_sha256`: optional SHA-256 for the local FASTA; it is not checked by provider planning.
+- `local_fasta_path`: optional curator-supplied local FASTA path; it is not copied or validated by provider planning. If absent, the proposal remains a review-only handoff row until a curator supplies a local FASTA and runs `--register-external-genomes`.
+- `local_sha256`: optional SHA-256 for the local FASTA; it is not checked by provider planning. If absent, the proposal remains review-only until a checksum is supplied or computed by external registration.
 - `terms_review_status`: one of `not_reviewed`, `reviewed_allowed`, `reviewed_restricted`, or `unknown`.
 - `license_notes`: curator notes about allowed local analysis, redistribution, retention, citation, and derivative-use constraints.
 - `retrieval_date`: date the curator obtained or inspected the artifact, when applicable.
@@ -121,21 +121,24 @@ and why it still needs review. Provider planning always writes
 - `manifest_action`: always `none`.
 - `ncbi_download_plan_action`: always `none`.
 - `eligible_for_proposed_external_genomes`: boolean indicating whether a proposal row can be emitted.
-- `missing_fields`: semicolon-delimited missing request evidence.
-- `blocking_reasons`: semicolon-delimited reasons the row cannot become an installable external registration yet.
+- `missing_fields`: semicolon-delimited missing request evidence, including provider-native identifier evidence when neither `provider_record_id` nor `provider_artifact_id` is present.
+- `blocking_reasons`: semicolon-delimited reasons the row cannot become an installable external registration yet, such as `terms_review_required`, `local_fasta_path_missing`, `local_sha256_missing`, or `unsupported_artifact_type`.
 - `manual_review_required`: boolean review flag for the plan row.
 - `terms_review_status`: copied from the request.
 - `license_notes`: copied from the request.
 - `proposed_external_genomes_status`: status that will be placed on the proposed external row.
-- `notes`: dry-run and curator-review diagnostics.
+- `notes`: dry-run and curator-review diagnostics, including the handoff reminder to review `proposed_external_genomes.tsv`, copy accepted rows to `external_genomes.tsv`, and run `--register-external-genomes`.
 
 ## proposed_external_genomes.tsv
 
 Provider planning proposal output in the same shape as `external_genomes.tsv`.
-It is not consumed automatically, does not validate or copy FASTA files, and
-does not write `manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`, or
-`cache/ncbi/download_plan.tsv`. Provider-native IDs remain in
-`external_genome_id` and must not be written to `assembly_accession`.
+It is always a review-only handoff table: it is not consumed automatically,
+does not validate or copy FASTA files, and does not write `manifest.tsv`,
+`name_map.tsv`, `external_genomes.tsv`, or `cache/ncbi/download_plan.tsv`.
+Provider-native IDs remain in `external_genome_id` and must not be written to
+`assembly_accession`. Proposal rows are not registered genomes, installed
+references, or completion evidence until a curator copies reviewed rows into
+`external_genomes.tsv` and runs `--register-external-genomes`.
 
 - `species`: checklist species represented by the proposed external genome.
 - `strain`: strain label for the proposed external genome.
@@ -148,8 +151,8 @@ does not write `manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`, or
 - `sha256`: curator-supplied local SHA-256, when provided; otherwise blank.
 - `is_type_material`: boolean type-material flag copied from the request.
 - `requires_manual_review`: boolean review flag derived from the request and plan.
-- `status`: usually `external_genome_manual_review_required`; can be `external_genome_registered` only when local path, checksum, type-material assertion, and reviewed allowed terms are supplied.
-- `notes`: request ID, provider artifact/version details, retrieval date, terms status, license notes, curator, and request notes.
+- `status`: always `external_genome_manual_review_required` for provider planning proposals, even when local path, checksum, type-material assertion, and reviewed allowed terms are supplied.
+- `notes`: request ID, review-only marker, install handoff reminder, missing local FASTA/checksum prompts, provider artifact/version details, retrieval date, terms status, license notes, curator, and request notes.
 
 ## external_genomes.tsv
 

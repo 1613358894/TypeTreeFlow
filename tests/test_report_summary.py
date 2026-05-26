@@ -228,9 +228,11 @@ def _provider_plan_row(**overrides: str) -> dict[str, str]:
             "manifest_action": "none",
             "ncbi_download_plan_action": "none",
             "eligible_for_proposed_external_genomes": "true",
-            "manual_review_required": "false",
+            "manual_review_required": "true",
             "terms_review_status": "reviewed_allowed",
-            "proposed_external_genomes_status": "external_genome_registered",
+            "proposed_external_genomes_status": (
+                "external_genome_manual_review_required"
+            ),
             "notes": "dry_run_only=true",
         }
     )
@@ -262,8 +264,8 @@ def _proposed_external_genome_row(**overrides: str) -> dict[str, str]:
             "external_source_name": "Synthetic Provider",
             "external_genome_id": "SP-9817",
             "is_type_material": "true",
-            "requires_manual_review": "false",
-            "status": "external_genome_registered",
+            "requires_manual_review": "true",
+            "status": "external_genome_manual_review_required",
             "notes": "provider_request_id=REQ-001",
         }
     )
@@ -502,6 +504,7 @@ def test_report_summary_external_manifest_record_includes_external_section(tmp_p
 
     assert "## External Registered Genomes" in markdown
     assert "- Count: 1" in markdown
+    assert "provider proposals alone do not appear in this table" in markdown
     assert (
         "| Fusobacterium mortiferum ATCC 9817 | ATCC 9817 | "
         "genomes/references/Fusobacterium_mortiferum_ATCC_9817.fna | "
@@ -528,6 +531,7 @@ def test_report_summary_mixed_ncbi_and_external_manifest_shows_provenance_counts
     assert "- External registered genome records: 1" in markdown
     assert "- Genome-ready records: 2" in markdown
     assert "- Records missing genome: 1" in markdown
+    assert "can participate in downstream planning as mixed-provenance references" in markdown
 
 
 def test_report_includes_taxonomic_audit_counts_from_existing_comparison(tmp_path):
@@ -734,7 +738,7 @@ def test_report_with_provider_plan_shows_review_counts(tmp_path):
             _provider_plan_row(
                 request_id="REQ-001",
                 status="provider_plan_ready_for_review",
-                manual_review_required="false",
+                manual_review_required="true",
             ),
             _provider_plan_row(
                 request_id="REQ-002",
@@ -763,14 +767,14 @@ def test_report_with_provider_plan_shows_review_counts(tmp_path):
     assert summary == {
         "total_provider_requests": 4,
         "ready_for_review_count": 1,
-        "manual_review_required_count": 3,
+        "manual_review_required_count": 4,
         "download_not_supported_count": 1,
         "credentials_not_supported_count": 1,
     }
     assert "## Provider Registration Planning" in markdown
     assert "- Total provider requests: 4" in markdown
     assert "- Review-only ready count: 1" in markdown
-    assert "- Manual review required count: 3" in markdown
+    assert "- Manual review required count: 4" in markdown
     assert "- Download not supported count: 1" in markdown
     assert "- Credentials not supported count: 1" in markdown
     assert "report-only mode does not trigger provider planning" in markdown
@@ -803,6 +807,12 @@ def test_report_with_provider_plan_shows_proposed_external_genomes_count(tmp_pat
     assert "## Provider Registration Planning" in markdown
     assert "- Total provider requests: 2" in markdown
     assert "- Proposed external genomes rows for review: 2" in markdown
+    assert "- Proposed rows with registered status (unexpected): 0" in markdown
+    assert "- Proposed rows still requiring manual review: 2" in markdown
+    assert "- Proposed rows missing local FASTA path: 2" in markdown
+    assert "- Proposed rows missing SHA-256 checksum: 2" in markdown
+    assert "Provider proposal review risk is indicated by" in markdown
+    assert "Provider proposals are handoff rows, not installed genomes" in markdown
 
 
 def test_report_provider_planning_does_not_change_completion_audit_metrics(tmp_path):
@@ -822,7 +832,7 @@ def test_report_provider_planning_does_not_change_completion_audit_metrics(tmp_p
         [
             _provider_plan_row(
                 status="provider_plan_ready_for_review",
-                manual_review_required="false",
+                manual_review_required="true",
             )
         ],
     )
@@ -837,6 +847,7 @@ def test_report_provider_planning_does_not_change_completion_audit_metrics(tmp_p
     assert "- External registered genomes accepted by completion audit: 1" in markdown
     assert "- External-inclusive strict completion: 2/4" in markdown
     assert "- Proposed external genomes rows for review: 1" in markdown
+    assert "before they can enter downstream planning" in markdown
 
 
 def test_report_provider_plan_malformed_tsv_writes_unavailable_note(tmp_path):
