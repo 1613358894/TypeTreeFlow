@@ -687,7 +687,7 @@ def test_report_includes_completion_audit_from_existing_summary(tmp_path):
     assert "## Completion Audit" in markdown
     assert "- Expected species: 3" in markdown
     assert "- NCBI Assembly strict completion: 1/3" in markdown
-    assert "- External registered genomes: 1" in markdown
+    assert "- External registered genomes accepted by completion audit: 1" in markdown
     assert "- External-inclusive strict completion: 2/3" in markdown
     assert (
         "External-inclusive strict completion is a mixed-provenance readiness "
@@ -722,7 +722,7 @@ def test_report_completion_external_inclusive_does_not_change_ncbi_completion(tm
     markdown = build_run_summary_markdown([_record("ref1")], paths)
 
     assert "- NCBI Assembly strict completion: 1/4" in markdown
-    assert "- External registered genomes: 2" in markdown
+    assert "- External registered genomes accepted by completion audit: 2" in markdown
     assert "- External-inclusive strict completion: 3/4" in markdown
 
 
@@ -769,7 +769,7 @@ def test_report_with_provider_plan_shows_review_counts(tmp_path):
     }
     assert "## Provider Registration Planning" in markdown
     assert "- Total provider requests: 4" in markdown
-    assert "- Ready for review count: 1" in markdown
+    assert "- Review-only ready count: 1" in markdown
     assert "- Manual review required count: 3" in markdown
     assert "- Download not supported count: 1" in markdown
     assert "- Credentials not supported count: 1" in markdown
@@ -802,7 +802,7 @@ def test_report_with_provider_plan_shows_proposed_external_genomes_count(tmp_pat
 
     assert "## Provider Registration Planning" in markdown
     assert "- Total provider requests: 2" in markdown
-    assert "- Proposed external genomes count: 2" in markdown
+    assert "- Proposed external genomes rows for review: 2" in markdown
 
 
 def test_report_provider_planning_does_not_change_completion_audit_metrics(tmp_path):
@@ -834,9 +834,9 @@ def test_report_provider_planning_does_not_change_completion_audit_metrics(tmp_p
     markdown = build_run_summary_markdown([_record("ref1")], paths)
 
     assert "- NCBI Assembly strict completion: 1/4" in markdown
-    assert "- External registered genomes: 1" in markdown
+    assert "- External registered genomes accepted by completion audit: 1" in markdown
     assert "- External-inclusive strict completion: 2/4" in markdown
-    assert "- Proposed external genomes count: 1" in markdown
+    assert "- Proposed external genomes rows for review: 1" in markdown
 
 
 def test_report_provider_plan_malformed_tsv_writes_unavailable_note(tmp_path):

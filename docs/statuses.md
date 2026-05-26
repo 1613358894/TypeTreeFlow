@@ -94,6 +94,7 @@ rows are eligible for external registered genome records in `manifest.tsv` and
 - `barrnap_missing_output`: barrnap runner succeeded but produced no usable GFF.
 - `rrna_16s_skipped_existing`: Existing extracted 16S FASTA was reused.
 - `rrna_16s_ready`: A reference 16S FASTA is registered and ready.
+- `rrna_16s_not_found`: barrnap output did not contain a usable 16S sequence.
 - `rrna_16s_extract_failed`: barrnap GFF or genome FASTA could not produce a usable 16S sequence.
 - `rrna_workflow_dry_run`: Local 16S workflow planned only and did not run barrnap.
 - `barrnap_not_enabled`: Local 16S workflow was asked to run but `--enable-barrnap` was absent.
@@ -179,10 +180,29 @@ These statuses are written to `taxonomy/checklist_comparison.tsv` in the
 ## Offline Selection And Source Audit
 
 Selection tables use `selected=yes` or `selected=no` rather than manifest
-statuses. Generated `selection_reason` values are:
+statuses. Generated `policy_decision` and `selection_reason` values include:
 
+- `auto_selected_lpsn_type_strain_match`: Row was preselected because NCBI candidate evidence matched parsed LPSN type-strain identifiers.
+- `auto_selected_curator_lpsn_type_strain_match`: Row was preselected because curator evidence confirmed a deposit identifier in the LPSN type-strain set.
 - `auto_selected_top_ranked`: Row was preselected by deterministic candidate ranking.
 - `available_not_selected`: Row is available for review but was not preselected.
+- `manual_review_required`: Row remains available only for manual review.
+
+Candidate discovery and BioSample diagnostics can write these review codes in
+diagnostic tables or `manual_review_reason` fields:
+
+- `no_records`: No discovery records were available for a checklist species.
+- `missing_assembly_accession`: A discovery record was present but lacked an NCBI assembly accession.
+- `missing_biosample`: A candidate lacked a BioSample accession during BioSample enrichment.
+- `biosample_record_not_found`: A candidate BioSample accession was not present in the BioSample cache or lookup result.
+
+Manual review gap summaries can write these values in `gap_reason`:
+
+- `no_candidate_rows`: No candidate rows were available for the species.
+- `lpsn_match_present_but_not_selected`: At least one candidate had LPSN type-strain match evidence, but no row was selected.
+- `type_material_without_confirmed_lpsn_deposit_match`: Type-material candidate evidence exists, but it has not been confirmed against the LPSN type-strain deposit set.
+- `ncbi_deposit_id_without_lpsn_type_strain_match`: NCBI-side deposit IDs exist, but none match the parsed LPSN type-strain IDs.
+- `manual_review_required`: The gap needs curator review.
 
 Sequence source audits write these values in `audit_status`:
 
@@ -227,3 +247,4 @@ The same table writes these values in `completion_status`:
 - `genome_missing`: Generic missing genome status used by report summary tests.
 - `name_ambiguous`: Generic ambiguous-name status used by report summary tests.
 - `assembly_not_found`: Generic missing assembly status used by report summary tests.
+- `phylo_ready_to_plan`: Report-only phylogeny summary found enough combined 16S records for a future phylogeny plan, but did not execute or create the plan.

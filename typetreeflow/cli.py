@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
+from typetreeflow import __version__
 from typetreeflow.ani.workflow import prepare_ani
 from typetreeflow.completion import (
     build_completion_audit,
@@ -170,7 +171,15 @@ class PipelineResult:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="typetreeflow",
-        description="Prepare type-strain ANI and 16S phylogeny workflows.",
+        description=(
+            "Run guarded LPSN-first type-strain genome acquisition, audit, "
+            "and report workflows."
+        ),
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     parser.add_argument("--genus", help="Target genus name.")
     parser.add_argument(
@@ -327,7 +336,8 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Write source_audit/completion_audit.tsv and "
             "source_audit/completion_summary.tsv from --species-checklist and "
-            "an existing manifest.tsv without running workflow stages."
+            "an existing manifest.tsv; keeps NCBI Assembly strict completion "
+            "separate from external-inclusive readiness."
         ),
     )
     parser.add_argument(
@@ -431,7 +441,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--report-only",
         action="store_true",
-        help="Refresh report/summary.md from an existing manifest without running stages.",
+        help=(
+            "Refresh report/summary.md from existing files only; does not run "
+            "workflow stages, provider planning, downloads, or completion audits."
+        ),
     )
     parser.add_argument(
         "--log-level",

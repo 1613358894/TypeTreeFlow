@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from typetreeflow import __version__
 from typetreeflow import cli
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
@@ -68,6 +69,14 @@ def test_cli_help_includes_plan_provider_registration(capsys):
 
     assert excinfo.value.code == 0
     assert "--plan-provider-registration" in capsys.readouterr().out
+
+
+def test_cli_version_outputs_package_version(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["--version"])
+
+    assert excinfo.value.code == 0
+    assert capsys.readouterr().out.strip() == f"typetreeflow {__version__}"
 
 
 def test_plan_provider_registration_valid_tsv_writes_provider_outputs(tmp_path):
@@ -202,7 +211,7 @@ def test_plan_provider_registration_example_fixture_smoke(tmp_path):
     assert report_result == 0
     assert "## Provider Registration Planning" in summary
     assert "- Total provider requests: 1" in summary
-    assert "- Proposed external genomes count: 1" in summary
+    assert "- Proposed external genomes rows for review: 1" in summary
     assert "report-only mode does not trigger provider planning" in summary
     assert not (outdir / "name_map.tsv").exists()
     assert not (outdir / "cache" / "ncbi" / "download_plan.tsv").exists()

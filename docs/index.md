@@ -5,6 +5,9 @@ move, archive, or deletion.
 
 ## Current contracts
 
+- [stable_contracts.md](stable_contracts.md): v1.0.0 contract classification
+  for stable, review-only, internal, and post-v1.0 CLI, TSV schema, status,
+  output layout, report, and safety surfaces.
 - [design.md](design.md): Current architecture and safety contract for the
   LPSN-first workflow, stable manifests, guarded execution, and implemented
   workflow surface.
@@ -30,6 +33,10 @@ move, archive, or deletion.
 
 ## Active designs
 
+- [v1_0_0_readiness_review.md](v1_0_0_readiness_review.md): Readiness review
+  for a stable v1.0.0 LPSN-first acquisition/audit release, including
+  non-scope, completion boundaries, provider planning boundaries, and a
+  release-readiness checklist.
 - [v0_8_0_implementation_plan.md](v0_8_0_implementation_plan.md): Planning
   document for a possible v0.8.0 hardening and validation release. It keeps
   manual external registration and mixed-provenance completion audit in scope,

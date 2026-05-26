@@ -495,6 +495,11 @@ def build_run_summary_markdown(
         ),
         f"- Genome-ready records: {provenance_counts['genome_ready_count']}",
         f"- Records missing genome: {provenance_counts['missing_genome_count']}",
+        (
+            "NCBI Assembly-backed records require recorded NCBI accessions; "
+            "external registered genome records are local FASTA registrations "
+            "and are not counted as NCBI Assembly-backed records."
+        ),
         "",
         "## 16S Status",
         "",
@@ -702,7 +707,10 @@ def build_run_summary_markdown(
                     "- NCBI Assembly strict completion: "
                     f"{ncbi_complete_count}/{expected_species_count}"
                 ),
-                f"- External registered genomes: {external_registered_count}",
+                (
+                    "- External registered genomes accepted by completion audit: "
+                    f"{external_registered_count}"
+                ),
                 (
                     "- External-inclusive strict completion: "
                     f"{external_inclusive_complete_count}/{expected_species_count}"
@@ -771,7 +779,7 @@ def build_run_summary_markdown(
                     f"{provider_plan_summary['total_provider_requests']}"
                 ),
                 (
-                    "- Ready for review count: "
+                    "- Review-only ready count: "
                     f"{provider_plan_summary['ready_for_review_count']}"
                 ),
                 (
@@ -790,12 +798,14 @@ def build_run_summary_markdown(
         )
         if provider_proposed_count is not None:
             lines.append(
-                f"- Proposed external genomes count: {provider_proposed_count}"
+                "- Proposed external genomes rows for review: "
+                f"{provider_proposed_count}"
             )
         lines.append(
             "These counts summarize existing provider planning outputs only; "
             "report-only mode does not trigger provider planning, downloads, "
-            "credential handling, or manifest changes."
+            "credential handling, FASTA installation, manifest changes, or "
+            "completion metric changes."
         )
 
     lines.extend(

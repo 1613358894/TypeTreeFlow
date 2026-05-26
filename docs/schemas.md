@@ -11,6 +11,59 @@ not reuse NCBI `assembly_accession`; external manifest records keep
 `assembly_accession` empty and preserve external provenance in source/status
 fields and notes.
 
+## species_checklist.tsv
+
+Authoritative expected-species checklist used by LPSN-first and equivalent
+checklist workflows.
+
+- `genus`: checklist genus.
+- `species`: checklist species epithet.
+- `full_name`: full checklist binomial or source display name.
+- `status`: checklist taxonomic status, usually `correct name` for retained LPSN-derived rows.
+- `type_strain`: type-strain text or deposit identifiers from the source.
+- `source`: checklist source label.
+- `notes`: source or import diagnostics.
+- `nomenclatural_status`: source nomenclatural status text.
+- `taxonomic_status`: source taxonomic status text.
+- `lpsn_record_number`: LPSN record number or equivalent source identifier.
+- `lpsn_url`: LPSN or source URL.
+- `synonyms`: optional synonym text used for review/discovery context.
+
+## excluded_lpsn_taxa.tsv
+
+Review table for LPSN rows excluded from the retained checklist.
+
+- `original_name`: source name before parsing or normalization.
+- `genus`: parsed genus.
+- `species`: parsed species epithet.
+- `full_name`: full source name when available.
+- `nomenclatural_status`: source nomenclatural status text.
+- `taxonomic_status`: source taxonomic status text.
+- `type_strain_names`: source type-strain text when available.
+- `type_strain`: normalized source type-strain text when available.
+- `lpsn_record_number`: LPSN record number when available.
+- `lpsn_url`: LPSN URL when available.
+- `source`: source label when available.
+- `notes`: import metadata or diagnostics.
+- `exclusion_reason`: exclusion reason such as synonym, misspelling, not validly published, `Candidatus`, or missing species data.
+
+## lpsn_species_cache.tsv
+
+Optional official LPSN API/cache TSV written by `--write-lpsn-cache` or read
+with `--lpsn-cache`. The path is user-selected rather than fixed under
+`--outdir`.
+
+- `genus`: LPSN genus.
+- `species`: LPSN species epithet.
+- `full_name`: full LPSN species name.
+- `nomenclatural_status`: LPSN nomenclatural status text.
+- `taxonomic_status`: LPSN taxonomic status text.
+- `type_strain`: LPSN type-strain text.
+- `lpsn_record_number`: LPSN record number.
+- `lpsn_url`: LPSN taxon URL.
+- `source`: source label, such as `official LPSN API`.
+- `notes`: cache metadata or diagnostics.
+
 ## provider_request.tsv
 
 Curator-authored provider planning input for the v0.9.0 provider adapter spike.
@@ -253,6 +306,11 @@ or guarded Entrez BioSample lookup can add evidence to the same candidate rows.
 - `curator_evidence_source`: source publication, official collection record, or explicit BioSample/INSDC field used for curator confirmation.
 - `curator_notes`: curator notes copied from the evidence template.
 - `curator_evidence_applied`: whether filled curator evidence was imported into this candidate row.
+- `discovery_name`: source name used by discovery, including synonym-expanded queries when enabled.
+- `discovery_name_type`: discovery-name classification such as correct-name or synonym context.
+- `matched_correct_name`: checklist correct name represented by the discovery row.
+- `synonym_used`: synonym text used for candidate discovery, if any.
+- `synonym_evidence`: evidence explaining why synonym-expanded discovery was used.
 - `manual_review_reason`: reason an unmatched row remains in the candidate table, such as `no_lpsn_type_strain_id_match` or `no_ncbi_culture_collection_id`.
 - `source`: candidate source label.
 - `notes`: diagnostics or manual-review notes.
@@ -349,9 +407,21 @@ BioSample evidence plus blank curator columns:
 `curator_confirmed_deposit_id`, `curator_evidence_source`, and
 `curator_notes`.
 
+Fields are `species`, `assembly_accession`, `organism_name`, `strain`,
+`biosample`, `is_type_material`, `lpsn_type_strain_ids`,
+`ncbi_culture_collection_ids`, `biosample_culture_collection`,
+`biosample_type_material`, `current_manual_review_reason`,
+`suggested_review_action`, `curator_confirmed_deposit_id`,
+`curator_evidence_source`, and `curator_notes`.
+
 `manual_species_gap_summary.tsv` is species-level. It counts available
 candidates and records the current `gap_reason` and recommended next step for
 species with no `selected=yes` row.
+
+Fields are `species`, `lpsn_type_strain_ids`, `candidate_count`,
+`type_material_candidate_count`, `candidates_with_biosample_count`,
+`candidates_with_ncbi_deposit_id_count`, `best_candidate_accession`,
+`best_candidate_reason`, `gap_reason`, and `recommended_next_step`.
 
 Curator evidence is applied only when `curator_confirmed_deposit_id` is
 non-empty and matches one of the same candidate's `lpsn_type_strain_ids`.
@@ -474,8 +544,10 @@ downloads stage, including when fake runners are injected by tests.
 ## rRNA Outputs
 
 `rrna/rrna_plan.tsv` records the plan for 16S extraction from records that
-already have registered genomes. Planned barrnap GFF paths are
-`rrna/barrnap/<normalized_id>.gff`; planned extracted 16S FASTA paths are
+already have registered genomes. Fields are `record_id`, `normalized_id`,
+`genome_path`, `expected_gff_path`, `expected_rrna_fasta_path`, `status`, and
+`notes`. Planned barrnap GFF paths are `rrna/barrnap/<normalized_id>.gff`;
+planned extracted 16S FASTA paths are
 `rrna/sequences/<normalized_id>.16s.fasta`.
 
 Successful barrnap/internal-genome 16S records update
@@ -491,8 +563,10 @@ are normalized to contain no whitespace, and duplicate headers are rejected.
 
 ## ANI Outputs
 
-`ani/ani_plan.tsv` records the planned ANI query/reference inputs, and
-`ani/references.txt` contains ANI-planned reference genome paths, one per line.
+`ani/ani_plan.tsv` records the planned ANI query/reference inputs with
+`record_id`, `normalized_id`, `reference_genome_path`, `query_genome_path`,
+`status`, and `notes`. `ani/references.txt` contains ANI-planned reference
+genome paths, one per line.
 
 `ani/fastani_raw.tsv` is the raw five-column FastANI output:
 `query_path`, `reference_path`, `ani`, `matching_fragments`, and
@@ -525,12 +599,14 @@ automatically make species-level conclusions from ANI fields.
 
 ## Phylogeny Outputs
 
-`phylo/phylo_plan.tsv` records the planned MAFFT alignment path
-`phylo/all_16S.aln.fasta`, trimAl output path
-`phylo/all_16S.trimmed.fasta`, IQ-TREE prefix `phylo/iqtree/all_16S`, and
-expected treefile `phylo/iqtree/all_16S.treefile`. The current IQ-TREE command
-uses ultrafast bootstrap, so the plan requires at least 4 FASTA records;
-smaller inputs are recorded as `phylo_skipped_too_few_sequences`.
+`phylo/phylo_plan.tsv` records `input_fasta_path`, `aligned_fasta_path`,
+`trimmed_fasta_path`, `iqtree_prefix`, `treefile_path`, `status`, and `notes`.
+The planned MAFFT alignment path is `phylo/all_16S.aln.fasta`, trimAl output
+path is `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix is
+`phylo/iqtree/all_16S`, and the expected treefile is
+`phylo/iqtree/all_16S.treefile`. The current IQ-TREE command uses ultrafast
+bootstrap, so the plan requires at least 4 FASTA records; smaller inputs are
+recorded as `phylo_skipped_too_few_sequences`.
 
 The controlled MAFFT wrapper writes alignment stdout to
 `phylo/all_16S.aln.fasta` when invoked through an injected runner and stdout is
@@ -541,11 +617,19 @@ tree figures.
 
 ## Manifest and Report Notes
 
-`manifest.tsv` and `report/summary.md` represent the final recorded workflow
-state after completed stages. `report/summary.md` is generated from existing
-manifest state and already-written output files. If `ani/ani_summary.tsv` or
-`rrna/all_16S.fasta` is absent, the report marks those artifacts as not
-available instead of triggering additional analysis.
+`manifest.tsv` and `name_map.tsv` represent durable recorded workflow state
+after completed stages. `manifest.tsv` fields are `record_id`,
+`canonical_name`, `display_name`, `genus`, `species`, `strain`, `taxid`,
+`family`, `order`, `assembly_accession`, `assembly_source`,
+`is_type_material`, `is_outgroup`, `is_query`, `has_genome`, `genome_path`,
+`has_16s`, `rrna_16s_path`, `normalized_id`, `source`, `status`, and `notes`.
+`name_map.tsv` fields are `record_id`, `normalized_id`, `canonical_name`,
+`display_name`, and `assembly_accession`.
+
+`report/summary.md` is generated from existing manifest state and
+already-written output files. If `ani/ani_summary.tsv` or `rrna/all_16S.fasta`
+is absent, the report marks those artifacts as not available instead of
+triggering additional analysis.
 
 `report/summary.md` includes `Status Distribution`, `Output Files`, and
 `Problem Records` sections. Output file rows report path existence only.

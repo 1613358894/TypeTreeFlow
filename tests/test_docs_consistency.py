@@ -1,17 +1,54 @@
 from pathlib import Path
 
+from typetreeflow.ani.parse import ANI_QUERY_VS_REFS_FIELDS
+from typetreeflow.ani.plan import ANI_PLAN_FIELDS
+from typetreeflow.ani.summary import ANI_SUMMARY_FIELDS
 from typetreeflow.cli import build_parser
+from typetreeflow.completion import (
+    COMPLETION_AUDIT_FIELDS,
+    COMPLETION_SUMMARY_FIELDS,
+)
 from typetreeflow.config import REAL_ACTION_FLAGS
+from typetreeflow.external_genomes import (
+    EXTERNAL_GENOME_FIELDS,
+    EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
+    EXTERNAL_GENOME_INSTALL_RESULT_FIELDS,
+    EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
+    EXTERNAL_GENOME_INSTALL_PLAN_STATUSES,
+    EXTERNAL_GENOME_INSTALL_RESULT_STATUSES,
+    EXTERNAL_GENOME_STATUSES,
+)
+from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS, DOWNLOAD_RESULTS_FIELDS
+from typetreeflow.manifest import MANIFEST_FIELDS, NAME_MAP_FIELDS
+from typetreeflow.phylo.plan import PHYLO_PLAN_FIELDS
+from typetreeflow.provider_plan import (
+    PROVIDER_PLAN_STATUSES,
+    PROVIDER_REGISTRATION_PLAN_FIELDS,
+    PROVIDER_REQUEST_FIELDS,
+    PROPOSED_EXTERNAL_GENOME_FIELDS,
+)
+from typetreeflow.rrna.plan import RRNA_PLAN_FIELDS
+from typetreeflow.taxonomy.checklist import SPECIES_CHECKLIST_FIELDS
 from typetreeflow.taxonomy.candidates import CANDIDATE_FIELDS
 from typetreeflow.taxonomy.candidate_discovery import (
+    DISCOVERY_DIAGNOSTIC_FIELDS,
     DISCOVERY_RECORD_FIELDS,
     read_discovery_records,
 )
+from typetreeflow.taxonomy.culture_collections import CULTURE_COLLECTION_AUDIT_FIELDS
+from typetreeflow.taxonomy.lpsn import LPSN_CACHE_FIELDS, LPSN_EXCLUDED_FIELDS
 from typetreeflow.taxonomy.lpsn_child_taxa import (
+    LPSN_CHILD_TAXA_EXCLUDED_FIELDS,
     LPSN_CHILD_TAXA_FIELDS,
     read_lpsn_child_taxa,
 )
+from typetreeflow.taxonomy.manual_review import (
+    MANUAL_DEPOSIT_EVIDENCE_FIELDS,
+    MANUAL_SPECIES_GAP_FIELDS,
+)
+from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.taxonomy.selection import SELECTION_FIELDS
+from typetreeflow.taxonomy.source_audit import SOURCE_AUDIT_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -49,6 +86,7 @@ def test_readme_mentions_guarded_cli_flags():
 
     expected_flags = {
         "--dry-run",
+        "--version",
         "--resume",
         "--force",
         "--gtdb-metadata",
@@ -151,6 +189,99 @@ def test_schema_docs_mention_key_table_fields():
         assert table in docs
         for field in fields:
             assert field in docs
+
+
+def test_schema_docs_cover_public_tsv_field_constants():
+    docs = _read("docs/schemas.md")
+    public_tables = {
+        "manifest.tsv": MANIFEST_FIELDS,
+        "name_map.tsv": NAME_MAP_FIELDS,
+        "species_checklist.tsv": SPECIES_CHECKLIST_FIELDS,
+        "excluded_lpsn_taxa.tsv": [
+            *LPSN_EXCLUDED_FIELDS,
+            *LPSN_CHILD_TAXA_EXCLUDED_FIELDS,
+        ],
+        "lpsn_species_cache.tsv": LPSN_CACHE_FIELDS,
+        "provider_request.tsv": PROVIDER_REQUEST_FIELDS,
+        "provider_registration_plan.tsv": PROVIDER_REGISTRATION_PLAN_FIELDS,
+        "proposed_external_genomes.tsv": PROPOSED_EXTERNAL_GENOME_FIELDS,
+        "external_genomes.tsv": EXTERNAL_GENOME_FIELDS,
+        "external_genome_registration_results.tsv": (
+            EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS
+        ),
+        "external_genome_install_plan.tsv": EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
+        "external_genome_install_results.tsv": EXTERNAL_GENOME_INSTALL_RESULT_FIELDS,
+        "taxonomy/checklist_comparison.tsv": CHECKLIST_COMPARISON_FIELDS,
+        "candidates/assembly_candidates.tsv": CANDIDATE_FIELDS,
+        "candidates/assembly_candidate_diagnostics.tsv": DISCOVERY_DIAGNOSTIC_FIELDS,
+        "candidates/discovery_records.tsv": DISCOVERY_RECORD_FIELDS,
+        "selection/*.tsv": SELECTION_FIELDS,
+        "manual_deposit_evidence_template.tsv": MANUAL_DEPOSIT_EVIDENCE_FIELDS,
+        "manual_species_gap_summary.tsv": MANUAL_SPECIES_GAP_FIELDS,
+        "source_audit/sequence_source_audit.tsv": SOURCE_AUDIT_FIELDS,
+        "source_audit/culture_collection_audit.tsv": CULTURE_COLLECTION_AUDIT_FIELDS,
+        "source_audit/completion_audit.tsv": COMPLETION_AUDIT_FIELDS,
+        "source_audit/completion_summary.tsv": COMPLETION_SUMMARY_FIELDS,
+        "cache/ncbi/download_plan.tsv": DOWNLOAD_PLAN_FIELDS,
+        "cache/ncbi/download_results.tsv": DOWNLOAD_RESULTS_FIELDS,
+        "rrna/rrna_plan.tsv": RRNA_PLAN_FIELDS,
+        "ani/ani_plan.tsv": ANI_PLAN_FIELDS,
+        "ani/ani_query_vs_refs.tsv": ANI_QUERY_VS_REFS_FIELDS,
+        "ani/ani_summary.tsv": ANI_SUMMARY_FIELDS,
+        "phylo/phylo_plan.tsv": PHYLO_PLAN_FIELDS,
+    }
+
+    for table, fields in public_tables.items():
+        assert table in docs
+        for field in fields:
+            assert field in docs, f"{table} field is missing from docs: {field}"
+
+
+def test_status_docs_cover_emitted_review_and_contract_statuses():
+    docs = _read("docs/statuses.md")
+    expected_statuses = {
+        *EXTERNAL_GENOME_STATUSES,
+        *EXTERNAL_GENOME_INSTALL_PLAN_STATUSES,
+        *EXTERNAL_GENOME_INSTALL_RESULT_STATUSES,
+        *PROVIDER_PLAN_STATUSES,
+        "external_genome_download_not_applicable",
+        "complete_ncbi",
+        "complete_external_registered",
+        "missing_genome",
+        "conflict",
+        "auto_selected_lpsn_type_strain_match",
+        "auto_selected_curator_lpsn_type_strain_match",
+        "auto_selected_top_ranked",
+        "available_not_selected",
+        "manual_review_required",
+        "missing_assembly_accession",
+        "missing_biosample",
+        "biosample_record_not_found",
+        "rrna_16s_not_found",
+        "phylo_ready_to_plan",
+    }
+
+    for status in expected_statuses:
+        assert f"`{status}`" in docs
+
+
+def test_stable_contracts_preserve_provider_and_completion_boundaries():
+    docs = _read("docs/stable_contracts.md")
+
+    required_phrases = [
+        "Provider planning rows are review-only.",
+        "do not count toward completion",
+        "do not write `name_map.tsv`",
+        "do not create",
+        "`cache/ncbi/download_plan.tsv`",
+        "External registered genomes must not change this",
+        "Provider-native IDs remain external identifiers.",
+        "must not be written to",
+        "`assembly_accession`",
+    ]
+
+    for phrase in required_phrases:
+        assert phrase in docs
 
 
 def test_example_selection_tsv_headers_match_schemas():

@@ -51,19 +51,21 @@ scrape, purchase, or download from external portals, and does not treat
   `genomes/references/`, `manifest.tsv`, and `name_map.tsv` without using NCBI
   assembly accessions.
 - Plan provider registration proposals from curator-authored
-  `provider_request.tsv` files as dry-run-only review outputs under
-  `provider/`, without logging in, downloading, installing FASTA files, or
-  writing manifests.
+  `provider_request.tsv` files as review-only outputs under `provider/`.
+  Provider planning is always dry-run-only: it records counts and proposal rows
+  for human review, but it does not log in, download, install FASTA files,
+  write manifests, or change completion metrics.
 - Keep NCBI Assembly completion separate from external-inclusive completion;
   external registered genomes can improve local downstream readiness without
   changing NCBI-only completion counts.
 - Explicitly write completion audit tables from a species checklist and
   existing manifest with `--write-completion-audit`.
 - Summarize external registered genome records from an existing manifest in
-  report-only mode.
+  report-only mode, keeping them separate from NCBI Assembly-backed records.
 - Summarize existing provider registration planning outputs in report-only mode
-  without triggering provider planning, downloads, credential handling, or
-  manifest changes.
+  as review-only counts, without triggering provider planning, downloads,
+  credential handling, FASTA installation, manifest changes, or completion
+  metric changes.
 - Plan and run guarded resume-mode barrnap, FastANI, Entrez 16S fallback, and
   MAFFT/trimAl/IQ-TREE wrappers.
 - Select type-material records from local GTDB metadata TSVs for legacy or
@@ -165,13 +167,14 @@ Some conda IQ-TREE builds install the executable as `iqtree`; create an
 `iqtree2` alias/symlink or use a build that provides `iqtree2`. Entrez-backed
 operations require network access, `--email`, and the relevant enable flag.
 
-## Basic commands
+## Quickstart and common commands
 
-Show CLI help:
+Start by checking the installed CLI and its guarded command surface:
 
 ```bash
 typetreeflow --help
 python typetreeflow.py --help
+typetreeflow --version
 ```
 
 Run a minimal legacy/local GTDB dry run:
@@ -272,14 +275,17 @@ python typetreeflow.py --plan-provider-registration examples/provider_request_mi
 
 This writes `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` for curator review. The command is
-dry-run-only even without `--dry-run`; it does not contact provider portals,
-download or copy FASTA files, write `external_genomes.tsv`, `manifest.tsv`,
-`name_map.tsv`, or create `cache/ncbi/download_plan.tsv`. Existing provider
-planning outputs require `--force` to overwrite. The bundled minimal provider
-request is synthetic and provider-neutral; it validates reviewable plan and
-proposal outputs only, not provider automation. If a curator accepts proposed
-rows, the handoff is manual: prepare a local `external_genomes.tsv` and run the
-existing external registration workflow explicitly.
+dry-run-only even without `--dry-run`. It reads the request TSV and writes
+review files only; it does not contact provider portals, log in, handle
+credentials, download or copy FASTA files, write `external_genomes.tsv`,
+`manifest.tsv`, `name_map.tsv`, or create `cache/ncbi/download_plan.tsv`.
+Existing provider planning outputs require `--force` to overwrite. The bundled
+minimal provider request is synthetic and provider-neutral; it validates
+reviewable plan and proposal outputs only, not provider automation. Provider
+proposal rows do not count toward NCBI Assembly strict completion or
+external-inclusive completion. If a curator accepts proposed rows, the handoff
+is manual: prepare a local `external_genomes.tsv` and run the existing external
+registration workflow explicitly.
 
 Install reviewed external genome FASTA files:
 
@@ -318,13 +324,13 @@ stabilizes only new conflicting `record_id` or `normalized_id` values.
 manifest from install results, and cannot be combined with `--merge-manifest`.
 Dry-runs never merge manifest files.
 
-Once the manifest exists, `--report-only` can generate `report/summary.md` with
-an external registered genome section and provenance counts from the recorded
-manifest rows. If existing provider planning outputs are present under
-`provider/`, the same report also adds read-only provider registration planning
-counts for review. It does not read `provider_request.tsv`, rerun provider
-planning, download, log in, install proposed genomes, or change completion
-audit metrics.
+Once the manifest exists, `--report-only` can generate `report/summary.md` from
+existing files. External registered genomes appear in their own section and in
+provenance counts, but remain separate from NCBI Assembly-backed records. If
+existing provider planning outputs are present under `provider/`, the same
+report also adds review-only provider registration planning counts. It does not
+read `provider_request.tsv`, rerun provider planning, download, log in, install
+proposed genomes, write manifests, or change completion audit metrics.
 
 ```bash
 typetreeflow \
@@ -345,6 +351,10 @@ typetreeflow \
 This writes `source_audit/completion_audit.tsv` and
 `source_audit/completion_summary.tsv`. `--report-only` only consumes an
 existing completion summary when present; it does not generate the audit.
+The completion audit reports NCBI Assembly strict completion separately from
+external-inclusive strict completion. Registered external genomes can improve
+external-inclusive local readiness after validation and manifest registration,
+but they do not change NCBI Assembly strict completion.
 
 Run the LPSN-first genus acquisition path from local caches:
 
