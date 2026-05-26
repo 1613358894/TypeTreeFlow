@@ -89,7 +89,10 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
   mixed-provenance completion audit outputs and split completion metrics.
 - [docs/fusobacterium_external_pilot.md](docs/fusobacterium_external_pilot.md):
   `F. mortiferum` external registered genome pilot route to external-inclusive
-  17/17 review without changing strict NCBI completion.
+  17/17 review without changing strict NCBI completion. A
+  redistributable synthetic/local fixture package is available at
+  [examples/fusobacterium_external_pilot/README.md](examples/fusobacterium_external_pilot/README.md)
+  to reproduce the report path; it is not a real ATCC genome.
 
 Historical plans and run evidence are indexed from [docs/index.md](docs/index.md).
 They are evidence snapshots, not current behavior contracts or required release

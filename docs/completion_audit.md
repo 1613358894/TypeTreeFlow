@@ -124,12 +124,19 @@ reviews the mixed evidence.
 Reports may display both completion metrics side by side, for example:
 
 ```text
-NCBI strict type-strain completion: 16/17
-Strict completion including external registered genomes: 17/17
+NCBI Assembly strict completion: 16/17
+External-inclusive strict completion: 17/17
 ```
 
 The labels must be preserved in generated summaries. The external-inclusive
 metric is a mixed-provenance readiness metric, not an NCBI completion claim.
+
+For the redistributable `examples/fusobacterium_external_pilot/` package, the
+17/17 external-inclusive result is a workflow fixture result only. Its
+`F. mortiferum` FASTA is synthetic/local test data, not a real ATCC Genome
+Portal genome and not biological evidence. That fixture can demonstrate that
+an external registered genome row does not change the 16/17 NCBI Assembly
+strict completion metric.
 
 `--report-only` does not generate completion audit outputs. `report/summary.md`
 only consumes an existing `source_audit/completion_summary.tsv`, and when

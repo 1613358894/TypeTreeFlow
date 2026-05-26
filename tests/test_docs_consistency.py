@@ -181,6 +181,34 @@ def test_gitattributes_pins_example_text_fixtures_to_lf():
         assert f"{pattern} text eol=lf" in attributes
 
 
+def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
+    readme = _read("README.md")
+    pilot_doc = _read("docs/fusobacterium_external_pilot.md")
+    completion_doc = _read("docs/completion_audit.md")
+    example_readme = _read("examples/fusobacterium_external_pilot/README.md")
+
+    for path in [
+        Path("docs/fusobacterium_external_pilot.md"),
+        Path("examples/fusobacterium_external_pilot/README.md"),
+        Path("examples/fusobacterium_external_pilot/external_genomes.tsv"),
+        Path("examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv"),
+        Path("examples/fusobacterium_external_pilot/synthetic_mortiferum_atcc25557.fna"),
+    ]:
+        assert path.exists(), f"{path.as_posix()} should exist"
+
+    assert "examples/fusobacterium_external_pilot/README.md" in readme
+    assert "not a real ATCC genome" in readme
+    assert "NCBI Assembly strict completion" in pilot_doc
+    assert "external-inclusive strict completion" in pilot_doc
+    assert "not a real ATCC Genome Portal" in pilot_doc
+    assert "NCBI Assembly strict completion: 16/17" in completion_doc
+    assert "External-inclusive strict completion: 17/17" in completion_doc
+    assert "synthetic/local test data" in completion_doc
+    assert "NCBI Assembly strict completion: `16/17`" in example_readme
+    assert "External-inclusive strict completion: `17/17`" in example_readme
+    assert "not real ATCC" in example_readme
+
+
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as handle:
         return handle.read()

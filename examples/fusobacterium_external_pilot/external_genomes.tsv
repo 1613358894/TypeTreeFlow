@@ -1,0 +1,2 @@
+species	strain	type_strain_id	external_source	external_source_name	external_genome_id	external_source_url	genome_fasta_path	sha256	is_type_material	requires_manual_review	status	notes
+Fusobacterium mortiferum	ATCC 25557	ATCC 25557	local_synthetic_pilot_fixture	TypeTreeFlow local synthetic pilot fixture	PILOT_SYNTHETIC_ATCC_25557		synthetic_mortiferum_atcc25557.fna		true	false	external_genome_registered	Synthetic local pilot fixture for workflow validation only; not a real ATCC Genome Portal FASTA and not provider-downloaded evidence.

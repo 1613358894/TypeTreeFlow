@@ -149,3 +149,22 @@ should include:
 
 The package should remain local unless every included file is permitted for
 redistribution. In particular, do not commit the ATCC FASTA itself.
+
+## Redistributable Synthetic Pilot Fixture
+
+The repository includes a small local fixture package at
+`examples/fusobacterium_external_pilot/` for workflow validation when a real
+curator-provided ATCC 25557 FASTA is not available. It uses the archived
+v0.5.0 16-record NCBI Assembly strict delivery accessions plus a tiny synthetic
+`F. mortiferum` ATCC 25557 FASTA fixture.
+
+This fixture is not biological evidence and is not a real ATCC Genome Portal
+download. It exists only to verify the implemented contracts:
+
+- external registration can append a reviewed external registered genome row;
+- `assembly_accession` stays empty for the external record;
+- completion audit reports NCBI Assembly strict completion as 16/17;
+- completion audit reports external-inclusive strict completion as 17/17;
+- report-only summary consumes the recorded completion audit.
+
+See `examples/fusobacterium_external_pilot/README.md` for the exact commands.

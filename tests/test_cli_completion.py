@@ -11,6 +11,11 @@ from typetreeflow.completion import (
     read_completion_audit,
     read_completion_summary,
 )
+from typetreeflow.external_genomes import (
+    read_external_genome_install_plan,
+    read_external_genome_install_results,
+    read_external_genome_registration_results,
+)
 from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry, write_species_checklist
@@ -301,3 +306,98 @@ def test_mixed_provenance_completion_acceptance_fixture(tmp_path):
     assert report_result == 0
     assert "- NCBI Assembly strict completion: 1/3" in report
     assert "- External-inclusive strict completion: 2/3" in report
+
+
+def test_fusobacterium_external_pilot_synthetic_fixture_reaches_17_of_17(tmp_path):
+    repo_root = Path(__file__).resolve().parents[1]
+    pilot_dir = repo_root / "examples" / "fusobacterium_external_pilot"
+    outdir = tmp_path / "fusobacterium_external_pilot"
+    paths = get_output_paths(outdir)
+    paths.manifest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(pilot_dir / "ncbi_strict_manifest.tsv", paths.manifest)
+
+    dry_run_result = cli.main(
+        [
+            "--register-external-genomes",
+            str(pilot_dir / "external_genomes.tsv"),
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+
+    registration_results = read_external_genome_registration_results(
+        paths.external_genome_registration_results_path
+    )
+    install_plan = read_external_genome_install_plan(
+        paths.external_genome_install_plan_path
+    )
+    assert dry_run_result == 0
+    assert registration_results[0].valid is True
+    assert registration_results[0].external_genome_id == "PILOT_SYNTHETIC_ATCC_25557"
+    assert install_plan[0].status == "external_genome_install_planned"
+    assert not paths.external_genome_install_results_path.exists()
+
+    install_result = cli.main(
+        [
+            "--register-external-genomes",
+            str(pilot_dir / "external_genomes.tsv"),
+            "--outdir",
+            str(outdir),
+            "--merge-manifest",
+        ]
+    )
+
+    install_results = read_external_genome_install_results(
+        paths.external_genome_install_results_path
+    )
+    manifest_records = read_manifest(paths.manifest)
+    external_records = [
+        record
+        for record in manifest_records
+        if record.source == "external_registered_genome"
+    ]
+    assert install_result == 0
+    assert install_results[0].status == "external_genome_install_succeeded"
+    assert len(manifest_records) == 17
+    assert len(external_records) == 1
+    assert external_records[0].canonical_name == "Fusobacterium mortiferum"
+    assert external_records[0].assembly_accession == ""
+    assert "external_genome_id=PILOT_SYNTHETIC_ATCC_25557" in external_records[0].notes
+
+    audit_result = cli.main(
+        [
+            "--species-checklist",
+            str(repo_root / "data" / "fusobacterium_species_checklist.tsv"),
+            "--outdir",
+            str(outdir),
+            "--write-completion-audit",
+        ]
+    )
+
+    audit_rows = read_completion_audit(paths.completion_audit_path)
+    summary = read_completion_summary(paths.completion_summary_path)
+    mortiferum = {row.species: row for row in audit_rows}[
+        "Fusobacterium mortiferum"
+    ]
+    assert audit_result == 0
+    assert summary.expected_species_count == "17"
+    assert summary.ncbi_complete_count == "16"
+    assert summary.external_registered_count == "1"
+    assert summary.external_inclusive_complete_count == "17"
+    assert summary.missing_count == "0"
+    assert summary.conflict_count == "0"
+    assert mortiferum.completion_status == COMPLETE_EXTERNAL_REGISTERED
+    assert mortiferum.genome_evidence_scope == "external_registered_genome"
+    assert mortiferum.ncbi_assembly_accession == ""
+    assert mortiferum.external_genome_id == "PILOT_SYNTHETIC_ATCC_25557"
+
+    report_result = cli.main(["--outdir", str(outdir), "--report-only"])
+
+    report = paths.run_summary_path.read_text(encoding="utf-8")
+    assert report_result == 0
+    assert "- NCBI Assembly-backed records: 16" in report
+    assert "- External registered genome records: 1" in report
+    assert "- NCBI Assembly strict completion: 16/17" in report
+    assert "- External-inclusive strict completion: 17/17" in report
+    assert "PILOT_SYNTHETIC_ATCC_25557" in report
