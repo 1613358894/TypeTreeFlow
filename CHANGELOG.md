@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 1.0.0rc1 - 2026-05-26
+
+- Release candidate for the v1.0.0 LPSN-first type-strain acquisition and
+  audit workflow, scoped as release hardening for the existing guarded CLI,
+  stable I/O contracts, completion boundaries, provider-planning review
+  boundary, documentation, and packaging readiness.
+- Prepared v1.0.0rc1 release-candidate readiness documentation by tightening
+  release checklist gates for v1.0 scope, provider/ATCC automation non-scope,
+  stable contract review, and clean validation artifact cleanup.
+- Note: v1.0.0rc1 does not include an ATCC or provider downloader, provider
+  login, scraping, browser automation, credential handling, provider downloads,
+  provider-backed manifest/name-map writes, provider-backed NCBI download-plan
+  writes, FASTA installation from provider planning rows, or completion metric
+  changes from provider planning rows.
+
 ## 0.9.0 - 2026-05-26
 
 - Added a v0.9.0 provider adapter spike with a dry-run-only

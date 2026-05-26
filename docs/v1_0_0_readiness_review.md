@@ -177,11 +177,12 @@ external-inclusive completion, `manifest.tsv`, `name_map.tsv`, or
 
 - Decide whether provider planning should remain in active designs for v1.0 or
   be explicitly labeled "review-only stable boundary" in future wording.
-- Decide whether a v1.0 release checklist should add a dedicated search for
-  misleading claims such as "provider download implemented" or "17/17 NCBI
-  Assembly strict completion" outside the existing documentation tests.
-- Decide whether `docs/stable_contracts.md` should become the primary
-  contract index for downstream users after v1.0 is tagged.
+- `docs/release_checklist.md` now includes a dedicated release-candidate gate
+  for misleading ATCC/provider automation claims, provider-planning completion
+  claims, provider IDs in `assembly_accession`, and external-inclusive
+  readiness being mislabeled as NCBI Assembly strict completion.
+- Decide whether `docs/stable_contracts.md` should become the primary contract
+  index for downstream users after v1.0 is tagged.
 
 No blocker was found in the reviewed documents for starting v1.0 readiness
 work, provided v1.0 is scoped as stable documentation and release hardening for

@@ -18,6 +18,19 @@ documented in [release_process.md](release_process.md).
 
 ## Required Local Validation
 
+- For v1.0.0rc1 and later v1.0 release candidates, confirm the release is a
+  stability/readiness candidate for the existing LPSN-first acquisition and
+  audit workflow, not a feature-expansion release.
+- Review `docs/v1_0_0_readiness_review.md` and
+  `docs/stable_contracts.md` before any release-candidate version bump.
+- Confirm README/current capabilities, quickstart examples, schemas, statuses,
+  and output-layout docs agree with the v1.0 stable contracts.
+- Search the repository for release-blocking wording before the version bump:
+  claims that ATCC/provider download automation is implemented, claims that
+  provider planning rows are completion evidence, claims that provider IDs can
+  be written to `assembly_accession`, or claims that external-inclusive
+  readiness is NCBI Assembly strict completion.
+
 - Run tests without pytest cache output:
 
 ```bash
@@ -45,6 +58,9 @@ test -f .github/workflows/ci.yml
 ```bash
 python -m pip wheel . --no-deps -w .dist_test
 ```
+
+- Confirm the wheel filename contains the intended release-candidate or stable
+  release version before tagging or publishing.
 
 - Confirm candidate and selection examples are present:
 
@@ -171,9 +187,13 @@ audit review but is not a required input for the current release checklist.
 
 - Confirm the version-source files listed in
   [release_process.md](release_process.md) match the intended tag.
+- For a release candidate, confirm `CHANGELOG.md` has an Unreleased or
+  release-candidate entry that clearly states it is not v1.0.0 final.
 - Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended
   license.
 - Confirm the wheel filename contains the intended version.
+- Confirm `pyproject.toml` release classifier is still appropriate for the
+  intended release status.
 - Confirm `README.md` and docs reflect the current guarded execution state.
 - Confirm the test suite, CLI help, and wheel build commands pass from a clean checkout.
 - Remove generated validation artifacts that should not be committed.
