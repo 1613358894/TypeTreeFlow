@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from typetreeflow.completion import (
 )
 from typetreeflow.config import AppConfig, ensure_real_action_allowed
 from typetreeflow.exceptions import ManifestError
+from typetreeflow.env import load_env_files
 from typetreeflow.external.runner import SubprocessRunner
 from typetreeflow.external.tools import (
     FASTANI,
@@ -194,8 +196,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--outgroup", help="Optional outgroup taxon or strain.")
     parser.add_argument("--outdir", type=Path, default=Path("typetreeflow_out"))
     parser.add_argument("--threads", type=int, default=1)
-    parser.add_argument("--email", help="Email for remote data sources.")
-    parser.add_argument("--api-key", help="API key for remote data sources.")
+    parser.add_argument(
+        "--email",
+        help=(
+            "Email for remote data sources. Defaults to TYPETREEFLOW_EMAIL "
+            "when omitted."
+        ),
+    )
+    parser.add_argument(
+        "--api-key",
+        help=(
+            "API key for remote data sources. Defaults to TYPETREEFLOW_API_KEY "
+            "when omitted."
+        ),
+    )
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        help=(
+            "Optional local KEY=VALUE file to load before reading environment "
+            "defaults. When omitted, existing .env, .env.local, "
+            "typetreeflow.env, or lpsn.env files in the current directory are "
+            "loaded if present."
+        ),
+    )
     parser.add_argument("--gtdb-metadata", type=Path, help="GTDB metadata TSV path.")
     parser.add_argument("--gtdb-release", help="GTDB release identifier.")
     parser.add_argument(
@@ -456,6 +480,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def parse_args(argv: list[str] | None = None) -> AppConfig:
     args = build_parser().parse_args(argv)
+    load_env_files(args.env_file)
     return AppConfig(
         acquire_genus=args.acquire_genus,
         genus=args.genus,
@@ -464,8 +489,8 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         outgroup=args.outgroup,
         outdir=args.outdir,
         threads=args.threads,
-        email=args.email,
-        api_key=args.api_key,
+        email=args.email or _env_value("TYPETREEFLOW_EMAIL"),
+        api_key=args.api_key or _env_value("TYPETREEFLOW_API_KEY"),
         gtdb_metadata=args.gtdb_metadata,
         gtdb_release=args.gtdb_release,
         species_checklist=args.species_checklist,
@@ -510,6 +535,14 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         report_only=args.report_only,
         log_level=args.log_level,
     )
+
+
+def _env_value(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
 
 
 def main(

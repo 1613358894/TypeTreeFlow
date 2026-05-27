@@ -167,6 +167,31 @@ Some conda IQ-TREE builds install the executable as `iqtree`; create an
 `iqtree2` alias/symlink or use a build that provides `iqtree2`. Entrez-backed
 operations require network access, `--email`, and the relevant enable flag.
 
+## Local environment files
+
+TypeTreeFlow can load local `KEY=VALUE` environment files before reading
+environment defaults. If `--env-file PATH` is supplied, that file is loaded.
+Otherwise, existing `.env`, `.env.local`, `typetreeflow.env`, or `lpsn.env`
+files in the current directory are loaded when present. These files are
+intended to stay local and ignored by git; do not commit real credentials.
+
+Copy `typetreeflow.env.example` to a local file such as `lpsn.env`, fill it in
+locally, then omit `--email` when running guarded NCBI/Entrez commands:
+
+```powershell
+Copy-Item typetreeflow.env.example lpsn.env
+# Edit lpsn.env locally. Do not commit it.
+python typetreeflow.py --env-file lpsn.env --version
+```
+
+Supported environment defaults:
+
+- `TYPETREEFLOW_EMAIL`: default for `--email`.
+- `TYPETREEFLOW_API_KEY`: default for `--api-key`.
+- `TYPETREEFLOW_LPSN_EMAIL` or `TYPETREEFLOW_LPSN_USERNAME`: official LPSN
+  account identifier.
+- `TYPETREEFLOW_LPSN_PASSWORD`: official LPSN password.
+
 ## Quickstart and common commands
 
 Start by checking the installed CLI and its guarded command surface:
