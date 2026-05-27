@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.1.0 - 2026-05-27
+
 - Added the `representative` selection policy for exploratory top-ranked
   fallback selection while marking unconfirmed rows as representative-only.
 - Added selection, report, and manifest risk layering with `evidence_level` and
