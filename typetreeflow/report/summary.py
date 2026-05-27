@@ -116,6 +116,19 @@ def summarize_provenance_counts(records: Iterable[StrainRecord]) -> dict[str, in
     }
 
 
+def summarize_type_confirmation_counts(records: Iterable[StrainRecord]) -> dict[str, int]:
+    summary = {
+        "strict_confirmed_count": 0,
+        "likely_type_material_count": 0,
+        "representative_only_count": 0,
+    }
+    for record in records:
+        classification = _type_confirmation_classification(record)
+        if classification:
+            summary[classification] += 1
+    return summary
+
+
 def summarize_external_registered_genomes(
     records: Iterable[StrainRecord],
 ) -> list[dict[str, str]]:
@@ -424,6 +437,7 @@ def build_run_summary_markdown(
     manifest_summary = summarize_manifest(record_list)
     status_counts = summarize_status_counts(record_list)
     provenance_counts = summarize_provenance_counts(record_list)
+    type_confirmation_counts = summarize_type_confirmation_counts(record_list)
     external_registered_genomes = summarize_external_registered_genomes(record_list)
     output_files = summarize_output_files(paths, assume_run_summary_exists=True)
     problem_records = summarize_problem_records(record_list)
@@ -489,6 +503,18 @@ def build_run_summary_markdown(
         "",
         f"- Total records: {manifest_summary['total_records']}",
         f"- Type material records: {manifest_summary['type_material_count']}",
+        (
+            "- Strict type-strain confirmed: "
+            f"{type_confirmation_counts['strict_confirmed_count']}"
+        ),
+        (
+            "- Likely type-material candidate: "
+            f"{type_confirmation_counts['likely_type_material_count']}"
+        ),
+        (
+            "- Representative only: "
+            f"{type_confirmation_counts['representative_only_count']}"
+        ),
         f"- Query records: {manifest_summary['query_count']}",
         f"- Outgroup records: {manifest_summary['outgroup_count']}",
         f"- Failed records: {manifest_summary['failed_count']}",
@@ -970,6 +996,59 @@ def _is_external_registered_genome(record: StrainRecord) -> bool:
         record.source.strip() == "external_registered_genome"
         or record.assembly_source.strip() == "external_registered_genome"
     )
+
+
+def _type_confirmation_classification(record: StrainRecord) -> str:
+    note_values = _parse_note_values(record.notes)
+    evidence_level = note_values.get("evidence_level", "").strip().lower()
+    if evidence_level == "strict_confirmed":
+        return "strict_confirmed_count"
+    if evidence_level == "likely_type_material":
+        return "likely_type_material_count"
+    if evidence_level == "representative_only":
+        return "representative_only_count"
+
+    type_confirmation_status = (
+        note_values.get("type_confirmation_status", "").strip().lower()
+    )
+    if type_confirmation_status == "confirmed_type_strain":
+        return "strict_confirmed_count"
+    if type_confirmation_status == "likely_type_material":
+        return "likely_type_material_count"
+    if type_confirmation_status == "representative_not_type_confirmed":
+        return "representative_only_count"
+
+    if _has_legacy_strict_type_match_evidence(note_values):
+        return "strict_confirmed_count"
+    return ""
+
+
+def _parse_note_values(notes: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for part in str(notes or "").split(";"):
+        if "=" not in part:
+            continue
+        key, value = part.split("=", 1)
+        key = key.strip()
+        if key:
+            values[key] = value.strip()
+    return values
+
+
+def _has_legacy_strict_type_match_evidence(note_values: dict[str, str]) -> bool:
+    lpsn_match = note_values.get("has_lpsn_type_strain_match", "").strip().lower()
+    if lpsn_match in {"1", "true", "yes", "y"}:
+        return True
+
+    match_evidence = note_values.get("match_evidence", "").strip().lower()
+    if "lpsn_type_strain_match" in match_evidence:
+        return True
+
+    policy_decision = note_values.get("policy_decision", "").strip().lower()
+    return policy_decision in {
+        "auto_selected_lpsn_type_strain_match",
+        "auto_selected_curator_lpsn_type_strain_match",
+    }
 
 
 def _config_value(args: object | None, name: str) -> str:

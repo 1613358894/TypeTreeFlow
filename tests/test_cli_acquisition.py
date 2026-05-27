@@ -15,6 +15,18 @@ from typetreeflow.taxonomy.selection import read_user_selection
 from typetreeflow.workflow.paths import get_output_paths
 
 
+BIOSAMPLE_RECOMMENDATION_TEXT = "BioSample type-material evidence coverage"
+
+
+class _FakeBioSampleClient:
+    def fetch_biosample(self, biosample_accession: str):
+        return BioSampleRecord(
+            biosample=biosample_accession,
+            culture_collection="ATCC 25586; NCTC 10575",
+            type_material="type strain",
+        )
+
+
 def _read_tsv(path: Path) -> list[dict[str, str]]:
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
@@ -197,6 +209,123 @@ def test_acquire_genus_passes_selection_policy(tmp_path):
     assert {row.selection_policy for row in rows} == {"strict"}
     assert all(row.selected for row in rows)
     assert all(row.policy_decision == "auto_selected_lpsn_type_strain_match" for row in rows)
+
+
+def test_strict_acquire_genus_without_biosample_enrichment_recommends_entrez(
+    tmp_path,
+    caplog,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    result = main(
+        [
+            "--acquire-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--selection-policy",
+            "strict",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    assert result == 0
+    assert "strict selection auto-selects only records with strong type evidence" in caplog.text
+    assert BIOSAMPLE_RECOMMENDATION_TEXT in caplog.text
+    assert "--enrich-biosample --enable-biosample-entrez" in caplog.text
+
+
+def test_balanced_acquire_genus_without_biosample_enrichment_recommends_entrez(
+    tmp_path,
+    caplog,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    result = main(
+        [
+            "--acquire-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--selection-policy",
+            "balanced",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    assert result == 0
+    assert "balanced selection auto-selects only records with strong type evidence" in caplog.text
+    assert BIOSAMPLE_RECOMMENDATION_TEXT in caplog.text
+
+
+def test_representative_acquire_genus_does_not_require_biosample_entrez_hint(
+    tmp_path,
+    caplog,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    result = main(
+        [
+            "--acquire-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--selection-policy",
+            "representative",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    assert result == 0
+    assert BIOSAMPLE_RECOMMENDATION_TEXT not in caplog.text
+    assert "--enable-biosample-entrez" not in caplog.text
+
+
+def test_acquire_genus_with_biosample_entrez_enabled_does_not_repeat_hint(
+    tmp_path,
+    caplog,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    result = main(
+        [
+            "--acquire-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--enrich-biosample",
+            "--enable-biosample-entrez",
+            "--email",
+            "user@example.org",
+            "--selection-policy",
+            "strict",
+            "--outdir",
+            str(outdir),
+        ],
+        biosample_client=_FakeBioSampleClient(),
+    )
+
+    assert result == 0
+    assert BIOSAMPLE_RECOMMENDATION_TEXT not in caplog.text
 
 
 def test_acquire_genus_validates_strains_per_species(tmp_path, caplog):

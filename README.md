@@ -41,7 +41,9 @@ scrape, purchase, or download from external portals, and does not treat
 - Parse culture collection deposit IDs from LPSN/checklist, NCBI Assembly,
   BioSample, strain, organism, and notes text as auditable evidence.
 - Prepare and validate offline strain-selection TSVs from candidate evidence,
-  with `strict`, `balanced`, and `review-only` policies.
+  with `strict`, `balanced`, `review-only`, and `representative` policies.
+  `balanced` auto-selects strong type-evidence candidates; `representative`
+  is an exploratory top-ranked fallback and does not confirm type status.
 - Apply manual curator evidence from a review template when an external source
   confirms equivalence to an LPSN type-strain deposit.
 - Run one-command genus acquisition dry runs that preserve intermediate
@@ -252,6 +254,52 @@ typetreeflow \
   --strains-per-species 1
 ```
 
+Selection policy semantics:
+
+| Policy | Automatic selection | Intended use |
+| --- | --- | --- |
+| `strict` | Only strict-confirmed / LPSN type-strain matches. | Formal type-strain download planning. |
+| `balanced` | Only strong type-evidence rows: `strict_confirmed` or `likely_type_material`. | Default candidate collection when type-material evidence is required but strict LPSN match evidence may be incomplete. |
+| `representative` | Top-ranked fallback per species, including ordinary unconfirmed candidates. | Exploratory downloads only; unconfirmed rows are marked `representative_only` and `representative_not_type_confirmed`. |
+| `review-only` | None. | Complete manual review before selection. |
+
+`balanced` and `representative` are intentionally different. `balanced` still
+requires strong type evidence before preselecting a row. `representative` may
+download a useful genome for exploration, but it is not type-strain
+confirmation and must not be counted as strict completion. Selection TSV rows
+carry `evidence_level` values `strict_confirmed`, `likely_type_material`, or
+`representative_only`; manifest notes carry matching
+`type_confirmation_status` values `confirmed_type_strain`,
+`likely_type_material`, or `representative_not_type_confirmed`.
+
+For strict or balanced acquisition, enable BioSample enrichment and guarded
+BioSample Entrez lookup when real NCBI lookups are appropriate:
+
+```bash
+typetreeflow \
+  --species-checklist results/fusobacterium_acquisition/species_checklist.tsv \
+  --discover-assembly-candidates \
+  --enable-ncbi-discovery \
+  --enrich-biosample \
+  --enable-biosample-entrez \
+  --email user@example.org \
+  --selection-policy balanced \
+  --outdir results/fusobacterium_acquisition_refresh \
+  --force
+```
+
+For exploratory representative planning, keep it dry-run and review the
+`representative_only` rows before treating any output as biological evidence:
+
+```bash
+typetreeflow \
+  --outdir results/offline_smoke \
+  --prepare-selection \
+  --selection-policy representative \
+  --strains-per-species 1 \
+  --dry-run
+```
+
 Validate and plan from a curator-edited selection:
 
 ```bash
@@ -385,7 +433,10 @@ existing completion summary when present; it does not generate the audit.
 The completion audit reports NCBI Assembly strict completion separately from
 external-inclusive strict completion. Registered external genomes can improve
 external-inclusive local readiness after validation and manifest registration,
-but they do not change NCBI Assembly strict completion.
+but they do not change NCBI Assembly strict completion. Manifest records marked
+`representative_only`, `representative_not_type_confirmed`, or
+`likely_type_material` are risk-layered for review and do not inflate strict
+completion counts.
 
 Run the LPSN-first genus acquisition path from local caches:
 
@@ -417,6 +468,24 @@ typetreeflow \
   --strains-per-species 1 \
   --outdir results/fusobacterium_acquisition \
   --dry-run
+```
+
+For strict or balanced selection, BioSample evidence can improve type-material
+coverage before final review. Because `--acquire-genus` is a dry-run
+orchestrator, use guarded BioSample Entrez during a real discovery/enrichment
+refresh, then reuse the written caches in the acquisition dry run:
+
+```bash
+typetreeflow \
+  --species-checklist results/fusobacterium_acquisition/species_checklist.tsv \
+  --discover-assembly-candidates \
+  --enable-ncbi-discovery \
+  --enrich-biosample \
+  --enable-biosample-entrez \
+  --email user@example.org \
+  --selection-policy balanced \
+  --outdir results/fusobacterium_acquisition_refresh \
+  --force
 ```
 
 Drive guarded downloads from a reviewed selection TSV:

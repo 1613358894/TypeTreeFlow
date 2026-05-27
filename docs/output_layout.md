@@ -197,6 +197,14 @@ selection file is intended for editing. Selection-driven dry-runs convert
 `cache/ncbi/download_plan.tsv`, and `report/summary.md`; they plan downloads
 only and do not write download results.
 
+Selection policies are risk-tiered. `strict` preselects only confirmed LPSN
+type-strain matches, `balanced` preselects only strong type-evidence rows
+(`strict_confirmed` or `likely_type_material`), `representative` can preselect
+top-ranked exploratory fallback rows marked `representative_only` /
+`representative_not_type_confirmed`, and `review-only` preselects nothing.
+Representative rows can drive exploratory download planning, but they are not
+type-strain confirmations.
+
 `--selection-tsv PATH` validates selected rows and reports the selected
 accession count unless guarded downloads are explicitly enabled. With
 `--enable-downloads`, selected rows can drive the NCBI Datasets download stage,
@@ -229,8 +237,9 @@ the type strain.
 existing `manifest.tsv`. These files compare NCBI Assembly strict completion
 with external-inclusive strict completion while preserving the boundary that
 external registered genomes do not change NCBI Assembly strict completion
-counts. The stage is local and does not contact external providers or generate
-reports by itself.
+counts. Likely type-material and representative-only manifest risk layers also
+do not change strict completion counts. The stage is local and does not contact
+external providers or generate reports by itself.
 
 `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` are review-only provider planning

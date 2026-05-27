@@ -91,10 +91,10 @@ def test_candidates_to_selection_rows_default_selects_top_one_per_species():
         ("Bacillus subtilis", "GCF_000000001.1", 1),
         ("Bacillus subtilis", "GCF_000000002.1", 2),
     ]
-    assert [row.selected for row in rows] == [True, True, False]
+    assert [row.selected for row in rows] == [False, True, False]
     assert [row.selection_reason for row in rows] == [
-        "auto_selected_top_ranked",
-        "auto_selected_top_ranked",
+        "available_not_selected",
+        "auto_selected_likely_type_material",
         "available_not_selected",
     ]
 
@@ -139,17 +139,17 @@ def test_strict_policy_unmatched_candidate_is_review_only():
     assert rows[0].manual_review_reason == "no_lpsn_type_strain_id_match"
 
 
-def test_balanced_policy_selects_top_n():
+def test_balanced_policy_selects_strong_evidence_top_n():
     rows = candidates_to_selection_rows(
         [
             _candidate(assembly_accession="GCF_000000003.1"),
             _candidate(
                 assembly_accession="GCF_000000001.1",
-                has_recognized_deposit_id=True,
+                has_lpsn_type_strain_match=True,
             ),
             _candidate(
                 assembly_accession="GCF_000000002.1",
-                refseq_category="representative genome",
+                is_type_material=True,
             ),
         ],
         strains_per_species=2,
@@ -162,6 +162,30 @@ def test_balanced_policy_selects_top_n():
         "GCF_000000003.1",
     ]
     assert [row.selected for row in rows] == [True, True, False]
+    assert [row.policy_decision for row in rows] == [
+        "auto_selected_lpsn_type_strain_match",
+        "auto_selected_likely_type_material",
+        "available_not_selected",
+    ]
+
+
+def test_balanced_policy_does_not_select_representative_only_top_ranked():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            )
+        ],
+        selection_policy="balanced",
+    )
+
+    assert rows[0].evidence_level == "representative_only"
+    assert rows[0].selected is False
+    assert rows[0].policy_decision == "available_not_selected"
+    assert rows[0].manual_review_reason == "not_type_confirmed"
 
 
 def test_review_only_policy_selects_none():
@@ -183,7 +207,7 @@ def test_candidates_to_selection_rows_strains_per_species_two():
         ),
         _candidate(
             assembly_accession="GCF_000000002.1",
-            has_recognized_deposit_id=True,
+            is_type_material=True,
         ),
     ]
 
@@ -196,6 +220,11 @@ def test_candidates_to_selection_rows_strains_per_species_two():
     ]
     assert [row.selection_rank for row in rows] == [1, 2, 3]
     assert [row.selected for row in rows] == [True, True, False]
+    assert [row.policy_decision for row in rows] == [
+        "auto_selected_likely_type_material",
+        "auto_selected_likely_type_material",
+        "available_not_selected",
+    ]
 
 
 def test_candidates_to_selection_rows_rejects_n_less_than_one():
@@ -220,9 +249,33 @@ def test_user_selection_writes_yes_no_and_reads_bool_values(tmp_path):
 
     assert output_path == path
     text = path.read_text(encoding="utf-8")
-    assert "\ttrue\ttrue\tlpsn_type_strain_match:strain=DSM 10\t1\tyes\t" in text
-    assert "\tfalse\ttrue\tlpsn_type_strain_match:strain=DSM 10\t2\tno\t" in text
+    assert text.splitlines()[0].split("\t") == SELECTION_FIELDS
+    assert "\ttrue\ttrue\tlpsn_type_strain_match:strain=DSM 10\tstrict_confirmed\t1\tyes\t" in text
+    assert "\tfalse\ttrue\tlpsn_type_strain_match:strain=DSM 10\tstrict_confirmed\t2\tno\t" in text
     assert read_user_selection(path) == rows
+
+
+def test_user_selection_reads_evidence_level_round_trip(tmp_path):
+    path = tmp_path / "selection" / "user_selection.tsv"
+    rows = [
+        _selection_row(evidence_level="strict_confirmed"),
+        _selection_row(
+            assembly_accession="GCF_000001406.1",
+            is_type_material=False,
+            has_lpsn_type_strain_match=False,
+            match_evidence="",
+            evidence_level="representative_only",
+        ),
+    ]
+
+    write_user_selection(rows, path)
+
+    parsed = read_user_selection(path)
+    assert [row.evidence_level for row in parsed] == [
+        "strict_confirmed",
+        "representative_only",
+    ]
+    assert parsed == rows
 
 
 def test_user_selection_reads_selected_bool_variants(tmp_path):
@@ -236,6 +289,7 @@ def test_user_selection_reads_selected_bool_variants(tmp_path):
             "true",
             "true",
             "lpsn_type_strain_match:strain=DSM 10",
+            "strict_confirmed",
             "1",
             "1",
             "balanced",
@@ -253,6 +307,7 @@ def test_user_selection_reads_selected_bool_variants(tmp_path):
             "false",
             "false",
             "",
+            "representative_only",
             "2",
             "false",
             "balanced",
@@ -285,6 +340,7 @@ def test_user_selection_rejects_invalid_selected_value(tmp_path):
         "true",
         "true",
         "",
+        "strict_confirmed",
         "1",
         "maybe",
         "balanced",
@@ -424,6 +480,83 @@ def test_legacy_selection_tsv_without_policy_fields_still_reads(tmp_path):
     assert parsed[0].selected is True
     assert parsed[0].selection_policy == "balanced"
     assert parsed[0].has_lpsn_type_strain_match is False
+    assert parsed[0].evidence_level == "likely_type_material"
+
+
+def test_legacy_selection_tsv_without_evidence_level_still_reads(tmp_path):
+    fields = [field for field in SELECTION_FIELDS if field != "evidence_level"]
+    row = [
+        "Bacillus subtilis",
+        "GCF_000001405.1",
+        "",
+        "",
+        "",
+        "false",
+        "true",
+        "lpsn_type_strain_match:strain=DSM 10",
+        "1",
+        "yes",
+        "balanced",
+        "auto_selected_lpsn_type_strain_match",
+        "",
+        "edited",
+        "",
+    ]
+    path = _write(
+        tmp_path / "legacy_user_selection.tsv",
+        "\t".join(fields) + "\n" + "\t".join(row) + "\n",
+    )
+
+    parsed = read_user_selection(path)
+    records = selection_rows_to_strain_records(parsed)
+
+    assert parsed[0].evidence_level == "strict_confirmed"
+    assert "evidence_level=strict_confirmed" in records[0].notes
+    assert "type_confirmation_status=confirmed_type_strain" in records[0].notes
+
+
+def test_candidates_to_selection_rows_sets_strict_confirmed_evidence_level():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                has_lpsn_type_strain_match=True,
+                is_type_material=False,
+            )
+        ],
+        selection_policy="strict",
+    )
+
+    assert rows[0].evidence_level == "strict_confirmed"
+
+
+def test_candidates_to_selection_rows_sets_likely_type_material_evidence_level():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                has_lpsn_type_strain_match=False,
+                is_type_material=True,
+            )
+        ]
+    )
+
+    assert rows[0].evidence_level == "likely_type_material"
+
+
+def test_candidates_to_selection_rows_sets_representative_only_evidence_level():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            )
+        ],
+        selection_policy="representative",
+    )
+
+    assert rows[0].selected is True
+    assert rows[0].policy_decision == "representative_not_type_confirmed"
+    assert rows[0].evidence_level == "representative_only"
 
 
 def test_selection_rows_to_strain_records_rejects_non_binomial_species():
@@ -452,6 +585,76 @@ def test_selection_rows_to_strain_records_preserves_audit_notes():
     assert "culture_collection_ids=ATCC 25586; DSM 15643" in records[0].notes
     assert "selection_reason=manual_review" in records[0].notes
     assert "selection_notes=curator note second line" in records[0].notes
+
+
+def test_selection_rows_to_strain_records_notes_strict_confirmed_status():
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                evidence_level="strict_confirmed",
+                has_lpsn_type_strain_match=True,
+                is_type_material=True,
+            )
+        ]
+    )
+
+    assert "evidence_level=strict_confirmed" in records[0].notes
+    assert "type_confirmation_status=confirmed_type_strain" in records[0].notes
+
+
+def test_selection_rows_to_strain_records_notes_likely_type_material_status():
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                evidence_level="likely_type_material",
+                has_lpsn_type_strain_match=False,
+                is_type_material=True,
+                match_evidence="",
+                policy_decision="auto_selected_likely_type_material",
+            )
+        ]
+    )
+
+    assert "evidence_level=likely_type_material" in records[0].notes
+    assert "type_confirmation_status=likely_type_material" in records[0].notes
+
+
+def test_selection_rows_to_strain_records_notes_representative_status():
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                evidence_level="representative_only",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                match_evidence="",
+                selection_policy="representative",
+                policy_decision="representative_not_type_confirmed",
+                manual_review_reason="not_type_confirmed",
+            )
+        ]
+    )
+
+    assert "evidence_level=representative_only" in records[0].notes
+    assert (
+        "type_confirmation_status=representative_not_type_confirmed"
+        in records[0].notes
+    )
+
+
+def test_selection_rows_to_strain_records_notes_infers_legacy_evidence_level():
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                evidence_level="",
+                has_lpsn_type_strain_match=False,
+                is_type_material=True,
+                match_evidence="",
+            )
+        ]
+    )
+
+    assert "evidence_level=likely_type_material" in records[0].notes
+    assert "type_confirmation_status=likely_type_material" in records[0].notes
 
 
 def test_selection_rows_to_strain_records_builds_stable_unique_normalized_ids():

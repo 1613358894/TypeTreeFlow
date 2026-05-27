@@ -137,6 +137,8 @@ python typetreeflow.py \
   --acquire-genus Fusobacterium \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --enrich-biosample \
+  --biosample-cache data/fusobacterium_biosample_records.tsv \
   --selection-policy strict \
   --source-audit-policy strict \
   --strains-per-species 1 \
@@ -188,6 +190,23 @@ The official path requires LPSN credentials in environment variables and writes
 `taxonomy/lpsn_species_cache.tsv` plus `candidates/discovery_records.tsv` for
 later offline reuse. Missing LPSN or discovery sources are explicit errors;
 there is no HTML fallback.
+
+Strict and balanced selection depend on strong type evidence. When real NCBI
+lookups are appropriate, refresh candidate and BioSample evidence with guarded
+Entrez before final review:
+
+```bash
+python typetreeflow.py \
+  --species-checklist results/fusobacterium_acquisition/species_checklist.tsv \
+  --discover-assembly-candidates \
+  --enable-ncbi-discovery \
+  --enrich-biosample \
+  --enable-biosample-entrez \
+  --email user@example.org \
+  --selection-policy strict \
+  --outdir results/fusobacterium_acquisition_refresh \
+  --force
+```
 
 After reviewing `selection/user_selection.tsv`, guarded genome downloads are a
 separate opt-in step:
@@ -390,8 +409,8 @@ Acquisition separates candidate preparation from user selection:
 - `--prepare-selection` writes candidate and audit tables without committing to
   a final reference set.
 - `--selection-tsv selection.tsv` reads a user-edited selection table.
-- `--selection-policy strict|balanced|review-only` controls generated defaults
-  and strict validation behavior.
+- `--selection-policy strict|balanced|review-only|representative` controls
+  generated defaults and strict validation behavior.
 - `--strains-per-species N` limits how many selected strains may be carried
   forward per species.
 
@@ -407,17 +426,23 @@ duplicate selected rows, and keeps ambiguous candidates in manual review.
 
 Selection policies:
 
-- `strict`: use for formal type-strain downloads. Only candidates with
-  `has_lpsn_type_strain_match=true` and no manual-review requirement are
-  automatically selected. Unmatched and synonym-supported candidates stay in
-  the review table with `manual_review_reason`, and selected non-matches are
-  rejected during validation.
-- `balanced`: use for exploratory candidate collection. This is the default.
-  It keeps the current ranking order and selects the top N rows per species,
-  prioritizing LPSN type-strain matches while allowing NCBI type-material or
-  recognized deposit-ID evidence.
-- `review-only`: use for complete manual review. It writes all candidates but
-  selects none by default.
+| Policy | Automatic selection | Evidence/status emitted | Intended use |
+| --- | --- | --- | --- |
+| `strict` | Only strict-confirmed / LPSN type-strain matches with no manual-review requirement. | `evidence_level=strict_confirmed`, `type_confirmation_status=confirmed_type_strain`. | Formal type-strain downloads. |
+| `balanced` | Only strong type-evidence candidates: strict-confirmed rows or NCBI type-material rows. | `evidence_level=strict_confirmed` or `likely_type_material`; status `confirmed_type_strain` or `likely_type_material`. | Default strong-evidence candidate collection. |
+| `representative` | Top-ranked fallback per species, even without type confirmation. | Unconfirmed rows are marked `evidence_level=representative_only` and `type_confirmation_status=representative_not_type_confirmed`. | Exploratory collection only. |
+| `review-only` | None. | Rows remain reviewable and unselected. | Complete manual review. |
+
+`balanced` and `representative` must not be treated as interchangeable.
+`balanced` can automatically select only strong type-evidence rows.
+`representative` can download a useful top-ranked genome for exploration, but
+ordinary unconfirmed candidates remain `representative_only` and are not
+type-strain confirmations.
+
+The report summarizes manifest risk layers as `Strict type-strain confirmed`,
+`Likely type-material candidate`, and `Representative only`. Completion audit
+strict numerators count only confirmed strict NCBI Assembly evidence; likely
+type-material and representative-only rows do not inflate strict completion.
 
 ## Implementation History Summary
 

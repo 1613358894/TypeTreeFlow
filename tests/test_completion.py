@@ -38,7 +38,10 @@ def _record(
     assembly_accession="GCF_000009045.1",
     assembly_source="ncbi",
     source="fixture",
-    notes="",
+    notes=(
+        "evidence_level=strict_confirmed; "
+        "type_confirmation_status=confirmed_type_strain"
+    ),
 ):
     canonical_name = " ".join(part for part in (genus, species) if part)
     return StrainRecord(
@@ -66,7 +69,15 @@ def _external_record(
     record_id="ext1",
     assembly_accession="",
     external_genome_id="ATCC_6051_GENOME",
+    notes="",
 ):
+    external_notes = (
+        "external_source=atcc_genome_portal; "
+        f"external_genome_id={external_genome_id}; "
+        "external_source_url=https://example.org/genomes/ATCC_6051_GENOME"
+    )
+    if notes:
+        external_notes = f"{external_notes}; {notes}"
     return _record(
         genus=genus,
         species=species,
@@ -74,11 +85,7 @@ def _external_record(
         assembly_accession=assembly_accession,
         assembly_source=EXTERNAL_REGISTERED_GENOME,
         source=EXTERNAL_REGISTERED_GENOME,
-        notes=(
-            "external_source=atcc_genome_portal; "
-            f"external_genome_id={external_genome_id}; "
-            "external_source_url=https://example.org/genomes/ATCC_6051_GENOME"
-        ),
+        notes=external_notes,
     )
 
 
@@ -136,6 +143,70 @@ def test_one_missing_species():
     assert rows[1].external_registered_genome_backed is False
 
 
+def test_representative_only_ncbi_record_does_not_increase_strict_completion():
+    rows = build_completion_audit(
+        [_entry(genus="Bacillus", species="subtilis")],
+        [
+            _record(
+                genus="Bacillus",
+                species="subtilis",
+                notes=(
+                    "evidence_level=representative_only; "
+                    "type_confirmation_status=representative_not_type_confirmed"
+                ),
+            )
+        ],
+    )
+
+    summary = summarize_completion_audit(rows)
+    assert rows[0].completion_status == MISSING_GENOME
+    assert rows[0].ncbi_assembly_backed is False
+    assert summary.ncbi_complete_count == 0
+    assert summary.external_inclusive_complete_count == 0
+
+
+def test_likely_type_material_is_not_strict_from_type_material_flag_alone():
+    rows = build_completion_audit(
+        [_entry(genus="Bacillus", species="subtilis")],
+        [
+            _record(
+                genus="Bacillus",
+                species="subtilis",
+                notes=(
+                    "evidence_level=likely_type_material; "
+                    "type_confirmation_status=likely_type_material"
+                ),
+            )
+        ],
+    )
+
+    summary = summarize_completion_audit(rows)
+    assert rows[0].completion_status == MISSING_GENOME
+    assert summary.ncbi_complete_count == 0
+    assert summary.external_inclusive_complete_count == 0
+
+
+def test_strict_confirmed_ncbi_record_counts_for_strict_completion():
+    rows = build_completion_audit(
+        [_entry(genus="Bacillus", species="subtilis")],
+        [
+            _record(
+                genus="Bacillus",
+                species="subtilis",
+                notes=(
+                    "evidence_level=strict_confirmed; "
+                    "type_confirmation_status=confirmed_type_strain"
+                ),
+            )
+        ],
+    )
+
+    summary = summarize_completion_audit(rows)
+    assert rows[0].completion_status == COMPLETE_NCBI
+    assert summary.ncbi_complete_count == 1
+    assert summary.external_inclusive_complete_count == 1
+
+
 def test_ncbi_and_external_duplicate_conflict():
     rows = build_completion_audit(
         [_entry(genus="Bacillus", species="subtilis")],
@@ -151,6 +222,34 @@ def test_ncbi_and_external_duplicate_conflict():
     assert rows[0].ncbi_assembly_backed is True
     assert rows[0].external_registered_genome_backed is True
     assert rows[0].external_genome_id == "ATCC_6051_GENOME"
+
+
+def test_external_inclusive_completion_excludes_representative_only_record():
+    rows = build_completion_audit(
+        [
+            _entry(genus="Bacillus", species="subtilis"),
+            _entry(genus="Escherichia", species="coli"),
+        ],
+        [
+            _record(genus="Bacillus", species="subtilis", record_id="strict-ncbi"),
+            _external_record(
+                genus="Escherichia",
+                species="coli",
+                record_id="representative-external",
+                external_genome_id="REPRESENTATIVE_ONLY",
+                notes=(
+                    "evidence_level=representative_only; "
+                    "type_confirmation_status=representative_not_type_confirmed"
+                ),
+            ),
+        ],
+    )
+
+    summary = summarize_completion_audit(rows)
+    assert [row.completion_status for row in rows] == [COMPLETE_NCBI, MISSING_GENOME]
+    assert summary.ncbi_complete_count == 1
+    assert summary.external_registered_count == 0
+    assert summary.external_inclusive_complete_count == 1
 
 
 def test_manifest_species_not_in_checklist_ignored():

@@ -49,7 +49,10 @@ def _record(
     assembly_accession: str = "GCF_000007325.1",
     assembly_source: str = "NCBI",
     source: str = "selection",
-    notes: str = "",
+    notes: str = (
+        "evidence_level=strict_confirmed; "
+        "type_confirmation_status=confirmed_type_strain"
+    ),
 ) -> StrainRecord:
     canonical_name = f"{genus} {species}"
     return StrainRecord(

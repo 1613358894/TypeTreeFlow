@@ -2,7 +2,7 @@ import csv
 import zipfile
 from pathlib import Path
 
-from typetreeflow.cli import main
+from typetreeflow.cli import build_parser, main
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
@@ -147,7 +147,7 @@ def test_prepare_selection_strains_per_species_two(tmp_path):
             _candidate(
                 assembly_accession="GCF_000000002.1",
                 strain="strain B",
-                refseq_category="representative genome",
+                is_type_material=True,
             ),
         ],
         paths.assembly_candidates_path,
@@ -248,6 +248,120 @@ def test_prepare_selection_strict_policy_does_not_auto_select_synonym_review_can
     assert rows[0].selected is False
     assert rows[0].policy_decision == "manual_review_required"
     assert rows[0].manual_review_reason == "synonym_supported_match"
+
+
+def test_prepare_selection_representative_policy_selects_unconfirmed_top_ranked(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_assembly_candidates(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                has_lpsn_type_strain_match=False,
+                manual_review_reason="no_lpsn_type_strain_id_match",
+            ),
+            _candidate(
+                assembly_accession="GCF_000000002.1",
+                strain="lower ranked",
+            ),
+        ],
+        paths.assembly_candidates_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--selection-policy",
+            "representative",
+        ]
+    )
+
+    rows = read_user_selection(paths.user_selection_path)
+    assert result == 0
+    assert [row.assembly_accession for row in rows] == [
+        "GCF_000000001.1",
+        "GCF_000000002.1",
+    ]
+    assert rows[0].selected is True
+    assert rows[0].has_lpsn_type_strain_match is False
+    assert rows[0].evidence_level == "representative_only"
+    assert rows[0].policy_decision == "representative_not_type_confirmed"
+    assert rows[0].selection_reason == "representative_not_type_confirmed"
+    assert "not_type_confirmed" in rows[0].manual_review_reason
+    assert rows[1].selected is False
+
+
+def test_prepare_selection_balanced_policy_selects_likely_type_material(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_assembly_candidates(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                is_type_material=True,
+                has_lpsn_type_strain_match=False,
+            )
+        ],
+        paths.assembly_candidates_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--selection-policy",
+            "balanced",
+        ]
+    )
+
+    rows = read_user_selection(paths.user_selection_path)
+    assert result == 0
+    assert rows[0].selected is True
+    assert rows[0].evidence_level == "likely_type_material"
+    assert rows[0].policy_decision == "auto_selected_likely_type_material"
+    assert rows[0].selection_reason == "auto_selected_likely_type_material"
+
+
+def test_prepare_selection_balanced_policy_does_not_select_representative_only(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_assembly_candidates(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            )
+        ],
+        paths.assembly_candidates_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--selection-policy",
+            "balanced",
+        ]
+    )
+
+    rows = read_user_selection(paths.user_selection_path)
+    assert result == 0
+    assert rows[0].evidence_level == "representative_only"
+    assert rows[0].selected is False
+    assert rows[0].policy_decision == "available_not_selected"
+    assert rows[0].manual_review_reason == "not_type_confirmed"
+
+
+def test_selection_policy_choices_include_representative():
+    help_text = build_parser().format_help()
+
+    assert "{strict,balanced,review-only,representative}" in help_text
 
 
 def test_prepare_selection_review_only_policy_selects_none(tmp_path):

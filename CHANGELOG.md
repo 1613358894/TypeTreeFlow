@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added the `representative` selection policy for exploratory top-ranked
+  fallback selection while marking unconfirmed rows as representative-only.
+- Added selection, report, and manifest risk layering with `evidence_level` and
+  `type_confirmation_status` values for strict-confirmed, likely type-material,
+  and representative-only records.
+- Tightened `balanced` selection to strong-evidence automatic selection only.
+- Hardened completion audit counting so likely type-material and
+  representative-only rows cannot inflate strict completion metrics.
+- Added BioSample enrichment UX guidance for strict and balanced acquisition
+  when guarded Entrez lookup is appropriate.
+
 ## 2.0.0 - 2026-05-26
 
 - Stable provider automation framework release for guarded, review-only

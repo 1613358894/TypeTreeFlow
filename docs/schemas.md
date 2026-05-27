@@ -380,8 +380,9 @@ TSV with the same fields can also be used as a local discovery cache.
 `selection/strain_candidates.tsv` and `selection/user_selection.tsv` use the
 same fields. `user_selection.tsv` is intended for user editing, and `selected`
 accepts yes/no-style boolean values. Legacy selection TSVs without
-policy/evidence columns remain readable, but strict validation requires the
-LPSN match column to be present and true for selected rows.
+policy/evidence columns remain readable; missing `evidence_level` values are
+inferred from the LPSN match and type-material fields. Strict validation requires
+the LPSN match column to be present and true for selected rows.
 
 - `species`: species represented by the candidate row.
 - `assembly_accession`: selected or available NCBI assembly accession.
@@ -391,10 +392,11 @@ LPSN match column to be present and true for selected rows.
 - `is_type_material`: type-material evidence flag.
 - `has_lpsn_type_strain_match`: whether the candidate matched a parsed LPSN type-strain ID.
 - `match_evidence`: field-level evidence supporting the LPSN type-strain match.
+- `evidence_level`: selection evidence class: `strict_confirmed`, `likely_type_material`, or `representative_only`. `representative_only` rows may be downloaded for exploration but are not type-strain confirmations.
 - `selection_rank`: deterministic rank within species.
 - `selected`: user-editable yes/no selection value.
 - `selection_policy`: policy used when the row was generated.
-- `policy_decision`: generated policy decision such as `auto_selected_lpsn_type_strain_match`, `auto_selected_top_ranked`, `available_not_selected`, or `manual_review_required`.
+- `policy_decision`: generated policy decision such as `auto_selected_lpsn_type_strain_match`, `auto_selected_likely_type_material`, `representative_not_type_confirmed`, `available_not_selected`, or `manual_review_required`. `balanced` auto-selects strong type-evidence candidates; `representative` is an exploratory fallback and is not type-confirmed.
 - `manual_review_reason`: reason the row requires review or was not automatically selected under the policy.
 - `selection_reason`: generated or user-edited selection note.
 - `notes`: diagnostics or manual-review notes.
@@ -634,8 +636,10 @@ already-written output files. If `ani/ani_summary.tsv` or `rrna/all_16S.fasta`
 is absent, the report marks those artifacts as not available instead of
 triggering additional analysis.
 
-`report/summary.md` includes `Status Distribution`, `Output Files`, and
-`Problem Records` sections. Output file rows report path existence only.
+`report/summary.md` includes `Status Distribution`, type-confirmation risk
+counts (`Strict type-strain confirmed`, `Likely type-material candidate`, and
+`Representative only`), `Output Files`, and `Problem Records` sections. Output
+file rows report path existence only.
 Problem records are filtered from manifest statuses containing failed, missing,
 ambiguous, not_found, invalid, or non-existing skipped terms. Normal resume
 reuse statuses containing `skipped_existing` are not listed as problem records.
@@ -647,3 +651,10 @@ canonical run directory, for example
 tables should preserve evidence layers separately:
 `type_strain_equivalence_ids`, `regular_deposit_ids_seen`,
 `external_type_genome_available`, and `workflow_eligible`.
+
+Manifest `notes` may carry selection risk metadata:
+`evidence_level=strict_confirmed`, `evidence_level=likely_type_material`, or
+`evidence_level=representative_only`; and
+`type_confirmation_status=confirmed_type_strain`,
+`type_confirmation_status=likely_type_material`, or
+`type_confirmation_status=representative_not_type_confirmed`.

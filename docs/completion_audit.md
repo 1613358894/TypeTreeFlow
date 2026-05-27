@@ -102,6 +102,10 @@ NCBI Assembly strict completion numerator:
 - Require a valid NCBI `GCF_` or `GCA_` accession in
   `ncbi_assembly_accession`.
 - Do not count external registered genomes.
+- Do not count manifest rows marked `evidence_level=likely_type_material`,
+  `evidence_level=representative_only`,
+  `type_confirmation_status=likely_type_material`, or
+  `type_confirmation_status=representative_not_type_confirmed`.
 
 External-inclusive strict completion numerator:
 
@@ -112,6 +116,8 @@ External-inclusive strict completion numerator:
 - Do not reinterpret `external_genome_id` as `ncbi_assembly_accession`.
 
 Rows with `missing_genome` or `conflict` do not count toward either numerator.
+Likely type-material and representative-only rows are deliberately retained as
+review risk layers, not strict completion evidence.
 
 ## Conflict Handling
 

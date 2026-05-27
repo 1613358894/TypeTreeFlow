@@ -27,6 +27,7 @@ SELECTION_FIELDS = [
     "is_type_material",
     "has_lpsn_type_strain_match",
     "match_evidence",
+    "evidence_level",
     "selection_rank",
     "selected",
     "selection_policy",
@@ -49,7 +50,7 @@ REQUIRED_SELECTION_FIELDS = [
     "notes",
 ]
 
-SELECTION_POLICIES = {"strict", "balanced", "review-only"}
+SELECTION_POLICIES = {"strict", "balanced", "review-only", "representative"}
 
 
 @dataclass
@@ -62,6 +63,7 @@ class StrainSelectionRow:
     is_type_material: bool = False
     has_lpsn_type_strain_match: bool = False
     match_evidence: str = ""
+    evidence_level: str = ""
     selection_rank: int = 0
     selected: bool = False
     selection_policy: str = "balanced"
@@ -69,6 +71,13 @@ class StrainSelectionRow:
     manual_review_reason: str = ""
     selection_reason: str = ""
     notes: str = ""
+
+    def __post_init__(self) -> None:
+        self.evidence_level = normalize_evidence_level(
+            self.evidence_level,
+            has_lpsn_type_strain_match=self.has_lpsn_type_strain_match,
+            is_type_material=self.is_type_material,
+        )
 
 
 def candidates_to_selection_rows(
@@ -106,6 +115,12 @@ def candidates_to_selection_rows(
                         candidate.has_lpsn_type_strain_match
                     ),
                     match_evidence=candidate.match_evidence,
+                    evidence_level=infer_evidence_level(
+                        has_lpsn_type_strain_match=(
+                            candidate.has_lpsn_type_strain_match
+                        ),
+                        is_type_material=candidate.is_type_material,
+                    ),
                     selection_rank=index,
                     selected=selected,
                     selection_policy=policy,
@@ -165,6 +180,16 @@ def read_user_selection(path: Path) -> list[StrainSelectionRow]:
                     f"{row_number}: expected {len(header)} field(s), found {len(row)}"
                 )
             row_data = dict(zip(header, row))
+            is_type_material = _parse_bool(
+                row_data["is_type_material"],
+                field="is_type_material",
+                row_number=row_number,
+            )
+            has_lpsn_type_strain_match = _parse_optional_bool(
+                row_data.get("has_lpsn_type_strain_match", ""),
+                field="has_lpsn_type_strain_match",
+                row_number=row_number,
+            )
             rows.append(
                 StrainSelectionRow(
                     species=(row_data["species"] or "").strip(),
@@ -172,18 +197,19 @@ def read_user_selection(path: Path) -> list[StrainSelectionRow]:
                     organism_name=row_data["organism_name"] or "",
                     strain=row_data["strain"] or "",
                     culture_collection_ids=row_data["culture_collection_ids"] or "",
-                    is_type_material=_parse_bool(
-                        row_data["is_type_material"],
-                        field="is_type_material",
-                        row_number=row_number,
-                    ),
-                    has_lpsn_type_strain_match=_parse_optional_bool(
-                        row_data.get("has_lpsn_type_strain_match", ""),
-                        field="has_lpsn_type_strain_match",
-                        row_number=row_number,
-                    ),
+                    is_type_material=is_type_material,
+                    has_lpsn_type_strain_match=has_lpsn_type_strain_match,
                     match_evidence=_sanitize_tsv_text(
                         row_data.get("match_evidence", "") or ""
+                    ),
+                    evidence_level=(
+                        normalize_evidence_level(
+                            _sanitize_tsv_text(
+                                row_data.get("evidence_level", "") or ""
+                            ),
+                            has_lpsn_type_strain_match=has_lpsn_type_strain_match,
+                            is_type_material=is_type_material,
+                        )
                     ),
                     selection_rank=_parse_int(
                         row_data["selection_rank"],
@@ -333,6 +359,11 @@ def _selection_row_to_tsv(row: StrainSelectionRow) -> dict[str, str]:
             row.has_lpsn_type_strain_match
         ),
         "match_evidence": _sanitize_tsv_text(row.match_evidence),
+        "evidence_level": normalize_evidence_level(
+            row.evidence_level,
+            has_lpsn_type_strain_match=row.has_lpsn_type_strain_match,
+            is_type_material=row.is_type_material,
+        ),
         "selection_rank": str(row.selection_rank),
         "selected": "yes" if row.selected else "no",
         "selection_policy": row.selection_policy,
@@ -341,6 +372,33 @@ def _selection_row_to_tsv(row: StrainSelectionRow) -> dict[str, str]:
         "selection_reason": row.selection_reason,
         "notes": _sanitize_tsv_text(row.notes),
     }
+
+
+def infer_evidence_level(
+    *,
+    has_lpsn_type_strain_match: bool,
+    is_type_material: bool,
+) -> str:
+    if has_lpsn_type_strain_match:
+        return "strict_confirmed"
+    if is_type_material:
+        return "likely_type_material"
+    return "representative_only"
+
+
+def normalize_evidence_level(
+    value: str,
+    *,
+    has_lpsn_type_strain_match: bool,
+    is_type_material: bool,
+) -> str:
+    normalized = _sanitize_tsv_text(value).strip()
+    if normalized:
+        return normalized
+    return infer_evidence_level(
+        has_lpsn_type_strain_match=has_lpsn_type_strain_match,
+        is_type_material=is_type_material,
+    )
 
 
 def _sanitize_tsv_text(value: str) -> str:
@@ -364,6 +422,12 @@ def _selection_record_notes(row: StrainSelectionRow) -> str:
     selection_reason = _sanitize_tsv_text(row.selection_reason).strip()
     selection_policy = _sanitize_tsv_text(row.selection_policy).strip()
     policy_decision = _sanitize_tsv_text(row.policy_decision).strip()
+    evidence_level = normalize_evidence_level(
+        row.evidence_level,
+        has_lpsn_type_strain_match=row.has_lpsn_type_strain_match,
+        is_type_material=row.is_type_material,
+    )
+    type_confirmation_status = _type_confirmation_status(evidence_level)
     match_evidence = _sanitize_tsv_text(row.match_evidence).strip()
     manual_review_reason = _sanitize_tsv_text(row.manual_review_reason).strip()
     notes = _sanitize_tsv_text(row.notes).strip()
@@ -375,6 +439,8 @@ def _selection_record_notes(row: StrainSelectionRow) -> str:
         parts.append(f"selection_policy={selection_policy}")
     if policy_decision:
         parts.append(f"policy_decision={policy_decision}")
+    parts.append(f"evidence_level={evidence_level}")
+    parts.append(f"type_confirmation_status={type_confirmation_status}")
     if match_evidence:
         parts.append(f"match_evidence={match_evidence}")
     if manual_review_reason:
@@ -382,6 +448,14 @@ def _selection_record_notes(row: StrainSelectionRow) -> str:
     if notes:
         parts.append(f"selection_notes={notes}")
     return "; ".join(parts)
+
+
+def _type_confirmation_status(evidence_level: str) -> str:
+    if evidence_level == "strict_confirmed":
+        return "confirmed_type_strain"
+    if evidence_level == "likely_type_material":
+        return "likely_type_material"
+    return "representative_not_type_confirmed"
 
 
 def _normalize_selection_policy(value: str) -> str:
@@ -423,11 +497,40 @@ def _policy_decision(
                 return True, "auto_selected_curator_lpsn_type_strain_match", reason
             return True, "auto_selected_lpsn_type_strain_match", reason
         return False, "available_not_selected", reason
+    if policy == "representative":
+        if selection_rank <= strains_per_species:
+            if candidate.has_lpsn_type_strain_match:
+                if candidate.curator_evidence_applied:
+                    return (
+                        True,
+                        "auto_selected_curator_lpsn_type_strain_match",
+                        reason,
+                    )
+                return True, "auto_selected_lpsn_type_strain_match", reason
+            return (
+                True,
+                "representative_not_type_confirmed",
+                _append_review_reason(reason, "not_type_confirmed"),
+            )
+        return False, "available_not_selected", reason
     if selection_rank <= strains_per_species:
         if candidate.has_lpsn_type_strain_match:
             return True, "auto_selected_lpsn_type_strain_match", reason
-        return True, "auto_selected_top_ranked", reason
+        if candidate.is_type_material:
+            return True, "auto_selected_likely_type_material", reason
+        return (
+            False,
+            "available_not_selected",
+            reason or "not_type_confirmed",
+        )
     return False, "available_not_selected", reason
+
+
+def _append_review_reason(reason: str, value: str) -> str:
+    parts = [part.strip() for part in str(reason or "").split(";") if part.strip()]
+    if value not in parts:
+        parts.append(value)
+    return "; ".join(parts)
 
 
 def _format_bool(value: bool) -> str:

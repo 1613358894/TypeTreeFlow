@@ -32,6 +32,7 @@ from typetreeflow.report.summary import (
     summarize_sequence_source_audit,
     summarize_problem_records,
     summarize_status_counts,
+    summarize_type_confirmation_counts,
     write_run_summary,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
@@ -323,6 +324,76 @@ def test_summarize_status_counts_counts_exact_manifest_statuses():
     }
 
 
+def test_summarize_type_confirmation_counts_uses_new_note_fields():
+    records = [
+        _record(
+            "strict",
+            notes=(
+                "evidence_level=strict_confirmed; "
+                "type_confirmation_status=confirmed_type_strain"
+            ),
+        ),
+        _record(
+            "likely",
+            notes=(
+                "evidence_level=likely_type_material; "
+                "type_confirmation_status=likely_type_material"
+            ),
+        ),
+        _record(
+            "representative",
+            notes=(
+                "evidence_level=representative_only; "
+                "type_confirmation_status=representative_not_type_confirmed"
+            ),
+        ),
+    ]
+
+    assert summarize_type_confirmation_counts(records) == {
+        "strict_confirmed_count": 1,
+        "likely_type_material_count": 1,
+        "representative_only_count": 1,
+    }
+
+
+def test_summarize_type_confirmation_counts_representative_only_is_not_strict():
+    records = [
+        _record(
+            "representative",
+            notes="type_confirmation_status=representative_not_type_confirmed",
+        )
+    ]
+
+    assert summarize_type_confirmation_counts(records) == {
+        "strict_confirmed_count": 0,
+        "likely_type_material_count": 0,
+        "representative_only_count": 1,
+    }
+
+
+def test_summarize_type_confirmation_counts_legacy_notes_are_conservative():
+    records = [
+        _record(
+            "plain-type-material",
+            is_type_material=True,
+            notes="selection_reason=top_ranked",
+        ),
+        _record(
+            "legacy-lpsn",
+            notes=(
+                "policy_decision=auto_selected_lpsn_type_strain_match; "
+                "match_evidence=lpsn_type_strain_match:strain=DSM 10"
+            ),
+        ),
+    ]
+
+    assert summarize_type_confirmation_counts(records) == {
+        "strict_confirmed_count": 1,
+        "likely_type_material_count": 0,
+        "representative_only_count": 0,
+    }
+
+
 def test_summarize_provenance_counts_mixed_ncbi_and_external_records():
     records = [
         _record("ncbi", status="genome_ready", has_genome=True),
@@ -495,6 +566,40 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "Taxonomic Audit Summary" not in markdown
     assert "Source Audit Summary" not in markdown
     assert "External Registered Genomes" not in markdown
+
+
+def test_report_summary_includes_type_confirmation_risk_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+
+    markdown = build_run_summary_markdown(
+        [
+            _record(
+                "strict",
+                notes="evidence_level=strict_confirmed",
+            ),
+            _record(
+                "likely",
+                notes="type_confirmation_status=likely_type_material",
+            ),
+            _record(
+                "representative",
+                notes=(
+                    "evidence_level=representative_only; "
+                    "type_confirmation_status=representative_not_type_confirmed"
+                ),
+            ),
+            _record(
+                "legacy-plain",
+                is_type_material=True,
+                notes="selection_reason=top_ranked",
+            ),
+        ],
+        paths,
+    )
+
+    assert "- Strict type-strain confirmed: 1" in markdown
+    assert "- Likely type-material candidate: 1" in markdown
+    assert "- Representative only: 1" in markdown
 
 
 def test_report_summary_external_manifest_record_includes_external_section(tmp_path):

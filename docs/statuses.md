@@ -193,9 +193,26 @@ statuses. Generated `policy_decision` and `selection_reason` values include:
 
 - `auto_selected_lpsn_type_strain_match`: Row was preselected because NCBI candidate evidence matched parsed LPSN type-strain identifiers.
 - `auto_selected_curator_lpsn_type_strain_match`: Row was preselected because curator evidence confirmed a deposit identifier in the LPSN type-strain set.
-- `auto_selected_top_ranked`: Row was preselected by deterministic candidate ranking.
+- `auto_selected_likely_type_material`: Row was preselected by the balanced policy because NCBI marked it as type material.
+- `auto_selected_top_ranked`: Row was preselected by deterministic candidate ranking under an exploratory fallback policy.
+- `representative_not_type_confirmed`: Row was preselected by the representative policy but lacks type-strain/type-material confirmation.
 - `available_not_selected`: Row is available for review but was not preselected.
 - `manual_review_required`: Row remains available only for manual review.
+
+Selection rows also carry `evidence_level` values:
+
+- `strict_confirmed`: LPSN type-strain match evidence is present.
+- `likely_type_material`: Strong type-material evidence is present but the row
+  is not strict-confirmed.
+- `representative_only`: Exploratory fallback candidate; it may be downloaded
+  under `representative`, but it is not type-strain confirmation.
+
+Manifest notes can carry matching `type_confirmation_status` values:
+
+- `confirmed_type_strain`: Strict type-strain confirmation.
+- `likely_type_material`: Likely type-material candidate for review.
+- `representative_not_type_confirmed`: Representative fallback, not a
+  confirmed type strain.
 
 Candidate discovery and BioSample diagnostics can write these review codes in
 diagnostic tables or `manual_review_reason` fields:
@@ -246,6 +263,9 @@ The same table writes these values in `completion_status`:
   incompatible genome records. The current writer uses this for checklist
   species that have both NCBI Assembly-backed and external registered genome
   records in the manifest.
+
+Rows marked `likely_type_material` or `representative_not_type_confirmed` in
+manifest notes are not strict completion evidence.
 
 ## Report And Pipeline
 

@@ -156,6 +156,7 @@ from typetreeflow.workflow.resume import (
 )
 
 LOGGER = logging.getLogger(__name__)
+_BIOSAMPLE_RECOMMENDATION_POLICIES = {"strict", "balanced"}
 
 
 @dataclass(frozen=True)
@@ -379,11 +380,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--selection-policy",
-        choices=["strict", "balanced", "review-only"],
+        choices=["strict", "balanced", "review-only", "representative"],
         default="balanced",
         help=(
             "Automatic selection policy for --prepare-selection and validation "
-            "policy for --selection-tsv; default: balanced."
+            "policy for --selection-tsv; balanced auto-selects strong "
+            "type-evidence candidates, representative enables exploratory "
+            "top-ranked fallback; default: balanced."
         ),
     )
     parser.add_argument(
@@ -1046,6 +1049,7 @@ def run_candidate_discovery_stage(
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
 ) -> Path:
+    _log_biosample_entrez_recommendation(config)
     if config.species_checklist is None:
         raise ValueError("--discover-assembly-candidates requires --species-checklist.")
     if config.discovery_cache is not None and config.enable_ncbi_discovery:
@@ -1139,6 +1143,20 @@ def run_candidate_discovery_stage(
             len(local_records),
         )
     return candidate_path
+
+
+def _log_biosample_entrez_recommendation(config: AppConfig) -> None:
+    if config.selection_policy not in _BIOSAMPLE_RECOMMENDATION_POLICIES:
+        return
+    if config.enrich_biosample and config.enable_biosample_entrez:
+        return
+    LOGGER.warning(
+        "%s selection auto-selects only records with strong type evidence. "
+        "For broader BioSample type-material evidence coverage, consider adding "
+        "--enrich-biosample --enable-biosample-entrez with --email when real "
+        "BioSample lookups are appropriate.",
+        config.selection_policy,
+    )
 
 
 def _enrich_candidate_result_with_biosamples(

@@ -138,7 +138,10 @@ def build_completion_audit(
         matching_records = records_by_species.get(species_key, [])
         ncbi_records = [record for record in matching_records if _is_ncbi_backed(record)]
         external_records = [
-            record for record in matching_records if _is_external_registered_genome(record)
+            record
+            for record in matching_records
+            if _is_external_registered_genome(record)
+            and _has_strict_completion_evidence(record)
         ]
 
         if ncbi_records and external_records:
@@ -421,8 +424,10 @@ def _canonical_name(entry: SpeciesChecklistEntry, species_name: str) -> str:
 
 
 def _is_ncbi_backed(record: StrainRecord) -> bool:
-    return bool(record.assembly_accession.strip()) and not _is_external_registered_genome(
-        record
+    return (
+        bool(record.assembly_accession.strip())
+        and not _is_external_registered_genome(record)
+        and _has_strict_completion_evidence(record)
     )
 
 
@@ -431,6 +436,35 @@ def _is_external_registered_genome(record: StrainRecord) -> bool:
         record.source == EXTERNAL_REGISTERED_GENOME
         or record.assembly_source == EXTERNAL_REGISTERED_GENOME
     )
+
+
+def _has_strict_completion_evidence(record: StrainRecord) -> bool:
+    note_values = _parse_notes(record.notes)
+    evidence_level = note_values.get("evidence_level", "").strip().lower()
+    confirmation_status = (
+        note_values.get("type_confirmation_status", "").strip().lower()
+    )
+    notes = str(record.notes).lower()
+
+    if evidence_level in {"representative_only", "likely_type_material"}:
+        return False
+    if confirmation_status in {
+        "representative_not_type_confirmed",
+        "likely_type_material",
+    }:
+        return False
+
+    if evidence_level == "strict_confirmed":
+        return True
+    if confirmation_status == "confirmed_type_strain":
+        return True
+    if "lpsn_type_strain_match" in notes:
+        return True
+    if "strict delivery accession" in notes:
+        return True
+    if _is_external_registered_genome(record):
+        return True
+    return False
 
 
 def _parse_notes(notes: str) -> dict[str, str]:
