@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.expanded_discovery import generate_expanded_discovery_plan
 from typetreeflow.manifest import read_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.audit import MISSING_FROM_GTDB, MISSING_GENOME
@@ -78,6 +79,7 @@ def generate_completion_gap_reports(outdir: str | Path) -> tuple[Path, Path, Pat
     write_completion_gap_records(uncovered_rows, uncovered_path)
     write_completion_gap_records(rrna_rows, rrna_path)
     write_completion_gap_records(all_rows, gaps_path)
+    generate_expanded_discovery_plan(root)
     return gaps_path, uncovered_path, rrna_path
 
 

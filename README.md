@@ -62,6 +62,9 @@ scrape, purchase, or download from external portals, and does not treat
   changing NCBI-only completion counts.
 - Explicitly write completion audit tables from a species checklist and
   existing manifest with `--write-completion-audit`.
+- Write expanded NCBI token-discovery plans for uncovered species and, only
+  when explicitly enabled, audit matched/rejected Assembly and BioSample
+  candidates without changing manifests or selections.
 - Summarize external registered genome records from an existing manifest in
   report-only mode, keeping them separate from NCBI Assembly-backed records.
 - Summarize existing provider registration planning outputs in report-only mode
@@ -373,6 +376,18 @@ missing external candidates, workflow or network failure before selection, and
 genome-ready records where 16S was not found. When `package-results` is pointed
 at an unfinished outdir, it reports the failed stage and the next action from
 `run_state.json` instead of silently packaging an ambiguous result.
+
+v2.2.3 adds expanded NCBI token discovery as an audit handoff for uncovered
+species. By default, completion reporting only writes
+`completion/expanded_discovery_plan.tsv`, a query plan built from LPSN
+type-strain tokens. Passing `--enable-expanded-discovery` executes that plan
+against NCBI Assembly and BioSample clients or local caches and writes
+`completion/expanded_discovery_results.tsv`,
+`completion/rejected_candidates.tsv`, and
+`completion/manual_supplement_hints.tsv`. These files are audit-only and
+review-only: matched
+candidates are not automatically added to `manifest.tsv`, selection rows, or
+evidence levels.
 
 For external provider data, keep planning and local FASTA registration
 separate. TypeTreeFlow does not automatically log in to, scrape, purchase from,
@@ -795,6 +810,7 @@ The source-audit gate is controlled by:
 | Entrez 16S | `--enable-entrez --email user@example.org` | Guarded 16S fallback; dry runs never contact Entrez. |
 | BioSample Entrez | `--enable-biosample-entrez --email user@example.org` | Guarded BioSample enrichment; local `--biosample-cache` mode remains offline. |
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery; local `--discovery-cache` mode remains offline. |
+| expanded NCBI token discovery | `--enable-expanded-discovery` | Optional second-pass audit for uncovered species; writes review files only and does not change selection or manifest outputs. |
 | FastANI | `--enable-fastani` | Resume-mode local ANI when `fastANI` is installed and `--query-genome` is provided. |
 | phylogeny | `--enable-phylo` | Resume-mode MAFFT, trimAl, and IQ-TREE wrappers. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |

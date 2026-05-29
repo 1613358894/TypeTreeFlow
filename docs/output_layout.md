@@ -66,6 +66,10 @@ typetreeflow_out/
     gaps.tsv
     uncovered_species.tsv
     16s_gaps.tsv
+    expanded_discovery_plan.tsv
+    expanded_discovery_results.tsv
+    rejected_candidates.tsv
+    manual_supplement_hints.tsv
   selection/
     strain_candidates.tsv
     user_selection.tsv
@@ -336,6 +340,20 @@ coverage, and `completion/16s_gaps.tsv` lists genome-ready manifest rows where
 missing external candidates, workflow or network failure before selection, and
 genome-ready records with missing 16S. They explain partial coverage and do
 not relax strict, likely, or representative evidence rules.
+`completion/expanded_discovery_plan.tsv` adds a review-only NCBI Assembly and
+BioSample query plan for uncovered species based on LPSN type-strain aliases.
+It is executed only when `--enable-expanded-discovery` is supplied.
+`completion/expanded_discovery_results.tsv` records matched and rejected NCBI
+Assembly/BioSample candidates from that optional pass. Expanded discovery is
+audit-only and does not alter selection, evidence levels, or manifest records.
+`completion/rejected_candidates.tsv` filters those results to rejected,
+failed, and no-result rows so curators can see why candidates were not usable;
+`matched_candidate` rows are excluded. `completion/manual_supplement_hints.tsv`
+summarizes each species and suggests the next manual step, such as reviewing
+matched candidates, retrying failed queries, running a manual search, supplying
+a curator accession, or preparing an external FASTA. These hints are audit
+guidance only and do not change selection, evidence levels, completion metrics,
+or manifests.
 
 `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` are review-only provider planning

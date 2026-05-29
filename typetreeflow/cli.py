@@ -30,6 +30,11 @@ from typetreeflow.diagnostics import (
     next_step_summary,
 )
 from typetreeflow.exceptions import ManifestError
+from typetreeflow.expanded_discovery import (
+    execute_expanded_discovery_plan,
+    read_expanded_discovery_results,
+    summarize_expanded_discovery_results,
+)
 from typetreeflow.env import load_env_files
 from typetreeflow.external.runner import SubprocessRunner
 from typetreeflow.external.tools import (
@@ -388,6 +393,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--enable-expanded-discovery",
+        action="store_true",
+        help=(
+            "After completion gap reports, execute completion/expanded_discovery_plan.tsv "
+            "against NCBI Assembly/BioSample clients or local caches and write "
+            "completion/expanded_discovery_results.tsv. This is audit-only and "
+            "does not change selection or manifest outputs."
+        ),
+    )
+    parser.add_argument(
         "--enable-synonym-discovery",
         action="store_true",
         help=(
@@ -633,6 +648,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         candidate_tsv=args.candidate_tsv,
         discovery_cache=args.discovery_cache,
         enable_ncbi_discovery=args.enable_ncbi_discovery,
+        enable_expanded_discovery=args.enable_expanded_discovery,
         enable_synonym_discovery=args.enable_synonym_discovery,
         enrich_biosample=args.enrich_biosample,
         biosample_cache=args.biosample_cache,
@@ -1575,6 +1591,7 @@ def _write_genome_download_plan(
 def _write_run_summary(records, paths, config: AppConfig) -> None:
     if config.verify_genus:
         _write_completion_gap_reports(paths)
+        _write_expanded_discovery_results_if_enabled(paths, config)
     markdown = build_run_summary_markdown(records, paths, config)
     summary_path = write_run_summary(markdown, paths.run_summary_path)
     LOGGER.info("Wrote run summary: %s.", summary_path)
@@ -1593,6 +1610,62 @@ def _write_completion_gap_reports(paths) -> None:
         )
     except Exception as error:  # pragma: no cover - best-effort reporting only
         LOGGER.warning("Could not write completion gap reports: %s", error)
+
+
+def _write_expanded_discovery_results_if_enabled(paths, config: AppConfig) -> None:
+    if not config.enable_expanded_discovery:
+        return
+    try:
+        assembly_client = _expanded_discovery_assembly_client(paths, config)
+        biosample_client = _expanded_discovery_biosample_client(paths, config)
+        results_path = execute_expanded_discovery_plan(
+            paths.manifest.parent,
+            assembly_client=assembly_client,
+            biosample_client=biosample_client,
+        )
+        counts = summarize_expanded_discovery_results(
+            read_expanded_discovery_results(results_path)
+        )
+        count_text = ", ".join(
+            f"{decision}={count}"
+            for decision, count in sorted(counts.items())
+            if count
+        )
+        LOGGER.info(
+            "Wrote expanded discovery results: %s (%s).",
+            results_path,
+            count_text or "no rows",
+        )
+    except Exception as error:  # pragma: no cover - best-effort reporting only
+        LOGGER.warning("Could not write expanded discovery results: %s", error)
+
+
+def _expanded_discovery_assembly_client(paths, config: AppConfig):
+    cache_path = config.discovery_cache
+    if cache_path is None and paths.discovery_records_path.exists():
+        cache_path = paths.discovery_records_path
+    if cache_path is not None and Path(cache_path).exists():
+        return LocalAssemblyDiscoveryCacheClient.from_tsv(Path(cache_path))
+    if config.enable_ncbi_discovery:
+        return NcbiAssemblyDiscoveryClient(
+            email=config.email,
+            api_key=config.api_key,
+        )
+    return None
+
+
+def _expanded_discovery_biosample_client(paths, config: AppConfig):
+    cache_path = config.biosample_cache
+    if cache_path is None and paths.biosample_records_path.exists():
+        cache_path = paths.biosample_records_path
+    if cache_path is not None and Path(cache_path).exists():
+        return LocalBioSampleCacheClient.from_tsv(Path(cache_path))
+    if config.enable_biosample_entrez:
+        return NcbiBioSampleClient(
+            email=config.email,
+            api_key=config.api_key,
+        )
+    return None
 
 
 def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None) -> None:

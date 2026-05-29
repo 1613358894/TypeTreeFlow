@@ -10,6 +10,18 @@ from typetreeflow.completion import (
 )
 from typetreeflow.completion_gaps import COMPLETION_GAP_FIELDS
 from typetreeflow.config import REAL_ACTION_FLAGS
+from typetreeflow.expanded_discovery import (
+    EXPANDED_DISCOVERY_PLAN_FIELDS,
+    EXPANDED_DISCOVERY_RESULT_FIELDS,
+    EXPANDED_DISCOVERY_DECISIONS,
+    MANUAL_SUPPLEMENT_HINT_FIELDS,
+    MANUAL_SEARCH_REQUIRED,
+    PROVIDE_CURATOR_ACCESSION,
+    PROVIDE_EXTERNAL_GENOME_FASTA,
+    REJECTED_CANDIDATE_FIELDS,
+    RETRY_NETWORK_OR_USE_CACHE,
+    REVIEW_MATCHED_CANDIDATES,
+)
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
@@ -157,10 +169,23 @@ def test_high_level_workflow_docs_are_current():
             "completion/gaps.tsv",
             "completion/uncovered_species.tsv",
             "completion/16s_gaps.tsv",
+            "completion/expanded_discovery_plan.tsv",
+            "completion/expanded_discovery_results.tsv",
+            "completion/rejected_candidates.tsv",
+            "completion/manual_supplement_hints.tsv",
+            "--enable-expanded-discovery",
             "shared acquisition cache",
             "checkpoint",
             "resume",
             "automatic 100% coverage",
+        ]:
+            assert phrase in docs
+
+    for docs in [readme, cookbook, current_release_verification]:
+        for phrase in [
+            "audit-only",
+            "does not change selection",
+            "manifest",
         ]:
             assert phrase in docs
 
@@ -208,6 +233,10 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.completion_gaps_path,
         paths.uncovered_species_path,
         paths.rrna_16s_gaps_path,
+        paths.expanded_discovery_plan_path,
+        paths.expanded_discovery_results_path,
+        paths.rejected_candidates_path,
+        paths.manual_supplement_hints_path,
         paths.strain_candidates_path,
         paths.user_selection_path,
         paths.download_preflight_summary_path,
@@ -257,6 +286,14 @@ def test_schema_docs_mention_key_table_fields():
         "ani/ani_query_vs_refs.tsv": [
             "above_species_threshold",
         ],
+        "completion/expanded_discovery_results.tsv": [
+            "decision",
+            "matched_candidate",
+        ],
+        "completion/manual_supplement_hints.tsv": [
+            "recommended_action",
+            "review_matched_candidates",
+        ],
     }
 
     for table, fields in required_mentions.items():
@@ -302,6 +339,12 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "completion/gaps.tsv": COMPLETION_GAP_FIELDS,
         "completion/uncovered_species.tsv": COMPLETION_GAP_FIELDS,
         "completion/16s_gaps.tsv": COMPLETION_GAP_FIELDS,
+        "completion/expanded_discovery_plan.tsv": EXPANDED_DISCOVERY_PLAN_FIELDS,
+        "completion/expanded_discovery_results.tsv": (
+            EXPANDED_DISCOVERY_RESULT_FIELDS
+        ),
+        "completion/rejected_candidates.tsv": REJECTED_CANDIDATE_FIELDS,
+        "completion/manual_supplement_hints.tsv": MANUAL_SUPPLEMENT_HINT_FIELDS,
         "cache/ncbi/download_plan.tsv": DOWNLOAD_PLAN_FIELDS,
         "cache/ncbi/download_results.tsv": DOWNLOAD_RESULTS_FIELDS,
         "rrna/rrna_plan.tsv": RRNA_PLAN_FIELDS,
@@ -315,6 +358,18 @@ def test_schema_docs_cover_public_tsv_field_constants():
         assert table in docs
         for field in fields:
             assert field in docs, f"{table} field is missing from docs: {field}"
+
+    for decision in EXPANDED_DISCOVERY_DECISIONS:
+        assert decision in docs
+
+    for action in [
+        REVIEW_MATCHED_CANDIDATES,
+        MANUAL_SEARCH_REQUIRED,
+        PROVIDE_CURATOR_ACCESSION,
+        PROVIDE_EXTERNAL_GENOME_FASTA,
+        RETRY_NETWORK_OR_USE_CACHE,
+    ]:
+        assert action in docs
 
 
 def test_status_docs_cover_emitted_review_and_contract_statuses():

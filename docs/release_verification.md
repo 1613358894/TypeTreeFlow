@@ -25,7 +25,7 @@ the next action recorded in `run_state.json`.
 
 ## Scientific Boundaries
 
-v2.2.2 does not promise automatic 100% coverage for a genus. It makes evidence
+v2.2.3 does not promise automatic 100% coverage for a genus. It makes evidence
 and gaps easier to audit.
 
 Keep these evidence tiers separate:
@@ -62,6 +62,30 @@ Gap categories are intended to distinguish:
 These categories explain why coverage is partial; they do not relax evidence
 rules.
 
+## v2.2.3 Expanded Discovery Audit
+
+Expanded NCBI token discovery is a completion-audit aid, not an automatic
+selection mechanism. Completion reporting writes
+`completion/expanded_discovery_plan.tsv` by default. The plan uses LPSN
+type-strain tokens for uncovered species and prepares NCBI Assembly and NCBI
+BioSample queries, but it does not contact NCBI by itself.
+
+Only `--enable-expanded-discovery` executes the plan. The optional execution
+writes:
+
+- `completion/expanded_discovery_results.tsv`
+- `completion/rejected_candidates.tsv`
+- `completion/manual_supplement_hints.tsv`
+
+Expanded discovery results are audit-only and review-only. They do not modify
+`manifest.tsv`, `selection/user_selection.tsv`, completion metrics, or evidence
+levels. Expanded discovery does not change selection behavior. Expected result decisions are `matched_candidate`,
+`rejected_species_mismatch`, `rejected_no_type_token_evidence`,
+`rejected_missing_accession`, `no_result`, and `query_failed`. Expected manual
+handoff actions are `review_matched_candidates`, `manual_search_required`,
+`provide_curator_accession`, `provide_external_genome_fasta`, and
+`retry_network_or_use_cache`.
+
 ## Enterobacter-Style Interpretation
 
 The v2.2.2 Enterobacter pressure test had 28 checklist species. Representative
@@ -73,3 +97,11 @@ Interpret this as a useful stress test and an auditable set of gaps, not a
 software scientific failure. The result shows exactly where evidence, external
 candidate availability, workflow/network reliability, or 16S extraction limits
 need review while preserving the strict/likely/representative boundary.
+
+For the v2.2.3 Enterobacter-style acceptance case,
+`Enterobacter siamensis` carries LPSN type-strain tokens `C2361`,
+`KCTC 23282`, and `NBRC 107138`. The expanded discovery plan should contain
+3 tokens x NCBI Assembly/BioSample queries. If
+`--enable-expanded-discovery` is supplied, any matched or rejected candidates
+are audit evidence and manual supplement hints only; they are not automatically
+added to the manifest or promoted into selected type-strain evidence.

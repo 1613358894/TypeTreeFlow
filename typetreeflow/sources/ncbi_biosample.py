@@ -136,6 +136,50 @@ class NcbiBioSampleClient:
         self.backend = backend if backend is not None else Entrez
         self.delay_seconds = delay_seconds
 
+    def search_biosamples(
+        self,
+        species_name: str,
+        token: str,
+        retmax: int = 20,
+    ) -> list[BioSampleRecord]:
+        species = str(species_name or "").strip()
+        query_token = str(token or "").strip()
+        if not species or not query_token:
+            raise ValueError("BioSample search requires species and token values.")
+
+        term = f'"{species}"[Organism] AND "{query_token}"'
+        try:
+            search_handle = self._request(
+                self.backend.esearch,
+                db="biosample",
+                term=term,
+                retmax=retmax,
+            )
+            try:
+                search_result = self.backend.read(search_handle)
+            finally:
+                _close_handle(search_handle)
+
+            ids = [str(value) for value in search_result.get("IdList", [])]
+            if not ids:
+                return []
+
+            fetch_handle = self._request(
+                self.backend.efetch,
+                db="biosample",
+                id=",".join(ids),
+                retmode="xml",
+            )
+            try:
+                fetch_result = _read_fetch_payload(fetch_handle, self.backend)
+            finally:
+                _close_handle(fetch_handle)
+            return parse_biosample_response(fetch_result)
+        except (HTTPError, URLError, OSError, ValueError) as error:
+            raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
+        except Exception as error:
+            raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
+
     def fetch_biosample(self, biosample_accession: str) -> BioSampleRecord | None:
         accession = str(biosample_accession or "").strip()
         if not accession:

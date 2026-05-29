@@ -56,6 +56,7 @@ class AppConfig:
     candidate_tsv: Path | None
     discovery_cache: Path | None
     enable_ncbi_discovery: bool
+    enable_expanded_discovery: bool
     enable_synonym_discovery: bool
     enrich_biosample: bool
     biosample_cache: Path | None

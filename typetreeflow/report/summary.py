@@ -18,6 +18,12 @@ from typetreeflow.completion_gaps import (
     read_completion_gap_records,
     summarize_completion_gap_records,
 )
+from typetreeflow.expanded_discovery import (
+    read_manual_supplement_hints,
+    read_expanded_discovery_results,
+    summarize_expanded_discovery_results,
+    summarize_manual_supplement_hints,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     build_download_preflight_summary,
@@ -180,6 +186,19 @@ def summarize_output_files(
         ("completion/gaps.tsv", paths.completion_gaps_path),
         ("completion/uncovered_species.tsv", paths.uncovered_species_path),
         ("completion/16s_gaps.tsv", paths.rrna_16s_gaps_path),
+        (
+            "completion/expanded_discovery_plan.tsv",
+            paths.expanded_discovery_plan_path,
+        ),
+        (
+            "completion/expanded_discovery_results.tsv",
+            paths.expanded_discovery_results_path,
+        ),
+        ("completion/rejected_candidates.tsv", paths.rejected_candidates_path),
+        (
+            "completion/manual_supplement_hints.tsv",
+            paths.manual_supplement_hints_path,
+        ),
         ("report/summary.md", paths.run_summary_path),
     ]
     return [
@@ -337,6 +356,20 @@ def read_optional_completion_gaps(path: str | Path) -> list[CompletionGapRecord]
     if not input_path.exists():
         return None
     return read_completion_gap_records(input_path)
+
+
+def read_optional_expanded_discovery_results(path: str | Path):
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_expanded_discovery_results(input_path)
+
+
+def read_optional_manual_supplement_hints(path: str | Path):
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_manual_supplement_hints(input_path)
 
 
 def read_optional_download_preflight_summary(
@@ -527,6 +560,22 @@ def build_run_summary_markdown(
     except ValueError as error:
         completion_gaps = None
         completion_gaps_error = str(error)
+    expanded_discovery_error = ""
+    try:
+        expanded_discovery_results = read_optional_expanded_discovery_results(
+            paths.expanded_discovery_results_path
+        )
+    except ValueError as error:
+        expanded_discovery_results = None
+        expanded_discovery_error = str(error)
+    manual_supplement_hints_error = ""
+    try:
+        manual_supplement_hints = read_optional_manual_supplement_hints(
+            paths.manual_supplement_hints_path
+        )
+    except ValueError as error:
+        manual_supplement_hints = None
+        manual_supplement_hints_error = str(error)
     download_preflight_error = ""
     try:
         download_preflight_summary = read_optional_download_preflight_summary(
@@ -964,6 +1013,7 @@ def build_run_summary_markdown(
                 "",
                 "- Files: completion/gaps.tsv, completion/uncovered_species.tsv, "
                 "completion/16s_gaps.tsv",
+                "- Expanded discovery plan: completion/expanded_discovery_plan.tsv",
                 f"- Total gap rows: {total_gaps}",
                 *[
                     f"- {category}: {count}"
@@ -972,6 +1022,51 @@ def build_run_summary_markdown(
                 ],
             ]
         )
+
+    if expanded_discovery_error:
+        lines.extend(
+            [
+                "",
+                "## Expanded Discovery Results",
+                "",
+                f"Expanded discovery results could not be read: {expanded_discovery_error}",
+            ]
+        )
+    elif expanded_discovery_results is not None:
+        discovery_counts = summarize_expanded_discovery_results(
+            expanded_discovery_results
+        )
+        lines.extend(
+            [
+                "",
+                "## Expanded Discovery Results",
+                "",
+                "- File: completion/expanded_discovery_results.tsv",
+                "- Rejected candidates: completion/rejected_candidates.tsv",
+                "- Manual supplement hints: completion/manual_supplement_hints.tsv",
+                *[
+                    f"- {decision}: {count}"
+                    for decision, count in sorted(discovery_counts.items())
+                    if count
+                ],
+            ]
+        )
+        if manual_supplement_hints_error:
+            lines.append(
+                "Manual supplement hints could not be read: "
+                f"{manual_supplement_hints_error}"
+            )
+        elif manual_supplement_hints is not None:
+            action_counts = summarize_manual_supplement_hints(
+                manual_supplement_hints
+            )
+            if action_counts:
+                lines.extend(
+                    [
+                        f"- recommended_action {action}: {count}"
+                        for action, count in sorted(action_counts.items())
+                    ]
+                )
 
     if provider_plan_error:
         lines.extend(

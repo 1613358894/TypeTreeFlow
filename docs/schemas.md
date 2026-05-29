@@ -458,6 +458,59 @@ Common `reason_category` values include `insufficient_type_evidence`,
 `missing_external_candidate`, `workflow_failed_before_selection`,
 `genome_ready_16s_not_found`, and `uncovered_checklist_species`.
 
+`completion/expanded_discovery_plan.tsv` is a review-only second-pass search
+plan derived from uncovered species and LPSN type-strain aliases. By default it
+is not executed and does not change `manifest.tsv`, selection, or evidence
+levels.
+
+Fields are `species`, `checklist_name`, `lpsn_type_strain`, `token`,
+`token_kind`, `query_database`, `query`, `reason`, `suggested_next_action`, and
+`notes`.
+
+`completion/expanded_discovery_results.tsv` is written only when
+`--enable-expanded-discovery` is supplied. It records matched and rejected
+candidate audit rows from the plan without auto-selecting assemblies or
+relaxing evidence rules.
+
+Fields are `species`, `token`, `token_kind`, `query_database`, `query`,
+`candidate_accession`, `candidate_biosample`, `candidate_organism`,
+`candidate_strain`, `candidate_assembly_level`, `decision`,
+`decision_reason`, `suggested_next_action`, and `notes`.
+
+Common `decision` values are `matched_candidate`,
+`rejected_species_mismatch`, `rejected_no_type_token_evidence`,
+`rejected_missing_accession`, `no_result`, and `query_failed`.
+
+`completion/rejected_candidates.tsv` is a curator audit view derived from
+expanded discovery results. It contains only rejected, failed, and no-result
+rows and excludes `matched_candidate` rows. It explains why candidate records
+were rejected or why a query produced no usable candidate. It does not update
+selection, `manifest.tsv`, or evidence levels.
+
+Fields are `species`, `token`, `query_database`, `query`,
+`candidate_accession`, `candidate_biosample`, `candidate_organism`,
+`candidate_strain`, `decision`, `decision_reason`, `reject_category`, and
+`notes`.
+
+`completion/manual_supplement_hints.tsv` is a species-level manual handoff
+derived from expanded discovery results. It tells curators whether to review
+matched candidates, retry failed queries or caches, search manually, provide a
+curator-confirmed accession, or prepare an external genome FASTA. These are
+hints only and never relax evidence rules or automatically change selection or
+completion state.
+
+Fields are `species`, `lpsn_type_strain`, `tokens`,
+`matched_candidate_count`, `rejected_candidate_count`, `no_result_count`,
+`query_failed_count`, `recommended_action`, `suggested_template`, and `notes`.
+
+Common `recommended_action` values are `review_matched_candidates`,
+`manual_search_required`, `provide_curator_accession`,
+`provide_external_genome_fasta`, and `retry_network_or_use_cache`. Query
+failures take priority. If any `matched_candidate` exists, the hint recommends
+manual review rather than automatic acceptance. When all results are rejected
+or no-result rows, the hint recommends manual search or a curator-supplied
+accession.
+
 ## Manual Review Outputs
 
 `manual_deposit_evidence_template.tsv` carries existing LPSN, NCBI, and

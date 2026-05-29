@@ -53,6 +53,10 @@ class OutputPaths:
     completion_gaps_path: Path
     uncovered_species_path: Path
     rrna_16s_gaps_path: Path
+    expanded_discovery_plan_path: Path
+    expanded_discovery_results_path: Path
+    rejected_candidates_path: Path
+    manual_supplement_hints_path: Path
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
@@ -126,6 +130,16 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         completion_gaps_path=root / "completion" / "gaps.tsv",
         uncovered_species_path=root / "completion" / "uncovered_species.tsv",
         rrna_16s_gaps_path=root / "completion" / "16s_gaps.tsv",
+        expanded_discovery_plan_path=root
+        / "completion"
+        / "expanded_discovery_plan.tsv",
+        expanded_discovery_results_path=root
+        / "completion"
+        / "expanded_discovery_results.tsv",
+        rejected_candidates_path=root / "completion" / "rejected_candidates.tsv",
+        manual_supplement_hints_path=root
+        / "completion"
+        / "manual_supplement_hints.tsv",
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",

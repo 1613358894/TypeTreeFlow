@@ -113,12 +113,39 @@ evidence, missing external candidates, workflow or network failure before
 selection, and genome-ready rows where 16S was not found. These reports explain
 partial coverage; they do not change the scientific boundary.
 
+In v2.2.3, uncovered species also get an expanded discovery query plan at
+`completion/expanded_discovery_plan.tsv`. The default behavior stops there. Add
+`--enable-expanded-discovery` only when you want the second-pass Assembly and
+BioSample queries to run:
+
+```bash
+typetreeflow verify-genus Enterobacter \
+  --lpsn-cache data/enterobacter_lpsn_species_cache.tsv \
+  --discovery-cache data/enterobacter_discovery_records.tsv \
+  --biosample-cache data/enterobacter_biosample_records.tsv \
+  --enrich-biosample \
+  --policy representative \
+  --outdir results/enterobacter_verify \
+  --enable-expanded-discovery \
+  --force
+```
+
+That optional pass writes `completion/expanded_discovery_results.tsv`,
+`completion/rejected_candidates.tsv`, and
+`completion/manual_supplement_hints.tsv`. It is audit-only: even a
+`matched_candidate` must be reviewed manually and is not automatically added to
+`manifest.tsv`, `selection/user_selection.tsv`, or any evidence level. It does not change selection behavior.
+
 An Enterobacter-style result can legitimately read as: checklist 28 species,
 representative genome coverage 27/28, uncovered species
 `Enterobacter siamensis`, 16S coverage 26/27, and 16S gap
 `Enterobacter nematophilus E-TC7 GCF_026344075.1`. Treat that as a pressure
 test with auditable gaps, not as strict type-strain completion and not as a
-software scientific failure.
+software scientific failure. For `Enterobacter siamensis`, LPSN type-strain
+tokens `C2361`, `KCTC 23282`, and `NBRC 107138` produce 3 tokens x NCBI
+Assembly/BioSample queries in the plan. If expanded discovery is enabled, those
+results are used only for rejected-candidate audit rows and manual supplement
+hints; TypeTreeFlow does not auto-promote a candidate into the manifest.
 
 ## Resume Or Inspect Current State
 
@@ -169,7 +196,9 @@ paths are stored as relative POSIX paths inside run outputs for portability.
   different evidence tiers.
 - Representative-only output is exploratory and is not strict type-strain
   completion.
-- v2.2.2 does not promise automatic 100% coverage for every genus.
+- v2.2.3 does not promise automatic 100% coverage for every genus.
+- Expanded discovery is off by default beyond query-plan generation and remains
+  audit-only when `--enable-expanded-discovery` is supplied.
 - `--enable-downloads` and `--auto-accept-selection` are a double opt-in for
   high-level guarded downloads.
 - `--extract-16s barrnap` requires genome-ready records.

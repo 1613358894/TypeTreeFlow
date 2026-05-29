@@ -11,6 +11,12 @@ from typetreeflow.completion import (
     write_completion_summary,
 )
 from typetreeflow.completion_gaps import generate_completion_gap_reports
+from typetreeflow.expanded_discovery import (
+    ExpandedDiscoveryResultRow,
+    ManualSupplementHintRow,
+    write_expanded_discovery_results,
+    write_manual_supplement_hints,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     write_download_preflight_summary,
@@ -1122,6 +1128,56 @@ def test_report_includes_completion_gap_report_counts(tmp_path):
     assert "completion/gaps.tsv, completion/uncovered_species.tsv, completion/16s_gaps.tsv" in markdown
     assert "- Total gap rows: 1" in markdown
     assert "- genome_ready_16s_not_found: 1" in markdown
+
+
+def test_report_includes_expanded_discovery_result_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_expanded_discovery_results(
+        [
+            ExpandedDiscoveryResultRow(
+                species="Enterobacter siamensis",
+                token="KCTC 23282",
+                token_kind="culture_collection_id",
+                query_database="NCBI Assembly",
+                query='"Enterobacter siamensis"[Organism] AND "KCTC 23282"',
+                candidate_accession="GCF_000001.1",
+                candidate_organism="Enterobacter siamensis",
+                candidate_strain="KCTC 23282",
+                decision="matched_candidate",
+            ),
+            ExpandedDiscoveryResultRow(
+                species="Enterobacter siamensis",
+                token="KCTC 23282",
+                token_kind="culture_collection_id",
+                query_database="NCBI BioSample",
+                query='"Enterobacter siamensis"[Organism] AND "KCTC 23282"',
+                decision="no_result",
+            ),
+        ],
+        paths.expanded_discovery_results_path,
+    )
+    write_manual_supplement_hints(
+        [
+            ManualSupplementHintRow(
+                species="Enterobacter siamensis",
+                tokens="KCTC 23282",
+                matched_candidate_count=1,
+                no_result_count=1,
+                recommended_action="review_matched_candidates",
+            )
+        ],
+        paths.manual_supplement_hints_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Expanded Discovery Results" in markdown
+    assert "- File: completion/expanded_discovery_results.tsv" in markdown
+    assert "- Rejected candidates: completion/rejected_candidates.tsv" in markdown
+    assert "- Manual supplement hints: completion/manual_supplement_hints.tsv" in markdown
+    assert "- matched_candidate: 1" in markdown
+    assert "- no_result: 1" in markdown
+    assert "- recommended_action review_matched_candidates: 1" in markdown
 
 
 def test_summarize_phylo_status_reports_too_few_manifest_16s_records(tmp_path):
