@@ -442,6 +442,22 @@ fallback downloads as exploratory and not strict type-strain completion.
 External registered genomes count in `external_registered` and
 `download_not_applicable`; they do not enter NCBI Datasets planned downloads.
 
+## completion/gaps.tsv, completion/uncovered_species.tsv, completion/16s_gaps.tsv
+
+v2.2.2 gap reports explain incomplete coverage without changing evidence
+rules. `completion/gaps.tsv` is the combined report,
+`completion/uncovered_species.tsv` focuses on checklist species without
+selected coverage, and `completion/16s_gaps.tsv` focuses on genome-ready rows
+where 16S was not found.
+
+Fields are `species`, `checklist_name`, `lpsn_type_strain`, `lpsn_url`,
+`reason_category`, `selected`, `selected_assembly`, `selected_strain`,
+`evidence_level`, `record_status`, `suggested_next_action`, and `notes`.
+
+Common `reason_category` values include `insufficient_type_evidence`,
+`missing_external_candidate`, `workflow_failed_before_selection`,
+`genome_ready_16s_not_found`, and `uncovered_checklist_species`.
+
 ## Manual Review Outputs
 
 `manual_deposit_evidence_template.tsv` carries existing LPSN, NCBI, and

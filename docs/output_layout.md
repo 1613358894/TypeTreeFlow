@@ -62,6 +62,10 @@ typetreeflow_out/
     sequence_source_audit.tsv
     completion_audit.tsv
     completion_summary.tsv
+  completion/
+    gaps.tsv
+    uncovered_species.tsv
+    16s_gaps.tsv
   selection/
     strain_candidates.tsv
     user_selection.tsv
@@ -323,6 +327,15 @@ external providers or generate reports by itself.
 `source_audit/completion_summary.tsv` is the compact metric table consumed by
 `report/summary.md`; it keeps NCBI Assembly strict completion separate from
 external-inclusive strict completion.
+
+v2.2.2 also writes completion gap reports under `completion/`.
+`completion/gaps.tsv` combines auditable gap rows,
+`completion/uncovered_species.tsv` lists checklist species without selected
+coverage, and `completion/16s_gaps.tsv` lists genome-ready manifest rows where
+16S was not found. Gap categories distinguish insufficient type evidence,
+missing external candidates, workflow or network failure before selection, and
+genome-ready records with missing 16S. They explain partial coverage and do
+not relax strict, likely, or representative evidence rules.
 
 `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` are review-only provider planning

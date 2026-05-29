@@ -90,6 +90,9 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
 - [docs/cookbook.md](docs/cookbook.md): concise operator cookbook for the
   high-level `doctor`, `verify-genus`, `status`, `next-step`,
   `package-results`, and `verify-release-genus` commands.
+- [docs/release_verification.md](docs/release_verification.md): current
+  release-verification behavior, v2.2.2 reliability notes, and gap-report
+  interpretation.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
 - [docs/schemas.md](docs/schemas.md): TSV and table field dictionary.
@@ -331,6 +334,13 @@ This writes per-policy outdirs plus
 `results/v2_2_0_release_verification/verification_matrix.tsv` and
 `release_verification_summary.md`.
 
+In v2.2.2, `verify-release-genus` first writes a shared acquisition cache under
+the release outdir and then derives the balanced and representative policy
+outputs from that cache. This avoids duplicate LPSN, assembly-discovery, and
+BioSample queries across policies. BioSample enrichment also checkpoints
+`cache/ncbi/biosample_records.tsv` as records are fetched, so an interrupted
+live enrichment can resume from the partial cache instead of starting over.
+
 Selection policy semantics:
 
 | Policy | Automatic selection | Intended use |
@@ -354,6 +364,15 @@ BioSample deposit IDs can improve evidence quality. Strict confirmation still
 requires an accepted NCBI/BioSample deposit ID to match the LPSN/checklist
 type-strain equivalence set, or accepted curator evidence proving that
 equivalence. Type-material wording alone remains `likely_type_material`.
+
+TypeTreeFlow does not promise automatic 100% coverage for a genus. v2.2.2 writes
+completion gap reports to make partial coverage auditable:
+`completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
+`completion/16s_gaps.tsv`. Gap categories separate insufficient type evidence,
+missing external candidates, workflow or network failure before selection, and
+genome-ready records where 16S was not found. When `package-results` is pointed
+at an unfinished outdir, it reports the failed stage and the next action from
+`run_state.json` instead of silently packaging an ambiguous result.
 
 For external provider data, keep planning and local FASTA registration
 separate. TypeTreeFlow does not automatically log in to, scrape, purchase from,

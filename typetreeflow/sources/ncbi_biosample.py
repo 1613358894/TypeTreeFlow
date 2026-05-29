@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 import time
 from typing import Any, Protocol
@@ -72,6 +72,46 @@ class LocalBioSampleCacheClient:
 
     def fetch_biosample(self, biosample_accession: str) -> BioSampleRecord | None:
         return self._records.get(str(biosample_accession or "").strip().upper())
+
+
+class CheckpointingBioSampleCacheClient:
+    def __init__(
+        self,
+        client: BioSampleClient,
+        path: Path,
+        records: Sequence[BioSampleRecord] = (),
+    ) -> None:
+        self.client = client
+        self.path = Path(path)
+        self._records = _records_by_accession(records)
+
+    @classmethod
+    def from_tsv(
+        cls,
+        client: BioSampleClient,
+        path: Path,
+    ) -> "CheckpointingBioSampleCacheClient":
+        cache_path = Path(path)
+        records = read_biosample_records(cache_path) if cache_path.exists() else []
+        return cls(client, cache_path, records)
+
+    @property
+    def records(self) -> list[BioSampleRecord]:
+        return _ordered_records(self._records)
+
+    def fetch_biosample(self, biosample_accession: str) -> BioSampleRecord | None:
+        accession = _normalize_biosample_accession(biosample_accession)
+        if accession in self._records:
+            return self._records[accession]
+
+        record = self.client.fetch_biosample(accession)
+        if record is None:
+            return None
+
+        normalized_record = _normalize_biosample_record(record, fallback=accession)
+        self._records[normalized_record.biosample] = normalized_record
+        write_biosample_records(self.records, self.path)
+        return normalized_record
 
 
 class NcbiBioSampleClient:
@@ -212,7 +252,7 @@ def write_biosample_records(
             lineterminator="\n",
         )
         writer.writeheader()
-        for record in records:
+        for record in _ordered_records(_records_by_accession(records)):
             writer.writerow(_record_to_row(record))
     return output_path
 
@@ -477,7 +517,7 @@ def _xml_local_name(tag: str) -> str:
 
 def _record_to_row(record: BioSampleRecord) -> dict[str, str]:
     return {
-        "biosample": record.biosample,
+        "biosample": _normalize_biosample_accession(record.biosample),
         "organism": record.organism,
         "strain": record.strain,
         "isolate": record.isolate,
@@ -492,6 +532,34 @@ def _record_to_row(record: BioSampleRecord) -> dict[str, str]:
 
 def _sanitize_tsv_text(value: str) -> str:
     return str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
+def _records_by_accession(
+    records: Sequence[BioSampleRecord],
+) -> dict[str, BioSampleRecord]:
+    by_accession: dict[str, BioSampleRecord] = {}
+    for record in records:
+        normalized = _normalize_biosample_record(record)
+        if normalized.biosample and normalized.biosample not in by_accession:
+            by_accession[normalized.biosample] = normalized
+    return by_accession
+
+
+def _ordered_records(records: Mapping[str, BioSampleRecord]) -> list[BioSampleRecord]:
+    return [records[accession] for accession in sorted(records)]
+
+
+def _normalize_biosample_record(
+    record: BioSampleRecord,
+    *,
+    fallback: str = "",
+) -> BioSampleRecord:
+    accession = _normalize_biosample_accession(record.biosample or fallback)
+    return replace(record, biosample=accession)
+
+
+def _normalize_biosample_accession(value: str) -> str:
+    return str(value or "").strip().upper()
 
 
 def _close_handle(handle) -> None:

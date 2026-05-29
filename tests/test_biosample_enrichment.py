@@ -6,6 +6,7 @@ import pytest
 from typetreeflow.cli import main
 from typetreeflow.sources.ncbi_biosample import (
     BioSampleRecord,
+    CheckpointingBioSampleCacheClient,
     LocalBioSampleCacheClient,
     NcbiBioSampleClient,
     read_biosample_records,
@@ -34,6 +35,23 @@ class _FakeBioSampleClient:
 
     def fetch_biosample(self, biosample_accession: str):
         self.calls.append(biosample_accession)
+        return self.records.get(biosample_accession)
+
+
+class _FlakyBioSampleClient:
+    def __init__(
+        self,
+        records: dict[str, BioSampleRecord | None],
+        failures: set[str] | None = None,
+    ):
+        self.records = records
+        self.failures = failures or set()
+        self.calls: list[str] = []
+
+    def fetch_biosample(self, biosample_accession: str):
+        self.calls.append(biosample_accession)
+        if biosample_accession in self.failures:
+            raise RuntimeError(f"reset while fetching {biosample_accession}")
         return self.records.get(biosample_accession)
 
 
@@ -138,6 +156,63 @@ def test_biosample_cache_malformed_row_errors(tmp_path):
 
     with pytest.raises(ValueError, match="Malformed BioSample cache row 2"):
         read_biosample_records(path)
+
+
+def test_checkpointing_biosample_client_resumes_partial_cache(tmp_path):
+    path = tmp_path / "biosample_records.tsv"
+    write_biosample_records(
+        [BioSampleRecord(biosample="samn00000001", strain="cached")],
+        path,
+    )
+    upstream = _FlakyBioSampleClient(
+        {
+            "SAMN00000002": BioSampleRecord(
+                biosample="SAMN00000002",
+                strain="new",
+                source="fixture",
+            ),
+            "SAMN00000004": None,
+        },
+        failures={"SAMN00000003"},
+    )
+    client = CheckpointingBioSampleCacheClient.from_tsv(upstream, path)
+
+    assert client.fetch_biosample("samn00000001").strain == "cached"
+    assert upstream.calls == []
+    assert client.fetch_biosample("SAMN00000002").strain == "new"
+    assert [
+        record.biosample for record in read_biosample_records(path)
+    ] == ["SAMN00000001", "SAMN00000002"]
+    assert client.fetch_biosample("SAMN00000004") is None
+
+    with pytest.raises(RuntimeError, match="reset while fetching SAMN00000003"):
+        client.fetch_biosample("SAMN00000003")
+
+    partial_records = read_biosample_records(path)
+    assert [record.biosample for record in partial_records] == [
+        "SAMN00000001",
+        "SAMN00000002",
+    ]
+    assert "SAMN00000004" not in {record.biosample for record in partial_records}
+
+    rerun_upstream = _FlakyBioSampleClient(
+        {
+            "SAMN00000003": BioSampleRecord(
+                biosample="SAMN00000003",
+                strain="resumed",
+                source="fixture",
+            )
+        }
+    )
+    rerun_client = CheckpointingBioSampleCacheClient.from_tsv(rerun_upstream, path)
+
+    assert rerun_client.fetch_biosample("SAMN00000001").strain == "cached"
+    assert rerun_client.fetch_biosample("SAMN00000002").strain == "new"
+    assert rerun_client.fetch_biosample("SAMN00000003").strain == "resumed"
+    assert rerun_upstream.calls == ["SAMN00000003"]
+    assert [
+        record.biosample for record in read_biosample_records(path)
+    ] == ["SAMN00000001", "SAMN00000002", "SAMN00000003"]
 
 
 def test_fake_biosample_client_enrichment_matches_lpsn_type_strain():

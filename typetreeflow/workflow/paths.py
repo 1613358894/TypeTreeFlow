@@ -49,6 +49,10 @@ class OutputPaths:
     culture_collection_audit_path: Path
     completion_audit_path: Path
     completion_summary_path: Path
+    completion_dir: Path
+    completion_gaps_path: Path
+    uncovered_species_path: Path
+    rrna_16s_gaps_path: Path
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
@@ -118,6 +122,10 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         / "culture_collection_audit.tsv",
         completion_audit_path=root / "source_audit" / "completion_audit.tsv",
         completion_summary_path=root / "source_audit" / "completion_summary.tsv",
+        completion_dir=root / "completion",
+        completion_gaps_path=root / "completion" / "gaps.tsv",
+        uncovered_species_path=root / "completion" / "uncovered_species.tsv",
+        rrna_16s_gaps_path=root / "completion" / "16s_gaps.tsv",
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",
@@ -141,3 +149,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         / "provider"
         / "proposed_external_genomes.tsv",
     )
+
+
+def get_release_acquisition_paths(release_root: str | Path) -> OutputPaths:
+    return get_output_paths(Path(release_root) / "acquisition")

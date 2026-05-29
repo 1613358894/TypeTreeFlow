@@ -13,6 +13,11 @@ from typetreeflow.completion import (
     read_completion_audit,
     read_completion_summary,
 )
+from typetreeflow.completion_gaps import (
+    CompletionGapRecord,
+    read_completion_gap_records,
+    summarize_completion_gap_records,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     build_download_preflight_summary,
@@ -172,6 +177,9 @@ def summarize_output_files(
             "selection/download_preflight_summary.tsv",
             paths.download_preflight_summary_path,
         ),
+        ("completion/gaps.tsv", paths.completion_gaps_path),
+        ("completion/uncovered_species.tsv", paths.uncovered_species_path),
+        ("completion/16s_gaps.tsv", paths.rrna_16s_gaps_path),
         ("report/summary.md", paths.run_summary_path),
     ]
     return [
@@ -322,6 +330,13 @@ def read_optional_completion_audit(path: str | Path) -> list[CompletionAuditReco
     if not input_path.exists():
         return None
     return read_completion_audit(input_path)
+
+
+def read_optional_completion_gaps(path: str | Path) -> list[CompletionGapRecord] | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_completion_gap_records(input_path)
 
 
 def read_optional_download_preflight_summary(
@@ -506,6 +521,12 @@ def build_run_summary_markdown(
     except ValueError as error:
         completion_audit = None
         completion_audit_error = str(error)
+    completion_gaps_error = ""
+    try:
+        completion_gaps = read_optional_completion_gaps(paths.completion_gaps_path)
+    except ValueError as error:
+        completion_gaps = None
+        completion_gaps_error = str(error)
     download_preflight_error = ""
     try:
         download_preflight_summary = read_optional_download_preflight_summary(
@@ -923,6 +944,34 @@ def build_run_summary_markdown(
                         "Completion audit detail truncated to first "
                         f"5 of {len(review_rows)} missing/conflict rows."
                     )
+
+    if completion_gaps_error:
+        lines.extend(
+            [
+                "",
+                "## Completion Gap Reports",
+                "",
+                f"Completion gap report could not be read: {completion_gaps_error}",
+            ]
+        )
+    elif completion_gaps is not None:
+        gap_counts = summarize_completion_gap_records(completion_gaps)
+        total_gaps = sum(gap_counts.values())
+        lines.extend(
+            [
+                "",
+                "## Completion Gap Reports",
+                "",
+                "- Files: completion/gaps.tsv, completion/uncovered_species.tsv, "
+                "completion/16s_gaps.tsv",
+                f"- Total gap rows: {total_gaps}",
+                *[
+                    f"- {category}: {count}"
+                    for category, count in sorted(gap_counts.items())
+                    if count
+                ],
+            ]
+        )
 
     if provider_plan_error:
         lines.extend(

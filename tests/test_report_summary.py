@@ -10,10 +10,12 @@ from typetreeflow.completion import (
     write_completion_audit,
     write_completion_summary,
 )
+from typetreeflow.completion_gaps import generate_completion_gap_reports
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     write_download_preflight_summary,
 )
+from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
@@ -1097,6 +1099,29 @@ def test_report_completion_audit_table_includes_missing_rows(tmp_path):
 
     assert "| Aliivibrio fischeri | missing_genome | missing |" in markdown
     assert "missing manifest genome evidence" in markdown
+
+
+def test_report_includes_completion_gap_report_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_manifest(
+        [
+            _record(
+                "ref1",
+                status="rrna_16s_not_found",
+                has_genome=True,
+                has_16s=False,
+            )
+        ],
+        paths.manifest,
+    )
+    generate_completion_gap_reports(tmp_path)
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Completion Gap Reports" in markdown
+    assert "completion/gaps.tsv, completion/uncovered_species.tsv, completion/16s_gaps.tsv" in markdown
+    assert "- Total gap rows: 1" in markdown
+    assert "- genome_ready_16s_not_found: 1" in markdown
 
 
 def test_summarize_phylo_status_reports_too_few_manifest_16s_records(tmp_path):

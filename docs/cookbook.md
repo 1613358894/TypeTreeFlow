@@ -100,6 +100,26 @@ typetreeflow verify-release-genus Fusobacterium \
 rows are exploratory only and must not be counted as strict type-strain
 completion.
 
+For v2.2.2 reliability checks, `verify-release-genus` uses a
+shared acquisition cache for balanced and representative policies, so LPSN,
+assembly-discovery, and BioSample lookup are not repeated for each policy.
+BioSample enrichment checkpoints `cache/ncbi/biosample_records.tsv` and can
+resume from a partial cache after a network interruption.
+
+Release runs also write auditable gap reports when information is incomplete:
+`completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
+`completion/16s_gaps.tsv`. Gap categories distinguish insufficient type
+evidence, missing external candidates, workflow or network failure before
+selection, and genome-ready rows where 16S was not found. These reports explain
+partial coverage; they do not change the scientific boundary.
+
+An Enterobacter-style result can legitimately read as: checklist 28 species,
+representative genome coverage 27/28, uncovered species
+`Enterobacter siamensis`, 16S coverage 26/27, and 16S gap
+`Enterobacter nematophilus E-TC7 GCF_026344075.1`. Treat that as a pressure
+test with auditable gaps, not as strict type-strain completion and not as a
+software scientific failure.
+
 ## Resume Or Inspect Current State
 
 ```bash
@@ -149,6 +169,7 @@ paths are stored as relative POSIX paths inside run outputs for portability.
   different evidence tiers.
 - Representative-only output is exploratory and is not strict type-strain
   completion.
+- v2.2.2 does not promise automatic 100% coverage for every genus.
 - `--enable-downloads` and `--auto-accept-selection` are a double opt-in for
   high-level guarded downloads.
 - `--extract-16s barrnap` requires genome-ready records.

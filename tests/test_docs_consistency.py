@@ -8,6 +8,7 @@ from typetreeflow.completion import (
     COMPLETION_AUDIT_FIELDS,
     COMPLETION_SUMMARY_FIELDS,
 )
+from typetreeflow.completion_gaps import COMPLETION_GAP_FIELDS
 from typetreeflow.config import REAL_ACTION_FLAGS
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
@@ -115,9 +116,16 @@ def test_high_level_workflow_docs_are_current():
     readme = _read("README.md")
     cookbook = _read("docs/cookbook.md")
     design = _read("docs/design.md")
+    current_release_verification = _read("docs/release_verification.md")
     release_verification = _read("docs/v2_2_0_release_verification.md")
 
-    for docs in [readme, cookbook, design, release_verification]:
+    for docs in [
+        readme,
+        cookbook,
+        design,
+        current_release_verification,
+        release_verification,
+    ]:
         for phrase in [
             "verify-genus",
             "status",
@@ -129,7 +137,7 @@ def test_high_level_workflow_docs_are_current():
         ]:
             assert phrase in docs
 
-    for docs in [readme, cookbook, release_verification]:
+    for docs in [readme, cookbook, current_release_verification, release_verification]:
         assert "--auto-accept-selection" in docs
         assert "--enable-downloads" in docs
         assert "exploratory" in docs
@@ -137,11 +145,32 @@ def test_high_level_workflow_docs_are_current():
 
     assert "verify-release-genus" in readme
     assert "verify-release-genus" in cookbook
+    assert "verify-release-genus" in current_release_verification
     assert "verify-release-genus" in release_verification
     assert "Credentials" in cookbook
     assert "credentials" in readme
     assert "pip install datasets" not in readme
     assert "pip install datasets" not in cookbook
+
+    for docs in [readme, cookbook, current_release_verification]:
+        for phrase in [
+            "completion/gaps.tsv",
+            "completion/uncovered_species.tsv",
+            "completion/16s_gaps.tsv",
+            "shared acquisition cache",
+            "checkpoint",
+            "resume",
+            "automatic 100% coverage",
+        ]:
+            assert phrase in docs
+
+    for phrase in [
+        "Enterobacter siamensis",
+        "Enterobacter nematophilus E-TC7 GCF_026344075.1",
+        "27/28",
+        "26/27",
+    ]:
+        assert phrase in current_release_verification
 
 
 def test_output_layout_mentions_key_output_paths(tmp_path):
@@ -176,6 +205,9 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.assembly_candidate_diagnostics_path,
         paths.discovery_records_path,
         paths.sequence_source_audit_path,
+        paths.completion_gaps_path,
+        paths.uncovered_species_path,
+        paths.rrna_16s_gaps_path,
         paths.strain_candidates_path,
         paths.user_selection_path,
         paths.download_preflight_summary_path,
@@ -267,6 +299,9 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "source_audit/culture_collection_audit.tsv": CULTURE_COLLECTION_AUDIT_FIELDS,
         "source_audit/completion_audit.tsv": COMPLETION_AUDIT_FIELDS,
         "source_audit/completion_summary.tsv": COMPLETION_SUMMARY_FIELDS,
+        "completion/gaps.tsv": COMPLETION_GAP_FIELDS,
+        "completion/uncovered_species.tsv": COMPLETION_GAP_FIELDS,
+        "completion/16s_gaps.tsv": COMPLETION_GAP_FIELDS,
         "cache/ncbi/download_plan.tsv": DOWNLOAD_PLAN_FIELDS,
         "cache/ncbi/download_results.tsv": DOWNLOAD_RESULTS_FIELDS,
         "rrna/rrna_plan.tsv": RRNA_PLAN_FIELDS,

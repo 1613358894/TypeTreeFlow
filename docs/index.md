@@ -142,7 +142,9 @@ review, inspect `status` or `next-step`, use
 `--auto-accept-selection --enable-downloads` only after accepting the generated
 selection, and use `package-results` for handoff. `verify-release-genus` is the
 release-matrix wrapper for balanced and representative verification.
-Representative selection is exploratory only. External provider planning is
-metadata/review handoff only; legally obtained local FASTA files enter the
-workflow through `--register-external-genomes`, and provider IDs remain outside
-NCBI `assembly_accession`.
+Representative selection is exploratory only. See
+`release_verification.md` for current v2.2.2 shared acquisition cache,
+checkpoint/resume, package failure explanation, and gap-report behavior.
+External provider planning is metadata/review handoff only; legally obtained
+local FASTA files enter the workflow through `--register-external-genomes`, and
+provider IDs remain outside NCBI `assembly_accession`.

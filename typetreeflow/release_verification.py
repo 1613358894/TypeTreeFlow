@@ -221,7 +221,7 @@ def write_release_verification_summary(
     lines = [
         "# Release Verification Summary",
         "",
-        "| genus | policy | status | selected | downloads | 16S ready | blockers |",
+        "| genus | policy | status | selected | downloads | 16S ready | blockers / notes |",
         "| --- | --- | --- | ---: | ---: | ---: | --- |",
     ]
     for row in rows:
@@ -230,6 +230,7 @@ def write_release_verification_summary(
             if row.download_planned_count
             else f"{row.download_succeeded_count}/0"
         )
+        blockers_and_notes = _summary_blockers_and_notes(row)
         lines.append(
             "| "
             + " | ".join(
@@ -240,7 +241,7 @@ def write_release_verification_summary(
                     str(row.selected_count),
                     downloads,
                     str(row.rrna_16s_ready_count),
-                    _md(row.blocking_summary),
+                    _md(blockers_and_notes),
                 ]
             )
             + " |"
@@ -289,6 +290,9 @@ def _completion_status(
 
 
 def _blocking_summary(root: Path, status: str, missing_count: int, failed_count: int) -> str:
+    state_blocker = _run_state_blocker(root)
+    if state_blocker:
+        return state_blocker
     if status in {"strict_complete", "likely_inclusive_complete", "representative_complete"}:
         return "none"
     if failed_count:
@@ -301,7 +305,11 @@ def _blocking_summary(root: Path, status: str, missing_count: int, failed_count:
         if state.next_action:
             return state.next_action
     if missing_count:
-        return f"{missing_count} checklist species missing or unselected"
+        return (
+            f"{missing_count} checklist species missing or unselected; "
+            f"missing_external_candidate={missing_count}; "
+            f"uncovered_checklist_species={missing_count}"
+        )
     return "planned outputs exist, guarded downloads not complete"
 
 
@@ -309,6 +317,9 @@ def _notes(policy: str, status: str, root: Path) -> str:
     notes: list[str] = []
     if policy == "representative" or status == "representative_complete":
         notes.append(REPRESENTATIVE_EXPLORATORY_NOTE)
+    rrna_not_found_count = _count_genome_ready_16s_not_found(root / "manifest.tsv")
+    if rrna_not_found_count:
+        notes.append(f"genome_ready_16s_not_found={rrna_not_found_count}")
     state_path = root / "run_state.json"
     if state_path.exists():
         state = read_run_state(state_path)
@@ -341,6 +352,58 @@ def _count_rrna_ready(path: Path) -> int:
     if not path.exists():
         return 0
     return sum(1 for record in read_manifest(path) if record.has_16s)
+
+
+def _count_genome_ready_16s_not_found(path: Path) -> int:
+    if not path.exists():
+        return 0
+    return sum(
+        1
+        for record in read_manifest(path)
+        if record.has_genome and not record.has_16s and record.status == "rrna_16s_not_found"
+    )
+
+
+def _summary_blockers_and_notes(row: VerificationSummaryRow) -> str:
+    parts = [
+        value
+        for value in (row.blocking_summary, row.notes)
+        if value and value != "none"
+    ]
+    return "; ".join(parts) if parts else "none"
+
+
+def _run_state_blocker(root: Path) -> str:
+    state_path = root / "run_state.json"
+    if not state_path.exists():
+        return ""
+    state = read_run_state(state_path)
+    failed_stage = next(
+        (
+            (name, stage)
+            for name, stage in state.stages.items()
+            if stage.status == "failed"
+        ),
+        None,
+    )
+    if failed_stage is not None:
+        stage_name, stage = failed_stage
+        detail = stage.summary or (state.errors[0] if state.errors else "")
+        blocker = f"failed_stage={stage_name}"
+        if detail:
+            blocker += f"; error={_compact_detail(detail)}"
+        return blocker
+    if state.status == "failed":
+        detail = state.errors[0] if state.errors else state.next_action
+        blocker = "failed_stage=workflow"
+        if detail:
+            blocker += f"; error={_compact_detail(detail)}"
+        return blocker
+    return ""
+
+
+def _compact_detail(value: str) -> str:
+    return " ".join(str(value).replace("\t", " ").split())
 
 
 def _md(value: str) -> str:
