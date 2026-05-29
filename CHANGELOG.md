@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v2.2.1 - 2026-05-29
+
+- Raised TSV CSV field-size handling for release verification, status, delivery,
+  and CLI summary readers so long NCBI Datasets CLI stderr fields do not break
+  post-download reporting.
+- Hardened manifest path normalization and resolution for repo-relative,
+  outdir-relative, and manifest-relative genome and 16S paths.
+- Fixed barrnap execution to resolve genome FASTA inputs relative to the
+  manifest while keeping rrna plan outputs portable and relative.
+- Added regression coverage from the Spirosoma post-release validation path.
+
 ## v2.2.0 - 2026-05-29
 
 - Added high-level `verify-genus` orchestration for LPSN-first genus planning,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import shutil
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -306,6 +307,7 @@ def _read_download_counts(path: Path) -> dict[str, int]:
     counts = {"succeeded": 0, "failed": 0}
     if not path.exists():
         return counts
+    _allow_large_csv_fields()
     with path.open("r", newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         for row in reader:
@@ -315,6 +317,16 @@ def _read_download_counts(path: Path) -> dict[str, int]:
             elif "failed" in status or status.endswith("_error"):
                 counts["failed"] += 1
     return counts
+
+
+def _allow_large_csv_fields() -> None:
+    limit = sys.maxsize
+    while True:
+        try:
+            csv.field_size_limit(limit)
+            return
+        except OverflowError:
+            limit = int(limit / 10)
 
 
 def _summarize_policy(records: list[StrainRecord]) -> str:

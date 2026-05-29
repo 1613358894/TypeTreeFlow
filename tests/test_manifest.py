@@ -1,4 +1,5 @@
 import pytest
+from pathlib import Path
 
 from typetreeflow.exceptions import ManifestError
 from typetreeflow.manifest import (
@@ -82,6 +83,23 @@ def test_manifest_write_makes_outdir_absolute_paths_relative(tmp_path):
     record = _record()
     record.genome_path = str(genome)
     record.rrna_16s_path = str(rrna)
+
+    write_manifest([record], path)
+    records = read_manifest(path)
+
+    assert records[0].genome_path == "genomes/references/Bacillus_subtilis.fna"
+    assert records[0].rrna_16s_path == "rrna/sequences/Bacillus_subtilis.16s.fasta"
+
+
+def test_manifest_write_makes_outdir_repo_relative_paths_relative(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    outdir = tmp_path / "results" / "run"
+    path = outdir / "manifest.tsv"
+    genome = Path("results/run/genomes/references/Bacillus_subtilis.fna")
+    rrna = Path("results/run/rrna/sequences/Bacillus_subtilis.16s.fasta")
+    record = _record()
+    record.genome_path = genome.as_posix()
+    record.rrna_16s_path = rrna.as_posix()
 
     write_manifest([record], path)
     records = read_manifest(path)

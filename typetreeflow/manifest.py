@@ -78,13 +78,18 @@ def normalize_manifest_path(
         return ""
 
     candidate = Path(text)
-    if base_dir is not None and candidate.is_absolute():
-        try:
-            return candidate.resolve(strict=False).relative_to(
-                Path(base_dir).resolve(strict=False)
-            ).as_posix()
-        except ValueError:
-            pass
+    if base_dir is not None:
+        base = Path(base_dir).resolve(strict=False)
+        candidates = [candidate]
+        if not candidate.is_absolute():
+            candidates.append(candidate.resolve(strict=False))
+        for path_candidate in candidates:
+            if not path_candidate.is_absolute():
+                continue
+            try:
+                return path_candidate.resolve(strict=False).relative_to(base).as_posix()
+            except ValueError:
+                pass
 
     return text.replace("\\", "/")
 
@@ -104,7 +109,10 @@ def resolve_manifest_path(value: str | Path, base_dir: str | Path | None = None)
     text = normalize_manifest_path(value)
     candidate = Path(text)
     if base_dir is not None and text and not candidate.is_absolute():
-        return Path(base_dir) / candidate
+        base_candidate = Path(base_dir) / candidate
+        if base_candidate.exists() or not candidate.exists():
+            return base_candidate
+        return candidate.resolve(strict=False)
     return candidate
 
 

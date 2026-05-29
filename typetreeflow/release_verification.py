@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -327,6 +328,7 @@ def _count_tsv_rows(path: Path) -> int:
 def _count_statuses(path: Path, statuses: set[str]) -> int:
     if not path.exists():
         return 0
+    _allow_large_csv_fields()
     with path.open("r", newline="", encoding="utf-8") as handle:
         return sum(
             1
@@ -373,3 +375,13 @@ def _int(value: str) -> int:
         return int(str(value).strip() or "0")
     except ValueError:
         return 0
+
+
+def _allow_large_csv_fields() -> None:
+    limit = sys.maxsize
+    while True:
+        try:
+            csv.field_size_limit(limit)
+            return
+        except OverflowError:
+            limit = int(limit / 10)

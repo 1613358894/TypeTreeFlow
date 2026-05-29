@@ -87,6 +87,7 @@ def prepare_local_16s(
         dry_run=False,
         force=force,
         threads=threads,
+        base_dir=paths.manifest.parent,
     )
     mark_barrnap_results(record_list, barrnap_results)
 

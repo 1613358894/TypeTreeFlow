@@ -71,6 +71,33 @@ def test_summarize_verification_outdir_counts_local_outputs(tmp_path):
     assert row.completion_status == "likely_inclusive_complete"
 
 
+def test_summarize_verification_outdir_reads_large_download_result_fields(tmp_path):
+    outdir = tmp_path / "fusobacterium_balanced"
+    _write_lines(outdir / "species_checklist.tsv", ["species", "F a"])
+    write_download_preflight_summary(
+        DownloadPreflightSummary(selected_total=1, download_planned=1),
+        outdir / "selection" / "download_preflight_summary.tsv",
+    )
+    write_download_results(
+        [
+            GenomeDownloadResult(
+                "r1",
+                "r1",
+                "GCF_1",
+                "a.zip",
+                [],
+                "genome_download_succeeded",
+                stderr="x" * 200_000,
+            ),
+        ],
+        outdir / "cache" / "ncbi" / "download_results.tsv",
+    )
+
+    row = summarize_verification_outdir(outdir, "Fusobacterium", "balanced")
+
+    assert row.download_succeeded_count == 1
+
+
 def test_verification_matrix_upsert_preserves_other_rows(tmp_path):
     matrix_path = tmp_path / "verification_matrix.tsv"
     matrix_path.write_text(

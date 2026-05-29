@@ -55,6 +55,24 @@ def test_relative_posix_manifest_genome_path_is_resolved_from_outdir(tmp_path):
     assert plan[0].status == "rrna_extraction_planned"
 
 
+def test_repo_relative_manifest_genome_path_under_outdir_is_resolved(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    outdir = tmp_path / "results" / "run"
+    genome = outdir / "genomes" / "references" / "Aliivibrio_fischeri_ES114.fna"
+    genome.parent.mkdir(parents=True)
+    genome.write_text(">seq\nACGT\n", encoding="utf-8")
+    record = _record(
+        genome_path="results/run/genomes/references/Aliivibrio_fischeri_ES114.fna"
+    )
+
+    plan = build_rrna_extraction_plan([record], outdir)
+
+    assert plan[0].status == "rrna_extraction_planned"
+    assert plan[0].genome_path == (
+        "results/run/genomes/references/Aliivibrio_fischeri_ES114.fna"
+    )
+
+
 def test_record_without_genome_is_skipped(tmp_path):
     record = _record(has_genome=False, genome_path="")
 

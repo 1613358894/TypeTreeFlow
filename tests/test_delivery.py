@@ -39,6 +39,24 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     assert "Credentials are not included." in readme
 
 
+def test_package_results_reads_large_download_result_fields(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    paths.ncbi_download_results_path.parent.mkdir(parents=True)
+    paths.ncbi_download_results_path.write_text(
+        "record_id\tnormalized_id\tassembly_accession\tstatus\tzip_path\treturncode\tstderr\tnotes\n"
+        + "rec-1\trec-1\tGCF_000001\tgenome_download_succeeded\tcache/ncbi/a.zip\t0\t"
+        + ("x" * 200_000)
+        + "\t\n",
+        encoding="utf-8",
+    )
+
+    result = package_results(tmp_path, include="reports")
+
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    assert "Download succeeded: 1" in readme
+
+
 def test_package_results_copies_genome_fasta_from_manifest_path(tmp_path):
     paths = get_output_paths(tmp_path)
     genome = paths.genomes_references_dir / "rec-1.fna"

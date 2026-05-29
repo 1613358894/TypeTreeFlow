@@ -97,6 +97,19 @@ def test_success_writes_stdout_to_gff(tmp_path):
     assert not Path(plan[0].expected_rrna_fasta_path).exists()
 
 
+def test_execution_resolves_manifest_relative_genome_path(tmp_path):
+    genome = tmp_path / "genomes" / "references" / "Aliivibrio_fischeri_ES114.fna"
+    genome.parent.mkdir(parents=True)
+    genome.write_text(">seq\nACGT\n", encoding="utf-8")
+    record = _record(genome_path="genomes/references/Aliivibrio_fischeri_ES114.fna")
+    plan = build_rrna_extraction_plan([record], tmp_path)
+    runner = FakeRunner(returncode=0, stdout="##gff-version 3\nseq\tbarrnap\trRNA\n")
+
+    execute_barrnap_plan(plan, runner, dry_run=False, base_dir=tmp_path)
+
+    assert runner.commands[0][-1] == str(genome)
+
+
 def test_success_returncode_with_empty_stdout_is_missing_output(tmp_path):
     _, plan = _planned_record(tmp_path)
     runner = FakeRunner(returncode=0, stdout="")

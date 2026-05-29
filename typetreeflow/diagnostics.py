@@ -339,8 +339,19 @@ def _download_counts(path: Path) -> tuple[int, int]:
 
 
 def _read_tsv(path: Path) -> list[dict[str, str]]:
+    _allow_large_csv_fields()
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _allow_large_csv_fields() -> None:
+    limit = sys.maxsize
+    while True:
+        try:
+            csv.field_size_limit(limit)
+            return
+        except OverflowError:
+            limit = int(limit / 10)
 
 
 def _is_truthy(value: str) -> bool:

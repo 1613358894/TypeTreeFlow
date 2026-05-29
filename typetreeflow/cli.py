@@ -1710,8 +1710,19 @@ def _status_counts(path: Path) -> dict[str, int]:
 def _read_tsv_rows(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
+    _allow_large_csv_fields()
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _allow_large_csv_fields() -> None:
+    limit = sys.maxsize
+    while True:
+        try:
+            csv.field_size_limit(limit)
+            return
+        except OverflowError:
+            limit = int(limit / 10)
 
 
 def _state_output_path(path: Path, paths) -> str:

@@ -6,6 +6,7 @@ from typing import Iterable
 
 from typetreeflow.external.runner import CommandRunner
 from typetreeflow.external.tools import BARRNAP
+from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.rrna.plan import RrnaExtractionPlanItem
 
@@ -52,10 +53,15 @@ def execute_barrnap_plan(
     dry_run: bool,
     force: bool = False,
     threads: int = 1,
+    base_dir: str | Path | None = None,
 ) -> list[BarrnapResult]:
     results: list[BarrnapResult] = []
     for item in plan_items:
-        genome_path = Path(item.genome_path) if item.genome_path else Path()
+        genome_path = (
+            resolve_manifest_path(item.genome_path, base_dir)
+            if item.genome_path
+            else Path()
+        )
         gff_path = Path(item.expected_gff_path)
         command = build_barrnap_command(genome_path, gff_path, threads=threads)
 
