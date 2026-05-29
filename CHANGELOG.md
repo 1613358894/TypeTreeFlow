@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+## v2.2.0 - 2026-05-29
+
+- Added high-level `verify-genus` orchestration for LPSN-first genus planning,
+  guarded download execution with `--auto-accept-selection --enable-downloads`,
+  and optional barrnap 16S extraction.
+- Added `verify-release-genus` to run balanced and representative release
+  verification directories and update `verification_matrix.tsv` plus a Markdown
+  release summary.
+- Added `package-results` delivery bundles with manifest, selection,
+  evidence, download, report, genome, and 16S handoff files while excluding
+  credentials, NCBI ZIP cache files, and local environment files.
+- Added `doctor`, `status`, and `next-step` commands for dependency checks,
+  run-state inspection, and actionable workflow guidance.
+- Added `run_state.json` as a stable machine-readable workflow status file.
+- Structured selection evidence in `manifest.tsv`, preserving
+  strict-confirmed, likely type-material, and representative-only layers across
+  resume and report generation.
+- Standardized manifest genome and 16S paths as relative POSIX paths while
+  retaining compatibility with older Windows-style manifest paths.
+- Hardened dry-run, BioSample Entrez, and high-level download argument
+  validation so conflicting combinations fail before workflow execution.
+- Improved missing external-tool messages, including explicit guidance that the
+  required `datasets` executable is the NCBI Datasets CLI, not the Python
+  package named `datasets`.
+- Updated README, cookbook, release checklist, and output-layout documentation
+  so high-level workflow commands are the recommended user entry point.
+
+## v2.2.0rc1 - Manual review and evidence explanation
+
+- Added `manual_review_report.md` as a stable human-readable companion to the
+  manual deposit-evidence and species-gap review outputs.
+- Added stable `ranking_reasons` and `blocking_reasons` explanation fields to
+  `user_selection.tsv` so candidate ranking and policy blocks are auditable.
+- Hardened BioSample field-level deposit ID extraction and stable BioSample
+  evidence markers for candidate rows, including deposit ID fields and
+  type-material evidence markers.
+- Added `selection/download_preflight_summary.tsv` as a single-row preflight
+  summary for selected records before download planning/execution.
+- Added representative-only download risk summaries so exploratory
+  representative rows are visible before guarded downloads and report-only
+  summaries.
+- Updated the documented strict, likely type-material, and representative-only
+  routes so strict completion remains deposit-equivalence based while balanced
+  and representative routes remain review/exploration surfaces.
+- Strengthened provider planning and external FASTA boundary documentation:
+  provider planning remains review-only, and external FASTA registration remains
+  curator-reviewed local evidence.
+- Non-goals: this release does not add ATCC, DSMZ, JCM, NCTC, or other
+  provider auto-downloaders; does not loosen strict completion; and does not
+  count `likely_type_material` or `representative_only` rows toward strict
+  type-strain completion.
+
 ## 2.1.0 - 2026-05-27
 
 - Added the `representative` selection policy for exploratory top-ranked

@@ -22,6 +22,9 @@ move, archive, or deletion.
   TSV contract for user-supplied species checklist auditing.
 - [completion_audit.md](completion_audit.md): Implemented local
   mixed-provenance completion audit outputs and split completion metrics.
+- [cookbook.md](cookbook.md): Concise operator cookbook for the high-level
+  `doctor`, `verify-genus`, `status`, `next-step`, `package-results`, and
+  `verify-release-genus` commands.
 - [external_workflow_cookbook.md](external_workflow_cookbook.md): Short
   user-facing workflow for manual external FASTA registration, synthetic
   fixture validation, real local `F. mortiferum` evidence packages, completion
@@ -89,6 +92,10 @@ move, archive, or deletion.
   tag, GitHub Release, clean-clone verification, and audit standards.
 - [release_checklist.md](release_checklist.md): Execution checklist for local
   validation, packaging, optional real staged validation, and pre-tag checks.
+- [v2_2_0_release_verification.md](v2_2_0_release_verification.md): Lightweight
+  runbook and TSV recording contract for later real acquisition/download
+  verification of Fusobacterium, Spirosoma, Enterobacter, and Clostridium
+  balanced and representative outputs.
 
 ## Historical plans
 
@@ -125,3 +132,17 @@ The repository root currently contains local run outputs and large data under
 `phase*`, `results/`, and `data/`. They are not moved or removed by this
 documentation map; review them separately before deciding what should remain
 tracked, be regenerated, or be cleaned locally.
+
+## Recommended v2.2.0 route
+
+Use README's "Recommended v2.2.0 workflows" section as the shortest current
+operator guide and `cookbook.md` as the quick command cookbook. In brief:
+ordinary users should start with `doctor`, run `verify-genus` for plan-only
+review, inspect `status` or `next-step`, use
+`--auto-accept-selection --enable-downloads` only after accepting the generated
+selection, and use `package-results` for handoff. `verify-release-genus` is the
+release-matrix wrapper for balanced and representative verification.
+Representative selection is exploratory only. External provider planning is
+metadata/review handoff only; legally obtained local FASTA files enter the
+workflow through `--register-external-genomes`, and provider IDs remain outside
+NCBI `assembly_accession`.

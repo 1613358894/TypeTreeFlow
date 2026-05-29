@@ -26,6 +26,13 @@ class StrainRecord:
     normalized_id: str = ""
     source: str = ""
     status: str = "pending"
+    evidence_level: str = ""
+    type_confirmation_status: str = ""
+    selection_policy: str = ""
+    selection_role: str = ""
+    selection_reason: str = ""
+    risk_flags: str = ""
+    manual_review_status: str = ""
     notes: str = ""
 
     def to_dict(self) -> dict[str, object]:
@@ -57,4 +64,3 @@ def _coerce_bool(value: object) -> bool:
     if value is None:
         return False
     return str(value).strip().lower() in {"1", "true", "yes", "y"}
-

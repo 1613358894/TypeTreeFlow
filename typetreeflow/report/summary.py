@@ -13,12 +13,23 @@ from typetreeflow.completion import (
     read_completion_audit,
     read_completion_summary,
 )
+from typetreeflow.genomes.preflight import (
+    DownloadPreflightSummary,
+    build_download_preflight_summary,
+    read_download_preflight_summary,
+)
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
     PROVIDER_PLAN_STATUSES,
     PROVIDER_REGISTRATION_PLAN_FIELDS,
+)
+from typetreeflow.selection.evidence import (
+    LIKELY_TYPE_MATERIAL_COUNT,
+    REPRESENTATIVE_ONLY_COUNT,
+    STRICT_CONFIRMED_COUNT,
+    type_confirmation_classification,
 )
 from typetreeflow.taxonomy.audit import (
     EXTRA_IN_GTDB,
@@ -118,12 +129,12 @@ def summarize_provenance_counts(records: Iterable[StrainRecord]) -> dict[str, in
 
 def summarize_type_confirmation_counts(records: Iterable[StrainRecord]) -> dict[str, int]:
     summary = {
-        "strict_confirmed_count": 0,
-        "likely_type_material_count": 0,
-        "representative_only_count": 0,
+        STRICT_CONFIRMED_COUNT: 0,
+        LIKELY_TYPE_MATERIAL_COUNT: 0,
+        REPRESENTATIVE_ONLY_COUNT: 0,
     }
     for record in records:
-        classification = _type_confirmation_classification(record)
+        classification = type_confirmation_classification(record)
         if classification:
             summary[classification] += 1
     return summary
@@ -157,6 +168,10 @@ def summarize_output_files(
         ("ani/ani_summary.tsv", paths.ani_summary_path),
         ("ani/ani_query_vs_refs.png", paths.ani_heatmap_path),
         ("phylo/phylo_plan.tsv", paths.phylo_plan_path),
+        (
+            "selection/download_preflight_summary.tsv",
+            paths.download_preflight_summary_path,
+        ),
         ("report/summary.md", paths.run_summary_path),
     ]
     return [
@@ -307,6 +322,24 @@ def read_optional_completion_audit(path: str | Path) -> list[CompletionAuditReco
     if not input_path.exists():
         return None
     return read_completion_audit(input_path)
+
+
+def read_optional_download_preflight_summary(
+    path: str | Path,
+) -> DownloadPreflightSummary | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_download_preflight_summary(input_path)
+
+
+def summarize_selection_evidence_from_manifest(
+    records: Iterable[StrainRecord],
+) -> DownloadPreflightSummary | None:
+    record_list = [record for record in records if not record.is_query]
+    if not any(type_confirmation_classification(record) for record in record_list):
+        return None
+    return build_download_preflight_summary(record_list, [])
 
 
 def read_optional_provider_registration_plan(path: str | Path) -> list[dict[str, str]] | None:
@@ -473,6 +506,18 @@ def build_run_summary_markdown(
     except ValueError as error:
         completion_audit = None
         completion_audit_error = str(error)
+    download_preflight_error = ""
+    try:
+        download_preflight_summary = read_optional_download_preflight_summary(
+            paths.download_preflight_summary_path
+        )
+    except ValueError as error:
+        download_preflight_summary = None
+        download_preflight_error = str(error)
+    if download_preflight_summary is None and not download_preflight_error:
+        download_preflight_summary = summarize_selection_evidence_from_manifest(
+            record_list
+        )
     provider_plan_error = ""
     provider_proposed_summary: dict[str, int] | None = None
     try:
@@ -498,6 +543,7 @@ def build_run_summary_markdown(
         f"- Outgroup: {_config_value(args, 'outgroup')}",
         f"- Dry run: {_config_value(args, 'dry_run')}",
         f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
+        f"- Selection acceptance: {_selection_acceptance_value(args)}",
         "",
         "## Records",
         "",
@@ -550,11 +596,76 @@ def build_run_summary_markdown(
             "external genomes with installed local FASTA paths can participate "
             "in downstream planning as mixed-provenance references."
         ),
-        "",
-        "## 16S Status",
-        "",
-        f"- 16S-ready records: {manifest_summary['rrna_ready_count']}",
     ]
+
+    if download_preflight_error:
+        lines.extend(
+            [
+                "",
+                "## Download Preflight Risk Summary",
+                "",
+                f"Download preflight summary could not be read: {download_preflight_error}",
+            ]
+        )
+    elif download_preflight_summary is not None:
+        lines.extend(
+            [
+                "",
+                "## Download Preflight Risk Summary",
+                "",
+                f"- Selected records: {download_preflight_summary.selected_total}",
+                f"- Strict confirmed: {download_preflight_summary.strict_confirmed}",
+                (
+                    "- Likely type-material: "
+                    f"{download_preflight_summary.likely_type_material}"
+                ),
+                (
+                    "- Representative only: "
+                    f"{download_preflight_summary.representative_only}"
+                ),
+                (
+                    "- Missing evidence level: "
+                    f"{download_preflight_summary.missing_evidence_level}"
+                ),
+                (
+                    "- NCBI Assembly-backed: "
+                    f"{download_preflight_summary.ncbi_assembly_backed}"
+                ),
+                (
+                    "- External registered: "
+                    f"{download_preflight_summary.external_registered}"
+                ),
+                (
+                    "- Download planned: "
+                    f"{download_preflight_summary.download_planned}"
+                ),
+                (
+                    "- Download skipped existing: "
+                    f"{download_preflight_summary.download_skipped_existing}"
+                ),
+                (
+                    "- Download not applicable: "
+                    f"{download_preflight_summary.download_not_applicable}"
+                ),
+                (
+                    "- Download skipped no accession: "
+                    f"{download_preflight_summary.download_skipped_no_accession}"
+                ),
+                (
+                    "Representative-only rows are exploratory and are not strict "
+                    "type-strain completion."
+                ),
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "## 16S Status",
+            "",
+            f"- 16S-ready records: {manifest_summary['rrna_ready_count']}",
+        ]
+    )
 
     if paths.all_16s_fasta_path.exists():
         lines.append(f"- Combined 16S FASTA: {_display_path(paths.all_16s_fasta_path, paths)}")
@@ -998,59 +1109,6 @@ def _is_external_registered_genome(record: StrainRecord) -> bool:
     )
 
 
-def _type_confirmation_classification(record: StrainRecord) -> str:
-    note_values = _parse_note_values(record.notes)
-    evidence_level = note_values.get("evidence_level", "").strip().lower()
-    if evidence_level == "strict_confirmed":
-        return "strict_confirmed_count"
-    if evidence_level == "likely_type_material":
-        return "likely_type_material_count"
-    if evidence_level == "representative_only":
-        return "representative_only_count"
-
-    type_confirmation_status = (
-        note_values.get("type_confirmation_status", "").strip().lower()
-    )
-    if type_confirmation_status == "confirmed_type_strain":
-        return "strict_confirmed_count"
-    if type_confirmation_status == "likely_type_material":
-        return "likely_type_material_count"
-    if type_confirmation_status == "representative_not_type_confirmed":
-        return "representative_only_count"
-
-    if _has_legacy_strict_type_match_evidence(note_values):
-        return "strict_confirmed_count"
-    return ""
-
-
-def _parse_note_values(notes: str) -> dict[str, str]:
-    values: dict[str, str] = {}
-    for part in str(notes or "").split(";"):
-        if "=" not in part:
-            continue
-        key, value = part.split("=", 1)
-        key = key.strip()
-        if key:
-            values[key] = value.strip()
-    return values
-
-
-def _has_legacy_strict_type_match_evidence(note_values: dict[str, str]) -> bool:
-    lpsn_match = note_values.get("has_lpsn_type_strain_match", "").strip().lower()
-    if lpsn_match in {"1", "true", "yes", "y"}:
-        return True
-
-    match_evidence = note_values.get("match_evidence", "").strip().lower()
-    if "lpsn_type_strain_match" in match_evidence:
-        return True
-
-    policy_decision = note_values.get("policy_decision", "").strip().lower()
-    return policy_decision in {
-        "auto_selected_lpsn_type_strain_match",
-        "auto_selected_curator_lpsn_type_strain_match",
-    }
-
-
 def _config_value(args: object | None, name: str) -> str:
     if args is None:
         return "not provided"
@@ -1058,6 +1116,18 @@ def _config_value(args: object | None, name: str) -> str:
     if value is None or value == "":
         return "not provided"
     return str(value)
+
+
+def _selection_acceptance_value(args: object | None) -> str:
+    if args is None or not getattr(args, "verify_genus", False):
+        return "not provided"
+    auto_accept = bool(getattr(args, "auto_accept_selection", False))
+    enable_downloads = bool(getattr(args, "enable_downloads", False))
+    if auto_accept and enable_downloads:
+        return "auto_accepted_selection"
+    if auto_accept:
+        return "auto_accepted_selection for planning only; downloads not enabled"
+    return "manual_review_required"
 
 
 def _display_path(path: Path, paths: OutputPaths) -> str:

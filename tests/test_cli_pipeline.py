@@ -159,13 +159,16 @@ def test_resume_force_is_rejected(tmp_path):
     assert main(["--outdir", str(tmp_path), "--resume", "--force", "--dry-run"]) == 2
 
 
-def test_enable_entrez_without_email_is_rejected(tmp_path):
+def test_enable_entrez_without_email_is_rejected(tmp_path, monkeypatch):
+    fixture = FIXTURE.resolve()
+    monkeypatch.chdir(tmp_path)
+
     result = main(
         [
             "--genus",
             "Aliivibrio",
             "--gtdb-metadata",
-            str(FIXTURE),
+            str(fixture),
             "--outdir",
             str(tmp_path),
             "--enable-entrez",
@@ -282,13 +285,16 @@ def test_non_dry_run_enable_phylo_is_not_wired(tmp_path, caplog):
     assert "phylo real execution is not wired in this release." in caplog.text
 
 
-def test_enable_entrez_without_email_has_stable_rejection(tmp_path, caplog):
+def test_enable_entrez_without_email_has_stable_rejection(tmp_path, caplog, monkeypatch):
+    fixture = FIXTURE.resolve()
+    monkeypatch.chdir(tmp_path)
+
     result = main(
         [
             "--genus",
             "Aliivibrio",
             "--gtdb-metadata",
-            str(FIXTURE),
+            str(fixture),
             "--outdir",
             str(tmp_path),
             "--enable-entrez",

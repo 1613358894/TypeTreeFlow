@@ -6,6 +6,7 @@ from typetreeflow.manifest import read_manifest, write_manifest, write_name_map
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.source_audit import read_sequence_source_audits
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import read_run_state
 
 
 class FakeBarrnapRunner:
@@ -98,6 +99,9 @@ def test_resume_enable_barrnap_fake_success_updates_manifest_and_report(
     assert audits[0].genome_strain == "ES114"
     assert audits[0].rrna_source == "barrnap"
     assert audits[0].audit_status == "same_genome_internal_16s"
+    state = read_run_state(paths.run_state_path)
+    assert state.stages["rrna_barrnap"].status == "succeeded"
+    assert "rrna_16s_ready=1" in state.stages["rrna_barrnap"].summary
     assert "- 16S-ready records: 1" in summary
     assert "| rrna_16s_ready | 1 |" in summary
 
@@ -232,6 +236,8 @@ def test_resume_dry_run_enable_barrnap_does_not_call_runner_or_make_outputs(tmp_
     assert not paths.rrna_barrnap_dir.exists()
     assert not paths.rrna_sequences_dir.exists()
     assert not paths.sequence_source_audit_path.exists()
+    state = read_run_state(paths.run_state_path)
+    assert state.stages["rrna_barrnap"].status == "planned"
 
 
 def test_resume_enable_barrnap_with_query_16s_writes_combined_fasta(tmp_path):

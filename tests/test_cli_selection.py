@@ -542,7 +542,7 @@ def test_selection_tsv_enable_downloads_downloads_only_selected_rows(
     assert "GCF_000001406.1" not in accessions_in_commands
     assert paths.ncbi_download_results_path.exists()
     assert {row["status"] for row in manifest_rows} == {"genome_ready"}
-    assert all(Path(row["genome_path"]).exists() for row in manifest_rows)
+    assert all((paths.manifest.parent / row["genome_path"]).exists() for row in manifest_rows)
     assert paths.run_summary_path.exists()
 
 
@@ -721,7 +721,7 @@ def test_selection_tsv_downloaded_manifest_resume_dry_run_writes_rrna_plan(
     assert download_result == 0
     assert resume_result == 0
     assert manifest_rows[0]["has_genome"] == "true"
-    assert Path(manifest_rows[0]["genome_path"]).exists()
+    assert (paths.manifest.parent / manifest_rows[0]["genome_path"]).exists()
     assert rrna_plan_rows[0]["status"] == "rrna_extraction_planned"
     assert rrna_plan_rows[0]["normalized_id"] == normalized_id
     expected_gff_path = Path(rrna_plan_rows[0]["expected_gff_path"])
@@ -774,10 +774,10 @@ def test_selection_tsv_downloaded_manifest_resume_dry_run_writes_ani_plan(
     assert resume_result == 0
     assert ani_plan_rows[0]["status"] == "ani_planned"
     assert ani_plan_rows[0]["normalized_id"] == manifest_rows[0]["normalized_id"]
-    assert ani_plan_rows[0]["reference_genome_path"] == manifest_rows[0]["genome_path"]
+    assert Path(ani_plan_rows[0]["reference_genome_path"]).exists()
     assert ani_plan_rows[0]["query_genome_path"] == str(query)
     assert paths.fastani_reference_list_path.read_text(encoding="utf-8") == (
-        f"{manifest_rows[0]['genome_path']}\n"
+        f"{ani_plan_rows[0]['reference_genome_path']}\n"
     )
 
 

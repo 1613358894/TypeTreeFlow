@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from typing import Any
 from typing import Iterable
 
 from typetreeflow.exceptions import ManifestError
@@ -9,6 +10,18 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.naming import make_unique_identifier
 
 MANIFEST_FIELDS = StrainRecord.field_names()
+OPTIONAL_MANIFEST_FIELDS = {
+    "evidence_level",
+    "type_confirmation_status",
+    "selection_policy",
+    "selection_role",
+    "selection_reason",
+    "risk_flags",
+    "manual_review_status",
+}
+REQUIRED_MANIFEST_FIELDS = [
+    field for field in MANIFEST_FIELDS if field not in OPTIONAL_MANIFEST_FIELDS
+]
 NAME_MAP_FIELDS = [
     "record_id",
     "normalized_id",
@@ -16,6 +29,7 @@ NAME_MAP_FIELDS = [
     "display_name",
     "assembly_accession",
 ]
+MANIFEST_PATH_FIELDS = ("genome_path", "rrna_16s_path")
 
 
 def write_manifest(records: Iterable[StrainRecord], path: str | Path) -> None:
@@ -25,7 +39,11 @@ def write_manifest(records: Iterable[StrainRecord], path: str | Path) -> None:
         writer = csv.DictWriter(handle, fieldnames=MANIFEST_FIELDS, delimiter="\t")
         writer.writeheader()
         for record in records:
-            writer.writerow(_stringify_row(record.to_dict(), MANIFEST_FIELDS))
+            row = normalize_manifest_record_paths(
+                record.to_dict(),
+                base_dir=output_path.parent,
+            )
+            writer.writerow(_stringify_row(row, MANIFEST_FIELDS))
 
 
 def read_manifest(path: str | Path) -> list[StrainRecord]:
@@ -35,9 +53,59 @@ def read_manifest(path: str | Path) -> list[StrainRecord]:
 
     with input_path.open("r", newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
-        if reader.fieldnames != MANIFEST_FIELDS:
-            raise ManifestError("Manifest fields do not match the expected schema")
-        return [StrainRecord.from_dict(row) for row in reader]
+        if reader.fieldnames is None:
+            raise ManifestError(f"Manifest is missing a header: {input_path}")
+        missing_fields = [
+            field for field in REQUIRED_MANIFEST_FIELDS if field not in reader.fieldnames
+        ]
+        if missing_fields:
+            missing = ", ".join(missing_fields)
+            raise ManifestError(f"Manifest is missing required field(s): {missing}")
+        return [
+            StrainRecord.from_dict(normalize_manifest_record_paths(row))
+            for row in reader
+        ]
+
+
+def normalize_manifest_path(
+    value: str | Path | None,
+    base_dir: str | Path | None = None,
+) -> str:
+    if value is None:
+        return ""
+    text = str(value)
+    if not text:
+        return ""
+
+    candidate = Path(text)
+    if base_dir is not None and candidate.is_absolute():
+        try:
+            return candidate.resolve(strict=False).relative_to(
+                Path(base_dir).resolve(strict=False)
+            ).as_posix()
+        except ValueError:
+            pass
+
+    return text.replace("\\", "/")
+
+
+def normalize_manifest_record_paths(
+    record: dict[str, Any],
+    base_dir: str | Path | None = None,
+) -> dict[str, Any]:
+    normalized = dict(record)
+    for field in MANIFEST_PATH_FIELDS:
+        if field in normalized:
+            normalized[field] = normalize_manifest_path(normalized[field], base_dir=base_dir)
+    return normalized
+
+
+def resolve_manifest_path(value: str | Path, base_dir: str | Path | None = None) -> Path:
+    text = normalize_manifest_path(value)
+    candidate = Path(text)
+    if base_dir is not None and text and not candidate.is_absolute():
+        return Path(base_dir) / candidate
+    return candidate
 
 
 def find_record(records: Iterable[StrainRecord], record_id: str) -> StrainRecord | None:
@@ -86,6 +154,7 @@ def ensure_unique_normalized_ids(records: Iterable[StrainRecord]) -> None:
 def merge_external_registered_records(
     existing_records: Iterable[StrainRecord],
     new_records: Iterable[StrainRecord],
+    base_dir: str | Path | None = None,
 ) -> list[StrainRecord]:
     merged = list(existing_records)
     existing_external_ids = {
@@ -96,7 +165,9 @@ def merge_external_registered_records(
         if external_id
     }
     existing_genome_paths = {
-        record.genome_path for record in merged if record.genome_path
+        _manifest_path_key(record.genome_path, base_dir)
+        for record in merged
+        if record.genome_path
     }
 
     records_to_append: list[StrainRecord] = []
@@ -104,13 +175,14 @@ def merge_external_registered_records(
         external_id = _external_genome_id_from_notes(record.notes)
         if external_id and external_id in existing_external_ids:
             continue
-        if record.genome_path and record.genome_path in existing_genome_paths:
+        genome_path = _manifest_path_key(record.genome_path, base_dir)
+        if genome_path and genome_path in existing_genome_paths:
             continue
         records_to_append.append(record)
         if external_id:
             existing_external_ids.add(external_id)
-        if record.genome_path:
-            existing_genome_paths.add(record.genome_path)
+        if genome_path:
+            existing_genome_paths.add(genome_path)
 
     if not records_to_append:
         return merged
@@ -142,6 +214,14 @@ def _format_value(value: object) -> str:
     if value is None:
         return ""
     return str(value)
+
+
+def _manifest_path_key(value: str, base_dir: str | Path | None = None) -> str:
+    if not value:
+        return ""
+    if base_dir is None:
+        return normalize_manifest_path(value)
+    return normalize_manifest_path(resolve_manifest_path(value, base_dir), base_dir=base_dir)
 
 
 def _is_external_registered_genome(record: StrainRecord) -> bool:

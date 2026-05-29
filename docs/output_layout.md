@@ -20,6 +20,7 @@ typetreeflow_out/
     proposed_external_genomes.tsv
   manifest.tsv
   name_map.tsv
+  run_state.json
   cache/
     ncbi/
       biosample_records.tsv
@@ -64,13 +65,30 @@ typetreeflow_out/
   selection/
     strain_candidates.tsv
     user_selection.tsv
+    download_preflight_summary.tsv
   manual_deposit_evidence_template.tsv
   manual_species_gap_summary.tsv
+  manual_review_report.md
   taxonomy/
     checklist_comparison.tsv
   report/
     summary.md
     figures/
+  delivery/
+    README.md
+    manifest.tsv
+    run_state.json
+    selected_accessions.tsv
+    evidence_summary.tsv
+    download_results.tsv
+    reports/
+      summary.md
+    genomes/
+      <normalized_id>.fna
+    16S/
+      all_16S.fasta
+      sequences/
+        <normalized_id>.16s.fasta
 ```
 
 ## Core Invariants
@@ -78,6 +96,12 @@ typetreeflow_out/
 `manifest.tsv` is the central resume file and should be updated after each
 completed workflow stage. `name_map.tsv` links file-safe identifiers to display
 names used in reports and tree labels.
+
+`run_state.json` is the high-level workflow progress file. `verify-genus`,
+`verify-release-genus`, guarded download/extraction stages, and diagnostics use
+it to preserve stage status, outputs, next action, and errors. `status` and
+`next-step` prefer this file when present and infer status from durable outputs
+only when it is absent.
 
 `--register-external-genomes PATH --dry-run` writes
 `external_genome_registration_results.tsv` and
@@ -158,6 +182,14 @@ outputs; it does not read `provider_request.tsv`, rerun provider planning,
 download, log in, write `manifest.tsv`, write `name_map.tsv`, write NCBI
 download plans, or alter completion audit metrics.
 
+`delivery/` is the default output for `package-results` when `--delivery-dir`
+is omitted. Delivery packages are handoff artifacts, not a cache mirror. They
+copy the manifest, `run_state.json` when present, selected-accession and
+evidence summaries when present, download results when present, optional
+reports, genome FASTA files, and optional 16S FASTA files. They do not copy
+credentials, `.env` files, API keys, NCBI Datasets ZIP caches, pytest caches,
+temporary directories, or provider credentials.
+
 Resume behavior reuses durable artifacts in this order: an installed
 `genomes/references/<normalized_id>.fna`, an existing extracted directory under
 `cache/ncbi/extracted/<record_id>/`, then a valid ZIP under `cache/ncbi/`.
@@ -167,10 +199,24 @@ files.
 
 ## Stage Outputs
 
+`verify-genus GENUS` is the recommended high-level entry point for ordinary
+genus runs. It orchestrates the checklist, culture-collection audit, candidate
+discovery, optional BioSample enrichment, selection, manifest, download
+preflight, report, and run-state outputs. By default it is plan-only and stops
+at `selection/user_selection.tsv` review. Real downloads require the explicit
+pair `--auto-accept-selection --enable-downloads`; 16S extraction with
+`--extract-16s barrnap` requires genome-ready records and `barrnap` on `PATH`.
+
+`verify-release-genus GENUS` runs the same high-level verification surface for
+balanced and/or representative policies and writes `verification_matrix.tsv`
+plus `release_verification_summary.md` in its chosen release-verification
+outdir.
+
 `--acquire-genus` writes `species_checklist.tsv` and
 `excluded_lpsn_taxa.tsv`. The checklist contains retained validly published
 correct-name species. The excluded table preserves rejected LPSN rows and
-exclusion reasons for review.
+exclusion reasons for review. This remains a low-level developer/audit/manual
+recovery primitive; ordinary users should start with `verify-genus`.
 
 `--species-checklist PATH` can write `taxonomy/checklist_comparison.tsv` during
 dry-run or resume workflows. Report-only mode does not regenerate this file,
@@ -184,6 +230,11 @@ can also write `candidates/discovery_records.tsv` as a normalized cache for
 later offline reuse. Local discovery-cache generation does not contact NCBI,
 Entrez, LPSN, or GTDB, and it does not write `manifest.tsv` or
 `cache/ncbi/download_plan.tsv`.
+`candidates/assembly_candidates.tsv` is the main strict/balanced evidence
+input: it stores one candidate NCBI Assembly accession per row with parsed
+LPSN/checklist deposit IDs, NCBI/BioSample deposit IDs, type-material flags,
+synonym/manual-review flags, and match evidence. It is not itself a download
+manifest.
 
 `--enrich-biosample` reads `cache/ncbi/biosample_records.tsv`, an explicit
 BioSample cache, or guarded Entrez BioSample lookup and adds evidence to
@@ -194,8 +245,17 @@ become diagnostics or manual-review reasons.
 `selection/user_selection.tsv` from an existing candidate table. The user
 selection file is intended for editing. Selection-driven dry-runs convert
 `selected=yes` rows into `manifest.tsv`, `name_map.tsv`,
-`cache/ncbi/download_plan.tsv`, and `report/summary.md`; they plan downloads
-only and do not write download results.
+`cache/ncbi/download_plan.tsv`, `selection/download_preflight_summary.tsv`, and
+`report/summary.md`; they plan downloads only and do not write download
+results.
+The generated selection table includes `ranking_reasons` and
+`blocking_reasons` columns for review. They explain candidate ranking signals
+and strict/balanced non-selection blockers without loosening policy behavior.
+`selection/user_selection.tsv` is the file to review or edit before
+selection-driven downloads. Rows selected under `balanced` may include
+`likely_type_material`; rows selected under `representative` may include
+`representative_only`. Only `strict_confirmed` rows are strict type-strain
+evidence.
 
 Selection policies are risk-tiered. `strict` preselects only confirmed LPSN
 type-strain matches, `balanced` preselects only strong type-evidence rows
@@ -204,6 +264,16 @@ top-ranked exploratory fallback rows marked `representative_only` /
 `representative_not_type_confirmed`, and `review-only` preselects nothing.
 Representative rows can drive exploratory download planning, but they are not
 type-strain confirmations.
+
+Before dry-run or real selection-driven download execution, TypeTreeFlow writes
+`selection/download_preflight_summary.tsv`. This one-row TSV summarizes the
+selected records and the current genome download plan without changing
+selection, gates, or completion-audit metrics. It reports strict-confirmed,
+likely type-material, representative-only, missing evidence-level, NCBI
+Assembly-backed, external registered, planned, skipped-existing,
+not-applicable, and skipped-no-accession counts. The
+`representative_only_scope` value explicitly marks representative-only rows as
+exploratory and not strict type-strain completion.
 
 `--selection-tsv PATH` validates selected rows and reports the selected
 accession count unless guarded downloads are explicitly enabled. With
@@ -215,10 +285,20 @@ in `manifest.tsv`, and refreshes `report/summary.md`.
 
 `--write-manual-review-template` writes
 `manual_deposit_evidence_template.tsv` and
-`manual_species_gap_summary.tsv` for species with no `selected=yes` row in the
-selection TSV. `--apply-curator-evidence PATH` imports filled curator evidence
-into a fresh candidate table and writes a strict
+`manual_species_gap_summary.tsv` plus the human-readable
+`manual_review_report.md` for species with no `selected=yes` row in the
+selection TSV. The Markdown report summarizes review counts, the current gap
+reason, recommended next step, and ranked candidate evidence for each unselected
+species. `--apply-curator-evidence PATH` imports filled curator evidence into a
+fresh candidate table and writes a strict
 `selection/user_selection.tsv`.
+`manual_deposit_evidence_template.tsv` is the curator handoff for adding only
+provable deposit equivalence. `manual_species_gap_summary.tsv` is the compact
+species-level gap table. `manual_review_report.md` is the readable review
+packet for unselected strict/balanced species. These files do not relax strict
+selection by themselves; evidence becomes strict only after
+`--apply-curator-evidence` accepts a confirmed deposit ID matching that
+species' LPSN/checklist type-strain IDs.
 
 The same-strain source audit writes
 `source_audit/sequence_source_audit.tsv`. Barrnap/internal-genome 16S
@@ -240,11 +320,16 @@ external registered genomes do not change NCBI Assembly strict completion
 counts. Likely type-material and representative-only manifest risk layers also
 do not change strict completion counts. The stage is local and does not contact
 external providers or generate reports by itself.
+`source_audit/completion_summary.tsv` is the compact metric table consumed by
+`report/summary.md`; it keeps NCBI Assembly strict completion separate from
+external-inclusive strict completion.
 
 `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` are review-only provider planning
 outputs. Existing provider planning files are protected unless `--force` is
 supplied.
+They are planning artifacts only. Provider planning never writes a manifest,
+installs FASTA files, or creates NCBI Assembly accessions.
 
 ## Download Artifacts
 

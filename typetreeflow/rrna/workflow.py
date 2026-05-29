@@ -94,6 +94,7 @@ def prepare_local_16s(
         record_list,
         barrnap_results,
         force=force,
+        base_dir=paths.manifest.parent,
     )
     _write_barrnap_internal_16s_audits(
         record_list,
@@ -102,9 +103,17 @@ def prepare_local_16s(
     )
 
     all_16s_path = ""
-    if query_16s_path is not None or collect_reference_16s(record_list):
+    if query_16s_path is not None or collect_reference_16s(
+        record_list,
+        base_dir=paths.manifest.parent,
+    ):
         all_16s_path = str(
-            assemble_all_16s(record_list, query_16s_path, paths.all_16s_fasta_path)
+            assemble_all_16s(
+                record_list,
+                query_16s_path,
+                paths.all_16s_fasta_path,
+                base_dir=paths.manifest.parent,
+            )
         )
 
     statuses = [result.status for result in barrnap_results] + [

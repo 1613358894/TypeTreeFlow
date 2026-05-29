@@ -538,6 +538,7 @@ def test_cli_lpsn_api_without_credentials_errors(tmp_path, caplog, monkeypatch):
     monkeypatch.delenv("TYPETREEFLOW_LPSN_USERNAME", raising=False)
     monkeypatch.delenv("TYPETREEFLOW_LPSN_EMAIL", raising=False)
     monkeypatch.delenv("TYPETREEFLOW_LPSN_PASSWORD", raising=False)
+    monkeypatch.chdir(tmp_path)
 
     result = main(
         [
@@ -938,8 +939,9 @@ def test_cli_discover_assembly_candidates_without_cache_or_opt_in_errors(
     assert "--enable-ncbi-discovery --email" in caplog.text
 
 
-def test_cli_ncbi_discovery_requires_email(tmp_path, caplog):
+def test_cli_ncbi_discovery_requires_email(tmp_path, caplog, monkeypatch):
     checklist = _write_checklist(tmp_path / "species_checklist.tsv", _checklist_rows())
+    monkeypatch.chdir(tmp_path)
 
     result = main(
         [

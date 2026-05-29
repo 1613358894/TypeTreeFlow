@@ -440,10 +440,13 @@ def _is_external_registered_genome(record: StrainRecord) -> bool:
 
 def _has_strict_completion_evidence(record: StrainRecord) -> bool:
     note_values = _parse_notes(record.notes)
-    evidence_level = note_values.get("evidence_level", "").strip().lower()
+    evidence_level = (
+        record.evidence_level or note_values.get("evidence_level", "")
+    ).strip().lower()
     confirmation_status = (
-        note_values.get("type_confirmation_status", "").strip().lower()
-    )
+        record.type_confirmation_status
+        or note_values.get("type_confirmation_status", "")
+    ).strip().lower()
     notes = str(record.notes).lower()
 
     if evidence_level in {"representative_only", "likely_type_material"}:

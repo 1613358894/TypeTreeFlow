@@ -5,6 +5,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.manifest import normalize_manifest_path, resolve_manifest_path
 from typetreeflow.models import StrainRecord
 
 ANI_QUERY_VS_REFS_FIELDS = [
@@ -97,12 +98,17 @@ def parse_fastani_raw(path: str | Path) -> list[FastaniHit]:
 def attach_reference_metadata(
     hits: Iterable[FastaniHit],
     records: Iterable[StrainRecord],
+    base_dir: str | Path | None = None,
 ) -> list[FastaniHit]:
-    records_by_path = {_path_key(record.genome_path): record for record in records if record.genome_path}
+    records_by_path = {
+        _path_key(record.genome_path, base_dir): record
+        for record in records
+        if record.genome_path
+    }
     annotated: list[FastaniHit] = []
 
     for hit in hits:
-        record = records_by_path.get(_path_key(hit.reference_path))
+        record = records_by_path.get(_path_key(hit.reference_path, base_dir))
         if record is None:
             annotated.append(hit)
             continue
@@ -151,14 +157,17 @@ def parse_and_write_ani_results(
     raw_path: str | Path,
     records: Iterable[StrainRecord],
     output_path: str | Path,
+    base_dir: str | Path | None = None,
 ) -> Path:
     hits = parse_fastani_raw(raw_path)
-    hits = attach_reference_metadata(hits, records)
+    hits = attach_reference_metadata(hits, records, base_dir=base_dir)
     return write_ani_query_vs_refs(hits, output_path)
 
 
-def _path_key(path: str) -> str:
-    return str(Path(path))
+def _path_key(path: str, base_dir: str | Path | None = None) -> str:
+    if base_dir is None:
+        return normalize_manifest_path(path)
+    return normalize_manifest_path(resolve_manifest_path(path, base_dir), base_dir=base_dir)
 
 
 def _format_float(value: float) -> str:

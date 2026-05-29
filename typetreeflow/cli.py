@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 import os
+import sys
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -15,6 +17,16 @@ from typetreeflow.completion import (
     write_completion_summary,
 )
 from typetreeflow.config import AppConfig, ensure_real_action_allowed
+from typetreeflow.delivery import package_results
+from typetreeflow.diagnostics import (
+    build_doctor_report,
+    doctor_exit_code,
+    format_doctor_report,
+    format_next_step,
+    format_status_summary,
+    inspect_workflow_status,
+    next_step_summary,
+)
 from typetreeflow.exceptions import ManifestError
 from typetreeflow.env import load_env_files
 from typetreeflow.external.runner import SubprocessRunner
@@ -50,12 +62,17 @@ from typetreeflow.genomes.extract import (
     register_extracted_genomes,
 )
 from typetreeflow.genomes.plan import build_genome_download_plan
+from typetreeflow.genomes.preflight import (
+    build_download_preflight_summary,
+    write_download_preflight_summary,
+)
 from typetreeflow.logging_utils import setup_logging
 from typetreeflow.manifest import (
     ensure_unique_normalized_ids,
     ensure_unique_record_ids,
     merge_external_registered_records,
     read_manifest,
+    resolve_manifest_path,
     write_manifest,
     write_name_map,
 )
@@ -66,6 +83,12 @@ from typetreeflow.provider_plan import (
     read_provider_requests,
     write_provider_registration_plan,
     write_proposed_external_genomes,
+)
+from typetreeflow.release_verification import (
+    read_verification_matrix,
+    summarize_verification_outdir,
+    write_release_verification_summary,
+    write_verification_matrix,
 )
 from typetreeflow.report.summary import build_run_summary_markdown, write_run_summary
 from typetreeflow.rrna.assemble import assemble_all_16s, collect_reference_16s
@@ -154,6 +177,7 @@ from typetreeflow.workflow.resume import (
     should_reuse_manifest,
     validate_resume_force,
 )
+from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 
 LOGGER = logging.getLogger(__name__)
 _BIOSAMPLE_RECOMMENDATION_POLICIES = {"strict", "balanced"}
@@ -186,6 +210,49 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--genus", help="Target genus name.")
     parser.add_argument(
+        "--package-results",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--doctor-strict",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--next-step",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--json",
+        dest="json_output",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--verify-release-genus",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--policies",
+        default="balanced,representative",
+        help=(
+            "For verify-release-genus, comma-separated policies to run; "
+            "supported: balanced,representative."
+        ),
+    )
+    parser.add_argument(
         "--acquire-genus",
         help=(
             "Run the LPSN-first genus acquisition dry-run workflow for this genus, "
@@ -196,6 +263,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--query-16s", type=Path, help="Query 16S FASTA path.")
     parser.add_argument("--outgroup", help="Optional outgroup taxon or strain.")
     parser.add_argument("--outdir", type=Path, default=Path("typetreeflow_out"))
+    parser.add_argument(
+        "--delivery-dir",
+        type=Path,
+        help="For package-results, write the delivery package to this directory.",
+    )
+    parser.add_argument(
+        "--include",
+        default="all",
+        help=(
+            "For package-results, comma-separated sections to include: "
+            "genomes, 16s, reports, or all; default: all."
+        ),
+    )
     parser.add_argument("--threads", type=int, default=1)
     parser.add_argument(
         "--email",
@@ -390,6 +470,22 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--auto-accept-selection",
+        action="store_true",
+        help=(
+            "For verify-genus, accept the generated selection without manual "
+            "editing. Downloads still require --enable-downloads."
+        ),
+    )
+    parser.add_argument(
+        "--review-required",
+        action="store_true",
+        help=(
+            "For verify-genus, stop after planning so selection/user_selection.tsv "
+            "can be reviewed before downloads."
+        ),
+    )
+    parser.add_argument(
         "--register-external-genomes",
         type=Path,
         help=(
@@ -448,6 +544,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicitly allow real local barrnap execution for 16S preparation.",
     )
     parser.add_argument(
+        "--extract-16s",
+        choices=["none", "barrnap"],
+        default="none",
+        help=(
+            "For verify-genus, optionally run high-level 16S extraction after "
+            "guarded genome downloads; default: none."
+        ),
+    )
+    parser.add_argument(
         "--enable-entrez",
         action="store_true",
         help="Explicitly allow real NCBI Entrez 16S fallback for missing reference 16S records.",
@@ -482,9 +587,23 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def parse_args(argv: list[str] | None = None) -> AppConfig:
-    args = build_parser().parse_args(argv)
+    normalized_argv, verify_genus, package_results_command = _normalize_command_argv(argv)
+    args = build_parser().parse_args(normalized_argv)
     load_env_files(args.env_file)
     return AppConfig(
+        doctor=args.doctor,
+        doctor_strict=args.doctor_strict,
+        status=args.status,
+        next_step=args.next_step,
+        json_output=args.json_output,
+        package_results=package_results_command or args.package_results,
+        delivery_dir=args.delivery_dir,
+        include=args.include,
+        verify_release_genus=args.verify_release_genus,
+        release_policies=args.policies,
+        verify_genus=verify_genus,
+        auto_accept_selection=args.auto_accept_selection,
+        review_required=args.review_required,
         acquire_genus=args.acquire_genus,
         genus=args.genus,
         query_genome=args.query_genome,
@@ -529,6 +648,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         dry_run=args.dry_run,
         enable_downloads=args.enable_downloads,
         enable_barrnap=args.enable_barrnap,
+        extract_16s=args.extract_16s,
         enable_entrez=args.enable_entrez,
         enable_fastani=args.enable_fastani,
         enable_phylo=args.enable_phylo,
@@ -538,6 +658,62 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         report_only=args.report_only,
         log_level=args.log_level,
     )
+
+
+def _normalize_command_argv(
+    argv: list[str] | None,
+) -> tuple[list[str] | None, bool, bool]:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    if raw_argv and raw_argv[0] == "doctor":
+        normalized = ["--doctor"]
+        for item in raw_argv[1:]:
+            if item == "--strict":
+                normalized.append("--doctor-strict")
+            else:
+                normalized.append(item)
+        return normalized, False, False
+    if raw_argv and raw_argv[0] == "status":
+        return ["--status", *raw_argv[1:]], False, False
+    if raw_argv and raw_argv[0] == "next-step":
+        return ["--next-step", *raw_argv[1:]], False, False
+    if raw_argv and raw_argv[0] == "package-results":
+        return ["--package-results", *raw_argv[1:]], False, True
+    if raw_argv and raw_argv[0] == "verify-release-genus":
+        if len(raw_argv) < 2 or raw_argv[1].startswith("-"):
+            raise ValueError("verify-release-genus requires a GENUS argument.")
+        return ["--verify-release-genus", raw_argv[1], *raw_argv[2:]], False, False
+    if not raw_argv or raw_argv[0] != "verify-genus":
+        return argv, False, False
+    if len(raw_argv) < 2 or raw_argv[1].startswith("-"):
+        raise ValueError("verify-genus requires a GENUS argument.")
+
+    genus = raw_argv[1]
+    normalized = ["--acquire-genus", genus, "--dry-run"]
+    remaining = raw_argv[2:]
+    index = 0
+    while index < len(remaining):
+        item = remaining[index]
+        if item == "--policy":
+            normalized.append("--selection-policy")
+            if index + 1 >= len(remaining):
+                raise ValueError(
+                    "--policy requires one of: strict, balanced, review-only, "
+                    "representative."
+                )
+            normalized.append(remaining[index + 1])
+            index += 2
+            continue
+        if item.startswith("--policy="):
+            normalized.append("--selection-policy=" + item.split("=", 1)[1])
+            index += 1
+            continue
+        if item == "--enable-biosample-entrez":
+            normalized.extend(["--enrich-biosample", item])
+            index += 1
+            continue
+        normalized.append(item)
+        index += 1
+    return normalized, True, False
 
 
 def _env_value(name: str) -> str | None:
@@ -560,10 +736,67 @@ def main(
 ) -> int:
     config = parse_args(argv)
     setup_logging(config.log_level)
+    paths = get_output_paths(config.outdir)
+    if config.doctor:
+        report = build_doctor_report(
+            email_available=bool(config.email),
+        )
+        print(format_doctor_report(report))
+        return doctor_exit_code(report, strict=config.doctor_strict)
+    if config.status:
+        try:
+            summary = inspect_workflow_status(config.outdir)
+        except (FileNotFoundError, ValueError, RuntimeError) as error:
+            LOGGER.error("%s", error)
+            print(str(error), file=sys.stderr)
+            return 2
+        print(format_status_summary(summary, json_output=config.json_output))
+        return 0
+    if config.next_step:
+        try:
+            summary = next_step_summary(config.outdir)
+        except (FileNotFoundError, ValueError, RuntimeError) as error:
+            LOGGER.error("%s", error)
+            print(str(error), file=sys.stderr)
+            return 2
+        print(format_next_step(summary, json_output=config.json_output))
+        return 0
+    if config.package_results:
+        try:
+            result = package_results(
+                config.outdir,
+                delivery_dir=config.delivery_dir,
+                include=config.include,
+            )
+        except (ManifestError, ValueError, RuntimeError) as error:
+            LOGGER.error("%s", error)
+            return 2
+        LOGGER.info(
+            "Packaged delivery results: %s (%d files copied).",
+            result.delivery_dir,
+            len(result.copied_files),
+        )
+        return 0
+    if config.verify_release_genus is not None:
+        try:
+            validate_cli_argument_combinations(config)
+            run_release_genus_verification(
+                config,
+                download_runner=download_runner,
+                barrnap_runner=barrnap_runner,
+                assembly_discovery_client=assembly_discovery_client,
+                biosample_client=biosample_client,
+                lpsn_client=lpsn_client,
+            )
+        except (ManifestError, ValueError, RuntimeError) as error:
+            LOGGER.error("%s", error)
+            return 2
+        return 0
+    run_error: Exception | None = None
     try:
+        validate_cli_argument_combinations(config)
         if config.strains_per_species < 1:
             raise ValueError("--strains-per-species must be at least 1")
-        paths = get_output_paths(config.outdir)
         if config.plan_provider_registration is not None:
             run_provider_registration_planning_stage(paths, config)
             return 0
@@ -573,6 +806,8 @@ def main(
             run_genus_acquisition_workflow(
                 paths,
                 config,
+                download_runner=download_runner,
+                barrnap_runner=barrnap_runner,
                 assembly_discovery_client=assembly_discovery_client,
                 biosample_client=biosample_client,
                 lpsn_client=lpsn_client,
@@ -641,7 +876,13 @@ def main(
             if not paths.name_map.exists():
                 write_name_map(records, paths.name_map)
             if config.dry_run:
-                _write_genome_download_plan(records, paths)
+                _write_genome_download_plan(
+                    records,
+                    paths,
+                    refresh_preflight_summary=should_refresh_download_preflight_summary(
+                        config
+                    ),
+                )
                 _prepare_local_16s_if_ready(records, paths, config)
                 _write_ani_plan_if_ready(records, paths, config)
                 _write_phylo_plan(records, paths, config)
@@ -719,8 +960,11 @@ def main(
                 return 2
             return 0
     except (ManifestError, ValueError, RuntimeError) as error:
+        run_error = error
         LOGGER.error("%s", error)
         return 2
+    finally:
+        _write_inferred_run_state(paths, config, run_error)
 
     if config.dry_run and config.genus and config.gtdb_metadata:
         records = [
@@ -757,12 +1001,18 @@ def main(
             len(selected_records),
             config.genus,
         )
+        _write_inferred_run_state(paths, config, None)
         return 0
 
     if config.genus and config.gtdb_metadata:
         if config.enable_entrez:
             if not config.email:
                 LOGGER.error("Real Entrez fallback requires --email with --enable-entrez.")
+                _write_inferred_run_state(
+                    paths,
+                    config,
+                    ValueError("Real Entrez fallback requires --email with --enable-entrez."),
+                )
                 return 2
         if config.enable_fastani:
             _cli_real_action_allowed("fastani", config.enable_fastani)
@@ -791,6 +1041,11 @@ def main(
         if config.enable_downloads:
             if not _source_audit_policy_allows_stage(paths, config, "download"):
                 _write_run_summary(selected_records, paths, config)
+                _write_inferred_run_state(
+                    paths,
+                    config,
+                    ValueError("Sequence source audit policy blocked download stage."),
+                )
                 return 2
             run_downloads_stage(selected_records, paths, config, runner=download_runner)
         if config.enable_entrez:
@@ -809,16 +1064,27 @@ def main(
             config,
             "report",
         ):
+            _write_inferred_run_state(
+                paths,
+                config,
+                ValueError("Sequence source audit policy blocked report stage."),
+            )
             return 2
         LOGGER.info(
             "Selected %d GTDB type-material records for genus %s.",
             len(selected_records),
             config.genus,
         )
+        _write_inferred_run_state(paths, config, None)
         return 0
 
     if not config.dry_run and config.enable_downloads:
         LOGGER.error("Downloads require --genus and --gtdb-metadata.")
+        _write_inferred_run_state(
+            paths,
+            config,
+            ValueError("Downloads require --genus and --gtdb-metadata."),
+        )
         return 2
 
     LOGGER.info("TypeTreeFlow Phase 1 skeleton is installed.")
@@ -827,11 +1093,205 @@ def main(
             "Dry run requested; provide --genus and --gtdb-metadata to run Phase 1 selection."
         )
         _write_run_summary([], paths, config)
+    _write_inferred_run_state(paths, config, None)
     return 0
 
 
-def _write_genome_download_plan(records, paths) -> str:
+def validate_cli_argument_combinations(config: AppConfig) -> None:
+    if (
+        config.extract_16s != "none"
+        and not config.verify_genus
+        and config.verify_release_genus is None
+    ):
+        raise ValueError(
+            "--extract-16s is only supported by verify-genus and "
+            "verify-release-genus."
+        )
+    if (
+        config.verify_genus
+        and config.enable_downloads
+        and not config.auto_accept_selection
+    ):
+        raise ValueError(
+            "verify-genus --enable-downloads requires "
+            "--auto-accept-selection. Omit --enable-downloads to keep the "
+            "default manual review stop, or pass both flags to execute guarded "
+            "downloads."
+        )
+    if (
+        config.verify_genus
+        and config.review_required
+        and config.auto_accept_selection
+        and config.enable_downloads
+    ):
+        raise ValueError(
+            "verify-genus --review-required cannot be combined with the guarded "
+            "download opt-in pair --auto-accept-selection --enable-downloads."
+        )
+    if (
+        config.acquire_genus is not None
+        and not config.verify_genus
+        and config.enable_biosample_entrez
+    ):
+        raise ValueError(
+            "--acquire-genus prepares a dry-run acquisition plan, so it cannot "
+            "be combined with --enable-biosample-entrez. Run --acquire-genus "
+            "without real BioSample Entrez, review the planned outputs, then "
+            "run a separate enrichment workflow with --enable-biosample-entrez "
+            "and --email when real NCBI BioSample lookups are appropriate."
+        )
+    if config.dry_run and config.enable_biosample_entrez and not config.verify_genus:
+        raise ValueError(
+            "BioSample Entrez lookup is not executed during --dry-run; "
+            "use --biosample-cache for offline enrichment or omit --dry-run."
+        )
+
+
+def run_release_genus_verification(
+    config: AppConfig,
+    download_runner=None,
+    barrnap_runner=None,
+    assembly_discovery_client: AssemblyDiscoveryClient | None = None,
+    biosample_client: BioSampleClient | None = None,
+    lpsn_client=None,
+) -> tuple[Path, Path]:
+    genus = str(config.verify_release_genus or "").strip()
+    if not genus:
+        raise ValueError("verify-release-genus requires a genus name.")
+    policies = _parse_release_policies(config.release_policies)
+    rows = []
+    first_error: Exception | None = None
+
+    for policy in policies:
+        policy_outdir = config.outdir / f"{genus.lower()}_{policy}"
+        policy_paths = get_output_paths(policy_outdir)
+        downloads_enabled = config.auto_accept_selection and config.enable_downloads
+        policy_config = replace(
+            config,
+            verify_release_genus=None,
+            verify_genus=True,
+            acquire_genus=genus,
+            outdir=policy_outdir,
+            selection_policy=policy,
+            enrich_biosample=config.enrich_biosample or config.enable_biosample_entrez,
+            dry_run=True,
+            enable_downloads=downloads_enabled,
+        )
+        command = _release_policy_command(config, genus, policy, policy_outdir)
+        run_error: Exception | None = None
+        try:
+            validate_cli_argument_combinations(policy_config)
+            run_genus_acquisition_workflow(
+                policy_paths,
+                policy_config,
+                download_runner=download_runner,
+                barrnap_runner=barrnap_runner,
+                assembly_discovery_client=assembly_discovery_client,
+                biosample_client=biosample_client,
+                lpsn_client=lpsn_client,
+            )
+        except (ManifestError, ValueError, RuntimeError) as error:
+            run_error = error
+            if first_error is None:
+                first_error = error
+        finally:
+            _write_inferred_run_state(policy_paths, policy_config, run_error)
+            rows.append(
+                summarize_verification_outdir(
+                    policy_outdir,
+                    genus=genus,
+                    policy=policy,
+                    command=command,
+                )
+            )
+
+    matrix_path = write_verification_matrix(
+        rows,
+        config.outdir / "verification_matrix.tsv",
+    )
+    summary_path = write_release_verification_summary(
+        read_verification_matrix(matrix_path),
+        config.outdir / "release_verification_summary.md",
+    )
+    LOGGER.info("Wrote release verification matrix: %s.", matrix_path)
+    LOGGER.info("Wrote release verification summary: %s.", summary_path)
+    if first_error is not None:
+        raise RuntimeError(str(first_error))
+    return matrix_path, summary_path
+
+
+def _parse_release_policies(value: str) -> list[str]:
+    policies = [item.strip() for item in value.split(",") if item.strip()]
+    if not policies:
+        raise ValueError("--policies must include balanced or representative.")
+    allowed = {"balanced", "representative"}
+    unknown = sorted(set(policies) - allowed)
+    if unknown:
+        raise ValueError(
+            "verify-release-genus --policies supports only: balanced, representative; "
+            "unknown: " + ", ".join(unknown)
+        )
+    return policies
+
+
+def _release_policy_command(
+    config: AppConfig,
+    genus: str,
+    policy: str,
+    outdir: Path,
+) -> str:
+    parts = [
+        "python",
+        "typetreeflow.py",
+        "verify-genus",
+        genus,
+        "--outdir",
+        outdir.as_posix(),
+        "--policy",
+        policy,
+    ]
+    if config.lpsn_cache is not None:
+        parts.extend(["--lpsn-cache", config.lpsn_cache.as_posix()])
+    if config.discovery_cache is not None:
+        parts.extend(["--discovery-cache", config.discovery_cache.as_posix()])
+    if config.biosample_cache is not None:
+        parts.extend(["--biosample-cache", config.biosample_cache.as_posix()])
+    for enabled, flag in (
+        (config.enable_lpsn_api, "--enable-lpsn-api"),
+        (config.enable_ncbi_discovery, "--enable-ncbi-discovery"),
+        (config.enable_biosample_entrez, "--enable-biosample-entrez"),
+        (config.enable_synonym_discovery, "--enable-synonym-discovery"),
+        (config.auto_accept_selection, "--auto-accept-selection"),
+        (config.enable_downloads, "--enable-downloads"),
+        (config.force, "--force"),
+    ):
+        if enabled:
+            parts.append(flag)
+    if config.extract_16s != "none":
+        parts.extend(["--extract-16s", config.extract_16s])
+    if config.email:
+        parts.extend(["--email", config.email])
+    if config.threads != 1:
+        parts.extend(["--threads", str(config.threads)])
+    return " ".join(parts)
+
+
+def should_refresh_download_preflight_summary(config: AppConfig) -> bool:
+    return not config.resume
+
+
+def _write_genome_download_plan(
+    records,
+    paths,
+    refresh_preflight_summary: bool = True,
+) -> str:
     plan_items = build_genome_download_plan(records, paths)
+    if refresh_preflight_summary:
+        preflight_summary = build_download_preflight_summary(records, plan_items)
+        preflight_summary_path = write_download_preflight_summary(
+            preflight_summary,
+            paths.download_preflight_summary_path,
+        )
     mark_planned_records(records, plan_items)
     write_download_plan(plan_items, paths.cache_dir / "ncbi" / "download_plan.tsv")
     summary = summarize_download_plan(plan_items)
@@ -839,6 +1299,17 @@ def _write_genome_download_plan(records, paths) -> str:
         "Prepared genome download plan: %s.",
         ", ".join(f"{status}={count}" for status, count in sorted(summary.items())),
     )
+    if refresh_preflight_summary:
+        LOGGER.info(
+            "Wrote download preflight risk summary: %s "
+            "(selected_total=%d, strict_confirmed=%d, likely_type_material=%d, "
+            "representative_only=%d exploratory/not strict completion).",
+            preflight_summary_path,
+            preflight_summary.selected_total,
+            preflight_summary.strict_confirmed,
+            preflight_summary.likely_type_material,
+            preflight_summary.representative_only,
+        )
     if any(status == "planned" for status in summary):
         return "genome_download_planned"
     if summary:
@@ -850,6 +1321,408 @@ def _write_run_summary(records, paths, config: AppConfig) -> None:
     markdown = build_run_summary_markdown(records, paths, config)
     summary_path = write_run_summary(markdown, paths.run_summary_path)
     LOGGER.info("Wrote run summary: %s.", summary_path)
+
+
+def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None) -> None:
+    if (
+        error is None
+        and config.selection_tsv is not None
+        and not config.dry_run
+        and not config.enable_downloads
+    ):
+        return
+    try:
+        state = _infer_run_state(paths, config, error)
+        write_run_state(paths.run_state_path, state)
+        LOGGER.info("Wrote workflow run state: %s.", paths.run_state_path)
+    except Exception as state_error:  # pragma: no cover - best-effort diagnostics only
+        LOGGER.warning("Could not write workflow run state: %s", state_error)
+
+
+def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> WorkflowState:
+    stages: dict[str, StageState] = {}
+
+    _add_file_stage(
+        stages,
+        "lpsn_checklist",
+        paths,
+        [config.outdir / "species_checklist.tsv"],
+        "succeeded",
+        _row_count_summary(config.outdir / "species_checklist.tsv", "checklist species"),
+    )
+    _add_file_stage(
+        stages,
+        "assembly_discovery",
+        paths,
+        [paths.assembly_candidates_path, paths.assembly_candidate_diagnostics_path],
+        "succeeded",
+        _row_count_summary(paths.assembly_candidates_path, "assembly candidate records"),
+    )
+    if paths.biosample_records_path.exists():
+        stages["biosample_enrichment"] = StageState(
+            status="succeeded",
+            outputs=[_state_output_path(paths.biosample_records_path, paths)],
+            summary=_row_count_summary(paths.biosample_records_path, "BioSample records"),
+        )
+    elif config.enrich_biosample:
+        if error is None and paths.assembly_candidates_path.exists():
+            stages["biosample_enrichment"] = StageState(
+                status="succeeded",
+                outputs=[_state_output_path(paths.assembly_candidates_path, paths)],
+                summary="BioSample enrichment applied to assembly candidates.",
+            )
+        else:
+            stages["biosample_enrichment"] = StageState(
+                status="planned" if error is None else "failed",
+                outputs=[],
+                summary="BioSample enrichment requested.",
+            )
+    elif config.acquire_genus is not None or config.discover_assembly_candidates:
+        stages["biosample_enrichment"] = StageState(
+            status="skipped",
+            outputs=[],
+            summary="BioSample enrichment was not requested.",
+        )
+
+    selection_outputs = [
+        path
+        for path in (paths.strain_candidates_path, paths.user_selection_path, paths.manifest)
+        if path.exists()
+    ]
+    if selection_outputs:
+        stages["selection"] = StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in selection_outputs],
+            summary=_selection_summary(paths, config),
+        )
+
+    preflight_outputs = [
+        path
+        for path in (
+            paths.cache_dir / "ncbi" / "download_plan.tsv",
+            paths.download_preflight_summary_path,
+        )
+        if path.exists()
+    ]
+    if preflight_outputs:
+        stages["download_preflight"] = StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in preflight_outputs],
+            summary=_download_plan_summary(paths.cache_dir / "ncbi" / "download_plan.tsv"),
+        )
+
+    download_stage = _download_stage_state(paths, config, error)
+    if download_stage is not None:
+        stages["download"] = download_stage
+
+    rrna_stage = _rrna_stage_state(paths, config, error)
+    if rrna_stage is not None:
+        stages["rrna_barrnap"] = rrna_stage
+
+    _add_file_stage(
+        stages,
+        "completion_audit",
+        paths,
+        [paths.completion_audit_path, paths.completion_summary_path],
+        "succeeded",
+        _row_count_summary(paths.completion_audit_path, "completion audit rows"),
+    )
+    _add_file_stage(
+        stages,
+        "report",
+        paths,
+        [paths.run_summary_path],
+        "succeeded",
+        "Run summary written.",
+    )
+
+    errors = [] if error is None else [str(error)]
+    if error is not None:
+        status = _blocked_or_failed_status(error)
+        next_action = _next_action_for_error(status, error)
+    else:
+        status = _overall_status(stages)
+        next_action = _next_action_for_success(stages)
+
+    return WorkflowState(
+        status=status,
+        outdir=_posix_path(config.outdir),
+        stages=stages,
+        next_action=next_action,
+        errors=errors,
+    )
+
+
+def _add_file_stage(
+    stages: dict[str, StageState],
+    stage_name: str,
+    paths,
+    outputs: list[Path],
+    status: str,
+    summary: str,
+) -> None:
+    existing = [path for path in outputs if path.exists()]
+    if not existing:
+        return
+    stages[stage_name] = StageState(
+        status=status,
+        outputs=[_state_output_path(path, paths) for path in existing],
+        summary=summary,
+    )
+
+
+def _download_stage_state(
+    paths,
+    config: AppConfig,
+    error: Exception | None,
+) -> StageState | None:
+    if paths.ncbi_download_results_path.exists():
+        summary = _status_count_summary(paths.ncbi_download_results_path)
+        statuses = _status_counts(paths.ncbi_download_results_path)
+        failed_count = sum(
+            count
+            for status, count in statuses.items()
+            if status
+            in {
+                "genome_download_failed",
+                "genome_download_missing_output",
+                "skipped_invalid_zip",
+            }
+        )
+        succeeded_count = statuses.get("genome_download_succeeded", 0) + statuses.get(
+            "skipped_existing",
+            0,
+        )
+        if failed_count and succeeded_count:
+            status = "partial"
+        elif failed_count:
+            status = "failed"
+        else:
+            status = "succeeded"
+        return StageState(
+            status=status,
+            outputs=[_state_output_path(paths.ncbi_download_results_path, paths)],
+            summary=summary,
+        )
+    if error is not None and "Sequence source audit policy blocked download stage" in str(error):
+        return StageState(
+            status="blocked_by_manual_review",
+            outputs=[],
+            summary=f"Review { _state_output_path(paths.sequence_source_audit_path, paths) }.",
+        )
+    if (config.acquire_genus is not None or config.selection_tsv is not None) and (
+        config.dry_run or not config.enable_downloads
+    ):
+        return StageState(
+            status="blocked_by_manual_review",
+            outputs=[],
+            summary=_manual_review_download_summary(config),
+        )
+    if config.enable_downloads and error is not None:
+        return StageState(status=_blocked_or_failed_status(error), outputs=[], summary=str(error))
+    return None
+
+
+def _rrna_stage_state(
+    paths,
+    config: AppConfig,
+    error: Exception | None = None,
+) -> StageState | None:
+    outputs = [
+        path
+        for path in (
+            paths.rrna_plan_path,
+            paths.sequence_source_audit_path,
+            paths.all_16s_fasta_path,
+        )
+        if path.exists()
+    ]
+    requested = config.enable_barrnap or config.extract_16s == "barrnap"
+    if not requested and not outputs:
+        return None
+    status_counts: dict[str, int] = {}
+    if paths.manifest.exists():
+        for row in _read_tsv_rows(paths.manifest):
+            status = row.get("status", "")
+            if status.startswith("rrna_") or status.startswith("barrnap_"):
+                status_counts[status] = status_counts.get(status, 0) + 1
+    if (
+        error is not None
+        and config.extract_16s == "barrnap"
+        and "Required executable not found on PATH" in str(error)
+    ):
+        status = "blocked_by_dependency"
+    elif config.dry_run and status_counts and not _has_ready_rrna_status(status_counts):
+        status = "planned"
+    elif any(status in status_counts for status in {"barrnap_failed", "barrnap_missing_output"}):
+        status = "partial"
+    elif status_counts:
+        status = "succeeded"
+    elif config.extract_16s == "barrnap":
+        status = "blocked_by_manual_review"
+    else:
+        status = "skipped"
+    summary = (
+        ", ".join(f"{key}={value}" for key, value in sorted(status_counts.items()))
+        if status_counts
+        else _rrna_no_records_summary(config)
+    )
+    return StageState(
+        status=status,
+        outputs=[_state_output_path(path, paths) for path in outputs],
+        summary=summary,
+    )
+
+
+def _overall_status(stages: dict[str, StageState]) -> str:
+    statuses = {stage.status for stage in stages.values()}
+    if any(status.startswith("blocked_by_") for status in statuses):
+        return "partial"
+    if "failed" in statuses:
+        return "failed"
+    if "partial" in statuses:
+        return "partial"
+    if statuses and statuses <= {"succeeded", "skipped"}:
+        return "succeeded"
+    if statuses:
+        return "partial"
+    return "succeeded"
+
+
+def _blocked_or_failed_status(error: Exception) -> str:
+    message = str(error)
+    if "Required executable not found on PATH" in message:
+        return "blocked_by_dependency"
+    if (
+        "cannot be combined" in message
+        or "must be at least" in message
+        or "requires --auto-accept-selection" in message
+    ):
+        return "blocked_by_argument_conflict"
+    if "manual_review" in message or "source audit policy blocked" in message:
+        return "blocked_by_manual_review"
+    return "failed"
+
+
+def _next_action_for_error(status: str, error: Exception) -> str:
+    if status == "blocked_by_dependency":
+        return str(error)
+    if status == "blocked_by_argument_conflict":
+        return "Adjust conflicting CLI arguments and rerun."
+    if status == "blocked_by_manual_review":
+        return "Review the indicated audit or selection file, then rerun the guarded stage."
+    return "Fix the reported error and rerun."
+
+
+def _next_action_for_success(stages: dict[str, StageState]) -> str:
+    download = stages.get("download")
+    if download is not None and download.status == "blocked_by_manual_review":
+        rrna = stages.get("rrna_barrnap")
+        if rrna is not None and rrna.status == "blocked_by_manual_review":
+            return (
+                "Complete guarded download with --auto-accept-selection "
+                "--enable-downloads, or provide a genome-ready manifest before "
+                "running --extract-16s barrnap."
+            )
+        return "Review selection/user_selection.tsv, then run guarded download."
+    if stages.get("rrna_barrnap") is not None:
+        return "Review report/summary.md and downstream 16S outputs."
+    return "Review report/summary.md."
+
+
+def _rrna_no_records_summary(config: AppConfig) -> str:
+    if config.extract_16s == "barrnap":
+        if config.enable_downloads:
+            return "No genome-ready records were available for barrnap 16S extraction."
+        return (
+            "barrnap 16S extraction requires completed guarded download results "
+            "or a genome-ready manifest."
+        )
+    return "No barrnap records were processed."
+
+
+def _has_ready_rrna_status(status_counts: dict[str, int]) -> bool:
+    return any(
+        status in status_counts
+        for status in {"rrna_16s_ready", "rrna_16s_skipped_existing"}
+    )
+
+
+def _selection_summary(paths, config: AppConfig) -> str:
+    acceptance = _selection_acceptance_summary(config)
+    if paths.user_selection_path.exists():
+        rows = _read_tsv_rows(paths.user_selection_path)
+        selected = sum(1 for row in rows if row.get("selected", "").strip().lower() == "yes")
+        summary = f"{selected} selected records"
+        return f"{summary}; {acceptance}" if acceptance else summary
+    if paths.manifest.exists():
+        summary = _row_count_summary(paths.manifest, "manifest records")
+        return f"{summary}; {acceptance}" if acceptance else summary
+    return ""
+
+
+def _selection_acceptance_summary(config: AppConfig) -> str:
+    if not config.verify_genus:
+        return ""
+    if config.auto_accept_selection and config.enable_downloads:
+        return "auto_accepted_selection"
+    if config.auto_accept_selection:
+        return "auto_accepted_selection for planning only; downloads not enabled"
+    return "manual_review_required"
+
+
+def _manual_review_download_summary(config: AppConfig) -> str:
+    if config.verify_genus and config.auto_accept_selection and not config.enable_downloads:
+        return (
+            "auto_accepted_selection for planning only; downloads were not "
+            "executed because --enable-downloads was not provided."
+        )
+    return "manual_review_required: review selection/user_selection.tsv before enabling downloads."
+
+
+def _download_plan_summary(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return _status_count_summary(path)
+
+
+def _row_count_summary(path: Path, label: str) -> str:
+    if not path.exists():
+        return ""
+    return f"{len(_read_tsv_rows(path))} {label}"
+
+
+def _status_count_summary(path: Path) -> str:
+    counts = _status_counts(path)
+    if not counts:
+        return "No status rows"
+    return ", ".join(f"{status}={count}" for status, count in sorted(counts.items()))
+
+
+def _status_counts(path: Path) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in _read_tsv_rows(path):
+        status = row.get("status", "")
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+def _read_tsv_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _state_output_path(path: Path, paths) -> str:
+    try:
+        return path.relative_to(paths.manifest.parent).as_posix()
+    except ValueError:
+        return _posix_path(path)
+
+
+def _posix_path(path: Path) -> str:
+    return Path(path).as_posix()
 
 
 def _source_audit_policy_allows_stage(
@@ -932,6 +1805,8 @@ def run_completion_audit_stage(paths, config: AppConfig) -> tuple[Path, Path]:
 def run_genus_acquisition_workflow(
     paths,
     config: AppConfig,
+    download_runner=None,
+    barrnap_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     lpsn_client=None,
@@ -939,9 +1814,18 @@ def run_genus_acquisition_workflow(
     genus = str(config.acquire_genus or "").strip()
     if not genus:
         raise ValueError("--acquire-genus requires a genus name.")
-    if config.enable_downloads:
+    verify_genus_guarded_download = (
+        config.verify_genus
+        and config.auto_accept_selection
+        and config.enable_downloads
+    )
+    if config.enable_downloads and not verify_genus_guarded_download:
         raise ValueError(
-            "--acquire-genus prepares a dry-run acquisition plan only; review "
+            "verify-genus is plan-only in this release and does not execute "
+            "downloads; review selection/user_selection.tsv, then run "
+            "--selection-tsv with --enable-downloads for guarded downloads."
+            if config.verify_genus
+            else "--acquire-genus prepares a dry-run acquisition plan only; review "
             "selection/user_selection.tsv, then run --selection-tsv with "
             "--enable-downloads for guarded downloads."
         )
@@ -981,7 +1865,12 @@ def run_genus_acquisition_workflow(
         enable_downloads=False,
     )
 
-    LOGGER.info("Starting genus acquisition dry-run for %s.", genus)
+    workflow_label = (
+        "verify-genus plan-only"
+        if config.verify_genus
+        else "genus acquisition dry-run"
+    )
+    LOGGER.info("Starting %s for %s.", workflow_label, genus)
     run_lpsn_species_checklist_conversion(
         acquisition_config,
         lpsn_client=lpsn_client,
@@ -998,9 +1887,55 @@ def run_genus_acquisition_workflow(
         acquisition_config,
         biosample_client=biosample_client,
     )
-    run_selection_dry_run_stage(paths, acquisition_config)
+    records = run_selection_dry_run_stage(paths, acquisition_config)
+    if verify_genus_guarded_download:
+        download_config = replace(
+            acquisition_config,
+            dry_run=False,
+            enable_downloads=True,
+        )
+        if not _source_audit_policy_allows_stage(paths, download_config, "download"):
+            _write_run_summary(records, paths, download_config)
+            raise ValueError(
+                "Sequence source audit policy blocked download stage; review "
+                f"{paths.sequence_source_audit_path}."
+            )
+        if not _cli_real_action_allowed(
+            "downloads",
+            download_config.enable_downloads,
+            wired=True,
+        ):
+            raise ValueError("Downloads were not enabled.")
+        _write_genome_download_plan(records, paths)
+        write_manifest(records, paths.manifest)
+        write_name_map(records, paths.name_map)
+        run_downloads_stage(records, paths, download_config, runner=download_runner)
+        if config.extract_16s == "barrnap":
+            rrna_config = replace(download_config, enable_barrnap=True)
+            _prepare_local_16s_if_ready(
+                records,
+                paths,
+                rrna_config,
+                runner=barrnap_runner,
+            )
+        write_manifest(records, paths.manifest)
+        if download_config.species_checklist is not None:
+            run_taxonomy_audit_stage(
+                records,
+                paths,
+                download_config.species_checklist,
+            )
+        _write_run_summary(records, paths, download_config)
+        LOGGER.info(
+            "Completed %s for %s with guarded downloads after auto-accepting "
+            "the generated selection.",
+            workflow_label,
+            genus,
+        )
+        return paths.user_selection_path
     LOGGER.info(
-        "Completed genus acquisition dry-run for %s; review %s before guarded downloads.",
+        "Completed %s for %s; review %s before guarded downloads.",
+        workflow_label,
         genus,
         paths.user_selection_path,
     )
@@ -1218,7 +2153,7 @@ def _build_biosample_enrichment_client(
     if biosample_client is not None:
         return biosample_client, None, cache_path
     if config.enable_biosample_entrez:
-        if config.dry_run:
+        if config.dry_run and not config.verify_genus:
             raise ValueError(
                 "BioSample Entrez lookup is not executed during --dry-run; "
                 "use --biosample-cache for offline enrichment or omit --dry-run."
@@ -1445,8 +2380,9 @@ def run_manual_review_template_stage(paths, config: AppConfig):
         candidates=candidates,
         biosample_records=biosample_records,
         target_species=target_species,
-        evidence_template_path=config.outdir / "manual_deposit_evidence_template.tsv",
-        species_gap_summary_path=config.outdir / "manual_species_gap_summary.tsv",
+        evidence_template_path=paths.manual_deposit_evidence_template_path,
+        species_gap_summary_path=paths.manual_species_gap_summary_path,
+        manual_review_report_path=paths.manual_review_report_path,
     )
     LOGGER.info(
         "Wrote manual deposit evidence template: %s.",
@@ -1455,6 +2391,10 @@ def run_manual_review_template_stage(paths, config: AppConfig):
     LOGGER.info(
         "Wrote manual species gap summary: %s.",
         output.species_gap_summary_path,
+    )
+    LOGGER.info(
+        "Wrote manual review report: %s.",
+        output.manual_review_report_path,
     )
     LOGGER.info("Manual review species count: %d.", len(target_species))
     return output
@@ -1598,6 +2538,7 @@ def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
         output_records = merge_external_registered_records(
             existing_records,
             manifest_records,
+            base_dir=paths.manifest.parent,
         )
     else:
         output_records = manifest_records
@@ -1758,11 +2699,16 @@ def _write_rrna_extraction_plan_if_ready(records, paths, force: bool) -> None:
 
 
 def _assemble_all_16s_if_ready(records, paths, query_16s_path: Path | None) -> None:
-    reference_entries = collect_reference_16s(records)
+    reference_entries = collect_reference_16s(records, base_dir=paths.manifest.parent)
     if not reference_entries:
         LOGGER.info("No reference 16S records ready; skipping all_16S assembly.")
         return
-    assemble_all_16s(records, query_16s_path, paths.all_16s_fasta_path)
+    assemble_all_16s(
+        records,
+        query_16s_path,
+        paths.all_16s_fasta_path,
+        base_dir=paths.manifest.parent,
+    )
     LOGGER.info("Wrote combined 16S FASTA: %s.", paths.all_16s_fasta_path)
 
 
@@ -1819,12 +2765,7 @@ def _has_ani_ready_references(records, paths) -> bool:
 
 
 def _manifest_relative_path_exists(path: str, paths) -> bool:
-    candidate = Path(path)
-    if candidate.exists():
-        return True
-    if not candidate.is_absolute():
-        return (paths.manifest.parent / candidate).exists()
-    return False
+    return resolve_manifest_path(path, paths.manifest.parent).exists()
 
 
 def _write_phylo_plan(records, paths, config: AppConfig) -> str:
@@ -1975,7 +2916,7 @@ def _register_existing_downloads(records, paths, force: bool) -> bool:
 def _has_reusable_genome_artifact(record, item, paths) -> bool:
     if record.is_query or not record.assembly_accession:
         return False
-    if record.genome_path and Path(record.genome_path).exists():
+    if record.genome_path and _manifest_relative_path_exists(record.genome_path, paths):
         return True
     expected_genome_path = Path(item.expected_genome_path)
     if expected_genome_path.exists():

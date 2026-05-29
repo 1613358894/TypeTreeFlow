@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 
 ANI_PLAN_FIELDS = [
@@ -77,13 +78,9 @@ def build_ani_plan(
 
 
 def _existing_path(path: str, base_dir: str | Path | None = None) -> Path | None:
-    candidate = Path(path)
+    candidate = resolve_manifest_path(path, base_dir)
     if candidate.exists():
         return candidate
-    if base_dir is not None and not candidate.is_absolute():
-        rooted_candidate = Path(base_dir) / candidate
-        if rooted_candidate.exists():
-            return rooted_candidate
     return None
 
 

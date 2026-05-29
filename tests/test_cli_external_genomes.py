@@ -358,7 +358,10 @@ def test_register_external_genomes_non_dry_run_valid_tsv_installs_fasta_and_writ
     assert manifest_records[0].source == "external_registered_genome"
     assert manifest_records[0].status == "external_genome_registered"
     assert manifest_records[0].has_genome is True
-    assert manifest_records[0].genome_path == str(installed_path)
+    assert manifest_records[0].genome_path == (
+        "genomes/references/"
+        "Fusobacterium_mortiferum_ATCC_9817_atcc_genome_portal_ATCC_9817_GENOME.fna"
+    )
     assert "external_genome_id=ATCC_9817_GENOME" in manifest_records[0].notes
 
 
@@ -553,7 +556,9 @@ def test_resume_dry_run_external_manifest_plans_rrna_without_external_tools(tmp_
         "genomes/references/Fusobacterium_mortiferum_ATCC_9817.fna"
     )
     assert records[0].status == "rrna_extraction_planned"
-    assert records[0].rrna_16s_path == rrna_rows[0]["expected_rrna_fasta_path"]
+    assert records[0].rrna_16s_path == (
+        "rrna/sequences/Fusobacterium_mortiferum_ATCC_9817.16s.fasta"
+    )
     assert not paths.rrna_barrnap_dir.exists()
     assert not paths.rrna_sequences_dir.exists()
 
@@ -1058,7 +1063,11 @@ def test_examples_external_genomes_minimal_end_to_end_smoke(tmp_path):
     rrna_rows = _read_tsv(install_paths.rrna_plan_path)
     assert resume_result == 0
     assert rrna_rows[0]["status"] == "rrna_extraction_planned"
-    assert rrna_rows[0]["genome_path"] == str(installed_fasta)
+    assert rrna_rows[0]["genome_path"] == (
+        "genomes/references/"
+        "Exampleobacter_demonstratus_Synthetic_strain_1_external_registered_fixture_"
+        "EXTERNAL_FIXTURE_0001.fna"
+    )
 
     report_result = cli.main(["--outdir", str(install_outdir), "--report-only"])
 

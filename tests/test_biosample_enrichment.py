@@ -174,6 +174,79 @@ def test_fake_biosample_client_enrichment_matches_lpsn_type_strain():
     assert "biosample_culture_collection=ATCC 25586; DSM 15643" in candidate.notes
 
 
+def test_biosample_deposit_ids_from_priority_fields_match_lpsn_type_strain():
+    client = _FakeBioSampleClient(
+        {
+            "SAMN00000002": BioSampleRecord(
+                biosample="SAMN00000002",
+                strain="FN KCTC 52993",
+                isolate="DSM 12345",
+                attributes_text="culture collection=ATCC 25586",
+                source="fixture",
+            )
+        }
+    )
+
+    result = enrich_assembly_candidates_with_biosamples(
+        [_candidate()],
+        [
+            _checklist_entry(
+                type_strain="",
+                type_strain_names="KCTC 52993; DSM 12345; ATCC 25586",
+            )
+        ],
+        client,
+    )
+
+    candidate = result.candidates[0]
+    assert candidate.has_lpsn_type_strain_match is True
+    assert candidate.matched_lpsn_type_strain_ids == (
+        "KCTC 52993; DSM 12345; ATCC 25586"
+    )
+    assert "biosample_deposit_ids=KCTC 52993; DSM 12345; ATCC 25586" in (
+        candidate.notes
+    )
+    assert "biosample_deposit_id_fields=strain,isolate,attributes_text" in (
+        candidate.notes
+    )
+    assert "lpsn_type_strain_match:biosample_strain=KCTC 52993" in (
+        candidate.match_evidence
+    )
+    assert "lpsn_type_strain_match:biosample_isolate=DSM 12345" in (
+        candidate.match_evidence
+    )
+    assert "lpsn_type_strain_match:biosample_attributes_text=ATCC 25586" in (
+        candidate.match_evidence
+    )
+
+
+def test_biosample_culture_collection_deposit_id_sets_lpsn_match():
+    client = _FakeBioSampleClient(
+        {
+            "SAMN00000002": BioSampleRecord(
+                biosample="SAMN00000002",
+                culture_collection="KCTC 52993",
+                source="fixture",
+            )
+        }
+    )
+
+    result = enrich_assembly_candidates_with_biosamples(
+        [_candidate()],
+        [_checklist_entry(type_strain="", type_strain_names="KCTC 52993")],
+        client,
+    )
+
+    candidate = result.candidates[0]
+    assert candidate.has_lpsn_type_strain_match is True
+    assert candidate.matched_lpsn_type_strain_ids == "KCTC 52993"
+    assert "biosample_deposit_ids=KCTC 52993" in candidate.notes
+    assert "biosample_deposit_id_fields=culture_collection" in candidate.notes
+    assert "lpsn_type_strain_match:biosample_culture_collection=KCTC 52993" in (
+        candidate.match_evidence
+    )
+
+
 def test_biosample_enrichment_clears_resolved_type_strain_manual_review_reason():
     client = _FakeBioSampleClient(
         {
@@ -309,6 +382,72 @@ def test_biosample_type_material_sets_candidate_type_evidence():
     candidate = result.candidates[0]
     assert candidate.is_type_material is True
     assert "biosample_type_material=type material" in candidate.notes
+    assert "biosample_type_material_evidence=type_material,attributes_text" in (
+        candidate.notes
+    )
+
+
+def test_biosample_type_material_without_deposit_id_is_not_strict_confirmed():
+    client = _FakeBioSampleClient(
+        {
+            "SAMN00000002": BioSampleRecord(
+                biosample="SAMN00000002",
+                type_material="type strain",
+                source="fixture",
+            )
+        }
+    )
+
+    result = enrich_assembly_candidates_with_biosamples(
+        [_candidate()],
+        [_checklist_entry(type_strain="", type_strain_names="DSM 15643")],
+        client,
+    )
+
+    candidate = result.candidates[0]
+    assert candidate.is_type_material is True
+    assert candidate.has_lpsn_type_strain_match is False
+    assert candidate.matched_lpsn_type_strain_ids == ""
+    assert candidate.manual_review_reason == "no_ncbi_culture_collection_id"
+    assert "biosample_type_material_evidence=type_material" in candidate.notes
+    assert "biosample_deposit_ids=" not in candidate.notes
+
+
+@pytest.mark.parametrize(
+    "type_material",
+    [
+        "not type material",
+        "not a type material",
+        "not type strain",
+        "non-type material",
+        "non type material",
+    ],
+)
+def test_biosample_negative_type_material_wording_does_not_set_type_evidence(
+    type_material,
+):
+    client = _FakeBioSampleClient(
+        {
+            "SAMN00000002": BioSampleRecord(
+                biosample="SAMN00000002",
+                type_material=type_material,
+                source="fixture",
+            )
+        }
+    )
+
+    result = enrich_assembly_candidates_with_biosamples(
+        [_candidate()],
+        [_checklist_entry()],
+        client,
+    )
+
+    candidate = result.candidates[0]
+    assert candidate.is_type_material is False
+    assert "biosample_type_material_evidence=" not in candidate.notes
+    assert "biosample_negative_type_material_evidence=type_material" in (
+        candidate.notes
+    )
 
 
 def test_biosample_enrichment_keeps_missing_biosample_candidate():

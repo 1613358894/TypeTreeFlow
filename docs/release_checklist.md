@@ -26,9 +26,9 @@ documented in [release_process.md](release_process.md).
   `docs/provider_automation_policy.md`, `docs/atcc_downloader_gate_review.md`,
   and `docs/stable_contracts.md` before any v2.0.0 release-candidate or final
   version bump.
-- Confirm README/current capabilities, quickstart examples, schemas, statuses,
-  output-layout docs, and provider framework docs agree with the v2.0 stable
-  contracts.
+- Confirm README/current capabilities, cookbook examples, schemas, statuses,
+  output-layout docs, release-verification docs, and provider framework docs
+  agree with the current stable contracts.
 - Search the repository for release-blocking wording before the version bump:
   claims that ATCC/provider download automation is implemented, claims that
   provider planning rows are completion evidence, claims that provider IDs can
@@ -45,6 +45,7 @@ pytest -p no:cacheprovider --basetemp .pytest_tmp
 
 ```bash
 python typetreeflow.py --help
+python typetreeflow.py doctor
 ```
 
 - Confirm project governance files are present:
@@ -73,14 +74,25 @@ test -f examples/assembly_candidates_minimal.tsv
 test -f examples/user_selection_minimal.tsv
 ```
 
-- Run the offline selection smoke test:
+- Run the high-level offline genus verification smoke test with a curated
+  release LPSN species cache and discovery cache:
 
 ```bash
-mkdir -p <tmp>/candidates
-cp examples/assembly_candidates_minimal.tsv <tmp>/candidates/assembly_candidates.tsv
-python typetreeflow.py --outdir <tmp> --prepare-selection --strains-per-species 1
-test -f <tmp>/selection/user_selection.tsv
+python typetreeflow.py verify-genus Fusobacterium \
+  --lpsn-cache <release_lpsn_species_cache.tsv> \
+  --discovery-cache <release_discovery_records.tsv> \
+  --biosample-cache <release_biosample_records.tsv> \
+  --enrich-biosample \
+  --outdir <tmp>/verify_genus \
+  --policy balanced \
+  --force
+test -f <tmp>/verify_genus/selection/user_selection.tsv
+python typetreeflow.py status --outdir <tmp>/verify_genus
+python typetreeflow.py next-step --outdir <tmp>/verify_genus
 ```
+
+Use lower-level `--prepare-selection` smoke tests only when diagnosing
+selection internals or manual recovery behavior.
 
 - Run the manual external genome registration smoke path with the bundled
   synthetic fixture:
@@ -108,32 +120,51 @@ python typetreeflow.py \
 
 ## Real Staged Validation Summary
 
-Run real stages one flag at a time, using a disposable output directory and local GTDB metadata.
+Prefer the high-level guarded genus route in a disposable output directory.
+Network and download stages remain explicitly opt-in.
 
-Downloads:
+Plan only with live LPSN/NCBI/BioSample access:
 
 ```bash
-python typetreeflow.py \
-  --genus <Genus> \
-  --gtdb-metadata <metadata.tsv> \
+python typetreeflow.py verify-genus <Genus> \
   --outdir <run_dir> \
+  --enable-lpsn-api \
+  --enable-ncbi-discovery \
+  --enable-biosample-entrez \
+  --email <user@example.org> \
+  --policy balanced
+```
+
+Guarded download after accepting the generated selection:
+
+```bash
+python typetreeflow.py verify-genus <Genus> \
+  --outdir <run_dir> \
+  --enable-lpsn-api \
+  --enable-ncbi-discovery \
+  --enable-biosample-entrez \
+  --email <user@example.org> \
+  --policy balanced \
+  --auto-accept-selection \
+  --enable-downloads
+```
+
+barrnap 16S extraction after genome download:
+
+```bash
+python typetreeflow.py verify-genus <Genus> \
+  --outdir <run_dir> \
+  --enable-lpsn-api \
+  --enable-ncbi-discovery \
+  --enable-biosample-entrez \
+  --email <user@example.org> \
+  --policy balanced \
+  --auto-accept-selection \
   --enable-downloads \
-  --skip-ani \
-  --skip-tree
+  --extract-16s barrnap
 ```
 
-barrnap:
-
-```bash
-python typetreeflow.py \
-  --outdir <run_dir> \
-  --resume \
-  --enable-barrnap \
-  --skip-ani \
-  --skip-tree
-```
-
-FastANI:
+FastANI and phylogeny remain resume-mode lower-level validation stages:
 
 ```bash
 python typetreeflow.py \
@@ -142,11 +173,7 @@ python typetreeflow.py \
   --query-genome <query.fna> \
   --enable-fastani \
   --skip-tree
-```
 
-Phylogeny:
-
-```bash
 python typetreeflow.py \
   --outdir <run_dir> \
   --resume \
@@ -158,6 +185,7 @@ Report-only refresh:
 
 ```bash
 python typetreeflow.py --outdir <run_dir> --report-only
+python typetreeflow.py package-results --outdir <run_dir>
 ```
 
 Historical smoke-run evidence is mapped from `docs/index.md`; it can support
@@ -180,6 +208,8 @@ audit review but is not a required input for the current release checklist.
 ## Known Limitations
 
 - Guarded real barrnap, FastANI, and phylogeny execution are resume-mode workflows.
+- High-level `verify-genus --extract-16s barrnap` requires genome-ready records
+  produced by guarded downloads or local external FASTA registration.
 - Guarded real FastANI requires `--query-genome` and `fastANI` on `PATH`.
 - Guarded real phylogeny requires an existing `rrna/all_16S.fasta` with at least 4 sequences for the current IQ-TREE ultrafast bootstrap workflow.
 - Entrez fallback can contact NCBI only when explicitly enabled with `--enable-entrez --email`.
@@ -201,6 +231,8 @@ audit review but is not a required input for the current release checklist.
 - Confirm `pyproject.toml` release classifier is still appropriate for the
   intended release status.
 - Confirm `README.md` and docs reflect the current guarded execution state.
+- Confirm the cookbook starts from high-level commands and keeps low-level
+  primitives marked as advanced/manual recovery.
 - Confirm the test suite, CLI help, and wheel build commands pass from a clean checkout.
 - Remove generated validation artifacts that should not be committed.
 - Complete the clean-clone verification required by

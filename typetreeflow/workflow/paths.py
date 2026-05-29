@@ -6,6 +6,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class OutputPaths:
+    run_state_path: Path
     manifest: Path
     name_map: Path
     logs_dir: Path
@@ -51,6 +52,10 @@ class OutputPaths:
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
+    download_preflight_summary_path: Path
+    manual_deposit_evidence_template_path: Path
+    manual_species_gap_summary_path: Path
+    manual_review_report_path: Path
     external_genome_registration_results_path: Path
     external_genome_install_plan_path: Path
     external_genome_install_results_path: Path
@@ -64,6 +69,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
     cache_dir = root / "cache"
     ncbi_cache_dir = cache_dir / "ncbi"
     return OutputPaths(
+        run_state_path=root / "run_state.json",
         manifest=root / "manifest.tsv",
         name_map=root / "name_map.tsv",
         logs_dir=root / "logs",
@@ -115,6 +121,13 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",
+        download_preflight_summary_path=root
+        / "selection"
+        / "download_preflight_summary.tsv",
+        manual_deposit_evidence_template_path=root
+        / "manual_deposit_evidence_template.tsv",
+        manual_species_gap_summary_path=root / "manual_species_gap_summary.tsv",
+        manual_review_report_path=root / "manual_review_report.md",
         external_genome_registration_results_path=root
         / "external_genome_registration_results.tsv",
         external_genome_install_plan_path=root / "external_genome_install_plan.tsv",

@@ -4,7 +4,14 @@ import pytest
 
 from typetreeflow.taxonomy.candidates import AssemblyCandidate
 from typetreeflow.genomes.plan import build_genome_download_plan
+from typetreeflow.genomes.preflight import (
+    REPRESENTATIVE_ONLY_SCOPE,
+    build_download_preflight_summary,
+    read_download_preflight_summary,
+    write_download_preflight_summary,
+)
 from typetreeflow.manifest import read_manifest, write_manifest
+from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.selection import (
     SELECTION_FIELDS,
     REQUIRED_SELECTION_FIELDS,
@@ -186,6 +193,57 @@ def test_balanced_policy_does_not_select_representative_only_top_ranked():
     assert rows[0].selected is False
     assert rows[0].policy_decision == "available_not_selected"
     assert rows[0].manual_review_reason == "not_type_confirmed"
+    assert rows[0].blocking_reasons == (
+        "no_lpsn_type_strain_match; not_type_confirmed; "
+        "no_ncbi_culture_collection_id"
+    )
+
+
+def test_candidates_to_selection_rows_sets_stable_ranking_reasons():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                has_lpsn_type_strain_match=True,
+                is_type_material=True,
+                has_recognized_deposit_id=True,
+                refseq_category="reference genome",
+                assembly_level="Complete Genome",
+            )
+        ],
+        selection_policy="strict",
+    )
+
+    assert rows[0].ranking_reasons == (
+        "lpsn_type_strain_match; type_material; recognized_deposit_id; "
+        "refseq_reference_genome; assembly_level_complete_genome; "
+        "accession_tiebreaker"
+    )
+
+
+def test_strict_policy_unselected_candidate_gets_blocking_reasons():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                biosample="",
+                ncbi_culture_collection_ids="",
+                manual_review_reason=(
+                    "biosample_record_not_found; synonym_supported_match"
+                ),
+                requires_manual_review=True,
+                synonym_used="Bacillus subtilis subsp. example",
+            )
+        ],
+        selection_policy="strict",
+    )
+
+    assert rows[0].blocking_reasons == (
+        "manual_review_required; no_lpsn_type_strain_match; "
+        "not_type_confirmed; no_ncbi_culture_collection_id; "
+        "missing_biosample; biosample_record_not_found; "
+        "synonym_supported_match"
+    )
 
 
 def test_review_only_policy_selects_none():
@@ -295,6 +353,8 @@ def test_user_selection_reads_selected_bool_variants(tmp_path):
             "balanced",
             "auto_selected_lpsn_type_strain_match",
             "",
+            "",
+            "",
             "edited",
             "",
         ],
@@ -312,6 +372,8 @@ def test_user_selection_reads_selected_bool_variants(tmp_path):
             "false",
             "balanced",
             "available_not_selected",
+            "",
+            "",
             "",
             "edited",
             "",
@@ -345,6 +407,8 @@ def test_user_selection_rejects_invalid_selected_value(tmp_path):
         "maybe",
         "balanced",
         "auto_selected_lpsn_type_strain_match",
+        "",
+        "",
         "",
         "edited",
         "",
@@ -499,6 +563,8 @@ def test_legacy_selection_tsv_without_evidence_level_still_reads(tmp_path):
         "balanced",
         "auto_selected_lpsn_type_strain_match",
         "",
+        "",
+        "",
         "edited",
         "",
     ]
@@ -598,6 +664,13 @@ def test_selection_rows_to_strain_records_notes_strict_confirmed_status():
         ]
     )
 
+    assert records[0].evidence_level == "strict_confirmed"
+    assert records[0].type_confirmation_status == "confirmed_type_strain"
+    assert records[0].selection_policy == "balanced"
+    assert records[0].selection_role == "selected_type_material"
+    assert records[0].selection_reason == "auto_selected_top_ranked"
+    assert records[0].risk_flags == ""
+    assert records[0].manual_review_status == ""
     assert "evidence_level=strict_confirmed" in records[0].notes
     assert "type_confirmation_status=confirmed_type_strain" in records[0].notes
 
@@ -615,6 +688,11 @@ def test_selection_rows_to_strain_records_notes_likely_type_material_status():
         ]
     )
 
+    assert records[0].evidence_level == "likely_type_material"
+    assert records[0].type_confirmation_status == "likely_type_material"
+    assert records[0].selection_policy == "balanced"
+    assert records[0].selection_role == "selected_type_material"
+    assert records[0].selection_reason == "auto_selected_top_ranked"
     assert "evidence_level=likely_type_material" in records[0].notes
     assert "type_confirmation_status=likely_type_material" in records[0].notes
 
@@ -634,6 +712,16 @@ def test_selection_rows_to_strain_records_notes_representative_status():
         ]
     )
 
+    assert records[0].evidence_level == "representative_only"
+    assert (
+        records[0].type_confirmation_status
+        == "representative_not_type_confirmed"
+    )
+    assert records[0].selection_policy == "representative"
+    assert records[0].selection_role == "representative_only"
+    assert records[0].selection_reason == "auto_selected_top_ranked"
+    assert records[0].risk_flags == "not_type_confirmed"
+    assert records[0].manual_review_status == "not_reviewed"
     assert "evidence_level=representative_only" in records[0].notes
     assert (
         "type_confirmation_status=representative_not_type_confirmed"
@@ -693,6 +781,63 @@ def test_selection_rows_to_strain_records_manifest_round_trip(tmp_path):
     assert read_manifest(path) == records
 
 
+def test_selection_evidence_survives_manifest_round_trip_without_notes(tmp_path):
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(evidence_level="strict_confirmed"),
+            _selection_row(
+                species="Bacillus velezensis",
+                assembly_accession="GCF_000001406.1",
+                evidence_level="likely_type_material",
+                has_lpsn_type_strain_match=False,
+                match_evidence="",
+                policy_decision="auto_selected_likely_type_material",
+            ),
+            _selection_row(
+                species="Bacillus amyloliquefaciens",
+                assembly_accession="GCF_000001407.1",
+                evidence_level="representative_only",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                match_evidence="",
+                selection_policy="representative",
+                policy_decision="representative_not_type_confirmed",
+                manual_review_reason="not_type_confirmed",
+            ),
+        ]
+    )
+    for record in records:
+        record.notes = ""
+    path = tmp_path / "manifest.tsv"
+
+    write_manifest(records, path)
+    parsed = read_manifest(path)
+
+    assert [record.evidence_level for record in parsed] == [
+        "strict_confirmed",
+        "likely_type_material",
+        "representative_only",
+    ]
+    assert [record.type_confirmation_status for record in parsed] == [
+        "confirmed_type_strain",
+        "likely_type_material",
+        "representative_not_type_confirmed",
+    ]
+    assert [record.selection_role for record in parsed] == [
+        "selected_type_material",
+        "selected_type_material",
+        "representative_only",
+    ]
+    summary = build_download_preflight_summary(
+        parsed,
+        build_genome_download_plan(parsed, tmp_path),
+    )
+    assert summary.strict_confirmed == 1
+    assert summary.likely_type_material == 1
+    assert summary.representative_only == 1
+    assert summary.missing_evidence_level == 0
+
+
 def test_selection_rows_to_strain_records_can_build_genome_plan(tmp_path):
     records = selection_rows_to_strain_records([_selection_row()])
 
@@ -703,6 +848,109 @@ def test_selection_rows_to_strain_records_can_build_genome_plan(tmp_path):
     assert plan[0].normalized_id == records[0].normalized_id
     assert plan[0].assembly_accession == "GCF_000001405.1"
     assert plan[0].status == "planned"
+
+
+def test_download_preflight_summary_counts_selection_risk_and_plan_statuses(tmp_path):
+    existing_genome = tmp_path / "existing.fna"
+    existing_genome.write_text(">existing\nACGT\n", encoding="utf-8")
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                assembly_accession="GCF_000001405.1",
+                evidence_level="strict_confirmed",
+            ),
+            _selection_row(
+                species="Bacillus velezensis",
+                assembly_accession="GCF_000001406.1",
+                evidence_level="likely_type_material",
+                has_lpsn_type_strain_match=False,
+                match_evidence="",
+            ),
+            _selection_row(
+                species="Bacillus amyloliquefaciens",
+                assembly_accession="GCF_000001407.1",
+                evidence_level="representative_only",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                match_evidence="",
+                selection_policy="representative",
+                policy_decision="representative_not_type_confirmed",
+            ),
+        ]
+    )
+    records[1].has_genome = True
+    records[1].genome_path = str(existing_genome)
+    records.extend(
+        [
+            StrainRecord(
+                record_id="external",
+                canonical_name="Bacillus externalis",
+                display_name="Bacillus externalis EXT",
+                genus="Bacillus",
+                species="externalis",
+                strain="EXT",
+                assembly_source="external_registered_genome",
+                source="external_registered_genome",
+                has_genome=True,
+                genome_path=str(existing_genome),
+                normalized_id="external",
+                notes="evidence_level=strict_confirmed",
+            ),
+            StrainRecord(
+                record_id="missing",
+                canonical_name="Bacillus missingus",
+                display_name="Bacillus missingus MISS",
+                genus="Bacillus",
+                species="missingus",
+                strain="MISS",
+                normalized_id="missing",
+                source="user_selection",
+            ),
+        ]
+    )
+
+    plan = build_genome_download_plan(records, tmp_path)
+    summary = build_download_preflight_summary(records, plan)
+
+    assert summary.selected_total == 5
+    assert summary.strict_confirmed == 2
+    assert summary.likely_type_material == 1
+    assert summary.representative_only == 1
+    assert summary.missing_evidence_level == 1
+    assert summary.ncbi_assembly_backed == 3
+    assert summary.external_registered == 1
+    assert summary.download_planned == 2
+    assert summary.download_skipped_existing == 1
+    assert summary.download_not_applicable == 1
+    assert summary.download_skipped_no_accession == 1
+    assert summary.representative_only_scope == REPRESENTATIVE_ONLY_SCOPE
+
+
+def test_download_preflight_summary_round_trips_as_single_row_tsv(tmp_path):
+    records = selection_rows_to_strain_records(
+        [
+            _selection_row(
+                evidence_level="representative_only",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                match_evidence="",
+                selection_policy="representative",
+                policy_decision="representative_not_type_confirmed",
+            )
+        ]
+    )
+    plan = build_genome_download_plan(records, tmp_path)
+    summary = build_download_preflight_summary(records, plan)
+
+    path = write_download_preflight_summary(
+        summary,
+        tmp_path / "selection" / "download_preflight_summary.tsv",
+    )
+
+    assert read_download_preflight_summary(path) == summary
+    assert "exploratory_only_not_strict_type_strain_completion" in path.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_user_selection_header_only_returns_empty_list(tmp_path):
@@ -751,3 +999,13 @@ def test_output_paths_include_selection_paths(tmp_path):
         tmp_path / "selection" / "strain_candidates.tsv"
     )
     assert paths.user_selection_path == tmp_path / "selection" / "user_selection.tsv"
+    assert paths.download_preflight_summary_path == (
+        tmp_path / "selection" / "download_preflight_summary.tsv"
+    )
+    assert paths.manual_deposit_evidence_template_path == (
+        tmp_path / "manual_deposit_evidence_template.tsv"
+    )
+    assert paths.manual_species_gap_summary_path == (
+        tmp_path / "manual_species_gap_summary.tsv"
+    )
+    assert paths.manual_review_report_path == tmp_path / "manual_review_report.md"

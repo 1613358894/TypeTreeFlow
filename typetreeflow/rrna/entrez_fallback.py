@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.sources.entrez import (
     EntrezCandidate,
@@ -57,9 +58,10 @@ def build_entrez_fallback_plan(
         )
         if record.is_query:
             continue
-        registered_path_exists = (
-            bool(record.rrna_16s_path) and Path(record.rrna_16s_path).exists()
-        )
+        registered_path_exists = bool(record.rrna_16s_path) and resolve_manifest_path(
+            record.rrna_16s_path,
+            paths.manifest.parent,
+        ).exists()
         expected_path_exists = expected_rrna_fasta_path.exists()
         if (registered_path_exists or expected_path_exists) and not force:
             continue

@@ -239,8 +239,8 @@ python typetreeflow.py \
 ```
 
 The command targets species with no `selected=yes` row and writes
-`manual_deposit_evidence_template.tsv` plus
-`manual_species_gap_summary.tsv`. Fill curator columns only after external
+`manual_deposit_evidence_template.tsv`, `manual_species_gap_summary.tsv`, and
+`manual_review_report.md`. Fill curator columns only after external
 evidence confirms deposit equivalence, then import that evidence and rerun
 strict selection preparation:
 
@@ -423,6 +423,9 @@ Selection outputs:
 `selection/user_selection.tsv` is user-editable with `selected=yes` or
 `selected=no`. The CLI validates edited selections, reports missing or
 duplicate selected rows, and keeps ambiguous candidates in manual review.
+Selection rows also include stable semicolon-delimited `ranking_reasons` and
+`blocking_reasons` fields so reviewers can see why a candidate ranked where it
+did and why strict/balanced policies left an unselected candidate blocked.
 
 Selection policies:
 

@@ -6,6 +6,7 @@ from typing import Iterable
 
 from Bio import SeqIO
 
+from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.naming import normalize_token
 
@@ -34,12 +35,15 @@ def read_single_fasta(path: Path) -> tuple[str, str]:
     return record.id, sequence
 
 
-def collect_reference_16s(records: Iterable[StrainRecord]) -> list[FastaEntry]:
+def collect_reference_16s(
+    records: Iterable[StrainRecord],
+    base_dir: str | Path | None = None,
+) -> list[FastaEntry]:
     entries: list[FastaEntry] = []
     for record in records:
         if not record.has_16s or not record.rrna_16s_path:
             continue
-        rrna_path = Path(record.rrna_16s_path)
+        rrna_path = resolve_manifest_path(record.rrna_16s_path, base_dir)
         if not rrna_path.exists():
             continue
         _source_header, sequence = read_single_fasta(rrna_path)
@@ -96,8 +100,9 @@ def assemble_all_16s(
     query_16s_path: Path | None,
     output_path: Path,
     query_name: str = "Query",
+    base_dir: str | Path | None = None,
 ) -> Path:
-    entries = collect_reference_16s(records)
+    entries = collect_reference_16s(records, base_dir=base_dir)
     if query_16s_path is not None:
         entries.append(build_query_16s_entry(Path(query_16s_path), query_name=query_name))
     if not entries:

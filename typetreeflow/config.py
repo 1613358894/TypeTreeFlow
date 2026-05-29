@@ -16,6 +16,19 @@ REAL_ACTION_FLAGS = {
 
 @dataclass(frozen=True)
 class AppConfig:
+    doctor: bool
+    doctor_strict: bool
+    status: bool
+    next_step: bool
+    json_output: bool
+    package_results: bool
+    delivery_dir: Path | None
+    include: str
+    verify_release_genus: str | None
+    release_policies: str
+    verify_genus: bool
+    auto_accept_selection: bool
+    review_required: bool
     acquire_genus: str | None
     genus: str | None
     query_genome: Path | None
@@ -60,6 +73,7 @@ class AppConfig:
     dry_run: bool
     enable_downloads: bool
     enable_barrnap: bool
+    extract_16s: str
     enable_entrez: bool
     enable_fastani: bool
     enable_phylo: bool

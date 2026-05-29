@@ -165,12 +165,19 @@ def test_write_manual_review_template_cli_fields_species_and_blank_curator_colum
 
     evidence_rows = _read_tsv(outdir / "manual_deposit_evidence_template.tsv")
     summary_rows = _read_tsv(outdir / "manual_species_gap_summary.tsv")
+    report_text = (outdir / "manual_review_report.md").read_text(encoding="utf-8")
     assert result == 0
     assert set(evidence_rows[0]) == set(MANUAL_DEPOSIT_EVIDENCE_FIELDS)
     assert set(summary_rows[0]) == set(MANUAL_SPECIES_GAP_FIELDS)
     assert {row["species"] for row in evidence_rows} == REMAINING_SPECIES
     assert {row["species"] for row in summary_rows} == REMAINING_SPECIES
     assert selected_species not in {row["species"] for row in evidence_rows}
+    assert "# Manual Review Report" in report_text
+    assert "- Species requiring review: 8" in report_text
+    assert "- Total review candidates: 8" in report_text
+    assert "## Species Requiring Review" in report_text
+    assert "### Fusobacterium gastrosuis" in report_text
+    assert selected_species not in report_text
     assert all(row["curator_confirmed_deposit_id"] == "" for row in evidence_rows)
     assert all(row["curator_evidence_source"] == "" for row in evidence_rows)
     assert all(row["curator_notes"] == "" for row in evidence_rows)
@@ -226,12 +233,20 @@ def test_manual_review_recommendations_are_specific(tmp_path):
 
     evidence_row = _read_tsv(outdir / "manual_deposit_evidence_template.tsv")[0]
     summary_row = _read_tsv(outdir / "manual_species_gap_summary.tsv")[0]
+    report_text = (outdir / "manual_review_report.md").read_text(encoding="utf-8")
     assert result == 0
     assert "verify whether BioSample strain equals LPSN type strain" in evidence_row["suggested_review_action"]
     assert "inspect NCBI BioSample attributes for missing culture_collection" in evidence_row["suggested_review_action"]
     assert "keep unselected until deposit evidence is confirmed" in evidence_row["suggested_review_action"]
     assert summary_row["gap_reason"] == "type_material_without_confirmed_lpsn_deposit_match"
     assert "add curator_confirmed_deposit_id" in summary_row["recommended_next_step"]
+    assert "- Species with type-material candidates: 1" in report_text
+    assert "- Species with BioSample candidates: 1" in report_text
+    assert "- Species with no candidate rows: 0" in report_text
+    assert "- Best candidate accession: GCF_049381025.1" in report_text
+    assert "- Gap reason: type_material_without_confirmed_lpsn_deposit_match" in report_text
+    assert "| Rank | Accession | Strain | BioSample | Type material | NCBI deposit IDs | BioSample type material | Blocking reason | Suggested action |" in report_text
+    assert "| 1 | GCF_049381025.1 | PAGU 1796 | SAMN46562374 | true | none | type strain of Fusobacterium watanabei | no_ncbi_culture_collection_id |" in report_text
 
 
 def test_apply_curator_evidence_matching_lpsn_id_becomes_strict_selectable(tmp_path):

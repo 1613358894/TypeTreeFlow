@@ -87,6 +87,9 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
 
 - [docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md): LPSN-first
   acquisition workflow, implementation-history summary, and evidence boundaries.
+- [docs/cookbook.md](docs/cookbook.md): concise operator cookbook for the
+  high-level `doctor`, `verify-genus`, `status`, `next-step`,
+  `package-results`, and `verify-release-genus` commands.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
 - [docs/schemas.md](docs/schemas.md): TSV and table field dictionary.
@@ -196,13 +199,201 @@ Supported environment defaults:
 
 ## Quickstart and common commands
 
-Start by checking the installed CLI and its guarded command surface:
+Start with the high-level workflow commands. They wrap the lower-level stages,
+write `run_state.json`, and keep review/download boundaries explicit:
 
 ```bash
 typetreeflow --help
 python typetreeflow.py --help
 typetreeflow --version
+typetreeflow doctor
 ```
+
+## Recommended v2.2.0 workflows
+
+For ordinary users, `verify-genus` is the main entry point. It prepares the
+LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample
+evidence, selection table, manifest, download preflight summary, report, and
+workflow state in one command.
+
+Plan a genus verification from local caches:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --biosample-cache data/fusobacterium_biosample_records.tsv \
+  --enrich-biosample \
+  --policy balanced \
+  --source-audit-policy strict \
+  --strains-per-species 1 \
+  --outdir results/fusobacterium_verify \
+  --force
+```
+
+Plan the same shape with guarded live LPSN, NCBI Assembly, and BioSample
+lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --enable-lpsn-api \
+  --enable-ncbi-discovery \
+  --enable-biosample-entrez \
+  --email user@example.org \
+  --policy balanced \
+  --source-audit-policy strict \
+  --outdir results/fusobacterium_verify \
+  --force
+```
+
+By default, `verify-genus` stops at reviewable planning. Review
+`selection/user_selection.tsv`, `selection/download_preflight_summary.tsv`,
+`manifest.tsv`, and `report/summary.md` before any real download. To accept the
+generated selection and execute guarded NCBI Datasets downloads, pass both
+download opt-ins:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --biosample-cache data/fusobacterium_biosample_records.tsv \
+  --enrich-biosample \
+  --policy balanced \
+  --source-audit-policy strict \
+  --outdir results/fusobacterium_verify \
+  --auto-accept-selection \
+  --enable-downloads \
+  --force
+```
+
+The download pair is deliberately strict: `--enable-downloads` is ignored for
+real execution unless paired with `--auto-accept-selection` in `verify-genus`.
+For a manual stop, omit both or add `--review-required`.
+
+After genomes are ready, high-level 16S extraction can be requested with
+barrnap:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --biosample-cache data/fusobacterium_biosample_records.tsv \
+  --enrich-biosample \
+  --policy balanced \
+  --outdir results/fusobacterium_verify \
+  --auto-accept-selection \
+  --enable-downloads \
+  --extract-16s barrnap \
+  --force
+```
+
+`--extract-16s barrnap` depends on a genome-ready manifest produced by guarded
+download or external local FASTA registration, and it requires `barrnap` on
+`PATH`.
+
+Inspect or continue a run:
+
+```bash
+typetreeflow status --outdir results/fusobacterium_verify
+typetreeflow next-step --outdir results/fusobacterium_verify
+typetreeflow status --outdir results/fusobacterium_verify --json
+```
+
+Package a reviewed delivery directory:
+
+```bash
+typetreeflow package-results \
+  --outdir results/fusobacterium_verify \
+  --delivery-dir results/fusobacterium_delivery \
+  --include all
+```
+
+The delivery package includes manifest, selected-accession and evidence
+summaries, optional reports, copied genome FASTA files, optional 16S FASTA
+files, and `run_state.json` when present. It does not copy credentials,
+environment files, API keys, NCBI ZIP caches, pytest caches, or temporary
+directories.
+
+Run the release verification matrix for balanced plus representative policies:
+
+```bash
+typetreeflow verify-release-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --biosample-cache data/fusobacterium_biosample_records.tsv \
+  --enrich-biosample \
+  --outdir results/v2_2_0_release_verification \
+  --policies balanced,representative \
+  --force
+```
+
+This writes per-policy outdirs plus
+`results/v2_2_0_release_verification/verification_matrix.tsv` and
+`release_verification_summary.md`.
+
+Selection policy semantics:
+
+| Policy | Automatic selection | Intended use |
+| --- | --- | --- |
+| `strict` | Only strict-confirmed / LPSN type-strain matches. | Formal type-strain download planning. |
+| `balanced` | Only strong type-evidence rows: `strict_confirmed` or `likely_type_material`. | Default candidate collection when type-material evidence is required but strict LPSN match evidence may be incomplete. |
+| `representative` | Top-ranked fallback per species, including ordinary unconfirmed candidates. | Exploratory downloads only; unconfirmed rows are marked `representative_only` and `representative_not_type_confirmed`. |
+| `review-only` | None. | Complete manual review before selection. |
+
+Do not mix the evidence tiers. `strict_confirmed` is strict type-strain
+evidence. `likely_type_material` is a reviewable risk layer, not strict
+deposit-equivalent completion. `representative_only` is exploratory only and
+must not be counted as strict type-strain completion. Representative-only
+manifests also carry
+`type_confirmation_status=representative_not_type_confirmed` and preflight
+summaries carry
+`representative_only_scope=exploratory_only_not_strict_type_strain_completion`.
+
+BioSample enrichment is recommended for strict and balanced selection because
+BioSample deposit IDs can improve evidence quality. Strict confirmation still
+requires an accepted NCBI/BioSample deposit ID to match the LPSN/checklist
+type-strain equivalence set, or accepted curator evidence proving that
+equivalence. Type-material wording alone remains `likely_type_material`.
+
+For external provider data, keep planning and local FASTA registration
+separate. TypeTreeFlow does not automatically log in to, scrape, purchase from,
+or download from ATCC, DSMZ, JCM, NCTC, or other provider portals. Provider
+planning is a metadata/review handoff only:
+
+```bash
+typetreeflow \
+  --plan-provider-registration data/provider_request.tsv \
+  --outdir results/provider_plan \
+  --force
+```
+
+That command writes review files under `provider/`; it does not write
+`manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`, installed FASTA files,
+or NCBI download plans. After a curator legally obtains a FASTA and records the
+local path, checksum, type-material assertion, and terms review, register it
+explicitly:
+
+```bash
+typetreeflow \
+  --register-external-genomes data/external_genomes.tsv \
+  --outdir results/external_registration \
+  --dry-run
+
+typetreeflow \
+  --register-external-genomes data/external_genomes.tsv \
+  --outdir results/external_registration \
+  --merge-manifest
+```
+
+External registered genomes keep provider-native IDs in external fields and
+manifest notes. They must not be mixed into NCBI `assembly_accession`.
+
+## Advanced/manual recovery commands
+
+The lower-level primitives remain supported for developers, audits, and special
+recovery work. They are not the recommended entry point for ordinary runs.
+Prefer `verify-genus`, `status`, `next-step`, and `package-results` unless you
+need to repair or inspect one stage in isolation.
 
 Run a minimal legacy/local GTDB dry run:
 
@@ -271,6 +462,9 @@ carry `evidence_level` values `strict_confirmed`, `likely_type_material`, or
 `representative_only`; manifest notes carry matching
 `type_confirmation_status` values `confirmed_type_strain`,
 `likely_type_material`, or `representative_not_type_confirmed`.
+Generated selection rows also include semicolon-delimited `ranking_reasons`
+and, for unselected strict/balanced candidates, `blocking_reasons` to explain
+ranking evidence and policy blockers without changing selection behavior.
 
 For strict or balanced acquisition, enable BioSample enrichment and guarded
 BioSample Entrez lookup when real NCBI lookups are appropriate:
@@ -474,6 +668,9 @@ For strict or balanced selection, BioSample evidence can improve type-material
 coverage before final review. Because `--acquire-genus` is a dry-run
 orchestrator, use guarded BioSample Entrez during a real discovery/enrichment
 refresh, then reuse the written caches in the acquisition dry run:
+Strict confirmation still requires a BioSample/NCBI-derived deposit ID to match
+an LPSN type-strain ID; type-material wording alone remains
+`likely_type_material`.
 
 ```bash
 typetreeflow \
@@ -500,6 +697,14 @@ typetreeflow \
   --enable-downloads \
   --force
 ```
+
+Selection-driven dry-runs and real downloads write
+`selection/download_preflight_summary.tsv` before the download plan is acted on.
+It summarizes selected evidence risk and plan status counts, including
+`strict_confirmed`, `likely_type_material`, `representative_only`,
+`external_registered`, `download_planned`, and `download_not_applicable`.
+`representative_only` is explicitly exploratory and is not strict type-strain
+completion.
 
 Resume with existing outputs:
 
@@ -619,7 +824,10 @@ top-level paths are:
 - `name_map.tsv`: normalized IDs and source labels.
 - `taxonomy/`: checklist comparison and species-scope audit outputs.
 - `candidates/`: assembly candidates and diagnostics.
-- `selection/`: generated and curator-edited selection TSVs.
+- `selection/`: generated and curator-edited selection TSVs, plus download
+  preflight risk summaries.
+- `manual_review_report.md`: human-readable report for strict/balanced species
+  left unselected by the manual review template workflow.
 - `source_audit/`: genome/16S and culture collection source audit rows.
 - `provider/`: dry-run-only provider registration plans and proposed external
   genome rows.

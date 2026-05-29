@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
 
@@ -107,9 +108,5 @@ def mark_rrna_planned_records(
 
 
 def _path_exists(path: str, paths: OutputPaths) -> bool:
-    candidate = Path(path)
-    if candidate.exists():
-        return True
-    if not candidate.is_absolute():
-        return (paths.manifest.parent / candidate).exists()
-    return False
+    candidate = resolve_manifest_path(path, paths.manifest.parent)
+    return candidate.exists()

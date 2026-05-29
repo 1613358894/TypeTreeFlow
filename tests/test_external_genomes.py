@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -595,5 +596,12 @@ def test_external_install_strain_records_round_trip_manifest_schema(tmp_path):
     write_manifest(records, manifest_path)
     parsed = read_manifest(manifest_path)
 
-    assert parsed == records
+    assert parsed[0] == replace(
+        records[0],
+        genome_path=(
+            "genomes/references/"
+            "Fusobacterium_mortiferum_ATCC_9817_atcc_genome_portal_"
+            "ATCC_9817_GENOME.fna"
+        ),
+    )
     assert parsed[0].assembly_accession == ""

@@ -226,6 +226,35 @@ def rank_assembly_candidates(
     return sorted(candidates, key=_ranking_key)
 
 
+def assembly_candidate_ranking_reasons(candidate: AssemblyCandidate) -> str:
+    reasons: list[str] = []
+    if candidate.has_lpsn_type_strain_match:
+        reasons.append("lpsn_type_strain_match")
+    if candidate.is_type_material:
+        reasons.append("type_material")
+    if candidate.has_recognized_deposit_id:
+        reasons.append("recognized_deposit_id")
+
+    refseq_category = candidate.refseq_category.strip().lower()
+    if refseq_category == "reference genome":
+        reasons.append("refseq_reference_genome")
+    elif refseq_category == "representative genome":
+        reasons.append("refseq_representative_genome")
+
+    assembly_level = candidate.assembly_level.strip().lower()
+    if assembly_level == "complete genome":
+        reasons.append("assembly_level_complete_genome")
+    elif assembly_level == "chromosome":
+        reasons.append("assembly_level_chromosome")
+    elif assembly_level == "scaffold":
+        reasons.append("assembly_level_scaffold")
+    elif assembly_level == "contig":
+        reasons.append("assembly_level_contig")
+
+    reasons.append("accession_tiebreaker")
+    return "; ".join(reasons)
+
+
 def select_candidates_per_species(
     candidates: Iterable[AssemblyCandidate],
     strains_per_species: int = 1,

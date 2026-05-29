@@ -19,6 +19,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_STATUSES,
 )
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS, DOWNLOAD_RESULTS_FIELDS
+from typetreeflow.genomes.preflight import DOWNLOAD_PREFLIGHT_SUMMARY_FIELDS
 from typetreeflow.manifest import MANIFEST_FIELDS, NAME_MAP_FIELDS
 from typetreeflow.phylo.plan import PHYLO_PLAN_FIELDS
 from typetreeflow.provider_plan import (
@@ -110,6 +111,39 @@ def test_readme_mentions_guarded_cli_flags():
         assert flag in readme
 
 
+def test_high_level_workflow_docs_are_current():
+    readme = _read("README.md")
+    cookbook = _read("docs/cookbook.md")
+    design = _read("docs/design.md")
+    release_verification = _read("docs/v2_2_0_release_verification.md")
+
+    for docs in [readme, cookbook, design, release_verification]:
+        for phrase in [
+            "verify-genus",
+            "status",
+            "next-step",
+            "package-results",
+            "strict_confirmed",
+            "likely_type_material",
+            "representative_only",
+        ]:
+            assert phrase in docs
+
+    for docs in [readme, cookbook, release_verification]:
+        assert "--auto-accept-selection" in docs
+        assert "--enable-downloads" in docs
+        assert "exploratory" in docs
+        assert "not strict" in docs
+
+    assert "verify-release-genus" in readme
+    assert "verify-release-genus" in cookbook
+    assert "verify-release-genus" in release_verification
+    assert "Credentials" in cookbook
+    assert "credentials" in readme
+    assert "pip install datasets" not in readme
+    assert "pip install datasets" not in cookbook
+
+
 def test_output_layout_mentions_key_output_paths(tmp_path):
     docs = _read("docs/output_layout.md")
     paths = get_output_paths(tmp_path)
@@ -144,6 +178,10 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.sequence_source_audit_path,
         paths.strain_candidates_path,
         paths.user_selection_path,
+        paths.download_preflight_summary_path,
+        paths.manual_deposit_evidence_template_path,
+        paths.manual_species_gap_summary_path,
+        paths.manual_review_report_path,
         paths.checklist_comparison_path,
         paths.run_summary_path,
     ]
@@ -175,6 +213,10 @@ def test_schema_docs_mention_key_table_fields():
         "cache/ncbi/download_plan.tsv": [
             "expected_genome_path",
             "datasets_zip_path",
+        ],
+        "selection/download_preflight_summary.tsv": [
+            "representative_only_scope",
+            "download_not_applicable",
         ],
         "external_genome_install_plan.tsv": [
             "installed_genome_path",
@@ -216,6 +258,9 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "candidates/assembly_candidate_diagnostics.tsv": DISCOVERY_DIAGNOSTIC_FIELDS,
         "candidates/discovery_records.tsv": DISCOVERY_RECORD_FIELDS,
         "selection/*.tsv": SELECTION_FIELDS,
+        "selection/download_preflight_summary.tsv": (
+            DOWNLOAD_PREFLIGHT_SUMMARY_FIELDS
+        ),
         "manual_deposit_evidence_template.tsv": MANUAL_DEPOSIT_EVIDENCE_FIELDS,
         "manual_species_gap_summary.tsv": MANUAL_SPECIES_GAP_FIELDS,
         "source_audit/sequence_source_audit.tsv": SOURCE_AUDIT_FIELDS,

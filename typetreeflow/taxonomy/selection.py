@@ -14,6 +14,7 @@ from typetreeflow.naming import (
 )
 from typetreeflow.taxonomy.candidates import (
     AssemblyCandidate,
+    assembly_candidate_ranking_reasons,
     rank_assembly_candidates,
 )
 
@@ -32,6 +33,8 @@ SELECTION_FIELDS = [
     "selected",
     "selection_policy",
     "policy_decision",
+    "ranking_reasons",
+    "blocking_reasons",
     "manual_review_reason",
     "selection_reason",
     "notes",
@@ -68,6 +71,8 @@ class StrainSelectionRow:
     selected: bool = False
     selection_policy: str = "balanced"
     policy_decision: str = ""
+    ranking_reasons: str = ""
+    blocking_reasons: str = ""
     manual_review_reason: str = ""
     selection_reason: str = ""
     notes: str = ""
@@ -103,6 +108,13 @@ def candidates_to_selection_rows(
                 strains_per_species,
                 policy,
             )
+            blocking_reasons = _blocking_reasons(
+                candidate,
+                selected=selected,
+                policy=policy,
+                selection_rank=index,
+                strains_per_species=strains_per_species,
+            )
             rows.append(
                 StrainSelectionRow(
                     species=candidate.species,
@@ -125,6 +137,10 @@ def candidates_to_selection_rows(
                     selected=selected,
                     selection_policy=policy,
                     policy_decision=policy_decision,
+                    ranking_reasons=assembly_candidate_ranking_reasons(
+                        candidate
+                    ),
+                    blocking_reasons=blocking_reasons,
                     manual_review_reason=manual_review_reason,
                     selection_reason=policy_decision,
                     notes=candidate.notes,
@@ -225,6 +241,12 @@ def read_user_selection(path: Path) -> list[StrainSelectionRow]:
                         row_data.get("selection_policy", "") or "balanced"
                     ),
                     policy_decision=row_data.get("policy_decision", "") or "",
+                    ranking_reasons=_sanitize_tsv_text(
+                        row_data.get("ranking_reasons", "") or ""
+                    ),
+                    blocking_reasons=_sanitize_tsv_text(
+                        row_data.get("blocking_reasons", "") or ""
+                    ),
                     manual_review_reason=_sanitize_tsv_text(
                         row_data.get("manual_review_reason", "") or ""
                     ),
@@ -340,6 +362,13 @@ def selection_rows_to_strain_records(
                 normalized_id=normalized_id,
                 source="user_selection",
                 status="selected",
+                evidence_level=_selection_evidence_level(row),
+                type_confirmation_status=_selection_type_confirmation_status(row),
+                selection_policy=_sanitize_tsv_text(row.selection_policy).strip(),
+                selection_role=_selection_role(row),
+                selection_reason=_selection_reason(row),
+                risk_flags=_selection_risk_flags(row),
+                manual_review_status=_selection_manual_review_status(row),
                 notes=_selection_record_notes(row),
             )
         )
@@ -368,6 +397,8 @@ def _selection_row_to_tsv(row: StrainSelectionRow) -> dict[str, str]:
         "selected": "yes" if row.selected else "no",
         "selection_policy": row.selection_policy,
         "policy_decision": row.policy_decision,
+        "ranking_reasons": _sanitize_tsv_text(row.ranking_reasons),
+        "blocking_reasons": _sanitize_tsv_text(row.blocking_reasons),
         "manual_review_reason": _sanitize_tsv_text(row.manual_review_reason),
         "selection_reason": row.selection_reason,
         "notes": _sanitize_tsv_text(row.notes),
@@ -450,6 +481,47 @@ def _selection_record_notes(row: StrainSelectionRow) -> str:
     return "; ".join(parts)
 
 
+def _selection_evidence_level(row: StrainSelectionRow) -> str:
+    return normalize_evidence_level(
+        row.evidence_level,
+        has_lpsn_type_strain_match=row.has_lpsn_type_strain_match,
+        is_type_material=row.is_type_material,
+    )
+
+
+def _selection_type_confirmation_status(row: StrainSelectionRow) -> str:
+    return _type_confirmation_status(_selection_evidence_level(row))
+
+
+def _selection_role(row: StrainSelectionRow) -> str:
+    if _selection_evidence_level(row) == "representative_only":
+        return "representative_only"
+    return "selected_type_material"
+
+
+def _selection_reason(row: StrainSelectionRow) -> str:
+    return (
+        _sanitize_tsv_text(row.selection_reason).strip()
+        or _sanitize_tsv_text(row.policy_decision).strip()
+    )
+
+
+def _selection_risk_flags(row: StrainSelectionRow) -> str:
+    values: list[str] = []
+    for raw_value in (row.manual_review_reason, row.blocking_reasons):
+        for value in str(raw_value or "").split(";"):
+            value = _sanitize_tsv_text(value).strip()
+            if value:
+                values.append(value)
+    return "; ".join(_dedupe_preserving_order(values))
+
+
+def _selection_manual_review_status(row: StrainSelectionRow) -> str:
+    if _selection_risk_flags(row):
+        return "not_reviewed"
+    return ""
+
+
 def _type_confirmation_status(evidence_level: str) -> str:
     if evidence_level == "strict_confirmed":
         return "confirmed_type_strain"
@@ -524,6 +596,57 @@ def _policy_decision(
             reason or "not_type_confirmed",
         )
     return False, "available_not_selected", reason
+
+
+def _blocking_reasons(
+    candidate: AssemblyCandidate,
+    *,
+    selected: bool,
+    policy: str,
+    selection_rank: int,
+    strains_per_species: int,
+) -> str:
+    if selected or policy not in {"strict", "balanced"}:
+        return ""
+
+    reasons: list[str] = []
+    manual_review_reasons = _split_reason_tokens(candidate.manual_review_reason)
+
+    if candidate.requires_manual_review or manual_review_reasons:
+        reasons.append("manual_review_required")
+    if not candidate.has_lpsn_type_strain_match:
+        reasons.append("no_lpsn_type_strain_match")
+    if not candidate.has_lpsn_type_strain_match and not candidate.is_type_material:
+        reasons.append("not_type_confirmed")
+    if not candidate.ncbi_culture_collection_ids.strip():
+        reasons.append("no_ncbi_culture_collection_id")
+    if not candidate.biosample.strip():
+        reasons.append("missing_biosample")
+    if "biosample_record_not_found" in manual_review_reasons:
+        reasons.append("biosample_record_not_found")
+    if (
+        candidate.synonym_used.strip()
+        or "synonym_supported_match" in manual_review_reasons
+    ):
+        reasons.append("synonym_supported_match")
+    if selection_rank > strains_per_species:
+        reasons.append("rank_exceeds_strains_per_species")
+
+    return "; ".join(_dedupe_preserving_order(reasons))
+
+
+def _split_reason_tokens(value: str) -> set[str]:
+    return {part.strip() for part in str(value or "").split(";") if part.strip()}
+
+
+def _dedupe_preserving_order(values: Iterable[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value not in seen:
+            deduped.append(value)
+            seen.add(value)
+    return deduped
 
 
 def _append_review_reason(reason: str, value: str) -> str:

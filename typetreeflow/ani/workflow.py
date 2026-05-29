@@ -120,6 +120,7 @@ def prepare_ani(
                 paths.fastani_raw_output_path,
                 record_list,
                 paths.ani_query_vs_refs_path,
+                base_dir=paths.manifest.parent,
             )
         except ValueError as error:
             return AniWorkflowResult(

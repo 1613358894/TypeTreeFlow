@@ -8,6 +8,7 @@ from urllib.parse import unquote
 from Bio import SeqIO
 from Bio.Seq import Seq
 
+from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 
 
@@ -130,10 +131,11 @@ def extract_longest_16s_for_record(
     record: StrainRecord,
     gff_path: Path,
     output_fasta_path: Path,
+    base_dir: str | Path | None = None,
 ) -> Path:
     features = parse_barrnap_gff(Path(gff_path))
     feature = choose_longest_16s(features)
-    fasta_records = load_fasta_records(Path(record.genome_path))
+    fasta_records = load_fasta_records(resolve_manifest_path(record.genome_path, base_dir))
     sequence = extract_feature_sequence(fasta_records, feature)
     return write_16s_fasta(sequence, record.normalized_id, Path(output_fasta_path))
 
@@ -163,6 +165,7 @@ def extract_16s_from_barrnap_results(
     records: Iterable[StrainRecord],
     plan_items_or_barrnap_results: Iterable[object],
     force: bool = False,
+    base_dir: str | Path | None = None,
 ) -> list[Rrna16sExtractionResult]:
     record_list = list(records)
     records_by_id = {record.record_id: record for record in record_list}
@@ -199,7 +202,12 @@ def extract_16s_from_barrnap_results(
             continue
 
         try:
-            written_path = extract_longest_16s_for_record(record, gff_path, output_fasta_path)
+            written_path = extract_longest_16s_for_record(
+                record,
+                gff_path,
+                output_fasta_path,
+                base_dir=base_dir,
+            )
         except ValueError as error:
             status = (
                 "rrna_16s_not_found"

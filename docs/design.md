@@ -8,8 +8,9 @@ of truth.
 
 The current workflow has four priorities:
 
-1. Start genus acquisition from LPSN-derived or equivalent authoritative
-   checklist data for validly published correct names.
+1. Start ordinary genus verification from high-level commands, especially
+   `doctor`, `verify-genus`, `status`, `next-step`, `package-results`, and
+   `verify-release-genus`.
 2. Keep NCBI Assembly, BioSample, culture collection, and manual curator
    evidence auditable before selection or download.
 3. Keep output paths and status values stable enough for downstream development.
@@ -26,6 +27,23 @@ External command construction and command execution are separated from workflow 
 
 `--dry-run` always wins over real execution flags. Dry runs may write plans and summaries, but they do not call external executables or network clients.
 
+The user-facing entry point for genus acquisition is `verify-genus GENUS`.
+It wraps the LPSN checklist, culture-collection audit, NCBI Assembly candidate
+discovery, optional BioSample enrichment, selection, manifest, download
+preflight, report, and `run_state.json` stages. By default it is plan-only and
+stops for review. Guarded downloads from this high-level command require the
+explicit opt-in pair `--auto-accept-selection --enable-downloads`; either flag
+alone is insufficient. `verify-release-genus GENUS` runs the same high-level
+verification shape for `balanced` and/or `representative` policies and writes a
+verification matrix.
+
+`doctor`, `status`, and `next-step` are diagnostic entry points. `package-results`
+creates a small delivery handoff from an existing run. These commands are the
+recommended operator surface. Low-level primitives such as `--acquire-genus`,
+`--discover-assembly-candidates`, `--prepare-selection`, `--selection-tsv`,
+`--report-only`, and resume-mode stage flags remain available for developers,
+audits, and manual recovery.
+
 Real actions require explicit flags:
 
 - `--enable-downloads` permits real NCBI Datasets ZIP download execution and requires the `datasets` executable.
@@ -36,7 +54,7 @@ The workflow libraries for barrnap, FastANI, MAFFT, trimAl, and IQ-TREE are fake
 
 ## Implemented workflow surface
 
-LPSN-first acquisition can read official LPSN API data into a local cache, read
+High-level LPSN-first verification can read official LPSN API data into a local cache, read
 an existing local LPSN cache, or use a user-provided equivalent checklist. The
 retained `species_checklist.tsv` is the expected validly published correct-name
 species set; rejected LPSN rows can be preserved in `excluded_lpsn_taxa.tsv`
@@ -78,10 +96,26 @@ Phylogeny planning inspects `rrna/all_16S.fasta` and writes `phylo/phylo_plan.ts
 
 Report generation writes `report/summary.md` from existing manifest and output files. It reports status distribution, genome and 16S readiness, optional ANI summary contents, key output file existence, and problem records. It does not run tools, draw figures, or make final species assignments.
 
+Run-state generation writes `run_state.json` as a compact progress and
+next-action file. `status` and `next-step` prefer `run_state.json` when it is
+present and fall back to inferred status from durable outputs.
+
+Delivery packaging writes a separate delivery directory containing the manifest,
+review/evidence summaries, optional reports, copied genome FASTA files, optional
+16S FASTA files, and run state when available. It deliberately excludes
+credentials, local environment files, API keys, NCBI ZIP caches, pytest caches,
+and temporary directories.
+
 For publication-facing novel species work, users should review the LPSN or
 equivalent checklist, candidate evidence tables, source audits, `manifest.tsv`,
 `name_map.tsv`, and `report/summary.md` together. The report is a reproducible
 computation summary, not a nomenclatural or species-assignment decision.
+
+Strict, likely, and representative evidence tiers are not interchangeable.
+`strict_confirmed` rows are the strict type-strain evidence tier.
+`likely_type_material` rows remain reviewable likely evidence and do not count
+as strict completion. `representative_only` rows are exploratory and must not be
+reported as strict type-strain completion.
 
 ## Resume and force
 

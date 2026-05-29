@@ -107,6 +107,11 @@ NCBI Assembly strict completion numerator:
   `type_confirmation_status=likely_type_material`, or
   `type_confirmation_status=representative_not_type_confirmed`.
 
+This means a balanced-selection download with `likely_type_material` is useful
+review material, but it is still not strict completion. A representative-route
+download with `representative_only` is exploratory only and must never be used
+as strict type-strain evidence.
+
 External-inclusive strict completion numerator:
 
 - Count rows with `completion_status=complete_ncbi`.
@@ -118,6 +123,11 @@ External-inclusive strict completion numerator:
 Rows with `missing_genome` or `conflict` do not count toward either numerator.
 Likely type-material and representative-only rows are deliberately retained as
 review risk layers, not strict completion evidence.
+Provider planning outputs also do not count toward either numerator. They are
+metadata/review handoff files only and do not install FASTA files, write
+manifest records, or create completion evidence. A legally obtained external
+FASTA can enter the external-inclusive metric only after explicit
+`--register-external-genomes` registration and completion-audit generation.
 
 ## Conflict Handling
 

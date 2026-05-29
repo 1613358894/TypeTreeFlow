@@ -38,6 +38,21 @@ DISCOVERY_DIAGNOSTIC_FIELDS = [
     "assembly_accession",
 ]
 
+BIOSAMPLE_DEPOSIT_ID_FIELDS = (
+    "culture_collection",
+    "strain",
+    "isolate",
+    "organism",
+    "type_material",
+    "attributes_text",
+    "collected_text",
+)
+
+BIOSAMPLE_TYPE_MATERIAL_FIELDS = (
+    "type_material",
+    "attributes_text",
+)
+
 
 @dataclass(frozen=True)
 class AssemblyDiscoveryRecord:
@@ -279,7 +294,10 @@ def annotate_candidate_lpsn_type_strain_match(
     matched_ids = [
         collection_id for collection_id in lpsn_ids if collection_id in ncbi_ids
     ]
-    evidence = _format_match_evidence(field_ids, set(matched_ids))
+    evidence = _append_note_parts(
+        _format_match_evidence(field_ids, set(matched_ids)),
+        _biosample_match_summary_evidence_parts(candidate.notes, set(matched_ids)),
+    )
     manual_review_reason = _manual_review_reason(lpsn_ids, ncbi_ids, matched_ids)
     existing_manual_review_reason = _candidate_manual_review_reason_after_lpsn_match(
         candidate.manual_review_reason,
@@ -430,12 +448,14 @@ def _checklist_lpsn_type_strain_ids(entry: SpeciesChecklistEntry) -> list[str]:
 def _candidate_culture_ids_by_field(
     candidate: AssemblyCandidate,
 ) -> dict[str, list]:
-    return {
+    field_ids = {
         "strain": extract_culture_collection_ids(candidate.strain),
         "organism_name": extract_culture_collection_ids(candidate.organism_name),
         "biosample": extract_culture_collection_ids(candidate.biosample),
         "notes": extract_culture_collection_ids(candidate.notes),
     }
+    field_ids.update(_biosample_culture_ids_by_field_from_notes(candidate.notes))
+    return field_ids
 
 
 def _apply_biosample_record(
@@ -443,10 +463,19 @@ def _apply_biosample_record(
     record: BioSampleRecord,
 ) -> AssemblyCandidate:
     evidence_parts = _biosample_evidence_parts(record)
+    biosample_id_parts = _biosample_deposit_id_evidence_parts(record)
+    type_material_parts = _biosample_type_material_evidence_parts(record)
+    negative_type_material_parts = _biosample_negative_type_material_evidence_parts(
+        record
+    )
     notes = _append_note_parts(candidate.notes, evidence_parts)
+    notes = _append_note_parts(
+        notes,
+        biosample_id_parts + type_material_parts + negative_type_material_parts,
+    )
     match_evidence = _append_note_parts(
         candidate.match_evidence,
-        ["biosample_enrichment:metadata_loaded"],
+        ["biosample_enrichment:metadata_loaded"] + biosample_id_parts,
     )
     source = _append_source(candidate.source, "ncbi_biosample")
     return replace(
@@ -455,8 +484,7 @@ def _apply_biosample_record(
         organism_name=candidate.organism_name or record.organism,
         is_type_material=(
             candidate.is_type_material
-            or _text_has_type_material_evidence(record.type_material)
-            or _text_has_type_material_evidence(record.attributes_text)
+            or bool(type_material_parts)
         ),
         match_evidence=match_evidence,
         notes=notes,
@@ -479,6 +507,125 @@ def _biosample_evidence_parts(record: BioSampleRecord) -> list[str]:
         if value:
             parts.append(f"biosample_{field_name}={value}")
     return parts
+
+
+def _biosample_deposit_id_evidence_parts(record: BioSampleRecord) -> list[str]:
+    field_ids = _biosample_culture_ids_by_field(record)
+    ids = _unique_ids(
+        collection_id.normalized
+        for collection_ids in field_ids.values()
+        for collection_id in collection_ids
+    )
+    fields = [field_name for field_name, collection_ids in field_ids.items() if collection_ids]
+    parts = []
+    if ids:
+        parts.append(f"biosample_deposit_ids={'; '.join(ids)}")
+    if fields:
+        parts.append(f"biosample_deposit_id_fields={','.join(fields)}")
+    return parts
+
+
+def _biosample_culture_ids_by_field(
+    record: BioSampleRecord,
+) -> dict[str, list]:
+    return {
+        field_name: extract_culture_collection_ids(
+            str(getattr(record, field_name) or "")
+        )
+        for field_name in BIOSAMPLE_DEPOSIT_ID_FIELDS
+    }
+
+
+def _biosample_culture_ids_by_field_from_notes(notes: str) -> dict[str, list]:
+    field_values = _biosample_note_field_values(notes)
+    field_ids = {
+        f"biosample_{field_name}": extract_culture_collection_ids(
+            field_values.get(field_name, "")
+        )
+        for field_name in BIOSAMPLE_DEPOSIT_ID_FIELDS
+        if field_values.get(field_name, "")
+    }
+    deposit_ids = _biosample_note_marker_value(notes, "biosample_deposit_ids=")
+    if deposit_ids:
+        field_ids["biosample_deposit_ids"] = extract_culture_collection_ids(deposit_ids)
+    return field_ids
+
+
+def _biosample_note_field_values(notes: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    prefixes = {
+        f"biosample_{field_name}=": field_name
+        for field_name in BIOSAMPLE_DEPOSIT_ID_FIELDS
+    }
+    for part in str(notes or "").split(";"):
+        normalized = part.strip()
+        for prefix, field_name in prefixes.items():
+            if normalized.startswith(prefix):
+                existing = values.get(field_name, "")
+                value = normalized.removeprefix(prefix).strip()
+                values[field_name] = _append_note_parts(existing, [value])
+                break
+    return values
+
+
+def _biosample_note_marker_value(notes: str, marker: str) -> str:
+    text = str(notes or "")
+    marker_start = text.find(marker)
+    if marker_start < 0:
+        return ""
+    value_start = marker_start + len(marker)
+    next_marker = text.find("; biosample_", value_start)
+    if next_marker < 0:
+        return text[value_start:].strip()
+    return text[value_start:next_marker].strip()
+
+
+def _biosample_match_summary_evidence_parts(
+    notes: str,
+    matched_ids: set[str],
+) -> list[str]:
+    if not matched_ids:
+        return []
+    biosample_ids = [
+        collection_id.normalized
+        for collection_id in extract_culture_collection_ids(
+            _biosample_note_marker_value(notes, "biosample_deposit_ids=")
+        )
+        if collection_id.normalized in matched_ids
+    ]
+    if not biosample_ids:
+        return []
+    parts = [f"biosample_deposit_ids={'; '.join(biosample_ids)}"]
+    fields = _biosample_note_marker_value(notes, "biosample_deposit_id_fields=")
+    if fields:
+        parts.append(f"biosample_deposit_id_fields={fields}")
+    return parts
+
+
+def _biosample_type_material_evidence_parts(record: BioSampleRecord) -> list[str]:
+    fields = [
+        field_name
+        for field_name in BIOSAMPLE_TYPE_MATERIAL_FIELDS
+        if _text_has_type_material_evidence(str(getattr(record, field_name) or ""))
+    ]
+    if not fields:
+        return []
+    return [f"biosample_type_material_evidence={','.join(fields)}"]
+
+
+def _biosample_negative_type_material_evidence_parts(
+    record: BioSampleRecord,
+) -> list[str]:
+    fields = [
+        field_name
+        for field_name in BIOSAMPLE_TYPE_MATERIAL_FIELDS
+        if _text_has_negative_type_material_evidence(
+            str(getattr(record, field_name) or "")
+        )
+    ]
+    if not fields:
+        return []
+    return [f"biosample_negative_type_material_evidence={','.join(fields)}"]
 
 
 def _append_note_parts(existing: str, parts: Iterable[str]) -> str:
@@ -514,19 +661,24 @@ def _append_manual_review_reason(
 
 def _text_has_type_material_evidence(value: str) -> bool:
     text = str(value or "").lower()
-    if (
-        "not type material" in text
-        or "not a type material" in text
-        or "not type strain" in text
-        or "non-type material" in text
-        or "non type material" in text
-    ):
+    if _text_has_negative_type_material_evidence(text):
         return False
     return (
         "type material" in text
         or "type strain" in text
         or "from type" in text
         or "assembly from type" in text
+    )
+
+
+def _text_has_negative_type_material_evidence(value: str) -> bool:
+    text = str(value or "").lower()
+    return (
+        "not type material" in text
+        or "not a type material" in text
+        or "not type strain" in text
+        or "non-type material" in text
+        or "non type material" in text
     )
 
 
@@ -548,7 +700,20 @@ def _count_records_with_accessions(records: Iterable[AssemblyDiscoveryRecord]) -
 
 def _format_match_evidence(field_ids: dict[str, list], matched_ids: set[str]) -> str:
     evidence_parts: list[str] = []
-    for field_name in ("strain", "organism_name", "notes", "biosample"):
+    for field_name in (
+        "strain",
+        "organism_name",
+        "biosample_culture_collection",
+        "biosample_strain",
+        "biosample_isolate",
+        "biosample_organism",
+        "biosample_type_material",
+        "biosample_attributes_text",
+        "biosample_collected_text",
+        "biosample_deposit_ids",
+        "notes",
+        "biosample",
+    ):
         ids = [
             collection_id
             for collection_id in field_ids.get(field_name, [])

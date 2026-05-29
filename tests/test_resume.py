@@ -4,6 +4,10 @@ from pathlib import Path
 import pytest
 
 from typetreeflow.cli import main
+from typetreeflow.genomes.preflight import (
+    DownloadPreflightSummary,
+    write_download_preflight_summary,
+)
 from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import get_output_paths
@@ -105,6 +109,55 @@ def test_resume_dry_run_parses_existing_fastani_raw(tmp_path):
     assert rows[0]["reference_genome_path"] == str(reference)
 
 
+def test_resume_dry_run_barrnap_preserves_existing_download_preflight_summary(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    strict = _record("strict")
+    strict.evidence_level = "strict_confirmed"
+    likely = _record("likely")
+    likely.evidence_level = "likely_type_material"
+    representative = _record("representative")
+    representative.evidence_level = "representative_only"
+    write_manifest([strict, likely, representative], paths.manifest)
+    write_download_preflight_summary(
+        DownloadPreflightSummary(
+            selected_total=7,
+            strict_confirmed=2,
+            likely_type_material=3,
+            representative_only=1,
+            missing_evidence_level=1,
+            ncbi_assembly_backed=4,
+            download_planned=2,
+        ),
+        paths.download_preflight_summary_path,
+    )
+    original_preflight = paths.download_preflight_summary_path.read_text(
+        encoding="utf-8"
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(tmp_path),
+            "--resume",
+            "--dry-run",
+            "--enable-barrnap",
+        ]
+    )
+
+    assert result == 0
+    assert (
+        paths.download_preflight_summary_path.read_text(encoding="utf-8")
+        == original_preflight
+    )
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert "- Selected records: 7" in summary
+    assert "- Strict confirmed: 2" in summary
+    assert "- Likely type-material: 3" in summary
+    assert "- Representative only: 1" in summary
+
+
 def test_force_ignores_existing_manifest(tmp_path):
     write_manifest([_record("old-record")], tmp_path / "manifest.tsv")
 
@@ -187,13 +240,16 @@ def test_dry_run_takes_priority_over_enable_entrez(tmp_path, monkeypatch):
     assert result == 0
 
 
-def test_enable_entrez_without_email_is_rejected(tmp_path):
+def test_enable_entrez_without_email_is_rejected(tmp_path, monkeypatch):
+    fixture = FIXTURE.resolve()
+    monkeypatch.chdir(tmp_path)
+
     result = main(
         [
             "--genus",
             "Aliivibrio",
             "--gtdb-metadata",
-            str(FIXTURE),
+            str(fixture),
             "--outdir",
             str(tmp_path),
             "--enable-entrez",

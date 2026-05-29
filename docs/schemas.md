@@ -301,10 +301,10 @@ or guarded Entrez BioSample lookup can add evidence to the same candidate rows.
 - `culture_collection_ids`: parsed recognized culture collection IDs.
 - `has_recognized_deposit_id`: whether a recognized culture collection ID was found.
 - `lpsn_type_strain_ids`: recognized culture collection IDs parsed from checklist type-strain fields for the same species.
-- `ncbi_culture_collection_ids`: recognized culture collection IDs parsed from candidate NCBI-derived strain, organism, BioSample-compatible, and notes text.
+- `ncbi_culture_collection_ids`: recognized culture collection IDs parsed from candidate NCBI-derived strain, organism, BioSample-compatible, and notes text, including BioSample-enriched `culture_collection`, `strain`, `isolate`, `organism`, `type_material`, `attributes_text`, and `collected_text` fields.
 - `matched_lpsn_type_strain_ids`: intersection of LPSN type-strain IDs and candidate NCBI culture collection IDs.
 - `has_lpsn_type_strain_match`: whether at least one LPSN type-strain ID was found in the candidate metadata.
-- `match_evidence`: source field(s) that carried the matched ID, such as `strain`, `organism_name`, `notes`, or BioSample-enriched text.
+- `match_evidence`: source field(s) that carried the matched ID, such as `strain`, `organism_name`, `notes`, or BioSample-enriched fields like `biosample_culture_collection`, `biosample_strain`, `biosample_isolate`, `biosample_organism`, `biosample_type_material`, `biosample_attributes_text`, or `biosample_collected_text`. BioSample summaries may include stable markers such as `biosample_deposit_ids=KCTC 52993; DSM 12345` and `biosample_deposit_id_fields=culture_collection,strain,attributes_text`.
 - `curator_culture_collection_ids`: normalized deposit IDs confirmed by an offline curator-evidence import.
 - `curator_evidence_source`: source publication, official collection record, or explicit BioSample/INSDC field used for curator confirmation.
 - `curator_notes`: curator notes copied from the evidence template.
@@ -316,7 +316,7 @@ or guarded Entrez BioSample lookup can add evidence to the same candidate rows.
 - `synonym_evidence`: evidence explaining why synonym-expanded discovery was used.
 - `manual_review_reason`: reason an unmatched row remains in the candidate table, such as `no_lpsn_type_strain_id_match` or `no_ncbi_culture_collection_id`.
 - `source`: candidate source label.
-- `notes`: diagnostics or manual-review notes.
+- `notes`: diagnostics or manual-review notes. BioSample enrichment can add stable evidence markers including `biosample_deposit_ids=...`, `biosample_deposit_id_fields=...`, `biosample_type_material_evidence=type_material`, or `biosample_negative_type_material_evidence=type_material`.
 
 The LPSN match columns are selection evidence only. They document string-level
 agreement between parsed deposit identifiers and do not by themselves assert a
@@ -342,7 +342,18 @@ network access.
 
 BioSample attributes can strengthen `is_type_material`,
 `ncbi_culture_collection_ids`, and `matched_lpsn_type_strain_ids`, but remain
-candidate-selection evidence rather than taxonomic conclusions.
+candidate-selection evidence rather than taxonomic conclusions. Strict
+confirmation still requires a BioSample/NCBI-derived deposit ID to match one of
+the parsed LPSN type-strain IDs. Type-material wording without that deposit-ID
+match is only `likely_type_material`, and negative wording such as `not type
+material`, `not a type material`, `not type strain`, `non-type material`, or
+`non type material` is not treated as type-material evidence.
+`biosample_deposit_ids=...` in notes records recognized deposit identifiers
+parsed from BioSample fields. `biosample_deposit_id_fields=...` records which
+BioSample fields carried those IDs, for example `culture_collection`, `strain`,
+`isolate`, or `attributes_text`. These markers explain evidence provenance;
+they do not create strict confirmation unless the parsed ID matches the
+species' LPSN/checklist type-strain equivalence set.
 
 ## candidates/assembly_candidate_diagnostics.tsv
 
@@ -392,11 +403,13 @@ the LPSN match column to be present and true for selected rows.
 - `is_type_material`: type-material evidence flag.
 - `has_lpsn_type_strain_match`: whether the candidate matched a parsed LPSN type-strain ID.
 - `match_evidence`: field-level evidence supporting the LPSN type-strain match.
-- `evidence_level`: selection evidence class: `strict_confirmed`, `likely_type_material`, or `representative_only`. `representative_only` rows may be downloaded for exploration but are not type-strain confirmations.
+- `evidence_level`: selection evidence class. `strict_confirmed` means an NCBI/BioSample/candidate deposit ID matches the same species' LPSN/checklist type-strain equivalence set, including accepted curator-confirmed deposit evidence. `likely_type_material` means strong type-material evidence exists, but strict deposit-equivalence confirmation is still missing. `representative_only` means the row is an exploratory representative fallback, not type-strain evidence.
 - `selection_rank`: deterministic rank within species.
 - `selected`: user-editable yes/no selection value.
 - `selection_policy`: policy used when the row was generated.
-- `policy_decision`: generated policy decision such as `auto_selected_lpsn_type_strain_match`, `auto_selected_likely_type_material`, `representative_not_type_confirmed`, `available_not_selected`, or `manual_review_required`. `balanced` auto-selects strong type-evidence candidates; `representative` is an exploratory fallback and is not type-confirmed.
+- `policy_decision`: generated policy decision such as `auto_selected_lpsn_type_strain_match`, `auto_selected_likely_type_material`, `representative_not_type_confirmed`, `available_not_selected`, or `manual_review_required`. `balanced` auto-selects only strong type-evidence candidates (`strict_confirmed` or `likely_type_material`); `representative` is an exploratory fallback and is not type-confirmed.
+- `ranking_reasons`: stable semicolon-delimited explanation of candidate ranking signals, such as `lpsn_type_strain_match`, `type_material`, `recognized_deposit_id`, `refseq_reference_genome`, `refseq_representative_genome`, assembly-level reasons, and `accession_tiebreaker`. These are review diagnostics and do not override `evidence_level`.
+- `blocking_reasons`: stable semicolon-delimited explanation for strict/balanced rows that were not selected, such as `manual_review_required`, `no_lpsn_type_strain_match`, `not_type_confirmed`, `no_ncbi_culture_collection_id`, `missing_biosample`, `biosample_record_not_found`, `synonym_supported_match`, or `rank_exceeds_strains_per_species`. These explain why a row stayed unselected under the policy.
 - `manual_review_reason`: reason the row requires review or was not automatically selected under the policy.
 - `selection_reason`: generated or user-edited selection note.
 - `notes`: diagnostics or manual-review notes.
@@ -404,6 +417,30 @@ the LPSN match column to be present and true for selected rows.
 Selection validation rejects more than N selected rows per species, selected
 rows without assembly accessions, duplicate selected accessions, and
 strict-policy selected rows without LPSN type-strain matches.
+The recommended strict/balanced route is to review a BioSample-enriched
+balanced selection, fill `manual_deposit_evidence_template.tsv` only for
+provable deposit equivalence, apply curator evidence, and rerun strict
+selection before downloads. Representative selection is a separate exploratory
+route.
+
+## selection/download_preflight_summary.tsv
+
+One-row TSV written when selected rows are converted into a genome download
+plan. It summarizes selected-record evidence risk and download-plan statuses
+only; it does not change selected rows, source-audit gates, download gates, or
+completion-audit strict counts.
+
+Fields are `selected_total`, `strict_confirmed`, `likely_type_material`,
+`representative_only`, `missing_evidence_level`, `ncbi_assembly_backed`,
+`external_registered`, `download_planned`, `download_skipped_existing`,
+`download_not_applicable`, `download_skipped_no_accession`, and
+`representative_only_scope`.
+
+`representative_only_scope` is
+`exploratory_only_not_strict_type_strain_completion`, marking representative
+fallback downloads as exploratory and not strict type-strain completion.
+External registered genomes count in `external_registered` and
+`download_not_applicable`; they do not enter NCBI Datasets planned downloads.
 
 ## Manual Review Outputs
 
@@ -427,6 +464,11 @@ Fields are `species`, `lpsn_type_strain_ids`, `candidate_count`,
 `type_material_candidate_count`, `candidates_with_biosample_count`,
 `candidates_with_ncbi_deposit_id_count`, `best_candidate_accession`,
 `best_candidate_reason`, `gap_reason`, and `recommended_next_step`.
+
+`manual_review_report.md` is a stable human-readable companion report for the
+same unselected species. It summarizes total review scope, type-material and
+BioSample candidate availability, each species-level gap reason, recommended
+next step, and a ranked top-candidates Markdown table.
 
 Curator evidence is applied only when `curator_confirmed_deposit_id` is
 non-empty and matches one of the same candidate's `lpsn_type_strain_ids`.
@@ -627,7 +669,10 @@ after completed stages. `manifest.tsv` fields are `record_id`,
 `canonical_name`, `display_name`, `genus`, `species`, `strain`, `taxid`,
 `family`, `order`, `assembly_accession`, `assembly_source`,
 `is_type_material`, `is_outgroup`, `is_query`, `has_genome`, `genome_path`,
-`has_16s`, `rrna_16s_path`, `normalized_id`, `source`, `status`, and `notes`.
+`has_16s`, `rrna_16s_path`, `normalized_id`, `source`, `status`,
+`evidence_level`, `type_confirmation_status`, `selection_policy`,
+`selection_role`, `selection_reason`, `risk_flags`, `manual_review_status`,
+and `notes`.
 `name_map.tsv` fields are `record_id`, `normalized_id`, `canonical_name`,
 `display_name`, and `assembly_accession`.
 
@@ -652,9 +697,21 @@ tables should preserve evidence layers separately:
 `type_strain_equivalence_ids`, `regular_deposit_ids_seen`,
 `external_type_genome_available`, and `workflow_eligible`.
 
-Manifest `notes` may carry selection risk metadata:
+Manifest evidence metadata is written to structured fields when records are
+created from selection rows. `selection_role` is `selected_type_material` for
+strict or likely type-material selections and `representative_only` for
+exploratory representative fallbacks. `risk_flags` is a semicolon-delimited
+review-risk summary, and `manual_review_status` is blank unless unresolved
+review risk is carried as `not_reviewed`.
+
+Legacy manifest `notes` may carry selection risk metadata:
 `evidence_level=strict_confirmed`, `evidence_level=likely_type_material`, or
 `evidence_level=representative_only`; and
 `type_confirmation_status=confirmed_type_strain`,
 `type_confirmation_status=likely_type_material`, or
 `type_confirmation_status=representative_not_type_confirmed`.
+`type_confirmation_status=confirmed_type_strain` is the manifest-side label for
+strict-confirmed rows. `type_confirmation_status=likely_type_material` remains
+a review risk layer and is not strict completion.
+`type_confirmation_status=representative_not_type_confirmed` is explicitly
+exploratory and must not be used as type-strain evidence.

@@ -10,6 +10,10 @@ from typetreeflow.completion import (
     write_completion_audit,
     write_completion_summary,
 )
+from typetreeflow.genomes.preflight import (
+    DownloadPreflightSummary,
+    write_download_preflight_summary,
+)
 from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
@@ -19,6 +23,7 @@ from typetreeflow.report.summary import (
     build_run_summary_markdown,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
+    read_optional_download_preflight_summary,
     read_optional_provider_registration_plan,
     read_optional_sequence_source_audit,
     read_optional_ani_summary,
@@ -499,6 +504,15 @@ def test_read_optional_completion_summary_returns_none_when_missing(tmp_path):
     assert read_optional_completion_summary(tmp_path / "completion_summary.tsv") is None
 
 
+def test_read_optional_download_preflight_summary_returns_none_when_missing(tmp_path):
+    assert (
+        read_optional_download_preflight_summary(
+            tmp_path / "download_preflight_summary.tsv"
+        )
+        is None
+    )
+
+
 def test_read_optional_checklist_comparison_returns_empty_list_for_header_only(tmp_path):
     path = tmp_path / "taxonomy" / "checklist_comparison.tsv"
     _write_checklist_comparison(path, [])
@@ -600,6 +614,70 @@ def test_report_summary_includes_type_confirmation_risk_counts(tmp_path):
     assert "- Strict type-strain confirmed: 1" in markdown
     assert "- Likely type-material candidate: 1" in markdown
     assert "- Representative only: 1" in markdown
+
+
+def test_report_summary_includes_download_preflight_summary(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_download_preflight_summary(
+        DownloadPreflightSummary(
+            selected_total=4,
+            strict_confirmed=1,
+            likely_type_material=1,
+            representative_only=1,
+            missing_evidence_level=1,
+            ncbi_assembly_backed=2,
+            external_registered=1,
+            download_planned=2,
+            download_skipped_existing=0,
+            download_not_applicable=1,
+            download_skipped_no_accession=1,
+        ),
+        paths.download_preflight_summary_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Download Preflight Risk Summary" in markdown
+    assert "- Selected records: 4" in markdown
+    assert "- Strict confirmed: 1" in markdown
+    assert "- Likely type-material: 1" in markdown
+    assert "- Representative only: 1" in markdown
+    assert "- Missing evidence level: 1" in markdown
+    assert "- NCBI Assembly-backed: 2" in markdown
+    assert "- External registered: 1" in markdown
+    assert "- Download not applicable: 1" in markdown
+    assert "Representative-only rows are exploratory" in markdown
+    assert "not strict type-strain completion" in markdown
+
+
+def test_report_summary_recovers_download_preflight_counts_from_manifest_evidence(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    strict = _record("strict")
+    strict.evidence_level = "strict_confirmed"
+    likely = _record("likely")
+    likely.evidence_level = "likely_type_material"
+    representative = _record("representative")
+    representative.evidence_level = "representative_only"
+
+    markdown = build_run_summary_markdown([strict, likely, representative], paths)
+
+    assert "## Download Preflight Risk Summary" in markdown
+    assert "- Selected records: 3" in markdown
+    assert "- Strict confirmed: 1" in markdown
+    assert "- Likely type-material: 1" in markdown
+    assert "- Representative only: 1" in markdown
+    assert "- Missing evidence level: 0" in markdown
+
+
+def test_report_summary_legacy_manifest_without_evidence_stays_compatible(tmp_path):
+    paths = get_output_paths(tmp_path)
+
+    markdown = build_run_summary_markdown([_record("legacy")], paths)
+
+    assert "# TypeTreeFlow Summary" in markdown
+    assert "## Download Preflight Risk Summary" not in markdown
 
 
 def test_report_summary_external_manifest_record_includes_external_section(tmp_path):

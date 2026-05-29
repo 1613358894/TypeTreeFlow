@@ -49,6 +49,12 @@ manual registration command. TypeTreeFlow does not automatically copy
 external registration from provider planning, and does not treat review-required
 proposal rows as install-ready.
 
+Provider planning is not provider automation. It does not log in to, scrape,
+purchase from, or download from ATCC, DSMZ, JCM, NCTC, or similar portals. It
+does not write `manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`, installed
+FASTA files, or NCBI download plans. Provider-native identifiers stay in
+provider/external fields and must not be copied into NCBI `assembly_accession`.
+
 ## Scenario 1: Synthetic Fixture
 
 From the repository root, run the bundled fixture:
@@ -115,6 +121,11 @@ manifest or synthetic FASTA as real evidence.
 
 ## Key Files to Review
 
+- `provider/provider_registration_plan.tsv`: planning-only review status for
+  provider requests; no network, download, manifest, or NCBI download-plan
+  action is taken.
+- `provider/proposed_external_genomes.tsv`: review-only handoff rows that can
+  be copied into a local `external_genomes.tsv` only after curator review.
 - `external_genome_registration_results.tsv`: validation status for each input
   row.
 - `external_genome_install_plan.tsv`: planned installed FASTA path and skipped

@@ -24,5 +24,11 @@ def test_require_executable_allows_found_tool(monkeypatch):
 def test_require_executable_errors_for_missing_tool(monkeypatch):
     monkeypatch.setattr(tools.shutil, "which", lambda name: None)
 
-    with pytest.raises(RuntimeError, match="Required executable not found on PATH: datasets"):
+    with pytest.raises(RuntimeError) as excinfo:
         tools.require_executable("datasets")
+
+    message = str(excinfo.value)
+    assert "Required executable not found on PATH: datasets" in message
+    assert "NCBI Datasets CLI" in message
+    assert "conda install -c conda-forge ncbi-datasets-cli" in message
+    assert 'This is not the Python package named "datasets".' in message

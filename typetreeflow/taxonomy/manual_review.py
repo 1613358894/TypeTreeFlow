@@ -48,6 +48,7 @@ MANUAL_SPECIES_GAP_FIELDS = [
 class ManualReviewOutput:
     evidence_template_path: Path
     species_gap_summary_path: Path
+    manual_review_report_path: Path
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,7 @@ def write_manual_review_outputs(
     target_species: Sequence[str],
     evidence_template_path: Path,
     species_gap_summary_path: Path,
+    manual_review_report_path: Path,
 ) -> ManualReviewOutput:
     biosamples_by_accession = {
         record.biosample.strip().upper(): record
@@ -114,9 +116,16 @@ def write_manual_review_outputs(
             for species in sorted(species_set)
         ],
     )
+    _write_manual_review_report(
+        manual_review_report_path,
+        species_set=species_set,
+        review_candidates=review_candidates,
+        biosamples_by_accession=biosamples_by_accession,
+    )
     return ManualReviewOutput(
         evidence_template_path=evidence_template_path,
         species_gap_summary_path=species_gap_summary_path,
+        manual_review_report_path=manual_review_report_path,
     )
 
 
@@ -359,6 +368,134 @@ def _gap_reason_for_candidate(candidate: AssemblyCandidate) -> str:
     if not candidate.has_lpsn_type_strain_match:
         return "no_lpsn_type_strain_id_match"
     return "manual_review_required"
+
+
+def _write_manual_review_report(
+    path: Path,
+    *,
+    species_set: set[str],
+    review_candidates: Sequence[AssemblyCandidate],
+    biosamples_by_accession: dict[str, BioSampleRecord],
+) -> Path:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        _manual_review_report_markdown(
+            species_set=species_set,
+            review_candidates=review_candidates,
+            biosamples_by_accession=biosamples_by_accession,
+        ),
+        encoding="utf-8",
+    )
+    return output_path
+
+
+def _manual_review_report_markdown(
+    *,
+    species_set: set[str],
+    review_candidates: Sequence[AssemblyCandidate],
+    biosamples_by_accession: dict[str, BioSampleRecord],
+) -> str:
+    species_list = sorted(species_set)
+    candidates_by_species = {
+        species: [candidate for candidate in review_candidates if candidate.species == species]
+        for species in species_list
+    }
+    species_with_type_material = sum(
+        1 for species in species_list if any(
+            candidate.is_type_material for candidate in candidates_by_species[species]
+        )
+    )
+    species_with_biosample = sum(
+        1 for species in species_list if any(
+            candidate.biosample.strip() for candidate in candidates_by_species[species]
+        )
+    )
+    species_with_no_candidate_rows = sum(
+        1 for species in species_list if not candidates_by_species[species]
+    )
+
+    lines = [
+        "# Manual Review Report",
+        "",
+        "## Summary",
+        f"- Species requiring review: {len(species_list)}",
+        f"- Total review candidates: {len(review_candidates)}",
+        f"- Species with type-material candidates: {species_with_type_material}",
+        f"- Species with BioSample candidates: {species_with_biosample}",
+        f"- Species with no candidate rows: {species_with_no_candidate_rows}",
+        "",
+        "## Species Requiring Review",
+    ]
+
+    for species in species_list:
+        species_candidates = candidates_by_species[species]
+        gap_row = _species_to_gap_row(
+            species,
+            review_candidates,
+            biosamples_by_accession,
+        )
+        ranked = rank_assembly_candidates(species_candidates) if species_candidates else []
+        lines.extend(
+            [
+                "",
+                f"### {species}",
+                "",
+                f"- LPSN type strain IDs: {_markdown_inline(gap_row['lpsn_type_strain_ids'])}",
+                f"- Candidate count: {gap_row['candidate_count']}",
+                f"- Best candidate accession: {_markdown_inline(gap_row['best_candidate_accession'])}",
+                f"- Gap reason: {_markdown_inline(gap_row['gap_reason'])}",
+                f"- Recommended next step: {_markdown_inline(gap_row['recommended_next_step'])}",
+                "",
+                "Top candidates table:",
+                "",
+                "| Rank | Accession | Strain | BioSample | Type material | NCBI deposit IDs | BioSample type material | Blocking reason | Suggested action |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        if not ranked:
+            lines.append(
+                "|  |  |  |  |  |  |  | no_candidate_rows | "
+                f"{_markdown_table_cell(_recommended_next_step('no_candidate_rows'))} |"
+            )
+            continue
+        for rank, candidate in enumerate(ranked, start=1):
+            biosample = biosamples_by_accession.get(candidate.biosample.strip().upper())
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        str(rank),
+                        _markdown_table_cell(candidate.assembly_accession),
+                        _markdown_table_cell(candidate.strain),
+                        _markdown_table_cell(candidate.biosample),
+                        _markdown_table_cell(_format_bool(candidate.is_type_material)),
+                        _markdown_table_cell(candidate.ncbi_culture_collection_ids),
+                        _markdown_table_cell(biosample.type_material if biosample else ""),
+                        _markdown_table_cell(
+                            candidate.manual_review_reason
+                            or _gap_reason_for_candidate(candidate)
+                        ),
+                        _markdown_table_cell(
+                            _suggested_review_action(candidate, biosample)
+                        ),
+                    ]
+                )
+                + " |"
+            )
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _markdown_inline(value: str) -> str:
+    text = " ".join(str(value or "").split())
+    return text if text else "none"
+
+
+def _markdown_table_cell(value: str) -> str:
+    text = _markdown_inline(value)
+    return text.replace("\\", "\\\\").replace("|", "\\|")
 
 
 def _first_non_empty(values: Iterable[str]) -> str:

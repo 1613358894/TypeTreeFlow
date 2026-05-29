@@ -17,6 +17,17 @@ MAFFT = ExternalTool("mafft", "mafft")
 TRIMAL = ExternalTool("trimal", "trimal")
 IQTREE = ExternalTool("iqtree", "iqtree2")
 
+_INSTALL_HINTS = {
+    NCBI_DATASETS.executable: (
+        "Install the NCBI Datasets CLI, for example with: "
+        "conda install -c conda-forge ncbi-datasets-cli. "
+        'This is not the Python package named "datasets".'
+    ),
+    BARRNAP.executable: (
+        "Install barrnap, for example with: conda install -c bioconda barrnap."
+    ),
+}
+
 
 def check_executable(name: str) -> bool:
     return shutil.which(name) is not None
@@ -24,4 +35,8 @@ def check_executable(name: str) -> bool:
 
 def require_executable(name: str) -> None:
     if not check_executable(name):
-        raise RuntimeError(f"Required executable not found on PATH: {name}")
+        message = f"Required executable not found on PATH: {name}"
+        hint = _INSTALL_HINTS.get(name)
+        if hint:
+            message = f"{message}. {hint}"
+        raise RuntimeError(message)
