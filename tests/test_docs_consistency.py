@@ -133,6 +133,8 @@ def test_high_level_workflow_docs_are_current():
     cookbook = _read("docs/cookbook.md")
     design = _read("docs/design.md")
     current_release_verification = _read("docs/release_verification.md")
+    release_notes = _read("docs/release_notes_v2_2_x.md")
+    acceptance_checklist = _read("docs/v2_2_x_acceptance_checklist.md")
     release_verification = _read("docs/v2_2_0_release_verification.md")
 
     for docs in [
@@ -168,7 +170,7 @@ def test_high_level_workflow_docs_are_current():
     assert "pip install datasets" not in readme
     assert "pip install datasets" not in cookbook
 
-    for docs in [readme, cookbook, current_release_verification]:
+    for docs in [readme, cookbook, current_release_verification, release_notes]:
         for phrase in [
             "completion/gaps.tsv",
             "completion/uncovered_species.tsv",
@@ -185,13 +187,24 @@ def test_high_level_workflow_docs_are_current():
         ]:
             assert phrase in docs
 
-    for docs in [readme, cookbook, current_release_verification]:
+    for docs in [readme, cookbook, current_release_verification, release_notes]:
         for phrase in [
             "audit-only",
-            "does not change selection",
             "manifest",
         ]:
             assert phrase in docs
+
+    for phrase in [
+        "python typetreeflow.py --version",
+        "python typetreeflow.py doctor --strict",
+        "pytest tests/test_docs_consistency.py --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex",
+        "pytest --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex",
+        "--enable-expanded-discovery",
+        "--enable-ncbi-taxonomy",
+        "manifest.tsv",
+        "selection/user_selection.tsv",
+    ]:
+        assert phrase in acceptance_checklist
 
     for phrase in [
         "Enterobacter siamensis",
@@ -508,6 +521,40 @@ def test_provider_automation_feasibility_preserves_manual_registration_boundary(
     assert "NCBI Assembly strict completion" in design
     assert "External-inclusive strict completion" in design
     assert "No provider downloader" in design
+
+
+def test_v2_2_x_release_docs_are_discoverable():
+    index = _read("docs/index.md")
+    changelog = _read("CHANGELOG.md")
+    release_notes = _read("docs/release_notes_v2_2_x.md")
+    acceptance_checklist = _read("docs/v2_2_x_acceptance_checklist.md")
+
+    for path in [
+        "release_notes_v2_2_x.md",
+        "v2_2_x_acceptance_checklist.md",
+    ]:
+        assert path in index
+
+    for docs in [changelog, release_notes]:
+        for phrase in [
+            "shared acquisition",
+            "gap report",
+            "expanded discovery",
+            "NCBI Taxonomy",
+            "audit-only",
+            "automatic 100% coverage",
+        ]:
+            assert phrase in docs
+
+    for phrase in [
+        "completion/expanded_discovery_plan.tsv",
+        "completion/rejected_candidates.tsv",
+        "completion/manual_supplement_hints.tsv",
+        "taxonomy-derived",
+        "manifest.tsv",
+        "selection/user_selection.tsv",
+    ]:
+        assert phrase in acceptance_checklist
 
 
 def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():

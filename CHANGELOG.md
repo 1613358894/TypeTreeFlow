@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added v2.2.x integration release notes and an end-to-end acceptance checklist
+  for the v2.2.2 shared acquisition/gap reporting, v2.2.3 expanded discovery
+  audit, and v2.2.4 NCBI Taxonomy enrichment work.
+- Clarified that expanded discovery and taxonomy-derived rows are audit-only:
+  they do not automatically modify `manifest.tsv`,
+  `selection/user_selection.tsv`, completion metrics, or evidence levels, and
+  they do not promise automatic 100% coverage.
+
 ## v2.2.1 - 2026-05-29
 
 - Raised TSV CSV field-size handling for release verification, status, delivery,

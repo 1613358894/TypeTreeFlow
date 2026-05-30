@@ -92,6 +92,13 @@ move, archive, or deletion.
   tag, GitHub Release, clean-clone verification, and audit standards.
 - [release_checklist.md](release_checklist.md): Execution checklist for local
   validation, packaging, optional real staged validation, and pre-tag checks.
+- [release_notes_v2_2_x.md](release_notes_v2_2_x.md): Consolidated v2.2.x
+  release notes for shared acquisition, package failure behavior, gap reports,
+  expanded discovery audit, NCBI Taxonomy enrichment, and scientific
+  boundaries.
+- [v2_2_x_acceptance_checklist.md](v2_2_x_acceptance_checklist.md):
+  Executable v2.2.x integration acceptance checklist covering local validation,
+  Enterobacter-style gap/audit checks, and user-path documentation review.
 - [v2_2_0_release_verification.md](v2_2_0_release_verification.md): Lightweight
   runbook and TSV recording contract for later real acquisition/download
   verification of Fusobacterium, Spirosoma, Enterobacter, and Clostridium
