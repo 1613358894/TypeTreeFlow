@@ -13,6 +13,7 @@ from typetreeflow.taxonomy.candidate_discovery import (
 )
 from typetreeflow.taxonomy.culture_collections import extract_culture_collection_ids
 from typetreeflow.taxonomy.names import canonical_species_key
+from typetreeflow.taxonomy.ncbi_taxonomy import read_ncbi_taxonomy_cache
 
 
 EXPANDED_DISCOVERY_PLAN_FIELDS = [
@@ -145,6 +146,14 @@ class ExpandedDiscoveryResultRow:
 
 
 @dataclass(frozen=True)
+class TaxonomyAlias:
+    alias: str
+    kind: str
+    taxid: str = ""
+    source: str = ""
+
+
+@dataclass(frozen=True)
 class RejectedCandidateAuditRow:
     species: str = ""
     token: str = ""
@@ -243,14 +252,15 @@ def build_expanded_discovery_results(
 
     for row in rows:
         database = row.query_database.strip()
+        search_species = _search_species_for_plan_row(row)
         try:
             if database == "NCBI Assembly":
                 if assembly_client is None:
                     raise RuntimeError("No NCBI Assembly discovery client available.")
-                species_key = row.species.strip()
+                species_key = search_species.strip()
                 if species_key not in assembly_cache:
                     assembly_cache[species_key] = assembly_client.search_species_assemblies(
-                        row.species
+                        search_species
                     )
                 candidates = assembly_cache[species_key]
                 if not candidates:
@@ -260,11 +270,11 @@ def build_expanded_discovery_results(
             elif database == "NCBI BioSample":
                 if biosample_client is None:
                     raise RuntimeError("No NCBI BioSample discovery client available.")
-                cache_key = (row.species.strip(), row.token.strip())
+                cache_key = (search_species.strip(), row.token.strip())
                 if cache_key not in biosample_cache:
                     biosample_cache[cache_key] = _search_biosamples(
                         biosample_client,
-                        row.species,
+                        search_species,
                         row.token,
                     )
                 candidates = biosample_cache[cache_key]
@@ -294,7 +304,9 @@ def build_expanded_discovery_plan(outdir: str | Path) -> list[ExpandedDiscoveryP
         return []
 
     type_strain_by_species = _type_strain_lookup(root)
+    taxonomy_aliases_by_species = _taxonomy_alias_lookup(root)
     rows: list[ExpandedDiscoveryPlanRow] = []
+    seen_queries: set[tuple[str, str, str, str]] = set()
     for uncovered in uncovered_rows:
         species = _species_from_row(uncovered)
         if not species:
@@ -323,7 +335,9 @@ def build_expanded_discovery_plan(outdir: str | Path) -> list[ExpandedDiscoveryP
         for token in tokens:
             token_kind = classify_token_kind(token)
             for database in QUERY_DATABASES:
-                rows.append(
+                _append_plan_row(
+                    rows,
+                    seen_queries,
                     ExpandedDiscoveryPlanRow(
                         species=species,
                         checklist_name=checklist_name,
@@ -337,6 +351,35 @@ def build_expanded_discovery_plan(outdir: str | Path) -> list[ExpandedDiscoveryP
                         notes=_join_notes(*source_notes),
                     )
                 )
+            for alias in taxonomy_aliases_by_species.get(key, []):
+                alias_notes = [
+                    *source_notes,
+                    f"taxonomy_alias={alias.alias}",
+                    f"taxonomy_alias_kind={alias.kind}",
+                    f"taxonomy_taxid={alias.taxid}" if alias.taxid else "",
+                    f"taxonomy_source={alias.source}" if alias.source else "",
+                ]
+                alias_reason = (
+                    f"{reason}; taxonomy-derived synonym/taxid enrichment "
+                    f"({alias.kind})"
+                )
+                for database in QUERY_DATABASES:
+                    _append_plan_row(
+                        rows,
+                        seen_queries,
+                        ExpandedDiscoveryPlanRow(
+                            species=species,
+                            checklist_name=checklist_name,
+                            lpsn_type_strain=lpsn_type_strain,
+                            token=token,
+                            token_kind=token_kind,
+                            query_database=database,
+                            query=build_ncbi_query(alias.alias, token),
+                            reason=alias_reason,
+                            suggested_next_action=suggested_next_action,
+                            notes=_join_notes(*alias_notes),
+                        ),
+                    )
     return rows
 
 
@@ -590,6 +633,10 @@ def summarize_expanded_discovery_results(
     return counts
 
 
+def count_taxonomy_derived_plan_rows(rows: Iterable[ExpandedDiscoveryPlanRow]) -> int:
+    return sum(1 for row in rows if _is_taxonomy_derived_plan_row(row))
+
+
 def summarize_manual_supplement_hints(
     rows: Iterable[ManualSupplementHintRow],
 ) -> dict[str, int]:
@@ -662,7 +709,7 @@ def _evaluate_candidate_text(
     candidate_assembly_level: str,
     notes: str,
 ) -> ExpandedDiscoveryResultRow:
-    if not _species_match(row.species, candidate_organism):
+    if not _candidate_species_matches_plan(row, candidate_organism):
         return _base_result(
             row,
             candidate_accession=candidate_accession,
@@ -705,6 +752,15 @@ def _evaluate_candidate_text(
         decision_reason="Candidate species and token evidence both match.",
         notes=notes,
     )
+
+
+def _candidate_species_matches_plan(row: ExpandedDiscoveryPlanRow, observed: str) -> bool:
+    if _species_match(row.species, observed):
+        return True
+    if not _is_taxonomy_derived_plan_row(row):
+        return False
+    query_species = _search_species_for_plan_row(row)
+    return query_species != row.species and _species_match(query_species, observed)
 
 
 def _search_biosamples(
@@ -858,6 +914,102 @@ def _type_strain_lookup(root: Path) -> dict[str, dict[str, str]]:
     return lookup
 
 
+def _taxonomy_alias_lookup(root: Path) -> dict[str, list[TaxonomyAlias]]:
+    cache_path = root / "taxonomy" / "ncbi_taxonomy_cache.tsv"
+    if not cache_path.exists():
+        return {}
+    alias_rows = read_ncbi_taxonomy_cache(cache_path)
+    lookup: dict[str, list[TaxonomyAlias]] = {}
+    seen_by_species: dict[str, set[str]] = {}
+    for row in alias_rows:
+        species = row.species.strip() or row.scientific_name.strip()
+        species_key = _species_key(species)
+        if not species_key:
+            continue
+        seen = seen_by_species.setdefault(species_key, {_alias_key(species)})
+        if row.scientific_name.strip():
+            seen.add(_alias_key(row.scientific_name))
+        for kind, value in (
+            ("synonyms", row.synonyms),
+            ("equivalent_names", row.equivalent_names),
+            ("includes", row.includes),
+        ):
+            for alias in _split_taxonomy_aliases(value):
+                alias_key = _alias_key(alias)
+                if not alias_key or alias_key in seen:
+                    continue
+                if not _is_species_level_taxonomy_alias(alias):
+                    continue
+                seen.add(alias_key)
+                lookup.setdefault(species_key, []).append(
+                    TaxonomyAlias(
+                        alias=alias,
+                        kind=kind,
+                        taxid=row.taxid.strip(),
+                        source=row.source.strip() or "ncbi_taxonomy",
+                    )
+                )
+    return lookup
+
+
+def _split_taxonomy_aliases(value: str) -> list[str]:
+    aliases: list[str] = []
+    for raw_part in str(value or "").split(";"):
+        alias = _clean_alias_token(raw_part)
+        if alias:
+            aliases.append(alias)
+    return aliases
+
+
+def _is_species_level_taxonomy_alias(value: str) -> bool:
+    alias = _clean_alias_token(value)
+    if not alias:
+        return False
+    lowered = alias.lower()
+    broad_terms = {
+        "sp.",
+        "spp.",
+        "bacterium",
+        "bacteria",
+        "uncultured",
+        "environmental",
+        "metagenome",
+        "sample",
+        "group",
+        "complex",
+    }
+    if any(term in lowered.split() for term in broad_terms):
+        return False
+    parts = alias.split()
+    if len(parts) < 2:
+        return False
+    genus, epithet = parts[0], parts[1]
+    if not re.fullmatch(r"[A-Z][A-Za-z-]+", genus):
+        return False
+    if not re.fullmatch(r"[a-z][a-z-]+", epithet):
+        return False
+    if epithet in {"sp", "spp", "cf", "aff"}:
+        return False
+    return True
+
+
+def _append_plan_row(
+    rows: list[ExpandedDiscoveryPlanRow],
+    seen_queries: set[tuple[str, str, str, str]],
+    row: ExpandedDiscoveryPlanRow,
+) -> None:
+    key = (
+        _species_key(row.species),
+        row.token.strip().lower(),
+        row.query_database.strip().lower(),
+        _token_key(row.query),
+    )
+    if key in seen_queries:
+        return
+    seen_queries.add(key)
+    rows.append(row)
+
+
 def _read_optional_tsv(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -895,6 +1047,25 @@ def _species_match(expected: str, observed: str) -> bool:
     return bool(expected_key and observed_key and expected_key == observed_key)
 
 
+def _search_species_for_plan_row(row: ExpandedDiscoveryPlanRow) -> str:
+    if _is_taxonomy_derived_plan_row(row):
+        query_species = _query_organism_name(row.query)
+        if query_species:
+            return query_species
+    return row.species
+
+
+def _query_organism_name(query: str) -> str:
+    match = re.search(r'"([^"]+)"\s*\[Organism\]', str(query or ""))
+    if not match:
+        return ""
+    return _clean_alias_token(match.group(1))
+
+
+def _is_taxonomy_derived_plan_row(row: ExpandedDiscoveryPlanRow) -> bool:
+    return "taxonomy_alias=" in row.notes
+
+
 def _token_in_candidate_text(token: str, *values: str) -> bool:
     normalized_token = _token_key(token)
     if not normalized_token:
@@ -904,6 +1075,10 @@ def _token_in_candidate_text(token: str, *values: str) -> bool:
 
 def _token_key(value: object) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
+
+
+def _alias_key(value: object) -> str:
+    return " ".join(str(value or "").strip().lower().split())
 
 
 def _clean_alias_token(value: str) -> str:

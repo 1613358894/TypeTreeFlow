@@ -113,10 +113,13 @@ evidence, missing external candidates, workflow or network failure before
 selection, and genome-ready rows where 16S was not found. These reports explain
 partial coverage; they do not change the scientific boundary.
 
-In v2.2.3, uncovered species also get an expanded discovery query plan at
-`completion/expanded_discovery_plan.tsv`. The default behavior stops there. Add
-`--enable-expanded-discovery` only when you want the second-pass Assembly and
-BioSample queries to run:
+In v2.2.3 and later, uncovered species also get an expanded discovery query plan at
+`completion/expanded_discovery_plan.tsv`. When
+`taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level NCBI Taxonomy
+`synonyms`, `equivalent_names`, and `includes` add provenance-marked
+alias-plus-token queries for uncovered species. The default behavior stops at
+the plan. Add `--enable-expanded-discovery` only when you want the second-pass
+Assembly and BioSample queries to run:
 
 ```bash
 typetreeflow verify-genus Enterobacter \
@@ -197,6 +200,11 @@ paths are stored as relative POSIX paths inside run outputs for portability.
 - Representative-only output is exploratory and is not strict type-strain
   completion.
 - v2.2.3 does not promise automatic 100% coverage for every genus.
+- v2.2.4 NCBI Taxonomy scaffolding is offline by default: it writes
+  `taxonomy/ncbi_taxonomy_plan.tsv` and the cache schema only. Real lookup
+  requires `--enable-ncbi-taxonomy` plus `--email` or `TYPETREEFLOW_EMAIL`, and
+  the cache checkpoints/resumes without changing selection, manifests, or
+  evidence levels.
 - Expanded discovery is off by default beyond query-plan generation and remains
   audit-only when `--enable-expanded-discovery` is supplied.
 - `--enable-downloads` and `--auto-accept-selection` are a double opt-in for

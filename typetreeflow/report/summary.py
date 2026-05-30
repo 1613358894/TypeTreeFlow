@@ -19,7 +19,9 @@ from typetreeflow.completion_gaps import (
     summarize_completion_gap_records,
 )
 from typetreeflow.expanded_discovery import (
+    count_taxonomy_derived_plan_rows,
     read_manual_supplement_hints,
+    read_expanded_discovery_plan,
     read_expanded_discovery_results,
     summarize_expanded_discovery_results,
     summarize_manual_supplement_hints,
@@ -49,6 +51,11 @@ from typetreeflow.taxonomy.audit import (
     MISSING_FROM_GTDB,
     MISSING_GENOME,
     POSSIBLE_NAME_MISMATCH,
+)
+from typetreeflow.taxonomy.ncbi_taxonomy import (
+    read_ncbi_taxonomy_cache,
+    read_ncbi_taxonomy_plan,
+    summarize_ncbi_taxonomy_cache,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.taxonomy.source_audit import (
@@ -199,6 +206,8 @@ def summarize_output_files(
             "completion/manual_supplement_hints.tsv",
             paths.manual_supplement_hints_path,
         ),
+        ("taxonomy/ncbi_taxonomy_plan.tsv", paths.ncbi_taxonomy_plan_path),
+        ("taxonomy/ncbi_taxonomy_cache.tsv", paths.ncbi_taxonomy_cache_path),
         ("report/summary.md", paths.run_summary_path),
     ]
     return [
@@ -285,6 +294,20 @@ def read_optional_checklist_comparison(path: str | Path) -> list[dict[str, str]]
     return rows
 
 
+def read_optional_ncbi_taxonomy_plan(path: str | Path):
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_ncbi_taxonomy_plan(input_path)
+
+
+def read_optional_ncbi_taxonomy_cache(path: str | Path):
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_ncbi_taxonomy_cache(input_path)
+
+
 def summarize_checklist_comparison(rows: list[dict[str, str]]) -> dict[str, int]:
     checklist_species: set[str] = set()
     gtdb_records: set[str] = set()
@@ -363,6 +386,13 @@ def read_optional_expanded_discovery_results(path: str | Path):
     if not input_path.exists():
         return None
     return read_expanded_discovery_results(input_path)
+
+
+def read_optional_expanded_discovery_plan(path: str | Path):
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_expanded_discovery_plan(input_path)
 
 
 def read_optional_manual_supplement_hints(path: str | Path):
@@ -532,6 +562,18 @@ def build_run_summary_markdown(
     except ValueError as error:
         checklist_comparison = None
         checklist_comparison_error = str(error)
+    ncbi_taxonomy_error = ""
+    try:
+        ncbi_taxonomy_plan = read_optional_ncbi_taxonomy_plan(
+            paths.ncbi_taxonomy_plan_path
+        )
+        ncbi_taxonomy_cache = read_optional_ncbi_taxonomy_cache(
+            paths.ncbi_taxonomy_cache_path
+        )
+    except ValueError as error:
+        ncbi_taxonomy_plan = None
+        ncbi_taxonomy_cache = None
+        ncbi_taxonomy_error = str(error)
     source_audit_error = ""
     try:
         source_audit = read_optional_sequence_source_audit(
@@ -560,6 +602,14 @@ def build_run_summary_markdown(
     except ValueError as error:
         completion_gaps = None
         completion_gaps_error = str(error)
+    expanded_discovery_plan_error = ""
+    try:
+        expanded_discovery_plan = read_optional_expanded_discovery_plan(
+            paths.expanded_discovery_plan_path
+        )
+    except ValueError as error:
+        expanded_discovery_plan = None
+        expanded_discovery_plan_error = str(error)
     expanded_discovery_error = ""
     try:
         expanded_discovery_results = read_optional_expanded_discovery_results(
@@ -836,6 +886,44 @@ def build_run_summary_markdown(
             ]
         )
 
+    if ncbi_taxonomy_error:
+        lines.extend(
+            [
+                "",
+                "## NCBI Taxonomy Enrichment",
+                "",
+                f"NCBI taxonomy enrichment files could not be read: {ncbi_taxonomy_error}",
+            ]
+        )
+    elif ncbi_taxonomy_plan is not None or ncbi_taxonomy_cache is not None:
+        ncbi_taxonomy_cache_summary = summarize_ncbi_taxonomy_cache(
+            ncbi_taxonomy_cache or []
+        )
+        lines.extend(
+            [
+                "",
+                "## NCBI Taxonomy Enrichment",
+                "",
+                f"- Plan: {_display_path(paths.ncbi_taxonomy_plan_path, paths)}",
+                f"- Cache: {_display_path(paths.ncbi_taxonomy_cache_path, paths)}",
+                f"- Planned query rows: {len(ncbi_taxonomy_plan or [])}",
+                (
+                    "- Cached taxonomy rows: "
+                    f"{ncbi_taxonomy_cache_summary['total_rows']}"
+                ),
+                (
+                    "- Query failed rows: "
+                    f"{ncbi_taxonomy_cache_summary['query_failed']}"
+                ),
+                f"- No-result rows: {ncbi_taxonomy_cache_summary['no_result']}",
+                (
+                    "These files are offline planning/cache scaffolds only; "
+                    "report generation does not query NCBI Taxonomy or change "
+                    "selection and evidence rules."
+                ),
+            ]
+        )
+
     if source_audit_error:
         lines.extend(
             [
@@ -1006,6 +1094,11 @@ def build_run_summary_markdown(
     elif completion_gaps is not None:
         gap_counts = summarize_completion_gap_records(completion_gaps)
         total_gaps = sum(gap_counts.values())
+        taxonomy_plan_count = (
+            count_taxonomy_derived_plan_rows(expanded_discovery_plan)
+            if expanded_discovery_plan is not None
+            else 0
+        )
         lines.extend(
             [
                 "",
@@ -1022,6 +1115,16 @@ def build_run_summary_markdown(
                 ],
             ]
         )
+        if expanded_discovery_plan_error:
+            lines.append(
+                "Expanded discovery plan could not be read: "
+                f"{expanded_discovery_plan_error}"
+            )
+        elif expanded_discovery_plan is not None:
+            lines.append(
+                "- Taxonomy-derived expanded discovery queries: "
+                f"{taxonomy_plan_count}"
+            )
 
     if expanded_discovery_error:
         lines.extend(

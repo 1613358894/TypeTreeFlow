@@ -38,6 +38,8 @@ class OutputPaths:
     iqtree_treefile_path: Path
     taxonomy_dir: Path
     checklist_comparison_path: Path
+    ncbi_taxonomy_plan_path: Path
+    ncbi_taxonomy_cache_path: Path
     report_dir: Path
     run_summary_path: Path
     candidates_dir: Path
@@ -109,6 +111,8 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         iqtree_treefile_path=root / "phylo" / "iqtree" / "all_16S.treefile",
         taxonomy_dir=root / "taxonomy",
         checklist_comparison_path=root / "taxonomy" / "checklist_comparison.tsv",
+        ncbi_taxonomy_plan_path=root / "taxonomy" / "ncbi_taxonomy_plan.tsv",
+        ncbi_taxonomy_cache_path=root / "taxonomy" / "ncbi_taxonomy_cache.tsv",
         report_dir=root / "report",
         run_summary_path=root / "report" / "summary.md",
         candidates_dir=root / "candidates",

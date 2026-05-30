@@ -35,6 +35,10 @@ from typetreeflow.expanded_discovery import (
 from typetreeflow.sources.ncbi_biosample import BioSampleRecord
 from typetreeflow.taxonomy.candidate_discovery import AssemblyDiscoveryRecord
 from typetreeflow.taxonomy.audit import MISSING_FROM_GTDB
+from typetreeflow.taxonomy.ncbi_taxonomy import (
+    NcbiTaxonomyCacheRow,
+    write_ncbi_taxonomy_cache,
+)
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 
 
@@ -120,6 +124,92 @@ def test_enterobacter_style_tokens_are_generated_after_gap_reports(tmp_path):
     )
 
 
+def test_taxonomy_cache_aliases_add_provenanced_plan_rows_for_uncovered_species(tmp_path):
+    _write_uncovered_species(
+        tmp_path / "completion" / "uncovered_species.tsv",
+        [
+            {
+                "species": "Enterobacter siamensis",
+                "checklist_name": "Enterobacter siamensis",
+                "lpsn_type_strain": "KCTC 23282",
+                "reason_category": UNCOVERED_CHECKLIST_SPECIES,
+            }
+        ],
+    )
+    write_ncbi_taxonomy_cache(
+        [
+            NcbiTaxonomyCacheRow(
+                species="Enterobacter siamensis",
+                taxid="12345",
+                scientific_name="Enterobacter siamensis",
+                rank="species",
+                synonyms="Enterobacter aliasensis; Enterobacter aliasensis",
+                equivalent_names="Enterobacter equivalentis",
+                includes="Enterobacter sp. broad; Enterobacter inclusus",
+                source="ncbi_taxonomy",
+            )
+        ],
+        tmp_path / "taxonomy" / "ncbi_taxonomy_cache.tsv",
+    )
+
+    rows = build_expanded_discovery_plan(tmp_path)
+
+    assert len(rows) == 8
+    assert [
+        (row.query_database, row.query)
+        for row in rows
+        if "taxonomy_alias=" not in row.notes
+    ] == [
+        (
+            "NCBI Assembly",
+            '"Enterobacter siamensis"[Organism] AND "KCTC 23282"',
+        ),
+        (
+            "NCBI BioSample",
+            '"Enterobacter siamensis"[Organism] AND "KCTC 23282"',
+        ),
+    ]
+    taxonomy_rows = [row for row in rows if "taxonomy_alias=" in row.notes]
+    assert len(taxonomy_rows) == 6
+    assert {
+        row.query
+        for row in taxonomy_rows
+        if row.query_database == "NCBI Assembly"
+    } == {
+        '"Enterobacter aliasensis"[Organism] AND "KCTC 23282"',
+        '"Enterobacter equivalentis"[Organism] AND "KCTC 23282"',
+        '"Enterobacter inclusus"[Organism] AND "KCTC 23282"',
+    }
+    assert all("taxonomy_taxid=12345" in row.notes for row in taxonomy_rows)
+    assert all("taxonomy_source=ncbi_taxonomy" in row.notes for row in taxonomy_rows)
+    assert any("taxonomy_alias_kind=synonyms" in row.notes for row in taxonomy_rows)
+    assert any(
+        "taxonomy_alias_kind=equivalent_names" in row.notes for row in taxonomy_rows
+    )
+    assert any("taxonomy_alias_kind=includes" in row.notes for row in taxonomy_rows)
+    assert all("taxonomy-derived synonym/taxid enrichment" in row.reason for row in taxonomy_rows)
+    assert "Enterobacter sp. broad" not in {row.query for row in taxonomy_rows}
+
+
+def test_no_taxonomy_cache_keeps_expanded_plan_unchanged(tmp_path):
+    _write_uncovered_species(
+        tmp_path / "completion" / "uncovered_species.tsv",
+        [
+            {
+                "species": "Enterobacter siamensis",
+                "checklist_name": "Enterobacter siamensis",
+                "lpsn_type_strain": "KCTC 23282",
+                "reason_category": UNCOVERED_CHECKLIST_SPECIES,
+            }
+        ],
+    )
+
+    rows = build_expanded_discovery_plan(tmp_path)
+
+    assert len(rows) == 2
+    assert all("taxonomy_alias=" not in row.notes for row in rows)
+
+
 def test_default_gap_reports_only_generate_plan_not_results(tmp_path):
     _write_checklist_comparison(
         tmp_path / "taxonomy" / "checklist_comparison.tsv",
@@ -170,6 +260,49 @@ def test_expanded_discovery_matching_assembly_candidate_is_audit_only(tmp_path):
     assert _read_tsv(tmp_path / "completion" / "rejected_candidates.tsv") == []
     hints = _read_tsv(tmp_path / "completion" / "manual_supplement_hints.tsv")
     assert hints[0]["recommended_action"] == REVIEW_MATCHED_CANDIDATES
+    assert manifest_path.read_text(encoding="utf-8") == "manifest_before\n"
+    assert selection_path.read_text(encoding="utf-8") == "selection_before\n"
+
+
+def test_taxonomy_derived_expanded_discovery_executes_audit_only(tmp_path):
+    plan_path = tmp_path / "completion" / "expanded_discovery_plan.tsv"
+    write_expanded_discovery_plan(
+        [
+            _plan_row(
+                query='"Enterobacter aliasensis"[Organism] AND "KCTC 23282"',
+                notes=(
+                    "taxonomy_alias=Enterobacter aliasensis; "
+                    "taxonomy_alias_kind=synonyms; taxonomy_taxid=12345; "
+                    "taxonomy_source=ncbi_taxonomy"
+                ),
+            )
+        ],
+        plan_path,
+    )
+    manifest_path = tmp_path / "manifest.tsv"
+    selection_path = tmp_path / "selection" / "user_selection.tsv"
+    selection_path.parent.mkdir(parents=True)
+    manifest_path.write_text("manifest_before\n", encoding="utf-8")
+    selection_path.write_text("selection_before\n", encoding="utf-8")
+    assembly_client = _AssemblyClient(
+        [
+            AssemblyDiscoveryRecord(
+                assembly_accession="GCF_000010.1",
+                organism_name="Enterobacter aliasensis",
+                strain="KCTC 23282",
+            )
+        ]
+    )
+
+    result_path = execute_expanded_discovery_plan(
+        tmp_path,
+        assembly_client=assembly_client,
+    )
+
+    rows = read_expanded_discovery_results(result_path)
+    assert assembly_client.searched_species == ["Enterobacter aliasensis"]
+    assert [row.decision for row in rows] == [MATCHED_CANDIDATE]
+    assert rows[0].species == "Enterobacter siamensis"
     assert manifest_path.read_text(encoding="utf-8") == "manifest_before\n"
     assert selection_path.read_text(encoding="utf-8") == "selection_before\n"
 
@@ -337,6 +470,7 @@ def _plan_row(
     *,
     query_database: str = "NCBI Assembly",
     query: str = '"Enterobacter siamensis"[Organism] AND "KCTC 23282"',
+    notes: str = "",
 ) -> ExpandedDiscoveryPlanRow:
     return ExpandedDiscoveryPlanRow(
         species="Enterobacter siamensis",
@@ -348,6 +482,7 @@ def _plan_row(
         query=query,
         reason=UNCOVERED_CHECKLIST_SPECIES,
         suggested_next_action="review only",
+        notes=notes,
     )
 
 
@@ -414,8 +549,10 @@ class _StaticDecisionClient:
 class _AssemblyClient:
     def __init__(self, records: list[AssemblyDiscoveryRecord]):
         self.records = records
+        self.searched_species: list[str] = []
 
     def search_species_assemblies(self, species_name: str):
+        self.searched_species.append(species_name)
         return self.records
 
 

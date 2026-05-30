@@ -12,8 +12,10 @@ from typetreeflow.completion import (
 )
 from typetreeflow.completion_gaps import generate_completion_gap_reports
 from typetreeflow.expanded_discovery import (
+    ExpandedDiscoveryPlanRow,
     ExpandedDiscoveryResultRow,
     ManualSupplementHintRow,
+    write_expanded_discovery_plan,
     write_expanded_discovery_results,
     write_manual_supplement_hints,
 )
@@ -1178,6 +1180,35 @@ def test_report_includes_expanded_discovery_result_counts(tmp_path):
     assert "- matched_candidate: 1" in markdown
     assert "- no_result: 1" in markdown
     assert "- recommended_action review_matched_candidates: 1" in markdown
+
+
+def test_report_includes_taxonomy_derived_expanded_plan_count(tmp_path):
+    paths = get_output_paths(tmp_path)
+    generate_completion_gap_reports(tmp_path)
+    write_expanded_discovery_plan(
+        [
+            ExpandedDiscoveryPlanRow(
+                species="Enterobacter siamensis",
+                checklist_name="Enterobacter siamensis",
+                lpsn_type_strain="KCTC 23282",
+                token="KCTC 23282",
+                token_kind="culture_collection_id",
+                query_database="NCBI Assembly",
+                query='"Enterobacter aliasensis"[Organism] AND "KCTC 23282"',
+                reason="taxonomy-derived synonym/taxid enrichment (synonyms)",
+                notes=(
+                    "taxonomy_alias=Enterobacter aliasensis; "
+                    "taxonomy_alias_kind=synonyms; taxonomy_taxid=12345; "
+                    "taxonomy_source=ncbi_taxonomy"
+                ),
+            )
+        ],
+        paths.expanded_discovery_plan_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "- Taxonomy-derived expanded discovery queries: 1" in markdown
 
 
 def test_summarize_phylo_status_reports_too_few_manifest_16s_records(tmp_path):

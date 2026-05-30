@@ -166,6 +166,12 @@ from typetreeflow.taxonomy.manual_review import (
     species_without_selected_rows,
     write_manual_review_outputs,
 )
+from typetreeflow.taxonomy.ncbi_taxonomy import (
+    BiopythonNcbiTaxonomyClient,
+    NcbiTaxonomyClient,
+    execute_ncbi_taxonomy_lookup,
+    write_ncbi_taxonomy_outputs_from_checklist,
+)
 from typetreeflow.taxonomy.output import write_checklist_comparison
 from typetreeflow.taxonomy.selection import (
     candidates_to_selection_rows,
@@ -390,6 +396,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Explicitly allow real NCBI Entrez assembly discovery for "
             "--discover-assembly-candidates. Requires --email."
+        ),
+    )
+    parser.add_argument(
+        "--enable-ncbi-taxonomy",
+        action="store_true",
+        help=(
+            "Explicitly allow real NCBI Taxonomy lookup from the planned "
+            "taxonomy queries. Requires --email and only writes "
+            "taxonomy/ncbi_taxonomy_cache.tsv."
         ),
     )
     parser.add_argument(
@@ -648,6 +663,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         candidate_tsv=args.candidate_tsv,
         discovery_cache=args.discovery_cache,
         enable_ncbi_discovery=args.enable_ncbi_discovery,
+        enable_ncbi_taxonomy=args.enable_ncbi_taxonomy,
         enable_expanded_discovery=args.enable_expanded_discovery,
         enable_synonym_discovery=args.enable_synonym_discovery,
         enrich_biosample=args.enrich_biosample,
@@ -750,6 +766,7 @@ def main(
     phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     lpsn_client=None,
 ) -> int:
     config = parse_args(argv)
@@ -804,6 +821,7 @@ def main(
                 barrnap_runner=barrnap_runner,
                 assembly_discovery_client=assembly_discovery_client,
                 biosample_client=biosample_client,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
                 lpsn_client=lpsn_client,
             )
         except (ManifestError, ValueError, RuntimeError) as error:
@@ -828,6 +846,7 @@ def main(
                 barrnap_runner=barrnap_runner,
                 assembly_discovery_client=assembly_discovery_client,
                 biosample_client=biosample_client,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
                 lpsn_client=lpsn_client,
             )
             return 0
@@ -1171,6 +1190,7 @@ def run_release_genus_verification(
     barrnap_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     lpsn_client=None,
 ) -> tuple[Path, Path]:
     genus = str(config.verify_release_genus or "").strip()
@@ -1190,6 +1210,7 @@ def run_release_genus_verification(
             acquisition_config,
             assembly_discovery_client=assembly_discovery_client,
             biosample_client=biosample_client,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
             lpsn_client=lpsn_client,
         )
     except (ManifestError, ValueError, RuntimeError) as error:
@@ -1228,6 +1249,7 @@ def run_release_genus_verification(
                 acquisition_paths,
                 download_runner=download_runner,
                 barrnap_runner=barrnap_runner,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
             )
         except (ManifestError, ValueError, RuntimeError) as error:
             run_error = error
@@ -1304,6 +1326,7 @@ def _release_acquisition_config(
         biosample_cache=biosample_cache or acquisition_paths.biosample_records_path,
         enable_lpsn_api=enable_lpsn_api,
         enable_ncbi_discovery=enable_ncbi_discovery,
+        enable_ncbi_taxonomy=config.enable_ncbi_taxonomy,
         enable_biosample_entrez=enable_biosample_entrez,
         enrich_biosample=config.enrich_biosample or config.enable_biosample_entrez,
         dry_run=True,
@@ -1336,6 +1359,7 @@ def _release_policy_config(
         biosample_cache=config.biosample_cache or acquisition_paths.biosample_records_path,
         enable_lpsn_api=False,
         enable_ncbi_discovery=False,
+        enable_ncbi_taxonomy=config.enable_ncbi_taxonomy,
         enable_biosample_entrez=False,
         selection_policy=policy,
         enrich_biosample=False,
@@ -1350,6 +1374,7 @@ def run_release_genus_acquisition(
     config: AppConfig,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     lpsn_client=None,
 ) -> Path:
     genus = str(config.acquire_genus or "").strip()
@@ -1386,6 +1411,7 @@ def run_release_genus_acquisition(
         assembly_discovery_client=assembly_discovery_client,
         biosample_client=biosample_client,
     )
+    _write_ncbi_taxonomy_outputs(paths, config, ncbi_taxonomy_client=ncbi_taxonomy_client)
     if (
         config.discovery_cache is not None
         and config.discovery_cache != paths.discovery_records_path
@@ -1402,16 +1428,26 @@ def run_release_policy_verification_from_acquisition(
     acquisition_paths,
     download_runner=None,
     barrnap_runner=None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
 ) -> Path:
     _copy_shared_acquisition_outputs(acquisition_paths, paths)
     run_culture_collection_audit_stage(paths, config)
     run_selection_prepare_stage(paths, config)
-    records = run_selection_dry_run_stage(paths, config)
+    records = run_selection_dry_run_stage(
+        paths,
+        config,
+        ncbi_taxonomy_client=ncbi_taxonomy_client,
+    )
 
     if config.auto_accept_selection and config.enable_downloads:
         download_config = replace(config, dry_run=False, enable_downloads=True)
         if not _source_audit_policy_allows_stage(paths, download_config, "download"):
-            _write_run_summary(records, paths, download_config)
+            _write_run_summary(
+                records,
+                paths,
+                download_config,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
+            )
             raise ValueError(
                 "Sequence source audit policy blocked download stage; review "
                 f"{paths.sequence_source_audit_path}."
@@ -1441,7 +1477,12 @@ def run_release_policy_verification_from_acquisition(
                 paths,
                 download_config.species_checklist,
             )
-        _write_run_summary(records, paths, download_config)
+        _write_run_summary(
+            records,
+            paths,
+            download_config,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
+        )
     return paths.user_selection_path
 
 
@@ -1530,6 +1571,7 @@ def _release_policy_command(
     for enabled, flag in (
         (config.enable_lpsn_api, "--enable-lpsn-api"),
         (config.enable_ncbi_discovery, "--enable-ncbi-discovery"),
+        (config.enable_ncbi_taxonomy, "--enable-ncbi-taxonomy"),
         (config.enable_biosample_entrez, "--enable-biosample-entrez"),
         (config.enable_synonym_discovery, "--enable-synonym-discovery"),
         (config.auto_accept_selection, "--auto-accept-selection"),
@@ -1588,13 +1630,73 @@ def _write_genome_download_plan(
     return "genome_plan_empty"
 
 
-def _write_run_summary(records, paths, config: AppConfig) -> None:
+def _write_run_summary(
+    records,
+    paths,
+    config: AppConfig,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+) -> None:
+    taxonomy_error: Exception | None = None
     if config.verify_genus:
+        try:
+            _write_ncbi_taxonomy_outputs(
+                paths,
+                config,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
+            )
+        except (ValueError, RuntimeError) as error:
+            taxonomy_error = error
         _write_completion_gap_reports(paths)
         _write_expanded_discovery_results_if_enabled(paths, config)
     markdown = build_run_summary_markdown(records, paths, config)
     summary_path = write_run_summary(markdown, paths.run_summary_path)
     LOGGER.info("Wrote run summary: %s.", summary_path)
+    if taxonomy_error is not None:
+        raise taxonomy_error
+
+
+def _write_ncbi_taxonomy_outputs(
+    paths,
+    config: AppConfig,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+) -> None:
+    checklist_path = config.species_checklist
+    if checklist_path is None:
+        default_checklist_path = config.outdir / "species_checklist.tsv"
+        if default_checklist_path.exists():
+            checklist_path = default_checklist_path
+    try:
+        plan_path, cache_path = write_ncbi_taxonomy_outputs_from_checklist(
+            checklist_path,
+            paths.ncbi_taxonomy_plan_path,
+            paths.ncbi_taxonomy_cache_path,
+        )
+        if config.enable_ncbi_taxonomy:
+            if not config.email and ncbi_taxonomy_client is None:
+                raise ValueError(
+                    "Real NCBI Taxonomy lookup requires --email with "
+                    "--enable-ncbi-taxonomy."
+                )
+            client = ncbi_taxonomy_client or BiopythonNcbiTaxonomyClient(
+                email=config.email or "",
+                api_key=config.api_key,
+            )
+            cache_rows = execute_ncbi_taxonomy_lookup(plan_path, cache_path, client)
+            LOGGER.info(
+                "Executed NCBI taxonomy enrichment lookup: %s (%d cache row(s)).",
+                cache_path,
+                len(cache_rows),
+            )
+        else:
+            LOGGER.info(
+                "Wrote NCBI taxonomy enrichment plan/cache: %s, %s.",
+                plan_path,
+                cache_path,
+            )
+    except (ValueError, RuntimeError):
+        raise
+    except Exception as error:  # pragma: no cover - best-effort reporting only
+        LOGGER.warning("Could not write NCBI taxonomy enrichment outputs: %s", error)
 
 
 def _write_completion_gap_reports(paths) -> None:
@@ -1790,6 +1892,14 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         ],
         "succeeded",
         _completion_outputs_summary(paths),
+    )
+    _add_file_stage(
+        stages,
+        "ncbi_taxonomy_enrichment",
+        paths,
+        [paths.ncbi_taxonomy_plan_path, paths.ncbi_taxonomy_cache_path],
+        "succeeded",
+        _row_count_summary(paths.ncbi_taxonomy_plan_path, "planned taxonomy query rows"),
     )
     _add_file_stage(
         stages,
@@ -2192,6 +2302,7 @@ def run_genus_acquisition_workflow(
     barrnap_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     lpsn_client=None,
 ) -> Path:
     genus = str(config.acquire_genus or "").strip()
@@ -2270,7 +2381,11 @@ def run_genus_acquisition_workflow(
         acquisition_config,
         biosample_client=biosample_client,
     )
-    records = run_selection_dry_run_stage(paths, acquisition_config)
+    records = run_selection_dry_run_stage(
+        paths,
+        acquisition_config,
+        ncbi_taxonomy_client=ncbi_taxonomy_client,
+    )
     if verify_genus_guarded_download:
         download_config = replace(
             acquisition_config,
@@ -2278,7 +2393,12 @@ def run_genus_acquisition_workflow(
             enable_downloads=True,
         )
         if not _source_audit_policy_allows_stage(paths, download_config, "download"):
-            _write_run_summary(records, paths, download_config)
+            _write_run_summary(
+                records,
+                paths,
+                download_config,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
+            )
             raise ValueError(
                 "Sequence source audit policy blocked download stage; review "
                 f"{paths.sequence_source_audit_path}."
@@ -2308,7 +2428,12 @@ def run_genus_acquisition_workflow(
                 paths,
                 download_config.species_checklist,
             )
-        _write_run_summary(records, paths, download_config)
+        _write_run_summary(
+            records,
+            paths,
+            download_config,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
+        )
         LOGGER.info(
             "Completed %s for %s with guarded downloads after auto-accepting "
             "the generated selection.",
@@ -2979,14 +3104,23 @@ def run_provider_registration_planning_stage(paths, config: AppConfig) -> None:
     )
 
 
-def run_selection_dry_run_stage(paths, config: AppConfig) -> list:
+def run_selection_dry_run_stage(
+    paths,
+    config: AppConfig,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+) -> list:
     records = _selection_tsv_to_records(paths, config)
     _write_genome_download_plan(records, paths)
     write_manifest(records, paths.manifest)
     write_name_map(records, paths.name_map)
     if config.species_checklist is not None:
         run_taxonomy_audit_stage(records, paths, config.species_checklist)
-    _write_run_summary(records, paths, config)
+    _write_run_summary(
+        records,
+        paths,
+        config,
+        ncbi_taxonomy_client=ncbi_taxonomy_client,
+    )
     LOGGER.info(
         "Prepared selection dry-run outputs from user selection table: "
         "%d selected record(s).",

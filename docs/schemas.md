@@ -29,6 +29,43 @@ checklist workflows.
 - `lpsn_url`: LPSN or source URL.
 - `synonyms`: optional synonym text used for review/discovery context.
 
+## taxonomy/ncbi_taxonomy_plan.tsv
+
+Offline plan for optional NCBI Taxonomy enrichment. It is generated from
+`species_checklist.tsv` by `verify-genus` and `verify-release-genus` policy
+outputs when a checklist is available. This file is a query plan only: writing
+or reporting it does not contact NCBI Taxonomy, expand discovery queries,
+change selection, write manifest records, or relax evidence rules. Header-only
+files are valid when no checklist species are available.
+
+- `species`: checklist species represented by the planned taxonomy lookup.
+- `scientific_name`: normalized binomial scientific name for the checklist species.
+- `query`: planned query string, normally the full binomial such as `Enterobacter siamensis`.
+- `query_reason`: reason the query exists, currently `checklist_species_binomial`.
+- `status`: planning status, initially `planned`.
+- `notes`: offline planning notes such as `offline_plan_only`.
+
+## taxonomy/ncbi_taxonomy_cache.tsv
+
+Stable cache schema for optional NCBI Taxonomy lookup results. v2.2.4 writes
+this as a header-only file by default. When `--enable-ncbi-taxonomy` is passed
+with `--email` or `TYPETREEFLOW_EMAIL`, lookup results are checkpointed here
+one species at a time. When present, `synonyms`, `equivalent_names`, and
+`includes` can add taxonomy-derived rows to
+`completion/expanded_discovery_plan.tsv` for uncovered species only. Cache
+contents do not select records, change manifests, or change evidence levels.
+
+- `species`: checklist species key represented by the cache row.
+- `taxid`: NCBI Taxonomy identifier, when populated by lookup.
+- `scientific_name`: NCBI scientific name.
+- `rank`: NCBI taxonomy rank.
+- `synonyms`: synonym names serialized for review.
+- `equivalent_names`: equivalent names serialized for review.
+- `includes`: included names serialized for review.
+- `authority`: authority text, when available.
+- `source`: cache source label.
+- `notes`: lookup or curation notes.
+
 ## excluded_lpsn_taxa.tsv
 
 Review table for LPSN rows excluded from the retained checklist.
@@ -459,13 +496,18 @@ Common `reason_category` values include `insufficient_type_evidence`,
 `genome_ready_16s_not_found`, and `uncovered_checklist_species`.
 
 `completion/expanded_discovery_plan.tsv` is a review-only second-pass search
-plan derived from uncovered species and LPSN type-strain aliases. By default it
-is not executed and does not change `manifest.tsv`, selection, or evidence
+plan derived from uncovered species and LPSN type-strain aliases. If
+`taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level aliases from its
+`synonyms`, `equivalent_names`, and `includes` fields add conservative
+alias-plus-token query rows for uncovered species only. By default the plan is
+not executed and does not change `manifest.tsv`, selection, or evidence
 levels.
 
 Fields are `species`, `checklist_name`, `lpsn_type_strain`, `token`,
 `token_kind`, `query_database`, `query`, `reason`, `suggested_next_action`, and
-`notes`.
+`notes`. Taxonomy-derived rows keep provenance in `notes` as
+`taxonomy_alias`, `taxonomy_alias_kind`, `taxonomy_taxid`, and
+`taxonomy_source`.
 
 `completion/expanded_discovery_results.tsv` is written only when
 `--enable-expanded-discovery` is supplied. It records matched and rejected

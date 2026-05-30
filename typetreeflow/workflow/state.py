@@ -27,6 +27,7 @@ WORKFLOW_STAGES = (
     "download",
     "rrna_barrnap",
     "completion_audit",
+    "ncbi_taxonomy_enrichment",
     "report",
 )
 

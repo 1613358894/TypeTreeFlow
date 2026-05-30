@@ -62,6 +62,30 @@ Gap categories are intended to distinguish:
 These categories explain why coverage is partial; they do not relax evidence
 rules.
 
+## v2.2.4 NCBI Taxonomy Enrichment
+
+v2.2.4 adds an NCBI Taxonomy enrichment scaffold around expanded discovery.
+Default verification remains offline for this feature: policy outputs write
+`taxonomy/ncbi_taxonomy_plan.tsv` and a stable
+`taxonomy/ncbi_taxonomy_cache.tsv` schema, but they do not contact NCBI
+Taxonomy.
+
+Only `--enable-ncbi-taxonomy` executes real taxonomy lookup from the plan. Real
+lookup requires `--email` or `TYPETREEFLOW_EMAIL`; the lookup writes only
+`taxonomy/ncbi_taxonomy_cache.tsv`, checkpoints each species row, and can resume
+from the partial cache. If the cache header is damaged or does not match the
+fixed schema, verification fails with a clear error instead of silently
+overwriting it. If a lookup fails, a `query_failed` row is kept so the partial
+cache remains auditable.
+
+When `taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level values from
+`synonyms`, `equivalent_names`, and `includes` may add conservative
+taxonomy-derived alias rows to `completion/expanded_discovery_plan.tsv`.
+Original LPSN token rows remain in the plan. Taxonomy-derived rows only expand
+the discovery plan; they do not modify `manifest.tsv`,
+`selection/user_selection.tsv`, completion metrics, or evidence levels, and
+they do not promise automatic 100% coverage.
+
 ## v2.2.3 Expanded Discovery Audit
 
 Expanded NCBI token discovery is a completion-audit aid, not an automatic

@@ -60,6 +60,10 @@ from typetreeflow.taxonomy.manual_review import (
     MANUAL_DEPOSIT_EVIDENCE_FIELDS,
     MANUAL_SPECIES_GAP_FIELDS,
 )
+from typetreeflow.taxonomy.ncbi_taxonomy import (
+    NCBI_TAXONOMY_CACHE_FIELDS,
+    NCBI_TAXONOMY_PLAN_FIELDS,
+)
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.taxonomy.selection import SELECTION_FIELDS
 from typetreeflow.taxonomy.source_audit import SOURCE_AUDIT_FIELDS
@@ -244,6 +248,8 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.manual_species_gap_summary_path,
         paths.manual_review_report_path,
         paths.checklist_comparison_path,
+        paths.ncbi_taxonomy_plan_path,
+        paths.ncbi_taxonomy_cache_path,
         paths.run_summary_path,
     ]
 
@@ -258,6 +264,14 @@ def test_schema_docs_mention_key_table_fields():
         "taxonomy/checklist_comparison.tsv": [
             "comparison_status",
             "lpsn_record_number",
+        ],
+        "taxonomy/ncbi_taxonomy_plan.tsv": [
+            "query_reason",
+            "planned",
+        ],
+        "taxonomy/ncbi_taxonomy_cache.tsv": [
+            "taxid",
+            "equivalent_names",
         ],
         "candidates/assembly_candidates.tsv": [
             "matched_lpsn_type_strain_ids",
@@ -323,6 +337,8 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "external_genome_install_plan.tsv": EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
         "external_genome_install_results.tsv": EXTERNAL_GENOME_INSTALL_RESULT_FIELDS,
         "taxonomy/checklist_comparison.tsv": CHECKLIST_COMPARISON_FIELDS,
+        "taxonomy/ncbi_taxonomy_plan.tsv": NCBI_TAXONOMY_PLAN_FIELDS,
+        "taxonomy/ncbi_taxonomy_cache.tsv": NCBI_TAXONOMY_CACHE_FIELDS,
         "candidates/assembly_candidates.tsv": CANDIDATE_FIELDS,
         "candidates/assembly_candidate_diagnostics.tsv": DISCOVERY_DIAGNOSTIC_FIELDS,
         "candidates/discovery_records.tsv": DISCOVERY_RECORD_FIELDS,

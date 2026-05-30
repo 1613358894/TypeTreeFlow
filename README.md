@@ -380,8 +380,11 @@ at an unfinished outdir, it reports the failed stage and the next action from
 v2.2.3 adds expanded NCBI token discovery as an audit handoff for uncovered
 species. By default, completion reporting only writes
 `completion/expanded_discovery_plan.tsv`, a query plan built from LPSN
-type-strain tokens. Passing `--enable-expanded-discovery` executes that plan
-against NCBI Assembly and BioSample clients or local caches and writes
+type-strain tokens. If `taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level
+NCBI Taxonomy `synonyms`, `equivalent_names`, and `includes` add
+taxonomy-derived alias-plus-token queries to that plan with provenance in
+`notes`. Passing `--enable-expanded-discovery` executes that plan against NCBI
+Assembly and BioSample clients or local caches and writes
 `completion/expanded_discovery_results.tsv`,
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`. These files are audit-only and
@@ -810,6 +813,7 @@ The source-audit gate is controlled by:
 | Entrez 16S | `--enable-entrez --email user@example.org` | Guarded 16S fallback; dry runs never contact Entrez. |
 | BioSample Entrez | `--enable-biosample-entrez --email user@example.org` | Guarded BioSample enrichment; local `--biosample-cache` mode remains offline. |
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery; local `--discovery-cache` mode remains offline. |
+| NCBI Taxonomy lookup | `--enable-ncbi-taxonomy --email user@example.org` | Guarded optional taxonomy lookup from `taxonomy/ncbi_taxonomy_plan.tsv`; writes only `taxonomy/ncbi_taxonomy_cache.tsv`. |
 | expanded NCBI token discovery | `--enable-expanded-discovery` | Optional second-pass audit for uncovered species; writes review files only and does not change selection or manifest outputs. |
 | FastANI | `--enable-fastani` | Resume-mode local ANI when `fastANI` is installed and `--query-genome` is provided. |
 | phylogeny | `--enable-phylo` | Resume-mode MAFFT, trimAl, and IQ-TREE wrappers. |

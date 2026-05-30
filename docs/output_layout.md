@@ -79,6 +79,8 @@ typetreeflow_out/
   manual_review_report.md
   taxonomy/
     checklist_comparison.tsv
+    ncbi_taxonomy_plan.tsv
+    ncbi_taxonomy_cache.tsv
   report/
     summary.md
     figures/
@@ -182,6 +184,11 @@ Completion Audit section with NCBI strict and external-inclusive completion
 counts. When `source_audit/completion_audit.tsv` also exists, missing and
 conflict rows can be summarized for review. Report-only mode consumes these
 files only; it does not create them.
+When `taxonomy/ncbi_taxonomy_plan.tsv` or
+`taxonomy/ncbi_taxonomy_cache.tsv` exists, the report can show the paths and
+row counts for the offline NCBI Taxonomy enrichment scaffold. Reading these
+files does not query NCBI Taxonomy or change discovery, selection, manifest, or
+evidence behavior.
 When `provider/provider_registration_plan.tsv` already exists, the report adds
 a Provider Registration Planning section with provider request, review,
 unsupported-download, unsupported-credential, and optional proposed external
@@ -230,6 +237,18 @@ recovery primitive; ordinary users should start with `verify-genus`.
 dry-run or resume workflows. Report-only mode does not regenerate this file,
 but `report/summary.md` reads an existing comparison and adds a taxonomic audit
 summary when available.
+
+`taxonomy/ncbi_taxonomy_plan.tsv` and
+`taxonomy/ncbi_taxonomy_cache.tsv` are scaffolds for optional NCBI Taxonomy
+enrichment. `verify-genus` and `verify-release-genus` policy outputs write
+them from `species_checklist.tsv` when available. The plan contains one
+planned binomial query per checklist species; the cache is header-only by
+default and is populated only when `--enable-ncbi-taxonomy` is passed with an
+NCBI email. Lookup writes only the cache, checkpoints each species row, and
+does not expand discovery queries, automatically select records, update the
+manifest, or relax evidence rules. If no checklist is present, the workflow
+may still write header-only plan/cache files so report and schema consumers
+see a stable contract.
 
 `--discover-assembly-candidates` writes
 `candidates/assembly_candidates.tsv` and
@@ -342,6 +361,9 @@ genome-ready records with missing 16S. They explain partial coverage and do
 not relax strict, likely, or representative evidence rules.
 `completion/expanded_discovery_plan.tsv` adds a review-only NCBI Assembly and
 BioSample query plan for uncovered species based on LPSN type-strain aliases.
+When `taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level aliases from
+`synonyms`, `equivalent_names`, and `includes` add conservative alias-plus-token
+queries with taxonomy provenance in `notes`.
 It is executed only when `--enable-expanded-discovery` is supplied.
 `completion/expanded_discovery_results.tsv` records matched and rejected NCBI
 Assembly/BioSample candidates from that optional pass. Expanded discovery is
