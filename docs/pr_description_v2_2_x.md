@@ -47,7 +47,7 @@ and adds guarded NCBI Taxonomy enrichment for expanded discovery planning.
 
 ## Validation
 
-- `python typetreeflow.py --version`: passed, `typetreeflow 2.2.1`.
+- `python typetreeflow.py --version`: passed, `typetreeflow 2.2.5`.
 - `pytest tests/test_docs_consistency.py --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex`:
   passed, `15 passed`.
 - `pytest --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex`:

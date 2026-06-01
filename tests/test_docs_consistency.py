@@ -14,6 +14,7 @@ from typetreeflow.expanded_discovery import (
     EXPANDED_DISCOVERY_PLAN_FIELDS,
     EXPANDED_DISCOVERY_RESULT_FIELDS,
     EXPANDED_DISCOVERY_DECISIONS,
+    EXPANDED_DISCOVERY_HISTORY_FIELDS,
     MANUAL_SUPPLEMENT_HINT_FIELDS,
     MANUAL_SEARCH_REQUIRED,
     PROVIDE_CURATOR_ACCESSION,
@@ -177,6 +178,7 @@ def test_high_level_workflow_docs_are_current():
             "completion/16s_gaps.tsv",
             "completion/expanded_discovery_plan.tsv",
             "completion/expanded_discovery_results.tsv",
+            "completion/expanded_discovery_history.tsv",
             "completion/rejected_candidates.tsv",
             "completion/manual_supplement_hints.tsv",
             "--enable-expanded-discovery",
@@ -184,6 +186,19 @@ def test_high_level_workflow_docs_are_current():
             "checkpoint",
             "resume",
             "automatic 100% coverage",
+        ]:
+            assert phrase in docs
+
+    for docs in [readme, cookbook, current_release_verification]:
+        for phrase in [
+            "Same-genome barrnap 16S",
+            "Total 16S including Entrez fallback",
+            "Fallback warnings",
+            "Strict blocking count",
+            "--enable-entrez",
+            "--enable-barrnap",
+            "--enable-ncbi-discovery",
+            "--discovery-cache",
         ]:
             assert phrase in docs
 
@@ -252,6 +267,7 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.rrna_16s_gaps_path,
         paths.expanded_discovery_plan_path,
         paths.expanded_discovery_results_path,
+        paths.expanded_discovery_history_path,
         paths.rejected_candidates_path,
         paths.manual_supplement_hints_path,
         paths.strain_candidates_path,
@@ -264,6 +280,7 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.ncbi_taxonomy_plan_path,
         paths.ncbi_taxonomy_cache_path,
         paths.run_summary_path,
+        paths.run_review_path,
     ]
 
     for path in key_paths:
@@ -316,6 +333,10 @@ def test_schema_docs_mention_key_table_fields():
         "completion/expanded_discovery_results.tsv": [
             "decision",
             "matched_candidate",
+        ],
+        "completion/expanded_discovery_history.tsv": [
+            "run_id",
+            "attempt",
         ],
         "completion/manual_supplement_hints.tsv": [
             "recommended_action",
@@ -371,6 +392,9 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "completion/expanded_discovery_plan.tsv": EXPANDED_DISCOVERY_PLAN_FIELDS,
         "completion/expanded_discovery_results.tsv": (
             EXPANDED_DISCOVERY_RESULT_FIELDS
+        ),
+        "completion/expanded_discovery_history.tsv": (
+            EXPANDED_DISCOVERY_HISTORY_FIELDS
         ),
         "completion/rejected_candidates.tsv": REJECTED_CANDIDATE_FIELDS,
         "completion/manual_supplement_hints.tsv": MANUAL_SUPPLEMENT_HINT_FIELDS,

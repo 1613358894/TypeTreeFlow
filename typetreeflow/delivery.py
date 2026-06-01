@@ -79,6 +79,12 @@ def package_results(
             copied,
             missing,
         )
+        _copy_optional(
+            paths.run_review_path,
+            output_dir / "reports" / "run_review.md",
+            copied,
+            missing,
+        )
 
     genome_count = 0
     if "genomes" in requested:
@@ -209,7 +215,7 @@ def build_delivery_readme(
         "- Evidence summary: evidence_summary.tsv when available",
         "- Download results: download_results.tsv when available",
         "- Run state: run_state.json when available",
-        "- Report summary: reports/summary.md when requested and available",
+        "- Reports: reports/summary.md and reports/run_review.md when requested and available",
         f"- Genome FASTA files copied: {genome_count}",
         (
             "- 16S sequence FASTA files copied: "
@@ -362,6 +368,7 @@ def _display_optional_path(path: Path) -> str:
         "selection/download_preflight_summary.tsv",
         "cache/ncbi/download_results.tsv",
         "report/summary.md",
+        "report/run_review.md",
         "run_state.json",
         "rrna/all_16S.fasta",
     )

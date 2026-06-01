@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import re
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Protocol
 
@@ -46,6 +47,14 @@ EXPANDED_DISCOVERY_RESULT_FIELDS = [
     "decision_reason",
     "suggested_next_action",
     "notes",
+]
+
+EXPANDED_DISCOVERY_HISTORY_FIELDS = [
+    "run_id",
+    "timestamp",
+    "operation",
+    "attempt",
+    *EXPANDED_DISCOVERY_RESULT_FIELDS,
 ]
 
 REJECTED_CANDIDATE_FIELDS = [
@@ -146,6 +155,35 @@ class ExpandedDiscoveryResultRow:
 
 
 @dataclass(frozen=True)
+class ExpandedDiscoveryHistoryRow:
+    run_id: str = ""
+    timestamp: str = ""
+    operation: str = ""
+    attempt: int = 0
+    species: str = ""
+    token: str = ""
+    token_kind: str = ""
+    query_database: str = ""
+    query: str = ""
+    candidate_accession: str = ""
+    candidate_biosample: str = ""
+    candidate_organism: str = ""
+    candidate_strain: str = ""
+    candidate_assembly_level: str = ""
+    decision: str = ""
+    decision_reason: str = ""
+    suggested_next_action: str = ""
+    notes: str = ""
+
+    def to_row(self) -> dict[str, str]:
+        row = asdict(self)
+        return {
+            field: _sanitize_tsv_text(row.get(field, ""))
+            for field in EXPANDED_DISCOVERY_HISTORY_FIELDS
+        }
+
+
+@dataclass(frozen=True)
 class TaxonomyAlias:
     alias: str
     kind: str
@@ -218,10 +256,13 @@ def execute_expanded_discovery_plan(
     *,
     assembly_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | BioSampleSearchClient | None = None,
+    timestamp: str | None = None,
+    run_id: str | None = None,
 ) -> Path:
     root = Path(outdir)
     plan_path = root / "completion" / "expanded_discovery_plan.tsv"
     results_path = root / "completion" / "expanded_discovery_results.tsv"
+    history_path = root / "completion" / "expanded_discovery_history.tsv"
     rows = read_expanded_discovery_plan(plan_path) if plan_path.exists() else []
     results = build_expanded_discovery_results(
         rows,
@@ -229,6 +270,12 @@ def execute_expanded_discovery_plan(
         biosample_client=biosample_client,
     )
     write_expanded_discovery_results(results, results_path)
+    append_expanded_discovery_history(
+        results,
+        history_path,
+        timestamp=timestamp,
+        run_id=run_id,
+    )
     write_rejected_candidate_audit(
         build_rejected_candidate_audit(results),
         root / "completion" / "rejected_candidates.tsv",
@@ -457,6 +504,42 @@ def write_expanded_discovery_results(
     return output_path
 
 
+def append_expanded_discovery_history(
+    rows: Iterable[ExpandedDiscoveryResultRow],
+    path: str | Path,
+    *,
+    timestamp: str | None = None,
+    run_id: str | None = None,
+    operation: str = "execute_expanded_discovery_plan",
+) -> Path:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    attempt = _next_history_attempt(output_path)
+    history_timestamp = timestamp or _current_utc_timestamp()
+    history_run_id = run_id or f"expanded_discovery_{attempt}"
+    write_header = not output_path.exists() or output_path.stat().st_size == 0
+    with output_path.open("a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=EXPANDED_DISCOVERY_HISTORY_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        if write_header:
+            writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                ExpandedDiscoveryHistoryRow(
+                    run_id=history_run_id,
+                    timestamp=history_timestamp,
+                    operation=operation,
+                    attempt=attempt,
+                    **row.to_row(),
+                ).to_row()
+            )
+    return output_path
+
+
 def build_rejected_candidate_audit(
     rows: Iterable[ExpandedDiscoveryResultRow],
 ) -> list[RejectedCandidateAuditRow]:
@@ -618,6 +701,22 @@ def read_expanded_discovery_results(path: str | Path) -> list[ExpandedDiscoveryR
         return [
             ExpandedDiscoveryResultRow(
                 **{field: row.get(field, "") for field in EXPANDED_DISCOVERY_RESULT_FIELDS}
+            )
+            for row in reader
+        ]
+
+
+def read_expanded_discovery_history(path: str | Path) -> list[ExpandedDiscoveryHistoryRow]:
+    input_path = Path(path)
+    with input_path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        return [
+            ExpandedDiscoveryHistoryRow(
+                run_id=row.get("run_id", ""),
+                timestamp=row.get("timestamp", ""),
+                operation=row.get("operation", ""),
+                attempt=_int_field(row, "attempt"),
+                **{field: row.get(field, "") for field in EXPANDED_DISCOVERY_RESULT_FIELDS},
             )
             for row in reader
         ]
@@ -853,6 +952,21 @@ def _int_field(row: dict[str, str], field: str) -> int:
         return int(row.get(field, "") or 0)
     except ValueError:
         return 0
+
+
+def _next_history_attempt(path: Path) -> int:
+    if not path.exists():
+        return 1
+    max_attempt = 0
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        for row in reader:
+            max_attempt = max(max_attempt, _int_field(dict(row), "attempt"))
+    return max_attempt + 1
+
+
+def _current_utc_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def _base_result(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from http.client import IncompleteRead
 from io import StringIO
 
 import pytest
@@ -38,6 +39,22 @@ class _FakeAssemblyBackend:
         if self._read_count == 1:
             return self.search_result
         return self.summary_result
+
+
+class _FailingThenAssemblyBackend(_FakeAssemblyBackend):
+    def __init__(self, failures: int):
+        super().__init__(
+            {"IdList": ["101"]},
+            {"DocumentSummarySet": {"DocumentSummary": [{"AssemblyAccession": "GCA_1"}]}},
+        )
+        self.failures = failures
+        self.read_calls = 0
+
+    def read(self, handle):
+        self.read_calls += 1
+        if self.read_calls <= self.failures:
+            raise IncompleteRead(b"partial")
+        return super().read(handle)
 
 
 def test_biopython_entrez_client_requires_email():
@@ -91,6 +108,26 @@ def test_search_16s_fetches_fasta_candidate(monkeypatch):
     assert candidates[0].length == 8
 
 
+def test_search_16s_accepts_ncbi_fasta_comments(monkeypatch):
+    fasta = (
+        " \n"
+        "# NCBI efetch comment\n"
+        ">NR_000001 Aliivibrio fischeri strain ES114 16S ribosomal RNA\n"
+        "ACGTACGT\n"
+    )
+
+    monkeypatch.setattr(entrez_module.Entrez, "esearch", lambda **kwargs: _Handle(""))
+    monkeypatch.setattr(entrez_module.Entrez, "read", lambda handle: {"IdList": ["1"]})
+    monkeypatch.setattr(entrez_module.Entrez, "efetch", lambda **kwargs: _Handle(fasta))
+
+    client = BiopythonEntrezClient("user@example.org")
+    candidates = client.search_16s("Aliivibrio fischeri")
+
+    assert len(candidates) == 1
+    assert candidates[0].accession == "NR_000001"
+    assert candidates[0].sequence == "ACGTACGT"
+
+
 def test_search_16s_fetches_multiple_fasta_candidates(monkeypatch):
     fasta = (
         ">NR_000001 Aliivibrio fischeri 16S ribosomal RNA\nACGT\n"
@@ -118,6 +155,73 @@ def test_search_16s_wraps_entrez_errors(monkeypatch):
 
     with pytest.raises(RuntimeError, match="Entrez 16S search failed"):
         client.search_16s("Aliivibrio fischeri")
+
+
+def test_search_16s_retries_incomplete_read_then_succeeds(monkeypatch):
+    sleeps: list[float] = []
+    read_calls = {"count": 0}
+
+    monkeypatch.setattr(entrez_module.Entrez, "esearch", lambda **kwargs: _Handle(""))
+    monkeypatch.setattr(
+        entrez_module.Entrez,
+        "efetch",
+        lambda **kwargs: _Handle(">NR_000001 Aliivibrio fischeri 16S\nACGT\n"),
+    )
+
+    def fake_read(handle):
+        read_calls["count"] += 1
+        if read_calls["count"] <= 2:
+            raise IncompleteRead(b"partial")
+        return {"IdList": ["1"]}
+
+    monkeypatch.setattr(entrez_module.Entrez, "read", fake_read)
+    client = BiopythonEntrezClient("user@example.org", retry_sleep=sleeps.append)
+
+    candidates = client.search_16s("Aliivibrio fischeri")
+
+    assert [candidate.accession for candidate in candidates] == ["NR_000001"]
+    assert sleeps == [1.0, 2.0]
+    assert read_calls["count"] == 3
+
+
+def test_search_16s_incomplete_read_exhaustion_has_clear_error(monkeypatch):
+    sleeps: list[float] = []
+
+    monkeypatch.setattr(entrez_module.Entrez, "esearch", lambda **kwargs: _Handle(""))
+    monkeypatch.setattr(
+        entrez_module.Entrez,
+        "read",
+        lambda handle: (_ for _ in ()).throw(IncompleteRead(b"partial")),
+    )
+    client = BiopythonEntrezClient("user@example.org", retry_sleep=sleeps.append)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"Entrez 16S search failed: .*failed after 3 attempt\(s\).*IncompleteRead",
+    ):
+        client.search_16s("Aliivibrio fischeri")
+
+    assert sleeps == [1.0, 2.0]
+
+
+def test_search_16s_does_not_retry_non_transient_value_error(monkeypatch):
+    sleeps: list[float] = []
+    calls = {"read": 0}
+
+    monkeypatch.setattr(entrez_module.Entrez, "esearch", lambda **kwargs: _Handle(""))
+
+    def fake_read(handle):
+        calls["read"] += 1
+        raise ValueError("bad Entrez payload")
+
+    monkeypatch.setattr(entrez_module.Entrez, "read", fake_read)
+    client = BiopythonEntrezClient("user@example.org", retry_sleep=sleeps.append)
+
+    with pytest.raises(RuntimeError, match="bad Entrez payload"):
+        client.search_16s("Aliivibrio fischeri")
+
+    assert calls["read"] == 1
+    assert sleeps == []
 
 
 def test_search_16s_delay_sleeps_before_and_after_requests(monkeypatch):
@@ -362,6 +466,17 @@ def test_ncbi_assembly_discovery_wraps_esummary_errors():
 
     with pytest.raises(RuntimeError, match="NCBI assembly discovery failed"):
         client.search_species_assemblies("Bacillus subtilis")
+
+
+def test_ncbi_assembly_discovery_retries_incomplete_read_then_succeeds():
+    sleeps: list[float] = []
+    backend = _FailingThenAssemblyBackend(failures=2)
+    client = NcbiAssemblyDiscoveryClient(backend=backend, retry_sleep=sleeps.append)
+
+    records = client.search_species_assemblies("Bacillus subtilis")
+
+    assert [record.assembly_accession for record in records] == ["GCA_1"]
+    assert sleeps == [1.0, 2.0]
 
 
 def test_discover_assembly_candidates_consumes_ncbi_assembly_client():

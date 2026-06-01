@@ -9,7 +9,9 @@ from typetreeflow.completion_gaps import (
     generate_completion_gap_reports,
 )
 from typetreeflow.expanded_discovery import (
+    EXPANDED_DISCOVERY_HISTORY_FIELDS,
     EXPANDED_DISCOVERY_PLAN_FIELDS,
+    EXPANDED_DISCOVERY_RESULT_FIELDS,
     MANUAL_SUPPLEMENT_HINT_FIELDS,
     MATCHED_CANDIDATE,
     NO_RESULT,
@@ -29,6 +31,7 @@ from typetreeflow.expanded_discovery import (
     execute_expanded_discovery_plan,
     generate_expanded_discovery_plan,
     parse_lpsn_type_strain_tokens,
+    read_expanded_discovery_history,
     read_expanded_discovery_results,
     write_expanded_discovery_plan,
 )
@@ -255,13 +258,57 @@ def test_expanded_discovery_matching_assembly_candidate_is_audit_only(tmp_path):
     )
 
     rows = read_expanded_discovery_results(result_path)
+    history_rows = read_expanded_discovery_history(
+        tmp_path / "completion" / "expanded_discovery_history.tsv"
+    )
     assert [row.decision for row in rows] == [MATCHED_CANDIDATE]
+    assert [row.decision for row in history_rows] == [MATCHED_CANDIDATE]
+    assert history_rows[0].run_id
+    assert history_rows[0].timestamp
+    assert history_rows[0].operation == "execute_expanded_discovery_plan"
+    assert history_rows[0].attempt == 1
     assert rows[0].candidate_accession == "GCF_000001.1"
     assert _read_tsv(tmp_path / "completion" / "rejected_candidates.tsv") == []
     hints = _read_tsv(tmp_path / "completion" / "manual_supplement_hints.tsv")
     assert hints[0]["recommended_action"] == REVIEW_MATCHED_CANDIDATES
     assert manifest_path.read_text(encoding="utf-8") == "manifest_before\n"
     assert selection_path.read_text(encoding="utf-8") == "selection_before\n"
+
+
+def test_expanded_discovery_second_run_appends_history_without_changing_current_schema(tmp_path):
+    plan_path = tmp_path / "completion" / "expanded_discovery_plan.tsv"
+    write_expanded_discovery_plan([_plan_row()], plan_path)
+
+    execute_expanded_discovery_plan(
+        tmp_path,
+        assembly_client=_AssemblyClient(
+            [
+                AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000001.1",
+                    organism_name="Enterobacter siamensis",
+                    strain="KCTC 23282",
+                )
+            ]
+        ),
+        timestamp="2026-06-01T00:00:00+00:00",
+        run_id="round-1",
+    )
+    execute_expanded_discovery_plan(
+        tmp_path,
+        assembly_client=_AssemblyClient([]),
+        timestamp="2026-06-01T00:05:00+00:00",
+        run_id="round-2",
+    )
+
+    current_rows = _read_tsv(tmp_path / "completion" / "expanded_discovery_results.tsv")
+    history_rows = _read_tsv(tmp_path / "completion" / "expanded_discovery_history.tsv")
+
+    assert list(current_rows[0]) == EXPANDED_DISCOVERY_RESULT_FIELDS
+    assert [row["decision"] for row in current_rows] == [NO_RESULT]
+    assert [row["decision"] for row in history_rows] == [MATCHED_CANDIDATE, NO_RESULT]
+    assert [row["run_id"] for row in history_rows] == ["round-1", "round-2"]
+    assert [row["attempt"] for row in history_rows] == ["1", "2"]
+    assert list(history_rows[0]) == EXPANDED_DISCOVERY_HISTORY_FIELDS
 
 
 def test_taxonomy_derived_expanded_discovery_executes_audit_only(tmp_path):
@@ -456,13 +503,18 @@ def test_expanded_discovery_no_plan_writes_stable_empty_audit_files(tmp_path):
     assert _read_tsv(result_path) == []
     rejected_path = tmp_path / "completion" / "rejected_candidates.tsv"
     hints_path = tmp_path / "completion" / "manual_supplement_hints.tsv"
+    history_path = tmp_path / "completion" / "expanded_discovery_history.tsv"
     assert _read_tsv(rejected_path) == []
     assert _read_tsv(hints_path) == []
+    assert _read_tsv(history_path) == []
     assert rejected_path.read_text(encoding="utf-8").strip() == "\t".join(
         REJECTED_CANDIDATE_FIELDS
     )
     assert hints_path.read_text(encoding="utf-8").strip() == "\t".join(
         MANUAL_SUPPLEMENT_HINT_FIELDS
+    )
+    assert history_path.read_text(encoding="utf-8").strip() == "\t".join(
+        EXPANDED_DISCOVERY_HISTORY_FIELDS
     )
 
 

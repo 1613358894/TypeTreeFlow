@@ -140,17 +140,20 @@ The repository root currently contains local run outputs and large data under
 documentation map; review them separately before deciding what should remain
 tracked, be regenerated, or be cleaned locally.
 
-## Recommended v2.2.0 route
+## Recommended v2.2.5 route
 
-Use README's "Recommended v2.2.0 workflows" section as the shortest current
+Use README's "Recommended v2.2.5 workflows" section as the shortest current
 operator guide and `cookbook.md` as the quick command cookbook. In brief:
 ordinary users should start with `doctor`, run `verify-genus` for plan-only
 review, inspect `status` or `next-step`, use
 `--auto-accept-selection --enable-downloads` only after accepting the generated
-selection, and use `package-results` for handoff. `verify-release-genus` is the
-release-matrix wrapper for balanced and representative verification.
-Representative selection is exploratory only. See
-`release_verification.md` for current v2.2.2 shared acquisition cache,
+selection, resume existing outdirs with `--resume` or `--continue`, and use
+`package-results` for handoff. `verify-release-genus` is the release-matrix
+wrapper for balanced and representative verification. Representative selection
+is exploratory only. barrnap 16S is same-genome/internal evidence; Entrez
+fallback 16S is opt-in external rescue evidence and must be reported separately.
+See
+`release_verification.md` for current v2.2.x shared acquisition cache,
 checkpoint/resume, package failure explanation, and gap-report behavior.
 External provider planning is metadata/review handoff only; legally obtained
 local FASTA files enter the workflow through `--register-external-genomes`, and

@@ -97,7 +97,11 @@ from typetreeflow.release_verification import (
     write_release_verification_summary,
     write_verification_matrix,
 )
-from typetreeflow.report.summary import build_run_summary_markdown, write_run_summary
+from typetreeflow.report.summary import (
+    build_run_review_markdown,
+    build_run_summary_markdown,
+    write_run_summary,
+)
 from typetreeflow.rrna.assemble import assemble_all_16s, collect_reference_16s
 from typetreeflow.rrna.entrez_fallback import (
     build_entrez_fallback_plan,
@@ -562,7 +566,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Number of top-ranked strains to preselect per species; default: 1.",
     )
-    parser.add_argument("--resume", action="store_true", help="Resume from manifest state.")
+    parser.add_argument(
+        "--resume",
+        "--continue",
+        dest="resume",
+        action="store_true",
+        help="Resume from manifest state.",
+    )
     parser.add_argument("--force", action="store_true", help="Overwrite existing outputs.")
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs without execution.")
     parser.add_argument(
@@ -713,11 +723,15 @@ def _normalize_command_argv(
     if raw_argv and raw_argv[0] == "package-results":
         return ["--package-results", *raw_argv[1:]], False, True
     if raw_argv and raw_argv[0] == "verify-release-genus":
+        if len(raw_argv) >= 2 and raw_argv[1] in {"-h", "--help"}:
+            return ["--help"], False, False
         if len(raw_argv) < 2 or raw_argv[1].startswith("-"):
             raise ValueError("verify-release-genus requires a GENUS argument.")
         return ["--verify-release-genus", raw_argv[1], *raw_argv[2:]], False, False
     if not raw_argv or raw_argv[0] != "verify-genus":
         return argv, False, False
+    if len(raw_argv) >= 2 and raw_argv[1] in {"-h", "--help"}:
+        return ["--help"], False, False
     if len(raw_argv) < 2 or raw_argv[1].startswith("-"):
         raise ValueError("verify-genus requires a GENUS argument.")
 
@@ -838,6 +852,18 @@ def main(
             return 0
         if config.register_external_genomes is not None:
             return run_external_genome_registration_stage(paths, config)
+        if should_reuse_manifest(config.outdir, config.resume, config.force):
+            records = load_existing_manifest(config.outdir)
+            _run_resume_from_manifest(
+                records,
+                paths,
+                config,
+                download_runner=download_runner,
+                barrnap_runner=barrnap_runner,
+                fastani_runner=fastani_runner,
+                phylo_runner=phylo_runner,
+            )
+            return 0
         if config.acquire_genus is not None:
             run_genus_acquisition_workflow(
                 paths,
@@ -902,99 +928,6 @@ def main(
                 run_selection_download_stage(paths, config, runner=download_runner)
             else:
                 run_selection_read_stage(config)
-            return 0
-        if should_reuse_manifest(config.outdir, config.resume, config.force):
-            records = load_existing_manifest(config.outdir)
-            LOGGER.info(
-                "Reusing existing manifest: %s (%d records).",
-                paths.manifest,
-                len(records),
-            )
-            if not paths.name_map.exists():
-                write_name_map(records, paths.name_map)
-            if config.dry_run:
-                _write_genome_download_plan(
-                    records,
-                    paths,
-                    refresh_preflight_summary=should_refresh_download_preflight_summary(
-                        config
-                    ),
-                )
-                _prepare_local_16s_if_ready(records, paths, config)
-                _write_ani_plan_if_ready(records, paths, config)
-                _write_phylo_plan(records, paths, config)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_fastani:
-                if fastani_runner is None and not config.skip_ani:
-                    require_executable(FASTANI.executable)
-                    fastani_runner = SubprocessRunner()
-                run_ani_stage(records, paths, config, runner=fastani_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_phylo:
-                if not _source_audit_policy_allows_stage(paths, config, "phylo"):
-                    _write_run_summary(records, paths, config)
-                    return 2
-                if phylo_runner is None and not config.skip_tree:
-                    require_executable(MAFFT.executable)
-                    require_executable(TRIMAL.executable)
-                    require_executable(IQTREE.executable)
-                    phylo_runner = SubprocessRunner()
-                run_phylo_stage(records, paths, config, runner=phylo_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_barrnap:
-                if barrnap_runner is None and not _cli_real_action_allowed(
-                    "barrnap", config.enable_barrnap, wired=True
-                ):
-                    return 2
-                run_rrna_stage(records, paths, config, runner=barrnap_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_entrez:
-                if not config.email:
-                    LOGGER.error("Real Entrez fallback requires --email with --enable-entrez.")
-                    return 2
-                _execute_entrez_fallback(records, paths, config)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-                if not _source_audit_policy_allows_stage(paths, config, "report"):
-                    return 2
-            elif config.enable_downloads:
-                if not _source_audit_policy_allows_stage(paths, config, "download"):
-                    _write_run_summary(records, paths, config)
-                    return 2
-                if not _cli_real_action_allowed(
-                    "downloads", config.enable_downloads, wired=True
-                ):
-                    return 2
-                _register_existing_downloads(records, paths, config.force)
-                if not _all_reference_genomes_ready(records):
-                    run_downloads_stage(records, paths, config, runner=download_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.species_checklist is not None:
-                run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            else:
-                if _needs_fastani_execution(config):
-                    _cli_real_action_allowed("fastani", config.enable_fastani)
-                else:
-                    _cli_real_action_allowed("downloads", config.enable_downloads)
-                return 2
             return 0
     except (ManifestError, ValueError, RuntimeError) as error:
         run_error = error
@@ -1593,6 +1526,157 @@ def should_refresh_download_preflight_summary(config: AppConfig) -> bool:
     return not config.resume
 
 
+def _run_resume_from_manifest(
+    records,
+    paths,
+    config: AppConfig,
+    download_runner=None,
+    barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
+) -> None:
+    LOGGER.info(
+        "Reusing existing manifest: %s (%d records).",
+        paths.manifest,
+        len(records),
+    )
+    if not paths.name_map.exists():
+        write_name_map(records, paths.name_map)
+
+    run_config = _effective_resume_config(config)
+    if run_config.dry_run:
+        _write_genome_download_plan(
+            records,
+            paths,
+            refresh_preflight_summary=should_refresh_download_preflight_summary(
+                run_config
+            ),
+        )
+        _prepare_local_16s_if_ready(records, paths, run_config)
+        _write_ani_plan_if_ready(records, paths, run_config)
+        _write_phylo_plan(records, paths, run_config)
+    elif run_config.enable_fastani:
+        if fastani_runner is None and not run_config.skip_ani:
+            require_executable(FASTANI.executable)
+            fastani_runner = SubprocessRunner()
+        run_ani_stage(records, paths, run_config, runner=fastani_runner)
+    elif run_config.enable_phylo:
+        if not _source_audit_policy_allows_stage(paths, run_config, "phylo"):
+            _write_run_summary(records, paths, run_config)
+            raise ValueError("Sequence source audit policy blocked phylo stage.")
+        if phylo_runner is None and not run_config.skip_tree:
+            require_executable(MAFFT.executable)
+            require_executable(TRIMAL.executable)
+            require_executable(IQTREE.executable)
+            phylo_runner = SubprocessRunner()
+        run_phylo_stage(records, paths, run_config, runner=phylo_runner)
+    elif run_config.enable_barrnap:
+        if barrnap_runner is None and not _cli_real_action_allowed(
+            "barrnap", run_config.enable_barrnap, wired=True
+        ):
+            raise ValueError("barrnap was not enabled.")
+        run_rrna_stage(records, paths, run_config, runner=barrnap_runner)
+    elif run_config.enable_entrez:
+        if not run_config.email:
+            raise ValueError(
+                "Real Entrez fallback requires --email with --enable-entrez. "
+                f"Continue with: {_resume_command(run_config, paths, 'entrez')}"
+            )
+        _execute_entrez_fallback(records, paths, run_config)
+    elif run_config.enable_downloads:
+        if not _source_audit_policy_allows_stage(paths, run_config, "download"):
+            _write_run_summary(records, paths, run_config)
+            raise ValueError("Sequence source audit policy blocked download stage.")
+        if not _cli_real_action_allowed(
+            "downloads", run_config.enable_downloads, wired=True
+        ):
+            raise ValueError("Downloads were not enabled.")
+        _register_existing_downloads(records, paths, run_config.force)
+        if not _all_reference_genomes_ready(records):
+            run_downloads_stage(records, paths, run_config, runner=download_runner)
+    elif run_config.species_checklist is not None:
+        run_taxonomy_audit_stage(records, paths, run_config.species_checklist)
+    else:
+        raise ValueError(_existing_outdir_resume_message(paths, run_config))
+
+    write_manifest(records, paths.manifest)
+    if run_config.species_checklist is not None:
+        run_taxonomy_audit_stage(records, paths, run_config.species_checklist)
+    _write_run_summary(records, paths, run_config)
+    if run_config.enable_entrez and not _source_audit_policy_allows_stage(
+        paths,
+        run_config,
+        "report",
+    ):
+        raise ValueError("Sequence source audit policy blocked report stage.")
+
+
+def _effective_resume_config(config: AppConfig) -> AppConfig:
+    if not config.verify_genus:
+        return config
+    if any(
+        (
+            config.enable_barrnap,
+            config.enable_entrez,
+            config.enable_fastani,
+            config.enable_phylo,
+            config.enable_downloads,
+        )
+    ):
+        return replace(config, dry_run=False)
+    return config
+
+
+def _existing_outdir_resume_message(paths, config: AppConfig) -> str:
+    if config.force:
+        return ""
+    existing = [
+        label
+        for path, label in (
+            (paths.assembly_candidates_path, "candidates/assembly_candidates.tsv"),
+            (paths.manifest, "manifest.tsv"),
+            (paths.run_state_path, "run_state.json"),
+        )
+        if path.exists()
+    ]
+    if not existing:
+        return ""
+    if not config.verify_genus and config.acquire_genus is None:
+        return ""
+    return (
+        "Existing TypeTreeFlow acquisition outputs were found in this outdir "
+        f"({', '.join(existing)}). To continue from them, use one of:\n"
+        f"  {_resume_command(config, paths, 'barrnap')}\n"
+        f"  {_resume_command(config, paths, 'entrez')}\n"
+        "Use --force only when you intend to rebuild existing acquisition outputs."
+    )
+
+
+def _resume_command(config: AppConfig, paths, stage: str) -> str:
+    genus = config.acquire_genus or config.genus or "<GENUS>"
+    parts = [
+        "typetreeflow",
+        "verify-genus",
+        str(genus),
+        "--outdir",
+        _quote_cli_value(paths.manifest.parent.as_posix()),
+        "--resume",
+    ]
+    if stage == "barrnap":
+        parts.append("--enable-barrnap")
+    elif stage == "entrez":
+        parts.extend(["--enable-entrez", "--email", "<EMAIL>"])
+    return " ".join(parts)
+
+
+def _quote_cli_value(value: str) -> str:
+    if not value:
+        return value
+    if any(char.isspace() for char in value):
+        return '"' + value.replace('"', '\\"') + '"'
+    return value
+
+
 def _write_genome_download_plan(
     records,
     paths,
@@ -1651,6 +1735,9 @@ def _write_run_summary(
     markdown = build_run_summary_markdown(records, paths, config)
     summary_path = write_run_summary(markdown, paths.run_summary_path)
     LOGGER.info("Wrote run summary: %s.", summary_path)
+    review_markdown = build_run_review_markdown(records, paths, config)
+    review_path = write_run_summary(review_markdown, paths.run_review_path)
+    LOGGER.info("Wrote run review: %s.", review_path)
     if taxonomy_error is not None:
         raise taxonomy_error
 
@@ -1913,10 +2000,10 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
     errors = [] if error is None else [str(error)]
     if error is not None:
         status = _blocked_or_failed_status(error)
-        next_action = _next_action_for_error(status, error)
+        next_action = _next_action_for_error(status, error, paths, config)
     else:
         status = _overall_status(stages)
-        next_action = _next_action_for_success(stages)
+        next_action = _next_action_for_success(stages, paths, config)
 
     return WorkflowState(
         status=status,
@@ -2032,6 +2119,8 @@ def _rrna_stage_state(
         status = "partial"
     elif status_counts:
         status = "succeeded"
+    elif config.dry_run and config.enable_barrnap:
+        status = "planned"
     elif config.extract_16s == "barrnap":
         status = "blocked_by_manual_review"
     else:
@@ -2078,20 +2167,34 @@ def _blocked_or_failed_status(error: Exception) -> str:
     return "failed"
 
 
-def _next_action_for_error(status: str, error: Exception) -> str:
+def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
     if status == "blocked_by_dependency":
         return str(error)
     if status == "blocked_by_argument_conflict":
         return "Adjust conflicting CLI arguments and rerun."
     if status == "blocked_by_manual_review":
+        if "source audit policy blocked" in str(error):
+            return (
+                f"Review {_state_output_path(paths.sequence_source_audit_path, paths)}, "
+                "resolve strict sequence-source audit findings, then rerun the guarded "
+                "stage explicitly."
+            )
         return "Review the indicated audit or selection file, then rerun the guarded stage."
     return "Fix the reported error and rerun."
 
 
-def _next_action_for_success(stages: dict[str, StageState]) -> str:
+def _next_action_for_success(
+    stages: dict[str, StageState],
+    paths,
+    config: AppConfig,
+) -> str:
+    if _rrna_gaps_remain(paths):
+        return _resume_command(config, paths, "entrez")
+    rrna = stages.get("rrna_barrnap")
+    if rrna is not None and _rrna_summary_has_16s_gaps(rrna.summary):
+        return _resume_command(config, paths, "entrez")
     download = stages.get("download")
     if download is not None and download.status == "blocked_by_manual_review":
-        rrna = stages.get("rrna_barrnap")
         if rrna is not None and rrna.status == "blocked_by_manual_review":
             return (
                 "Complete guarded download with --auto-accept-selection "
@@ -2099,9 +2202,40 @@ def _next_action_for_success(stages: dict[str, StageState]) -> str:
                 "running --extract-16s barrnap."
             )
         return "Review selection/user_selection.tsv, then run guarded download."
-    if stages.get("rrna_barrnap") is not None:
+    if rrna is not None:
         return "Review report/summary.md and downstream 16S outputs."
+    if _manifest_has_genome_ready_records(paths):
+        return _resume_command(config, paths, "barrnap")
     return "Review report/summary.md."
+
+
+def _rrna_summary_has_16s_gaps(summary: str) -> bool:
+    return any(
+        status in summary
+        for status in (
+            "rrna_16s_not_found",
+            "rrna_16s_extract_failed",
+            "barrnap_failed",
+            "barrnap_missing_output",
+        )
+    )
+
+
+def _rrna_gaps_remain(paths) -> bool:
+    return bool(_read_tsv_rows(paths.rrna_16s_gaps_path))
+
+
+def _manifest_has_genome_ready_records(paths) -> bool:
+    if not paths.manifest.exists():
+        return False
+    for row in _read_tsv_rows(paths.manifest):
+        if row.get("has_genome", "").strip().lower() in {"true", "1", "yes"}:
+            return True
+        if row.get("genome_path", "").strip():
+            return True
+        if row.get("status", "").strip() == "genome_ready":
+            return True
+    return False
 
 
 def _rrna_no_records_summary(config: AppConfig) -> str:
@@ -2308,6 +2442,10 @@ def run_genus_acquisition_workflow(
     genus = str(config.acquire_genus or "").strip()
     if not genus:
         raise ValueError("--acquire-genus requires a genus name.")
+    if not config.resume:
+        message = _existing_outdir_resume_message(paths, config)
+        if message:
+            raise ValueError(message)
     verify_genus_guarded_download = (
         config.verify_genus
         and config.auto_accept_selection

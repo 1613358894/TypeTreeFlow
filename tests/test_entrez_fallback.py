@@ -4,6 +4,7 @@ import pytest
 
 from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.assemble import assemble_all_16s
 from typetreeflow.rrna.entrez_fallback import (
     build_entrez_fallback_plan,
     execute_entrez_fallback_plan,
@@ -172,11 +173,17 @@ def test_execute_entrez_fallback_plan_mock_success_writes_fasta_and_updates_mani
     assert records[0].status == "rrna_16s_ready"
     assert records[0].source.endswith("entrez")
     assert "NR_000001" in records[0].notes
-    assert Path(records[0].rrna_16s_path).read_text(encoding="utf-8").startswith(
-        ">Aliivibrio_fischeri_ES114\n"
+    assert "Entrez fallback source: Entrez" in records[0].notes
+    assert "Entrez 16S accession: NR_000001" in records[0].notes
+    assert "Entrez audit status: strain_text_match" in records[0].notes
+    fasta_text = Path(records[0].rrna_16s_path).read_text(encoding="utf-8")
+    assert fasta_text.startswith(
+        ">Aliivibrio_fischeri_ES114|source=Entrez|accession=NR_000001|"
+        "audit_status=strain_text_match\n"
     )
     assert reloaded[0].has_16s is True
     assert reloaded[0].status == "rrna_16s_ready"
+    assert "Entrez 16S accession: NR_000001" in reloaded[0].notes
 
 
 def test_execute_entrez_fallback_plan_mock_success_writes_source_audit(tmp_path):
@@ -206,6 +213,84 @@ def test_execute_entrez_fallback_plan_mock_success_writes_source_audit(tmp_path)
     assert audits[0].rrna_strain == "ES114"
     assert audits[0].audit_status == "strain_text_match"
     assert audits[0].audit_status != "same_genome_internal_16s"
+    assert "Entrez 16S accession: NR_000001" in audits[0].notes
+    assert "Entrez audit status: strain_text_match" in audits[0].notes
+
+
+def test_entrez_fallback_mismatch_status_is_written_to_header_notes_and_audit(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("OP818089.1", 1300, strain="Other")]
+
+    paths = get_output_paths(tmp_path)
+    records = [_record()]
+
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan(records, paths),
+        records,
+        MockClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    fasta_text = Path(records[0].rrna_16s_path).read_text(encoding="utf-8")
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    assert audits[0].audit_status == "mismatch"
+    assert audits[0].audit_status != "same_genome_internal_16s"
+    assert "audit_status=mismatch" in fasta_text.splitlines()[0]
+    assert "accession=OP818089.1" in fasta_text.splitlines()[0]
+    assert "Entrez audit status: mismatch" in records[0].notes
+
+
+def test_entrez_fallback_strain_text_match_status_is_written_to_header_notes_and_audit(
+    tmp_path,
+):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("OP818090.1", 1300, strain="ES114")]
+
+    paths = get_output_paths(tmp_path)
+    records = [_record()]
+
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan(records, paths),
+        records,
+        MockClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    fasta_text = Path(records[0].rrna_16s_path).read_text(encoding="utf-8")
+    audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    assert audits[0].audit_status == "strain_text_match"
+    assert audits[0].audit_status != "same_genome_internal_16s"
+    assert "audit_status=strain_text_match" in fasta_text.splitlines()[0]
+    assert "accession=OP818090.1" in fasta_text.splitlines()[0]
+    assert "Entrez audit status: strain_text_match" in records[0].notes
+
+
+def test_assemble_all_16s_preserves_entrez_fallback_header_provenance(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("OP818091.1", 1300, strain="ES114")]
+
+    paths = get_output_paths(tmp_path)
+    records = [_record()]
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan(records, paths),
+        records,
+        MockClient(),
+        dry_run=False,
+        sequence_source_audit_path=paths.sequence_source_audit_path,
+    )
+
+    assemble_all_16s(records, None, paths.all_16s_fasta_path)
+
+    all_16s_text = paths.all_16s_fasta_path.read_text(encoding="utf-8")
+    assert all_16s_text.startswith(
+        ">Aliivibrio_fischeri_ES114|source=Entrez|accession=OP818091.1|"
+        "audit_status=strain_text_match\n"
+    )
 
 
 def test_entrez_source_audit_uses_biosample_evidence_for_status(tmp_path):
@@ -411,6 +496,7 @@ def test_force_allows_existing_16s_to_be_overwritten(tmp_path):
     )
 
     assert existing.read_text(encoding="utf-8").startswith(
-        ">Aliivibrio_fischeri_ES114\n"
+        ">Aliivibrio_fischeri_ES114|source=Entrez|accession=NEW|"
+        "audit_status=mismatch\n"
     )
     assert "NEW" in record.notes

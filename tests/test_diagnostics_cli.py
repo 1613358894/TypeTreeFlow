@@ -1,12 +1,44 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 
 from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
+
+
+def test_verify_genus_help_exits_zero_and_mentions_recovery_flags():
+    result = subprocess.run(
+        [sys.executable, "typetreeflow.py", "verify-genus", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "GENUS" not in result.stderr
+    assert "--resume" in result.stdout
+    assert "--enable-barrnap" in result.stdout
+    assert "--enable-entrez" in result.stdout
+
+
+def test_verify_release_genus_help_exits_zero_and_mentions_recovery_flags():
+    result = subprocess.run(
+        [sys.executable, "typetreeflow.py", "verify-release-genus", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "GENUS" not in result.stderr
+    assert "--resume" in result.stdout
+    assert "--extract-16s" in result.stdout
+    assert "--enable-entrez" in result.stdout
 
 
 def test_doctor_reports_missing_tools_and_install_hints(monkeypatch, capsys):

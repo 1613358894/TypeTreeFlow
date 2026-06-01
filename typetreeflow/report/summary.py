@@ -201,6 +201,10 @@ def summarize_output_files(
             "completion/expanded_discovery_results.tsv",
             paths.expanded_discovery_results_path,
         ),
+        (
+            "completion/expanded_discovery_history.tsv",
+            paths.expanded_discovery_history_path,
+        ),
         ("completion/rejected_candidates.tsv", paths.rejected_candidates_path),
         (
             "completion/manual_supplement_hints.tsv",
@@ -209,13 +213,17 @@ def summarize_output_files(
         ("taxonomy/ncbi_taxonomy_plan.tsv", paths.ncbi_taxonomy_plan_path),
         ("taxonomy/ncbi_taxonomy_cache.tsv", paths.ncbi_taxonomy_cache_path),
         ("report/summary.md", paths.run_summary_path),
+        ("report/run_review.md", paths.run_review_path),
     ]
     return [
         {
             "label": label,
             "path": _display_path(path, paths),
             "exists": path.exists()
-            or (assume_run_summary_exists and path == paths.run_summary_path),
+            or (
+                assume_run_summary_exists
+                and path in {paths.run_summary_path, paths.run_review_path}
+            ),
         }
         for label, path in output_files
     ]
@@ -345,6 +353,7 @@ def read_optional_sequence_source_audit(path: str | Path) -> list[dict[str, str]
     return [
         {
             "species": audit.species,
+            "rrna_source": audit.rrna_source,
             "audit_status": audit.audit_status,
         }
         for audit in read_sequence_source_audits(input_path)
@@ -358,6 +367,80 @@ def summarize_sequence_source_audit(rows: list[dict[str, str]]) -> dict[str, int
         if status in summary:
             summary[status] += 1
     return summary
+
+
+def summarize_16s_coverage(
+    records: Iterable[StrainRecord],
+    source_audit_rows: list[dict[str, str]] | None = None,
+) -> dict[str, int]:
+    record_list = list(records)
+    genome_ready_count = sum(
+        1
+        for record in record_list
+        if record.has_genome or record.status == "genome_ready"
+    )
+    total_records = len(record_list)
+
+    if source_audit_rows is None:
+        return {
+            "total_records": total_records,
+            "genome_ready_count": genome_ready_count,
+            "source_audit_available": 0,
+            "same_genome_barrnap_16s_count": 0,
+            "total_usable_16s_count": sum(1 for record in record_list if record.has_16s),
+            "fallback_mismatch_count": 0,
+            "fallback_strain_text_match_count": 0,
+            "fallback_manual_review_required_count": 0,
+            "fallback_strict_blocking_count": 0,
+        }
+
+    same_genome_barrnap_16s_count = 0
+    total_usable_16s_count = 0
+    fallback_mismatch_count = 0
+    fallback_strain_text_match_count = 0
+    fallback_manual_review_required_count = 0
+    fallback_strict_blocking_count = 0
+
+    for row in source_audit_rows:
+        status = row.get("audit_status", "").strip()
+        rrna_source = row.get("rrna_source", "").strip().lower()
+        is_same_genome_internal = status == "same_genome_internal_16s" and rrna_source in {
+            "barrnap",
+            "genome",
+        }
+        is_entrez_fallback = rrna_source == "entrez"
+
+        if is_same_genome_internal:
+            same_genome_barrnap_16s_count += 1
+        if is_same_genome_internal or (
+            is_entrez_fallback and status not in {"genome_only", "manual_review_required"}
+        ):
+            total_usable_16s_count += 1
+
+        if is_entrez_fallback and status == "mismatch":
+            fallback_mismatch_count += 1
+        if is_entrez_fallback and status == "strain_text_match":
+            fallback_strain_text_match_count += 1
+        if is_entrez_fallback and status == "manual_review_required":
+            fallback_manual_review_required_count += 1
+        if is_entrez_fallback and status in {
+            "mismatch",
+            "strain_text_match",
+            "manual_review_required",
+        }:
+            fallback_strict_blocking_count += 1
+
+    return {
+        "total_records": total_records,
+        "genome_ready_count": genome_ready_count,
+        "source_audit_available": 1,
+        "same_genome_barrnap_16s_count": same_genome_barrnap_16s_count,
+        "total_usable_16s_count": total_usable_16s_count,
+        "fallback_mismatch_count": fallback_mismatch_count,
+        "fallback_strain_text_match_count": fallback_strain_text_match_count,
+        "fallback_manual_review_required_count": fallback_manual_review_required_count,
+        "fallback_strict_blocking_count": fallback_strict_blocking_count,
+    }
 
 
 def read_optional_completion_summary(path: str | Path) -> CompletionSummary | None:
@@ -582,6 +665,7 @@ def build_run_summary_markdown(
     except ValueError as error:
         source_audit = None
         source_audit_error = str(error)
+    rrna_coverage = summarize_16s_coverage(record_list, source_audit)
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -784,6 +868,20 @@ def build_run_summary_markdown(
             "## 16S Status",
             "",
             f"- 16S-ready records: {manifest_summary['rrna_ready_count']}",
+            (
+                "- Genome coverage: "
+                f"{rrna_coverage['genome_ready_count']}/{rrna_coverage['total_records']}"
+            ),
+            _format_same_genome_barrnap_coverage(rrna_coverage),
+            (
+                "- Total 16S including Entrez fallback: "
+                f"{rrna_coverage['total_usable_16s_count']}/"
+                f"{rrna_coverage['total_records']}"
+            ),
+            (
+                "- Entrez fallback warnings: "
+                f"{_format_entrez_fallback_warnings(rrna_coverage)}"
+            ),
         ]
     )
 
@@ -1145,6 +1243,7 @@ def build_run_summary_markdown(
                 "## Expanded Discovery Results",
                 "",
                 "- File: completion/expanded_discovery_results.tsv",
+                "- History: completion/expanded_discovery_history.tsv",
                 "- Rejected candidates: completion/rejected_candidates.tsv",
                 "- Manual supplement hints: completion/manual_supplement_hints.tsv",
                 *[
@@ -1316,6 +1415,197 @@ def build_run_summary_markdown(
     return "\n".join(lines) + "\n"
 
 
+def build_run_review_markdown(
+    records: Iterable[StrainRecord],
+    paths: OutputPaths,
+    args: object | None = None,
+) -> str:
+    record_list = list(records)
+    manifest_summary = summarize_manifest(record_list)
+    selected_count = manifest_summary["total_records"]
+    checklist_count, checklist_source = _run_review_checklist_count(paths)
+
+    source_audit_error = ""
+    try:
+        source_audit = read_optional_sequence_source_audit(
+            paths.sequence_source_audit_path
+        )
+    except ValueError as error:
+        source_audit = None
+        source_audit_error = str(error)
+    rrna_coverage = summarize_16s_coverage(record_list, source_audit)
+    source_policy = None
+    if source_audit is not None:
+        source_policy = evaluate_sequence_source_audits(
+            [_sequence_source_audit_summary_row_to_object(row) for row in source_audit],
+            policy="strict",
+        )
+
+    uncovered_error = ""
+    try:
+        uncovered_species = read_optional_completion_gaps(paths.uncovered_species_path)
+    except ValueError as error:
+        uncovered_species = None
+        uncovered_error = str(error)
+
+    next_action = _run_review_next_action(paths)
+    fallback_warnings = _format_entrez_fallback_warnings(rrna_coverage)
+    strict_blocking_count = (
+        source_policy.blocking_count
+        if source_policy is not None
+        else rrna_coverage["fallback_strict_blocking_count"]
+    )
+
+    lines = [
+        "# Run Review",
+        "",
+        (
+            "This review explains the current run from recorded manifest, "
+            "completion, source-audit, and summary inputs only. It does not add "
+            "new scientific conclusions."
+        ),
+        "",
+        "## Coverage",
+        "",
+        f"- Checklist species count: {_format_optional_count(checklist_count)}",
+        f"- Checklist source: {checklist_source}",
+        f"- Selected/manifest records count: {selected_count}",
+        (
+            "- Genome coverage: "
+            f"{rrna_coverage['genome_ready_count']}/{rrna_coverage['total_records']}"
+        ),
+        (
+            "- Same-genome barrnap 16S coverage: "
+            + _run_review_same_genome_barrnap_text(rrna_coverage)
+        ),
+        (
+            "- Total 16S including Entrez fallback: "
+            f"{rrna_coverage['total_usable_16s_count']}/"
+            f"{rrna_coverage['total_records']}"
+        ),
+        (
+            "Use `manifest.tsv`, `source_audit/sequence_source_audit.tsv`, "
+            "and `completion/uncovered_species.tsv` for row-level review."
+        ),
+        "",
+        "## 16S Provenance",
+        "",
+    ]
+
+    if source_audit_error:
+        lines.append(
+            "16S provenance unavailable: "
+            f"source_audit/sequence_source_audit.tsv could not be read "
+            f"({source_audit_error})."
+        )
+    elif source_audit is None:
+        lines.append(
+            "16S provenance unavailable: "
+            "source_audit/sequence_source_audit.tsv is missing."
+        )
+    else:
+        lines.extend(
+            [
+                f"- Source-audit rows: {len(source_audit)}",
+                (
+                    "- Same-genome barrnap/internal rows: "
+                    f"{rrna_coverage['same_genome_barrnap_16s_count']}"
+                ),
+                (
+                    "- Entrez fallback rows counted in total 16S remain "
+                    "fallback evidence, not same-genome evidence."
+                ),
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Fallback Warnings",
+            "",
+            f"- Entrez fallback warnings: {fallback_warnings}",
+            (
+                "- Mismatch fallback warnings: "
+                f"{rrna_coverage['fallback_mismatch_count']}"
+            ),
+            (
+                "- Weak/strain-text-only fallback warnings: "
+                f"{rrna_coverage['fallback_strain_text_match_count']}"
+            ),
+            (
+                "Review `source_audit/sequence_source_audit.tsv` before using "
+                "Entrez fallback records in downstream interpretation."
+            ),
+            "",
+            "## Uncovered Species",
+            "",
+        ]
+    )
+
+    if uncovered_error:
+        lines.append(
+            "Uncovered species unavailable: "
+            f"completion/uncovered_species.tsv could not be read ({uncovered_error})."
+        )
+    elif uncovered_species is None:
+        lines.append(
+            "Uncovered species unavailable: completion/uncovered_species.tsv is missing."
+        )
+    elif not uncovered_species:
+        lines.append("- Count: 0")
+    else:
+        lines.append(f"- Count: {len(uncovered_species)}")
+        for row in uncovered_species[:20]:
+            action = row.suggested_next_action.strip()
+            suffix = f" - {action}" if action else ""
+            lines.append(f"- {_markdown_cell(row.species)}{suffix}")
+        if len(uncovered_species) > 20:
+            lines.append(
+                f"List truncated to first 20 of {len(uncovered_species)} species."
+            )
+
+    lines.extend(
+        [
+            "",
+            "## Strict Blocking",
+            "",
+            f"- Strict blocking count: {strict_blocking_count}",
+        ]
+    )
+    if source_policy is None:
+        lines.append(
+            "Strict blocking is based only on available fallback counts because "
+            "source-audit provenance is unavailable."
+        )
+    else:
+        lines.append(f"- Strict policy note: {source_policy.notes}")
+
+    lines.extend(
+        [
+            "",
+            "## Recommended Next Step",
+            "",
+            f"- {next_action}",
+            "",
+            "## Important Caveat",
+            "",
+            (
+                "Representative-only rows and Entrez fallback 16S records are "
+                "not strict same-genome evidence. The total 16S including "
+                "Entrez fallback count is a practical availability count, not "
+                "a strict-ready count."
+            ),
+            (
+                "For audit detail, inspect `report/summary.md`, `manifest.tsv`, "
+                "`source_audit/completion_summary.tsv`, "
+                "`source_audit/sequence_source_audit.tsv`, and "
+                "`completion/uncovered_species.tsv` when present."
+            ),
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def write_run_summary(markdown: str, path: str | Path) -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1475,8 +1765,86 @@ def _has_positive_count(value: str) -> bool:
         return bool(value.strip()) and value.strip() != "0"
 
 
+def _format_same_genome_barrnap_coverage(summary: dict[str, int]) -> str:
+    if not summary.get("source_audit_available", 0):
+        return "- Same-genome barrnap 16S: not available (source audit missing)"
+    return (
+        "- Same-genome barrnap 16S: "
+        f"{summary['same_genome_barrnap_16s_count']}/{summary['total_records']}"
+    )
+
+
+def _format_entrez_fallback_warnings(summary: dict[str, int]) -> str:
+    warnings = []
+    mismatch_count = summary.get("fallback_mismatch_count", 0)
+    strain_text_match_count = summary.get("fallback_strain_text_match_count", 0)
+    manual_review_count = summary.get("fallback_manual_review_required_count", 0)
+    strict_blocking_count = summary.get("fallback_strict_blocking_count", 0)
+
+    if mismatch_count:
+        warnings.append(f"{mismatch_count} mismatch")
+    if strain_text_match_count:
+        warnings.append(
+            f"{strain_text_match_count} weak/strain-text-only evidence"
+        )
+    if manual_review_count:
+        warnings.append(f"{manual_review_count} manual review required")
+    if strict_blocking_count:
+        warnings.append(f"{strict_blocking_count} strict blocking")
+    return "; ".join(warnings) if warnings else "none"
+
+
+def _run_review_checklist_count(paths: OutputPaths) -> tuple[int | None, str]:
+    try:
+        completion_summary = read_optional_completion_summary(
+            paths.completion_summary_path
+        )
+    except ValueError:
+        completion_summary = None
+    if completion_summary is not None:
+        return (
+            completion_summary.expected_species_count,
+            "source_audit/completion_summary.tsv",
+        )
+
+    try:
+        comparison = read_optional_checklist_comparison(
+            paths.checklist_comparison_path
+        )
+    except ValueError:
+        comparison = None
+    if comparison is not None:
+        summary = summarize_checklist_comparison(comparison)
+        return summary["checklist_species_count"], "taxonomy/checklist_comparison.tsv"
+
+    return None, "unavailable"
+
+
+def _run_review_same_genome_barrnap_text(summary: dict[str, int]) -> str:
+    if not summary.get("source_audit_available", 0):
+        return "provenance unavailable (source audit missing)"
+    return (
+        f"{summary['same_genome_barrnap_16s_count']}/"
+        f"{summary['total_records']}"
+    )
+
+
+def _run_review_next_action(paths: OutputPaths) -> str:
+    try:
+        from typetreeflow.diagnostics import next_step_summary
+
+        return next_step_summary(paths.manifest.parent).next_action
+    except ValueError:
+        return "Review manifest.tsv, report/summary.md, and any available completion TSVs."
+
+
+def _format_optional_count(value: int | None) -> str:
+    return "unavailable" if value is None else str(value)
+
+
 def _sequence_source_audit_summary_row_to_object(row: dict[str, str]):
     return SequenceSourceAudit(
         species=row.get("species", ""),
+        rrna_source=row.get("rrna_source", ""),
         audit_status=row.get("audit_status", ""),
     )

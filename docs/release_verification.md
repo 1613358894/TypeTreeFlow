@@ -3,10 +3,10 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
-## v2.2.2 Reliability Notes
+## v2.2.5 Reliability Notes
 
 `verify-release-genus GENUS` is the release-matrix entry point for running
-balanced and representative policy checks together. In v2.2.2 it runs shared
+balanced and representative policy checks together. In v2.2.5 it runs shared
 acquisition once under `<release_outdir>/acquisition` and then derives the
 per-policy outdirs from that cache. This shared acquisition cache avoids
 duplicate LPSN, assembly-discovery, and BioSample queries for balanced and
@@ -23,9 +23,30 @@ resume from records that were already fetched.
 unfinished and lacks a packageable manifest, it explains the failed stage and
 the next action recorded in `run_state.json`.
 
+### Final Verification Record
+
+The v2.2.5 release verification pass on 2026-06-01 completed with the following
+local checks:
+
+- Version and doctor smoke: `typetreeflow 2.2.5`; Python/version/email and
+  working-directory checks passed, while optional external tools were reported
+  missing from `PATH` (`datasets`, `barrnap`, `fastANI`, `mafft`, `trimal`,
+  `iqtree2`).
+- Full pytest suite: 932 passed with repository-local pytest basetemp/cache.
+- CLI smoke: `--help`, `verify-genus --help`, `verify-release-genus --help`,
+  and `doctor` completed successfully.
+- Targeted smoke: report/run_review, resume UX including `--continue`, Entrez
+  fallback provenance preservation in `rrna/all_16S.fasta`, and expanded
+  discovery current/history outputs passed.
+
+Two small release blockers were fixed during verification: resume dry-run now
+takes priority over real execution enable flags, and combined 16S assembly
+detects duplicate primary FASTA IDs while preserving Entrez fallback provenance
+headers.
+
 ## Scientific Boundaries
 
-v2.2.3 does not promise automatic 100% coverage for a genus. It makes evidence
+v2.2.5 does not promise automatic 100% coverage for a genus. It makes evidence
 and gaps easier to audit.
 
 Keep these evidence tiers separate:
@@ -39,6 +60,27 @@ Keep these evidence tiers separate:
 Representative output can be useful for pressure testing download, 16S, report,
 and packaging behavior, but it must not be described as strict type-strain
 completion.
+
+For 16S interpretation, keep these summary labels distinct:
+
+```text
+Same-genome barrnap 16S
+Total 16S including Entrez fallback
+Fallback warnings
+Strict blocking count
+```
+
+barrnap-derived 16S is same-genome/internal evidence when extracted from the
+selected genome FASTA. Entrez fallback 16S is external rescue evidence; it is
+opt-in only, requires `--enable-entrez --email`, and should not be merged into
+same-genome barrnap coverage.
+
+Recovery commands follow the same operator boundary as ordinary verification:
+offline runs need a real `--discovery-cache`, live discovery needs
+`--enable-ncbi-discovery --email`, and existing outdirs should continue with
+`--resume` or `--continue`. Use `--enable-barrnap` to resume local same-genome
+16S extraction from a genome-ready manifest; use `--enable-entrez --email` only
+when an explicit external 16S fallback pass is intended.
 
 ## Gap Reports
 
@@ -98,6 +140,7 @@ Only `--enable-expanded-discovery` executes the plan. The optional execution
 writes:
 
 - `completion/expanded_discovery_results.tsv`
+- `completion/expanded_discovery_history.tsv`
 - `completion/rejected_candidates.tsv`
 - `completion/manual_supplement_hints.tsv`
 

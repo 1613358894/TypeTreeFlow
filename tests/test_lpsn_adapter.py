@@ -1,4 +1,5 @@
 import csv
+from http.client import IncompleteRead
 from pathlib import Path
 
 import pytest
@@ -199,6 +200,46 @@ def test_official_lpsn_api_client_uses_injected_client_without_network():
     assert [(record.genus, record.species) for record in records] == [
         ("Fusobacterium", "nucleatum")
     ]
+
+
+def test_official_lpsn_api_client_retries_incomplete_read_then_succeeds():
+    class InjectedClient:
+        def __init__(self) -> None:
+            self.search_calls = 0
+
+        def search(self, **kwargs):
+            self.search_calls += 1
+            if self.search_calls <= 2:
+                raise IncompleteRead(b"partial")
+            return 1
+
+        def retrieve(self):
+            return [
+                {
+                    "id": 123,
+                    "monomial": "Fusobacterium",
+                    "species_epithet": "nucleatum",
+                    "validly_published": "ICNP",
+                    "lpsn_taxonomic_status": "correct name",
+                }
+            ]
+
+    sleeps: list[float] = []
+    injected = InjectedClient()
+    client = OfficialLpsnApiClient(
+        "user@example.org",
+        "secret",
+        client=injected,
+        retry_sleep=sleeps.append,
+    )
+
+    records = client.fetch_genus_species("Fusobacterium")
+
+    assert [(record.genus, record.species) for record in records] == [
+        ("Fusobacterium", "nucleatum")
+    ]
+    assert sleeps == [1.0, 2.0]
+    assert injected.search_calls == 3
 
 
 def test_lpsn_species_cache_round_trips_records(tmp_path):

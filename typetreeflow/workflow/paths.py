@@ -42,6 +42,7 @@ class OutputPaths:
     ncbi_taxonomy_cache_path: Path
     report_dir: Path
     run_summary_path: Path
+    run_review_path: Path
     candidates_dir: Path
     assembly_candidates_path: Path
     assembly_candidate_diagnostics_path: Path
@@ -57,6 +58,7 @@ class OutputPaths:
     rrna_16s_gaps_path: Path
     expanded_discovery_plan_path: Path
     expanded_discovery_results_path: Path
+    expanded_discovery_history_path: Path
     rejected_candidates_path: Path
     manual_supplement_hints_path: Path
     selection_dir: Path
@@ -115,6 +117,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         ncbi_taxonomy_cache_path=root / "taxonomy" / "ncbi_taxonomy_cache.tsv",
         report_dir=root / "report",
         run_summary_path=root / "report" / "summary.md",
+        run_review_path=root / "report" / "run_review.md",
         candidates_dir=root / "candidates",
         assembly_candidates_path=root / "candidates" / "assembly_candidates.tsv",
         assembly_candidate_diagnostics_path=root
@@ -140,6 +143,9 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         expanded_discovery_results_path=root
         / "completion"
         / "expanded_discovery_results.tsv",
+        expanded_discovery_history_path=root
+        / "completion"
+        / "expanded_discovery_history.tsv",
         rejected_candidates_path=root / "completion" / "rejected_candidates.tsv",
         manual_supplement_hints_path=root
         / "completion"

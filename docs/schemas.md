@@ -523,6 +523,19 @@ Common `decision` values are `matched_candidate`,
 `rejected_species_mismatch`, `rejected_no_type_token_evidence`,
 `rejected_missing_accession`, `no_result`, and `query_failed`.
 
+`completion/expanded_discovery_history.tsv` appends the result rows from each
+expanded discovery execution. Re-running expanded discovery overwrites only the
+current `completion/expanded_discovery_results.tsv`; this history table keeps
+prior rounds for audit. Reports continue to summarize the current results file
+for final-state counts.
+
+Fields are `run_id`, `timestamp`, `operation`, `attempt`, followed by the
+same fields as `completion/expanded_discovery_results.tsv`: `species`,
+`token`, `token_kind`, `query_database`, `query`, `candidate_accession`,
+`candidate_biosample`, `candidate_organism`, `candidate_strain`,
+`candidate_assembly_level`, `decision`, `decision_reason`,
+`suggested_next_action`, and `notes`.
+
 `completion/rejected_candidates.tsv` is a curator audit view derived from
 expanded discovery results. It contains only rejected, failed, and no-result
 rows and excludes `matched_candidate` rows. It explains why candidate records

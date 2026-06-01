@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import logging
 import time
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 
 from Bio import Entrez
 
+from typetreeflow.sources.retry import RetryError, retry_transient_network_errors
 from typetreeflow.taxonomy.candidate_discovery import AssemblyDiscoveryRecord
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class EntrezAssemblyBackend(Protocol):
@@ -30,6 +35,7 @@ class NcbiAssemblyDiscoveryClient:
         backend: EntrezAssemblyBackend | None = None,
         retmax: int = 20,
         delay_seconds: float | None = None,
+        retry_sleep=None,
     ) -> None:
         if backend is None:
             if not email or not email.strip():
@@ -44,6 +50,7 @@ class NcbiAssemblyDiscoveryClient:
         self.backend = backend if backend is not None else Entrez
         self.retmax = retmax
         self.delay_seconds = delay_seconds
+        self.retry_sleep = retry_sleep or time.sleep
 
     def search_species_assemblies(
         self,
@@ -55,37 +62,50 @@ class NcbiAssemblyDiscoveryClient:
 
         term = build_assembly_search_term(species)
         try:
-            search_handle = self._request(
-                self.backend.esearch,
-                db="assembly",
-                term=term,
-                retmax=self.retmax,
+            return retry_transient_network_errors(
+                f"NCBI Assembly discovery for {species!r}",
+                lambda: self._search_species_assemblies_once(term),
+                sleep=self.retry_sleep,
+                logger=LOGGER,
             )
-            try:
-                search_result = self.backend.read(search_handle)
-            finally:
-                _close_handle(search_handle)
-
-            ids = [str(value) for value in search_result.get("IdList", [])]
-            if not ids:
-                return []
-
-            summary_handle = self._request(
-                self.backend.esummary,
-                db="assembly",
-                id=",".join(ids),
-            )
-            try:
-                summary_result = self.backend.read(summary_handle)
-            finally:
-                _close_handle(summary_handle)
-
-            summaries = _extract_document_summaries(summary_result)
-            return [_summary_to_record(summary) for summary in summaries]
+        except RetryError as error:
+            raise RuntimeError(f"NCBI assembly discovery failed: {error}") from error
         except (HTTPError, URLError, OSError, ValueError) as error:
             raise RuntimeError(f"NCBI assembly discovery failed: {error}") from error
         except Exception as error:
             raise RuntimeError(f"NCBI assembly discovery failed: {error}") from error
+
+    def _search_species_assemblies_once(
+        self,
+        term: str,
+    ) -> list[AssemblyDiscoveryRecord]:
+        search_handle = self._request(
+            self.backend.esearch,
+            db="assembly",
+            term=term,
+            retmax=self.retmax,
+        )
+        try:
+            search_result = self.backend.read(search_handle)
+        finally:
+            _close_handle(search_handle)
+
+        ids = [str(value) for value in search_result.get("IdList", [])]
+        if not ids:
+            return []
+
+        summary_handle = self._request(
+            self.backend.esummary,
+            db="assembly",
+            id=",".join(ids),
+        )
+        try:
+            summary_result = self.backend.read(summary_handle)
+        finally:
+            _close_handle(summary_handle)
+
+        summaries = _extract_document_summaries(summary_result)
+        return [_summary_to_record(summary) for summary in summaries]
 
     def _request(self, request_fn, **kwargs):
         if self.delay_seconds is not None:

@@ -21,6 +21,7 @@ does not introduce new workflow features.
   `completion/expanded_discovery_plan.tsv` for uncovered species by default.
 - Optional `--enable-expanded-discovery` executes the second-pass audit and
   writes `completion/expanded_discovery_results.tsv`,
+  appends `completion/expanded_discovery_history.tsv`,
   `completion/rejected_candidates.tsv`, and
   `completion/manual_supplement_hints.tsv`.
 - Rejected candidate audit rows explain why candidates were not accepted, such

@@ -68,6 +68,7 @@ typetreeflow_out/
     16s_gaps.tsv
     expanded_discovery_plan.tsv
     expanded_discovery_results.tsv
+    expanded_discovery_history.tsv
     rejected_candidates.tsv
     manual_supplement_hints.tsv
   selection/
@@ -83,6 +84,7 @@ typetreeflow_out/
     ncbi_taxonomy_cache.tsv
   report/
     summary.md
+    run_review.md
     figures/
   delivery/
     README.md
@@ -153,7 +155,7 @@ The minimal offline example can be run without network access:
 then rerun without `--dry-run` to install the synthetic fixture FASTA and write
 `manifest.tsv`/`name_map.tsv`, and finally run
 `typetreeflow --outdir results/external_registration_minimal --report-only` to
-refresh `report/summary.md`.
+refresh `report/summary.md` and `report/run_review.md`.
 
 `external_genome_registration_results.tsv` records reviewable validation
 results for standalone external-genome registration rows. It does not create
@@ -170,7 +172,10 @@ skipped-existing rows, verifies installed FASTA checksums, and does not
 participate in the NCBI download workflow. Successful and skipped-existing rows
 are eligible for the external registration manifest written by the CLI.
 
-`report/summary.md` is generated from existing run state. Creating it does not
+`report/summary.md` is generated from existing run state. `report/run_review.md`
+is generated in the same report workflow as a plain-language interpretation
+layer for coverage, 16S provenance, Entrez fallback warnings, uncovered species,
+strict blocking, and recommended next steps. Creating either report does not
 execute external tools, assign final species conclusions, regenerate missing
 inputs, or generate completion audit files. Missing optional artifacts are
 reported as unavailable. When
@@ -179,6 +184,12 @@ their count, display names, strains, installed genome paths, statuses, and
 manifest notes as provenance text, alongside provenance counts for NCBI
 Assembly-backed records, external registered genome records, genome-ready
 records, and records missing genomes.
+The review file explicitly keeps representative-only rows and Entrez fallback
+16S records out of strict same-genome evidence. Its total 16S including Entrez
+fallback count is an availability count, not a strict-ready count, and it points
+users back to `manifest.tsv`, `source_audit/sequence_source_audit.tsv`,
+`source_audit/completion_summary.tsv`, and `completion/uncovered_species.tsv`
+for row-level audit detail.
 When `source_audit/completion_summary.tsv` already exists, the report adds a
 Completion Audit section with NCBI strict and external-inclusive completion
 counts. When `source_audit/completion_audit.tsv` also exists, missing and
@@ -236,7 +247,8 @@ recovery primitive; ordinary users should start with `verify-genus`.
 `--species-checklist PATH` can write `taxonomy/checklist_comparison.tsv` during
 dry-run or resume workflows. Report-only mode does not regenerate this file,
 but `report/summary.md` reads an existing comparison and adds a taxonomic audit
-summary when available.
+summary when available; `report/run_review.md` can use existing comparison or
+completion files to report checklist coverage when available.
 
 `taxonomy/ncbi_taxonomy_plan.tsv` and
 `taxonomy/ncbi_taxonomy_cache.tsv` are scaffolds for optional NCBI Taxonomy
@@ -273,8 +285,8 @@ become diagnostics or manual-review reasons.
 selection file is intended for editing. Selection-driven dry-runs convert
 `selected=yes` rows into `manifest.tsv`, `name_map.tsv`,
 `cache/ncbi/download_plan.tsv`, `selection/download_preflight_summary.tsv`, and
-`report/summary.md`; they plan downloads only and do not write download
-results.
+`report/summary.md` plus `report/run_review.md`; they plan downloads only and
+do not write download results.
 The generated selection table includes `ranking_reasons` and
 `blocking_reasons` columns for review. They explain candidate ranking signals
 and strict/balanced non-selection blockers without loosening policy behavior.
@@ -308,7 +320,8 @@ accession count unless guarded downloads are explicitly enabled. With
 which writes `cache/ncbi/download_results.tsv`, extracts ZIPs under
 `cache/ncbi/extracted/<record_id>/`, installs
 `genomes/references/<normalized_id>.fna`, registers installed reference genomes
-in `manifest.tsv`, and refreshes `report/summary.md`.
+in `manifest.tsv`, and refreshes `report/summary.md` and
+`report/run_review.md`.
 
 `--write-manual-review-template` writes
 `manual_deposit_evidence_template.tsv` and
@@ -351,7 +364,7 @@ external providers or generate reports by itself.
 `report/summary.md`; it keeps NCBI Assembly strict completion separate from
 external-inclusive strict completion.
 
-v2.2.2 also writes completion gap reports under `completion/`.
+v2.2.5 also writes completion gap reports under `completion/`.
 `completion/gaps.tsv` combines auditable gap rows,
 `completion/uncovered_species.tsv` lists checklist species without selected
 coverage, and `completion/16s_gaps.tsv` lists genome-ready manifest rows where
@@ -368,6 +381,11 @@ It is executed only when `--enable-expanded-discovery` is supplied.
 `completion/expanded_discovery_results.tsv` records matched and rejected NCBI
 Assembly/BioSample candidates from that optional pass. Expanded discovery is
 audit-only and does not alter selection, evidence levels, or manifest records.
+Each optional pass also appends its current result rows to
+`completion/expanded_discovery_history.tsv` with a run identifier, timestamp,
+operation, and attempt number, so later re-runs do not erase earlier discovery
+context. The current results file remains the report's source for final-state
+counts.
 `completion/rejected_candidates.tsv` filters those results to rejected,
 failed, and no-result rows so curators can see why candidates were not usable;
 `matched_candidate` rows are excluded. `completion/manual_supplement_hints.tsv`
@@ -414,6 +432,10 @@ The controlled barrnap execution interface writes barrnap stdout to
 extractor writes `rrna/sequences/<normalized_id>.16s.fasta`. The assembler
 combines ready reference 16S records and an optional query 16S FASTA into
 `rrna/all_16S.fasta`.
+Use "Same-genome barrnap 16S" for barrnap/internal-genome counts and "Total 16S
+including Entrez fallback" for availability counts that include opt-in external
+fallback records. Fallback warnings and strict blocking counts come from the
+source-audit/report layer, not from the raw FASTA layout alone.
 
 When `--query-genome` is provided and reference records have registered genome
 files, TypeTreeFlow writes `ani/ani_plan.tsv` for debugging and

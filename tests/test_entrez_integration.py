@@ -81,7 +81,9 @@ def test_entrez_fallback_success_feeds_all_16s_assembly(tmp_path):
         assert record.has_16s is True
         assert record.status == "rrna_16s_ready"
         header, sequence = read_single_fasta(expected_path)
-        assert header == record.normalized_id
+        assert header.startswith(f"{record.normalized_id}|source=Entrez|")
+        assert "accession=NR_00000" in header
+        assert "audit_status=strain_text_match" in header
         assert len(sequence) == 1300
 
     query_16s = tmp_path / "query_16s.fasta"
@@ -90,8 +92,8 @@ def test_entrez_fallback_success_feeds_all_16s_assembly(tmp_path):
     assemble_all_16s(records, query_16s, paths.all_16s_fasta_path)
 
     combined = paths.all_16s_fasta_path.read_text(encoding="utf-8")
-    assert ">Aliivibrio_fischeri_ES114\n" in combined
-    assert ">Aliivibrio_fischeri_MJ11\n" in combined
+    assert ">Aliivibrio_fischeri_ES114|source=Entrez|accession=NR_000001|" in combined
+    assert ">Aliivibrio_fischeri_MJ11|source=Entrez|accession=NR_000002|" in combined
     assert ">Query\n" in combined
 
 

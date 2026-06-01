@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from io import StringIO
+import logging
 import time
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 
 from Bio import Entrez, SeqIO
+
+from typetreeflow.sources.retry import RetryError, retry_transient_network_errors
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -34,6 +40,7 @@ class BiopythonEntrezClient:
         tool: str = "TypeTreeFlow",
         delay_seconds: float | None = None,
         retmax: int = 10,
+        retry_sleep=None,
     ) -> None:
         if not email or not email.strip():
             raise ValueError("Entrez email is required; pass --email with --enable-entrez.")
@@ -43,6 +50,7 @@ class BiopythonEntrezClient:
         self.tool = tool
         self.delay_seconds = delay_seconds
         self.retmax = retmax
+        self.retry_sleep = retry_sleep or time.sleep
 
         Entrez.email = self.email
         Entrez.tool = self.tool
@@ -50,39 +58,50 @@ class BiopythonEntrezClient:
 
     def search_16s(self, query: str, retmax: int = 10) -> list[EntrezCandidate]:
         effective_retmax = retmax if retmax is not None else self.retmax
+        operation = f"Entrez 16S search for {query!r}"
         try:
-            search_handle = self._request(
-                Entrez.esearch,
-                db="nucleotide",
-                term=query,
-                retmax=effective_retmax,
+            return retry_transient_network_errors(
+                operation,
+                lambda: self._search_16s_once(query, effective_retmax),
+                sleep=self.retry_sleep,
+                logger=LOGGER,
             )
-            try:
-                search_result = Entrez.read(search_handle)
-            finally:
-                _close_handle(search_handle)
-
-            ids = [str(value) for value in search_result.get("IdList", [])]
-            if not ids:
-                return []
-
-            fetch_handle = self._request(
-                Entrez.efetch,
-                db="nucleotide",
-                id=",".join(ids),
-                rettype="fasta",
-                retmode="text",
-            )
-            try:
-                fasta_text = fetch_handle.read()
-            finally:
-                _close_handle(fetch_handle)
-
-            return [_record_to_candidate(record) for record in SeqIO.parse(StringIO(fasta_text), "fasta")]
+        except RetryError as error:
+            raise RuntimeError(f"Entrez 16S search failed: {error}") from error
         except (HTTPError, URLError, OSError, ValueError) as error:
             raise RuntimeError(f"Entrez 16S search failed: {error}") from error
         except Exception as error:
             raise RuntimeError(f"Entrez 16S search failed: {error}") from error
+
+    def _search_16s_once(self, query: str, effective_retmax: int) -> list[EntrezCandidate]:
+        search_handle = self._request(
+            Entrez.esearch,
+            db="nucleotide",
+            term=query,
+            retmax=effective_retmax,
+        )
+        try:
+            search_result = Entrez.read(search_handle)
+        finally:
+            _close_handle(search_handle)
+
+        ids = [str(value) for value in search_result.get("IdList", [])]
+        if not ids:
+            return []
+
+        fetch_handle = self._request(
+            Entrez.efetch,
+            db="nucleotide",
+            id=",".join(ids),
+            rettype="fasta",
+            retmode="text",
+        )
+        try:
+            fasta_text = fetch_handle.read()
+        finally:
+            _close_handle(fetch_handle)
+
+        return [_record_to_candidate(record) for record in _parse_fasta_records(fasta_text)]
 
     def _request(self, request_fn, **kwargs):
         if self.delay_seconds is not None:
@@ -91,6 +110,26 @@ class BiopythonEntrezClient:
         if self.delay_seconds is not None:
             time.sleep(self.delay_seconds)
         return handle
+
+
+def _parse_fasta_records(fasta_text: str):
+    normalized_text = _strip_fasta_preamble(fasta_text)
+    try:
+        return list(SeqIO.parse(StringIO(normalized_text), "fasta"))
+    except ValueError:
+        return list(SeqIO.parse(StringIO(normalized_text), "fasta-blast"))
+
+
+def _strip_fasta_preamble(fasta_text: str) -> str:
+    lines = fasta_text.splitlines()
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "!", ";")):
+            continue
+        if stripped.startswith(">"):
+            return "\n".join(lines[index:])
+        return "\n".join(lines[index:])
+    return ""
 
 
 def build_16s_query(genus: str, species: str, strain: str | None = None) -> str:

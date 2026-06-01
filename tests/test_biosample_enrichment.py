@@ -1,5 +1,6 @@
-from pathlib import Path
+from http.client import IncompleteRead
 from io import StringIO
+from pathlib import Path
 
 import pytest
 
@@ -72,6 +73,19 @@ class _FakeBioSampleEntrezBackend:
         if handle.getvalue() == "search":
             return {"IdList": ["123"]}
         raise RuntimeError("efetch XML should be parsed without Entrez.read")
+
+
+class _FlakyBioSampleEntrezBackend(_FakeBioSampleEntrezBackend):
+    def __init__(self, xml: str, failures: int):
+        super().__init__(xml)
+        self.failures = failures
+        self.read_calls = 0
+
+    def read(self, handle):
+        self.read_calls += 1
+        if self.read_calls <= self.failures:
+            raise IncompleteRead(b"partial")
+        return super().read(handle)
 
 
 def _candidate(**kwargs) -> AssemblyCandidate:
@@ -606,6 +620,39 @@ def test_ncbi_biosample_client_parses_efetch_xml_without_dtd():
     assert [call[0] for call in backend.calls] == ["esearch", "efetch"]
 
 
+def test_ncbi_biosample_lookup_retries_incomplete_read_then_succeeds():
+    sleeps: list[float] = []
+    backend = _FlakyBioSampleEntrezBackend(
+        """<BioSampleSet><BioSample accession="SAMN00000002"/></BioSampleSet>""",
+        failures=2,
+    )
+    client = NcbiBioSampleClient(backend=backend, retry_sleep=sleeps.append)
+
+    record = client.fetch_biosample("SAMN00000002")
+
+    assert record is not None
+    assert record.biosample == "SAMN00000002"
+    assert sleeps == [1.0, 2.0]
+    assert backend.read_calls == 3
+
+
+def test_ncbi_biosample_lookup_incomplete_read_exhaustion_has_clear_error():
+    sleeps: list[float] = []
+    backend = _FlakyBioSampleEntrezBackend(
+        """<BioSampleSet><BioSample accession="SAMN00000002"/></BioSampleSet>""",
+        failures=3,
+    )
+    client = NcbiBioSampleClient(backend=backend, retry_sleep=sleeps.append)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"NCBI BioSample lookup failed: .*failed after 3 attempt\(s\).*IncompleteRead",
+    ):
+        client.fetch_biosample("SAMN00000002")
+
+    assert sleeps == [1.0, 2.0]
+
+
 def test_cli_cache_only_dry_run_biosample_enrichment(tmp_path):
     outdir = tmp_path / "out"
     paths = get_output_paths(outdir)
@@ -672,6 +719,39 @@ def test_cli_dry_run_rejects_real_biosample_entrez(tmp_path, caplog):
 
     assert result == 2
     assert "BioSample Entrez lookup is not executed during --dry-run" in caplog.text
+
+
+def test_cli_dry_run_biosample_entrez_does_not_instantiate_live_client(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    checklist_path = tmp_path / "species_checklist.tsv"
+    write_species_checklist([_checklist_entry()], checklist_path)
+    write_assembly_candidates([_candidate()], paths.assembly_candidates_path)
+
+    def fail_if_instantiated(*args, **kwargs):
+        raise AssertionError("dry-run must not create live BioSample client")
+
+    monkeypatch.setattr("typetreeflow.cli.NcbiBioSampleClient", fail_if_instantiated)
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--species-checklist",
+            str(checklist_path),
+            "--enrich-biosample",
+            "--enable-biosample-entrez",
+            "--email",
+            "user@example.org",
+            "--dry-run",
+        ]
+    )
+
+    assert result == 2
 
 
 def test_legacy_candidate_tsv_can_be_enriched(tmp_path):

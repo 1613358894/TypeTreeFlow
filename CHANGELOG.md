@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v2.2.5 - 2026-06-01
+
+- Unified the package metadata, Python package version, CLI `--version`,
+  `doctor` diagnostics, README, and release notes on version `2.2.5`.
+- Improved Entrez fallback provenance reporting so fallback-derived sequence
+  records are easier to distinguish and audit in reports.
+- Clarified 16S provenance by separating same-genome barrnap 16S evidence from
+  Entrez fallback 16S evidence.
+- Improved resume behavior, report handoff clarity, and release credibility
+  checks for the v2.2.x workflow.
 - Added v2.2.x integration release notes and an end-to-end acceptance checklist
   for the v2.2.2 shared acquisition/gap reporting, v2.2.3 expanded discovery
   audit, and v2.2.4 NCBI Taxonomy enrichment work.
@@ -9,6 +19,12 @@
   they do not automatically modify `manifest.tsv`,
   `selection/user_selection.tsv`, completion metrics, or evidence levels, and
   they do not promise automatic 100% coverage.
+- Completed release verification with 932 passing tests, CLI smoke coverage for
+  help/doctor commands, and targeted smoke checks for report/run_review, resume,
+  Entrez fallback provenance, and expanded discovery history.
+- Fixed resume dry-run handling so `--dry-run` takes priority over real
+  execution enable flags, and protected combined 16S assembly from primary FASTA
+  header collisions while preserving Entrez fallback provenance fields.
 
 ## v2.2.1 - 2026-05-29
 

@@ -46,8 +46,8 @@ def collect_reference_16s(
         rrna_path = resolve_manifest_path(record.rrna_16s_path, base_dir)
         if not rrna_path.exists():
             continue
-        _source_header, sequence = read_single_fasta(rrna_path)
-        header = _normalize_header(record.normalized_id)
+        source_header, sequence = read_single_fasta(rrna_path)
+        header = _reference_header(record.normalized_id, source_header)
         entries.append(
             FastaEntry(
                 header=header,
@@ -71,6 +71,7 @@ def build_query_16s_entry(query_16s_path: Path, query_name: str = "Query") -> Fa
 
 def ensure_unique_headers(entries: Iterable[FastaEntry]) -> None:
     seen: set[str] = set()
+    seen_primary_ids: set[str] = set()
     for entry in entries:
         if not entry.header:
             raise ValueError(f"FASTA entry has an empty header: {entry.path}")
@@ -78,7 +79,11 @@ def ensure_unique_headers(entries: Iterable[FastaEntry]) -> None:
             raise ValueError(f"FASTA header contains whitespace: {entry.header}")
         if entry.header in seen:
             raise ValueError(f"Duplicate FASTA header: {entry.header}")
+        primary_id = _header_primary_id(entry.header)
+        if primary_id in seen_primary_ids:
+            raise ValueError(f"Duplicate FASTA header: {primary_id}")
         seen.add(entry.header)
+        seen_primary_ids.add(primary_id)
 
 
 def write_combined_16s(entries: Iterable[FastaEntry], output_path: Path) -> Path:
@@ -115,3 +120,24 @@ def _normalize_header(value: str) -> str:
     if not header:
         raise ValueError("FASTA header cannot be empty after normalization.")
     return header
+
+
+def _reference_header(normalized_id: str, source_header: str) -> str:
+    if _has_entrez_fallback_provenance(source_header):
+        return source_header
+    return _normalize_header(normalized_id)
+
+
+def _has_entrez_fallback_provenance(header: str) -> bool:
+    fields = set(str(header).split("|")[1:])
+    return {
+        "source=Entrez",
+    }.issubset(fields) and any(
+        field.startswith("accession=") for field in fields
+    ) and any(
+        field.startswith("audit_status=") for field in fields
+    )
+
+
+def _header_primary_id(header: str) -> str:
+    return str(header).split("|", 1)[0]
