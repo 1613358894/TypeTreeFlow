@@ -21,7 +21,7 @@ output_phase*/
 typetreeflow_out/
 logs/
 *.log
-phase*/
+/phase*/
 
 .venv/
 env/
