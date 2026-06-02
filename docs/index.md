@@ -88,8 +88,9 @@ move, archive, or deletion.
 
 - [maintenance.md](maintenance.md): Documentation maintenance rules for humans
   and AI agents, including doc layers, archive boundaries, and validation.
-- [release_process.md](release_process.md): Release policy, version-source,
-  tag, GitHub Release, clean-clone verification, and audit standards.
+- [release_process.md](release_process.md): Recommended release process for
+  release commits, annotated tags, GitHub Releases, release PRs, branch
+  protection notes, and post-release cleanup.
 - [release_checklist.md](release_checklist.md): Execution checklist for local
   validation, packaging, optional real staged validation, and pre-tag checks.
 - [release_notes_v2_2_x.md](release_notes_v2_2_x.md): Consolidated v2.2.x

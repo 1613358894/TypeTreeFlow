@@ -1,109 +1,96 @@
 # Release Process
 
-This document records TypeTreeFlow release policy, process, and release-record
-standards. Use `docs/release_checklist.md` as the execution checklist before
-tagging, publishing, or auditing a release.
+## Scope
 
-## Version Source of Truth
+This process covers TypeTreeFlow release commits, annotated tags, GitHub
+Releases, release PRs, and post-release repository cleanup.
 
-For every release, the version must be consistent across:
+## Pre-Release Checks
 
-- `pyproject.toml`
-- `typetreeflow/__init__.py`
-- `CITATION.cff`
-- `CHANGELOG.md`
+- Worktree clean.
+- Version metadata consistent across `pyproject.toml`,
+  `typetreeflow/__init__.py`, `CITATION.cff`, and `CHANGELOG.md`.
+- Changelog entry present.
+- Targeted tests pass.
+- Full or release-appropriate CI passes.
 
-Do not treat the Git tag or GitHub Release title as the only source of truth.
-They must match the version recorded in the repository files above.
+Use `docs/release_checklist.md` as the detailed execution checklist when
+preparing release artifacts or validating a release candidate.
 
-## Release Tag Policy
+## Release Commit
 
-Release tags use this format:
+- Create a release readiness commit.
+- Confirm the release commit hash.
+- Do not include caches, local environment files, generated run output, real
+  download data, or large artifacts.
+- Do not mix unrelated feature work into the release readiness commit.
 
-```text
-vMAJOR.MINOR.PATCH
+## Annotated Tag
+
+- Create an annotated tag:
+
+  ```bash
+  git tag -a vX.Y.Z -m "Release vX.Y.Z"
+  ```
+
+- Push the release commit and tag.
+- Confirm the tag dereferences to the intended release commit:
+
+  ```bash
+  git rev-parse vX.Y.Z^{}
+  ```
+
+- Do not rewrite public tags unless the maintainer explicitly approves the
+  exception and records the reason.
+
+## GitHub Release
+
+- Create a draft GitHub Release from the pushed tag.
+- Use the changelog entry as release notes.
+- Confirm the draft release is bound to the intended tag.
+- Publish only after the release PR is merged into `main`.
+- Confirm stable releases are not left as draft or prerelease releases.
+
+Draft release URLs may temporarily look like `untagged-*`; verify the release
+record's `tagName` before publishing.
+
+## Release PR
+
+- Open a PR from the release branch to `main`.
+- Use a merge commit only.
+- Do not squash or rebase release PRs, because the tag commit must remain
+  reachable from `main`.
+- Confirm required CI checks pass.
+
+## Branch Protection Notes
+
+- PR authors cannot approve their own PRs.
+- For single-maintainer repositories, keep the required approving review count
+  at `0` unless another reviewer is available.
+- Required CI checks should remain enabled.
+
+## Post-Release Cleanup
+
+- Confirm the latest GitHub Release points to the intended stable release.
+- Confirm the tag commit is reachable from `main`.
+- Delete the merged release branch.
+- Sync local `main`.
+- Verify the worktree is clean.
+
+Useful checks:
+
+```bash
+git fetch --tags origin
+git merge-base --is-ancestor vX.Y.Z^{} main
+git status -sb
 ```
 
-Release tags should be annotated tags. The tag message format is:
+## Troubleshooting
 
-```text
-TypeTreeFlow vX.Y.Z
-```
+- Draft release URLs may temporarily look like `untagged-*`; verify `tagName`.
+- If Git proxy points to `127.0.0.1:7890` and fails, either start the proxy or
+  run one-off commands with:
 
-Public tags are not rewritten by default. If rewriting a public tag is
-explicitly approved, create a backup first and record the reason.
-
-Historical note: `v0.2.1` was originally published as a lightweight tag. To
-standardize release tag records, it has since been replaced with an annotated
-tag while preserving the peeled commit:
-`cc4534a704623009038f31c23cb04e2b13274750`. After the full commit history was
-normalized, the old backup tag was no longer retained as a Git ref. The
-pre-rewrite history is preserved locally in the bundle:
-`D:\Draft\TypeTreeFlow-pre-history-rewrite-c8c77e2-20260526.bundle`.
-
-## GitHub Release Policy
-
-GitHub Releases must follow these rules:
-
-- Release title: `TypeTreeFlow vX.Y.Z`
-- The newest stable release is marked as Latest.
-- Stable releases are not draft releases.
-- Stable releases are not prereleases.
-- Each release must upload the corresponding wheel asset.
-- Wheel asset filename format: `typetreeflow-X.Y.Z-py3-none-any.whl`
-
-The GitHub Release version, tag, title, Latest marker, and wheel asset must all
-refer to the same release version.
-
-## Validation Policy
-
-Every release must pass the local validation, packaging, and clean-clone checks
-listed in `docs/release_checklist.md`. Clean-clone verification happens before
-publishing the GitHub Release and must use the exact release tag in a
-disposable directory.
-
-Required validation is intentionally offline unless a release explicitly plans
-guarded real validation. The default tests and scaffolding checks must not
-require network access or external bioinformatics tools.
-
-## Safety Rules
-
-- Release preparation must not add unrelated features.
-- Clean clone verification must not modify the source repository.
-- Scaffolding tests must not require network access.
-- Scaffolding tests must not require external bioinformatics tools.
-- Do not call `datasets`, `barrnap`, `FastANI`, `MAFFT`, `trimAl`, or
-  `IQ-TREE` during release preparation unless running an explicitly planned,
-  guarded real validation.
-- Guarded real validation must document the exact command, input data, output
-  directory, and reason for running it.
-
-## Clean Clone Verification Standard
-
-Before publishing a GitHub Release:
-
-1. Clone the repository into a disposable directory.
-2. Check out the exact release tag.
-3. Confirm the version files match the tag.
-4. Run the required tests and CLI help check.
-5. Build the wheel and confirm its filename matches the release version.
-6. Confirm the clean clone remains unmodified after verification.
-
-## Release Record Audit
-
-Before closing a release, audit the local repository, remote repository, tags,
-and GitHub Release record:
-
-- Check that `main` and `origin/main` are aligned at the intended release
-  commit.
-- Check that local release tags and origin release tags agree.
-- Check that the release tag is annotated.
-- Check that the GitHub Release exists for the release tag.
-- Check that the GitHub Release has the required wheel asset.
-- Check that the wheel asset filename is
-  `typetreeflow-X.Y.Z-py3-none-any.whl`.
-- Check that the newest stable release is marked as Latest.
-- Check that stable releases are not draft or prerelease releases.
-
-Record any exception in the release notes or project maintenance notes before
-considering the release complete.
+  ```bash
+  git -c http.proxy= -c https.proxy= ...
+  ```
