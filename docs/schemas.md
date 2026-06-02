@@ -29,6 +29,43 @@ checklist workflows.
 - `lpsn_url`: LPSN or source URL.
 - `synonyms`: optional synonym text used for review/discovery context.
 
+## taxonomy/ncbi_taxonomy_plan.tsv
+
+Offline plan for optional NCBI Taxonomy enrichment. It is generated from
+`species_checklist.tsv` by `verify-genus` and `verify-release-genus` policy
+outputs when a checklist is available. This file is a query plan only: writing
+or reporting it does not contact NCBI Taxonomy, expand discovery queries,
+change selection, write manifest records, or relax evidence rules. Header-only
+files are valid when no checklist species are available.
+
+- `species`: checklist species represented by the planned taxonomy lookup.
+- `scientific_name`: normalized binomial scientific name for the checklist species.
+- `query`: planned query string, normally the full binomial such as `Enterobacter siamensis`.
+- `query_reason`: reason the query exists, currently `checklist_species_binomial`.
+- `status`: planning status, initially `planned`.
+- `notes`: offline planning notes such as `offline_plan_only`.
+
+## taxonomy/ncbi_taxonomy_cache.tsv
+
+Stable cache schema for optional NCBI Taxonomy lookup results. v2.2.4 writes
+this as a header-only file by default. When `--enable-ncbi-taxonomy` is passed
+with `--email` or `TYPETREEFLOW_EMAIL`, lookup results are checkpointed here
+one species at a time. When present, `synonyms`, `equivalent_names`, and
+`includes` can add taxonomy-derived rows to
+`completion/expanded_discovery_plan.tsv` for uncovered species only. Cache
+contents do not select records, change manifests, or change evidence levels.
+
+- `species`: checklist species key represented by the cache row.
+- `taxid`: NCBI Taxonomy identifier, when populated by lookup.
+- `scientific_name`: NCBI scientific name.
+- `rank`: NCBI taxonomy rank.
+- `synonyms`: synonym names serialized for review.
+- `equivalent_names`: equivalent names serialized for review.
+- `includes`: included names serialized for review.
+- `authority`: authority text, when available.
+- `source`: cache source label.
+- `notes`: lookup or curation notes.
+
 ## excluded_lpsn_taxa.tsv
 
 Review table for LPSN rows excluded from the retained checklist.
@@ -441,6 +478,93 @@ Fields are `selected_total`, `strict_confirmed`, `likely_type_material`,
 fallback downloads as exploratory and not strict type-strain completion.
 External registered genomes count in `external_registered` and
 `download_not_applicable`; they do not enter NCBI Datasets planned downloads.
+
+## completion/gaps.tsv, completion/uncovered_species.tsv, completion/16s_gaps.tsv
+
+v2.2.2 gap reports explain incomplete coverage without changing evidence
+rules. `completion/gaps.tsv` is the combined report,
+`completion/uncovered_species.tsv` focuses on checklist species without
+selected coverage, and `completion/16s_gaps.tsv` focuses on genome-ready rows
+where 16S was not found.
+
+Fields are `species`, `checklist_name`, `lpsn_type_strain`, `lpsn_url`,
+`reason_category`, `selected`, `selected_assembly`, `selected_strain`,
+`evidence_level`, `record_status`, `suggested_next_action`, and `notes`.
+
+Common `reason_category` values include `insufficient_type_evidence`,
+`missing_external_candidate`, `workflow_failed_before_selection`,
+`genome_ready_16s_not_found`, and `uncovered_checklist_species`.
+
+`completion/expanded_discovery_plan.tsv` is a review-only second-pass search
+plan derived from uncovered species and LPSN type-strain aliases. If
+`taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level aliases from its
+`synonyms`, `equivalent_names`, and `includes` fields add conservative
+alias-plus-token query rows for uncovered species only. By default the plan is
+not executed and does not change `manifest.tsv`, selection, or evidence
+levels.
+
+Fields are `species`, `checklist_name`, `lpsn_type_strain`, `token`,
+`token_kind`, `query_database`, `query`, `reason`, `suggested_next_action`, and
+`notes`. Taxonomy-derived rows keep provenance in `notes` as
+`taxonomy_alias`, `taxonomy_alias_kind`, `taxonomy_taxid`, and
+`taxonomy_source`.
+
+`completion/expanded_discovery_results.tsv` is written only when
+`--enable-expanded-discovery` is supplied. It records matched and rejected
+candidate audit rows from the plan without auto-selecting assemblies or
+relaxing evidence rules.
+
+Fields are `species`, `token`, `token_kind`, `query_database`, `query`,
+`candidate_accession`, `candidate_biosample`, `candidate_organism`,
+`candidate_strain`, `candidate_assembly_level`, `decision`,
+`decision_reason`, `suggested_next_action`, and `notes`.
+
+Common `decision` values are `matched_candidate`,
+`rejected_species_mismatch`, `rejected_no_type_token_evidence`,
+`rejected_missing_accession`, `no_result`, and `query_failed`.
+
+`completion/expanded_discovery_history.tsv` appends the result rows from each
+expanded discovery execution. Re-running expanded discovery overwrites only the
+current `completion/expanded_discovery_results.tsv`; this history table keeps
+prior rounds for audit. Reports continue to summarize the current results file
+for final-state counts.
+
+Fields are `run_id`, `timestamp`, `operation`, `attempt`, followed by the
+same fields as `completion/expanded_discovery_results.tsv`: `species`,
+`token`, `token_kind`, `query_database`, `query`, `candidate_accession`,
+`candidate_biosample`, `candidate_organism`, `candidate_strain`,
+`candidate_assembly_level`, `decision`, `decision_reason`,
+`suggested_next_action`, and `notes`.
+
+`completion/rejected_candidates.tsv` is a curator audit view derived from
+expanded discovery results. It contains only rejected, failed, and no-result
+rows and excludes `matched_candidate` rows. It explains why candidate records
+were rejected or why a query produced no usable candidate. It does not update
+selection, `manifest.tsv`, or evidence levels.
+
+Fields are `species`, `token`, `query_database`, `query`,
+`candidate_accession`, `candidate_biosample`, `candidate_organism`,
+`candidate_strain`, `decision`, `decision_reason`, `reject_category`, and
+`notes`.
+
+`completion/manual_supplement_hints.tsv` is a species-level manual handoff
+derived from expanded discovery results. It tells curators whether to review
+matched candidates, retry failed queries or caches, search manually, provide a
+curator-confirmed accession, or prepare an external genome FASTA. These are
+hints only and never relax evidence rules or automatically change selection or
+completion state.
+
+Fields are `species`, `lpsn_type_strain`, `tokens`,
+`matched_candidate_count`, `rejected_candidate_count`, `no_result_count`,
+`query_failed_count`, `recommended_action`, `suggested_template`, and `notes`.
+
+Common `recommended_action` values are `review_matched_candidates`,
+`manual_search_required`, `provide_curator_accession`,
+`provide_external_genome_fasta`, and `retry_network_or_use_cache`. Query
+failures take priority. If any `matched_candidate` exists, the hint recommends
+manual review rather than automatic acceptance. When all results are rejected
+or no-result rows, the hint recommends manual search or a curator-supplied
+accession.
 
 ## Manual Review Outputs
 

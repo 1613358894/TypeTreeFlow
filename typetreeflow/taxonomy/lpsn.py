@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import csv
 import importlib
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+import time
 from typing import Any, Protocol
 
+from typetreeflow.sources.retry import RetryError, retry_transient_network_errors
 from typetreeflow.taxonomy.checklist import (
     SpeciesChecklistEntry,
     is_lpsn_correct_name_entry,
@@ -45,6 +48,7 @@ LPSN_EXCLUDED_FIELDS = [
     "notes",
     "exclusion_reason",
 ]
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -105,13 +109,21 @@ class LpsnSpeciesCacheClient:
 class OfficialLpsnApiClient:
     """Minimal adapter over the official `lpsn` Python API client."""
 
-    def __init__(self, username: str, password: str, *, client: Any | None = None) -> None:
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        *,
+        client: Any | None = None,
+        retry_sleep=None,
+    ) -> None:
         if not username or not password:
             raise LpsnCredentialsError(
                 "Official LPSN API access requires credentials in "
                 f"{LPSN_USERNAME_ENV} or {LPSN_EMAIL_ENV}, and {LPSN_PASSWORD_ENV}."
             )
         self._client = client or _build_official_lpsn_client(username, password)
+        self._retry_sleep = retry_sleep or time.sleep
 
     @classmethod
     def from_env(cls) -> "OfficialLpsnApiClient":
@@ -126,6 +138,17 @@ class OfficialLpsnApiClient:
         return cls(username, password)
 
     def fetch_genus_species(self, genus: str) -> list[LpsnSpeciesRecord]:
+        try:
+            return retry_transient_network_errors(
+                f"Official LPSN API species search for {genus!r}",
+                lambda: self._fetch_genus_species_once(genus),
+                sleep=self._retry_sleep,
+                logger=LOGGER,
+            )
+        except RetryError as error:
+            raise RuntimeError(f"Official LPSN API lookup failed: {error}") from error
+
+    def _fetch_genus_species_once(self, genus: str) -> list[LpsnSpeciesRecord]:
         count = self._client.search(taxon_name=genus, category="species")
         if not count:
             return []

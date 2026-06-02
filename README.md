@@ -62,6 +62,9 @@ scrape, purchase, or download from external portals, and does not treat
   changing NCBI-only completion counts.
 - Explicitly write completion audit tables from a species checklist and
   existing manifest with `--write-completion-audit`.
+- Write expanded NCBI token-discovery plans for uncovered species and, only
+  when explicitly enabled, audit matched/rejected Assembly and BioSample
+  candidates without changing manifests or selections.
 - Summarize external registered genome records from an existing manifest in
   report-only mode, keeping them separate from NCBI Assembly-backed records.
 - Summarize existing provider registration planning outputs in report-only mode
@@ -72,8 +75,8 @@ scrape, purchase, or download from external portals, and does not treat
   MAFFT/trimAl/IQ-TREE wrappers.
 - Select type-material records from local GTDB metadata TSVs for legacy or
   direct GTDB-based workflows.
-- Write `report/summary.md` from existing files without making species
-  conclusions.
+- Write `report/summary.md` and `report/run_review.md` from existing files
+  without making species conclusions.
 
 The CLI can run guarded resume-mode FastANI and write an ANI PNG from parsed
 results. It does not parse Newick trees. Guarded phylogeny execution writes a
@@ -90,6 +93,9 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
 - [docs/cookbook.md](docs/cookbook.md): concise operator cookbook for the
   high-level `doctor`, `verify-genus`, `status`, `next-step`,
   `package-results`, and `verify-release-genus` commands.
+- [docs/release_verification.md](docs/release_verification.md): current
+  release-verification behavior, v2.2.2 reliability notes, and gap-report
+  interpretation.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
 - [docs/schemas.md](docs/schemas.md): TSV and table field dictionary.
@@ -125,15 +131,15 @@ names. TypeTreeFlow can filter LPSN-derived records to validly published
 correct-name species, including official `correct name (...)` annotations, and
 write excluded synonym, misspelling, not-validly-published, pro-correct, and
 `Candidatus` rows for review. It still does not make species conclusions:
-`report/summary.md` only reports traceable computational results from recorded
-manifests and output files.
+`report/summary.md` and `report/run_review.md` only report traceable
+computational results from recorded manifests and output files.
 
 For formal new-species publication work, review the generated checklist,
-candidate, selection, source-audit, `manifest.tsv`, `name_map.tsv`, and
-`report/summary.md` against LPSN or an equivalent authoritative checklist before
-drawing taxonomic conclusions. Use `--source-audit-policy strict` for formal
-downloads or publication-facing analyses when genome and 16S records are mixed
-from different sources.
+candidate, selection, source-audit, `manifest.tsv`, `name_map.tsv`,
+`report/summary.md`, and `report/run_review.md` against LPSN or an equivalent
+authoritative checklist before drawing taxonomic conclusions. Use
+`--source-audit-policy strict` for formal downloads or publication-facing
+analyses when genome and 16S records are mixed from different sources.
 
 Strict type-strain selection requires evidence tying an NCBI Assembly accession
 to the species type-strain equivalence set. A regular culture collection deposit
@@ -209,7 +215,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.0 workflows
+## Recommended v2.2.5 workflows
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample
@@ -227,9 +233,13 @@ typetreeflow verify-genus Fusobacterium \
   --policy balanced \
   --source-audit-policy strict \
   --strains-per-species 1 \
-  --outdir results/fusobacterium_verify \
-  --force
+  --outdir results/fusobacterium_verify
 ```
+
+This is the recommended plan-only acquisition command. A local LPSN cache only
+builds the checklist; it is not a discovery cache and does not supply NCBI
+Assembly candidates. Use `--discovery-cache` for offline candidate discovery,
+or use guarded live discovery with `--enable-ncbi-discovery --email`.
 
 Plan the same shape with guarded live LPSN, NCBI Assembly, and BioSample
 lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
@@ -242,8 +252,7 @@ typetreeflow verify-genus Fusobacterium \
   --email user@example.org \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir results/fusobacterium_verify \
-  --force
+  --outdir results/fusobacterium_verify
 ```
 
 By default, `verify-genus` stops at reviewable planning. Review
@@ -262,16 +271,15 @@ typetreeflow verify-genus Fusobacterium \
   --source-audit-policy strict \
   --outdir results/fusobacterium_verify \
   --auto-accept-selection \
-  --enable-downloads \
-  --force
+  --enable-downloads
 ```
 
 The download pair is deliberately strict: `--enable-downloads` is ignored for
 real execution unless paired with `--auto-accept-selection` in `verify-genus`.
 For a manual stop, omit both or add `--review-required`.
 
-After genomes are ready, high-level 16S extraction can be requested with
-barrnap:
+For a full-auto genome plus same-genome barrnap 16S run, use downloads and
+`--extract-16s barrnap` together:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
@@ -283,13 +291,41 @@ typetreeflow verify-genus Fusobacterium \
   --outdir results/fusobacterium_verify \
   --auto-accept-selection \
   --enable-downloads \
-  --extract-16s barrnap \
-  --force
+  --extract-16s barrnap
 ```
 
 `--extract-16s barrnap` depends on a genome-ready manifest produced by guarded
 download or external local FASTA registration, and it requires `barrnap` on
 `PATH`.
+
+If a run already has an output directory, ordinary continuation should use
+`--resume` (or `--continue`), not `--force`. `--force` is for intentionally
+rebuilding protected outputs. Resume local barrnap from the existing manifest:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --outdir results/fusobacterium_verify \
+  --resume \
+  --enable-barrnap
+```
+
+Resume guarded Entrez 16S fallback only after barrnap/internal 16S extraction
+left missing records:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --outdir results/fusobacterium_verify \
+  --resume \
+  --enable-entrez \
+  --email user@example.org
+```
+
+barrnap is the same-genome/internal 16S path: it extracts 16S from the selected
+reference genome FASTA and can support `same_genome_internal_16s` evidence.
+Entrez fallback is an external 16S rescue path for records still missing 16S;
+it is never automatic and always requires explicit `--enable-entrez` plus an
+email. Treat Entrez fallback provenance separately from same-genome barrnap
+coverage.
 
 Inspect or continue a run:
 
@@ -297,7 +333,13 @@ Inspect or continue a run:
 typetreeflow status --outdir results/fusobacterium_verify
 typetreeflow next-step --outdir results/fusobacterium_verify
 typetreeflow status --outdir results/fusobacterium_verify --json
+typetreeflow verify-genus Fusobacterium --outdir results/fusobacterium_verify --resume --dry-run
+typetreeflow --outdir results/fusobacterium_verify --report-only
 ```
+
+`--report-only` refreshes `report/summary.md` and `report/run_review.md` from
+existing outputs. It does not run discovery, downloads, barrnap, Entrez,
+completion audits, or provider planning.
 
 Package a reviewed delivery directory:
 
@@ -322,14 +364,21 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_0_release_verification \
+  --outdir results/v2_2_5_release_verification \
   --policies balanced,representative \
   --force
 ```
 
 This writes per-policy outdirs plus
-`results/v2_2_0_release_verification/verification_matrix.tsv` and
+`results/v2_2_5_release_verification/verification_matrix.tsv` and
 `release_verification_summary.md`.
+
+In v2.2.5, `verify-release-genus` first writes a shared acquisition cache under
+the release outdir and then derives the balanced and representative policy
+outputs from that cache. This avoids duplicate LPSN, assembly-discovery, and
+BioSample queries across policies. BioSample enrichment also checkpoints
+`cache/ncbi/biosample_records.tsv` as records are fetched, so an interrupted
+live enrichment can resume from the partial cache instead of starting over.
 
 Selection policy semantics:
 
@@ -354,6 +403,56 @@ BioSample deposit IDs can improve evidence quality. Strict confirmation still
 requires an accepted NCBI/BioSample deposit ID to match the LPSN/checklist
 type-strain equivalence set, or accepted curator evidence proving that
 equivalence. Type-material wording alone remains `likely_type_material`.
+
+Common sticking points:
+
+- `--lpsn-cache` and `--discovery-cache` are different inputs. LPSN cache rows
+  define the expected species/type-strain checklist; discovery cache rows
+  provide candidate NCBI Assembly records.
+- Live discovery requires both `--enable-ncbi-discovery` and `--email`; without
+  them, use a local `--discovery-cache`.
+- Resume an existing outdir with `--resume` or `--continue`. Reserve `--force`
+  for deliberate rebuilds.
+- `strain_text_match` is weak, reviewable source-audit evidence. It is not
+  same-genome evidence.
+- `mismatch` should be treated as a warning under warn policy and as strict
+  blocking under strict policy.
+- `representative_only` is exploratory and must not be counted as strict
+  type-strain completion.
+
+When explaining 16S and blocking evidence in summaries, prefer these labels:
+
+```text
+Same-genome barrnap 16S
+Total 16S including Entrez fallback
+Fallback warnings
+Strict blocking count
+```
+
+TypeTreeFlow does not promise automatic 100% coverage for a genus. v2.2.2 writes
+completion gap reports to make partial coverage auditable:
+`completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
+`completion/16s_gaps.tsv`. Gap categories separate insufficient type evidence,
+missing external candidates, workflow or network failure before selection, and
+genome-ready records where 16S was not found. When `package-results` is pointed
+at an unfinished outdir, it reports the failed stage and the next action from
+`run_state.json` instead of silently packaging an ambiguous result.
+
+v2.2.3 adds expanded NCBI token discovery as an audit handoff for uncovered
+species. By default, completion reporting only writes
+`completion/expanded_discovery_plan.tsv`, a query plan built from LPSN
+type-strain tokens. If `taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level
+NCBI Taxonomy `synonyms`, `equivalent_names`, and `includes` add
+taxonomy-derived alias-plus-token queries to that plan with provenance in
+`notes`. Passing `--enable-expanded-discovery` executes that plan against NCBI
+Assembly and BioSample clients or local caches and writes
+`completion/expanded_discovery_results.tsv`,
+`completion/expanded_discovery_history.tsv`,
+`completion/rejected_candidates.tsv`, and
+`completion/manual_supplement_hints.tsv`. These files are audit-only and
+review-only: matched
+candidates are not automatically added to `manifest.tsv`, selection rows, or
+evidence levels.
 
 For external provider data, keep planning and local FASTA registration
 separate. TypeTreeFlow does not automatically log in to, scrape, purchase from,
@@ -594,9 +693,12 @@ stabilizes only new conflicting `record_id` or `normalized_id` values.
 manifest from install results, and cannot be combined with `--merge-manifest`.
 Dry-runs never merge manifest files.
 
-Once the manifest exists, `--report-only` can generate `report/summary.md` from
-existing files. External registered genomes appear in their own section and in
-provenance counts, but remain separate from NCBI Assembly-backed records.
+Once the manifest exists, `--report-only` can generate `report/summary.md` and
+`report/run_review.md` from existing files. The review file is a plain-language
+interpretation layer for coverage, 16S provenance, Entrez fallback warnings,
+uncovered species, strict blocking, and next-step guidance. External registered
+genomes appear in their own section and in provenance counts, but remain
+separate from NCBI Assembly-backed records.
 Registered external genomes with installed local FASTA paths can enter
 downstream planning as mixed-provenance references. If existing provider
 planning outputs are present under `provider/`, the same report also adds
@@ -776,6 +878,8 @@ The source-audit gate is controlled by:
 | Entrez 16S | `--enable-entrez --email user@example.org` | Guarded 16S fallback; dry runs never contact Entrez. |
 | BioSample Entrez | `--enable-biosample-entrez --email user@example.org` | Guarded BioSample enrichment; local `--biosample-cache` mode remains offline. |
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery; local `--discovery-cache` mode remains offline. |
+| NCBI Taxonomy lookup | `--enable-ncbi-taxonomy --email user@example.org` | Guarded optional taxonomy lookup from `taxonomy/ncbi_taxonomy_plan.tsv`; writes only `taxonomy/ncbi_taxonomy_cache.tsv`. |
+| expanded NCBI token discovery | `--enable-expanded-discovery` | Optional second-pass audit for uncovered species; writes review files only and does not change selection or manifest outputs. |
 | FastANI | `--enable-fastani` | Resume-mode local ANI when `fastANI` is installed and `--query-genome` is provided. |
 | phylogeny | `--enable-phylo` | Resume-mode MAFFT, trimAl, and IQ-TREE wrappers. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
@@ -837,6 +941,8 @@ top-level paths are:
 - `ani/`: FastANI plans, raw outputs, summaries, and optional plot.
 - `phylo/`: 16S alignment, trimming, and IQ-TREE outputs.
 - `report/summary.md`: traceable report from recorded files.
+- `report/run_review.md`: plain-language review of recorded coverage,
+  fallback, uncovered-species, and strict-blocking signals.
 - `run_summary.json`: machine-readable run summary.
 
 See [docs/output_layout.md](docs/output_layout.md) for path contracts,

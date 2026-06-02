@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import csv
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import logging
 from pathlib import Path
 import time
 from typing import Any, Protocol
@@ -10,6 +11,8 @@ from urllib.error import HTTPError, URLError
 import xml.etree.ElementTree as ET
 
 from Bio import Entrez
+
+from typetreeflow.sources.retry import RetryError, retry_transient_network_errors
 
 
 BIOSAMPLE_RECORD_FIELDS = [
@@ -37,6 +40,7 @@ _CULTURE_COLLECTION_KEYS = {
     "biomaterial",
     "voucher",
 }
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -74,6 +78,46 @@ class LocalBioSampleCacheClient:
         return self._records.get(str(biosample_accession or "").strip().upper())
 
 
+class CheckpointingBioSampleCacheClient:
+    def __init__(
+        self,
+        client: BioSampleClient,
+        path: Path,
+        records: Sequence[BioSampleRecord] = (),
+    ) -> None:
+        self.client = client
+        self.path = Path(path)
+        self._records = _records_by_accession(records)
+
+    @classmethod
+    def from_tsv(
+        cls,
+        client: BioSampleClient,
+        path: Path,
+    ) -> "CheckpointingBioSampleCacheClient":
+        cache_path = Path(path)
+        records = read_biosample_records(cache_path) if cache_path.exists() else []
+        return cls(client, cache_path, records)
+
+    @property
+    def records(self) -> list[BioSampleRecord]:
+        return _ordered_records(self._records)
+
+    def fetch_biosample(self, biosample_accession: str) -> BioSampleRecord | None:
+        accession = _normalize_biosample_accession(biosample_accession)
+        if accession in self._records:
+            return self._records[accession]
+
+        record = self.client.fetch_biosample(accession)
+        if record is None:
+            return None
+
+        normalized_record = _normalize_biosample_record(record, fallback=accession)
+        self._records[normalized_record.biosample] = normalized_record
+        write_biosample_records(self.records, self.path)
+        return normalized_record
+
+
 class NcbiBioSampleClient:
     def __init__(
         self,
@@ -82,6 +126,7 @@ class NcbiBioSampleClient:
         tool: str = "TypeTreeFlow",
         backend=None,
         delay_seconds: float | None = None,
+        retry_sleep=None,
     ) -> None:
         if backend is None:
             if not email or not email.strip():
@@ -95,6 +140,32 @@ class NcbiBioSampleClient:
 
         self.backend = backend if backend is not None else Entrez
         self.delay_seconds = delay_seconds
+        self.retry_sleep = retry_sleep or time.sleep
+
+    def search_biosamples(
+        self,
+        species_name: str,
+        token: str,
+        retmax: int = 20,
+    ) -> list[BioSampleRecord]:
+        species = str(species_name or "").strip()
+        query_token = str(token or "").strip()
+        if not species or not query_token:
+            raise ValueError("BioSample search requires species and token values.")
+
+        try:
+            return retry_transient_network_errors(
+                f"NCBI BioSample search for {species!r} token {query_token!r}",
+                lambda: self._search_biosamples_once(species, query_token, retmax),
+                sleep=self.retry_sleep,
+                logger=LOGGER,
+            )
+        except RetryError as error:
+            raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
+        except (HTTPError, URLError, OSError, ValueError) as error:
+            raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
+        except Exception as error:
+            raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
 
     def fetch_biosample(self, biosample_accession: str) -> BioSampleRecord | None:
         accession = str(biosample_accession or "").strip()
@@ -102,54 +173,90 @@ class NcbiBioSampleClient:
             raise ValueError("BioSample lookup requires an accession.")
 
         try:
-            search_handle = self._request(
-                self.backend.esearch,
-                db="biosample",
-                term=f"{accession}[Accession]",
-                retmax=1,
+            return retry_transient_network_errors(
+                f"NCBI BioSample lookup for {accession!r}",
+                lambda: self._fetch_biosample_once(accession),
+                sleep=self.retry_sleep,
+                logger=LOGGER,
             )
-            try:
-                search_result = self.backend.read(search_handle)
-            finally:
-                _close_handle(search_handle)
-
-            ids = [str(value) for value in search_result.get("IdList", [])]
-            if not ids:
-                return None
-
-            fetch_handle = self._request(
-                self.backend.efetch,
-                db="biosample",
-                id=",".join(ids),
-                retmode="xml",
-            )
-            try:
-                fetch_result = _read_fetch_payload(fetch_handle, self.backend)
-            finally:
-                _close_handle(fetch_handle)
-
-            records = parse_biosample_response(fetch_result, fallback_accession=accession)
-            return records[0] if records else None
+        except RetryError as error:
+            raise RuntimeError(f"NCBI BioSample lookup failed: {error}") from error
         except (HTTPError, URLError, OSError, ValueError) as error:
             raise RuntimeError(f"NCBI BioSample lookup failed: {error}") from error
         except Exception as error:
             raise RuntimeError(f"NCBI BioSample lookup failed: {error}") from error
 
+    def _search_biosamples_once(
+        self,
+        species: str,
+        query_token: str,
+        retmax: int,
+    ) -> list[BioSampleRecord]:
+        term = f'"{species}"[Organism] AND "{query_token}"'
+        search_handle = self._request(
+            self.backend.esearch,
+            db="biosample",
+            term=term,
+            retmax=retmax,
+        )
+        try:
+            search_result = self.backend.read(search_handle)
+        finally:
+            _close_handle(search_handle)
+
+        ids = [str(value) for value in search_result.get("IdList", [])]
+        if not ids:
+            return []
+
+        fetch_handle = self._request(
+            self.backend.efetch,
+            db="biosample",
+            id=",".join(ids),
+            retmode="xml",
+        )
+        try:
+            fetch_result = _read_fetch_payload(fetch_handle, self.backend)
+        finally:
+            _close_handle(fetch_handle)
+        return parse_biosample_response(fetch_result)
+
+    def _fetch_biosample_once(self, accession: str) -> BioSampleRecord | None:
+        search_handle = self._request(
+            self.backend.esearch,
+            db="biosample",
+            term=f"{accession}[Accession]",
+            retmax=1,
+        )
+        try:
+            search_result = self.backend.read(search_handle)
+        finally:
+            _close_handle(search_handle)
+
+        ids = [str(value) for value in search_result.get("IdList", [])]
+        if not ids:
+            return None
+
+        fetch_handle = self._request(
+            self.backend.efetch,
+            db="biosample",
+            id=",".join(ids),
+            retmode="xml",
+        )
+        try:
+            fetch_result = _read_fetch_payload(fetch_handle, self.backend)
+        finally:
+            _close_handle(fetch_handle)
+
+        records = parse_biosample_response(fetch_result, fallback_accession=accession)
+        return records[0] if records else None
+
     def _request(self, request_fn, **kwargs):
-        attempts = 3
-        for attempt in range(1, attempts + 1):
-            try:
-                if self.delay_seconds is not None:
-                    time.sleep(self.delay_seconds)
-                handle = request_fn(**kwargs)
-                if self.delay_seconds is not None:
-                    time.sleep(self.delay_seconds)
-                return handle
-            except (HTTPError, URLError, OSError):
-                if attempt == attempts:
-                    raise
-                time.sleep(attempt)
-        raise RuntimeError("unreachable BioSample request retry state")
+        if self.delay_seconds is not None:
+            time.sleep(self.delay_seconds)
+        handle = request_fn(**kwargs)
+        if self.delay_seconds is not None:
+            time.sleep(self.delay_seconds)
+        return handle
 
 
 def read_biosample_records(path: Path) -> list[BioSampleRecord]:
@@ -212,7 +319,7 @@ def write_biosample_records(
             lineterminator="\n",
         )
         writer.writeheader()
-        for record in records:
+        for record in _ordered_records(_records_by_accession(records)):
             writer.writerow(_record_to_row(record))
     return output_path
 
@@ -477,7 +584,7 @@ def _xml_local_name(tag: str) -> str:
 
 def _record_to_row(record: BioSampleRecord) -> dict[str, str]:
     return {
-        "biosample": record.biosample,
+        "biosample": _normalize_biosample_accession(record.biosample),
         "organism": record.organism,
         "strain": record.strain,
         "isolate": record.isolate,
@@ -492,6 +599,34 @@ def _record_to_row(record: BioSampleRecord) -> dict[str, str]:
 
 def _sanitize_tsv_text(value: str) -> str:
     return str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
+def _records_by_accession(
+    records: Sequence[BioSampleRecord],
+) -> dict[str, BioSampleRecord]:
+    by_accession: dict[str, BioSampleRecord] = {}
+    for record in records:
+        normalized = _normalize_biosample_record(record)
+        if normalized.biosample and normalized.biosample not in by_accession:
+            by_accession[normalized.biosample] = normalized
+    return by_accession
+
+
+def _ordered_records(records: Mapping[str, BioSampleRecord]) -> list[BioSampleRecord]:
+    return [records[accession] for accession in sorted(records)]
+
+
+def _normalize_biosample_record(
+    record: BioSampleRecord,
+    *,
+    fallback: str = "",
+) -> BioSampleRecord:
+    accession = _normalize_biosample_accession(record.biosample or fallback)
+    return replace(record, biosample=accession)
+
+
+def _normalize_biosample_accession(value: str) -> str:
+    return str(value or "").strip().upper()
 
 
 def _close_handle(handle) -> None:

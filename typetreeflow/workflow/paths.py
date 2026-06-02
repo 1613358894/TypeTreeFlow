@@ -38,8 +38,11 @@ class OutputPaths:
     iqtree_treefile_path: Path
     taxonomy_dir: Path
     checklist_comparison_path: Path
+    ncbi_taxonomy_plan_path: Path
+    ncbi_taxonomy_cache_path: Path
     report_dir: Path
     run_summary_path: Path
+    run_review_path: Path
     candidates_dir: Path
     assembly_candidates_path: Path
     assembly_candidate_diagnostics_path: Path
@@ -49,6 +52,15 @@ class OutputPaths:
     culture_collection_audit_path: Path
     completion_audit_path: Path
     completion_summary_path: Path
+    completion_dir: Path
+    completion_gaps_path: Path
+    uncovered_species_path: Path
+    rrna_16s_gaps_path: Path
+    expanded_discovery_plan_path: Path
+    expanded_discovery_results_path: Path
+    expanded_discovery_history_path: Path
+    rejected_candidates_path: Path
+    manual_supplement_hints_path: Path
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
@@ -101,8 +113,11 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         iqtree_treefile_path=root / "phylo" / "iqtree" / "all_16S.treefile",
         taxonomy_dir=root / "taxonomy",
         checklist_comparison_path=root / "taxonomy" / "checklist_comparison.tsv",
+        ncbi_taxonomy_plan_path=root / "taxonomy" / "ncbi_taxonomy_plan.tsv",
+        ncbi_taxonomy_cache_path=root / "taxonomy" / "ncbi_taxonomy_cache.tsv",
         report_dir=root / "report",
         run_summary_path=root / "report" / "summary.md",
+        run_review_path=root / "report" / "run_review.md",
         candidates_dir=root / "candidates",
         assembly_candidates_path=root / "candidates" / "assembly_candidates.tsv",
         assembly_candidate_diagnostics_path=root
@@ -118,6 +133,23 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         / "culture_collection_audit.tsv",
         completion_audit_path=root / "source_audit" / "completion_audit.tsv",
         completion_summary_path=root / "source_audit" / "completion_summary.tsv",
+        completion_dir=root / "completion",
+        completion_gaps_path=root / "completion" / "gaps.tsv",
+        uncovered_species_path=root / "completion" / "uncovered_species.tsv",
+        rrna_16s_gaps_path=root / "completion" / "16s_gaps.tsv",
+        expanded_discovery_plan_path=root
+        / "completion"
+        / "expanded_discovery_plan.tsv",
+        expanded_discovery_results_path=root
+        / "completion"
+        / "expanded_discovery_results.tsv",
+        expanded_discovery_history_path=root
+        / "completion"
+        / "expanded_discovery_history.tsv",
+        rejected_candidates_path=root / "completion" / "rejected_candidates.tsv",
+        manual_supplement_hints_path=root
+        / "completion"
+        / "manual_supplement_hints.tsv",
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",
@@ -141,3 +173,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         / "provider"
         / "proposed_external_genomes.tsv",
     )
+
+
+def get_release_acquisition_paths(release_root: str | Path) -> OutputPaths:
+    return get_output_paths(Path(release_root) / "acquisition")

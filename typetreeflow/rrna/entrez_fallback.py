@@ -162,13 +162,23 @@ def execute_entrez_fallback_plan(
             )
             continue
 
-        _write_single_fasta(output_path, item.normalized_id, candidate.sequence)
+        audit = _entrez_16s_audit(record, candidate)
+        _write_single_fasta(
+            output_path,
+            _entrez_fasta_header(
+                item.normalized_id,
+                candidate.accession,
+                audit.audit_status,
+            ),
+            candidate.sequence,
+        )
         record.has_16s = True
         record.rrna_16s_path = str(output_path)
         record.status = "rrna_16s_ready"
         record.source = _append_source(record.source, "entrez")
-        record.notes = f"Entrez 16S accession: {candidate.accession}"
-        audits.append(_entrez_16s_audit(record, candidate))
+        record.notes = _entrez_record_notes(candidate.accession, audit.audit_status)
+        audit.notes = record.notes
+        audits.append(audit)
         results.append(
             EntrezFallbackResult(
                 record_id=item.record_id,
@@ -212,6 +222,24 @@ def _write_single_fasta(path: Path, header: str, sequence: str) -> None:
         handle.write(f">{header}\n")
         for index in range(0, len(cleaned), 80):
             handle.write(f"{cleaned[index:index + 80]}\n")
+
+
+def _entrez_fasta_header(
+    normalized_id: str,
+    accession: str,
+    audit_status: str,
+) -> str:
+    return (
+        f"{normalized_id}|source=Entrez|accession={accession}"
+        f"|audit_status={audit_status}"
+    )
+
+
+def _entrez_record_notes(accession: str, audit_status: str) -> str:
+    return (
+        f"Entrez fallback source: Entrez; Entrez 16S accession: {accession}; "
+        f"Entrez audit status: {audit_status}"
+    )
 
 
 def _append_source(existing: str, value: str) -> str:

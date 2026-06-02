@@ -131,6 +131,7 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
         paths.download_preflight_summary_path,
         paths.ncbi_download_results_path,
         paths.run_summary_path,
+        paths.run_review_path,
     ]
     if not any(path.exists() for path in known_files):
         raise ValueError(
@@ -307,14 +308,14 @@ def _infer_status(root: Path) -> WorkflowStatusSummary:
     if rrna_ready:
         stages["rrna_barrnap"] = {"status": "succeeded", "summary": f"{rrna_ready} ready"}
 
-    if paths.run_summary_path.exists():
+    if paths.run_summary_path.exists() or paths.run_review_path.exists():
         stages["report"] = {"status": "succeeded", "summary": ""}
 
     overall = _infer_overall(stages)
     return WorkflowStatusSummary(
         overall=overall,
         stages=stages,
-        next_action=_infer_next_action(paths, manifest_count, rrna_ready),
+        next_action=_infer_next_action(paths, manifest_count, genome_ready, rrna_ready),
         source="inferred",
     )
 
@@ -369,16 +370,41 @@ def _infer_overall(stages: dict[str, dict[str, Any]]) -> str:
     return "partial"
 
 
-def _infer_next_action(paths, manifest_count: int, rrna_ready: int) -> str:
-    if paths.manifest.exists() and rrna_ready and paths.run_summary_path.exists():
+def _infer_next_action(
+    paths,
+    manifest_count: int,
+    genome_ready: int,
+    rrna_ready: int,
+) -> str:
+    if (
+        paths.manifest.exists()
+        and rrna_ready
+        and (paths.run_summary_path.exists() or paths.run_review_path.exists())
+    ):
         return "package-results"
+    if _rrna_gap_count(paths):
+        return (
+            "typetreeflow verify-genus <GENUS> --outdir "
+            f"{paths.manifest.parent.as_posix()} --resume --enable-entrez --email <EMAIL>"
+        )
+    if paths.manifest.exists() and genome_ready and not rrna_ready:
+        return (
+            "typetreeflow verify-genus <GENUS> --outdir "
+            f"{paths.manifest.parent.as_posix()} --resume --enable-barrnap"
+        )
     if paths.manifest.exists() and manifest_count and not rrna_ready:
-        return "Run verify-genus with --extract-16s barrnap or resume with --enable-barrnap."
+        return "Review manifest.tsv, then continue with --resume and the explicit stage flag."
     if paths.user_selection_path.exists() and not paths.ncbi_download_results_path.exists():
         return "Review selection/user_selection.tsv, then rerun with --auto-accept-selection --enable-downloads."
-    if paths.run_summary_path.exists():
+    if paths.run_summary_path.exists() or paths.run_review_path.exists():
         return "package-results"
     return "Continue the verify-genus workflow."
+
+
+def _rrna_gap_count(paths) -> int:
+    if not paths.rrna_16s_gaps_path.exists():
+        return 0
+    return len(_read_tsv(paths.rrna_16s_gaps_path))
 
 
 def _default_next_action(status: str) -> str:

@@ -10,16 +10,28 @@ from typetreeflow.completion import (
     write_completion_audit,
     write_completion_summary,
 )
+from typetreeflow.completion_gaps import generate_completion_gap_reports
+from typetreeflow.expanded_discovery import (
+    ExpandedDiscoveryPlanRow,
+    ExpandedDiscoveryResultRow,
+    ManualSupplementHintRow,
+    append_expanded_discovery_history,
+    write_expanded_discovery_plan,
+    write_expanded_discovery_results,
+    write_manual_supplement_hints,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     write_download_preflight_summary,
 )
+from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
     PROVIDER_REGISTRATION_PLAN_FIELDS,
 )
 from typetreeflow.report.summary import (
+    build_run_review_markdown,
     build_run_summary_markdown,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
@@ -28,6 +40,7 @@ from typetreeflow.report.summary import (
     read_optional_sequence_source_audit,
     read_optional_ani_summary,
     summarize_external_registered_genomes,
+    summarize_16s_coverage,
     summarize_checklist_comparison,
     summarize_manifest,
     summarize_output_files,
@@ -163,11 +176,11 @@ def _comparison_row(status: str, checklist_name: str = "Aliivibrio fischeri") ->
     }
 
 
-def _source_audit(status: str) -> SequenceSourceAudit:
+def _source_audit(status: str, rrna_source: str = "entrez") -> SequenceSourceAudit:
     return SequenceSourceAudit(
         species="Aliivibrio fischeri",
         genome_accession="GCF_000000001.1",
-        rrna_source="entrez",
+        rrna_source=rrna_source,
         audit_status=status,
     )
 
@@ -450,6 +463,8 @@ def test_summarize_output_files_reports_exists_true_and_false(tmp_path):
     assert files["name_map.tsv"]["exists"] is False
     assert files["rrna/all_16S.fasta"]["exists"] is False
     assert files["ani/ani_query_vs_refs.png"]["exists"] is False
+    assert files["completion/expanded_discovery_history.tsv"]["exists"] is False
+    assert files["report/run_review.md"]["exists"] is False
     assert files["manifest.tsv"]["path"] == "manifest.tsv"
 
 
@@ -836,6 +851,133 @@ def test_report_includes_source_audit_counts_from_existing_audit(tmp_path):
     assert "do not make taxonomic conclusions" in markdown
 
 
+def test_report_16s_coverage_counts_all_barrnap_same_genome_internal(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = [
+        _record(f"ref{i}", status="genome_ready", has_genome=True, has_16s=True)
+        for i in range(3)
+    ]
+    write_sequence_source_audits(
+        [
+            _source_audit("same_genome_internal_16s", rrna_source="barrnap"),
+            _source_audit("same_genome_internal_16s", rrna_source="barrnap"),
+            _source_audit("same_genome_internal_16s", rrna_source="barrnap"),
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    markdown = build_run_summary_markdown(records, paths)
+    coverage = summarize_16s_coverage(
+        records,
+        read_optional_sequence_source_audit(paths.sequence_source_audit_path),
+    )
+
+    assert coverage["same_genome_barrnap_16s_count"] == 3
+    assert coverage["total_usable_16s_count"] == 3
+    assert "- Genome coverage: 3/3" in markdown
+    assert "- Same-genome barrnap 16S: 3/3" in markdown
+    assert "- Total 16S including Entrez fallback: 3/3" in markdown
+    assert "- Entrez fallback warnings: none" in markdown
+
+
+def test_report_16s_coverage_splits_barrnap_from_entrez_mismatch_fallback(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = [
+        _record(f"ref{i}", status="genome_ready", has_genome=True, has_16s=True)
+        for i in range(44)
+    ]
+    write_sequence_source_audits(
+        [
+            *[
+                _source_audit("same_genome_internal_16s", rrna_source="barrnap")
+                for _ in range(43)
+            ],
+            _source_audit("mismatch", rrna_source="entrez"),
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    markdown = build_run_summary_markdown(records, paths)
+
+    assert "- Genome coverage: 44/44" in markdown
+    assert "- Same-genome barrnap 16S: 43/44" in markdown
+    assert "- Total 16S including Entrez fallback: 44/44" in markdown
+    assert "- Entrez fallback warnings: 1 mismatch; 1 strict blocking" in markdown
+    assert "- Mismatch count: 1" in markdown
+    assert "- Strict blocking count: 1" in markdown
+
+
+def test_report_16s_coverage_marks_entrez_strain_text_fallback_as_weak(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = [
+        _record(f"ref{i}", status="genome_ready", has_genome=True, has_16s=True)
+        for i in range(27)
+    ]
+    write_sequence_source_audits(
+        [
+            *[
+                _source_audit("same_genome_internal_16s", rrna_source="barrnap")
+                for _ in range(26)
+            ],
+            _source_audit("strain_text_match", rrna_source="entrez"),
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    markdown = build_run_summary_markdown(records, paths)
+
+    assert "- Same-genome barrnap 16S: 26/27" in markdown
+    assert "- Total 16S including Entrez fallback: 27/27" in markdown
+    assert (
+        "- Entrez fallback warnings: 1 weak/strain-text-only evidence; "
+        "1 strict blocking"
+    ) in markdown
+    assert "- Weak evidence count: 1" in markdown
+    assert "- Strict blocking count: 1" in markdown
+
+
+def test_report_16s_coverage_without_source_audit_uses_manifest_and_keeps_summary(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = [
+        _record("ref1", status="genome_ready", has_genome=True, has_16s=True),
+        _record("ref2", status="genome_ready", has_genome=True, has_16s=False),
+    ]
+
+    markdown = build_run_summary_markdown(records, paths)
+
+    assert "## Source Audit Summary" not in markdown
+    assert "- Genome coverage: 2/2" in markdown
+    assert "- Same-genome barrnap 16S: not available (source audit missing)" in markdown
+    assert "- Total 16S including Entrez fallback: 1/2" in markdown
+    assert "- Entrez fallback warnings: none" in markdown
+
+
+def test_report_16s_coverage_keeps_strict_blocking_visible(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = [
+        _record("ref1", status="genome_ready", has_genome=True, has_16s=True),
+        _record("ref2", status="genome_ready", has_genome=True, has_16s=False),
+    ]
+    write_sequence_source_audits(
+        [
+            _source_audit("same_genome_internal_16s", rrna_source="barrnap"),
+            _source_audit("manual_review_required", rrna_source="entrez"),
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    markdown = build_run_summary_markdown(records, paths)
+
+    assert "- Same-genome barrnap 16S: 1/2" in markdown
+    assert "- Total 16S including Entrez fallback: 1/2" in markdown
+    assert (
+        "- Entrez fallback warnings: 1 manual review required; "
+        "1 strict blocking"
+    ) in markdown
+    assert "- Manual review required count: 1" in markdown
+    assert "- Strict blocking count: 1" in markdown
+
+
 def test_report_source_audit_review_note_for_mismatch_or_manual_review(tmp_path):
     paths = get_output_paths(tmp_path)
     write_sequence_source_audits(
@@ -1099,6 +1241,114 @@ def test_report_completion_audit_table_includes_missing_rows(tmp_path):
     assert "missing manifest genome evidence" in markdown
 
 
+def test_report_includes_completion_gap_report_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_manifest(
+        [
+            _record(
+                "ref1",
+                status="rrna_16s_not_found",
+                has_genome=True,
+                has_16s=False,
+            )
+        ],
+        paths.manifest,
+    )
+    generate_completion_gap_reports(tmp_path)
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Completion Gap Reports" in markdown
+    assert "completion/gaps.tsv, completion/uncovered_species.tsv, completion/16s_gaps.tsv" in markdown
+    assert "- Total gap rows: 1" in markdown
+    assert "- genome_ready_16s_not_found: 1" in markdown
+
+
+def test_report_includes_expanded_discovery_result_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    current_results = [
+        ExpandedDiscoveryResultRow(
+            species="Enterobacter siamensis",
+            token="KCTC 23282",
+            token_kind="culture_collection_id",
+            query_database="NCBI BioSample",
+            query='"Enterobacter siamensis"[Organism] AND "KCTC 23282"',
+            decision="no_result",
+        ),
+    ]
+    write_expanded_discovery_results(current_results, paths.expanded_discovery_results_path)
+    append_expanded_discovery_history(
+        [
+            ExpandedDiscoveryResultRow(
+                species="Enterobacter siamensis",
+                token="KCTC 23282",
+                token_kind="culture_collection_id",
+                query_database="NCBI Assembly",
+                query='"Enterobacter siamensis"[Organism] AND "KCTC 23282"',
+                candidate_accession="GCF_000001.1",
+                candidate_organism="Enterobacter siamensis",
+                candidate_strain="KCTC 23282",
+                decision="matched_candidate",
+            )
+        ],
+        paths.expanded_discovery_history_path,
+        timestamp="2026-06-01T00:00:00+00:00",
+        run_id="historical-round",
+    )
+    write_manual_supplement_hints(
+        [
+            ManualSupplementHintRow(
+                species="Enterobacter siamensis",
+                tokens="KCTC 23282",
+                matched_candidate_count=1,
+                no_result_count=1,
+                recommended_action="review_matched_candidates",
+            )
+        ],
+        paths.manual_supplement_hints_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Expanded Discovery Results" in markdown
+    assert "- File: completion/expanded_discovery_results.tsv" in markdown
+    assert "- History: completion/expanded_discovery_history.tsv" in markdown
+    assert "- Rejected candidates: completion/rejected_candidates.tsv" in markdown
+    assert "- Manual supplement hints: completion/manual_supplement_hints.tsv" in markdown
+    assert "- no_result: 1" in markdown
+    assert "- matched_candidate: 1" not in markdown
+    assert "- recommended_action review_matched_candidates: 1" in markdown
+
+
+def test_report_includes_taxonomy_derived_expanded_plan_count(tmp_path):
+    paths = get_output_paths(tmp_path)
+    generate_completion_gap_reports(tmp_path)
+    write_expanded_discovery_plan(
+        [
+            ExpandedDiscoveryPlanRow(
+                species="Enterobacter siamensis",
+                checklist_name="Enterobacter siamensis",
+                lpsn_type_strain="KCTC 23282",
+                token="KCTC 23282",
+                token_kind="culture_collection_id",
+                query_database="NCBI Assembly",
+                query='"Enterobacter aliasensis"[Organism] AND "KCTC 23282"',
+                reason="taxonomy-derived synonym/taxid enrichment (synonyms)",
+                notes=(
+                    "taxonomy_alias=Enterobacter aliasensis; "
+                    "taxonomy_alias_kind=synonyms; taxonomy_taxid=12345; "
+                    "taxonomy_source=ncbi_taxonomy"
+                ),
+            )
+        ],
+        paths.expanded_discovery_plan_path,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "- Taxonomy-derived expanded discovery queries: 1" in markdown
+
+
 def test_summarize_phylo_status_reports_too_few_manifest_16s_records(tmp_path):
     paths = get_output_paths(tmp_path)
 
@@ -1174,6 +1424,99 @@ def test_write_run_summary_creates_report_summary(tmp_path):
     assert paths.run_summary_path.read_text(encoding="utf-8") == "# Summary\n"
 
 
+def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = [
+        _record("ref1", has_genome=True, has_16s=True),
+        _record("ref2", has_genome=True, has_16s=True),
+        _record("ref3", has_genome=False, has_16s=False),
+    ]
+    write_completion_summary(
+        _completion_summary(
+            expected_species_count=4,
+            ncbi_complete_count=2,
+            external_registered_count=0,
+            external_inclusive_complete_count=2,
+            missing_count=2,
+        ),
+        paths.completion_summary_path,
+    )
+    write_sequence_source_audits(
+        [
+            _source_audit("same_genome_internal_16s", rrna_source="barrnap"),
+            _source_audit("mismatch", rrna_source="entrez"),
+            _source_audit("strain_text_match", rrna_source="entrez"),
+        ],
+        paths.sequence_source_audit_path,
+    )
+    generate_completion_gap_reports(tmp_path)
+    paths.uncovered_species_path.write_text(
+        "\t".join(
+            [
+                "species",
+                "checklist_name",
+                "lpsn_type_strain",
+                "lpsn_url",
+                "reason_category",
+                "selected",
+                "selected_assembly",
+                "selected_strain",
+                "evidence_level",
+                "record_status",
+                "suggested_next_action",
+                "notes",
+            ]
+        )
+        + "\n"
+        + (
+            "Enterobacter siamensis\tEnterobacter siamensis\tKCTC 23282\t\t"
+            "uncovered_checklist_species\tfalse\t\t\t\tmissing_genome\t"
+            "review checklist species and external candidate discovery\t"
+            "source=checklist_comparison\n"
+        ),
+        encoding="utf-8",
+    )
+
+    markdown = build_run_review_markdown(records, paths)
+
+    assert "# Run Review" in markdown
+    assert "- Checklist species count: 4" in markdown
+    assert "- Selected/manifest records count: 3" in markdown
+    assert "- Genome coverage: 2/3" in markdown
+    assert "- Same-genome barrnap 16S coverage: 1/3" in markdown
+    assert "- Total 16S including Entrez fallback: 3/3" in markdown
+    assert "- Mismatch fallback warnings: 1" in markdown
+    assert "- Weak/strain-text-only fallback warnings: 1" in markdown
+    assert "Enterobacter siamensis" in markdown
+    assert "- Strict blocking count: 2" in markdown
+    assert "Representative-only rows and Entrez fallback 16S records" in markdown
+    assert "not strict same-genome evidence" in markdown
+    assert "not a strict-ready count" in markdown
+    assert "`source_audit/sequence_source_audit.tsv`" in markdown
+    assert "`completion/uncovered_species.tsv`" in markdown
+
+
+def test_run_review_without_source_audit_still_generates_unavailable_note(tmp_path):
+    paths = get_output_paths(tmp_path)
+
+    markdown = build_run_review_markdown([_record("ref1", has_16s=True)], paths)
+
+    assert "# Run Review" in markdown
+    assert "16S provenance unavailable" in markdown
+    assert "source_audit/sequence_source_audit.tsv is missing" in markdown
+    assert "- Same-genome barrnap 16S coverage: provenance unavailable" in markdown
+    assert "- Strict blocking count: 0" in markdown
+
+
+def test_write_run_review_creates_report_run_review(tmp_path):
+    paths = get_output_paths(tmp_path)
+
+    output_path = write_run_summary("# Run Review\n", paths.run_review_path)
+
+    assert output_path == paths.run_review_path
+    assert paths.run_review_path.read_text(encoding="utf-8") == "# Run Review\n"
+
+
 def test_markdown_contains_main_sections(tmp_path):
     paths = get_output_paths(tmp_path)
 
@@ -1215,7 +1558,12 @@ def test_markdown_includes_status_distribution_and_output_files(tmp_path):
     assert "| name_map.tsv | name_map.tsv | true |" in markdown
     assert "| rrna/all_16S.fasta | rrna/all_16S.fasta | false |" in markdown
     assert "| ani/ani_query_vs_refs.png | ani/ani_query_vs_refs.png | false |" in markdown
+    assert (
+        "| completion/expanded_discovery_history.tsv | "
+        "completion/expanded_discovery_history.tsv | false |"
+    ) in markdown
     assert "| report/summary.md | report/summary.md | true |" in markdown
+    assert "| report/run_review.md | report/run_review.md | true |" in markdown
 
 
 def test_markdown_truncates_problem_records_after_20(tmp_path):
@@ -1248,5 +1596,8 @@ def test_cli_dry_run_writes_report_summary(tmp_path):
 
     assert result == 0
     summary_path = get_output_paths(outdir).run_summary_path
+    review_path = get_output_paths(outdir).run_review_path
     assert summary_path.exists()
+    assert review_path.exists()
     assert "# TypeTreeFlow Summary" in summary_path.read_text(encoding="utf-8")
+    assert "# Run Review" in review_path.read_text(encoding="utf-8")

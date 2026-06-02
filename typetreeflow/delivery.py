@@ -17,6 +17,7 @@ from typetreeflow.selection.evidence import (
     STRICT_CONFIRMED_COUNT,
 )
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
+from typetreeflow.workflow.state import StageState, WorkflowState, read_run_state
 
 INCLUDE_CHOICES = {"genomes", "16s", "reports", "all"}
 DEFAULT_INCLUDE = "all"
@@ -40,7 +41,7 @@ def package_results(
 ) -> DeliveryResult:
     paths = get_output_paths(outdir)
     if not paths.manifest.exists():
-        raise ValueError(f"manifest.tsv not found: {paths.manifest}")
+        raise ValueError(_missing_manifest_error(paths))
 
     records = read_manifest(paths.manifest)
     requested = parse_include(include)
@@ -75,6 +76,12 @@ def package_results(
         _copy_optional(
             paths.run_summary_path,
             output_dir / "reports" / "summary.md",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.run_review_path,
+            output_dir / "reports" / "run_review.md",
             copied,
             missing,
         )
@@ -208,7 +215,7 @@ def build_delivery_readme(
         "- Evidence summary: evidence_summary.tsv when available",
         "- Download results: download_results.tsv when available",
         "- Run state: run_state.json when available",
-        "- Report summary: reports/summary.md when requested and available",
+        "- Reports: reports/summary.md and reports/run_review.md when requested and available",
         f"- Genome FASTA files copied: {genome_count}",
         (
             "- 16S sequence FASTA files copied: "
@@ -361,6 +368,7 @@ def _display_optional_path(path: Path) -> str:
         "selection/download_preflight_summary.tsv",
         "cache/ncbi/download_results.tsv",
         "report/summary.md",
+        "report/run_review.md",
         "run_state.json",
         "rrna/all_16S.fasta",
     )
@@ -369,3 +377,47 @@ def _display_optional_path(path: Path) -> str:
         if normalized.endswith(marker):
             return marker
     return path.name
+
+
+def _missing_manifest_error(paths: OutputPaths) -> str:
+    base_message = f"manifest.tsv not found: {paths.manifest}"
+    if not paths.run_state_path.exists():
+        return base_message
+    state = read_run_state(paths.run_state_path)
+    stage_label, stage_name, stage_state = _failed_or_blocked_stage(state)
+    error_message = _run_state_error_message(state, stage_state)
+    lines = [
+        f"manifest.tsv was not generated: {paths.manifest}",
+        f"workflow status: {state.status}",
+    ]
+    if stage_name is not None and stage_state is not None:
+        lines.append(f"{stage_label}: {stage_name} ({stage_state.status})")
+    if error_message:
+        lines.append(f"error message: {error_message}")
+    if state.next_action:
+        lines.append(f"next_action: {state.next_action}")
+    lines.append(base_message)
+    return "\n".join(lines)
+
+
+def _failed_or_blocked_stage(
+    state: WorkflowState,
+) -> tuple[str, str | None, StageState | None]:
+    for name, stage in state.stages.items():
+        if stage.status == "failed":
+            return "failed stage", name, stage
+    for name, stage in state.stages.items():
+        if stage.status.startswith("blocked_by_"):
+            return "blocked stage", name, stage
+    return "stage", None, None
+
+
+def _run_state_error_message(
+    state: WorkflowState,
+    stage_state: StageState | None,
+) -> str:
+    if state.errors:
+        return "; ".join(state.errors)
+    if stage_state is not None and stage_state.summary:
+        return stage_state.summary
+    return ""

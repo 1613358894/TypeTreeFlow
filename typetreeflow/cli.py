@@ -4,6 +4,7 @@ import argparse
 import csv
 import logging
 import os
+import shutil
 import sys
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -16,6 +17,7 @@ from typetreeflow.completion import (
     write_completion_audit,
     write_completion_summary,
 )
+from typetreeflow.completion_gaps import generate_completion_gap_reports
 from typetreeflow.config import AppConfig, ensure_real_action_allowed
 from typetreeflow.delivery import package_results
 from typetreeflow.diagnostics import (
@@ -28,6 +30,11 @@ from typetreeflow.diagnostics import (
     next_step_summary,
 )
 from typetreeflow.exceptions import ManifestError
+from typetreeflow.expanded_discovery import (
+    execute_expanded_discovery_plan,
+    read_expanded_discovery_results,
+    summarize_expanded_discovery_results,
+)
 from typetreeflow.env import load_env_files
 from typetreeflow.external.runner import SubprocessRunner
 from typetreeflow.external.tools import (
@@ -90,7 +97,11 @@ from typetreeflow.release_verification import (
     write_release_verification_summary,
     write_verification_matrix,
 )
-from typetreeflow.report.summary import build_run_summary_markdown, write_run_summary
+from typetreeflow.report.summary import (
+    build_run_review_markdown,
+    build_run_summary_markdown,
+    write_run_summary,
+)
 from typetreeflow.rrna.assemble import assemble_all_16s, collect_reference_16s
 from typetreeflow.rrna.entrez_fallback import (
     build_entrez_fallback_plan,
@@ -106,10 +117,10 @@ from typetreeflow.selection.type_strains import select_type_strains
 from typetreeflow.sources.entrez import BiopythonEntrezClient
 from typetreeflow.sources.ncbi_biosample import (
     BioSampleClient,
+    CheckpointingBioSampleCacheClient,
     LocalBioSampleCacheClient,
     NcbiBioSampleClient,
     read_biosample_records,
-    write_biosample_records,
 )
 from typetreeflow.sources.gtdb import load_gtdb_metadata, metadata_row_to_record
 from typetreeflow.sources.ncbi_assembly import NcbiAssemblyDiscoveryClient
@@ -159,6 +170,12 @@ from typetreeflow.taxonomy.manual_review import (
     species_without_selected_rows,
     write_manual_review_outputs,
 )
+from typetreeflow.taxonomy.ncbi_taxonomy import (
+    BiopythonNcbiTaxonomyClient,
+    NcbiTaxonomyClient,
+    execute_ncbi_taxonomy_lookup,
+    write_ncbi_taxonomy_outputs_from_checklist,
+)
 from typetreeflow.taxonomy.output import write_checklist_comparison
 from typetreeflow.taxonomy.selection import (
     candidates_to_selection_rows,
@@ -171,7 +188,7 @@ from typetreeflow.taxonomy.selection import (
 from typetreeflow.taxonomy.source_audit import (
     evaluate_sequence_source_audit_policy,
 )
-from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.paths import get_output_paths, get_release_acquisition_paths
 from typetreeflow.workflow.resume import (
     load_existing_manifest,
     should_reuse_manifest,
@@ -386,6 +403,25 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--enable-ncbi-taxonomy",
+        action="store_true",
+        help=(
+            "Explicitly allow real NCBI Taxonomy lookup from the planned "
+            "taxonomy queries. Requires --email and only writes "
+            "taxonomy/ncbi_taxonomy_cache.tsv."
+        ),
+    )
+    parser.add_argument(
+        "--enable-expanded-discovery",
+        action="store_true",
+        help=(
+            "After completion gap reports, execute completion/expanded_discovery_plan.tsv "
+            "against NCBI Assembly/BioSample clients or local caches and write "
+            "completion/expanded_discovery_results.tsv. This is audit-only and "
+            "does not change selection or manifest outputs."
+        ),
+    )
+    parser.add_argument(
         "--enable-synonym-discovery",
         action="store_true",
         help=(
@@ -530,7 +566,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Number of top-ranked strains to preselect per species; default: 1.",
     )
-    parser.add_argument("--resume", action="store_true", help="Resume from manifest state.")
+    parser.add_argument(
+        "--resume",
+        "--continue",
+        dest="resume",
+        action="store_true",
+        help="Resume from manifest state.",
+    )
     parser.add_argument("--force", action="store_true", help="Overwrite existing outputs.")
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs without execution.")
     parser.add_argument(
@@ -631,6 +673,8 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         candidate_tsv=args.candidate_tsv,
         discovery_cache=args.discovery_cache,
         enable_ncbi_discovery=args.enable_ncbi_discovery,
+        enable_ncbi_taxonomy=args.enable_ncbi_taxonomy,
+        enable_expanded_discovery=args.enable_expanded_discovery,
         enable_synonym_discovery=args.enable_synonym_discovery,
         enrich_biosample=args.enrich_biosample,
         biosample_cache=args.biosample_cache,
@@ -679,11 +723,15 @@ def _normalize_command_argv(
     if raw_argv and raw_argv[0] == "package-results":
         return ["--package-results", *raw_argv[1:]], False, True
     if raw_argv and raw_argv[0] == "verify-release-genus":
+        if len(raw_argv) >= 2 and raw_argv[1] in {"-h", "--help"}:
+            return ["--help"], False, False
         if len(raw_argv) < 2 or raw_argv[1].startswith("-"):
             raise ValueError("verify-release-genus requires a GENUS argument.")
         return ["--verify-release-genus", raw_argv[1], *raw_argv[2:]], False, False
     if not raw_argv or raw_argv[0] != "verify-genus":
         return argv, False, False
+    if len(raw_argv) >= 2 and raw_argv[1] in {"-h", "--help"}:
+        return ["--help"], False, False
     if len(raw_argv) < 2 or raw_argv[1].startswith("-"):
         raise ValueError("verify-genus requires a GENUS argument.")
 
@@ -732,6 +780,7 @@ def main(
     phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     lpsn_client=None,
 ) -> int:
     config = parse_args(argv)
@@ -786,6 +835,7 @@ def main(
                 barrnap_runner=barrnap_runner,
                 assembly_discovery_client=assembly_discovery_client,
                 biosample_client=biosample_client,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
                 lpsn_client=lpsn_client,
             )
         except (ManifestError, ValueError, RuntimeError) as error:
@@ -802,6 +852,18 @@ def main(
             return 0
         if config.register_external_genomes is not None:
             return run_external_genome_registration_stage(paths, config)
+        if should_reuse_manifest(config.outdir, config.resume, config.force):
+            records = load_existing_manifest(config.outdir)
+            _run_resume_from_manifest(
+                records,
+                paths,
+                config,
+                download_runner=download_runner,
+                barrnap_runner=barrnap_runner,
+                fastani_runner=fastani_runner,
+                phylo_runner=phylo_runner,
+            )
+            return 0
         if config.acquire_genus is not None:
             run_genus_acquisition_workflow(
                 paths,
@@ -810,6 +872,7 @@ def main(
                 barrnap_runner=barrnap_runner,
                 assembly_discovery_client=assembly_discovery_client,
                 biosample_client=biosample_client,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
                 lpsn_client=lpsn_client,
             )
             return 0
@@ -865,99 +928,6 @@ def main(
                 run_selection_download_stage(paths, config, runner=download_runner)
             else:
                 run_selection_read_stage(config)
-            return 0
-        if should_reuse_manifest(config.outdir, config.resume, config.force):
-            records = load_existing_manifest(config.outdir)
-            LOGGER.info(
-                "Reusing existing manifest: %s (%d records).",
-                paths.manifest,
-                len(records),
-            )
-            if not paths.name_map.exists():
-                write_name_map(records, paths.name_map)
-            if config.dry_run:
-                _write_genome_download_plan(
-                    records,
-                    paths,
-                    refresh_preflight_summary=should_refresh_download_preflight_summary(
-                        config
-                    ),
-                )
-                _prepare_local_16s_if_ready(records, paths, config)
-                _write_ani_plan_if_ready(records, paths, config)
-                _write_phylo_plan(records, paths, config)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_fastani:
-                if fastani_runner is None and not config.skip_ani:
-                    require_executable(FASTANI.executable)
-                    fastani_runner = SubprocessRunner()
-                run_ani_stage(records, paths, config, runner=fastani_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_phylo:
-                if not _source_audit_policy_allows_stage(paths, config, "phylo"):
-                    _write_run_summary(records, paths, config)
-                    return 2
-                if phylo_runner is None and not config.skip_tree:
-                    require_executable(MAFFT.executable)
-                    require_executable(TRIMAL.executable)
-                    require_executable(IQTREE.executable)
-                    phylo_runner = SubprocessRunner()
-                run_phylo_stage(records, paths, config, runner=phylo_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_barrnap:
-                if barrnap_runner is None and not _cli_real_action_allowed(
-                    "barrnap", config.enable_barrnap, wired=True
-                ):
-                    return 2
-                run_rrna_stage(records, paths, config, runner=barrnap_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.enable_entrez:
-                if not config.email:
-                    LOGGER.error("Real Entrez fallback requires --email with --enable-entrez.")
-                    return 2
-                _execute_entrez_fallback(records, paths, config)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-                if not _source_audit_policy_allows_stage(paths, config, "report"):
-                    return 2
-            elif config.enable_downloads:
-                if not _source_audit_policy_allows_stage(paths, config, "download"):
-                    _write_run_summary(records, paths, config)
-                    return 2
-                if not _cli_real_action_allowed(
-                    "downloads", config.enable_downloads, wired=True
-                ):
-                    return 2
-                _register_existing_downloads(records, paths, config.force)
-                if not _all_reference_genomes_ready(records):
-                    run_downloads_stage(records, paths, config, runner=download_runner)
-                write_manifest(records, paths.manifest)
-                if config.species_checklist is not None:
-                    run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            elif config.species_checklist is not None:
-                run_taxonomy_audit_stage(records, paths, config.species_checklist)
-                _write_run_summary(records, paths, config)
-            else:
-                if _needs_fastani_execution(config):
-                    _cli_real_action_allowed("fastani", config.enable_fastani)
-                else:
-                    _cli_real_action_allowed("downloads", config.enable_downloads)
-                return 2
             return 0
     except (ManifestError, ValueError, RuntimeError) as error:
         run_error = error
@@ -1153,6 +1123,7 @@ def run_release_genus_verification(
     barrnap_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     lpsn_client=None,
 ) -> tuple[Path, Path]:
     genus = str(config.verify_release_genus or "").strip()
@@ -1161,34 +1132,57 @@ def run_release_genus_verification(
     policies = _parse_release_policies(config.release_policies)
     rows = []
     first_error: Exception | None = None
+    acquisition_paths = get_release_acquisition_paths(config.outdir)
+    acquisition_config = _release_acquisition_config(config, genus, acquisition_paths)
+    acquisition_error: Exception | None = None
+
+    try:
+        validate_cli_argument_combinations(acquisition_config)
+        run_release_genus_acquisition(
+            acquisition_paths,
+            acquisition_config,
+            assembly_discovery_client=assembly_discovery_client,
+            biosample_client=biosample_client,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
+            lpsn_client=lpsn_client,
+        )
+    except (ManifestError, ValueError, RuntimeError) as error:
+        acquisition_error = error
+        first_error = error
+    finally:
+        _write_inferred_run_state(acquisition_paths, acquisition_config, acquisition_error)
 
     for policy in policies:
         policy_outdir = config.outdir / f"{genus.lower()}_{policy}"
         policy_paths = get_output_paths(policy_outdir)
         downloads_enabled = config.auto_accept_selection and config.enable_downloads
-        policy_config = replace(
+        policy_config = _release_policy_config(
             config,
-            verify_release_genus=None,
-            verify_genus=True,
-            acquire_genus=genus,
-            outdir=policy_outdir,
-            selection_policy=policy,
-            enrich_biosample=config.enrich_biosample or config.enable_biosample_entrez,
-            dry_run=True,
-            enable_downloads=downloads_enabled,
+            genus,
+            policy,
+            policy_outdir,
+            acquisition_paths,
+            downloads_enabled=downloads_enabled,
         )
         command = _release_policy_command(config, genus, policy, policy_outdir)
         run_error: Exception | None = None
         try:
+            if acquisition_error is not None:
+                _copy_available_shared_acquisition_outputs(
+                    acquisition_paths,
+                    policy_paths,
+                )
+                raise RuntimeError(
+                    "blocked_by_acquisition: " + str(acquisition_error)
+                )
             validate_cli_argument_combinations(policy_config)
-            run_genus_acquisition_workflow(
+            run_release_policy_verification_from_acquisition(
                 policy_paths,
                 policy_config,
+                acquisition_paths,
                 download_runner=download_runner,
                 barrnap_runner=barrnap_runner,
-                assembly_discovery_client=assembly_discovery_client,
-                biosample_client=biosample_client,
-                lpsn_client=lpsn_client,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
             )
         except (ManifestError, ValueError, RuntimeError) as error:
             run_error = error
@@ -1196,6 +1190,7 @@ def run_release_genus_verification(
                 first_error = error
         finally:
             _write_inferred_run_state(policy_paths, policy_config, run_error)
+            _write_completion_gap_reports(policy_paths)
             rows.append(
                 summarize_verification_outdir(
                     policy_outdir,
@@ -1218,6 +1213,256 @@ def run_release_genus_verification(
     if first_error is not None:
         raise RuntimeError(str(first_error))
     return matrix_path, summary_path
+
+
+def _release_acquisition_config(
+    config: AppConfig,
+    genus: str,
+    acquisition_paths,
+) -> AppConfig:
+    lpsn_cache = config.lpsn_cache
+    discovery_cache = config.discovery_cache
+    biosample_cache = config.biosample_cache
+    enable_lpsn_api = config.enable_lpsn_api
+    enable_ncbi_discovery = config.enable_ncbi_discovery
+    enable_biosample_entrez = config.enable_biosample_entrez
+
+    if lpsn_cache is None and acquisition_paths.taxonomy_dir.joinpath(
+        "lpsn_species_cache.tsv"
+    ).exists():
+        lpsn_cache = acquisition_paths.taxonomy_dir / "lpsn_species_cache.tsv"
+        enable_lpsn_api = False
+    if discovery_cache is None and acquisition_paths.discovery_records_path.exists():
+        discovery_cache = acquisition_paths.discovery_records_path
+        enable_ncbi_discovery = False
+    if biosample_cache is None and acquisition_paths.biosample_records_path.exists():
+        biosample_cache = acquisition_paths.biosample_records_path
+
+    return replace(
+        config,
+        verify_release_genus=None,
+        verify_genus=True,
+        acquire_genus=genus,
+        outdir=acquisition_paths.manifest.parent,
+        lpsn_genus=genus,
+        lpsn_cache=lpsn_cache,
+        write_lpsn_cache=(
+            config.write_lpsn_cache
+            or acquisition_paths.taxonomy_dir / "lpsn_species_cache.tsv"
+        ),
+        write_species_checklist=acquisition_paths.manifest.parent
+        / "species_checklist.tsv",
+        write_excluded_lpsn_taxa=acquisition_paths.manifest.parent
+        / "excluded_lpsn_taxa.tsv",
+        species_checklist=acquisition_paths.manifest.parent / "species_checklist.tsv",
+        discovery_cache=discovery_cache,
+        biosample_cache=biosample_cache or acquisition_paths.biosample_records_path,
+        enable_lpsn_api=enable_lpsn_api,
+        enable_ncbi_discovery=enable_ncbi_discovery,
+        enable_ncbi_taxonomy=config.enable_ncbi_taxonomy,
+        enable_biosample_entrez=enable_biosample_entrez,
+        enrich_biosample=config.enrich_biosample or config.enable_biosample_entrez,
+        dry_run=True,
+        discover_assembly_candidates=True,
+        prepare_selection=False,
+        selection_tsv=None,
+        enable_downloads=False,
+    )
+
+
+def _release_policy_config(
+    config: AppConfig,
+    genus: str,
+    policy: str,
+    policy_outdir: Path,
+    acquisition_paths,
+    *,
+    downloads_enabled: bool,
+) -> AppConfig:
+    return replace(
+        config,
+        verify_release_genus=None,
+        verify_genus=True,
+        acquire_genus=genus,
+        outdir=policy_outdir,
+        species_checklist=policy_outdir / "species_checklist.tsv",
+        lpsn_cache=config.lpsn_cache
+        or acquisition_paths.taxonomy_dir / "lpsn_species_cache.tsv",
+        discovery_cache=acquisition_paths.discovery_records_path,
+        biosample_cache=config.biosample_cache or acquisition_paths.biosample_records_path,
+        enable_lpsn_api=False,
+        enable_ncbi_discovery=False,
+        enable_ncbi_taxonomy=config.enable_ncbi_taxonomy,
+        enable_biosample_entrez=False,
+        selection_policy=policy,
+        enrich_biosample=False,
+        dry_run=True,
+        enable_downloads=downloads_enabled,
+        selection_tsv=get_output_paths(policy_outdir).user_selection_path,
+    )
+
+
+def run_release_genus_acquisition(
+    paths,
+    config: AppConfig,
+    assembly_discovery_client: AssemblyDiscoveryClient | None = None,
+    biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+    lpsn_client=None,
+) -> Path:
+    genus = str(config.acquire_genus or "").strip()
+    if not genus:
+        raise ValueError("verify-release-genus shared acquisition requires a genus name.")
+    if config.lpsn_cache is None and not config.enable_lpsn_api:
+        raise ValueError(
+            "verify-release-genus shared acquisition requires --lpsn-cache, an "
+            "existing shared LPSN cache, or --enable-lpsn-api."
+        )
+    if config.discovery_cache is None and not config.enable_ncbi_discovery:
+        raise ValueError(
+            "verify-release-genus shared acquisition requires --discovery-cache, "
+            "an existing shared discovery cache, or --enable-ncbi-discovery --email."
+        )
+    if (
+        not config.force
+        and (paths.manifest.parent / "species_checklist.tsv").exists()
+        and paths.assembly_candidates_path.exists()
+        and paths.assembly_candidate_diagnostics_path.exists()
+    ):
+        LOGGER.info(
+            "Reusing shared release acquisition outputs under %s.",
+            paths.manifest.parent,
+        )
+        return paths.assembly_candidates_path
+
+    LOGGER.info("Starting shared release acquisition for %s.", genus)
+    run_lpsn_species_checklist_conversion(config, lpsn_client=lpsn_client)
+    run_culture_collection_audit_stage(paths, config)
+    run_candidate_discovery_stage(
+        paths,
+        config,
+        assembly_discovery_client=assembly_discovery_client,
+        biosample_client=biosample_client,
+    )
+    _write_ncbi_taxonomy_outputs(paths, config, ncbi_taxonomy_client=ncbi_taxonomy_client)
+    if (
+        config.discovery_cache is not None
+        and config.discovery_cache != paths.discovery_records_path
+        and not paths.discovery_records_path.exists()
+    ):
+        _copy_if_exists(config.discovery_cache, paths.discovery_records_path, required=True)
+    LOGGER.info("Completed shared release acquisition for %s.", genus)
+    return paths.assembly_candidates_path
+
+
+def run_release_policy_verification_from_acquisition(
+    paths,
+    config: AppConfig,
+    acquisition_paths,
+    download_runner=None,
+    barrnap_runner=None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+) -> Path:
+    _copy_shared_acquisition_outputs(acquisition_paths, paths)
+    run_culture_collection_audit_stage(paths, config)
+    run_selection_prepare_stage(paths, config)
+    records = run_selection_dry_run_stage(
+        paths,
+        config,
+        ncbi_taxonomy_client=ncbi_taxonomy_client,
+    )
+
+    if config.auto_accept_selection and config.enable_downloads:
+        download_config = replace(config, dry_run=False, enable_downloads=True)
+        if not _source_audit_policy_allows_stage(paths, download_config, "download"):
+            _write_run_summary(
+                records,
+                paths,
+                download_config,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
+            )
+            raise ValueError(
+                "Sequence source audit policy blocked download stage; review "
+                f"{paths.sequence_source_audit_path}."
+            )
+        if not _cli_real_action_allowed(
+            "downloads",
+            download_config.enable_downloads,
+            wired=True,
+        ):
+            raise ValueError("Downloads were not enabled.")
+        _write_genome_download_plan(records, paths)
+        write_manifest(records, paths.manifest)
+        write_name_map(records, paths.name_map)
+        run_downloads_stage(records, paths, download_config, runner=download_runner)
+        if config.extract_16s == "barrnap":
+            rrna_config = replace(download_config, enable_barrnap=True)
+            _prepare_local_16s_if_ready(
+                records,
+                paths,
+                rrna_config,
+                runner=barrnap_runner,
+            )
+        write_manifest(records, paths.manifest)
+        if download_config.species_checklist is not None:
+            run_taxonomy_audit_stage(
+                records,
+                paths,
+                download_config.species_checklist,
+            )
+        _write_run_summary(
+            records,
+            paths,
+            download_config,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
+        )
+    return paths.user_selection_path
+
+
+def _copy_shared_acquisition_outputs(acquisition_paths, policy_paths) -> None:
+    required = [
+        (
+            acquisition_paths.manifest.parent / "species_checklist.tsv",
+            policy_paths.manifest.parent / "species_checklist.tsv",
+        ),
+        (acquisition_paths.assembly_candidates_path, policy_paths.assembly_candidates_path),
+        (
+            acquisition_paths.assembly_candidate_diagnostics_path,
+            policy_paths.assembly_candidate_diagnostics_path,
+        ),
+    ]
+    for source, destination in required:
+        _copy_if_exists(source, destination, required=True)
+    _copy_available_shared_acquisition_outputs(acquisition_paths, policy_paths)
+
+
+def _copy_available_shared_acquisition_outputs(acquisition_paths, policy_paths) -> None:
+    optional = [
+        (
+            acquisition_paths.manifest.parent / "species_checklist.tsv",
+            policy_paths.manifest.parent / "species_checklist.tsv",
+        ),
+        (
+            acquisition_paths.manifest.parent / "excluded_lpsn_taxa.tsv",
+            policy_paths.manifest.parent / "excluded_lpsn_taxa.tsv",
+        ),
+        (acquisition_paths.assembly_candidates_path, policy_paths.assembly_candidates_path),
+        (
+            acquisition_paths.assembly_candidate_diagnostics_path,
+            policy_paths.assembly_candidate_diagnostics_path,
+        ),
+    ]
+    for source, destination in optional:
+        _copy_if_exists(source, destination, required=False)
+
+
+def _copy_if_exists(source: Path, destination: Path, *, required: bool) -> None:
+    if not source.exists():
+        if required:
+            raise ValueError(f"shared acquisition output not found: {source}")
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, destination)
 
 
 def _parse_release_policies(value: str) -> list[str]:
@@ -1259,6 +1504,7 @@ def _release_policy_command(
     for enabled, flag in (
         (config.enable_lpsn_api, "--enable-lpsn-api"),
         (config.enable_ncbi_discovery, "--enable-ncbi-discovery"),
+        (config.enable_ncbi_taxonomy, "--enable-ncbi-taxonomy"),
         (config.enable_biosample_entrez, "--enable-biosample-entrez"),
         (config.enable_synonym_discovery, "--enable-synonym-discovery"),
         (config.auto_accept_selection, "--auto-accept-selection"),
@@ -1278,6 +1524,157 @@ def _release_policy_command(
 
 def should_refresh_download_preflight_summary(config: AppConfig) -> bool:
     return not config.resume
+
+
+def _run_resume_from_manifest(
+    records,
+    paths,
+    config: AppConfig,
+    download_runner=None,
+    barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
+) -> None:
+    LOGGER.info(
+        "Reusing existing manifest: %s (%d records).",
+        paths.manifest,
+        len(records),
+    )
+    if not paths.name_map.exists():
+        write_name_map(records, paths.name_map)
+
+    run_config = _effective_resume_config(config)
+    if run_config.dry_run:
+        _write_genome_download_plan(
+            records,
+            paths,
+            refresh_preflight_summary=should_refresh_download_preflight_summary(
+                run_config
+            ),
+        )
+        _prepare_local_16s_if_ready(records, paths, run_config)
+        _write_ani_plan_if_ready(records, paths, run_config)
+        _write_phylo_plan(records, paths, run_config)
+    elif run_config.enable_fastani:
+        if fastani_runner is None and not run_config.skip_ani:
+            require_executable(FASTANI.executable)
+            fastani_runner = SubprocessRunner()
+        run_ani_stage(records, paths, run_config, runner=fastani_runner)
+    elif run_config.enable_phylo:
+        if not _source_audit_policy_allows_stage(paths, run_config, "phylo"):
+            _write_run_summary(records, paths, run_config)
+            raise ValueError("Sequence source audit policy blocked phylo stage.")
+        if phylo_runner is None and not run_config.skip_tree:
+            require_executable(MAFFT.executable)
+            require_executable(TRIMAL.executable)
+            require_executable(IQTREE.executable)
+            phylo_runner = SubprocessRunner()
+        run_phylo_stage(records, paths, run_config, runner=phylo_runner)
+    elif run_config.enable_barrnap:
+        if barrnap_runner is None and not _cli_real_action_allowed(
+            "barrnap", run_config.enable_barrnap, wired=True
+        ):
+            raise ValueError("barrnap was not enabled.")
+        run_rrna_stage(records, paths, run_config, runner=barrnap_runner)
+    elif run_config.enable_entrez:
+        if not run_config.email:
+            raise ValueError(
+                "Real Entrez fallback requires --email with --enable-entrez. "
+                f"Continue with: {_resume_command(run_config, paths, 'entrez')}"
+            )
+        _execute_entrez_fallback(records, paths, run_config)
+    elif run_config.enable_downloads:
+        if not _source_audit_policy_allows_stage(paths, run_config, "download"):
+            _write_run_summary(records, paths, run_config)
+            raise ValueError("Sequence source audit policy blocked download stage.")
+        if not _cli_real_action_allowed(
+            "downloads", run_config.enable_downloads, wired=True
+        ):
+            raise ValueError("Downloads were not enabled.")
+        _register_existing_downloads(records, paths, run_config.force)
+        if not _all_reference_genomes_ready(records):
+            run_downloads_stage(records, paths, run_config, runner=download_runner)
+    elif run_config.species_checklist is not None:
+        run_taxonomy_audit_stage(records, paths, run_config.species_checklist)
+    else:
+        raise ValueError(_existing_outdir_resume_message(paths, run_config))
+
+    write_manifest(records, paths.manifest)
+    if run_config.species_checklist is not None:
+        run_taxonomy_audit_stage(records, paths, run_config.species_checklist)
+    _write_run_summary(records, paths, run_config)
+    if run_config.enable_entrez and not _source_audit_policy_allows_stage(
+        paths,
+        run_config,
+        "report",
+    ):
+        raise ValueError("Sequence source audit policy blocked report stage.")
+
+
+def _effective_resume_config(config: AppConfig) -> AppConfig:
+    if not config.verify_genus:
+        return config
+    if any(
+        (
+            config.enable_barrnap,
+            config.enable_entrez,
+            config.enable_fastani,
+            config.enable_phylo,
+            config.enable_downloads,
+        )
+    ):
+        return replace(config, dry_run=False)
+    return config
+
+
+def _existing_outdir_resume_message(paths, config: AppConfig) -> str:
+    if config.force:
+        return ""
+    existing = [
+        label
+        for path, label in (
+            (paths.assembly_candidates_path, "candidates/assembly_candidates.tsv"),
+            (paths.manifest, "manifest.tsv"),
+            (paths.run_state_path, "run_state.json"),
+        )
+        if path.exists()
+    ]
+    if not existing:
+        return ""
+    if not config.verify_genus and config.acquire_genus is None:
+        return ""
+    return (
+        "Existing TypeTreeFlow acquisition outputs were found in this outdir "
+        f"({', '.join(existing)}). To continue from them, use one of:\n"
+        f"  {_resume_command(config, paths, 'barrnap')}\n"
+        f"  {_resume_command(config, paths, 'entrez')}\n"
+        "Use --force only when you intend to rebuild existing acquisition outputs."
+    )
+
+
+def _resume_command(config: AppConfig, paths, stage: str) -> str:
+    genus = config.acquire_genus or config.genus or "<GENUS>"
+    parts = [
+        "typetreeflow",
+        "verify-genus",
+        str(genus),
+        "--outdir",
+        _quote_cli_value(paths.manifest.parent.as_posix()),
+        "--resume",
+    ]
+    if stage == "barrnap":
+        parts.append("--enable-barrnap")
+    elif stage == "entrez":
+        parts.extend(["--enable-entrez", "--email", "<EMAIL>"])
+    return " ".join(parts)
+
+
+def _quote_cli_value(value: str) -> str:
+    if not value:
+        return value
+    if any(char.isspace() for char in value):
+        return '"' + value.replace('"', '\\"') + '"'
+    return value
 
 
 def _write_genome_download_plan(
@@ -1317,10 +1714,147 @@ def _write_genome_download_plan(
     return "genome_plan_empty"
 
 
-def _write_run_summary(records, paths, config: AppConfig) -> None:
+def _write_run_summary(
+    records,
+    paths,
+    config: AppConfig,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+) -> None:
+    taxonomy_error: Exception | None = None
+    if config.verify_genus:
+        try:
+            _write_ncbi_taxonomy_outputs(
+                paths,
+                config,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
+            )
+        except (ValueError, RuntimeError) as error:
+            taxonomy_error = error
+        _write_completion_gap_reports(paths)
+        _write_expanded_discovery_results_if_enabled(paths, config)
     markdown = build_run_summary_markdown(records, paths, config)
     summary_path = write_run_summary(markdown, paths.run_summary_path)
     LOGGER.info("Wrote run summary: %s.", summary_path)
+    review_markdown = build_run_review_markdown(records, paths, config)
+    review_path = write_run_summary(review_markdown, paths.run_review_path)
+    LOGGER.info("Wrote run review: %s.", review_path)
+    if taxonomy_error is not None:
+        raise taxonomy_error
+
+
+def _write_ncbi_taxonomy_outputs(
+    paths,
+    config: AppConfig,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+) -> None:
+    checklist_path = config.species_checklist
+    if checklist_path is None:
+        default_checklist_path = config.outdir / "species_checklist.tsv"
+        if default_checklist_path.exists():
+            checklist_path = default_checklist_path
+    try:
+        plan_path, cache_path = write_ncbi_taxonomy_outputs_from_checklist(
+            checklist_path,
+            paths.ncbi_taxonomy_plan_path,
+            paths.ncbi_taxonomy_cache_path,
+        )
+        if config.enable_ncbi_taxonomy:
+            if not config.email and ncbi_taxonomy_client is None:
+                raise ValueError(
+                    "Real NCBI Taxonomy lookup requires --email with "
+                    "--enable-ncbi-taxonomy."
+                )
+            client = ncbi_taxonomy_client or BiopythonNcbiTaxonomyClient(
+                email=config.email or "",
+                api_key=config.api_key,
+            )
+            cache_rows = execute_ncbi_taxonomy_lookup(plan_path, cache_path, client)
+            LOGGER.info(
+                "Executed NCBI taxonomy enrichment lookup: %s (%d cache row(s)).",
+                cache_path,
+                len(cache_rows),
+            )
+        else:
+            LOGGER.info(
+                "Wrote NCBI taxonomy enrichment plan/cache: %s, %s.",
+                plan_path,
+                cache_path,
+            )
+    except (ValueError, RuntimeError):
+        raise
+    except Exception as error:  # pragma: no cover - best-effort reporting only
+        LOGGER.warning("Could not write NCBI taxonomy enrichment outputs: %s", error)
+
+
+def _write_completion_gap_reports(paths) -> None:
+    try:
+        gaps_path, uncovered_path, rrna_path = generate_completion_gap_reports(
+            paths.manifest.parent
+        )
+        LOGGER.info(
+            "Wrote completion gap reports: %s, %s, %s.",
+            gaps_path,
+            uncovered_path,
+            rrna_path,
+        )
+    except Exception as error:  # pragma: no cover - best-effort reporting only
+        LOGGER.warning("Could not write completion gap reports: %s", error)
+
+
+def _write_expanded_discovery_results_if_enabled(paths, config: AppConfig) -> None:
+    if not config.enable_expanded_discovery:
+        return
+    try:
+        assembly_client = _expanded_discovery_assembly_client(paths, config)
+        biosample_client = _expanded_discovery_biosample_client(paths, config)
+        results_path = execute_expanded_discovery_plan(
+            paths.manifest.parent,
+            assembly_client=assembly_client,
+            biosample_client=biosample_client,
+        )
+        counts = summarize_expanded_discovery_results(
+            read_expanded_discovery_results(results_path)
+        )
+        count_text = ", ".join(
+            f"{decision}={count}"
+            for decision, count in sorted(counts.items())
+            if count
+        )
+        LOGGER.info(
+            "Wrote expanded discovery results: %s (%s).",
+            results_path,
+            count_text or "no rows",
+        )
+    except Exception as error:  # pragma: no cover - best-effort reporting only
+        LOGGER.warning("Could not write expanded discovery results: %s", error)
+
+
+def _expanded_discovery_assembly_client(paths, config: AppConfig):
+    cache_path = config.discovery_cache
+    if cache_path is None and paths.discovery_records_path.exists():
+        cache_path = paths.discovery_records_path
+    if cache_path is not None and Path(cache_path).exists():
+        return LocalAssemblyDiscoveryCacheClient.from_tsv(Path(cache_path))
+    if config.enable_ncbi_discovery:
+        return NcbiAssemblyDiscoveryClient(
+            email=config.email,
+            api_key=config.api_key,
+        )
+    return None
+
+
+def _expanded_discovery_biosample_client(paths, config: AppConfig):
+    cache_path = config.biosample_cache
+    if cache_path is None and paths.biosample_records_path.exists():
+        cache_path = paths.biosample_records_path
+    if cache_path is not None and Path(cache_path).exists():
+        return LocalBioSampleCacheClient.from_tsv(Path(cache_path))
+    if config.enable_biosample_entrez:
+        return NcbiBioSampleClient(
+            email=config.email,
+            api_key=config.api_key,
+        )
+    return None
 
 
 def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None) -> None:
@@ -1358,13 +1892,26 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         "succeeded",
         _row_count_summary(paths.assembly_candidates_path, "assembly candidate records"),
     )
-    if paths.biosample_records_path.exists():
+    biosample_cache_path = config.biosample_cache or paths.biosample_records_path
+    biosample_failed_with_partial_cache = (
+        error is not None
+        and config.enrich_biosample
+        and biosample_cache_path.exists()
+        and not paths.user_selection_path.exists()
+        and not paths.strain_candidates_path.exists()
+    )
+    if biosample_cache_path.exists() and not biosample_failed_with_partial_cache:
         stages["biosample_enrichment"] = StageState(
             status="succeeded",
-            outputs=[_state_output_path(paths.biosample_records_path, paths)],
-            summary=_row_count_summary(paths.biosample_records_path, "BioSample records"),
+            outputs=[_state_output_path(biosample_cache_path, paths)],
+            summary=_row_count_summary(biosample_cache_path, "BioSample records"),
         )
     elif config.enrich_biosample:
+        outputs = (
+            [_state_output_path(biosample_cache_path, paths)]
+            if biosample_cache_path.exists()
+            else []
+        )
         if error is None and paths.assembly_candidates_path.exists():
             stages["biosample_enrichment"] = StageState(
                 status="succeeded",
@@ -1374,7 +1921,7 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         else:
             stages["biosample_enrichment"] = StageState(
                 status="planned" if error is None else "failed",
-                outputs=[],
+                outputs=outputs,
                 summary="BioSample enrichment requested.",
             )
     elif config.acquire_genus is not None or config.discover_assembly_candidates:
@@ -1423,9 +1970,23 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         stages,
         "completion_audit",
         paths,
-        [paths.completion_audit_path, paths.completion_summary_path],
+        [
+            paths.completion_audit_path,
+            paths.completion_summary_path,
+            paths.completion_gaps_path,
+            paths.uncovered_species_path,
+            paths.rrna_16s_gaps_path,
+        ],
         "succeeded",
-        _row_count_summary(paths.completion_audit_path, "completion audit rows"),
+        _completion_outputs_summary(paths),
+    )
+    _add_file_stage(
+        stages,
+        "ncbi_taxonomy_enrichment",
+        paths,
+        [paths.ncbi_taxonomy_plan_path, paths.ncbi_taxonomy_cache_path],
+        "succeeded",
+        _row_count_summary(paths.ncbi_taxonomy_plan_path, "planned taxonomy query rows"),
     )
     _add_file_stage(
         stages,
@@ -1439,10 +2000,10 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
     errors = [] if error is None else [str(error)]
     if error is not None:
         status = _blocked_or_failed_status(error)
-        next_action = _next_action_for_error(status, error)
+        next_action = _next_action_for_error(status, error, paths, config)
     else:
         status = _overall_status(stages)
-        next_action = _next_action_for_success(stages)
+        next_action = _next_action_for_success(stages, paths, config)
 
     return WorkflowState(
         status=status,
@@ -1558,6 +2119,8 @@ def _rrna_stage_state(
         status = "partial"
     elif status_counts:
         status = "succeeded"
+    elif config.dry_run and config.enable_barrnap:
+        status = "planned"
     elif config.extract_16s == "barrnap":
         status = "blocked_by_manual_review"
     else:
@@ -1604,20 +2167,34 @@ def _blocked_or_failed_status(error: Exception) -> str:
     return "failed"
 
 
-def _next_action_for_error(status: str, error: Exception) -> str:
+def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
     if status == "blocked_by_dependency":
         return str(error)
     if status == "blocked_by_argument_conflict":
         return "Adjust conflicting CLI arguments and rerun."
     if status == "blocked_by_manual_review":
+        if "source audit policy blocked" in str(error):
+            return (
+                f"Review {_state_output_path(paths.sequence_source_audit_path, paths)}, "
+                "resolve strict sequence-source audit findings, then rerun the guarded "
+                "stage explicitly."
+            )
         return "Review the indicated audit or selection file, then rerun the guarded stage."
     return "Fix the reported error and rerun."
 
 
-def _next_action_for_success(stages: dict[str, StageState]) -> str:
+def _next_action_for_success(
+    stages: dict[str, StageState],
+    paths,
+    config: AppConfig,
+) -> str:
+    if _rrna_gaps_remain(paths):
+        return _resume_command(config, paths, "entrez")
+    rrna = stages.get("rrna_barrnap")
+    if rrna is not None and _rrna_summary_has_16s_gaps(rrna.summary):
+        return _resume_command(config, paths, "entrez")
     download = stages.get("download")
     if download is not None and download.status == "blocked_by_manual_review":
-        rrna = stages.get("rrna_barrnap")
         if rrna is not None and rrna.status == "blocked_by_manual_review":
             return (
                 "Complete guarded download with --auto-accept-selection "
@@ -1625,9 +2202,40 @@ def _next_action_for_success(stages: dict[str, StageState]) -> str:
                 "running --extract-16s barrnap."
             )
         return "Review selection/user_selection.tsv, then run guarded download."
-    if stages.get("rrna_barrnap") is not None:
+    if rrna is not None:
         return "Review report/summary.md and downstream 16S outputs."
+    if _manifest_has_genome_ready_records(paths):
+        return _resume_command(config, paths, "barrnap")
     return "Review report/summary.md."
+
+
+def _rrna_summary_has_16s_gaps(summary: str) -> bool:
+    return any(
+        status in summary
+        for status in (
+            "rrna_16s_not_found",
+            "rrna_16s_extract_failed",
+            "barrnap_failed",
+            "barrnap_missing_output",
+        )
+    )
+
+
+def _rrna_gaps_remain(paths) -> bool:
+    return bool(_read_tsv_rows(paths.rrna_16s_gaps_path))
+
+
+def _manifest_has_genome_ready_records(paths) -> bool:
+    if not paths.manifest.exists():
+        return False
+    for row in _read_tsv_rows(paths.manifest):
+        if row.get("has_genome", "").strip().lower() in {"true", "1", "yes"}:
+            return True
+        if row.get("genome_path", "").strip():
+            return True
+        if row.get("status", "").strip() == "genome_ready":
+            return True
+    return False
 
 
 def _rrna_no_records_summary(config: AppConfig) -> str:
@@ -1684,6 +2292,14 @@ def _download_plan_summary(path: Path) -> str:
     if not path.exists():
         return ""
     return _status_count_summary(path)
+
+
+def _completion_outputs_summary(paths) -> str:
+    parts = [
+        _row_count_summary(paths.completion_audit_path, "completion audit rows"),
+        _row_count_summary(paths.completion_gaps_path, "completion gap rows"),
+    ]
+    return "; ".join(part for part in parts if part)
 
 
 def _row_count_summary(path: Path, label: str) -> str:
@@ -1820,11 +2436,16 @@ def run_genus_acquisition_workflow(
     barrnap_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     lpsn_client=None,
 ) -> Path:
     genus = str(config.acquire_genus or "").strip()
     if not genus:
         raise ValueError("--acquire-genus requires a genus name.")
+    if not config.resume:
+        message = _existing_outdir_resume_message(paths, config)
+        if message:
+            raise ValueError(message)
     verify_genus_guarded_download = (
         config.verify_genus
         and config.auto_accept_selection
@@ -1898,7 +2519,11 @@ def run_genus_acquisition_workflow(
         acquisition_config,
         biosample_client=biosample_client,
     )
-    records = run_selection_dry_run_stage(paths, acquisition_config)
+    records = run_selection_dry_run_stage(
+        paths,
+        acquisition_config,
+        ncbi_taxonomy_client=ncbi_taxonomy_client,
+    )
     if verify_genus_guarded_download:
         download_config = replace(
             acquisition_config,
@@ -1906,7 +2531,12 @@ def run_genus_acquisition_workflow(
             enable_downloads=True,
         )
         if not _source_audit_policy_allows_stage(paths, download_config, "download"):
-            _write_run_summary(records, paths, download_config)
+            _write_run_summary(
+                records,
+                paths,
+                download_config,
+                ncbi_taxonomy_client=ncbi_taxonomy_client,
+            )
             raise ValueError(
                 "Sequence source audit policy blocked download stage; review "
                 f"{paths.sequence_source_audit_path}."
@@ -1936,7 +2566,12 @@ def run_genus_acquisition_workflow(
                 paths,
                 download_config.species_checklist,
             )
-        _write_run_summary(records, paths, download_config)
+        _write_run_summary(
+            records,
+            paths,
+            download_config,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
+        )
         LOGGER.info(
             "Completed %s for %s with guarded downloads after auto-accepting "
             "the generated selection.",
@@ -2041,6 +2676,16 @@ def run_candidate_discovery_stage(
             client,
             enable_synonym_discovery=config.enable_synonym_discovery,
         )
+        if config.enable_ncbi_discovery:
+            discovery_records_path = write_discovery_records(
+                local_records,
+                paths.discovery_records_path,
+            )
+            LOGGER.info(
+                "Wrote normalized discovery records cache: %s (%d row(s)).",
+                discovery_records_path,
+                len(local_records),
+            )
         client = LocalAssemblyDiscoveryCacheClient(local_records)
         source_label = "NCBI assembly discovery"
 
@@ -2065,11 +2710,15 @@ def run_candidate_discovery_stage(
         result.diagnostics,
         paths.assembly_candidate_diagnostics_path,
     )
-    discovery_records_path = None
-    if config.enable_ncbi_discovery:
+    if config.enable_ncbi_discovery and not paths.discovery_records_path.exists():
         discovery_records_path = write_discovery_records(
             local_records,
             paths.discovery_records_path,
+        )
+        LOGGER.info(
+            "Wrote normalized discovery records cache: %s (%d row(s)).",
+            discovery_records_path,
+            len(local_records),
         )
     LOGGER.info(
         "Wrote assembly candidates from %s: %s (%d row(s)).",
@@ -2082,12 +2731,6 @@ def run_candidate_discovery_stage(
         diagnostics_path,
         len(result.diagnostics),
     )
-    if discovery_records_path is not None:
-        LOGGER.info(
-            "Wrote normalized discovery records cache: %s (%d row(s)).",
-            discovery_records_path,
-            len(local_records),
-        )
     return candidate_path
 
 
@@ -2112,7 +2755,7 @@ def _enrich_candidate_result_with_biosamples(
     config: AppConfig,
     biosample_client: BioSampleClient | None = None,
 ):
-    client, fetched_records, cache_path = _build_biosample_enrichment_client(
+    client, cache_path = _build_biosample_enrichment_client(
         result.candidates,
         paths,
         config,
@@ -2123,12 +2766,12 @@ def _enrich_candidate_result_with_biosamples(
         checklist_entries,
         client,
     )
-    if fetched_records is not None:
-        write_biosample_records(fetched_records, cache_path)
+    checkpoint_records = getattr(client, "records", None)
+    if checkpoint_records is not None:
         LOGGER.info(
-            "Wrote BioSample cache: %s (%d row(s)).",
+            "BioSample cache checkpoint: %s (%d row(s)).",
             cache_path,
-            len(fetched_records),
+            len(checkpoint_records),
         )
     LOGGER.info(
         "BioSample enrichment diagnostics: %d row(s).",
@@ -2140,29 +2783,15 @@ def _enrich_candidate_result_with_biosamples(
     )
 
 
-class _RecordingBioSampleClient:
-    def __init__(self, client: BioSampleClient):
-        self.client = client
-        self.records = []
-        self._seen: set[str] = set()
-
-    def fetch_biosample(self, biosample_accession: str):
-        record = self.client.fetch_biosample(biosample_accession)
-        if record is not None and record.biosample.strip().upper() not in self._seen:
-            self._seen.add(record.biosample.strip().upper())
-            self.records.append(record)
-        return record
-
-
 def _build_biosample_enrichment_client(
     candidates,
     paths,
     config: AppConfig,
     biosample_client: BioSampleClient | None = None,
-) -> tuple[BioSampleClient, list | None, Path]:
+) -> tuple[BioSampleClient, Path]:
     cache_path = config.biosample_cache or paths.biosample_records_path
     if biosample_client is not None:
-        return biosample_client, None, cache_path
+        return biosample_client, cache_path
     if config.enable_biosample_entrez:
         if config.dry_run and not config.verify_genus:
             raise ValueError(
@@ -2174,12 +2803,13 @@ def _build_biosample_enrichment_client(
                 "Real NCBI BioSample lookup requires --email with "
                 "--enable-biosample-entrez."
             )
-        client = _RecordingBioSampleClient(
-            NcbiBioSampleClient(email=config.email, api_key=config.api_key)
+        client = CheckpointingBioSampleCacheClient.from_tsv(
+            NcbiBioSampleClient(email=config.email, api_key=config.api_key),
+            cache_path,
         )
-        return client, client.records, cache_path
+        return client, cache_path
     if Path(cache_path).exists():
-        return LocalBioSampleCacheClient.from_tsv(cache_path), None, cache_path
+        return LocalBioSampleCacheClient.from_tsv(cache_path), cache_path
     raise ValueError(
         "--enrich-biosample requires a local --biosample-cache TSV, an existing "
         f"default cache at {cache_path}, or --enable-biosample-entrez --email."
@@ -2612,14 +3242,23 @@ def run_provider_registration_planning_stage(paths, config: AppConfig) -> None:
     )
 
 
-def run_selection_dry_run_stage(paths, config: AppConfig) -> list:
+def run_selection_dry_run_stage(
+    paths,
+    config: AppConfig,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+) -> list:
     records = _selection_tsv_to_records(paths, config)
     _write_genome_download_plan(records, paths)
     write_manifest(records, paths.manifest)
     write_name_map(records, paths.name_map)
     if config.species_checklist is not None:
         run_taxonomy_audit_stage(records, paths, config.species_checklist)
-    _write_run_summary(records, paths, config)
+    _write_run_summary(
+        records,
+        paths,
+        config,
+        ncbi_taxonomy_client=ncbi_taxonomy_client,
+    )
     LOGGER.info(
         "Prepared selection dry-run outputs from user selection table: "
         "%d selected record(s).",

@@ -7,6 +7,7 @@ from typetreeflow.delivery import package_results
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 
 
 def test_package_results_writes_readme_and_core_tsvs(tmp_path):
@@ -111,10 +112,74 @@ def test_package_results_succeeds_with_missing_optional_files(tmp_path):
 
 
 def test_package_results_missing_manifest_fails(tmp_path):
-    with pytest.raises(ValueError, match="manifest.tsv not found"):
+    with pytest.raises(ValueError, match="manifest.tsv not found") as excinfo:
         package_results(tmp_path)
+    assert "workflow status" not in str(excinfo.value)
 
     assert main(["package-results", "--outdir", str(tmp_path)]) == 2
+
+
+def test_package_results_missing_manifest_reports_failed_run_state(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            stages={
+                "download": StageState(
+                    status="failed",
+                    summary="NCBI download exited with status 1.",
+                )
+            },
+            errors=["NCBI download exited with status 1."],
+            next_action="Inspect cache/ncbi/download_results.tsv and retry download.",
+        ),
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        package_results(tmp_path)
+
+    message = str(excinfo.value)
+    assert "manifest.tsv was not generated" in message
+    assert "workflow status: failed" in message
+    assert "failed stage: download (failed)" in message
+    assert "error message: NCBI download exited with status 1." in message
+    assert (
+        "next_action: Inspect cache/ncbi/download_results.tsv and retry download."
+        in message
+    )
+
+
+def test_package_results_missing_manifest_reports_blocked_stage(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="blocked_by_manual_review",
+            outdir=str(tmp_path),
+            stages={
+                "download": StageState(
+                    status="blocked_by_manual_review",
+                    summary="Sequence source audit policy blocked download stage.",
+                )
+            },
+            next_action="Review selection/user_selection.tsv, then run guarded download.",
+        ),
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        package_results(tmp_path)
+
+    message = str(excinfo.value)
+    assert "manifest.tsv was not generated" in message
+    assert "workflow status: blocked_by_manual_review" in message
+    assert "blocked stage: download (blocked_by_manual_review)" in message
+    assert "error message: Sequence source audit policy blocked download stage." in message
+    assert (
+        "next_action: Review selection/user_selection.tsv, then run guarded download."
+        in message
+    )
 
 
 def test_package_results_does_not_copy_zip_or_env_files(tmp_path):

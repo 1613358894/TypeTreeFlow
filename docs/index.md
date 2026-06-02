@@ -92,6 +92,13 @@ move, archive, or deletion.
   tag, GitHub Release, clean-clone verification, and audit standards.
 - [release_checklist.md](release_checklist.md): Execution checklist for local
   validation, packaging, optional real staged validation, and pre-tag checks.
+- [release_notes_v2_2_x.md](release_notes_v2_2_x.md): Consolidated v2.2.x
+  release notes for shared acquisition, package failure behavior, gap reports,
+  expanded discovery audit, NCBI Taxonomy enrichment, and scientific
+  boundaries.
+- [v2_2_x_acceptance_checklist.md](v2_2_x_acceptance_checklist.md):
+  Executable v2.2.x integration acceptance checklist covering local validation,
+  Enterobacter-style gap/audit checks, and user-path documentation review.
 - [v2_2_0_release_verification.md](v2_2_0_release_verification.md): Lightweight
   runbook and TSV recording contract for later real acquisition/download
   verification of Fusobacterium, Spirosoma, Enterobacter, and Clostridium
@@ -133,16 +140,21 @@ The repository root currently contains local run outputs and large data under
 documentation map; review them separately before deciding what should remain
 tracked, be regenerated, or be cleaned locally.
 
-## Recommended v2.2.0 route
+## Recommended v2.2.5 route
 
-Use README's "Recommended v2.2.0 workflows" section as the shortest current
+Use README's "Recommended v2.2.5 workflows" section as the shortest current
 operator guide and `cookbook.md` as the quick command cookbook. In brief:
 ordinary users should start with `doctor`, run `verify-genus` for plan-only
 review, inspect `status` or `next-step`, use
 `--auto-accept-selection --enable-downloads` only after accepting the generated
-selection, and use `package-results` for handoff. `verify-release-genus` is the
-release-matrix wrapper for balanced and representative verification.
-Representative selection is exploratory only. External provider planning is
-metadata/review handoff only; legally obtained local FASTA files enter the
-workflow through `--register-external-genomes`, and provider IDs remain outside
-NCBI `assembly_accession`.
+selection, resume existing outdirs with `--resume` or `--continue`, and use
+`package-results` for handoff. `verify-release-genus` is the release-matrix
+wrapper for balanced and representative verification. Representative selection
+is exploratory only. barrnap 16S is same-genome/internal evidence; Entrez
+fallback 16S is opt-in external rescue evidence and must be reported separately.
+See
+`release_verification.md` for current v2.2.x shared acquisition cache,
+checkpoint/resume, package failure explanation, and gap-report behavior.
+External provider planning is metadata/review handoff only; legally obtained
+local FASTA files enter the workflow through `--register-external-genomes`, and
+provider IDs remain outside NCBI `assembly_accession`.

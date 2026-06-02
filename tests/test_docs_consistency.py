@@ -8,7 +8,21 @@ from typetreeflow.completion import (
     COMPLETION_AUDIT_FIELDS,
     COMPLETION_SUMMARY_FIELDS,
 )
+from typetreeflow.completion_gaps import COMPLETION_GAP_FIELDS
 from typetreeflow.config import REAL_ACTION_FLAGS
+from typetreeflow.expanded_discovery import (
+    EXPANDED_DISCOVERY_PLAN_FIELDS,
+    EXPANDED_DISCOVERY_RESULT_FIELDS,
+    EXPANDED_DISCOVERY_DECISIONS,
+    EXPANDED_DISCOVERY_HISTORY_FIELDS,
+    MANUAL_SUPPLEMENT_HINT_FIELDS,
+    MANUAL_SEARCH_REQUIRED,
+    PROVIDE_CURATOR_ACCESSION,
+    PROVIDE_EXTERNAL_GENOME_FASTA,
+    REJECTED_CANDIDATE_FIELDS,
+    RETRY_NETWORK_OR_USE_CACHE,
+    REVIEW_MATCHED_CANDIDATES,
+)
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
@@ -46,6 +60,10 @@ from typetreeflow.taxonomy.lpsn_child_taxa import (
 from typetreeflow.taxonomy.manual_review import (
     MANUAL_DEPOSIT_EVIDENCE_FIELDS,
     MANUAL_SPECIES_GAP_FIELDS,
+)
+from typetreeflow.taxonomy.ncbi_taxonomy import (
+    NCBI_TAXONOMY_CACHE_FIELDS,
+    NCBI_TAXONOMY_PLAN_FIELDS,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.taxonomy.selection import SELECTION_FIELDS
@@ -115,9 +133,18 @@ def test_high_level_workflow_docs_are_current():
     readme = _read("README.md")
     cookbook = _read("docs/cookbook.md")
     design = _read("docs/design.md")
+    current_release_verification = _read("docs/release_verification.md")
+    release_notes = _read("docs/release_notes_v2_2_x.md")
+    acceptance_checklist = _read("docs/v2_2_x_acceptance_checklist.md")
     release_verification = _read("docs/v2_2_0_release_verification.md")
 
-    for docs in [readme, cookbook, design, release_verification]:
+    for docs in [
+        readme,
+        cookbook,
+        design,
+        current_release_verification,
+        release_verification,
+    ]:
         for phrase in [
             "verify-genus",
             "status",
@@ -129,7 +156,7 @@ def test_high_level_workflow_docs_are_current():
         ]:
             assert phrase in docs
 
-    for docs in [readme, cookbook, release_verification]:
+    for docs in [readme, cookbook, current_release_verification, release_verification]:
         assert "--auto-accept-selection" in docs
         assert "--enable-downloads" in docs
         assert "exploratory" in docs
@@ -137,11 +164,70 @@ def test_high_level_workflow_docs_are_current():
 
     assert "verify-release-genus" in readme
     assert "verify-release-genus" in cookbook
+    assert "verify-release-genus" in current_release_verification
     assert "verify-release-genus" in release_verification
     assert "Credentials" in cookbook
     assert "credentials" in readme
     assert "pip install datasets" not in readme
     assert "pip install datasets" not in cookbook
+
+    for docs in [readme, cookbook, current_release_verification, release_notes]:
+        for phrase in [
+            "completion/gaps.tsv",
+            "completion/uncovered_species.tsv",
+            "completion/16s_gaps.tsv",
+            "completion/expanded_discovery_plan.tsv",
+            "completion/expanded_discovery_results.tsv",
+            "completion/expanded_discovery_history.tsv",
+            "completion/rejected_candidates.tsv",
+            "completion/manual_supplement_hints.tsv",
+            "--enable-expanded-discovery",
+            "shared acquisition cache",
+            "checkpoint",
+            "resume",
+            "automatic 100% coverage",
+        ]:
+            assert phrase in docs
+
+    for docs in [readme, cookbook, current_release_verification]:
+        for phrase in [
+            "Same-genome barrnap 16S",
+            "Total 16S including Entrez fallback",
+            "Fallback warnings",
+            "Strict blocking count",
+            "--enable-entrez",
+            "--enable-barrnap",
+            "--enable-ncbi-discovery",
+            "--discovery-cache",
+        ]:
+            assert phrase in docs
+
+    for docs in [readme, cookbook, current_release_verification, release_notes]:
+        for phrase in [
+            "audit-only",
+            "manifest",
+        ]:
+            assert phrase in docs
+
+    for phrase in [
+        "python typetreeflow.py --version",
+        "python typetreeflow.py doctor --strict",
+        "pytest tests/test_docs_consistency.py --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex",
+        "pytest --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex",
+        "--enable-expanded-discovery",
+        "--enable-ncbi-taxonomy",
+        "manifest.tsv",
+        "selection/user_selection.tsv",
+    ]:
+        assert phrase in acceptance_checklist
+
+    for phrase in [
+        "Enterobacter siamensis",
+        "Enterobacter nematophilus E-TC7 GCF_026344075.1",
+        "27/28",
+        "26/27",
+    ]:
+        assert phrase in current_release_verification
 
 
 def test_output_layout_mentions_key_output_paths(tmp_path):
@@ -176,6 +262,14 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.assembly_candidate_diagnostics_path,
         paths.discovery_records_path,
         paths.sequence_source_audit_path,
+        paths.completion_gaps_path,
+        paths.uncovered_species_path,
+        paths.rrna_16s_gaps_path,
+        paths.expanded_discovery_plan_path,
+        paths.expanded_discovery_results_path,
+        paths.expanded_discovery_history_path,
+        paths.rejected_candidates_path,
+        paths.manual_supplement_hints_path,
         paths.strain_candidates_path,
         paths.user_selection_path,
         paths.download_preflight_summary_path,
@@ -183,7 +277,10 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.manual_species_gap_summary_path,
         paths.manual_review_report_path,
         paths.checklist_comparison_path,
+        paths.ncbi_taxonomy_plan_path,
+        paths.ncbi_taxonomy_cache_path,
         paths.run_summary_path,
+        paths.run_review_path,
     ]
 
     for path in key_paths:
@@ -197,6 +294,14 @@ def test_schema_docs_mention_key_table_fields():
         "taxonomy/checklist_comparison.tsv": [
             "comparison_status",
             "lpsn_record_number",
+        ],
+        "taxonomy/ncbi_taxonomy_plan.tsv": [
+            "query_reason",
+            "planned",
+        ],
+        "taxonomy/ncbi_taxonomy_cache.tsv": [
+            "taxid",
+            "equivalent_names",
         ],
         "candidates/assembly_candidates.tsv": [
             "matched_lpsn_type_strain_ids",
@@ -224,6 +329,18 @@ def test_schema_docs_mention_key_table_fields():
         ],
         "ani/ani_query_vs_refs.tsv": [
             "above_species_threshold",
+        ],
+        "completion/expanded_discovery_results.tsv": [
+            "decision",
+            "matched_candidate",
+        ],
+        "completion/expanded_discovery_history.tsv": [
+            "run_id",
+            "attempt",
+        ],
+        "completion/manual_supplement_hints.tsv": [
+            "recommended_action",
+            "review_matched_candidates",
         ],
     }
 
@@ -254,6 +371,8 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "external_genome_install_plan.tsv": EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
         "external_genome_install_results.tsv": EXTERNAL_GENOME_INSTALL_RESULT_FIELDS,
         "taxonomy/checklist_comparison.tsv": CHECKLIST_COMPARISON_FIELDS,
+        "taxonomy/ncbi_taxonomy_plan.tsv": NCBI_TAXONOMY_PLAN_FIELDS,
+        "taxonomy/ncbi_taxonomy_cache.tsv": NCBI_TAXONOMY_CACHE_FIELDS,
         "candidates/assembly_candidates.tsv": CANDIDATE_FIELDS,
         "candidates/assembly_candidate_diagnostics.tsv": DISCOVERY_DIAGNOSTIC_FIELDS,
         "candidates/discovery_records.tsv": DISCOVERY_RECORD_FIELDS,
@@ -267,6 +386,18 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "source_audit/culture_collection_audit.tsv": CULTURE_COLLECTION_AUDIT_FIELDS,
         "source_audit/completion_audit.tsv": COMPLETION_AUDIT_FIELDS,
         "source_audit/completion_summary.tsv": COMPLETION_SUMMARY_FIELDS,
+        "completion/gaps.tsv": COMPLETION_GAP_FIELDS,
+        "completion/uncovered_species.tsv": COMPLETION_GAP_FIELDS,
+        "completion/16s_gaps.tsv": COMPLETION_GAP_FIELDS,
+        "completion/expanded_discovery_plan.tsv": EXPANDED_DISCOVERY_PLAN_FIELDS,
+        "completion/expanded_discovery_results.tsv": (
+            EXPANDED_DISCOVERY_RESULT_FIELDS
+        ),
+        "completion/expanded_discovery_history.tsv": (
+            EXPANDED_DISCOVERY_HISTORY_FIELDS
+        ),
+        "completion/rejected_candidates.tsv": REJECTED_CANDIDATE_FIELDS,
+        "completion/manual_supplement_hints.tsv": MANUAL_SUPPLEMENT_HINT_FIELDS,
         "cache/ncbi/download_plan.tsv": DOWNLOAD_PLAN_FIELDS,
         "cache/ncbi/download_results.tsv": DOWNLOAD_RESULTS_FIELDS,
         "rrna/rrna_plan.tsv": RRNA_PLAN_FIELDS,
@@ -280,6 +411,18 @@ def test_schema_docs_cover_public_tsv_field_constants():
         assert table in docs
         for field in fields:
             assert field in docs, f"{table} field is missing from docs: {field}"
+
+    for decision in EXPANDED_DISCOVERY_DECISIONS:
+        assert decision in docs
+
+    for action in [
+        REVIEW_MATCHED_CANDIDATES,
+        MANUAL_SEARCH_REQUIRED,
+        PROVIDE_CURATOR_ACCESSION,
+        PROVIDE_EXTERNAL_GENOME_FASTA,
+        RETRY_NETWORK_OR_USE_CACHE,
+    ]:
+        assert action in docs
 
 
 def test_status_docs_cover_emitted_review_and_contract_statuses():
@@ -402,6 +545,40 @@ def test_provider_automation_feasibility_preserves_manual_registration_boundary(
     assert "NCBI Assembly strict completion" in design
     assert "External-inclusive strict completion" in design
     assert "No provider downloader" in design
+
+
+def test_v2_2_x_release_docs_are_discoverable():
+    index = _read("docs/index.md")
+    changelog = _read("CHANGELOG.md")
+    release_notes = _read("docs/release_notes_v2_2_x.md")
+    acceptance_checklist = _read("docs/v2_2_x_acceptance_checklist.md")
+
+    for path in [
+        "release_notes_v2_2_x.md",
+        "v2_2_x_acceptance_checklist.md",
+    ]:
+        assert path in index
+
+    for docs in [changelog, release_notes]:
+        for phrase in [
+            "shared acquisition",
+            "gap report",
+            "expanded discovery",
+            "NCBI Taxonomy",
+            "audit-only",
+            "automatic 100% coverage",
+        ]:
+            assert phrase in docs
+
+    for phrase in [
+        "completion/expanded_discovery_plan.tsv",
+        "completion/rejected_candidates.tsv",
+        "completion/manual_supplement_hints.tsv",
+        "taxonomy-derived",
+        "manifest.tsv",
+        "selection/user_selection.tsv",
+    ]:
+        assert phrase in acceptance_checklist
 
 
 def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():

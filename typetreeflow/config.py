@@ -9,6 +9,7 @@ REAL_ACTION_FLAGS = {
     "entrez": "--enable-entrez",
     "biosample_entrez": "--enable-biosample-entrez",
     "ncbi_discovery": "--enable-ncbi-discovery",
+    "ncbi_taxonomy": "--enable-ncbi-taxonomy",
     "fastani": "--enable-fastani",
     "phylo": "--enable-phylo",
 }
@@ -56,6 +57,8 @@ class AppConfig:
     candidate_tsv: Path | None
     discovery_cache: Path | None
     enable_ncbi_discovery: bool
+    enable_ncbi_taxonomy: bool
+    enable_expanded_discovery: bool
     enable_synonym_discovery: bool
     enrich_biosample: bool
     biosample_cache: Path | None

@@ -241,6 +241,13 @@ Sequence source audits write these values in `audit_status`:
 - `mismatch`: Both sides exist but no consistency evidence matches.
 - `manual_review_required`: Source data is insufficient for an automatic audit status.
 
+For user-facing interpretation, `same_genome_internal_16s` is the same-genome
+barrnap/internal evidence category. `strain_text_match` is weak and reviewable;
+it is not same-genome evidence. `mismatch` must be preserved as a warning under
+warn policy and treated as strict blocking under strict policy. Entrez fallback
+16S is external rescue evidence and should be included in total 16S counts
+without inflating same-genome barrnap 16S counts.
+
 Completion audits are written by `--write-completion-audit` to
 `source_audit/completion_audit.tsv`. The `genome_evidence_scope` column uses:
 
