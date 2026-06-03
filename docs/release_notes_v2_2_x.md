@@ -1,6 +1,6 @@
 # v2.2.x Release Notes
 
-These notes consolidate the v2.2.2, v2.2.3, and v2.2.4 integration review.
+These notes consolidate the v2.2.2 through v2.2.6 integration review.
 They describe user-visible release-verification behavior only; this document
 does not introduce new workflow features.
 
@@ -39,12 +39,22 @@ does not introduce new workflow features.
 - When a taxonomy cache exists, species-level values from synonyms,
   equivalent names, and includes can add taxonomy-derived rows to
   `completion/expanded_discovery_plan.tsv`.
+- v2.2.6 rejects explicit organism/checklist species mismatches before
+  auto-selection, fails duplicate selected accessions during selection, and
+  explains `rejected_species_mismatch` and `species_identity_mismatch` in
+  report outputs.
+- The Clostridium regression for v2.2.6 is plan-only: local caches, no
+  downloads, no barrnap, and no auto accept. It verifies no duplicate selected
+  accession and no erroneous `GCF_055383455.1` coverage for
+  `Clostridium nitritogenes`.
 
 ## Scientific Boundary
 
 v2.2.x does not promise automatic 100% coverage for a genus. Gap reporting and
 expanded discovery make missing evidence easier to review; they do not relax the
 strict, likely type-material, or representative-only evidence boundaries.
+v2.2.5 is published, but complex large-genera representative selection had a
+species-identity limitation that v2.2.6 fixes before auto-selection.
 
 Expanded discovery and taxonomy-derived rows are audit-only. They do not
 automatically edit `manifest.tsv`, `selection/user_selection.tsv`, completion

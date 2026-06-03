@@ -54,11 +54,13 @@ from typetreeflow.report.summary import (
     write_run_summary,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
+from typetreeflow.taxonomy.selection import StrainSelectionRow, write_user_selection
 from typetreeflow.taxonomy.source_audit import (
     SOURCE_AUDIT_FIELDS,
     SequenceSourceAudit,
     write_sequence_source_audits,
 )
+from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 from typetreeflow.workflow.paths import get_output_paths
 
 
@@ -663,6 +665,70 @@ def test_report_summary_includes_download_preflight_summary(tmp_path):
     assert "- Download not applicable: 1" in markdown
     assert "Representative-only rows are exploratory" in markdown
     assert "not strict type-strain completion" in markdown
+
+
+def test_report_summary_counts_rejected_species_mismatch_without_completion_credit(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    write_user_selection(
+        [
+            StrainSelectionRow(
+                species="Clostridium baratii",
+                assembly_accession="GCF_000000001.1",
+                evidence_level="representative_only",
+                selected=True,
+                selection_policy="representative",
+                policy_decision="representative_not_type_confirmed",
+            ),
+            StrainSelectionRow(
+                species="Clostridium nitritogenes",
+                assembly_accession="GCF_000000001.1",
+                evidence_level="representative_only",
+                selected=False,
+                selection_policy="representative",
+                policy_decision="rejected_species_mismatch",
+                blocking_reasons="species_identity_mismatch",
+                manual_review_reason="species_identity_mismatch",
+                selection_reason="rejected_species_mismatch",
+            ),
+        ],
+        paths.user_selection_path,
+    )
+    write_completion_summary(
+        _completion_summary(
+            expected_species_count=2,
+            ncbi_complete_count=0,
+            external_registered_count=0,
+            external_inclusive_complete_count=0,
+            missing_count=1,
+        ),
+        paths.completion_summary_path,
+    )
+
+    markdown = build_run_summary_markdown(
+        [
+            _record(
+                "selected-rep",
+                notes=(
+                    "evidence_level=representative_only; "
+                    "type_confirmation_status=representative_not_type_confirmed"
+                ),
+            )
+        ],
+        paths,
+    )
+
+    assert "## Selection Guard Summary" in markdown
+    assert "- Selection rows: 2" in markdown
+    assert "- Selected rows: 1" in markdown
+    assert "- Rejected species identity mismatches: 1" in markdown
+    assert "not download failures" in markdown
+    assert "may remain uncovered" in markdown
+    assert "- Selected records: 1" in markdown
+    assert "- Representative only: 1" in markdown
+    assert "- NCBI Assembly strict completion: 0/2" in markdown
+    assert "- External-inclusive strict completion: 0/2" in markdown
 
 
 def test_report_summary_recovers_download_preflight_counts_from_manifest_evidence(
@@ -1494,6 +1560,86 @@ def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
     assert "not a strict-ready count" in markdown
     assert "`source_audit/sequence_source_audit.tsv`" in markdown
     assert "`completion/uncovered_species.tsv`" in markdown
+
+
+def test_run_review_explains_representative_species_mismatch_guard(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_user_selection(
+        [
+            StrainSelectionRow(
+                species="Clostridium nitritogenes",
+                assembly_accession="GCF_000000001.1",
+                evidence_level="representative_only",
+                selected=False,
+                selection_policy="representative",
+                policy_decision="rejected_species_mismatch",
+                blocking_reasons="species_identity_mismatch",
+                manual_review_reason="species_identity_mismatch",
+                selection_reason="rejected_species_mismatch",
+            )
+        ],
+        paths.user_selection_path,
+    )
+
+    markdown = build_run_review_markdown([], paths)
+
+    assert "## Representative Selection Guard" in markdown
+    assert "- Rejected species identity mismatches: 1" in markdown
+    assert "- Species identity mismatch guard rows: 1" in markdown
+    assert "Representative selection rejected species identity mismatches" in markdown
+    assert "not download failures" in markdown
+    assert "may remain uncovered" in markdown
+    assert "manual accession review" in markdown
+    assert "external FASTA registration" in markdown
+    assert "curator evidence" in markdown
+
+
+def test_run_review_duplicate_selected_accession_next_step_points_to_mismatch_review(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    write_user_selection(
+        [
+            StrainSelectionRow(
+                species="Clostridium baratii",
+                assembly_accession="GCF_000000001.1",
+                selected=True,
+                selection_policy="representative",
+                policy_decision="representative_not_type_confirmed",
+            ),
+            StrainSelectionRow(
+                species="Clostridium nitritogenes",
+                assembly_accession="GCF_000000001.1",
+                selected=True,
+                selection_policy="representative",
+                policy_decision="representative_not_type_confirmed",
+            ),
+        ],
+        paths.user_selection_path,
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            stages={
+                "selection": StageState(
+                    status="failed",
+                    summary="Duplicate selected assembly_accession",
+                )
+            },
+            errors=["Duplicate selected assembly_accession: GCF_000000001.1"],
+            next_action="Review duplicate accession.",
+        ),
+    )
+
+    markdown = build_run_review_markdown([], paths)
+
+    assert (
+        "- representative selection produced duplicate accession; review species "
+        "mismatch or rerun after selection fix"
+    ) in markdown
+    assert "- Review duplicate accession." not in markdown
 
 
 def test_run_review_without_source_audit_still_generates_unavailable_note(tmp_path):

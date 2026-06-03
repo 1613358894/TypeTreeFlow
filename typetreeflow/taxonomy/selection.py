@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -547,6 +548,12 @@ def _policy_decision(
     reason = candidate.manual_review_reason
     if policy == "review-only":
         return False, "manual_review_required", reason or "review_only_policy"
+    if _has_species_identity_mismatch(candidate):
+        return (
+            False,
+            "rejected_species_mismatch",
+            _append_review_reason(reason, "species_identity_mismatch"),
+        )
     if policy == "strict":
         if candidate.requires_manual_review and not (
             candidate.curator_evidence_applied
@@ -606,10 +613,18 @@ def _blocking_reasons(
     selection_rank: int,
     strains_per_species: int,
 ) -> str:
-    if selected or policy not in {"strict", "balanced"}:
+    if selected:
         return ""
 
     reasons: list[str] = []
+    has_species_identity_mismatch = _has_species_identity_mismatch(candidate)
+    if has_species_identity_mismatch:
+        reasons.append("species_identity_mismatch")
+    if policy == "review-only":
+        return ""
+    if policy not in {"strict", "balanced"}:
+        return "; ".join(_dedupe_preserving_order(reasons))
+
     manual_review_reasons = _split_reason_tokens(candidate.manual_review_reason)
 
     if candidate.requires_manual_review or manual_review_reasons:
@@ -633,6 +648,42 @@ def _blocking_reasons(
         reasons.append("rank_exceeds_strains_per_species")
 
     return "; ".join(_dedupe_preserving_order(reasons))
+
+
+def _has_species_identity_mismatch(candidate: AssemblyCandidate) -> bool:
+    expected = _base_binomial(candidate.species)
+    observed = _base_binomial(candidate.organism_name)
+    if not expected or not observed:
+        return False
+    return expected.lower() != observed.lower()
+
+
+def _base_binomial(value: str) -> str:
+    text = " ".join(str(value or "").strip().split())
+    if not text:
+        return ""
+    text = re.sub(r"\s*\(.*$", "", text).strip()
+    parts = text.split()
+    if len(parts) < 2:
+        return ""
+
+    genus_index = 0
+    if parts[0].lower() == "candidatus":
+        if len(parts) < 3:
+            return ""
+        genus_index = 1
+
+    genus = parts[genus_index]
+    epithet = parts[genus_index + 1]
+    if not re.fullmatch(r"[A-Z][A-Za-z-]+", genus):
+        return ""
+    if not re.fullmatch(r"[a-z][a-z-]+", epithet):
+        return ""
+    if epithet in {"sp", "spp", "cf", "aff"}:
+        return ""
+    if genus_index:
+        return f"{parts[0]} {genus} {epithet}"
+    return f"{genus} {epithet}"
 
 
 def _split_reason_tokens(value: str) -> set[str]:

@@ -88,6 +88,7 @@ def test_candidates_to_selection_rows_default_selects_top_one_per_species():
         _candidate(
             species="Bacillus amyloliquefaciens",
             assembly_accession="GCF_000000003.1",
+            organism_name="Bacillus amyloliquefaciens strain DSM 7",
         ),
     ]
 
@@ -623,6 +624,95 @@ def test_candidates_to_selection_rows_sets_representative_only_evidence_level():
     assert rows[0].selected is True
     assert rows[0].policy_decision == "representative_not_type_confirmed"
     assert rows[0].evidence_level == "representative_only"
+
+
+def test_representative_policy_rejects_clear_organism_species_mismatch():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                species="Clostridium nitritogenes",
+                assembly_accession="GCF_055383455.1",
+                organism_name="Clostridium baratii strain JCM 1385",
+                strain="JCM 1385",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            )
+        ],
+        selection_policy="representative",
+    )
+
+    assert rows[0].selected is False
+    assert rows[0].policy_decision == "rejected_species_mismatch"
+    assert rows[0].blocking_reasons == "species_identity_mismatch"
+    assert rows[0].manual_review_reason == "species_identity_mismatch"
+    assert rows[0].selection_reason == "rejected_species_mismatch"
+
+
+def test_representative_policy_allows_matching_species_but_rejects_shared_mismatch():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                species="Clostridium baratii",
+                assembly_accession="GCF_055383455.1",
+                organism_name="Clostridium baratii strain JCM 1385",
+                strain="JCM 1385",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            ),
+            _candidate(
+                species="Clostridium nitritogenes",
+                assembly_accession="GCF_055383455.1",
+                organism_name="Clostridium baratii strain JCM 1385",
+                strain="JCM 1385",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            ),
+        ],
+        selection_policy="representative",
+    )
+
+    by_species = {row.species: row for row in rows}
+    assert by_species["Clostridium baratii"].selected is True
+    assert (
+        by_species["Clostridium baratii"].policy_decision
+        == "representative_not_type_confirmed"
+    )
+    assert by_species["Clostridium nitritogenes"].selected is False
+    assert (
+        by_species["Clostridium nitritogenes"].policy_decision
+        == "rejected_species_mismatch"
+    )
+
+    records = selection_rows_to_strain_records(rows)
+    assert [record.canonical_name for record in records] == ["Clostridium baratii"]
+    assert [record.assembly_accession for record in records] == ["GCF_055383455.1"]
+
+
+def test_species_identity_guard_accepts_subspecies_organism_name():
+    rows = candidates_to_selection_rows(
+        [
+            _candidate(
+                species="Fusobacterium nucleatum",
+                assembly_accession="GCF_000007325.1",
+                organism_name=(
+                    "Fusobacterium nucleatum subsp. nucleatum ATCC 25586"
+                ),
+                strain="ATCC 25586",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            )
+        ],
+        selection_policy="representative",
+    )
+
+    assert rows[0].selected is True
+    assert rows[0].policy_decision == "representative_not_type_confirmed"
+    assert rows[0].blocking_reasons == ""
+    assert "species_identity_mismatch" not in rows[0].manual_review_reason
 
 
 def test_selection_rows_to_strain_records_rejects_non_binomial_species():

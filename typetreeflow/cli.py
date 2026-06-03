@@ -1937,10 +1937,11 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         if path.exists()
     ]
     if selection_outputs:
+        selection_failed = _is_selection_integrity_error(error)
         stages["selection"] = StageState(
-            status="succeeded",
+            status="failed" if selection_failed else "succeeded",
             outputs=[_state_output_path(path, paths) for path in selection_outputs],
-            summary=_selection_summary(paths, config),
+            summary=str(error) if selection_failed else _selection_summary(paths, config),
         )
 
     preflight_outputs = [
@@ -2168,6 +2169,13 @@ def _blocked_or_failed_status(error: Exception) -> str:
 
 
 def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
+    if _is_duplicate_selected_accession_error(error):
+        return (
+            "Review selection/user_selection.tsv for duplicate selected "
+            "assembly_accession values; for representative runs, check "
+            "species_identity_mismatch/rejected_species_mismatch context, "
+            "deselect the conflicting duplicate, then rerun."
+        )
     if status == "blocked_by_dependency":
         return str(error)
     if status == "blocked_by_argument_conflict":
@@ -2181,6 +2189,18 @@ def _next_action_for_error(status: str, error: Exception, paths, config: AppConf
             )
         return "Review the indicated audit or selection file, then rerun the guarded stage."
     return "Fix the reported error and rerun."
+
+
+def _is_selection_integrity_error(error: Exception | None) -> bool:
+    if error is None:
+        return False
+    return _is_duplicate_selected_accession_error(error)
+
+
+def _is_duplicate_selected_accession_error(error: Exception | None) -> bool:
+    if error is None:
+        return False
+    return "Duplicate selected assembly_accession" in str(error)
 
 
 def _next_action_for_success(
@@ -2994,12 +3014,34 @@ def run_selection_prepare_stage(
     )
     write_user_selection(selection_rows, paths.strain_candidates_path)
     output_path = write_user_selection(selection_rows, paths.user_selection_path)
+    _validate_generated_selection(selection_rows, config)
     LOGGER.info(
         "Wrote strain candidate selection table: %s.",
         paths.strain_candidates_path,
     )
     LOGGER.info("Wrote user selection table: %s.", output_path)
     return output_path
+
+
+def _validate_generated_selection(selection_rows: list, config: AppConfig) -> None:
+    try:
+        validate_user_selection(
+            selection_rows,
+            strains_per_species=config.strains_per_species,
+            selection_policy=config.selection_policy,
+        )
+    except ValueError as error:
+        message = str(error)
+        if (
+            config.selection_policy == "representative"
+            and "Duplicate selected assembly_accession" in message
+        ):
+            raise ValueError(
+                "Representative selection produced duplicate accession; review "
+                "species mismatch or rerun after selection fix. "
+                f"{message}"
+            ) from error
+        raise
 
 
 def run_manual_review_template_stage(paths, config: AppConfig):

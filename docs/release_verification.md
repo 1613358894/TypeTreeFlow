@@ -3,10 +3,10 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
-## v2.2.5 Reliability Notes
+## v2.2.6 Reliability Notes
 
 `verify-release-genus GENUS` is the release-matrix entry point for running
-balanced and representative policy checks together. In v2.2.5 it runs shared
+balanced and representative policy checks together. In v2.2.6 it runs shared
 acquisition once under `<release_outdir>/acquisition` and then derives the
 per-policy outdirs from that cache. This shared acquisition cache avoids
 duplicate LPSN, assembly-discovery, and BioSample queries for balanced and
@@ -22,6 +22,20 @@ resume from records that were already fetched.
 `package-results` is a handoff command for reviewed outputs. When the outdir is
 unfinished and lacks a packageable manifest, it explains the failed stage and
 the next action recorded in `run_state.json`.
+
+v2.2.6 also hardens representative reliability for complex large genera.
+Explicit organism/checklist species mismatches are rejected before
+auto-selection, duplicate selected accessions fail during selection with a
+next-step explanation, and reports explain `rejected_species_mismatch` and
+`species_identity_mismatch` as species-identity blockers. The Clostridium
+regression is intentionally plan-only: it uses local caches only, performs no
+downloads, runs no barrnap extraction, and does not auto-accept a selection.
+The expected result is no duplicate selected accession and no erroneous
+`GCF_055383455.1` coverage for `Clostridium nitritogenes`.
+
+v2.2.5 is published. Its release verification remains useful evidence, but
+complex large-genera representative selection had a species-identity limitation
+that is fixed in v2.2.6.
 
 ### Final Verification Record
 
@@ -46,7 +60,7 @@ headers.
 
 ## Scientific Boundaries
 
-v2.2.5 does not promise automatic 100% coverage for a genus. It makes evidence
+v2.2.x does not promise automatic 100% coverage for a genus. It makes evidence
 and gaps easier to audit.
 
 Keep these evidence tiers separate:

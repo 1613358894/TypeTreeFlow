@@ -121,7 +121,7 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_5_release_verification \
+  --outdir results/v2_2_6_release_verification \
   --policies balanced,representative \
   --force
 ```
@@ -130,11 +130,13 @@ typetreeflow verify-release-genus Fusobacterium \
 rows are exploratory only and must not be counted as strict type-strain
 completion.
 
-For v2.2.5 reliability checks, `verify-release-genus` uses a
+For v2.2.6 reliability checks, `verify-release-genus` uses a
 shared acquisition cache for balanced and representative policies, so LPSN,
 assembly-discovery, and BioSample lookup are not repeated for each policy.
 BioSample enrichment checkpoints `cache/ncbi/biosample_records.tsv` and can
 resume from a partial cache after a network interruption.
+v2.2.5 is published, but complex large-genera representative selection had a
+species-identity limitation that v2.2.6 fixes before auto-selection.
 
 Release runs also write auditable gap reports when information is incomplete:
 `completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
@@ -259,7 +261,7 @@ paths are stored as relative POSIX paths inside run outputs for portability.
   different evidence tiers.
 - Representative-only output is exploratory and is not strict type-strain
   completion.
-- v2.2.3 does not promise automatic 100% coverage for every genus.
+- v2.2.x does not promise automatic 100% coverage for every genus.
 - v2.2.4 NCBI Taxonomy scaffolding is offline by default: it writes
   `taxonomy/ncbi_taxonomy_plan.tsv` and the cache schema only. Real lookup
   requires `--enable-ncbi-taxonomy` plus `--email` or `TYPETREEFLOW_EMAIL`, and

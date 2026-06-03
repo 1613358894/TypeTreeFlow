@@ -141,9 +141,9 @@ The repository root currently contains local run outputs and large data under
 documentation map; review them separately before deciding what should remain
 tracked, be regenerated, or be cleaned locally.
 
-## Recommended v2.2.5 route
+## Recommended v2.2.6 route
 
-Use README's "Recommended v2.2.5 workflows" section as the shortest current
+Use README's "Recommended v2.2.6 workflows" section as the shortest current
 operator guide and `cookbook.md` as the quick command cookbook. In brief:
 ordinary users should start with `doctor`, run `verify-genus` for plan-only
 review, inspect `status` or `next-step`, use
@@ -156,6 +156,8 @@ fallback 16S is opt-in external rescue evidence and must be reported separately.
 See
 `release_verification.md` for current v2.2.x shared acquisition cache,
 checkpoint/resume, package failure explanation, and gap-report behavior.
+v2.2.5 is published, but complex large-genera representative selection had a
+species-identity limitation that is fixed in v2.2.6 before auto-selection.
 External provider planning is metadata/review handoff only; legally obtained
 local FASTA files enter the workflow through `--register-external-genomes`, and
 provider IDs remain outside NCBI `assembly_accession`.

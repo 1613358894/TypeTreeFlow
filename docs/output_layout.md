@@ -303,6 +303,14 @@ top-ranked exploratory fallback rows marked `representative_only` /
 `representative_not_type_confirmed`, and `review-only` preselects nothing.
 Representative rows can drive exploratory download planning, but they are not
 type-strain confirmations.
+When the representative species identity guard rejects a candidate, the
+selection row uses `policy_decision=rejected_species_mismatch` with
+`species_identity_mismatch` in the review reasons. These rows are rejected
+selection candidates, not download failures. The checklist species may remain
+uncovered until manual accession review, external FASTA registration, or
+curator evidence provides accepted coverage. Duplicate selected accessions in a
+representative run should be reviewed with the species mismatch guard in mind
+and rerun after the selection fix.
 
 Before dry-run or real selection-driven download execution, TypeTreeFlow writes
 `selection/download_preflight_summary.tsv`. This one-row TSV summarizes the
@@ -364,7 +372,7 @@ external providers or generate reports by itself.
 `report/summary.md`; it keeps NCBI Assembly strict completion separate from
 external-inclusive strict completion.
 
-v2.2.5 also writes completion gap reports under `completion/`.
+v2.2.6 also writes completion gap reports under `completion/`.
 `completion/gaps.tsv` combines auditable gap rows,
 `completion/uncovered_species.tsv` lists checklist species without selected
 coverage, and `completion/16s_gaps.tsv` lists genome-ready manifest rows where

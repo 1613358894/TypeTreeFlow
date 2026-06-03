@@ -14,6 +14,7 @@ from typetreeflow.taxonomy.selection import (
     write_user_selection,
 )
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import read_run_state
 
 
 FIXTURE = Path("tests/fixtures/gtdb_metadata_small.tsv")
@@ -129,6 +130,8 @@ def test_prepare_selection_from_existing_candidates_writes_user_selection(tmp_pa
         "GCF_000000002.1",
     ]
     assert [row.selected for row in rows] == [True, False]
+    state = read_run_state(paths.run_state_path)
+    assert state.stages["selection"].status == "succeeded"
     assert not (paths.cache_dir / "ncbi" / "download_plan.tsv").exists()
     assert not paths.manifest.exists()
 
@@ -293,6 +296,41 @@ def test_prepare_selection_representative_policy_selects_unconfirmed_top_ranked(
     assert rows[1].selected is False
 
 
+def test_prepare_selection_rejected_species_mismatch_does_not_fail_selection_stage(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_assembly_candidates(
+        [
+            _candidate(
+                assembly_accession="GCF_000000001.1",
+                organism_name="Bacillus velezensis strain mismatch",
+                has_lpsn_type_strain_match=False,
+                is_type_material=False,
+                refseq_category="representative genome",
+            )
+        ],
+        paths.assembly_candidates_path,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--selection-policy",
+            "representative",
+        ]
+    )
+
+    rows = read_user_selection(paths.user_selection_path)
+    state = read_run_state(paths.run_state_path)
+    assert result == 0
+    assert rows[0].selected is False
+    assert rows[0].policy_decision == "rejected_species_mismatch"
+    assert rows[0].blocking_reasons == "species_identity_mismatch"
+    assert state.stages["selection"].status == "succeeded"
+
+
 def test_prepare_selection_balanced_policy_selects_likely_type_material(tmp_path):
     outdir = tmp_path / "out"
     paths = get_output_paths(outdir)
@@ -453,6 +491,33 @@ def test_selection_tsv_reports_error_when_selected_rows_exceed_n(tmp_path, caplo
 
     assert result == 2
     assert "exceeds --strains-per-species 1" in caplog.text
+
+
+def test_selection_tsv_reports_error_for_duplicate_selected_accession(tmp_path, caplog):
+    selection_path = tmp_path / "user_selection.tsv"
+    write_user_selection(
+        [
+            _selection_row(
+                species="Bacillus subtilis",
+                assembly_accession="GCF_000001405.1",
+                selected=True,
+            ),
+            _selection_row(
+                species="Bacillus velezensis",
+                assembly_accession="GCF_000001405.1",
+                selected=True,
+            ),
+        ],
+        selection_path,
+    )
+
+    result = main(["--selection-tsv", str(selection_path)])
+
+    assert result == 2
+    assert (
+        "Duplicate selected assembly_accession in user selection: GCF_000001405.1"
+        in caplog.text
+    )
 
 
 def test_selection_tsv_strict_policy_rejects_selected_non_match(tmp_path, caplog):

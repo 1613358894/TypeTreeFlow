@@ -444,9 +444,9 @@ the LPSN match column to be present and true for selected rows.
 - `selection_rank`: deterministic rank within species.
 - `selected`: user-editable yes/no selection value.
 - `selection_policy`: policy used when the row was generated.
-- `policy_decision`: generated policy decision such as `auto_selected_lpsn_type_strain_match`, `auto_selected_likely_type_material`, `representative_not_type_confirmed`, `available_not_selected`, or `manual_review_required`. `balanced` auto-selects only strong type-evidence candidates (`strict_confirmed` or `likely_type_material`); `representative` is an exploratory fallback and is not type-confirmed.
+- `policy_decision`: generated policy decision such as `auto_selected_lpsn_type_strain_match`, `auto_selected_likely_type_material`, `representative_not_type_confirmed`, `rejected_species_mismatch`, `available_not_selected`, or `manual_review_required`. `balanced` auto-selects only strong type-evidence candidates (`strict_confirmed` or `likely_type_material`); `representative` is an exploratory fallback and is not type-confirmed. `rejected_species_mismatch` means the representative guard rejected a candidate whose source organism identity does not match the checklist species; it is not a download failure and does not count as selected, strict, likely, or representative completion.
 - `ranking_reasons`: stable semicolon-delimited explanation of candidate ranking signals, such as `lpsn_type_strain_match`, `type_material`, `recognized_deposit_id`, `refseq_reference_genome`, `refseq_representative_genome`, assembly-level reasons, and `accession_tiebreaker`. These are review diagnostics and do not override `evidence_level`.
-- `blocking_reasons`: stable semicolon-delimited explanation for strict/balanced rows that were not selected, such as `manual_review_required`, `no_lpsn_type_strain_match`, `not_type_confirmed`, `no_ncbi_culture_collection_id`, `missing_biosample`, `biosample_record_not_found`, `synonym_supported_match`, or `rank_exceeds_strains_per_species`. These explain why a row stayed unselected under the policy.
+- `blocking_reasons`: stable semicolon-delimited explanation for strict/balanced rows that were not selected, such as `manual_review_required`, `no_lpsn_type_strain_match`, `not_type_confirmed`, `no_ncbi_culture_collection_id`, `missing_biosample`, `biosample_record_not_found`, `synonym_supported_match`, `species_identity_mismatch`, or `rank_exceeds_strains_per_species`. These explain why a row stayed unselected under the policy. `species_identity_mismatch` marks a representative candidate whose organism/species identity failed the checklist species identity guard.
 - `manual_review_reason`: reason the row requires review or was not automatically selected under the policy.
 - `selection_reason`: generated or user-edited selection note.
 - `notes`: diagnostics or manual-review notes.
@@ -454,6 +454,8 @@ the LPSN match column to be present and true for selected rows.
 Selection validation rejects more than N selected rows per species, selected
 rows without assembly accessions, duplicate selected accessions, and
 strict-policy selected rows without LPSN type-strain matches.
+Duplicate selected accessions in representative selection should be reviewed as
+possible species mismatch fallout before rerunning after a selection fix.
 The recommended strict/balanced route is to review a BioSample-enriched
 balanced selection, fill `manual_deposit_evidence_template.tsv` only for
 provable deposit equivalence, apply curator evidence, and rerun strict

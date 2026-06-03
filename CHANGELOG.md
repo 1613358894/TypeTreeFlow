@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## v2.2.6 - 2026-06-03
+
+- Strengthened the representative species identity guard so top-ranked
+  exploratory fallbacks cannot cover a different checklist species.
+- Rejected explicit organism/checklist species mismatches before auto-selection,
+  keeping mismatched candidates out of balanced and representative selected
+  outputs.
+- Made duplicate selected accessions fail at the selection stage and surface a
+  clear next-step explanation instead of allowing ambiguous downstream plans.
+- Updated `report/summary.md` and `report/run_review.md` explanations for
+  `rejected_species_mismatch` and `species_identity_mismatch` rows.
+- Verified the Clostridium cache-based plan-only regression with no duplicate
+  selected accession and no erroneous `GCF_055383455.1` coverage for
+  `Clostridium nitritogenes`.
+
 ## v2.2.5 - 2026-06-01
 
 - Unified the package metadata, Python package version, CLI `--version`,

@@ -58,11 +58,16 @@ from typetreeflow.taxonomy.ncbi_taxonomy import (
     summarize_ncbi_taxonomy_cache,
 )
 from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
+from typetreeflow.taxonomy.selection import (
+    StrainSelectionRow,
+    read_user_selection,
+)
 from typetreeflow.taxonomy.source_audit import (
     SequenceSourceAudit,
     evaluate_sequence_source_audits,
     read_sequence_source_audits,
 )
+from typetreeflow.workflow.state import read_run_state
 from typetreeflow.workflow.paths import OutputPaths
 
 
@@ -89,6 +94,12 @@ SOURCE_AUDIT_STATUSES = [
 PROVIDER_PLAN_READY_FOR_REVIEW = "provider_plan_ready_for_review"
 PROVIDER_PLAN_DOWNLOAD_NOT_SUPPORTED = "provider_plan_download_not_supported"
 PROVIDER_PLAN_CREDENTIALS_NOT_SUPPORTED = "provider_plan_credentials_not_supported"
+REJECTED_SPECIES_MISMATCH = "rejected_species_mismatch"
+SPECIES_IDENTITY_MISMATCH = "species_identity_mismatch"
+REPRESENTATIVE_DUPLICATE_NEXT_ACTION = (
+    "representative selection produced duplicate accession; review species "
+    "mismatch or rerun after selection fix"
+)
 
 
 @dataclass(frozen=True)
@@ -494,6 +505,58 @@ def read_optional_download_preflight_summary(
     return read_download_preflight_summary(input_path)
 
 
+def read_optional_selection_rows(path: str | Path) -> list[StrainSelectionRow] | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_user_selection(input_path)
+
+
+def summarize_selection_guard_rows(
+    rows: Iterable[StrainSelectionRow],
+) -> dict[str, int]:
+    row_list = list(rows)
+    selected_rows = [row for row in row_list if row.selected]
+    accessions: dict[str, int] = {}
+    for row in selected_rows:
+        accession = row.assembly_accession.strip()
+        if accession:
+            accessions[accession] = accessions.get(accession, 0) + 1
+    return {
+        "total_rows": len(row_list),
+        "selected_rows": len(selected_rows),
+        "strict_confirmed_selected": sum(
+            1
+            for row in selected_rows
+            if row.evidence_level.strip() == "strict_confirmed"
+        ),
+        "likely_type_material_selected": sum(
+            1
+            for row in selected_rows
+            if row.evidence_level.strip() == "likely_type_material"
+        ),
+        "representative_selected": sum(
+            1
+            for row in selected_rows
+            if row.evidence_level.strip() == "representative_only"
+            or row.policy_decision.strip() == "representative_not_type_confirmed"
+        ),
+        "rejected_species_mismatch": sum(
+            1
+            for row in row_list
+            if row.policy_decision.strip() == REJECTED_SPECIES_MISMATCH
+        ),
+        "species_identity_mismatch": sum(
+            1
+            for row in row_list
+            if SPECIES_IDENTITY_MISMATCH in _selection_guard_reason_tokens(row)
+        ),
+        "duplicate_selected_accessions": sum(
+            1 for count in accessions.values() if count > 1
+        ),
+    }
+
+
 def summarize_selection_evidence_from_manifest(
     records: Iterable[StrainRecord],
 ) -> DownloadPreflightSummary | None:
@@ -722,6 +785,17 @@ def build_run_summary_markdown(
         download_preflight_summary = summarize_selection_evidence_from_manifest(
             record_list
         )
+    selection_guard_error = ""
+    try:
+        selection_rows = read_optional_selection_rows(paths.user_selection_path)
+    except ValueError as error:
+        selection_rows = None
+        selection_guard_error = str(error)
+    selection_guard_summary = (
+        summarize_selection_guard_rows(selection_rows)
+        if selection_rows is not None
+        else None
+    )
     provider_plan_error = ""
     provider_proposed_summary: dict[str, int] | None = None
     try:
@@ -861,6 +935,47 @@ def build_run_summary_markdown(
                 ),
             ]
         )
+
+    if selection_guard_error:
+        lines.extend(
+            [
+                "",
+                "## Selection Guard Summary",
+                "",
+                f"Selection table could not be read: {selection_guard_error}",
+            ]
+        )
+    elif selection_guard_summary is not None:
+        lines.extend(
+            [
+                "",
+                "## Selection Guard Summary",
+                "",
+                f"- Selection rows: {selection_guard_summary['total_rows']}",
+                f"- Selected rows: {selection_guard_summary['selected_rows']}",
+                (
+                    "- Rejected species identity mismatches: "
+                    f"{selection_guard_summary['rejected_species_mismatch']}"
+                ),
+            ]
+        )
+        if selection_guard_summary["rejected_species_mismatch"]:
+            lines.extend(
+                [
+                    (
+                        "Representative selection rejected species identity "
+                        "mismatches. These candidates are not download "
+                        "failures and are not ordinary missing-download rows."
+                    ),
+                    (
+                        "Affected checklist species may remain uncovered until "
+                        "manual accession review, external FASTA registration, "
+                        "or curator evidence supplies accepted coverage."
+                    ),
+                ]
+            )
+        if selection_guard_summary["duplicate_selected_accessions"]:
+            lines.append(f"- Next step: {REPRESENTATIVE_DUPLICATE_NEXT_ACTION}.")
 
     lines.extend(
         [
@@ -1448,6 +1563,17 @@ def build_run_review_markdown(
         uncovered_species = None
         uncovered_error = str(error)
 
+    selection_guard_error = ""
+    try:
+        selection_rows = read_optional_selection_rows(paths.user_selection_path)
+    except ValueError as error:
+        selection_rows = None
+        selection_guard_error = str(error)
+    selection_guard_summary = (
+        summarize_selection_guard_rows(selection_rows)
+        if selection_rows is not None
+        else None
+    )
     next_action = _run_review_next_action(paths)
     fallback_warnings = _format_entrez_fallback_warnings(rrna_coverage)
     strict_blocking_count = (
@@ -1563,6 +1689,48 @@ def build_run_review_markdown(
             lines.append(
                 f"List truncated to first 20 of {len(uncovered_species)} species."
             )
+
+    lines.extend(
+        [
+            "",
+            "## Representative Selection Guard",
+            "",
+        ]
+    )
+    if selection_guard_error:
+        lines.append(
+            "Selection guard detail unavailable: "
+            f"selection/user_selection.tsv could not be read ({selection_guard_error})."
+        )
+    elif selection_guard_summary is None:
+        lines.append(
+            "Selection guard detail unavailable: selection/user_selection.tsv is missing."
+        )
+    else:
+        lines.extend(
+            [
+                (
+                    "- Rejected species identity mismatches: "
+                    f"{selection_guard_summary['rejected_species_mismatch']}"
+                ),
+                (
+                    "- Species identity mismatch guard rows: "
+                    f"{selection_guard_summary['species_identity_mismatch']}"
+                ),
+            ]
+        )
+        if selection_guard_summary["rejected_species_mismatch"]:
+            lines.append(
+                "Representative selection rejected species identity mismatches; "
+                "these candidates are not download failures."
+            )
+            lines.append(
+                "The affected checklist species may remain uncovered until "
+                "manual accession review, external FASTA registration, or "
+                "curator evidence supplies accepted coverage."
+            )
+        if selection_guard_summary["duplicate_selected_accessions"]:
+            lines.append(f"- Next step: {REPRESENTATIVE_DUPLICATE_NEXT_ACTION}.")
 
     lines.extend(
         [
@@ -1758,6 +1926,39 @@ def _markdown_cell(value: str) -> str:
     return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
 
 
+def _selection_guard_reason_tokens(row: StrainSelectionRow) -> set[str]:
+    tokens: set[str] = set()
+    for value in (
+        row.blocking_reasons,
+        row.manual_review_reason,
+        row.selection_reason,
+        row.notes,
+    ):
+        tokens.update(token.strip() for token in value.split(";") if token.strip())
+    return tokens
+
+
+def _run_state_has_duplicate_selected_accession_failure(paths: OutputPaths) -> bool:
+    if not paths.run_state_path.exists():
+        return False
+    try:
+        state = read_run_state(paths.run_state_path)
+    except (ValueError, OSError):
+        return False
+    haystack = " ".join([state.next_action, *state.errors])
+    return "duplicate selected" in haystack.lower() and "accession" in haystack.lower()
+
+
+def _selection_has_duplicate_selected_accessions(paths: OutputPaths) -> bool:
+    try:
+        rows = read_optional_selection_rows(paths.user_selection_path)
+    except ValueError:
+        return False
+    if rows is None:
+        return False
+    return bool(summarize_selection_guard_rows(rows)["duplicate_selected_accessions"])
+
+
 def _has_positive_count(value: str) -> bool:
     try:
         return int(value) > 0
@@ -1830,6 +2031,10 @@ def _run_review_same_genome_barrnap_text(summary: dict[str, int]) -> str:
 
 
 def _run_review_next_action(paths: OutputPaths) -> str:
+    if _selection_has_duplicate_selected_accessions(
+        paths
+    ) or _run_state_has_duplicate_selected_accession_failure(paths):
+        return REPRESENTATIVE_DUPLICATE_NEXT_ACTION
     try:
         from typetreeflow.diagnostics import next_step_summary
 

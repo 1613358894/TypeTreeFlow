@@ -215,7 +215,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.5 workflows
+## Recommended v2.2.6 workflows
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample
@@ -364,21 +364,23 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_5_release_verification \
+  --outdir results/v2_2_6_release_verification \
   --policies balanced,representative \
   --force
 ```
 
 This writes per-policy outdirs plus
-`results/v2_2_5_release_verification/verification_matrix.tsv` and
+`results/v2_2_6_release_verification/verification_matrix.tsv` and
 `release_verification_summary.md`.
 
-In v2.2.5, `verify-release-genus` first writes a shared acquisition cache under
+In v2.2.6, `verify-release-genus` first writes a shared acquisition cache under
 the release outdir and then derives the balanced and representative policy
 outputs from that cache. This avoids duplicate LPSN, assembly-discovery, and
 BioSample queries across policies. BioSample enrichment also checkpoints
 `cache/ncbi/biosample_records.tsv` as records are fetched, so an interrupted
 live enrichment can resume from the partial cache instead of starting over.
+v2.2.5 is published, but complex large-genera representative selection had a
+species-identity limitation that v2.2.6 fixes before auto-selection.
 
 Selection policy semantics:
 

@@ -247,6 +247,85 @@ def test_offline_acquire_genus_dry_run_writes_key_files(tmp_path, monkeypatch):
     ]
 
 
+def test_acquire_genus_duplicate_generated_selection_fails_selection_stage(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = tmp_path / "lpsn_cache.tsv"
+    write_lpsn_species_cache(
+        [
+            _lpsn_record("nucleatum", type_strain="ATCC 25586"),
+            _lpsn_record("necrophorum", type_strain="NCTC 10575"),
+        ],
+        lpsn_cache,
+    )
+    discovery_cache = tmp_path / "discovery_records.tsv"
+    write_discovery_records(
+        [
+            LocalAssemblyDiscoveryRecord(
+                species="Fusobacterium nucleatum",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_055383455.1",
+                    organism_name="Fusobacterium sp. shared representative",
+                    strain="shared representative",
+                    biosample="SAMN00000010",
+                    assembly_level="Contig",
+                    refseq_category="representative genome",
+                    is_type_material=False,
+                    source="local_discovery_cache",
+                ),
+            ),
+            LocalAssemblyDiscoveryRecord(
+                species="Fusobacterium necrophorum",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_055383455.1",
+                    organism_name="Fusobacterium sp. shared representative",
+                    strain="shared representative",
+                    biosample="SAMN00000010",
+                    assembly_level="Contig",
+                    refseq_category="representative genome",
+                    is_type_material=False,
+                    source="local_discovery_cache",
+                ),
+            ),
+        ],
+        discovery_cache,
+    )
+
+    result = main(
+        [
+            "--acquire-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--selection-policy",
+            "representative",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    assert result == 2
+    assert paths.user_selection_path.exists()
+    assert not paths.manifest.exists()
+    assert state.status == "failed"
+    assert state.stages["selection"].status == "failed"
+    assert "Representative selection produced duplicate accession" in state.errors[0]
+    assert "Duplicate selected assembly_accession" in state.errors[0]
+    assert "duplicate selected assembly_accession" in state.next_action
+    assert "species_identity_mismatch/rejected_species_mismatch" in state.next_action
+
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+    next_step = capsys.readouterr().out.strip()
+    assert "duplicate selected assembly_accession" in next_step
+    assert "species_identity_mismatch/rejected_species_mismatch" in next_step
+
+
 def test_acquire_genus_missing_lpsn_source_errors(tmp_path, caplog):
     discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
 
