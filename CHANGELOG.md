@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## v2.2.7 - 2026-06-03
+
+- Cleaned up the v2.2.x handoff path around
+  `completion/manual_supplement_hints.tsv`, making the manual supplement task
+  queue the explicit place for curator follow-up after expanded discovery,
+  rejected candidate review, or missing external candidate checks.
+- Aligned `report/summary.md`, `report/run_review.md`, `status`, and
+  `next-step` vocabulary around `reason`, `recommended_action`, and
+  `handoff_path` so ordinary users can follow the same review path from reports
+  and CLI navigation.
+- Recorded the Clostridium limited smoke as a small cache-based/synthetic
+  verification of guarded planning, handoff visibility, status/report output,
+  and packaging, not as genus completion.
+- Tightened release documentation and install reproducibility checks so package
+  metadata, `typetreeflow.__version__`, CLI `--version`, README, docs, and
+  release notes agree on `2.2.7`.
+- Non-goals: no full Clostridium completion, no expanded discovery
+  auto-selection, no provider/ATCC auto-download, and no evidence model
+  rewrite.
+
 ## v2.2.6 - 2026-06-03
 
 - Strengthened the representative species identity guard so top-ranked

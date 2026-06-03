@@ -141,23 +141,25 @@ The repository root currently contains local run outputs and large data under
 documentation map; review them separately before deciding what should remain
 tracked, be regenerated, or be cleaned locally.
 
-## Recommended v2.2.6 route
+## Recommended v2.2.7 Route
 
-Use README's "Recommended v2.2.6 workflows" section as the shortest current
+Use README's "Recommended v2.2.7 workflow" section as the shortest current
 operator guide and `cookbook.md` as the quick command cookbook. In brief:
 ordinary users should start with `doctor`, run `verify-genus` for plan-only
-review, inspect `status` or `next-step`, use
+review, inspect `selection/user_selection.tsv`, inspect
+`completion/manual_supplement_hints.tsv` when present, use `status` or
+`next-step` for the next handoff action, register external FASTA only after
+curator review, and use `package-results` for handoff. Use
 `--auto-accept-selection --enable-downloads` only after accepting the generated
-selection, resume existing outdirs with `--resume` or `--continue`, and use
-`package-results` for handoff. `verify-release-genus` is the release-matrix
-wrapper for balanced and representative verification. Representative selection
-is exploratory only. barrnap 16S is same-genome/internal evidence; Entrez
-fallback 16S is opt-in external rescue evidence and must be reported separately.
-See
+selection. Resume existing outdirs with `--resume` or `--continue`.
+`verify-release-genus` is the release-matrix wrapper for balanced and
+representative verification. Representative selection is exploratory only.
+barrnap 16S is same-genome/internal evidence; Entrez fallback 16S is opt-in
+external rescue evidence and must be reported separately. See
 `release_verification.md` for current v2.2.x shared acquisition cache,
-checkpoint/resume, package failure explanation, and gap-report behavior.
-v2.2.5 is published, but complex large-genera representative selection had a
-species-identity limitation that is fixed in v2.2.6 before auto-selection.
-External provider planning is metadata/review handoff only; legally obtained
-local FASTA files enter the workflow through `--register-external-genomes`, and
-provider IDs remain outside NCBI `assembly_accession`.
+checkpoint/resume, package failure explanation, gap-report behavior,
+Clostridium limited smoke notes, and the v2.2.7 release/install
+reproducibility focus. External provider planning is metadata/review handoff
+only; legally obtained local FASTA files enter the workflow through
+`--register-external-genomes`, and provider IDs remain outside NCBI
+`assembly_accession`.

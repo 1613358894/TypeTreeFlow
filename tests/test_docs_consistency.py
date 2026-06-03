@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import typetreeflow
 from typetreeflow.ani.parse import ANI_QUERY_VS_REFS_FIELDS
 from typetreeflow.ani.plan import ANI_PLAN_FIELDS
 from typetreeflow.ani.summary import ANI_SUMMARY_FIELDS
@@ -22,6 +23,7 @@ from typetreeflow.expanded_discovery import (
     REJECTED_CANDIDATE_FIELDS,
     RETRY_NETWORK_OR_USE_CACHE,
     REVIEW_MATCHED_CANDIDATES,
+    REVIEW_SPECIES_IDENTITY_MISMATCH,
 )
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
@@ -69,6 +71,23 @@ from typetreeflow.taxonomy.output import CHECKLIST_COMPARISON_FIELDS
 from typetreeflow.taxonomy.selection import SELECTION_FIELDS
 from typetreeflow.taxonomy.source_audit import SOURCE_AUDIT_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
+
+
+def test_release_version_sources_are_consistent():
+    pyproject = _read("pyproject.toml")
+    readme = _read("README.md")
+    changelog = _read("CHANGELOG.md")
+    release_verification = _read("docs/release_verification.md")
+    release_notes = _read("docs/release_notes_v2_2_x.md")
+
+    version = typetreeflow.__version__
+    assert version == "2.2.7"
+    assert f'version = "{version}"' in pyproject
+    assert f"## v{version} - 2026-06-03" in changelog
+    assert f"current {version} release" in readme
+    assert f"Recommended v{version} workflow" in readme
+    assert f"v{version}" in release_verification
+    assert f"v{version}" in release_notes
 
 
 def test_archive_references_stay_in_archive_map_and_boundary_docs():
@@ -417,6 +436,7 @@ def test_schema_docs_cover_public_tsv_field_constants():
 
     for action in [
         REVIEW_MATCHED_CANDIDATES,
+        REVIEW_SPECIES_IDENTITY_MISMATCH,
         MANUAL_SEARCH_REQUIRED,
         PROVIDE_CURATOR_ACCESSION,
         PROVIDE_EXTERNAL_GENOME_FASTA,

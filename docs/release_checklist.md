@@ -44,6 +44,9 @@ pytest -p no:cacheprovider --basetemp .pytest_tmp
 - Check the CLI entry point:
 
 ```bash
+python -m pip install -e .
+python typetreeflow.py --version
+typetreeflow --version
 python typetreeflow.py --help
 python typetreeflow.py doctor
 ```

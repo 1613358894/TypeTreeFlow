@@ -26,6 +26,7 @@ from typetreeflow.diagnostics import (
     format_doctor_report,
     format_next_step,
     format_status_summary,
+    handoff_next_action,
     inspect_workflow_status,
     next_step_summary,
 )
@@ -2208,6 +2209,9 @@ def _next_action_for_success(
     paths,
     config: AppConfig,
 ) -> str:
+    handoff_action = handoff_next_action(paths, include_uncovered=False)
+    if handoff_action:
+        return handoff_action
     if _rrna_gaps_remain(paths):
         return _resume_command(config, paths, "entrez")
     rrna = stages.get("rrna_barrnap")

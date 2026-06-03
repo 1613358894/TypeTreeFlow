@@ -13,9 +13,11 @@ opt-in flags.
 The long-term goal is to collect auditable type-strain genomes and 16S
 sequences, compare a query genome against references with ANI, build a 16S
 phylogeny, and report reproducible tables, figures, name maps, and summaries.
-The current release focuses on the LPSN-first acquisition workflow, strict
-evidence boundaries, stable I/O contracts, resume behavior, fake-runner tested
-execution wrappers, and clear safety controls.
+The current 2.2.7 release is a small handoff/usability release on top of the
+LPSN-first acquisition workflow. It keeps strict evidence boundaries, stable
+I/O contracts, guarded execution, and fake-runner tested wrappers, while making
+manual supplement review, report navigation, release notes, and install
+verification easier to follow.
 
 GTDB support is retained for legacy/local metadata workflows and as a discovery
 or evidence layer. It is not the authority for species boundaries in the current
@@ -94,8 +96,8 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
   high-level `doctor`, `verify-genus`, `status`, `next-step`,
   `package-results`, and `verify-release-genus` commands.
 - [docs/release_verification.md](docs/release_verification.md): current
-  release-verification behavior, v2.2.2 reliability notes, and gap-report
-  interpretation.
+  release-verification behavior, v2.2.7 limited-smoke notes, reliability
+  history, and gap-report interpretation.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
 - [docs/schemas.md](docs/schemas.md): TSV and table field dictionary.
@@ -215,7 +217,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.6 workflows
+## Recommended v2.2.7 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample
@@ -257,9 +259,12 @@ typetreeflow verify-genus Fusobacterium \
 
 By default, `verify-genus` stops at reviewable planning. Review
 `selection/user_selection.tsv`, `selection/download_preflight_summary.tsv`,
-`manifest.tsv`, and `report/summary.md` before any real download. To accept the
-generated selection and execute guarded NCBI Datasets downloads, pass both
-download opt-ins:
+`manifest.tsv`, and `report/summary.md` before any real download. If
+`completion/manual_supplement_hints.tsv` exists, treat it as the manual
+supplement task queue: inspect its `reason`, `recommended_action`, and
+`handoff_path` fields, then make curator-reviewed selection or external FASTA
+changes explicitly. To accept the generated selection and execute guarded NCBI
+Datasets downloads, pass both download opt-ins:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
@@ -364,23 +369,25 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_6_release_verification \
+  --outdir results/v2_2_7_release_verification \
   --policies balanced,representative \
   --force
 ```
 
 This writes per-policy outdirs plus
-`results/v2_2_6_release_verification/verification_matrix.tsv` and
+`results/v2_2_7_release_verification/verification_matrix.tsv` and
 `release_verification_summary.md`.
 
-In v2.2.6, `verify-release-genus` first writes a shared acquisition cache under
-the release outdir and then derives the balanced and representative policy
-outputs from that cache. This avoids duplicate LPSN, assembly-discovery, and
-BioSample queries across policies. BioSample enrichment also checkpoints
-`cache/ncbi/biosample_records.tsv` as records are fetched, so an interrupted
-live enrichment can resume from the partial cache instead of starting over.
-v2.2.5 is published, but complex large-genera representative selection had a
-species-identity limitation that v2.2.6 fixes before auto-selection.
+In v2.2.7, `verify-release-genus` retains the v2.2.6 shared acquisition cache:
+it writes shared acquisition files under the release outdir and then derives
+the balanced and representative policy outputs from that cache. This avoids
+duplicate LPSN, assembly-discovery, and BioSample queries across policies.
+BioSample enrichment also checkpoints `cache/ncbi/biosample_records.tsv` as
+records are fetched, so an interrupted live enrichment can resume from the
+partial cache instead of starting over. v2.2.7 adds release-doc cleanup,
+manual supplement handoff wording, Clostridium limited smoke notes, and install
+reproducibility verification; it does not expand discovery auto-selection or
+change the evidence model.
 
 Selection policy semantics:
 
@@ -452,9 +459,22 @@ Assembly and BioSample clients or local caches and writes
 `completion/expanded_discovery_history.tsv`,
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`. These files are audit-only and
-review-only: matched
-candidates are not automatically added to `manifest.tsv`, selection rows, or
-evidence levels.
+review-only. `manual_supplement_hints.tsv` is a curator handoff queue with
+`reason`, `source`, `recommended_action`, and `handoff_path` fields for
+reviewing matched candidates, checking species identity mismatches, retrying
+failed queries, supplying curator-confirmed accessions, or preparing external
+FASTA rows. `report/summary.md`, `report/run_review.md`, `status`, and
+`next-step` surface those same action/reason/handoff fields as navigation
+guidance only. Matched candidates, supplemental accessions, and external FASTA
+rows are not automatically added to `manifest.tsv`, selection rows, completion
+metrics, or evidence levels; curator review is still required before any manual
+selection or registration change.
+
+The v2.2.7 Clostridium limited smoke is only an exploratory verification of
+those guarded handoff and packaging paths. It should use local cache or minimal
+synthetic inputs, should not run real NCBI Datasets downloads, and is not a
+Clostridium genus-completion effort. It does not relax representative-only,
+expanded discovery, or manual supplement boundaries.
 
 For external provider data, keep planning and local FASTA registration
 separate. TypeTreeFlow does not automatically log in to, scrape, purchase from,

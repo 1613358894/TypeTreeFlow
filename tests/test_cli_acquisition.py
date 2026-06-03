@@ -16,7 +16,7 @@ from typetreeflow.taxonomy.checklist import read_species_checklist
 from typetreeflow.taxonomy.lpsn import LpsnSpeciesRecord, write_lpsn_species_cache
 from typetreeflow.taxonomy.selection import read_user_selection
 from typetreeflow.workflow.paths import get_output_paths
-from typetreeflow.workflow.state import read_run_state
+from typetreeflow.workflow.state import WorkflowState, read_run_state, write_run_state
 
 
 BIOSAMPLE_RECOMMENDATION_TEXT = "BioSample type-material evidence coverage"
@@ -191,6 +191,191 @@ def _write_discovery_cache(path: Path) -> Path:
     return path
 
 
+def _write_clostridium_limited_smoke_caches(tmp_path: Path) -> tuple[Path, Path, Path]:
+    lpsn_cache = tmp_path / "clostridium_lpsn_cache.tsv"
+    discovery_cache = tmp_path / "clostridium_discovery_records.tsv"
+    biosample_cache = tmp_path / "clostridium_biosample_records.tsv"
+    write_lpsn_species_cache(
+        [
+            LpsnSpeciesRecord(
+                genus="Clostridium",
+                species="baratii",
+                full_name="Clostridium baratii",
+                nomenclatural_status="validly published under the ICNP",
+                taxonomic_status="correct name",
+                type_strain="JCM 1385",
+                lpsn_record_number="lpsn-clostridium-baratii",
+                lpsn_url="https://lpsn.dsmz.de/taxon/clostridium-baratii",
+                source="synthetic_fixture",
+            ),
+            LpsnSpeciesRecord(
+                genus="Clostridium",
+                species="nitritogenes",
+                full_name="Clostridium nitritogenes",
+                nomenclatural_status="validly published under the ICNP",
+                taxonomic_status="correct name",
+                type_strain="DSM 1",
+                lpsn_record_number="lpsn-clostridium-nitritogenes",
+                lpsn_url="https://lpsn.dsmz.de/taxon/clostridium-nitritogenes",
+                source="synthetic_fixture",
+            ),
+        ],
+        lpsn_cache,
+    )
+    write_discovery_records(
+        [
+            LocalAssemblyDiscoveryRecord(
+                species="Clostridium baratii",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000000111.1",
+                    organism_name="Clostridium baratii strain JCM 1385",
+                    strain="JCM 1385",
+                    biosample="SAMN00000111",
+                    assembly_level="Scaffold",
+                    refseq_category="representative genome",
+                    is_type_material=False,
+                    source="synthetic_local_discovery_cache",
+                ),
+            ),
+            LocalAssemblyDiscoveryRecord(
+                species="Clostridium nitritogenes",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_055383455.1",
+                    organism_name="Clostridium baratii strain DSM 1",
+                    strain="DSM 1",
+                    biosample="SAMN00000455",
+                    assembly_level="Scaffold",
+                    refseq_category="representative genome",
+                    is_type_material=False,
+                    source="synthetic_local_discovery_cache",
+                ),
+            ),
+        ],
+        discovery_cache,
+    )
+    write_biosample_records(
+        [
+            BioSampleRecord(
+                biosample="SAMN00000455",
+                organism="Clostridium baratii strain DSM 1",
+                strain="DSM 1",
+                type_material="type strain",
+                source="synthetic_biosample_cache",
+            )
+        ],
+        biosample_cache,
+    )
+    return lpsn_cache, discovery_cache, biosample_cache
+
+
+def _write_manual_supplement_hints(path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "species\tlpsn_type_strain\ttokens\tmatched_candidate_count\t"
+        "rejected_candidate_count\tno_result_count\tquery_failed_count\t"
+        "recommended_action\tsuggested_template\tnotes\treason\tsource\t"
+        "handoff_path\n"
+        "Enterobacter siamensis\tKCTC 23282\tKCTC 23282\t1\t0\t0\t0\t"
+        "review_matched_candidates\t\t\tmatched_candidate\t"
+        "completion/expanded_discovery_results.tsv\t"
+        "completion/expanded_discovery_results.tsv\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
+    tmp_path,
+    capsys,
+    monkeypatch,
+):
+    outdir = tmp_path / "clostridium_limited_smoke"
+    lpsn_cache, discovery_cache, biosample_cache = _write_clostridium_limited_smoke_caches(
+        tmp_path
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("Clostridium limited smoke must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Clostridium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--biosample-cache",
+            str(biosample_cache),
+            "--policy",
+            "representative",
+            "--enable-expanded-discovery",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    selection_rows = read_user_selection(paths.user_selection_path)
+    selected_rows = [row for row in selection_rows if row.selected]
+    rejected_rows = [
+        row
+        for row in selection_rows
+        if row.policy_decision == "rejected_species_mismatch"
+    ]
+    download_plan_rows = _read_tsv(paths.cache_dir / "ncbi" / "download_plan.tsv")
+
+    assert result == 0
+    assert state.status == "partial"
+    assert state.stages["download"].status == "blocked_by_manual_review"
+    assert "completion/manual_supplement_hints.tsv" in state.next_action
+    assert [row.species for row in selected_rows] == ["Clostridium baratii"]
+    assert [row.assembly_accession for row in selected_rows] == ["GCF_000000111.1"]
+    assert len(rejected_rows) == 1
+    assert rejected_rows[0].species == "Clostridium nitritogenes"
+    assert rejected_rows[0].assembly_accession == "GCF_055383455.1"
+    assert rejected_rows[0].blocking_reasons == "species_identity_mismatch"
+    assert "GCF_055383455.1" not in {
+        row["assembly_accession"] for row in download_plan_rows
+    }
+    assert paths.manifest.exists()
+    assert [record.canonical_name for record in read_manifest(paths.manifest)] == [
+        "Clostridium baratii"
+    ]
+    assert paths.run_summary_path.exists()
+    assert "Rejected species identity mismatches: 1" in paths.run_summary_path.read_text(
+        encoding="utf-8"
+    )
+    manual_hints = paths.manual_supplement_hints_path.read_text(encoding="utf-8")
+    assert "Clostridium nitritogenes" in manual_hints
+    assert "review_species_identity_mismatch" in manual_hints
+    assert "manual_deposit_evidence_template.tsv; external_genomes.tsv" in manual_hints
+
+    assert main(["status", "--outdir", str(outdir)]) == 0
+    status_output = capsys.readouterr().out
+    assert "Overall: partial" in status_output
+    assert "Download: blocked_by_manual_review" in status_output
+    assert "completion/manual_supplement_hints.tsv" in status_output
+
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+    next_step = capsys.readouterr().out
+    assert "completion/manual_supplement_hints.tsv" in next_step
+    assert "curator review" in next_step
+    assert "auto" not in next_step.lower()
+
+    assert main(["package-results", "--outdir", str(outdir), "--include", "reports"]) == 0
+    delivery = outdir / "delivery"
+    assert (delivery / "manifest.tsv").exists()
+    assert (delivery / "run_state.json").exists()
+    assert (delivery / "reports" / "summary.md").exists()
+    readme = (delivery / "README.md").read_text(encoding="utf-8")
+    assert "Representative-only rows are exploratory" in readme
+    assert "Download succeeded: 0" in readme
+
+
 def test_offline_acquire_genus_dry_run_writes_key_files(tmp_path, monkeypatch):
     outdir = tmp_path / "out"
     lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
@@ -324,6 +509,75 @@ def test_acquire_genus_duplicate_generated_selection_fails_selection_stage(
     next_step = capsys.readouterr().out.strip()
     assert "duplicate selected assembly_accession" in next_step
     assert "species_identity_mismatch/rejected_species_mismatch" in next_step
+
+
+def test_next_step_uses_manual_supplement_hint_handoff(tmp_path, capsys):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    paths.run_summary_path.parent.mkdir(parents=True)
+    paths.run_summary_path.write_text("# Summary\n", encoding="utf-8")
+    _write_manual_supplement_hints(paths.manual_supplement_hints_path)
+
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+
+    next_step = capsys.readouterr().out.strip()
+    assert "completion/manual_supplement_hints.tsv" in next_step
+    assert "1 manual supplement species" in next_step
+    assert "top recommended_action=review_matched_candidates" in next_step
+    assert "top reason=matched_candidate" in next_step
+    assert "handoff_path=completion/expanded_discovery_results.tsv" in next_step
+    assert "curator review" in next_step
+
+
+def test_next_step_refines_generic_run_state_with_manual_supplement_handoff(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(outdir),
+            next_action="Review report/summary.md.",
+        ),
+    )
+    _write_manual_supplement_hints(paths.manual_supplement_hints_path)
+
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+
+    next_step = capsys.readouterr().out.strip()
+    assert "completion/manual_supplement_hints.tsv" in next_step
+    assert "top recommended_action=review_matched_candidates" in next_step
+
+
+def test_next_step_rejected_species_mismatch_is_manual_identity_review(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    paths.user_selection_path.parent.mkdir(parents=True)
+    paths.user_selection_path.write_text(
+        "species\tassembly_accession\tselected\tpolicy_decision\t"
+        "blocking_reasons\tmanual_review_reason\tselection_reason\tnotes\n"
+        "Clostridium nitritogenes\tGCF_000000001.1\tfalse\t"
+        "rejected_species_mismatch\tspecies_identity_mismatch\t"
+        "species_identity_mismatch\trejected_species_mismatch\t\n",
+        encoding="utf-8",
+    )
+
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+
+    next_step = capsys.readouterr().out.strip()
+    assert "selection/user_selection.tsv" in next_step
+    assert "rejected_species_mismatch/species_identity_mismatch" in next_step
+    assert "manual_deposit_evidence_template.tsv" in next_step
+    assert "external_genomes.tsv" in next_step
+    assert "not download failures" in next_step
+    assert "retry download" not in next_step
+    assert "auto" not in next_step.lower()
 
 
 def test_acquire_genus_missing_lpsn_source_errors(tmp_path, caplog):

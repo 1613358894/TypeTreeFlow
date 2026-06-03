@@ -121,7 +121,7 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_6_release_verification \
+  --outdir results/v2_2_7_release_verification \
   --policies balanced,representative \
   --force
 ```
@@ -130,13 +130,14 @@ typetreeflow verify-release-genus Fusobacterium \
 rows are exploratory only and must not be counted as strict type-strain
 completion.
 
-For v2.2.6 reliability checks, `verify-release-genus` uses a
+For v2.2.7 reliability checks, `verify-release-genus` keeps the v2.2.6
 shared acquisition cache for balanced and representative policies, so LPSN,
 assembly-discovery, and BioSample lookup are not repeated for each policy.
 BioSample enrichment checkpoints `cache/ncbi/biosample_records.tsv` and can
-resume from a partial cache after a network interruption.
-v2.2.5 is published, but complex large-genera representative selection had a
-species-identity limitation that v2.2.6 fixes before auto-selection.
+resume from a partial cache after a network interruption. The v2.2.7 cleanup
+focuses on handoff wording, Clostridium limited smoke notes, release notes, and
+install reproducibility; it does not add expanded discovery auto-selection,
+provider/ATCC auto-download, or evidence model changes.
 
 Release runs also write auditable gap reports when information is incomplete:
 `completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
@@ -170,7 +171,11 @@ appends the same round to `completion/expanded_discovery_history.tsv`,
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`. It is audit-only: even a
 `matched_candidate` must be reviewed manually and is not automatically added to
-`manifest.tsv`, `selection/user_selection.tsv`, or any evidence level. It does not change selection behavior.
+`manifest.tsv`, `selection/user_selection.tsv`, or any evidence level. The
+manual supplement hints file is the curator task queue. Its
+`recommended_action`, `reason`, and `handoff_path` fields tell the curator
+which table or template to inspect next, but they do not change selection
+behavior.
 
 An Enterobacter-style result can legitimately read as: checklist 28 species,
 representative genome coverage 27/28, uncovered species
@@ -183,6 +188,13 @@ Assembly/BioSample queries in the plan. If expanded discovery is enabled, those
 results are used only for rejected-candidate audit rows and manual supplement
 hints; TypeTreeFlow does not auto-promote a candidate into the manifest.
 
+A Clostridium limited smoke for v2.2.7 should be read the same way: it is a
+small exploratory cache-based or synthetic run for guarded download planning,
+handoff visibility, status, reports, and packaging. It is not Clostridium genus
+completion, it should not execute real NCBI Datasets downloads, and it does not
+change the representative, expanded discovery, or manual supplement acceptance
+rules.
+
 ## Resume Or Inspect Current State
 
 ```bash
@@ -190,6 +202,13 @@ typetreeflow status --outdir results/fusobacterium_verify
 typetreeflow status --outdir results/fusobacterium_verify --json
 typetreeflow next-step --outdir results/fusobacterium_verify
 ```
+
+When `completion/uncovered_species.tsv`,
+`completion/manual_supplement_hints.tsv`, or
+`selection/user_selection.tsv` rejected-species-mismatch rows exist, `status`
+and `next-step` point at the concrete handoff file and action vocabulary. Treat
+that output as navigation for curator review, not as an instruction that
+TypeTreeFlow will download, fix, or accept a candidate automatically.
 
 For manual recovery only, lower-level resume commands remain available:
 

@@ -398,10 +398,12 @@ counts.
 failed, and no-result rows so curators can see why candidates were not usable;
 `matched_candidate` rows are excluded. `completion/manual_supplement_hints.tsv`
 summarizes each species and suggests the next manual step, such as reviewing
-matched candidates, retrying failed queries, running a manual search, supplying
-a curator accession, or preparing an external FASTA. These hints are audit
-guidance only and do not change selection, evidence levels, completion metrics,
-or manifests.
+matched candidates, checking species identity mismatches, retrying failed
+queries, running a manual search, supplying curator evidence or an accession,
+or preparing an external FASTA. Its `reason`, `source`, `recommended_action`,
+and `handoff_path` fields make each row a curator task item. These hints are
+audit guidance only and do not change selection, evidence levels, completion
+metrics, or manifests.
 
 `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` are review-only provider planning

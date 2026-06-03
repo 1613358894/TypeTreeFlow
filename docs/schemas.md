@@ -558,15 +558,29 @@ completion state.
 
 Fields are `species`, `lpsn_type_strain`, `tokens`,
 `matched_candidate_count`, `rejected_candidate_count`, `no_result_count`,
-`query_failed_count`, `recommended_action`, `suggested_template`, and `notes`.
+`query_failed_count`, `recommended_action`, `suggested_template`, `notes`,
+`reason`, `source`, and `handoff_path`. The last three fields make the row a
+more direct handoff queue item: `reason` is the prioritized result category,
+`source` points to the audit table to inspect, and `handoff_path` names the
+file or template a curator should use next.
 
 Common `recommended_action` values are `review_matched_candidates`,
-`manual_search_required`, `provide_curator_accession`,
-`provide_external_genome_fasta`, and `retry_network_or_use_cache`. Query
-failures take priority. If any `matched_candidate` exists, the hint recommends
-manual review rather than automatic acceptance. When all results are rejected
-or no-result rows, the hint recommends manual search or a curator-supplied
-accession.
+`review_species_identity_mismatch`, `manual_search_required`,
+`provide_curator_accession`, `provide_external_genome_fasta`, and
+`retry_network_or_use_cache`. Query failures take priority. If any
+`matched_candidate` exists, the hint recommends manual review rather than
+automatic acceptance. `rejected_species_mismatch` rows point curators to
+species identity mismatch review and, when needed, a curator-confirmed
+accession or external FASTA. Other rejected rows recommend curator evidence or
+accession review, while no-result rows recommend manual search or an external
+FASTA route.
+
+`report/summary.md`, `report/run_review.md`, `status`, and `next-step` may
+summarize this queue by species count, main `recommended_action`, main
+`reason`, and `handoff_path`. Those summaries are handoff guidance only. A
+curator must still review any supplemental accession or external FASTA before
+editing selection files, filling `manual_deposit_evidence_template.tsv`, or
+registering `external_genomes.tsv`.
 
 ## Manual Review Outputs
 

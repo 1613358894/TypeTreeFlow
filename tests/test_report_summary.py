@@ -1369,6 +1369,9 @@ def test_report_includes_expanded_discovery_result_counts(tmp_path):
                 matched_candidate_count=1,
                 no_result_count=1,
                 recommended_action="review_matched_candidates",
+                reason="matched_candidate",
+                source="completion/expanded_discovery_results.tsv",
+                handoff_path="completion/expanded_discovery_results.tsv",
             )
         ],
         paths.manual_supplement_hints_path,
@@ -1384,6 +1387,7 @@ def test_report_includes_expanded_discovery_result_counts(tmp_path):
     assert "- no_result: 1" in markdown
     assert "- matched_candidate: 1" not in markdown
     assert "- recommended_action review_matched_candidates: 1" in markdown
+    assert "- handoff_reason matched_candidate: 1" in markdown
 
 
 def test_report_includes_taxonomy_derived_expanded_plan_count(tmp_path):
@@ -1562,6 +1566,50 @@ def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
     assert "`completion/uncovered_species.tsv`" in markdown
 
 
+def test_run_review_summarizes_manual_supplement_hints(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_manual_supplement_hints(
+        [
+            ManualSupplementHintRow(
+                species="Enterobacter siamensis",
+                lpsn_type_strain="KCTC 23282",
+                tokens="KCTC 23282",
+                matched_candidate_count=1,
+                recommended_action="review_matched_candidates",
+                reason="matched_candidate",
+                source="completion/expanded_discovery_results.tsv",
+                handoff_path="completion/expanded_discovery_results.tsv",
+            ),
+            ManualSupplementHintRow(
+                species="Enterobacter quasihormaechei",
+                lpsn_type_strain="DSM 16691",
+                tokens="DSM 16691",
+                no_result_count=1,
+                recommended_action="manual_search_required",
+                reason="no_result",
+                source="completion/rejected_candidates.tsv",
+                handoff_path=(
+                    "manual_deposit_evidence_template.tsv; external_genomes.tsv"
+                ),
+            ),
+        ],
+        paths.manual_supplement_hints_path,
+    )
+
+    markdown = build_run_review_markdown([], paths)
+
+    assert "## Manual Supplement Handoff" in markdown
+    assert "- Queue: completion/manual_supplement_hints.tsv" in markdown
+    assert "- Species needing manual handling: 2" in markdown
+    assert "- Main recommended_action: manual_search_required (1)" in markdown
+    assert "- Main reason: matched_candidate (1)" in markdown
+    assert "completion/expanded_discovery_results.tsv" in markdown
+    assert "manual_deposit_evidence_template.tsv" in markdown
+    assert "external_genomes.tsv" in markdown
+    assert "handoff guidance only" in markdown
+    assert "curator review before selection or registration changes" in markdown
+
+
 def test_run_review_explains_representative_species_mismatch_guard(tmp_path):
     paths = get_output_paths(tmp_path)
     write_user_selection(
@@ -1652,6 +1700,7 @@ def test_run_review_without_source_audit_still_generates_unavailable_note(tmp_pa
     assert "source_audit/sequence_source_audit.tsv is missing" in markdown
     assert "- Same-genome barrnap 16S coverage: provenance unavailable" in markdown
     assert "- Strict blocking count: 0" in markdown
+    assert "## Manual Supplement Handoff" not in markdown
 
 
 def test_write_run_review_creates_report_run_review(tmp_path):

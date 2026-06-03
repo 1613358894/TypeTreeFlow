@@ -24,6 +24,7 @@ from typetreeflow.expanded_discovery import (
     read_expanded_discovery_plan,
     read_expanded_discovery_results,
     summarize_expanded_discovery_results,
+    summarize_manual_supplement_hint_reasons,
     summarize_manual_supplement_hints,
 )
 from typetreeflow.genomes.preflight import (
@@ -1377,12 +1378,36 @@ def build_run_summary_markdown(
             action_counts = summarize_manual_supplement_hints(
                 manual_supplement_hints
             )
+            reason_counts = summarize_manual_supplement_hint_reasons(
+                manual_supplement_hints
+            )
+            handoff_paths = _manual_supplement_handoff_paths(
+                manual_supplement_hints
+            )
             if action_counts:
                 lines.extend(
                     [
                         f"- recommended_action {action}: {count}"
                         for action, count in sorted(action_counts.items())
                     ]
+                )
+            if reason_counts:
+                lines.extend(
+                    [
+                        f"- handoff_reason {reason}: {count}"
+                        for reason, count in sorted(reason_counts.items())
+                    ]
+                )
+            if handoff_paths:
+                lines.append(
+                    "- handoff_path: "
+                    + _markdown_cell("; ".join(handoff_paths[:5]))
+                )
+            if action_counts or reason_counts or handoff_paths:
+                lines.append(
+                    "manual_supplement_hints.tsv is a curator task queue; "
+                    "report and next-step guidance do not auto-accept "
+                    "expanded-discovery candidates or install external FASTA."
                 )
 
     if provider_plan_error:
@@ -1563,6 +1588,15 @@ def build_run_review_markdown(
         uncovered_species = None
         uncovered_error = str(error)
 
+    manual_supplement_hints_error = ""
+    try:
+        manual_supplement_hints = read_optional_manual_supplement_hints(
+            paths.manual_supplement_hints_path
+        )
+    except ValueError as error:
+        manual_supplement_hints = None
+        manual_supplement_hints_error = str(error)
+
     selection_guard_error = ""
     try:
         selection_rows = read_optional_selection_rows(paths.user_selection_path)
@@ -1689,6 +1723,58 @@ def build_run_review_markdown(
             lines.append(
                 f"List truncated to first 20 of {len(uncovered_species)} species."
             )
+
+    if manual_supplement_hints_error:
+        lines.extend(
+            [
+                "",
+                "## Manual Supplement Handoff",
+                "",
+                "Manual supplement hints unavailable: "
+                "completion/manual_supplement_hints.tsv could not be read "
+                f"({manual_supplement_hints_error}).",
+            ]
+        )
+    elif manual_supplement_hints:
+        action_counts = summarize_manual_supplement_hints(manual_supplement_hints)
+        reason_counts = summarize_manual_supplement_hint_reasons(
+            manual_supplement_hints
+        )
+        top_action, action_count = _top_count(action_counts)
+        top_reason, reason_count = _top_count(reason_counts)
+        handoff_paths = _manual_supplement_handoff_paths(manual_supplement_hints)
+        lines.extend(
+            [
+                "",
+                "## Manual Supplement Handoff",
+                "",
+                "- Queue: completion/manual_supplement_hints.tsv",
+                (
+                    "- Species needing manual handling: "
+                    f"{_manual_supplement_species_count(manual_supplement_hints)}"
+                ),
+            ]
+        )
+        if top_action:
+            lines.append(
+                "- Main recommended_action: "
+                f"{_markdown_cell(top_action)} ({action_count})"
+            )
+        if top_reason:
+            lines.append(
+                "- Main reason: "
+                f"{_markdown_cell(top_reason)} ({reason_count})"
+            )
+        if handoff_paths:
+            lines.append(
+                "- Handoff paths: "
+                + _markdown_cell("; ".join(handoff_paths[:5]))
+            )
+        lines.append(
+            "These rows are handoff guidance only. Matched candidates, "
+            "curator accessions, and external FASTA supplements still require "
+            "curator review before selection or registration changes."
+        )
 
     lines.extend(
         [
@@ -1957,6 +2043,30 @@ def _selection_has_duplicate_selected_accessions(paths: OutputPaths) -> bool:
     if rows is None:
         return False
     return bool(summarize_selection_guard_rows(rows)["duplicate_selected_accessions"])
+
+
+def _manual_supplement_species_count(rows) -> int:
+    row_list = list(rows)
+    species = {row.species.strip() for row in row_list if row.species.strip()}
+    return len(species) if species else len(row_list)
+
+
+def _manual_supplement_handoff_paths(rows) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for value in str(row.handoff_path or "").split(";"):
+            cleaned = value.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                values.append(cleaned)
+    return values
+
+
+def _top_count(counts: dict[str, int]) -> tuple[str, int]:
+    if not counts:
+        return "", 0
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0]
 
 
 def _has_positive_count(value: str) -> bool:

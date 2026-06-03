@@ -3,6 +3,26 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
+## v2.2.7 Limited Smoke Notes
+
+The v2.2.7 Clostridium limited smoke is exploratory verification only. It uses
+local cache or synthetic fixture inputs to exercise guarded planning,
+manifest/status/report/next-step handoff, and `package-results` packaging
+without running NCBI Datasets downloads or attempting Clostridium genus
+completion.
+
+The smoke preserves the existing scientific and operator boundaries:
+representative-only rows remain exploratory, expanded discovery matched
+candidates remain audit handoff rows, `rejected_species_mismatch` rows remain
+manual species-identity blockers, and manual supplement hints do not install or
+auto-accept accessions.
+
+v2.2.7 is also the install/release reproducibility handoff. Before tagging,
+confirm package metadata, `typetreeflow.__version__`, CLI `--version`, README,
+release docs, and changelog all report `2.2.7`; run editable install smoke
+checks with `python -m pip install -e .`, `python typetreeflow.py --version`,
+the `typetreeflow --version` console script when available, and `doctor`.
+
 ## v2.2.6 Reliability Notes
 
 `verify-release-genus GENUS` is the release-matrix entry point for running
@@ -23,7 +43,7 @@ resume from records that were already fetched.
 unfinished and lacks a packageable manifest, it explains the failed stage and
 the next action recorded in `run_state.json`.
 
-v2.2.6 also hardens representative reliability for complex large genera.
+v2.2.6 hardened representative reliability for complex large genera.
 Explicit organism/checklist species mismatches are rejected before
 auto-selection, duplicate selected accessions fail during selection with a
 next-step explanation, and reports explain `rejected_species_mismatch` and
@@ -164,8 +184,8 @@ levels. Expanded discovery does not change selection behavior. Expected result d
 `rejected_species_mismatch`, `rejected_no_type_token_evidence`,
 `rejected_missing_accession`, `no_result`, and `query_failed`. Expected manual
 handoff actions are `review_matched_candidates`, `manual_search_required`,
-`provide_curator_accession`, `provide_external_genome_fasta`, and
-`retry_network_or_use_cache`.
+`review_species_identity_mismatch`, `provide_curator_accession`,
+`provide_external_genome_fasta`, and `retry_network_or_use_cache`.
 
 ## Enterobacter-Style Interpretation
 

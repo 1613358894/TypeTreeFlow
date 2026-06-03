@@ -83,6 +83,9 @@ MANUAL_SUPPLEMENT_HINT_FIELDS = [
     "recommended_action",
     "suggested_template",
     "notes",
+    "reason",
+    "source",
+    "handoff_path",
 ]
 
 MATCHED_CANDIDATE = "matched_candidate"
@@ -93,6 +96,7 @@ NO_RESULT = "no_result"
 QUERY_FAILED = "query_failed"
 
 REVIEW_MATCHED_CANDIDATES = "review_matched_candidates"
+REVIEW_SPECIES_IDENTITY_MISMATCH = "review_species_identity_mismatch"
 MANUAL_SEARCH_REQUIRED = "manual_search_required"
 PROVIDE_CURATOR_ACCESSION = "provide_curator_accession"
 PROVIDE_EXTERNAL_GENOME_FASTA = "provide_external_genome_fasta"
@@ -226,6 +230,9 @@ class ManualSupplementHintRow:
     recommended_action: str = ""
     suggested_template: str = ""
     notes: str = ""
+    reason: str = ""
+    source: str = ""
+    handoff_path: str = ""
 
     def to_row(self) -> dict[str, str]:
         row = asdict(self)
@@ -612,8 +619,12 @@ def build_manual_supplement_hints(
         query_failed_count = sum(
             1 for row in species_rows if row.decision == QUERY_FAILED
         )
-        recommended_action, suggested_template, notes = _manual_hint_action(
+        species_mismatch_count = sum(
+            1 for row in species_rows if row.decision == REJECTED_SPECIES_MISMATCH
+        )
+        guidance = _manual_hint_action(
             matched_count=matched_count,
+            species_mismatch_count=species_mismatch_count,
             rejected_count=rejected_count,
             no_result_count=no_result_count,
             query_failed_count=query_failed_count,
@@ -627,9 +638,12 @@ def build_manual_supplement_hints(
                 rejected_candidate_count=rejected_count,
                 no_result_count=no_result_count,
                 query_failed_count=query_failed_count,
-                recommended_action=recommended_action,
-                suggested_template=suggested_template,
-                notes=notes,
+                recommended_action=guidance.recommended_action,
+                suggested_template=guidance.suggested_template,
+                notes=guidance.notes,
+                reason=guidance.reason,
+                source=guidance.source,
+                handoff_path=guidance.handoff_path,
             )
         )
     return hints
@@ -689,6 +703,9 @@ def read_manual_supplement_hints(path: str | Path) -> list[ManualSupplementHintR
                 recommended_action=row.get("recommended_action", ""),
                 suggested_template=row.get("suggested_template", ""),
                 notes=row.get("notes", ""),
+                reason=row.get("reason", ""),
+                source=row.get("source", ""),
+                handoff_path=row.get("handoff_path", ""),
             )
             for row in reader
         ]
@@ -745,6 +762,18 @@ def summarize_manual_supplement_hints(
         if not action:
             continue
         counts[action] = counts.get(action, 0) + 1
+    return counts
+
+
+def summarize_manual_supplement_hint_reasons(
+    rows: Iterable[ManualSupplementHintRow],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        reason = row.reason.strip()
+        if not reason:
+            continue
+        counts[reason] = counts.get(reason, 0) + 1
     return counts
 
 
@@ -903,41 +932,104 @@ def _reject_category(decision: str) -> str:
     return decision
 
 
+@dataclass(frozen=True)
+class _ManualHintGuidance:
+    reason: str
+    source: str
+    recommended_action: str
+    suggested_template: str
+    handoff_path: str
+    notes: str
+
+
 def _manual_hint_action(
     *,
     matched_count: int,
+    species_mismatch_count: int,
     rejected_count: int,
     no_result_count: int,
     query_failed_count: int,
-) -> tuple[str, str, str]:
+) -> _ManualHintGuidance:
     if query_failed_count:
-        return (
-            RETRY_NETWORK_OR_USE_CACHE,
-            "rerun --enable-expanded-discovery with network available or provide cache TSVs",
-            "Query failures take priority; retry before interpreting missing candidates.",
+        return _ManualHintGuidance(
+            reason=QUERY_FAILED,
+            source="completion/expanded_discovery_results.tsv",
+            recommended_action=RETRY_NETWORK_OR_USE_CACHE,
+            suggested_template=(
+                "rerun --enable-expanded-discovery with network available or "
+                "provide cache TSVs"
+            ),
+            handoff_path="completion/expanded_discovery_plan.tsv",
+            notes=(
+                "Query failures take priority; retry before interpreting "
+                "missing candidates."
+            ),
         )
     if matched_count:
-        return (
-            REVIEW_MATCHED_CANDIDATES,
-            "review completion/expanded_discovery_results.tsv and update selection manually only if evidence is sufficient",
-            "Matched candidates are review-only and are not auto-selected.",
+        return _ManualHintGuidance(
+            reason=MATCHED_CANDIDATE,
+            source="completion/expanded_discovery_results.tsv",
+            recommended_action=REVIEW_MATCHED_CANDIDATES,
+            suggested_template=(
+                "review completion/expanded_discovery_results.tsv and update "
+                "selection manually only if evidence is sufficient"
+            ),
+            handoff_path="completion/expanded_discovery_results.tsv",
+            notes="Matched candidates are review-only and are not auto-selected.",
+        )
+    if species_mismatch_count:
+        return _ManualHintGuidance(
+            reason=REJECTED_SPECIES_MISMATCH,
+            source="completion/rejected_candidates.tsv",
+            recommended_action=REVIEW_SPECIES_IDENTITY_MISMATCH,
+            suggested_template=(
+                "check species_identity_mismatch evidence; if the checklist species "
+                "is still uncovered, provide a curator-confirmed accession or "
+                "external FASTA"
+            ),
+            handoff_path="manual_deposit_evidence_template.tsv; external_genomes.tsv",
+            notes=(
+                "Expanded discovery rejected candidate organism identity; do not "
+                "accept the accession without curator-confirmed species evidence."
+            ),
         )
     if rejected_count:
-        return (
-            PROVIDE_CURATOR_ACCESSION,
-            "add curator-confirmed accession or deposit evidence after manual review",
-            "Expanded discovery found candidates but rejected them for species, token, or accession evidence limits.",
+        return _ManualHintGuidance(
+            reason="rejected_candidate",
+            source="completion/rejected_candidates.tsv",
+            recommended_action=PROVIDE_CURATOR_ACCESSION,
+            suggested_template=(
+                "add curator-confirmed accession or curator evidence after "
+                "manual review"
+            ),
+            handoff_path="manual_deposit_evidence_template.tsv",
+            notes=(
+                "Expanded discovery found candidates but rejected them for "
+                "token or accession evidence limits."
+            ),
         )
     if no_result_count:
-        return (
-            MANUAL_SEARCH_REQUIRED,
-            "manual NCBI/provider search; if no public accession exists, prepare external_genomes.tsv with a FASTA",
-            "Expanded discovery returned no candidates for the available tokens.",
+        return _ManualHintGuidance(
+            reason=NO_RESULT,
+            source="completion/rejected_candidates.tsv",
+            recommended_action=MANUAL_SEARCH_REQUIRED,
+            suggested_template=(
+                "manual NCBI/provider search; if no public accession exists, "
+                "prepare external_genomes.tsv with a FASTA"
+            ),
+            handoff_path="manual_deposit_evidence_template.tsv; external_genomes.tsv",
+            notes="Expanded discovery returned no candidates for the available tokens.",
         )
-    return (
-        PROVIDE_EXTERNAL_GENOME_FASTA,
-        "prepare external_genomes.tsv with a reviewed local FASTA when no accession route exists",
-        "No actionable expanded discovery result was available.",
+    return _ManualHintGuidance(
+        reason="manual_supplement_needed",
+        source="completion/manual_supplement_hints.tsv",
+        recommended_action=PROVIDE_EXTERNAL_GENOME_FASTA,
+        suggested_template=(
+            "prepare external_genomes.tsv with a reviewed local FASTA when no "
+            "accession route exists"
+        ),
+        handoff_path="external_genomes.tsv",
+        notes="No actionable expanded discovery result was available.",
     )
 
 

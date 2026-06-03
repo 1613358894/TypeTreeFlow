@@ -68,8 +68,9 @@ Decision values expected from the audit are `matched_candidate`,
 `rejected_missing_accession`, `no_result`, and `query_failed`.
 
 Recommended manual actions are `review_matched_candidates`,
-`manual_search_required`, `provide_curator_accession`,
-`provide_external_genome_fasta`, and `retry_network_or_use_cache`.
+`review_species_identity_mismatch`, `manual_search_required`,
+`provide_curator_accession`, `provide_external_genome_fasta`, and
+`retry_network_or_use_cache`.
 
 Expanded discovery does not automatically add candidates to `manifest.tsv`,
 does not edit selection rows, and does not change completion metrics. This

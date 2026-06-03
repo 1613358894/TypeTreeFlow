@@ -145,12 +145,30 @@ def next_step_summary(outdir: str | Path) -> NextStepSummary:
     paths = get_output_paths(root)
     if paths.run_state_path.exists():
         state = read_run_state(paths.run_state_path)
+        handoff_action = handoff_next_action(paths, include_uncovered=False)
+        if handoff_action and _can_refine_run_state_next_action(state.next_action):
+            return NextStepSummary(next_action=handoff_action, source="run_state+handoff")
         return NextStepSummary(
             next_action=state.next_action or _default_next_action(state.status),
             source="run_state",
         )
     summary = inspect_workflow_status(root)
     return NextStepSummary(next_action=summary.next_action, source=summary.source)
+
+
+def handoff_next_action(paths, *, include_uncovered: bool = True) -> str:
+    manual_handoff = _manual_supplement_handoff_next_action(paths)
+    if manual_handoff:
+        return manual_handoff
+    rejected_mismatch = _rejected_species_mismatch_next_action(paths)
+    if rejected_mismatch:
+        return rejected_mismatch
+    if not include_uncovered:
+        return ""
+    uncovered_handoff = _uncovered_species_next_action(paths)
+    if uncovered_handoff:
+        return uncovered_handoff
+    return ""
 
 
 def format_status_summary(
@@ -376,6 +394,9 @@ def _infer_next_action(
     genome_ready: int,
     rrna_ready: int,
 ) -> str:
+    handoff_action = handoff_next_action(paths)
+    if handoff_action:
+        return handoff_action
     if (
         paths.manifest.exists()
         and rrna_ready
@@ -405,6 +426,126 @@ def _rrna_gap_count(paths) -> int:
     if not paths.rrna_16s_gaps_path.exists():
         return 0
     return len(_read_tsv(paths.rrna_16s_gaps_path))
+
+
+def _manual_supplement_handoff_next_action(paths) -> str:
+    rows = _read_optional_rows(paths.manual_supplement_hints_path)
+    if not rows:
+        return ""
+    species_count = _species_count(rows)
+    top_action, _ = _top_count(rows, "recommended_action")
+    top_reason, _ = _top_count(rows, "reason")
+    handoff_paths = _joined_unique_values(rows, "handoff_path")
+    action_text = f"; top recommended_action={top_action}" if top_action else ""
+    reason_text = f"; top reason={top_reason}" if top_reason else ""
+    handoff_text = f"; inspect handoff_path={handoff_paths}" if handoff_paths else ""
+    return (
+        "Review completion/manual_supplement_hints.tsv for "
+        f"{species_count} manual supplement species"
+        f"{action_text}{reason_text}{handoff_text}. "
+        "Any accession or external FASTA supplement still requires curator review."
+    )
+
+
+def _rejected_species_mismatch_next_action(paths) -> str:
+    rows = _read_optional_rows(paths.user_selection_path)
+    if not rows:
+        return ""
+    count = sum(1 for row in rows if _is_rejected_species_mismatch_row(row))
+    if not count:
+        return ""
+    return (
+        "Review selection/user_selection.tsv for "
+        f"{count} rejected_species_mismatch/species_identity_mismatch row(s); "
+        "confirm species identity manually, then use "
+        "manual_deposit_evidence_template.tsv or external_genomes.tsv only if "
+        "curator review supports a supplement. These are rejected candidates, "
+        "not download failures."
+    )
+
+
+def _uncovered_species_next_action(paths) -> str:
+    rows = _read_optional_rows(paths.uncovered_species_path)
+    if not rows:
+        return ""
+    return (
+        "Review completion/uncovered_species.tsv for "
+        f"{_species_count(rows)} uncovered species; inspect "
+        "completion/expanded_discovery_plan.tsv and, when available, "
+        "completion/manual_supplement_hints.tsv for manual_search_required, "
+        "provide_curator_accession, or provide_external_genome_fasta handoff "
+        "actions after curator review."
+    )
+
+
+def _read_optional_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    return _read_tsv(path)
+
+
+def _species_count(rows: list[dict[str, str]]) -> int:
+    species = {
+        (row.get("species", "") or row.get("checklist_name", "")).strip()
+        for row in rows
+        if (row.get("species", "") or row.get("checklist_name", "")).strip()
+    }
+    return len(species) if species else len(rows)
+
+
+def _top_count(rows: list[dict[str, str]], field: str) -> tuple[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = row.get(field, "").strip()
+        if not value:
+            continue
+        counts[value] = counts.get(value, 0) + 1
+    if not counts:
+        return "", 0
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0]
+
+
+def _joined_unique_values(rows: list[dict[str, str]], field: str) -> str:
+    values: list[str] = []
+    seen: set[str] = set()
+    for row in rows:
+        for value in str(row.get(field, "")).split(";"):
+            cleaned = value.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                values.append(cleaned)
+    return "; ".join(values[:3])
+
+
+def _is_rejected_species_mismatch_row(row: dict[str, str]) -> bool:
+    haystack = " ".join(
+        row.get(field, "")
+        for field in (
+            "policy_decision",
+            "blocking_reasons",
+            "manual_review_reason",
+            "selection_reason",
+            "notes",
+        )
+    )
+    return (
+        "rejected_species_mismatch" in haystack
+        or "species_identity_mismatch" in haystack
+    )
+
+
+def _can_refine_run_state_next_action(next_action: str) -> bool:
+    if not next_action:
+        return True
+    lowered = next_action.strip().lower()
+    generic_fragments = (
+        "review report/summary.md",
+        "review manifest.tsv",
+        "review selection/user_selection.tsv",
+        "package-results",
+        "continue the verify-genus workflow",
+    )
+    return any(fragment in lowered for fragment in generic_fragments)
 
 
 def _default_next_action(status: str) -> str:

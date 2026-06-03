@@ -1,6 +1,6 @@
 # v2.2.x Release Notes
 
-These notes consolidate the v2.2.2 through v2.2.6 integration review.
+These notes consolidate the v2.2.2 through v2.2.7 integration review.
 They describe user-visible release-verification behavior only; this document
 does not introduce new workflow features.
 
@@ -47,6 +47,10 @@ does not introduce new workflow features.
   downloads, no barrnap, and no auto accept. It verifies no duplicate selected
   accession and no erroneous `GCF_055383455.1` coverage for
   `Clostridium nitritogenes`.
+- v2.2.7 makes the manual supplement handoff queue and report/status/next-step
+  vocabulary easier to follow, records Clostridium limited smoke verification
+  as a handoff/package smoke rather than genus completion, and verifies release
+  install reproducibility around version `2.2.7`.
 
 ## Scientific Boundary
 
@@ -55,6 +59,9 @@ expanded discovery make missing evidence easier to review; they do not relax the
 strict, likely type-material, or representative-only evidence boundaries.
 v2.2.5 is published, but complex large-genera representative selection had a
 species-identity limitation that v2.2.6 fixes before auto-selection.
+
+v2.2.7 does not add full Clostridium completion, expanded discovery
+auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
 
 Expanded discovery and taxonomy-derived rows are audit-only. They do not
 automatically edit `manifest.tsv`, `selection/user_selection.tsv`, completion
