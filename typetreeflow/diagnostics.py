@@ -145,11 +145,17 @@ def next_step_summary(outdir: str | Path) -> NextStepSummary:
     paths = get_output_paths(root)
     if paths.run_state_path.exists():
         state = read_run_state(paths.run_state_path)
+        state_next_action = state.next_action or _default_next_action(state.status)
+        error_next_action = _next_action_from_run_state_errors(state)
+        if error_next_action and _can_refine_failed_run_state_next_action(
+            state_next_action
+        ):
+            return NextStepSummary(next_action=error_next_action, source="run_state")
         handoff_action = handoff_next_action(paths, include_uncovered=False)
         if handoff_action and _can_refine_run_state_next_action(state.next_action):
             return NextStepSummary(next_action=handoff_action, source="run_state+handoff")
         return NextStepSummary(
-            next_action=state.next_action or _default_next_action(state.status),
+            next_action=state_next_action,
             source="run_state",
         )
     summary = inspect_workflow_status(root)
@@ -546,6 +552,43 @@ def _can_refine_run_state_next_action(next_action: str) -> bool:
         "continue the verify-genus workflow",
     )
     return any(fragment in lowered for fragment in generic_fragments)
+
+
+def _can_refine_failed_run_state_next_action(next_action: str) -> bool:
+    if not next_action:
+        return True
+    lowered = next_action.strip().lower()
+    return (
+        lowered == "fix the reported error and rerun."
+        or _can_refine_run_state_next_action(next_action)
+    )
+
+
+def _next_action_from_run_state_errors(state: WorkflowState) -> str:
+    duplicate_accession = _duplicate_selected_accession_from_errors(state.errors)
+    if duplicate_accession:
+        return (
+            "Duplicate selected assembly accession "
+            f"{duplicate_accession} (duplicate selected assembly_accession) is "
+            "present in selection/user_selection.tsv. "
+            f"Review rows with assembly_accession={duplicate_accession} and "
+            "selected=true; review species identity context "
+            "(species_identity_mismatch/rejected_species_mismatch), deselect or "
+            "correct the conflicting duplicate selection, then rerun."
+        )
+    return ""
+
+
+def _duplicate_selected_accession_from_errors(errors: list[str]) -> str:
+    markers = (
+        "Duplicate selected assembly_accession in user selection:",
+        "Duplicate selected assembly_accession:",
+    )
+    for error in errors:
+        for marker in markers:
+            if marker in error:
+                return error.split(marker, 1)[1].strip().split()[0]
+    return ""
 
 
 def _default_next_action(status: str) -> str:

@@ -38,8 +38,11 @@ def package_results(
     *,
     delivery_dir: str | Path | None = None,
     include: str | Iterable[str] = DEFAULT_INCLUDE,
+    failed_handoff: bool = False,
 ) -> DeliveryResult:
     paths = get_output_paths(outdir)
+    if failed_handoff:
+        return package_failed_handoff(paths, delivery_dir=delivery_dir)
     if not paths.manifest.exists():
         raise ValueError(_missing_manifest_error(paths))
 
@@ -139,6 +142,90 @@ def package_results(
         genome_count=genome_count,
         rrna_sequence_count=rrna_sequence_count,
         all_16s_included=all_16s_included,
+    )
+
+
+def package_failed_handoff(
+    outdir_or_paths: str | Path | OutputPaths,
+    *,
+    delivery_dir: str | Path | None = None,
+) -> DeliveryResult:
+    paths = (
+        outdir_or_paths
+        if isinstance(outdir_or_paths, OutputPaths)
+        else get_output_paths(outdir_or_paths)
+    )
+    output_dir = (
+        Path(delivery_dir)
+        if delivery_dir is not None
+        else paths.manifest.parent / "failed_handoff"
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    copied: list[Path] = []
+    missing: list[str] = []
+
+    required_files = [
+        (paths.run_state_path, "run_state.json"),
+        (paths.user_selection_path, "selection/user_selection.tsv"),
+        (paths.strain_candidates_path, "selection/strain_candidates.tsv"),
+    ]
+    optional_files = [
+        (
+            paths.download_preflight_summary_path,
+            "selection/download_preflight_summary.tsv",
+        ),
+        (paths.assembly_candidates_path, "candidates/assembly_candidates.tsv"),
+        (
+            paths.assembly_candidate_diagnostics_path,
+            "candidates/assembly_candidate_diagnostics.tsv",
+        ),
+        (
+            paths.manual_supplement_hints_path,
+            "completion/manual_supplement_hints.tsv",
+        ),
+        (
+            paths.expanded_discovery_results_path,
+            "completion/expanded_discovery_results.tsv",
+        ),
+        (paths.run_summary_path, "report/summary.md"),
+        (paths.run_review_path, "report/run_review.md"),
+    ]
+
+    for source, relative_path in required_files:
+        if source.exists():
+            copied.append(_copy_required(source, output_dir / relative_path))
+        else:
+            missing.append(relative_path)
+    for source, relative_path in optional_files:
+        if source.exists():
+            copied.append(_copy_required(source, output_dir / relative_path))
+        else:
+            missing.append(relative_path)
+
+    state = (
+        read_run_state(paths.run_state_path)
+        if paths.run_state_path.exists()
+        else None
+    )
+    readme_path = output_dir / "README_failure.md"
+    readme_path.write_text(
+        build_failed_handoff_readme(
+            paths,
+            delivery_dir=output_dir,
+            copied_files=copied,
+            missing_expected_files=missing,
+            state=state,
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    copied.append(readme_path)
+
+    return DeliveryResult(
+        delivery_dir=output_dir,
+        copied_files=copied,
+        missing_optional_files=missing,
     )
 
 
@@ -253,6 +340,84 @@ def build_delivery_readme(
     return "\n".join(lines) + "\n"
 
 
+def build_failed_handoff_readme(
+    paths: OutputPaths,
+    *,
+    delivery_dir: Path,
+    copied_files: list[Path],
+    missing_expected_files: list[str],
+    state: WorkflowState | None,
+) -> str:
+    source_outdir = _source_outdir_command_arg(paths)
+    workflow_status = state.status if state is not None else "unknown"
+    stage_label = "blocked stage / reason"
+    stage_text = "not recorded"
+    error_message = ""
+    next_action = ""
+    if state is not None:
+        label, stage_name, stage_state = _failed_or_blocked_stage(state)
+        if stage_name is not None and stage_state is not None:
+            stage_text = f"{stage_name} ({stage_state.status})"
+            if stage_state.summary:
+                stage_text = f"{stage_text}: {stage_state.summary}"
+            stage_label = label
+        error_message = _run_state_error_message(state, stage_state)
+        next_action = state.next_action
+
+    copied_names = sorted(
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+    )
+
+    lines = [
+        "# TypeTreeFlow Failed Run Review Package",
+        "",
+        "## Package",
+        "",
+        "- This is a review artifact, not a normal delivery package.",
+        f"- TypeTreeFlow version: {__version__}",
+        f"- Source outdir: {source_outdir}",
+        "",
+        "## Failure Summary",
+        "",
+        f"- workflow status: {workflow_status}",
+        f"- {stage_label}: {stage_text}",
+        f"- error message: {error_message or 'not recorded'}",
+        f"- next action: {next_action or 'review copied files and rerun the blocked stage'}",
+        "",
+        "## Copied Files",
+        "",
+    ]
+    if copied_names:
+        lines.extend(f"- {item}" for item in copied_names)
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
+            "",
+            "## Missing Expected Files",
+            "",
+        ]
+    )
+    if missing_expected_files:
+        lines.extend(f"- {item}" for item in missing_expected_files)
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
+            "",
+            "## Suggested Next-Step Command",
+            "",
+            "```bash",
+            f"python typetreeflow.py next-step --outdir {source_outdir}",
+            "```",
+            "",
+            "After resolving the failure and generating manifest.tsv, rerun normal package-results.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def _copy_required(source: Path, destination: Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, destination)
@@ -359,6 +524,16 @@ def _portable_source_outdir(paths: OutputPaths) -> str:
         return outdir.relative_to(Path.cwd()).as_posix()
     except ValueError:
         return outdir.name
+
+
+def _source_outdir_command_arg(paths: OutputPaths) -> str:
+    outdir = paths.manifest.parent
+    if not outdir.is_absolute():
+        return outdir.as_posix()
+    try:
+        return outdir.relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        return outdir.as_posix()
 
 
 def _display_optional_path(path: Path) -> str:

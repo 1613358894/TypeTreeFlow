@@ -23,6 +23,7 @@ class AppConfig:
     next_step: bool
     json_output: bool
     package_results: bool
+    failed_handoff: bool
     delivery_dir: Path | None
     include: str
     verify_release_genus: str | None

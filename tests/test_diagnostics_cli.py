@@ -170,6 +170,52 @@ def test_next_step_prefers_run_state_next_action(tmp_path, capsys):
     )
 
 
+def test_next_step_refines_duplicate_selected_accession_failed_run_state(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            next_action="Fix the reported error and rerun.",
+            errors=[
+                "Duplicate selected assembly_accession in user selection: "
+                "GCF_055383455.1"
+            ],
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert "Duplicate selected assembly accession" in output
+    assert "GCF_055383455.1" in output
+    assert "selection/user_selection.tsv" in output
+    assert "selected=true" in output
+    assert "review species identity" in output
+    assert "rerun" in output
+
+
+def test_next_step_keeps_unknown_failed_error_fallback(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            next_action="Fix the reported error and rerun.",
+            errors=["Unexpected provider response while preparing selection."],
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    assert capsys.readouterr().out.strip() == "Fix the reported error and rerun."
+
+
 def test_status_missing_outdir_returns_nonzero_and_clear_message(tmp_path, capsys):
     missing = tmp_path / "missing"
 

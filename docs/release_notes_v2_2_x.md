@@ -1,6 +1,6 @@
 # v2.2.x Release Notes
 
-These notes consolidate the v2.2.2 through v2.2.7 integration review.
+These notes consolidate the v2.2.2 through v2.2.8 integration review.
 They describe user-visible release-verification behavior only; this document
 does not introduce new workflow features.
 
@@ -51,6 +51,9 @@ does not introduce new workflow features.
   vocabulary easier to follow, records Clostridium limited smoke verification
   as a handoff/package smoke rather than genus completion, and verifies release
   install reproducibility around version `2.2.7`.
+- v2.2.8 adds `package-results --failed-handoff` for failed runs that stop
+  before `manifest.tsv`, and improves `next-step` recovery guidance for
+  duplicate selected assembly accessions.
 
 ## Scientific Boundary
 
@@ -60,7 +63,7 @@ strict, likely type-material, or representative-only evidence boundaries.
 v2.2.5 is published, but complex large-genera representative selection had a
 species-identity limitation that v2.2.6 fixes before auto-selection.
 
-v2.2.7 does not add full Clostridium completion, expanded discovery
+v2.2.8 does not add full Clostridium completion, expanded discovery
 auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
 
 Expanded discovery and taxonomy-derived rows are audit-only. They do not

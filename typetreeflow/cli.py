@@ -294,6 +294,14 @@ def build_parser() -> argparse.ArgumentParser:
             "genomes, 16s, reports, or all; default: all."
         ),
     )
+    parser.add_argument(
+        "--failed-handoff",
+        action="store_true",
+        help=(
+            "For package-results, create a failed-run review artifact before "
+            "manifest.tsv exists instead of a normal delivery package."
+        ),
+    )
     parser.add_argument("--threads", type=int, default=1)
     parser.add_argument(
         "--email",
@@ -640,6 +648,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         next_step=args.next_step,
         json_output=args.json_output,
         package_results=package_results_command or args.package_results,
+        failed_handoff=args.failed_handoff,
         delivery_dir=args.delivery_dir,
         include=args.include,
         verify_release_genus=args.verify_release_genus,
@@ -817,6 +826,7 @@ def main(
                 config.outdir,
                 delivery_dir=config.delivery_dir,
                 include=config.include,
+                failed_handoff=config.failed_handoff,
             )
         except (ManifestError, ValueError, RuntimeError) as error:
             LOGGER.error("%s", error)

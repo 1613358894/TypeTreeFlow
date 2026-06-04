@@ -182,6 +182,48 @@ def test_package_results_missing_manifest_reports_blocked_stage(tmp_path):
     )
 
 
+def test_package_results_failed_handoff_succeeds_without_manifest(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+
+    result = package_results(
+        tmp_path,
+        delivery_dir=tmp_path / "failed_review",
+        include="reports",
+        failed_handoff=True,
+    )
+
+    assert (result.delivery_dir / "README_failure.md").exists()
+    assert (result.delivery_dir / "run_state.json").exists()
+    assert (result.delivery_dir / "selection" / "user_selection.tsv").exists()
+    assert (result.delivery_dir / "selection" / "strain_candidates.tsv").exists()
+    assert not (result.delivery_dir / "manifest.tsv").exists()
+    assert not (result.delivery_dir / "README.md").exists()
+
+
+def test_package_results_failed_handoff_readme_contains_error_and_next_step(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+
+    result = package_results(tmp_path, failed_handoff=True)
+
+    readme = (result.delivery_dir / "README_failure.md").read_text(
+        encoding="utf-8"
+    )
+    assert "This is a review artifact, not a normal delivery package." in readme
+    assert "workflow status: failed" in readme
+    assert "blocked stage: download (blocked_by_manual_review)" in readme
+    assert (
+        "error message: Duplicate selected assembly_accession in user selection"
+        in readme
+    )
+    assert "next action: Fix the selection and rerun guarded download." in readme
+    assert "Copied Files" in readme
+    assert "selection/user_selection.tsv" in readme
+    assert "Suggested Next-Step Command" in readme
+    assert "python typetreeflow.py next-step --outdir" in readme
+
+
 def test_package_results_does_not_copy_zip_or_env_files(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)
@@ -201,6 +243,34 @@ def test_package_results_does_not_copy_zip_or_env_files(tmp_path):
     assert ".env" not in delivered_names
     assert ".pytest_cache" not in delivered_names
     assert all(not name.endswith(".zip") for name in delivered_names)
+
+
+def _write_failed_run_review_inputs(paths):
+    paths.user_selection_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.user_selection_path.write_text(
+        "record_id\tselected\tassembly_accession\nrec-1\ttrue\tGCF_000001\n",
+        encoding="utf-8",
+    )
+    paths.strain_candidates_path.write_text(
+        "record_id\tcanonical_name\tassembly_accession\n"
+        "rec-1\tFusobacterium example\tGCF_000001\n",
+        encoding="utf-8",
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(paths.manifest.parent),
+            stages={
+                "download": StageState(
+                    status="blocked_by_manual_review",
+                    summary="manual_review_required before enabling downloads.",
+                )
+            },
+            errors=["Duplicate selected assembly_accession in user selection"],
+            next_action="Fix the selection and rerun guarded download.",
+        ),
+    )
 
 
 def _write_manifest_with_files(paths):

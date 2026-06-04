@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## v2.2.8 - 2026-06-04
+
+### Added
+
+- Added `package-results --failed-handoff` to create review artifacts for failed
+  runs that stop before `manifest.tsv`.
+
+### Changed
+
+- Improved `next-step` guidance for duplicate selected assembly accession
+  failures.
+
+### Notes
+
+- Normal delivery packaging still requires `manifest.tsv`.
+- Failed handoff packages are review artifacts, not completed genome delivery
+  packages.
 
 ## v2.2.7 - 2026-06-03
 
