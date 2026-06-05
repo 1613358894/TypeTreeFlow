@@ -1,6 +1,6 @@
 # v2.2.x Release Notes
 
-These notes consolidate the v2.2.2 through v2.2.10 integration review.
+These notes consolidate the v2.2.2 through v2.2.11 integration review.
 They describe user-visible release-verification behavior only; this document
 does not introduce new workflow features.
 
@@ -66,6 +66,9 @@ does not introduce new workflow features.
   completion, plan-only `next-step` prioritizes selection review and guarded
   downloads, taxonomy enrichment summaries clarify offline scaffold/cache-only
   runs, and `package-results` writes `handoff_index.md`.
+- v2.2.11 is a maintenance/refactor-only release. It changes no selection
+  policy, evidence threshold, download strategy, real download validation, or
+  user-visible workflow behavior.
 
 ## Scientific Boundary
 
@@ -75,7 +78,7 @@ strict, likely type-material, or representative-only evidence boundaries.
 v2.2.5 is published, but complex large-genera representative selection had a
 species-identity limitation that v2.2.6 fixes before auto-selection.
 
-v2.2.10 does not add full Clostridium completion, expanded discovery
+v2.2.11 does not add full Clostridium completion, expanded discovery
 auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
 It does not change download strategy, selection safety, or evidence thresholds.
 

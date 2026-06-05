@@ -5,34 +5,11 @@ import pytest
 
 import typetreeflow
 from typetreeflow import cli
+from typetreeflow.release_check import load_project_metadata
 
 
 def _load_project_metadata() -> dict:
-    try:
-        import tomllib
-    except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback.
-        tomllib = None
-
-    pyproject_path = Path("pyproject.toml")
-    if tomllib is not None:
-        with pyproject_path.open("rb") as handle:
-            return tomllib.load(handle)["project"]
-
-    metadata = {"scripts": {}}
-    section = None
-    for raw_line in pyproject_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("[") and line.endswith("]"):
-            section = line.strip("[]")
-            continue
-        if section == "project" and line.startswith("version"):
-            metadata["version"] = line.split("=", 1)[1].strip().strip('"')
-        if section == "project.scripts" and "=" in line:
-            name, target = line.split("=", 1)
-            metadata["scripts"][name.strip()] = target.strip().strip('"')
-    return metadata
+    return load_project_metadata(Path("."))
 
 
 def test_package_version_matches_pyproject():

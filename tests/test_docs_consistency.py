@@ -81,7 +81,7 @@ def test_release_version_sources_are_consistent():
     release_notes = _read("docs/release_notes_v2_2_x.md")
 
     version = typetreeflow.__version__
-    assert version == "2.2.10"
+    assert version == "2.2.11"
     assert f'version = "{version}"' in pyproject
     assert f"## v{version} - 2026-06-06" in changelog
     assert f"current {version} release" in readme
@@ -601,6 +601,44 @@ def test_v2_2_x_release_docs_are_discoverable():
         assert phrase in acceptance_checklist
 
 
+def test_handoff_index_contract_is_discoverable_and_preserves_boundaries():
+    contract = _read("docs/handoff_index_contract.md")
+    index = _read("docs/index.md")
+    output_layout = _read("docs/output_layout.md")
+    readme = _read("README.md")
+    normalized_contract = _normalize_whitespace(contract)
+    normalized_output_layout = _normalize_whitespace(output_layout)
+
+    assert "handoff_index_contract.md" in index
+    assert "handoff_index_contract.md" in output_layout
+    assert "handoff_index_contract.md" in readme
+
+    for phrase in [
+        "delivery-package navigation index and status summary",
+        "not a new scientific decision source",
+        "`manifest.tsv`",
+        "`source_audit/sequence_source_audit.tsv`",
+        "`source_audit/completion_audit.tsv`",
+        "`completion/*.tsv`",
+        "`report/summary.md`",
+        "`report/run_review.md`",
+        "`successful completion handoff`",
+        "failed-run handoff package and not a successful completion package",
+        "operational guidance",
+        "not scientific conclusions",
+        "not a cache mirror",
+    ]:
+        assert phrase in normalized_contract
+
+    for phrase in [
+        "not a new scientific decision source",
+        "authoritative scientific and audit interpretation remains with",
+        "Failed-run review packages",
+        "not successful completion handoffs",
+    ]:
+        assert phrase in normalized_output_layout
+
+
 def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
     readme = _read("README.md")
     index = _read("docs/index.md")
@@ -654,6 +692,10 @@ def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
 def _read(path: str) -> str:
     with open(path, encoding="utf-8") as handle:
         return handle.read()
+
+
+def _normalize_whitespace(text: str) -> str:
+    return " ".join(text.split())
 
 
 def _header(path: str) -> list[str]:

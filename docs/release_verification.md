@@ -3,6 +3,16 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
+## v2.2.11 Maintenance Notes
+
+v2.2.11 is a maintenance/refactor-only release. It keeps v2.2.10 behavior,
+selection policies, evidence thresholds, download strategy, and guarded
+execution boundaries unchanged. It does not include real download validation.
+
+Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
+`--version`, README, release docs, citation metadata, and changelog all report
+`2.2.11`; run final pytest and smoke checks without live downloads.
+
 ## v2.2.10 UX and Reporting Notes
 
 v2.2.10 keeps the v2.2.9 safe-rerun, failed-handoff, and install
@@ -11,10 +21,6 @@ validation. `next-step` no longer repeats Entrez fallback suggestions after
 fallback completion; plan-only `next-step` prioritizes selection review and
 guarded downloads; taxonomy enrichment summaries distinguish offline scaffold
 and cache-only runs; and `package-results` writes `handoff_index.md`.
-
-Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
-`--version`, README, release docs, citation metadata, and changelog all report
-`2.2.10`; run final pytest and smoke checks without live downloads.
 
 v2.2.10 does not change download strategy, selection safety, or evidence
 thresholds.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "typetreeflow"
-version = "2.2.10"
+version = "2.2.11"
 description = "CLI workflow skeleton for type strain genome and 16S phylogeny analysis."
 readme = "README.md"
 requires-python = ">=3.10"

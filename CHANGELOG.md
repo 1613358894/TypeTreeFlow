@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.2.11 - 2026-06-06
+
+v2.2.11 is a maintenance/refactor-only release based on v2.2.10.
+
+### Notes
+
+- No behavior changes.
+- No selection policy changes.
+- No evidence threshold changes.
+- No download strategy changes.
+- No real download validation.
+
 ## v2.2.10 - 2026-06-06
 
 v2.2.10 is a small UX/reporting polish release based on v2.2.9
