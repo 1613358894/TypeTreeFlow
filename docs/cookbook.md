@@ -121,7 +121,7 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_11_release_verification \
+  --outdir results/v2_2_x_release_verification \
   --policies balanced,representative \
   --force
 ```
@@ -130,12 +130,12 @@ typetreeflow verify-release-genus Fusobacterium \
 rows are exploratory only and must not be counted as strict type-strain
 completion.
 
-For v2.2.11 reliability checks, `verify-release-genus` keeps the v2.2.6
+For current v2.2.x reliability checks, `verify-release-genus` keeps the v2.2.6
 shared acquisition cache for balanced and representative policies, so LPSN,
 assembly-discovery, and BioSample lookup are not repeated for each policy.
 BioSample enrichment checkpoints `cache/ncbi/biosample_records.tsv` and can
 resume from a partial cache after a network interruption. See
-`release_verification.md` and `release_notes_v2_2_x.md` for the v2.2.11
+`release_verification.md` and `release_notes_v2_2_x.md` for the current
 maintenance scope; the cookbook keeps only the runnable command path here.
 
 Release runs also write auditable gap reports when information is incomplete:

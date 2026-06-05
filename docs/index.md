@@ -144,13 +144,13 @@ The repository root currently contains local run outputs and large data under
 documentation map; review them separately before deciding what should remain
 tracked, be regenerated, or be cleaned locally.
 
-## Recommended v2.2.11 Route
+## Recommended Route
 
-Use README's "Recommended v2.2.11 workflow" section as the current operator
-guide and `cookbook.md` as the quick command cookbook. See
+Use README's recommended workflow section as the current operator guide and
+`cookbook.md` as the quick command cookbook. See
 `release_verification.md` for the release-verification route, including
 `verify-release-genus`, shared acquisition cache, checkpoint/resume,
-gap-report behavior, and the v2.2.11 maintenance release focus.
+gap-report behavior, and current release notes.
 
 External provider planning remains metadata/review handoff only; legally
 obtained local FASTA files enter the workflow through

@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.2.12 - 2026-06-06
+
+v2.2.12 is a maintenance-only release based on v2.2.11.
+
+### Added
+
+- Added release consistency checker.
+
+### Changed
+
+- Reduced duplicated current-version wording in docs.
+- Documented `handoff_index.md` as a package navigation/operator handoff
+  artifact.
+- Hardened maintenance release checklist/process.
+
+### Notes
+
+- No changes to download strategy, selection safety, or evidence thresholds.
+
 ## v2.2.11 - 2026-06-06
 
 v2.2.11 is a maintenance/refactor-only release based on v2.2.10.
