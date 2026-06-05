@@ -200,6 +200,13 @@ from typetreeflow.workflow.resume import (
     should_reuse_manifest,
     validate_resume_force,
 )
+from typetreeflow.workflow.summary import (
+    blocked_or_failed_status as _blocked_or_failed_status,
+    overall_status as _overall_status,
+    row_count_summary as _row_count_summary,
+    status_count_summary as _status_count_summary,
+    status_counts as _status_counts,
+)
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 
 LOGGER = logging.getLogger(__name__)
@@ -2275,36 +2282,6 @@ def _rrna_stage_state(
     )
 
 
-def _overall_status(stages: dict[str, StageState]) -> str:
-    statuses = {stage.status for stage in stages.values()}
-    if any(status.startswith("blocked_by_") for status in statuses):
-        return "partial"
-    if "failed" in statuses:
-        return "failed"
-    if "partial" in statuses:
-        return "partial"
-    if statuses and statuses <= {"succeeded", "skipped"}:
-        return "succeeded"
-    if statuses:
-        return "partial"
-    return "succeeded"
-
-
-def _blocked_or_failed_status(error: Exception) -> str:
-    message = str(error)
-    if "Required executable not found on PATH" in message:
-        return "blocked_by_dependency"
-    if (
-        "cannot be combined" in message
-        or "must be at least" in message
-        or "requires --auto-accept-selection" in message
-    ):
-        return "blocked_by_argument_conflict"
-    if "manual_review" in message or "source audit policy blocked" in message:
-        return "blocked_by_manual_review"
-    return "failed"
-
-
 def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
     if _is_duplicate_selected_accession_error(error):
         return (
@@ -2507,27 +2484,6 @@ def _ncbi_taxonomy_stage_summary(paths, config: AppConfig) -> str:
     if not missing_plan_species:
         return f"{planned}; lookup not executed; cache reused"
     return f"{planned}; executed NCBI Taxonomy lookup"
-
-
-def _row_count_summary(path: Path, label: str) -> str:
-    if not path.exists():
-        return ""
-    return f"{len(_read_tsv_rows(path))} {label}"
-
-
-def _status_count_summary(path: Path) -> str:
-    counts = _status_counts(path)
-    if not counts:
-        return "No status rows"
-    return ", ".join(f"{status}={count}" for status, count in sorted(counts.items()))
-
-
-def _status_counts(path: Path) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for row in _read_tsv_rows(path):
-        status = row.get("status", "")
-        counts[status] = counts.get(status, 0) + 1
-    return counts
 
 
 def _read_tsv_rows(path: Path) -> list[dict[str, str]]:

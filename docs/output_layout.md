@@ -88,6 +88,7 @@ typetreeflow_out/
     figures/
   delivery/
     README.md
+    handoff_index.md
     manifest.tsv
     run_state.json
     selected_accessions.tsv
@@ -215,6 +216,17 @@ evidence summaries when present, download results when present, optional
 reports, genome FASTA files, and optional 16S FASTA files. They do not copy
 credentials, `.env` files, API keys, NCBI Datasets ZIP caches, pytest caches,
 temporary directories, or provider credentials.
+`delivery/handoff_index.md` is the package navigation index and status summary.
+It is not a new scientific decision source; authoritative scientific and audit
+interpretation remains with `manifest.tsv`,
+`source_audit/sequence_source_audit.tsv`,
+`source_audit/completion_audit.tsv`, `completion/*.tsv`, `report/summary.md`,
+and `report/run_review.md`. See
+[handoff_index_contract.md](handoff_index_contract.md).
+Failed-run review packages created with `package-results --failed-handoff`
+write `failed_handoff/handoff_index.md` plus `README_failure.md` and available
+partial review artifacts. These packages are explicitly not successful
+completion handoffs.
 
 Resume behavior reuses durable artifacts in this order: an installed
 `genomes/references/<normalized_id>.fna`, an existing extracted directory under
