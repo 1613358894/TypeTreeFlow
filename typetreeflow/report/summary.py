@@ -101,6 +101,7 @@ REPRESENTATIVE_DUPLICATE_NEXT_ACTION = (
     "representative selection produced duplicate accession; review species "
     "mismatch or rerun after selection fix"
 )
+NCBI_TAXONOMY_LOOKUP_EXECUTED = "executed"
 
 
 @dataclass(frozen=True)
@@ -1113,6 +1114,7 @@ def build_run_summary_markdown(
         ncbi_taxonomy_cache_summary = summarize_ncbi_taxonomy_cache(
             ncbi_taxonomy_cache or []
         )
+        ncbi_taxonomy_lookup_executed = _ncbi_taxonomy_lookup_executed(paths, args)
         lines.extend(
             [
                 "",
@@ -1121,22 +1123,45 @@ def build_run_summary_markdown(
                 f"- Plan: {_display_path(paths.ncbi_taxonomy_plan_path, paths)}",
                 f"- Cache: {_display_path(paths.ncbi_taxonomy_cache_path, paths)}",
                 f"- Planned query rows: {len(ncbi_taxonomy_plan or [])}",
-                (
-                    "- Cached taxonomy rows: "
-                    f"{ncbi_taxonomy_cache_summary['total_rows']}"
-                ),
-                (
-                    "- Query failed rows: "
-                    f"{ncbi_taxonomy_cache_summary['query_failed']}"
-                ),
-                f"- No-result rows: {ncbi_taxonomy_cache_summary['no_result']}",
-                (
-                    "These files are offline planning/cache scaffolds only; "
-                    "report generation does not query NCBI Taxonomy or change "
-                    "selection and evidence rules."
-                ),
             ]
         )
+        if ncbi_taxonomy_lookup_executed:
+            lines.extend(
+                [
+                    (
+                        "- Cached taxonomy rows: "
+                        f"{ncbi_taxonomy_cache_summary['total_rows']}"
+                    ),
+                    (
+                        "- Query failed rows: "
+                        f"{ncbi_taxonomy_cache_summary['query_failed']}"
+                    ),
+                    f"- No-result rows: {ncbi_taxonomy_cache_summary['no_result']}",
+                    (
+                        "These counts summarize the recorded NCBI Taxonomy "
+                        "lookup/cache rows for this run; report generation does "
+                        "not change selection or evidence rules."
+                    ),
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "- Lookup status: NCBI Taxonomy lookup was not executed in this run.",
+                    (
+                        "- Cache file rows: "
+                        f"{ncbi_taxonomy_cache_summary['total_rows']} "
+                        "(planning/cache scaffold only; this is not a live "
+                        "lookup failure or missing-data count)."
+                    ),
+                    (
+                        "These files are planning/cache scaffolds only unless a "
+                        "run explicitly records live NCBI Taxonomy lookup "
+                        "execution; report generation does not query NCBI "
+                        "Taxonomy or change selection and evidence rules."
+                    ),
+                ]
+            )
 
     if source_audit_error:
         lines.extend(
@@ -1916,6 +1941,25 @@ def _config_value(args: object | None, name: str) -> str:
     if value is None or value == "":
         return "not provided"
     return str(value)
+
+
+def _ncbi_taxonomy_lookup_executed(paths: OutputPaths, args: object | None) -> bool:
+    if (
+        getattr(args, "ncbi_taxonomy_lookup_status", None)
+        == NCBI_TAXONOMY_LOOKUP_EXECUTED
+    ):
+        return True
+    if not paths.run_state_path.exists():
+        return False
+    try:
+        state = read_run_state(paths.run_state_path)
+    except (ValueError, OSError):
+        return False
+    stage = state.stages.get("ncbi_taxonomy_enrichment")
+    if stage is None:
+        return False
+    summary = stage.summary.lower()
+    return "executed ncbi taxonomy" in summary or "lookup executed" in summary
 
 
 def _selection_acceptance_value(args: object | None) -> str:

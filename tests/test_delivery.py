@@ -6,6 +6,10 @@ from typetreeflow.cli import main
 from typetreeflow.delivery import package_results
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    write_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 
@@ -29,6 +33,7 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     result = package_results(tmp_path, include="reports")
 
     assert (result.delivery_dir / "README.md").exists()
+    assert (result.delivery_dir / "handoff_index.md").exists()
     assert (result.delivery_dir / "manifest.tsv").exists()
     assert (result.delivery_dir / "selected_accessions.tsv").exists()
     assert (result.delivery_dir / "evidence_summary.tsv").exists()
@@ -38,6 +43,72 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     assert "Strict type-strain confirmed: 1" in readme
     assert "Download succeeded: 1" in readme
     assert "Credentials are not included." in readme
+
+
+def test_package_results_handoff_index_includes_status_files_and_next_step(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    paths.run_summary_path.parent.mkdir(parents=True)
+    paths.run_summary_path.write_text("# Summary\n", encoding="utf-8")
+    paths.run_review_path.write_text("# Review\n", encoding="utf-8")
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="succeeded",
+            outdir=str(tmp_path),
+            next_action="Package results for handoff.",
+        ),
+    )
+
+    result = package_results(tmp_path, include="reports")
+
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Overall status: succeeded" in index
+    assert "Included Files" in index
+    assert "manifest.tsv" in index
+    assert "reports/summary.md" in index
+    assert "reports/run_review.md" in index
+    assert "Recommended Next Step" in index
+    assert "Package results for handoff." in index
+
+
+def test_package_results_handoff_index_includes_fallback_warning_and_caveat(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    write_sequence_source_audits(
+        [
+            SequenceSourceAudit(
+                species="Fusobacterium example",
+                rrna_source="barrnap",
+                audit_status="same_genome_internal_16s",
+            ),
+            SequenceSourceAudit(
+                species="Fusobacterium fallback",
+                rrna_source="entrez",
+                audit_status="strain_text_match",
+            ),
+        ],
+        paths.sequence_source_audit_path,
+    )
+
+    result = package_results(tmp_path, include="reports")
+
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Same-genome barrnap count: 1" in index
+    assert "Total 16S including Entrez fallback: 2" in index
+    assert "Fallback warning summary: 1 weak/strain-text-only evidence; 1 strict blocking" in index
+    assert "Source Audit Warning Summary" in index
+    assert "1 weak/strain-text-only evidence" in index
+    assert (
+        "Entrez fallback can improve practical 16S availability but is not "
+        "equivalent to same-genome strict evidence."
+        in index
+    )
+    assert (
+        "Representative-only rows are exploratory and are not strict type-strain "
+        "completion."
+        in index
+    )
 
 
 def test_package_results_reads_large_download_result_fields(tmp_path):
@@ -204,6 +275,7 @@ def test_package_results_failed_handoff_succeeds_without_manifest(tmp_path):
     )
 
     assert (result.delivery_dir / "README_failure.md").exists()
+    assert (result.delivery_dir / "handoff_index.md").exists()
     assert (result.delivery_dir / "run_state.json").exists()
     assert (result.delivery_dir / "selection" / "user_selection.tsv").exists()
     assert (result.delivery_dir / "selection" / "strain_candidates.tsv").exists()
@@ -288,6 +360,24 @@ def test_package_results_failed_handoff_readme_contains_error_and_next_step(tmp_
     assert "selection/user_selection.tsv" in readme
     assert "Suggested Next-Step Command" in readme
     assert "python typetreeflow.py next-step --outdir" in readme
+
+
+def test_package_results_failed_handoff_index_is_not_success_completion(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    paths.run_summary_path.parent.mkdir(parents=True)
+    paths.run_summary_path.write_text("# Partial Summary\n", encoding="utf-8")
+
+    result = package_results(tmp_path, include="reports", failed_handoff=True)
+
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "failed-run handoff package" in index
+    assert "not a successful completion package" in index
+    assert "Overall status: failed" in index
+    assert "report/summary.md" in index
+    assert "Recommended Next Step" in index
+    assert "Fix the selection and rerun guarded download." in index
+    assert "Package type: successful completion handoff" not in index
 
 
 def test_package_results_does_not_copy_zip_or_env_files(tmp_path):

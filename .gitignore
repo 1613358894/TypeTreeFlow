@@ -26,6 +26,7 @@ logs/
 /phase*/
 
 .venv/
+.venv_*/
 env/
 .env
 *.env

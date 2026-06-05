@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.2.10 - 2026-06-06
+
+v2.2.10 is a small UX/reporting polish release based on v2.2.9
+real-world validation.
+
+### Changed
+
+- `next-step` avoids repeated Entrez fallback suggestions after fallback
+  completion.
+- Plan-only `next-step` now prioritizes selection review and guarded downloads.
+- Taxonomy enrichment summaries clarify offline scaffold and cache-only runs.
+- `package-results` now writes `handoff_index.md`.
+
+### Notes
+
+- No changes to download strategy, selection safety, or evidence thresholds.
+
 ## v2.2.9 - 2026-06-05
 
 v2.2.9 improves handoff robustness and safe rerun behavior.

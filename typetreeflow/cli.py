@@ -23,12 +23,14 @@ from typetreeflow.delivery import package_results
 from typetreeflow.diagnostics import (
     build_doctor_report,
     doctor_exit_code,
+    entrez_fallback_completion_next_action,
     format_doctor_report,
     format_next_step,
     format_status_summary,
     handoff_next_action,
     inspect_workflow_status,
     next_step_summary,
+    plan_only_guarded_download_next_action,
     zero_accepted_checklist_next_action,
 )
 from typetreeflow.exceptions import ManifestError
@@ -176,6 +178,8 @@ from typetreeflow.taxonomy.ncbi_taxonomy import (
     BiopythonNcbiTaxonomyClient,
     NcbiTaxonomyClient,
     execute_ncbi_taxonomy_lookup,
+    read_ncbi_taxonomy_cache,
+    read_ncbi_taxonomy_plan,
     write_ncbi_taxonomy_outputs_from_checklist,
 )
 from typetreeflow.taxonomy.output import write_checklist_comparison
@@ -216,6 +220,15 @@ class PipelineResult:
 
 class CrossGenusOutdirError(ValueError):
     """Raised before mutating an outdir retained for a different genus."""
+
+
+class _SummaryArgsWithNcbiTaxonomyStatus:
+    def __init__(self, args: AppConfig, ncbi_taxonomy_lookup_status: str) -> None:
+        self._args = args
+        self.ncbi_taxonomy_lookup_status = ncbi_taxonomy_lookup_status
+
+    def __getattr__(self, name: str):
+        return getattr(self._args, name)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1805,21 +1818,31 @@ def _write_run_summary(
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
 ) -> None:
     taxonomy_error: Exception | None = None
+    ncbi_taxonomy_lookup_status = ""
     if config.verify_genus:
         try:
-            _write_ncbi_taxonomy_outputs(
+            ncbi_taxonomy_lookup_status = _write_ncbi_taxonomy_outputs(
                 paths,
                 config,
                 ncbi_taxonomy_client=ncbi_taxonomy_client,
             )
         except (ValueError, RuntimeError) as error:
             taxonomy_error = error
+            ncbi_taxonomy_lookup_status = _ncbi_taxonomy_error_lookup_status(
+                paths,
+                config,
+            )
         _write_completion_gap_reports(paths)
         _write_expanded_discovery_results_if_enabled(paths, config)
-    markdown = build_run_summary_markdown(records, paths, config)
+    summary_args = (
+        _SummaryArgsWithNcbiTaxonomyStatus(config, ncbi_taxonomy_lookup_status)
+        if ncbi_taxonomy_lookup_status
+        else config
+    )
+    markdown = build_run_summary_markdown(records, paths, summary_args)
     summary_path = write_run_summary(markdown, paths.run_summary_path)
     LOGGER.info("Wrote run summary: %s.", summary_path)
-    review_markdown = build_run_review_markdown(records, paths, config)
+    review_markdown = build_run_review_markdown(records, paths, summary_args)
     review_path = write_run_summary(review_markdown, paths.run_review_path)
     LOGGER.info("Wrote run review: %s.", review_path)
     if taxonomy_error is not None:
@@ -1830,7 +1853,7 @@ def _write_ncbi_taxonomy_outputs(
     paths,
     config: AppConfig,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
-) -> None:
+) -> str:
     checklist_path = config.species_checklist
     if checklist_path is None:
         default_checklist_path = config.outdir / "species_checklist.tsv"
@@ -1848,6 +1871,11 @@ def _write_ncbi_taxonomy_outputs(
                     "Real NCBI Taxonomy lookup requires --email with "
                     "--enable-ncbi-taxonomy."
                 )
+            lookup_status = (
+                "executed"
+                if _ncbi_taxonomy_has_missing_plan_species(plan_path, cache_path)
+                else "cache_only"
+            )
             client = ncbi_taxonomy_client or BiopythonNcbiTaxonomyClient(
                 email=config.email or "",
                 api_key=config.api_key,
@@ -1858,16 +1886,39 @@ def _write_ncbi_taxonomy_outputs(
                 cache_path,
                 len(cache_rows),
             )
+            return lookup_status
         else:
             LOGGER.info(
                 "Wrote NCBI taxonomy enrichment plan/cache: %s, %s.",
                 plan_path,
                 cache_path,
             )
+            return "scaffold_only"
     except (ValueError, RuntimeError):
         raise
     except Exception as error:  # pragma: no cover - best-effort reporting only
         LOGGER.warning("Could not write NCBI taxonomy enrichment outputs: %s", error)
+        return "unknown"
+
+
+def _ncbi_taxonomy_has_missing_plan_species(plan_path: Path, cache_path: Path) -> bool:
+    plan_rows = read_ncbi_taxonomy_plan(plan_path)
+    cache_rows = read_ncbi_taxonomy_cache(cache_path)
+    cached_species = {row.species.strip() for row in cache_rows if row.species.strip()}
+    return any(
+        row.species.strip() and row.species.strip() not in cached_species
+        for row in plan_rows
+    )
+
+
+def _ncbi_taxonomy_error_lookup_status(paths, config: AppConfig) -> str:
+    if not config.enable_ncbi_taxonomy:
+        return "scaffold_only"
+    try:
+        cache_rows = read_ncbi_taxonomy_cache(paths.ncbi_taxonomy_cache_path)
+    except (ValueError, OSError):
+        return "not_executed"
+    return "executed" if cache_rows else "not_executed"
 
 
 def _write_completion_gap_reports(paths) -> None:
@@ -2073,7 +2124,7 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         paths,
         [paths.ncbi_taxonomy_plan_path, paths.ncbi_taxonomy_cache_path],
         "succeeded",
-        _row_count_summary(paths.ncbi_taxonomy_plan_path, "planned taxonomy query rows"),
+        _ncbi_taxonomy_stage_summary(paths, config),
     )
     _add_file_stage(
         stages,
@@ -2297,15 +2348,26 @@ def _next_action_for_success(
     checklist_next_action = zero_accepted_checklist_next_action(paths)
     if checklist_next_action:
         return checklist_next_action
+    download = stages.get("download")
+    if download is not None and download.status == "blocked_by_manual_review":
+        guarded_download_action = plan_only_guarded_download_next_action(paths)
+        if guarded_download_action:
+            return guarded_download_action
     handoff_action = handoff_next_action(paths, include_uncovered=False)
     if handoff_action:
         return handoff_action
-    if _rrna_gaps_remain(paths):
+    fallback_completion_action = entrez_fallback_completion_next_action(paths)
+    if fallback_completion_action:
+        return fallback_completion_action
+    if _rrna_gaps_remain(paths) and _manifest_has_rrna_16s_not_found_status(paths):
         return _resume_command(config, paths, "entrez")
     rrna = stages.get("rrna_barrnap")
-    if rrna is not None and _rrna_summary_has_16s_gaps(rrna.summary):
+    if (
+        rrna is not None
+        and _rrna_summary_has_16s_gaps(rrna.summary)
+        and _manifest_has_rrna_16s_not_found_status(paths)
+    ):
         return _resume_command(config, paths, "entrez")
-    download = stages.get("download")
     if download is not None and download.status == "blocked_by_manual_review":
         if rrna is not None and rrna.status == "blocked_by_manual_review":
             return (
@@ -2335,6 +2397,15 @@ def _rrna_summary_has_16s_gaps(summary: str) -> bool:
 
 def _rrna_gaps_remain(paths) -> bool:
     return bool(_read_tsv_rows(paths.rrna_16s_gaps_path))
+
+
+def _manifest_has_rrna_16s_not_found_status(paths) -> bool:
+    if not paths.manifest.exists():
+        return False
+    for row in _read_tsv_rows(paths.manifest):
+        if row.get("status", "").strip() == "rrna_16s_not_found":
+            return True
+    return False
 
 
 def _manifest_has_genome_ready_records(paths) -> bool:
@@ -2412,6 +2483,30 @@ def _completion_outputs_summary(paths) -> str:
         _row_count_summary(paths.completion_gaps_path, "completion gap rows"),
     ]
     return "; ".join(part for part in parts if part)
+
+
+def _ncbi_taxonomy_stage_summary(paths, config: AppConfig) -> str:
+    planned = _row_count_summary(
+        paths.ncbi_taxonomy_plan_path,
+        "planned taxonomy query rows",
+    )
+    if (
+        not paths.ncbi_taxonomy_plan_path.exists()
+        or not paths.ncbi_taxonomy_cache_path.exists()
+    ):
+        return planned
+    if not config.enable_ncbi_taxonomy:
+        return f"{planned}; lookup not executed; planning/cache scaffold only"
+    try:
+        missing_plan_species = _ncbi_taxonomy_has_missing_plan_species(
+            paths.ncbi_taxonomy_plan_path,
+            paths.ncbi_taxonomy_cache_path,
+        )
+    except (ValueError, OSError):
+        return f"{planned}; lookup status unknown"
+    if not missing_plan_species:
+        return f"{planned}; lookup not executed; cache reused"
+    return f"{planned}; executed NCBI Taxonomy lookup"
 
 
 def _row_count_summary(path: Path, label: str) -> str:

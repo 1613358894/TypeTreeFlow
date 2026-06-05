@@ -11,6 +11,7 @@ from typing import Any
 
 from typetreeflow import __version__
 from typetreeflow.manifest import read_manifest
+from typetreeflow.taxonomy.source_audit import read_sequence_source_audits
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import WORKFLOW_STAGES, WorkflowState, read_run_state
 
@@ -84,6 +85,12 @@ BIOSAMPLE_TRANSIENT_FAILURE_NEXT_ACTION = (
     "caches when available. This is not a download failure."
 )
 
+ENTREZ_FALLBACK_REVIEW_STATUSES = {
+    "mismatch",
+    "manual_review_required",
+    "strain_text_match",
+}
+
 
 def build_doctor_report(
     *,
@@ -137,12 +144,29 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
     paths = get_output_paths(root)
     if paths.run_state_path.exists():
         summary = _summary_from_run_state(read_run_state(paths.run_state_path))
+        next_action = refine_entrez_fallback_next_action(paths, summary.next_action)
         checklist_next_action = zero_accepted_checklist_next_action(paths)
         if checklist_next_action:
             return WorkflowStatusSummary(
                 overall=summary.overall,
                 stages=summary.stages,
                 next_action=checklist_next_action,
+                source=summary.source,
+            )
+        if _stage_status(summary.stages, "download") == "blocked_by_manual_review":
+            guarded_download_action = plan_only_guarded_download_next_action(paths)
+            if guarded_download_action:
+                return WorkflowStatusSummary(
+                    overall=summary.overall,
+                    stages=summary.stages,
+                    next_action=guarded_download_action,
+                    source=summary.source,
+                )
+        if next_action != summary.next_action:
+            return WorkflowStatusSummary(
+                overall=summary.overall,
+                stages=summary.stages,
+                next_action=next_action,
                 source=summary.source,
             )
         return summary
@@ -181,11 +205,22 @@ def next_step_summary(outdir: str | Path) -> NextStepSummary:
             state_next_action
         ):
             return NextStepSummary(next_action=error_next_action, source="run_state")
+        if _workflow_stage_status(state, "download") == "blocked_by_manual_review":
+            guarded_download_action = plan_only_guarded_download_next_action(paths)
+            if guarded_download_action:
+                return NextStepSummary(
+                    next_action=guarded_download_action,
+                    source="run_state",
+                )
         handoff_action = handoff_next_action(paths, include_uncovered=False)
         if handoff_action and _can_refine_run_state_next_action(state.next_action):
             return NextStepSummary(next_action=handoff_action, source="run_state+handoff")
+        refined_next_action = refine_entrez_fallback_next_action(
+            paths,
+            state_next_action,
+        )
         return NextStepSummary(
-            next_action=state_next_action,
+            next_action=refined_next_action,
             source="run_state",
         )
     summary = inspect_workflow_status(root)
@@ -205,6 +240,22 @@ def handoff_next_action(paths, *, include_uncovered: bool = True) -> str:
     if uncovered_handoff:
         return uncovered_handoff
     return ""
+
+
+def plan_only_guarded_download_next_action(paths) -> str:
+    checklist_count = _species_checklist_count(
+        paths.manifest.parent / "species_checklist.tsv"
+    )
+    selected_count = _selected_count(paths.user_selection_path)
+    if not checklist_count or not selected_count:
+        return ""
+    primary = (
+        "Review selection/user_selection.tsv before guarded downloads; if the "
+        "selection is acceptable, rerun with --auto-accept-selection "
+        "--enable-downloads."
+    )
+    secondary = _secondary_plan_only_handoff(paths)
+    return f"{primary} {secondary}" if secondary else primary
 
 
 def format_status_summary(
@@ -453,6 +504,9 @@ def _infer_next_action(
         and (paths.run_summary_path.exists() or paths.run_review_path.exists())
     ):
         return "package-results"
+    stale_fallback_replacement = entrez_fallback_completion_next_action(paths)
+    if stale_fallback_replacement:
+        return stale_fallback_replacement
     if _rrna_gap_count(paths):
         return (
             "typetreeflow verify-genus <GENUS> --outdir "
@@ -476,6 +530,75 @@ def _rrna_gap_count(paths) -> int:
     if not paths.rrna_16s_gaps_path.exists():
         return 0
     return len(_read_tsv(paths.rrna_16s_gaps_path))
+
+
+def refine_entrez_fallback_next_action(paths, next_action: str) -> str:
+    if "--enable-entrez" not in next_action:
+        return next_action
+    replacement = entrez_fallback_completion_next_action(paths)
+    return replacement or next_action
+
+
+def entrez_fallback_completion_next_action(paths) -> str:
+    if not paths.manifest.exists():
+        return ""
+    if _manifest_has_rrna_16s_not_found(paths):
+        return ""
+    warning_count = _entrez_fallback_warning_count(paths)
+    if warning_count:
+        audit_path = _relative_output_path(paths.sequence_source_audit_path, paths)
+        return (
+            f"Review {audit_path} for {warning_count} Entrez fallback "
+            "weak/mismatch warning(s) before continuing."
+        )
+    if _manifest_has_all_16s_ready(paths) or not _manifest_has_rrna_16s_not_found(paths):
+        if paths.run_summary_path.exists() or paths.run_review_path.exists():
+            return "package-results"
+        return "Review report/summary.md and downstream 16S outputs."
+    return ""
+
+
+def _manifest_has_rrna_16s_not_found(paths) -> bool:
+    try:
+        records = read_manifest(paths.manifest)
+    except Exception:
+        return False
+    return any(record.status == "rrna_16s_not_found" for record in records)
+
+
+def _manifest_has_all_16s_ready(paths) -> bool:
+    try:
+        records = read_manifest(paths.manifest)
+    except Exception:
+        return False
+    return bool(records) and all(
+        record.has_16s
+        or bool(record.rrna_16s_path)
+        or record.status in {"rrna_16s_ready", "rrna_16s_skipped_existing"}
+        for record in records
+    )
+
+
+def _entrez_fallback_warning_count(paths) -> int:
+    if not paths.sequence_source_audit_path.exists():
+        return 0
+    try:
+        audits = read_sequence_source_audits(paths.sequence_source_audit_path)
+    except Exception:
+        return 0
+    return sum(
+        1
+        for audit in audits
+        if audit.rrna_source.strip().lower() == "entrez"
+        and audit.audit_status in ENTREZ_FALLBACK_REVIEW_STATUSES
+    )
+
+
+def _relative_output_path(path: Path, paths) -> str:
+    try:
+        return path.relative_to(paths.manifest.parent).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def zero_accepted_checklist_next_action(paths) -> str:
@@ -512,6 +635,21 @@ def _manual_supplement_handoff_next_action(paths) -> str:
         f"{action_text}{reason_text}{handoff_text}. "
         "Any accession or external FASTA supplement still requires curator review."
     )
+
+
+def _secondary_plan_only_handoff(paths) -> str:
+    handoffs = [
+        action
+        for action in (
+            _manual_supplement_handoff_next_action(paths),
+            _uncovered_species_next_action(paths),
+            _rejected_species_mismatch_next_action(paths),
+        )
+        if action
+    ]
+    if not handoffs:
+        return ""
+    return "Secondary/optional handoff: " + " ".join(handoffs)
 
 
 def _rejected_species_mismatch_next_action(paths) -> str:
@@ -599,6 +737,16 @@ def _is_rejected_species_mismatch_row(row: dict[str, str]) -> bool:
         "rejected_species_mismatch" in haystack
         or "species_identity_mismatch" in haystack
     )
+
+
+def _stage_status(stages: dict[str, dict[str, Any]], stage_name: str) -> str:
+    stage = stages.get(stage_name)
+    return str(stage.get("status", "")) if stage else ""
+
+
+def _workflow_stage_status(state: WorkflowState, stage_name: str) -> str:
+    stage = state.stages.get(stage_name)
+    return stage.status if stage else ""
 
 
 def _can_refine_run_state_next_action(next_action: str) -> bool:

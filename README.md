@@ -13,11 +13,12 @@ opt-in flags.
 The long-term goal is to collect auditable type-strain genomes and 16S
 sequences, compare a query genome against references with ANI, build a 16S
 phylogeny, and report reproducible tables, figures, name maps, and summaries.
-The current 2.2.9 release is a small handoff/usability release on top of the
+The current 2.2.10 release is a small UX/reporting polish release on top of the
 LPSN-first acquisition workflow. It keeps strict evidence boundaries, stable
 I/O contracts, guarded execution, and fake-runner tested wrappers, while making
 handoff robustness, safe rerun behavior, failed-run packaging, report
-navigation, release notes, and install verification easier to follow.
+navigation, next-step guidance, taxonomy summaries, package handoffs, release
+notes, and install verification easier to follow.
 
 GTDB support is retained for legacy/local metadata workflows and as a discovery
 or evidence layer. It is not the authority for species boundaries in the current
@@ -96,7 +97,7 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
   high-level `doctor`, `verify-genus`, `status`, `next-step`,
   `package-results`, and `verify-release-genus` commands.
 - [docs/release_verification.md](docs/release_verification.md): current
-  release-verification behavior, v2.2.9 handoff/safe-rerun notes, reliability
+  release-verification behavior, v2.2.10 UX/reporting notes, reliability
   history, and gap-report interpretation.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
@@ -217,7 +218,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.9 workflow
+## Recommended v2.2.10 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample

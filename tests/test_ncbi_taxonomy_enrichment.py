@@ -28,6 +28,7 @@ from typetreeflow.taxonomy.candidate_discovery import (
     write_discovery_records,
 )
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 
 
 def test_species_checklist_builds_ncbi_taxonomy_plan_rows(tmp_path):
@@ -411,7 +412,61 @@ def test_report_summary_reads_taxonomy_plan_and_cache_paths(tmp_path):
     assert "- Plan: taxonomy/ncbi_taxonomy_plan.tsv" in markdown
     assert "- Cache: taxonomy/ncbi_taxonomy_cache.tsv" in markdown
     assert "- Planned query rows: 0" in markdown
-    assert "does not query NCBI Taxonomy" in markdown
+    assert "NCBI Taxonomy lookup was not executed in this run" in markdown
+    assert "planning/cache scaffold only" in markdown
+    assert "Cached taxonomy rows: 0" not in markdown
+
+
+def test_report_summary_uses_run_state_for_live_taxonomy_lookup_stats(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_ncbi_taxonomy_plan(
+        build_ncbi_taxonomy_plan(
+            [
+                SpeciesChecklistEntry(
+                    genus="Enterobacter",
+                    species="siamensis",
+                    full_name="Enterobacter siamensis",
+                    status="current",
+                    type_strain="KCTC 23282",
+                    source="fixture",
+                )
+            ]
+        ),
+        paths.ncbi_taxonomy_plan_path,
+    )
+    write_ncbi_taxonomy_cache(
+        [
+            NcbiTaxonomyCacheRow(
+                species="Enterobacter siamensis",
+                taxid="1812935",
+                scientific_name="Enterobacter siamensis",
+                rank="species",
+                source="fake_ncbi_taxonomy",
+            )
+        ],
+        paths.ncbi_taxonomy_cache_path,
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="succeeded",
+            outdir=str(tmp_path),
+            stages={
+                "ncbi_taxonomy_enrichment": StageState(
+                    status="succeeded",
+                    summary="1 planned taxonomy query rows; executed NCBI Taxonomy lookup",
+                )
+            },
+        ),
+    )
+
+    markdown = build_run_summary_markdown([_record()], paths)
+
+    assert "- Planned query rows: 1" in markdown
+    assert "- Cached taxonomy rows: 1" in markdown
+    assert "- Query failed rows: 0" in markdown
+    assert "- No-result rows: 0" in markdown
+    assert "lookup was not executed" not in markdown
 
 
 def test_verify_genus_writes_taxonomy_plan_without_network(tmp_path):
@@ -441,6 +496,8 @@ def test_verify_genus_writes_taxonomy_plan_without_network(tmp_path):
     assert plan_rows[0]["status"] == "planned"
     assert "taxonomy/ncbi_taxonomy_plan.tsv" in summary
     assert "Planned query rows: 1" in summary
+    assert "NCBI Taxonomy lookup was not executed in this run" in summary
+    assert "Cached taxonomy rows: 0" not in summary
 
 
 def test_verify_genus_enable_ncbi_taxonomy_with_fake_client_writes_cache(tmp_path):
@@ -473,9 +530,15 @@ def test_verify_genus_enable_ncbi_taxonomy_with_fake_client_writes_cache(tmp_pat
     )
 
     rows = read_ncbi_taxonomy_cache(get_output_paths(tmp_path).ncbi_taxonomy_cache_path)
+    summary = get_output_paths(tmp_path).run_summary_path.read_text(encoding="utf-8")
     assert result == 0
     assert taxonomy_client.calls == ["Enterobacter siamensis"]
     assert rows[0].taxid == "1812935"
+    assert "Planned query rows: 1" in summary
+    assert "Cached taxonomy rows: 1" in summary
+    assert "Query failed rows: 0" in summary
+    assert "No-result rows: 0" in summary
+    assert "lookup was not executed" not in summary
 
 
 def test_verify_genus_enable_ncbi_taxonomy_without_email_is_rejected(tmp_path, monkeypatch):
@@ -503,7 +566,9 @@ def test_verify_genus_enable_ncbi_taxonomy_without_email_is_rejected(tmp_path, m
 
     assert result == 2
     summary = get_output_paths(tmp_path).run_summary_path.read_text(encoding="utf-8")
-    assert "Cached taxonomy rows: 0" in summary
+    assert "NCBI Taxonomy lookup was not executed in this run" in summary
+    assert "planning/cache scaffold only" in summary
+    assert "Cached taxonomy rows: 0" not in summary
 
 
 def _record() -> StrainRecord:

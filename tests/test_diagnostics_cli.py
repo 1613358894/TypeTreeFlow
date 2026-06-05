@@ -7,6 +7,10 @@ import sys
 from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
+from typetreeflow.taxonomy.source_audit import (
+    SequenceSourceAudit,
+    write_sequence_source_audits,
+)
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 
@@ -19,6 +23,77 @@ def _write_zero_accepted_lpsn_outputs(outdir):
     (outdir / "excluded_lpsn_taxa.tsv").write_text(
         "species\texclusion_reason\n"
         "Planomicrobium example\ttaxonomic status is synonym\n",
+        encoding="utf-8",
+    )
+
+
+def _manifest_record(record_id: str = "rec-1") -> StrainRecord:
+    return StrainRecord(
+        record_id=record_id,
+        canonical_name="Spirosoma linguale",
+        display_name="Spirosoma linguale DSM 74",
+        genus="Spirosoma",
+        species="linguale",
+        strain="DSM 74",
+        assembly_accession="GCF_000001",
+        has_genome=True,
+        genome_path=f"genomes/references/{record_id}.fna",
+        normalized_id=record_id,
+        status="genome_ready",
+    )
+
+
+def _write_stale_entrez_run_state(paths):
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(paths.manifest.parent),
+            stages={
+                "rrna_barrnap": StageState(
+                    status="succeeded",
+                    summary="rrna_16s_not_found=1",
+                )
+            },
+            next_action=(
+                "typetreeflow verify-genus Spirosoma --outdir "
+                f"{paths.manifest.parent.as_posix()} --resume --enable-entrez "
+                "--email <EMAIL>"
+            ),
+        ),
+    )
+
+
+def _write_positive_species_checklist(outdir):
+    (outdir / "species_checklist.tsv").write_text(
+        "genus\tspecies\tstatus\ttype_strain\tsource\tnotes\n"
+        "Fusobacterium\tmortiferum\taccepted\tATCC 25557\tfixture\t\n",
+        encoding="utf-8",
+    )
+
+
+def _write_selected_user_selection(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "species\tassembly_accession\tselected\tpolicy_decision\t"
+        "blocking_reasons\tmanual_review_reason\tselection_reason\tnotes\n"
+        "Fusobacterium mortiferum\tGCF_000000001.1\ttrue\t"
+        "auto_selected_lpsn_type_strain_match\t\t\tlpsn_type_strain_match\t\n",
+        encoding="utf-8",
+    )
+
+
+def _write_manual_supplement_hints(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "species\tlpsn_type_strain\ttokens\tmatched_candidate_count\t"
+        "rejected_candidate_count\tno_result_count\tquery_failed_count\t"
+        "recommended_action\tsuggested_template\tnotes\treason\tsource\t"
+        "handoff_path\n"
+        "Fusobacterium varium\tDSM 19848\tDSM 19848\t0\t0\t1\t0\t"
+        "manual_search_required\t\t\tno_result\t"
+        "completion/expanded_discovery_results.tsv\t"
+        "manual_deposit_evidence_template.tsv; external_genomes.tsv\n",
         encoding="utf-8",
     )
 
@@ -182,6 +257,84 @@ def test_next_step_prefers_run_state_next_action(tmp_path, capsys):
     )
 
 
+def test_next_step_does_not_repeat_entrez_after_fallback_completes_16s(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    record = _manifest_record()
+    record.has_16s = True
+    record.rrna_16s_path = "rrna/sequences/rec-1.16s.fasta"
+    record.status = "rrna_16s_ready"
+    write_manifest([record], paths.manifest)
+    paths.run_summary_path.parent.mkdir(parents=True)
+    paths.run_summary_path.write_text("# Summary\n", encoding="utf-8")
+    paths.rrna_16s_gaps_path.parent.mkdir(parents=True)
+    paths.rrna_16s_gaps_path.write_text(
+        "record_id\tspecies\tstatus\nrec-1\tSpirosoma linguale\trrna_16s_not_found\n",
+        encoding="utf-8",
+    )
+    _write_stale_entrez_run_state(paths)
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert output == "package-results"
+    assert "--enable-entrez" not in output
+
+    assert main(["status", "--outdir", str(tmp_path)]) == 0
+
+    status_output = capsys.readouterr().out
+    assert "Next: package-results" in status_output
+    assert "--enable-entrez" not in status_output
+
+
+def test_next_step_keeps_entrez_when_rrna_16s_not_found_remains(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    record = _manifest_record()
+    record.has_16s = False
+    record.rrna_16s_path = ""
+    record.status = "rrna_16s_not_found"
+    write_manifest([record], paths.manifest)
+    _write_stale_entrez_run_state(paths)
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    assert "--resume --enable-entrez --email" in capsys.readouterr().out
+
+
+def test_next_step_reviews_source_audit_for_entrez_warning_after_fallback(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    record = _manifest_record()
+    record.has_16s = True
+    record.rrna_16s_path = "rrna/sequences/rec-1.16s.fasta"
+    record.status = "rrna_16s_ready"
+    write_manifest([record], paths.manifest)
+    write_sequence_source_audits(
+        [
+            SequenceSourceAudit(
+                species="Spirosoma linguale",
+                genome_accession="GCF_000001",
+                rrna_source="entrez",
+                rrna_accession="NR_000001",
+                audit_status="mismatch",
+            )
+        ],
+        paths.sequence_source_audit_path,
+    )
+    _write_stale_entrez_run_state(paths)
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert "Review source_audit/sequence_source_audit.tsv" in output
+    assert "Entrez fallback weak/mismatch warning" in output
+    assert "--enable-entrez" not in output
+
+
 def test_next_step_refines_duplicate_selected_accession_failed_run_state(
     tmp_path,
     capsys,
@@ -283,6 +436,91 @@ def test_next_step_keeps_unknown_failed_error_fallback(tmp_path, capsys):
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
     assert capsys.readouterr().out.strip() == "Fix the reported error and rerun."
+
+
+def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    _write_positive_species_checklist(tmp_path)
+    _write_selected_user_selection(paths.user_selection_path)
+    _write_manual_supplement_hints(paths.manual_supplement_hints_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(tmp_path),
+            stages={
+                "selection": StageState(status="succeeded", summary="1 selected"),
+                "download": StageState(
+                    status="blocked_by_manual_review",
+                    summary="Dry run requested; genome downloads were not executed.",
+                ),
+            },
+            next_action="Review completion/manual_supplement_hints.tsv.",
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert output.startswith(
+        "Review selection/user_selection.tsv before guarded downloads"
+    )
+    assert "--auto-accept-selection --enable-downloads" in output
+    assert "Secondary/optional handoff:" in output
+    assert "completion/manual_supplement_hints.tsv" in output
+    assert output.index("selection/user_selection.tsv") < output.index(
+        "completion/manual_supplement_hints.tsv"
+    )
+
+    assert main(["status", "--outdir", str(tmp_path)]) == 0
+
+    status_output = capsys.readouterr().out
+    assert "Download: blocked_by_manual_review" in status_output
+    assert (
+        "Next: Review selection/user_selection.tsv before guarded downloads"
+        in status_output
+    )
+
+
+def test_next_step_plan_only_rejected_mismatch_is_secondary_rejected_candidate(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    _write_positive_species_checklist(tmp_path)
+    paths.user_selection_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.user_selection_path.write_text(
+        "species\tassembly_accession\tselected\tpolicy_decision\t"
+        "blocking_reasons\tmanual_review_reason\tselection_reason\tnotes\n"
+        "Fusobacterium mortiferum\tGCF_000000001.1\ttrue\t"
+        "auto_selected_lpsn_type_strain_match\t\t\tlpsn_type_strain_match\t\n"
+        "Fusobacterium varium\tGCF_000000002.1\tfalse\t"
+        "rejected_species_mismatch\tspecies_identity_mismatch\t"
+        "species_identity_mismatch\trejected_species_mismatch\t\n",
+        encoding="utf-8",
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(tmp_path),
+            stages={"download": StageState(status="blocked_by_manual_review")},
+            next_action="Review selection/user_selection.tsv, then run guarded download.",
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert output.startswith(
+        "Review selection/user_selection.tsv before guarded downloads"
+    )
+    assert "rejected_species_mismatch/species_identity_mismatch" in output
+    assert "These are rejected candidates, not download failures" in output
+    assert "retry download" not in output
 
 
 def test_next_step_zero_checklist_with_excluded_rows_does_not_suggest_download(

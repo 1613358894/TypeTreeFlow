@@ -331,6 +331,11 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert result == 0
     assert state.status == "partial"
     assert state.stages["download"].status == "blocked_by_manual_review"
+    assert state.next_action.startswith(
+        "Review selection/user_selection.tsv before guarded downloads"
+    )
+    assert "--auto-accept-selection --enable-downloads" in state.next_action
+    assert "Secondary/optional handoff:" in state.next_action
     assert "completion/manual_supplement_hints.tsv" in state.next_action
     assert [row.species for row in selected_rows] == ["Clostridium baratii"]
     assert [row.assembly_accession for row in selected_rows] == ["GCF_000000111.1"]
@@ -358,13 +363,21 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     status_output = capsys.readouterr().out
     assert "Overall: partial" in status_output
     assert "Download: blocked_by_manual_review" in status_output
+    assert (
+        "Next: Review selection/user_selection.tsv before guarded downloads"
+        in status_output
+    )
     assert "completion/manual_supplement_hints.tsv" in status_output
 
     assert main(["next-step", "--outdir", str(outdir)]) == 0
     next_step = capsys.readouterr().out
+    assert next_step.startswith(
+        "Review selection/user_selection.tsv before guarded downloads"
+    )
+    assert "--auto-accept-selection --enable-downloads" in next_step
+    assert "Secondary/optional handoff:" in next_step
     assert "completion/manual_supplement_hints.tsv" in next_step
     assert "curator review" in next_step
-    assert "auto" not in next_step.lower()
 
     assert main(["package-results", "--outdir", str(outdir), "--include", "reports"]) == 0
     delivery = outdir / "delivery"

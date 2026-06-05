@@ -3,6 +3,22 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
+## v2.2.10 UX and Reporting Notes
+
+v2.2.10 keeps the v2.2.9 safe-rerun, failed-handoff, and install
+reproducibility boundaries and adds small UX/reporting polish from real-world
+validation. `next-step` no longer repeats Entrez fallback suggestions after
+fallback completion; plan-only `next-step` prioritizes selection review and
+guarded downloads; taxonomy enrichment summaries distinguish offline scaffold
+and cache-only runs; and `package-results` writes `handoff_index.md`.
+
+Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
+`--version`, README, release docs, citation metadata, and changelog all report
+`2.2.10`; run final pytest and smoke checks without live downloads.
+
+v2.2.10 does not change download strategy, selection safety, or evidence
+thresholds.
+
 ## v2.2.9 Handoff and Safe Rerun Notes
 
 v2.2.9 keeps the v2.2.8 failed-handoff and install reproducibility boundaries
@@ -13,10 +29,6 @@ likely transient NCBI BioSample backend/network failures point to retry or
 cache-based reruns; failed-handoff packages can include available early
 acquisition, cache, and diagnostic artifacts; and plan-only run reviews do not
 report skipped downloads as `0/N` genome coverage.
-
-Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
-`--version`, README, release docs, citation metadata, and changelog all report
-`2.2.9`; run final pytest and smoke checks without live downloads.
 
 Normal `package-results` still requires `manifest.tsv`. The extra early
 acquisition/cache/diagnostic artifacts are optional additions only for

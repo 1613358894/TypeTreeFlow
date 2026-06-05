@@ -1,6 +1,6 @@
 # v2.2.x Release Notes
 
-These notes consolidate the v2.2.2 through v2.2.9 integration review.
+These notes consolidate the v2.2.2 through v2.2.10 integration review.
 They describe user-visible release-verification behavior only; this document
 does not introduce new workflow features.
 
@@ -61,6 +61,11 @@ does not introduce new workflow features.
   steps, `package-results --failed-handoff` includes available early
   acquisition/cache/diagnostic artifacts, and plan-only run reviews no longer
   describe skipped downloads as `0/N` genome coverage.
+- v2.2.10 adds UX/reporting polish from v2.2.9 real-world validation:
+  `next-step` avoids repeated Entrez fallback suggestions after fallback
+  completion, plan-only `next-step` prioritizes selection review and guarded
+  downloads, taxonomy enrichment summaries clarify offline scaffold/cache-only
+  runs, and `package-results` writes `handoff_index.md`.
 
 ## Scientific Boundary
 
@@ -70,8 +75,9 @@ strict, likely type-material, or representative-only evidence boundaries.
 v2.2.5 is published, but complex large-genera representative selection had a
 species-identity limitation that v2.2.6 fixes before auto-selection.
 
-v2.2.9 does not add full Clostridium completion, expanded discovery
+v2.2.10 does not add full Clostridium completion, expanded discovery
 auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
+It does not change download strategy, selection safety, or evidence thresholds.
 
 Expanded discovery and taxonomy-derived rows are audit-only. They do not
 automatically edit `manifest.tsv`, `selection/user_selection.tsv`, completion

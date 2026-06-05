@@ -3,14 +3,21 @@ from __future__ import annotations
 import csv
 import shutil
 import sys
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
 from typetreeflow import __version__
+from typetreeflow.diagnostics import next_step_summary
 from typetreeflow.manifest import read_manifest, resolve_manifest_path
 from typetreeflow.models import StrainRecord
-from typetreeflow.report.summary import summarize_type_confirmation_counts
+from typetreeflow.report.summary import (
+    read_optional_sequence_source_audit,
+    summarize_16s_coverage,
+    summarize_sequence_source_audit,
+    summarize_type_confirmation_counts,
+)
 from typetreeflow.selection.evidence import (
     LIKELY_TYPE_MATERIAL_COUNT,
     REPRESENTATIVE_ONLY_COUNT,
@@ -135,6 +142,24 @@ def package_results(
     )
     copied.append(readme_path)
 
+    handoff_index_path = output_dir / "handoff_index.md"
+    handoff_index_path.write_text(
+        build_handoff_index(
+            records,
+            paths,
+            delivery_dir=output_dir,
+            copied_files=copied,
+            include=requested,
+            missing_optional_files=missing,
+            genome_count=genome_count,
+            rrna_sequence_count=rrna_sequence_count,
+            all_16s_included=all_16s_included,
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    copied.append(handoff_index_path)
+
     return DeliveryResult(
         delivery_dir=output_dir,
         copied_files=copied,
@@ -240,6 +265,20 @@ def package_failed_handoff(
         newline="\n",
     )
     copied.append(readme_path)
+
+    handoff_index_path = output_dir / "handoff_index.md"
+    handoff_index_path.write_text(
+        build_failed_handoff_index(
+            paths,
+            delivery_dir=output_dir,
+            copied_files=copied,
+            missing_expected_files=missing,
+            state=state,
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    copied.append(handoff_index_path)
 
     return DeliveryResult(
         delivery_dir=output_dir,
@@ -356,6 +395,191 @@ def build_delivery_readme(
             ),
         ]
     )
+    return "\n".join(lines) + "\n"
+
+
+def build_handoff_index(
+    records: Iterable[StrainRecord],
+    paths: OutputPaths,
+    *,
+    delivery_dir: Path,
+    copied_files: list[Path],
+    include: set[str],
+    missing_optional_files: list[str],
+    genome_count: int,
+    rrna_sequence_count: int,
+    all_16s_included: bool,
+) -> str:
+    record_list = list(records)
+    type_counts = summarize_type_confirmation_counts(record_list)
+    download_counts = _read_download_counts(paths.ncbi_download_results_path)
+    source_audit = _read_source_audit_for_handoff(paths)
+    rrna_coverage = summarize_16s_coverage(record_list, source_audit)
+    source_audit_summary = (
+        summarize_sequence_source_audit(source_audit) if source_audit is not None else None
+    )
+    run_state = _read_run_state_if_available(paths)
+    generated_time = _utc_timestamp()
+    status = run_state.status if run_state is not None else "packageable"
+    next_action = _recommended_next_step(paths)
+
+    copied_names = _relative_copied_names(delivery_dir, copied_files)
+    report_status = _reports_status(paths, include)
+    source_audit_warning = _source_audit_warning_summary(source_audit_summary)
+    fallback_warning = _fallback_warning_summary(rrna_coverage)
+
+    lines = [
+        "# TypeTreeFlow Handoff Index",
+        "",
+        "## Package",
+        "",
+        f"- Source outdir: {_source_outdir_command_arg(paths)}",
+        f"- Package generated time: {generated_time}",
+        f"- Overall status: {status}",
+        "- Package type: successful completion handoff",
+        "",
+        "## Status Checklist",
+        "",
+        f"- Checklist: {_file_status(paths.manifest.parent / 'species_checklist.tsv')}",
+        f"- Selection: {_file_status(paths.user_selection_path)}",
+        (
+            "- Download: "
+            f"{download_counts.get('succeeded', 0)} succeeded, "
+            f"{download_counts.get('failed', 0)} failed"
+        ),
+        (
+            "- 16S: "
+            f"{rrna_sequence_count} sequence file(s) copied; all_16S.fasta included: "
+            f"{'true' if all_16s_included else 'false'}"
+        ),
+        f"- Report: {report_status}",
+        "",
+        "## Selection And Evidence",
+        "",
+        f"- Strict type-strain confirmed: {type_counts[STRICT_CONFIRMED_COUNT]}",
+        f"- Likely type-material candidate: {type_counts[LIKELY_TYPE_MATERIAL_COUNT]}",
+        f"- Representative only: {type_counts[REPRESENTATIVE_ONLY_COUNT]}",
+        "",
+        "## Included Files",
+        "",
+    ]
+    if copied_names:
+        lines.extend(f"- {item}" for item in copied_names)
+    else:
+        lines.append("- none")
+
+    lines.extend(
+        [
+            "",
+            "## 16S Evidence Summary",
+            "",
+            (
+                "- Same-genome barrnap count: "
+                f"{rrna_coverage['same_genome_barrnap_16s_count']}"
+            ),
+            (
+                "- Total 16S including Entrez fallback: "
+                f"{rrna_coverage['total_usable_16s_count']}"
+            ),
+            f"- Fallback warning summary: {fallback_warning}",
+            "",
+            "## Source Audit Warning Summary",
+            "",
+            f"- {source_audit_warning}",
+            "",
+            "## Recommended Next Step",
+            "",
+            f"- {next_action}",
+            "",
+            "## Evidence Caveat",
+            "",
+            (
+                "- Entrez fallback can improve practical 16S availability but is "
+                "not equivalent to same-genome strict evidence."
+            ),
+            (
+                "- Representative-only rows are exploratory and are not strict "
+                "type-strain completion."
+            ),
+        ]
+    )
+    if missing_optional_files:
+        lines.extend(["", "## Missing Optional Files", ""])
+        lines.extend(f"- {item}" for item in missing_optional_files)
+    return "\n".join(lines) + "\n"
+
+
+def build_failed_handoff_index(
+    paths: OutputPaths,
+    *,
+    delivery_dir: Path,
+    copied_files: list[Path],
+    missing_expected_files: list[str],
+    state: WorkflowState | None,
+) -> str:
+    generated_time = _utc_timestamp()
+    workflow_status = state.status if state is not None else "unknown"
+    next_action = (
+        state.next_action
+        if state is not None and state.next_action
+        else "review copied diagnostics and rerun typetreeflow next-step"
+    )
+    copied_names = _relative_copied_names(delivery_dir, copied_files)
+    stage_text = "not recorded"
+    if state is not None:
+        label, stage_name, stage_state = _failed_or_blocked_stage(state)
+        if stage_name is not None and stage_state is not None:
+            stage_text = f"{label}: {stage_name} ({stage_state.status})"
+            if stage_state.summary:
+                stage_text = f"{stage_text}: {stage_state.summary}"
+
+    lines = [
+        "# TypeTreeFlow Handoff Index",
+        "",
+        "## Package",
+        "",
+        "- This is a failed-run handoff package, not a successful completion package.",
+        f"- Source outdir: {_source_outdir_command_arg(paths)}",
+        f"- Package generated time: {generated_time}",
+        f"- Overall status: {workflow_status}",
+        "",
+        "## Status Checklist",
+        "",
+        f"- Checklist: {_file_status(paths.manifest.parent / 'species_checklist.tsv')}",
+        f"- Selection: {_file_status(paths.user_selection_path)}",
+        f"- Download: {stage_text}",
+        f"- 16S: {_file_status(paths.sequence_source_audit_path)}",
+        f"- Report: {_failed_report_status(paths)}",
+        "",
+        "## Included Files",
+        "",
+    ]
+    if copied_names:
+        lines.extend(f"- {item}" for item in copied_names)
+    else:
+        lines.append("- none")
+    lines.extend(
+        [
+            "",
+            "## Recommended Next Step",
+            "",
+            f"- {next_action}",
+            "",
+            "## Evidence Caveat",
+            "",
+            (
+                "- Entrez fallback can improve practical 16S availability but is "
+                "not equivalent to same-genome strict evidence."
+            ),
+            (
+                "- Representative-only rows are exploratory and are not strict "
+                "type-strain completion."
+            ),
+        ]
+    )
+    if missing_expected_files:
+        lines.extend(["", "## Missing Expected Files", ""])
+        lines.extend(f"- {item}" for item in missing_expected_files)
     return "\n".join(lines) + "\n"
 
 
@@ -619,3 +843,105 @@ def _run_state_error_message(
     if stage_state is not None and stage_state.summary:
         return stage_state.summary
     return ""
+
+
+def _read_run_state_if_available(paths: OutputPaths) -> WorkflowState | None:
+    if not paths.run_state_path.exists():
+        return None
+    try:
+        return read_run_state(paths.run_state_path)
+    except (OSError, ValueError):
+        return None
+
+
+def _read_source_audit_for_handoff(paths: OutputPaths) -> list[dict[str, str]] | None:
+    try:
+        return read_optional_sequence_source_audit(paths.sequence_source_audit_path)
+    except ValueError:
+        return None
+
+
+def _recommended_next_step(paths: OutputPaths) -> str:
+    try:
+        return next_step_summary(paths.manifest.parent).next_action
+    except ValueError:
+        return "Review manifest.tsv, report/summary.md, and handoff_index.md."
+
+
+def _utc_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
+        "+00:00",
+        "Z",
+    )
+
+
+def _relative_copied_names(delivery_dir: Path, copied_files: list[Path]) -> list[str]:
+    names = []
+    for path in copied_files:
+        try:
+            names.append(path.relative_to(delivery_dir).as_posix())
+        except ValueError:
+            names.append(path.as_posix())
+    return sorted(names)
+
+
+def _file_status(path: Path) -> str:
+    return "available" if path.exists() else "not available"
+
+
+def _reports_status(paths: OutputPaths, include: set[str]) -> str:
+    if "reports" not in include:
+        return "not requested"
+    available = []
+    if paths.run_summary_path.exists():
+        available.append("summary.md")
+    if paths.run_review_path.exists():
+        available.append("run_review.md")
+    return ", ".join(available) if available else "requested but not available"
+
+
+def _failed_report_status(paths: OutputPaths) -> str:
+    available = []
+    if paths.run_summary_path.exists():
+        available.append("summary.md")
+    if paths.run_review_path.exists():
+        available.append("run_review.md")
+    return ", ".join(available) if available else "not available"
+
+
+def _fallback_warning_summary(rrna_coverage: dict[str, int]) -> str:
+    warnings = []
+    mismatch_count = rrna_coverage.get("fallback_mismatch_count", 0)
+    strain_text_match_count = rrna_coverage.get(
+        "fallback_strain_text_match_count",
+        0,
+    )
+    manual_review_count = rrna_coverage.get(
+        "fallback_manual_review_required_count",
+        0,
+    )
+    strict_blocking_count = rrna_coverage.get("fallback_strict_blocking_count", 0)
+    if mismatch_count:
+        warnings.append(f"{mismatch_count} mismatch")
+    if strain_text_match_count:
+        warnings.append(f"{strain_text_match_count} weak/strain-text-only evidence")
+    if manual_review_count:
+        warnings.append(f"{manual_review_count} manual review required")
+    if strict_blocking_count:
+        warnings.append(f"{strict_blocking_count} strict blocking")
+    return "; ".join(warnings) if warnings else "none"
+
+
+def _source_audit_warning_summary(summary: dict[str, int] | None) -> str:
+    if summary is None:
+        return "source audit unavailable"
+    warnings = []
+    for key, label in (
+        ("mismatch", "mismatch"),
+        ("manual_review_required", "manual review required"),
+        ("strain_text_match", "weak/strain-text-only evidence"),
+    ):
+        count = summary.get(key, 0)
+        if count:
+            warnings.append(f"{count} {label}")
+    return "; ".join(warnings) if warnings else "none"
