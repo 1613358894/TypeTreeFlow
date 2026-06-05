@@ -1566,6 +1566,54 @@ def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
     assert "`completion/uncovered_species.tsv`" in markdown
 
 
+def test_run_review_plan_only_downloads_not_executed_does_not_report_zero_coverage(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    records = [
+        _record("ref1", has_genome=False, has_16s=False),
+        _record("ref2", has_genome=False, has_16s=False),
+    ]
+    write_user_selection(
+        [
+            StrainSelectionRow(
+                species="Aliivibrio fischeri",
+                assembly_accession="GCF_000000001.1",
+                selected=True,
+            ),
+            StrainSelectionRow(
+                species="Aliivibrio finisterrensis",
+                assembly_accession="GCF_000000002.1",
+                selected=True,
+            ),
+        ],
+        paths.user_selection_path,
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="succeeded",
+            outdir=str(tmp_path),
+            stages={
+                "download": StageState(
+                    status="blocked_by_manual_review",
+                    summary="Dry run requested; genome downloads were not executed.",
+                )
+            },
+            next_action="Review selection/user_selection.tsv, then run guarded download.",
+        ),
+    )
+
+    markdown = build_run_review_markdown(records, paths)
+
+    assert (
+        "- Genome coverage: not evaluated because downloads were not executed."
+        in markdown
+    )
+    assert "- Genome coverage: 0/2" not in markdown
+    assert "- Selected records prepared for manual review: 2" in markdown
+
+
 def test_run_review_summarizes_manual_supplement_hints(tmp_path):
     paths = get_output_paths(tmp_path)
     write_manual_supplement_hints(
@@ -1688,6 +1736,28 @@ def test_run_review_duplicate_selected_accession_next_step_points_to_mismatch_re
         "mismatch or rerun after selection fix"
     ) in markdown
     assert "- Review duplicate accession." not in markdown
+
+
+def test_run_review_zero_checklist_describes_taxonomy_outcome(tmp_path):
+    paths = get_output_paths(tmp_path)
+    (tmp_path / "species_checklist.tsv").write_text(
+        "genus\tspecies\tstatus\ttype_strain\tsource\tnotes\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "excluded_lpsn_taxa.tsv").write_text(
+        "species\texclusion_reason\n"
+        "Planomicrobium example\ttaxonomic status is orphaned species\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_review_markdown([], paths)
+
+    assert "- Checklist species count: 0" in markdown
+    assert "## Recommended Next Step" in markdown
+    assert "No accepted checklist species were retained" in markdown
+    assert "taxonomy/checklist outcome, not a download failure" in markdown
+    assert "Review excluded_lpsn_taxa.tsv" in markdown
+    assert "then run guarded download" not in markdown
 
 
 def test_run_review_without_source_audit_still_generates_unavailable_note(tmp_path):

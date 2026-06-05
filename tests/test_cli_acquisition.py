@@ -947,6 +947,145 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert policies == {"balanced"}
 
 
+def test_verify_genus_cross_genus_force_rejects_existing_outdir(tmp_path, caplog):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    assert (
+        main(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--lpsn-cache",
+                str(lpsn_cache),
+                "--discovery-cache",
+                str(discovery_cache),
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+    original_state = get_output_paths(outdir).run_state_path.read_text(encoding="utf-8")
+
+    result = main(
+        [
+            "verify-genus",
+            "Clostridium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+            "--force",
+        ]
+    )
+
+    assert result == 2
+    assert "existing outdir" in caplog.text
+    assert "existing genus=Fusobacterium" in caplog.text
+    assert "requested genus=Clostridium" in caplog.text
+    assert "Use a new --outdir" in caplog.text
+    assert "--allow-genus-change" in caplog.text
+    assert (
+        get_output_paths(outdir).run_state_path.read_text(encoding="utf-8")
+        == original_state
+    )
+    assert {
+        entry.genus for entry in read_species_checklist(outdir / "species_checklist.tsv")
+    } == {"Fusobacterium"}
+
+
+def test_verify_genus_same_genus_force_allows_existing_outdir(tmp_path):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    assert (
+        main(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--lpsn-cache",
+                str(lpsn_cache),
+                "--discovery-cache",
+                str(discovery_cache),
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+            "--force",
+        ]
+    )
+
+    assert result == 0
+    assert {
+        entry.genus for entry in read_species_checklist(outdir / "species_checklist.tsv")
+    } == {"Fusobacterium"}
+
+
+def test_verify_genus_allow_genus_change_allows_explicit_cross_genus_force(tmp_path):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    clostridium_lpsn_cache, clostridium_discovery_cache, _ = (
+        _write_clostridium_limited_smoke_caches(tmp_path)
+    )
+
+    assert (
+        main(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--lpsn-cache",
+                str(lpsn_cache),
+                "--discovery-cache",
+                str(discovery_cache),
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    result = main(
+        [
+            "verify-genus",
+            "Clostridium",
+            "--lpsn-cache",
+            str(clostridium_lpsn_cache),
+            "--discovery-cache",
+            str(clostridium_discovery_cache),
+            "--policy",
+            "representative",
+            "--outdir",
+            str(outdir),
+            "--force",
+            "--allow-genus-change",
+        ]
+    )
+
+    assert result == 0
+    assert {
+        entry.genus for entry in read_species_checklist(outdir / "species_checklist.tsv")
+    } == {"Clostridium"}
+
+
 def test_verify_genus_enable_downloads_is_rejected_without_download_execution(
     tmp_path,
     monkeypatch,

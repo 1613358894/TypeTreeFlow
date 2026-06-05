@@ -29,6 +29,7 @@ from typetreeflow.diagnostics import (
     handoff_next_action,
     inspect_workflow_status,
     next_step_summary,
+    zero_accepted_checklist_next_action,
 )
 from typetreeflow.exceptions import ManifestError
 from typetreeflow.expanded_discovery import (
@@ -211,6 +212,10 @@ class PipelineResult:
     phylo_status: str = ""
     status: str = ""
     notes: list[str] = field(default_factory=list)
+
+
+class CrossGenusOutdirError(ValueError):
+    """Raised before mutating an outdir retained for a different genus."""
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -583,6 +588,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Resume from manifest state.",
     )
     parser.add_argument("--force", action="store_true", help="Overwrite existing outputs.")
+    parser.add_argument(
+        "--allow-genus-change",
+        action="store_true",
+        help=(
+            "For verify-genus/acquire-genus, allow rebuilding an existing outdir "
+            "whose retained genus differs from the requested genus."
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true", help="Validate inputs without execution.")
     parser.add_argument(
         "--enable-downloads",
@@ -699,6 +712,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         merge_manifest=args.merge_manifest,
         resume=args.resume,
         force=args.force,
+        allow_genus_change=args.allow_genus_change,
         dry_run=args.dry_run,
         enable_downloads=args.enable_downloads,
         enable_barrnap=args.enable_barrnap,
@@ -1638,6 +1652,65 @@ def _effective_resume_config(config: AppConfig) -> AppConfig:
     return config
 
 
+def _validate_existing_outdir_genus(paths, config: AppConfig, requested_genus: str) -> None:
+    if config.allow_genus_change:
+        return
+    existing_genus = _detect_existing_outdir_genus(paths)
+    if existing_genus is None:
+        return
+    if existing_genus.casefold() == requested_genus.casefold():
+        return
+    raise CrossGenusOutdirError(
+        "Refusing to reuse existing outdir for a different genus: "
+        f"existing outdir={paths.manifest.parent}; "
+        f"existing genus={existing_genus}; "
+        f"requested genus={requested_genus}. "
+        "Use a new --outdir, or pass --allow-genus-change if you intentionally "
+        "want to rebuild this outdir for another genus."
+    )
+
+
+def _detect_existing_outdir_genus(paths) -> str | None:
+    for path, reader in (
+        (paths.manifest.parent / "species_checklist.tsv", _genus_from_species_checklist),
+        (paths.taxonomy_dir / "lpsn_species_cache.tsv", _genus_from_lpsn_species_cache),
+        (paths.checklist_comparison_path, _genus_from_tsv),
+    ):
+        if not path.exists():
+            continue
+        try:
+            genus = reader(path)
+        except ValueError as error:
+            LOGGER.debug("Could not infer existing outdir genus from %s: %s", path, error)
+            continue
+        if genus:
+            return genus
+    return None
+
+
+def _genus_from_species_checklist(path: Path) -> str | None:
+    return _single_genus(entry.genus for entry in read_species_checklist(path))
+
+
+def _genus_from_lpsn_species_cache(path: Path) -> str | None:
+    return _single_genus(record.genus for record in read_lpsn_species_cache(path))
+
+
+def _genus_from_tsv(path: Path) -> str | None:
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t", strict=True)
+        if reader.fieldnames is None or "genus" not in reader.fieldnames:
+            return None
+        return _single_genus(row.get("genus", "") for row in reader)
+
+
+def _single_genus(values) -> str | None:
+    genera = sorted({str(value).strip() for value in values if str(value).strip()})
+    if len(genera) != 1:
+        return None
+    return genera[0]
+
+
 def _existing_outdir_resume_message(paths, config: AppConfig) -> str:
     if config.force:
         return ""
@@ -1869,6 +1942,8 @@ def _expanded_discovery_biosample_client(paths, config: AppConfig):
 
 
 def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None) -> None:
+    if isinstance(error, CrossGenusOutdirError):
+        return
     if (
         error is None
         and config.selection_tsv is not None
@@ -2219,6 +2294,9 @@ def _next_action_for_success(
     paths,
     config: AppConfig,
 ) -> str:
+    checklist_next_action = zero_accepted_checklist_next_action(paths)
+    if checklist_next_action:
+        return checklist_next_action
     handoff_action = handoff_next_action(paths, include_uncovered=False)
     if handoff_action:
         return handoff_action
@@ -2476,6 +2554,7 @@ def run_genus_acquisition_workflow(
     genus = str(config.acquire_genus or "").strip()
     if not genus:
         raise ValueError("--acquire-genus requires a genus name.")
+    _validate_existing_outdir_genus(paths, config, genus)
     if not config.resume:
         message = _existing_outdir_resume_message(paths, config)
         if message:

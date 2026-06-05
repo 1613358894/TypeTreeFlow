@@ -1609,6 +1609,11 @@ def build_run_review_markdown(
         else None
     )
     next_action = _run_review_next_action(paths)
+    downloads_not_executed = _run_review_downloads_not_executed(paths, args)
+    genome_coverage_text = _run_review_genome_coverage_text(
+        rrna_coverage,
+        downloads_not_executed=downloads_not_executed,
+    )
     fallback_warnings = _format_entrez_fallback_warnings(rrna_coverage)
     strict_blocking_count = (
         source_policy.blocking_count
@@ -1630,10 +1635,7 @@ def build_run_review_markdown(
         f"- Checklist species count: {_format_optional_count(checklist_count)}",
         f"- Checklist source: {checklist_source}",
         f"- Selected/manifest records count: {selected_count}",
-        (
-            "- Genome coverage: "
-            f"{rrna_coverage['genome_ready_count']}/{rrna_coverage['total_records']}"
-        ),
+        f"- Genome coverage: {genome_coverage_text}",
         (
             "- Same-genome barrnap 16S coverage: "
             + _run_review_same_genome_barrnap_text(rrna_coverage)
@@ -1651,6 +1653,13 @@ def build_run_review_markdown(
         "## 16S Provenance",
         "",
     ]
+
+    if downloads_not_executed and selection_guard_summary is not None:
+        lines.append(
+            "- Selected records prepared for manual review: "
+            f"{selection_guard_summary['selected_rows']}"
+        )
+        lines.append("")
 
     if source_audit_error:
         lines.append(
@@ -2128,6 +2137,14 @@ def _run_review_checklist_count(paths: OutputPaths) -> tuple[int | None, str]:
         summary = summarize_checklist_comparison(comparison)
         return summary["checklist_species_count"], "taxonomy/checklist_comparison.tsv"
 
+    species_checklist_path = paths.manifest.parent / "species_checklist.tsv"
+    if species_checklist_path.exists():
+        with species_checklist_path.open("r", newline="", encoding="utf-8") as handle:
+            return (
+                sum(1 for _ in csv.DictReader(handle, delimiter="\t")),
+                "species_checklist.tsv",
+            )
+
     return None, "unavailable"
 
 
@@ -2137,6 +2154,43 @@ def _run_review_same_genome_barrnap_text(summary: dict[str, int]) -> str:
     return (
         f"{summary['same_genome_barrnap_16s_count']}/"
         f"{summary['total_records']}"
+    )
+
+
+def _run_review_genome_coverage_text(
+    summary: dict[str, int],
+    *,
+    downloads_not_executed: bool,
+) -> str:
+    if downloads_not_executed:
+        return "not evaluated because downloads were not executed."
+    return f"{summary['genome_ready_count']}/{summary['total_records']}"
+
+
+def _run_review_downloads_not_executed(
+    paths: OutputPaths,
+    args: object | None,
+) -> bool:
+    if args is not None and not bool(getattr(args, "enable_downloads", False)):
+        if (
+            bool(getattr(args, "verify_genus", False))
+            or getattr(args, "acquire_genus", None) is not None
+            or getattr(args, "selection_tsv", None) is not None
+        ):
+            return True
+    if not paths.run_state_path.exists():
+        return False
+    try:
+        state = read_run_state(paths.run_state_path)
+    except (ValueError, OSError):
+        return False
+    download = state.stages.get("download")
+    if download is None:
+        return False
+    summary = download.summary.lower()
+    return (
+        download.status == "blocked_by_manual_review"
+        and "downloads were not executed" in summary
     )
 
 

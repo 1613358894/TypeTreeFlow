@@ -1,6 +1,6 @@
 # v2.2.x Release Notes
 
-These notes consolidate the v2.2.2 through v2.2.8 integration review.
+These notes consolidate the v2.2.2 through v2.2.9 integration review.
 They describe user-visible release-verification behavior only; this document
 does not introduce new workflow features.
 
@@ -54,6 +54,13 @@ does not introduce new workflow features.
 - v2.2.8 adds `package-results --failed-handoff` for failed runs that stop
   before `manifest.tsv`, and improves `next-step` recovery guidance for
   duplicate selected assembly accessions.
+- v2.2.9 improves handoff robustness and safe rerun behavior: cross-genus
+  outdir reuse is blocked unless `--allow-genus-change` is explicit, zero
+  accepted checklist runs point users to `excluded_lpsn_taxa.tsv`, likely
+  transient NCBI BioSample backend/network failures get retry/cache-based next
+  steps, `package-results --failed-handoff` includes available early
+  acquisition/cache/diagnostic artifacts, and plan-only run reviews no longer
+  describe skipped downloads as `0/N` genome coverage.
 
 ## Scientific Boundary
 
@@ -63,7 +70,7 @@ strict, likely type-material, or representative-only evidence boundaries.
 v2.2.5 is published, but complex large-genera representative selection had a
 species-identity limitation that v2.2.6 fixes before auto-selection.
 
-v2.2.8 does not add full Clostridium completion, expanded discovery
+v2.2.9 does not add full Clostridium completion, expanded discovery
 auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
 
 Expanded discovery and taxonomy-derived rows are audit-only. They do not

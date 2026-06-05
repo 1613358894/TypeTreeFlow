@@ -13,11 +13,11 @@ opt-in flags.
 The long-term goal is to collect auditable type-strain genomes and 16S
 sequences, compare a query genome against references with ANI, build a 16S
 phylogeny, and report reproducible tables, figures, name maps, and summaries.
-The current 2.2.8 release is a small handoff/usability release on top of the
+The current 2.2.9 release is a small handoff/usability release on top of the
 LPSN-first acquisition workflow. It keeps strict evidence boundaries, stable
 I/O contracts, guarded execution, and fake-runner tested wrappers, while making
-manual supplement review, report navigation, failed-run handoff packaging,
-release notes, and install verification easier to follow.
+handoff robustness, safe rerun behavior, failed-run packaging, report
+navigation, release notes, and install verification easier to follow.
 
 GTDB support is retained for legacy/local metadata workflows and as a discovery
 or evidence layer. It is not the authority for species boundaries in the current
@@ -96,7 +96,7 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
   high-level `doctor`, `verify-genus`, `status`, `next-step`,
   `package-results`, and `verify-release-genus` commands.
 - [docs/release_verification.md](docs/release_verification.md): current
-  release-verification behavior, v2.2.8 failed-handoff notes, reliability
+  release-verification behavior, v2.2.9 handoff/safe-rerun notes, reliability
   history, and gap-report interpretation.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
@@ -217,7 +217,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.8 workflow
+## Recommended v2.2.9 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample
@@ -363,8 +363,9 @@ directories.
 
 When a run fails before `manifest.tsv`, use
 `package-results --failed-handoff` to collect `run_state.json`, selection
-tables, candidate diagnostics, reports if available, and `README_failure.md`.
-Then run `next-step` for specific recovery guidance.
+tables, available early acquisition/cache/diagnostic artifacts, reports if
+available, and `README_failure.md`. Then run `next-step` for specific recovery
+guidance. Normal `package-results` still requires a packageable `manifest.tsv`.
 
 Run the release verification matrix for balanced plus representative policies:
 
@@ -374,25 +375,27 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_7_release_verification \
+  --outdir results/v2_2_9_release_verification \
   --policies balanced,representative \
   --force
 ```
 
 This writes per-policy outdirs plus
-`results/v2_2_7_release_verification/verification_matrix.tsv` and
+`results/v2_2_9_release_verification/verification_matrix.tsv` and
 `release_verification_summary.md`.
 
-In v2.2.8, `verify-release-genus` retains the v2.2.6 shared acquisition cache:
+In v2.2.9, `verify-release-genus` retains the v2.2.6 shared acquisition cache:
 it writes shared acquisition files under the release outdir and then derives
 the balanced and representative policy outputs from that cache. This avoids
 duplicate LPSN, assembly-discovery, and BioSample queries across policies.
 BioSample enrichment also checkpoints `cache/ncbi/biosample_records.tsv` as
 records are fetched, so an interrupted live enrichment can resume from the
-partial cache instead of starting over. v2.2.8 keeps the handoff wording,
+partial cache instead of starting over. v2.2.9 keeps the handoff wording,
 Clostridium limited smoke notes, release notes, and install reproducibility
-focus, and adds failed-run handoff packaging; it does not expand discovery
-auto-selection or change the evidence model.
+focus, improves failed-run handoff packaging, protects existing outdirs from
+accidental cross-genus reuse unless `--allow-genus-change` is explicit, and
+clarifies plan-only run reviews when downloads were not executed; it does not
+expand discovery auto-selection or change the evidence model.
 
 Selection policy semantics:
 
@@ -475,7 +478,7 @@ rows are not automatically added to `manifest.tsv`, selection rows, completion
 metrics, or evidence levels; curator review is still required before any manual
 selection or registration change.
 
-The v2.2.8 Clostridium limited smoke is only an exploratory verification of
+The v2.2.9 Clostridium limited smoke is only an exploratory verification of
 those guarded handoff and packaging paths. It should use local cache or minimal
 synthetic inputs, should not run real NCBI Datasets downloads, and is not a
 Clostridium genus-completion effort. It does not relax representative-only,

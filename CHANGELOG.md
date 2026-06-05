@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.2.9 - 2026-06-05
+
+v2.2.9 improves handoff robustness and safe rerun behavior.
+
+### Changed
+
+- Prevent accidental cross-genus reuse of an existing outdir; use
+  `--allow-genus-change` only when intentionally rebuilding an outdir for a
+  different genus.
+- Improve zero accepted checklist guidance by pointing users to
+  `excluded_lpsn_taxa.tsv` instead of guarded downloads.
+- Improve NCBI BioSample transient backend/network failure guidance with
+  retry/cache-based next steps.
+- Expand `package-results --failed-handoff` to include available early
+  acquisition, cache, and diagnostic artifacts.
+- Clarify plan-only run reviews when downloads were not executed.
+
+### Notes
+
+- Normal delivery packaging still requires `manifest.tsv`.
+- `--failed-handoff` only expands optional artifacts in failed-handoff mode.
+
 ## v2.2.8 - 2026-06-04
 
 ### Added

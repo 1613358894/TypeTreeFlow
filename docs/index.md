@@ -141,9 +141,9 @@ The repository root currently contains local run outputs and large data under
 documentation map; review them separately before deciding what should remain
 tracked, be regenerated, or be cleaned locally.
 
-## Recommended v2.2.8 Route
+## Recommended v2.2.9 Route
 
-Use README's "Recommended v2.2.8 workflow" section as the shortest current
+Use README's "Recommended v2.2.9 workflow" section as the shortest current
 operator guide and `cookbook.md` as the quick command cookbook. In brief:
 ordinary users should start with `doctor`, run `verify-genus` for plan-only
 review, inspect `selection/user_selection.tsv`, inspect
@@ -158,8 +158,8 @@ barrnap 16S is same-genome/internal evidence; Entrez fallback 16S is opt-in
 external rescue evidence and must be reported separately. See
 `release_verification.md` for current v2.2.x shared acquisition cache,
 checkpoint/resume, package failure explanation, gap-report behavior,
-Clostridium limited smoke notes, and the v2.2.8 release/install and
-failed-handoff focus. External provider planning is metadata/review handoff
+Clostridium limited smoke notes, and the v2.2.9 release/install,
+failed-handoff, and safe-rerun focus. External provider planning is metadata/review handoff
 only; legally obtained local FASTA files enter the workflow through
 `--register-external-genomes`, and provider IDs remain outside NCBI
 `assembly_accession`.

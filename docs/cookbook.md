@@ -121,7 +121,7 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_7_release_verification \
+  --outdir results/v2_2_9_release_verification \
   --policies balanced,representative \
   --force
 ```
@@ -130,15 +130,16 @@ typetreeflow verify-release-genus Fusobacterium \
 rows are exploratory only and must not be counted as strict type-strain
 completion.
 
-For v2.2.8 reliability checks, `verify-release-genus` keeps the v2.2.6
+For v2.2.9 reliability checks, `verify-release-genus` keeps the v2.2.6
 shared acquisition cache for balanced and representative policies, so LPSN,
 assembly-discovery, and BioSample lookup are not repeated for each policy.
 BioSample enrichment checkpoints `cache/ncbi/biosample_records.tsv` and can
-resume from a partial cache after a network interruption. The v2.2.8 cleanup
+resume from a partial cache after a network interruption. The v2.2.9 cleanup
 keeps the handoff wording, Clostridium limited smoke notes, release notes, and
-install reproducibility focus, and adds failed-run handoff packaging; it does
-not add expanded discovery auto-selection, provider/ATCC auto-download, or
-evidence model changes.
+install reproducibility focus, improves failed-run handoff packaging, protects
+existing outdirs from accidental cross-genus reuse, and clarifies plan-only run
+reviews. It does not add expanded discovery auto-selection, provider/ATCC
+auto-download, or evidence model changes.
 
 Release runs also write auditable gap reports when information is incomplete:
 `completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
@@ -189,7 +190,7 @@ Assembly/BioSample queries in the plan. If expanded discovery is enabled, those
 results are used only for rejected-candidate audit rows and manual supplement
 hints; TypeTreeFlow does not auto-promote a candidate into the manifest.
 
-A Clostridium limited smoke for v2.2.8 should be read the same way: it is a
+A Clostridium limited smoke for v2.2.9 should be read the same way: it is a
 small exploratory cache-based or synthetic run for guarded download planning,
 handoff visibility, status, reports, and packaging. It is not Clostridium genus
 completion, it should not execute real NCBI Datasets downloads, and it does not

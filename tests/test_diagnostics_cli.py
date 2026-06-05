@@ -11,6 +11,18 @@ from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 
 
+def _write_zero_accepted_lpsn_outputs(outdir):
+    (outdir / "species_checklist.tsv").write_text(
+        "genus\tspecies\tstatus\ttype_strain\tsource\tnotes\n",
+        encoding="utf-8",
+    )
+    (outdir / "excluded_lpsn_taxa.tsv").write_text(
+        "species\texclusion_reason\n"
+        "Planomicrobium example\ttaxonomic status is synonym\n",
+        encoding="utf-8",
+    )
+
+
 def test_verify_genus_help_exits_zero_and_mentions_recovery_flags():
     result = subprocess.run(
         [sys.executable, "typetreeflow.py", "verify-genus", "--help"],
@@ -199,6 +211,63 @@ def test_next_step_refines_duplicate_selected_accession_failed_run_state(
     assert "rerun" in output
 
 
+def test_next_step_refines_biosample_transient_failed_run_state(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            next_action="Fix the reported error and rerun.",
+            errors=[
+                "NCBI BioSample lookup failed: Search Backend failed: "
+                "Unable to open connection to #pmquerysrv-mz?dbaf=biosample"
+            ],
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert output != "Fix the reported error and rerun."
+    assert "NCBI BioSample lookup failed" in output
+    assert "likely transient backend/network error" in output
+    assert "Retry later" in output
+    assert "partial BioSample caches" in output
+    assert "not a download failure" in output
+
+
+def test_status_refines_biosample_transient_failed_run_state(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            stages={
+                "biosample_enrichment": StageState(
+                    status="failed",
+                    summary="BioSample enrichment requested.",
+                )
+            },
+            next_action="Fix the reported error and rerun.",
+            errors=[
+                "NCBI BioSample lookup failed: Read failed: Unknown Error, "
+                "peer: 130.14.22.42:7011"
+            ],
+        ),
+    )
+
+    assert main(["status", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out
+    assert "Overall: failed" in output
+    assert "Next: NCBI BioSample lookup failed" in output
+    assert "transient" in output
+    assert "Retry later" in output
+    assert "cache" in output
+
+
 def test_next_step_keeps_unknown_failed_error_fallback(tmp_path, capsys):
     paths = get_output_paths(tmp_path)
     write_run_state(
@@ -214,6 +283,116 @@ def test_next_step_keeps_unknown_failed_error_fallback(tmp_path, capsys):
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
     assert capsys.readouterr().out.strip() == "Fix the reported error and rerun."
+
+
+def test_next_step_zero_checklist_with_excluded_rows_does_not_suggest_download(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    _write_zero_accepted_lpsn_outputs(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(tmp_path),
+            next_action="Review selection/user_selection.tsv, then run guarded download.",
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert "No accepted checklist species were retained" in output
+    assert "excluded_lpsn_taxa.tsv" in output
+    assert "synonym, orphaned, non-target" in output
+    assert "curated checklist or an accepted target genus" in output
+    assert "then run guarded download" not in output
+    assert "--auto-accept-selection" not in output
+
+
+def test_next_step_zero_checklist_takes_priority_over_biosample_error(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    _write_zero_accepted_lpsn_outputs(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            next_action="Fix the reported error and rerun.",
+            errors=[
+                "NCBI BioSample lookup failed: Search Backend failed: "
+                "TxClient unable to open connection to pmquerysrv"
+            ],
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out.strip()
+    assert "No accepted checklist species were retained" in output
+    assert "NCBI BioSample lookup failed" not in output
+
+
+def test_status_zero_checklist_next_points_to_excluded_lpsn_taxa(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    _write_zero_accepted_lpsn_outputs(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(tmp_path),
+            stages={
+                "lpsn_checklist": StageState(
+                    status="succeeded",
+                    summary="0 accepted checklist species",
+                )
+            },
+            next_action="Review selection/user_selection.tsv, then run guarded download.",
+        ),
+    )
+
+    assert main(["status", "--outdir", str(tmp_path)]) == 0
+
+    output = capsys.readouterr().out
+    assert "Next: No accepted checklist species were retained" in output
+    assert "Review excluded_lpsn_taxa.tsv" in output
+    assert "not a download failure" in output
+    assert "then run guarded download" not in output
+
+
+def test_next_step_checklist_positive_keeps_existing_plan_only_handoff(
+    tmp_path,
+    capsys,
+):
+    paths = get_output_paths(tmp_path)
+    (tmp_path / "species_checklist.tsv").write_text(
+        "genus\tspecies\tstatus\ttype_strain\tsource\tnotes\n"
+        "Fusobacterium\tmortiferum\taccepted\tATCC 25557\tfixture\t\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "excluded_lpsn_taxa.tsv").write_text(
+        "species\texclusion_reason\n"
+        "Fusobacterium example\ttaxonomic status is synonym\n",
+        encoding="utf-8",
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(tmp_path),
+            next_action="Review selection/user_selection.tsv, then run guarded download.",
+        ),
+    )
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+
+    assert capsys.readouterr().out.strip() == (
+        "Review selection/user_selection.tsv, then run guarded download."
+    )
 
 
 def test_status_missing_outdir_returns_nonzero_and_clear_message(tmp_path, capsys):

@@ -3,6 +3,25 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
+## v2.2.9 Handoff and Safe Rerun Notes
+
+v2.2.9 keeps the v2.2.8 failed-handoff and install reproducibility boundaries
+and improves handoff robustness and safe rerun cleanup. Existing outdirs are
+protected from accidental cross-genus reuse unless `--allow-genus-change` is
+explicit. Zero accepted checklist runs point users to `excluded_lpsn_taxa.tsv`;
+likely transient NCBI BioSample backend/network failures point to retry or
+cache-based reruns; failed-handoff packages can include available early
+acquisition, cache, and diagnostic artifacts; and plan-only run reviews do not
+report skipped downloads as `0/N` genome coverage.
+
+Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
+`--version`, README, release docs, citation metadata, and changelog all report
+`2.2.9`; run final pytest and smoke checks without live downloads.
+
+Normal `package-results` still requires `manifest.tsv`. The extra early
+acquisition/cache/diagnostic artifacts are optional additions only for
+`package-results --failed-handoff`.
+
 ## v2.2.8 Failed-Handoff Notes
 
 v2.2.8 keeps the v2.2.7 limited-smoke and install reproducibility boundaries
@@ -10,10 +29,6 @@ and adds two release-prep handoff refinements: `package-results
 --failed-handoff` can collect review artifacts before `manifest.tsv` exists,
 and `next-step` gives specific recovery guidance for duplicate selected
 assembly accessions.
-
-Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
-`--version`, README, release docs, citation metadata, and changelog all report
-`2.2.8`; run final pytest and smoke checks without live downloads.
 
 ## v2.2.7 Limited Smoke Notes
 

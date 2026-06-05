@@ -171,6 +171,20 @@ def package_failed_handoff(
         (paths.strain_candidates_path, "selection/strain_candidates.tsv"),
     ]
     optional_files = [
+        (paths.manifest.parent / "species_checklist.tsv", "species_checklist.tsv"),
+        (paths.manifest.parent / "excluded_lpsn_taxa.tsv", "excluded_lpsn_taxa.tsv"),
+        (
+            paths.taxonomy_dir / "lpsn_species_cache.tsv",
+            "taxonomy/lpsn_species_cache.tsv",
+        ),
+        (paths.checklist_comparison_path, "taxonomy/checklist_comparison.tsv"),
+        (paths.ncbi_taxonomy_plan_path, "taxonomy/ncbi_taxonomy_plan.tsv"),
+        (paths.ncbi_taxonomy_cache_path, "taxonomy/ncbi_taxonomy_cache.tsv"),
+        (
+            paths.culture_collection_audit_path,
+            "source_audit/culture_collection_audit.tsv",
+        ),
+        (paths.discovery_records_path, "candidates/discovery_records.tsv"),
         (
             paths.download_preflight_summary_path,
             "selection/download_preflight_summary.tsv",
@@ -187,6 +201,11 @@ def package_failed_handoff(
         (
             paths.expanded_discovery_results_path,
             "completion/expanded_discovery_results.tsv",
+        ),
+        (paths.biosample_records_path, "cache/ncbi/biosample_records.tsv"),
+        (
+            paths.ncbi_cache_dir / "biosample_enrichment_diagnostics.tsv",
+            "cache/ncbi/biosample_enrichment_diagnostics.tsv",
         ),
         (paths.run_summary_path, "report/summary.md"),
         (paths.run_review_path, "report/run_review.md"),
@@ -412,6 +431,10 @@ def build_failed_handoff_readme(
             f"python typetreeflow.py next-step --outdir {source_outdir}",
             "```",
             "",
+            (
+                "This package may include partial cache, acquisition, selection, "
+                "and diagnostic artifacts for review or resume planning."
+            ),
             "After resolving the failure and generating manifest.tsv, rerun normal package-results.",
         ]
     )

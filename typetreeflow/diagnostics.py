@@ -71,6 +71,19 @@ STAGE_LABELS = {
     "report": "Report",
 }
 
+ZERO_ACCEPTED_CHECKLIST_NEXT_ACTION = (
+    "No accepted checklist species were retained. Review excluded_lpsn_taxa.tsv "
+    "for synonym, orphaned, non-target, or otherwise excluded records. This is "
+    "a taxonomy/checklist outcome, not a download failure. Do not run guarded "
+    "downloads unless using a curated checklist or an accepted target genus."
+)
+
+BIOSAMPLE_TRANSIENT_FAILURE_NEXT_ACTION = (
+    "NCBI BioSample lookup failed with a likely transient backend/network error. "
+    "Retry later, or rerun using existing LPSN, discovery, and partial BioSample "
+    "caches when available. This is not a download failure."
+)
+
 
 def build_doctor_report(
     *,
@@ -123,9 +136,20 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
     root = _require_outdir(outdir)
     paths = get_output_paths(root)
     if paths.run_state_path.exists():
-        return _summary_from_run_state(read_run_state(paths.run_state_path))
+        summary = _summary_from_run_state(read_run_state(paths.run_state_path))
+        checklist_next_action = zero_accepted_checklist_next_action(paths)
+        if checklist_next_action:
+            return WorkflowStatusSummary(
+                overall=summary.overall,
+                stages=summary.stages,
+                next_action=checklist_next_action,
+                source=summary.source,
+            )
+        return summary
 
     known_files = [
+        root / "species_checklist.tsv",
+        root / "excluded_lpsn_taxa.tsv",
         paths.manifest,
         paths.user_selection_path,
         paths.download_preflight_summary_path,
@@ -143,6 +167,12 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
 def next_step_summary(outdir: str | Path) -> NextStepSummary:
     root = _require_outdir(outdir)
     paths = get_output_paths(root)
+    checklist_next_action = zero_accepted_checklist_next_action(paths)
+    if checklist_next_action:
+        return NextStepSummary(
+            next_action=checklist_next_action,
+            source="taxonomy/checklist",
+        )
     if paths.run_state_path.exists():
         state = read_run_state(paths.run_state_path)
         state_next_action = state.next_action or _default_next_action(state.status)
@@ -292,10 +322,14 @@ def _summary_from_run_state(state: WorkflowState) -> WorkflowStatusSummary:
         for name, stage in state.stages.items()
         if name in WORKFLOW_STAGES
     }
+    next_action = state.next_action
+    error_next_action = _next_action_from_run_state_errors(state)
+    if error_next_action and _can_refine_failed_run_state_next_action(next_action):
+        next_action = error_next_action
     return WorkflowStatusSummary(
         overall=state.status,
         stages=stages,
-        next_action=state.next_action,
+        next_action=next_action,
         source="run_state",
     )
 
@@ -303,6 +337,13 @@ def _summary_from_run_state(state: WorkflowState) -> WorkflowStatusSummary:
 def _infer_status(root: Path) -> WorkflowStatusSummary:
     paths = get_output_paths(root)
     stages: dict[str, dict[str, Any]] = {}
+
+    checklist_count = _species_checklist_count(root / "species_checklist.tsv")
+    if checklist_count is not None:
+        stages["lpsn_checklist"] = {
+            "status": "succeeded",
+            "summary": f"{checklist_count} accepted checklist species",
+        }
 
     if paths.download_preflight_summary_path.exists() or paths.user_selection_path.exists():
         selected_count = _selected_count(paths.user_selection_path)
@@ -400,6 +441,9 @@ def _infer_next_action(
     genome_ready: int,
     rrna_ready: int,
 ) -> str:
+    checklist_next_action = zero_accepted_checklist_next_action(paths)
+    if checklist_next_action:
+        return checklist_next_action
     handoff_action = handoff_next_action(paths)
     if handoff_action:
         return handoff_action
@@ -432,6 +476,23 @@ def _rrna_gap_count(paths) -> int:
     if not paths.rrna_16s_gaps_path.exists():
         return 0
     return len(_read_tsv(paths.rrna_16s_gaps_path))
+
+
+def zero_accepted_checklist_next_action(paths) -> str:
+    root = paths.manifest.parent
+    checklist_count = _species_checklist_count(root / "species_checklist.tsv")
+    if checklist_count != 0:
+        return ""
+    excluded_rows = _read_optional_rows(root / "excluded_lpsn_taxa.tsv")
+    if not excluded_rows:
+        return ""
+    return ZERO_ACCEPTED_CHECKLIST_NEXT_ACTION
+
+
+def _species_checklist_count(path: Path) -> int | None:
+    if not path.exists():
+        return None
+    return len(_read_tsv(path))
 
 
 def _manual_supplement_handoff_next_action(paths) -> str:
@@ -576,6 +637,8 @@ def _next_action_from_run_state_errors(state: WorkflowState) -> str:
             "(species_identity_mismatch/rejected_species_mismatch), deselect or "
             "correct the conflicting duplicate selection, then rerun."
         )
+    if _has_biosample_transient_failure_error(state.errors):
+        return BIOSAMPLE_TRANSIENT_FAILURE_NEXT_ACTION
     return ""
 
 
@@ -589,6 +652,24 @@ def _duplicate_selected_accession_from_errors(errors: list[str]) -> str:
             if marker in error:
                 return error.split(marker, 1)[1].strip().split()[0]
     return ""
+
+
+def _has_biosample_transient_failure_error(errors: list[str]) -> bool:
+    transient_markers = (
+        "search backend failed",
+        "unable to open connection",
+        "read failed",
+        "txclient",
+        "pmquerysrv",
+        "peer:",
+    )
+    for error in errors:
+        lowered = error.lower()
+        if "ncbi biosample lookup failed" not in lowered:
+            continue
+        if any(marker in lowered for marker in transient_markers):
+            return True
+    return False
 
 
 def _default_next_action(status: str) -> str:

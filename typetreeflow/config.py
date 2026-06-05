@@ -74,6 +74,7 @@ class AppConfig:
     merge_manifest: bool
     resume: bool
     force: bool
+    allow_genus_change: bool
     dry_run: bool
     enable_downloads: bool
     enable_barrnap: bool

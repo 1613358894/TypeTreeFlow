@@ -119,6 +119,16 @@ def test_package_results_missing_manifest_fails(tmp_path):
     assert main(["package-results", "--outdir", str(tmp_path)]) == 2
 
 
+def test_package_results_early_acquisition_artifacts_do_not_relax_manifest_contract(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_early_acquisition_review_inputs(paths)
+
+    with pytest.raises(ValueError, match="manifest.tsv not found"):
+        package_results(tmp_path)
+
+
 def test_package_results_missing_manifest_reports_failed_run_state(tmp_path):
     paths = get_output_paths(tmp_path)
     write_run_state(
@@ -201,6 +211,62 @@ def test_package_results_failed_handoff_succeeds_without_manifest(tmp_path):
     assert not (result.delivery_dir / "README.md").exists()
 
 
+def test_package_results_failed_handoff_copies_early_acquisition_artifacts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    _write_early_acquisition_review_inputs(paths)
+
+    result = package_results(tmp_path, failed_handoff=True)
+
+    assert (result.delivery_dir / "species_checklist.tsv").exists()
+    assert (result.delivery_dir / "excluded_lpsn_taxa.tsv").exists()
+    assert (result.delivery_dir / "taxonomy" / "lpsn_species_cache.tsv").exists()
+    assert (result.delivery_dir / "taxonomy" / "checklist_comparison.tsv").exists()
+    assert (result.delivery_dir / "taxonomy" / "ncbi_taxonomy_plan.tsv").exists()
+    assert (result.delivery_dir / "taxonomy" / "ncbi_taxonomy_cache.tsv").exists()
+    assert (
+        result.delivery_dir / "source_audit" / "culture_collection_audit.tsv"
+    ).exists()
+    assert (result.delivery_dir / "candidates" / "discovery_records.tsv").exists()
+    assert (result.delivery_dir / "cache" / "ncbi" / "biosample_records.tsv").exists()
+    assert (
+        result.delivery_dir
+        / "cache"
+        / "ncbi"
+        / "biosample_enrichment_diagnostics.tsv"
+    ).exists()
+    readme = (result.delivery_dir / "README_failure.md").read_text(
+        encoding="utf-8"
+    )
+    assert "partial cache, acquisition, selection, and diagnostic artifacts" in readme
+
+
+def test_package_results_failed_handoff_skips_missing_optional_artifacts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="failed",
+            outdir=str(tmp_path),
+            stages={
+                "biosample_enrichment": StageState(
+                    status="failed",
+                    summary="Live BioSample lookup failed.",
+                )
+            },
+            errors=["Live BioSample lookup failed."],
+            next_action="Review cached acquisition artifacts and rerun.",
+        ),
+    )
+
+    result = package_results(tmp_path, failed_handoff=True)
+
+    assert (result.delivery_dir / "README_failure.md").exists()
+    assert (result.delivery_dir / "run_state.json").exists()
+    assert not (result.delivery_dir / "species_checklist.tsv").exists()
+    assert "species_checklist.tsv" in result.missing_optional_files
+
+
 def test_package_results_failed_handoff_readme_contains_error_and_next_step(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_failed_run_review_inputs(paths)
@@ -271,6 +337,25 @@ def _write_failed_run_review_inputs(paths):
             next_action="Fix the selection and rerun guarded download.",
         ),
     )
+
+
+def _write_early_acquisition_review_inputs(paths):
+    files = {
+        paths.manifest.parent / "species_checklist.tsv": "genus\tspecies\nMicrobacterium\texample\n",
+        paths.manifest.parent / "excluded_lpsn_taxa.tsv": "name\treason\nold\tinvalid\n",
+        paths.taxonomy_dir / "lpsn_species_cache.tsv": "genus\tspecies\nMicrobacterium\texample\n",
+        paths.checklist_comparison_path: "species\tstatus\nexample\tmatched\n",
+        paths.ncbi_taxonomy_plan_path: "species\tstatus\nexample\tplanned\n",
+        paths.ncbi_taxonomy_cache_path: "tax_id\tname\n1\tMicrobacterium example\n",
+        paths.culture_collection_audit_path: "species\tcollection\nexample\tATCC\n",
+        paths.discovery_records_path: "record_id\tspecies\nrec-1\texample\n",
+        paths.biosample_records_path: "biosample_accession\tspecies\nSAMN1\texample\n",
+        paths.ncbi_cache_dir
+        / "biosample_enrichment_diagnostics.tsv": "species\tstatus\nexample\tfailed\n",
+    }
+    for path, content in files.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
 
 
 def _write_manifest_with_files(paths):
