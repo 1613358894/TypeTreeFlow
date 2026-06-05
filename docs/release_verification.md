@@ -3,15 +3,21 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
-## v2.2.11 Maintenance Notes
+## v2.2.12 Maintenance Notes
 
-v2.2.11 is a maintenance/refactor-only release. It keeps v2.2.10 behavior,
-selection policies, evidence thresholds, download strategy, and guarded
-execution boundaries unchanged. It does not include real download validation.
+v2.2.12 is a maintenance-only release. It adds release consistency checking,
+reduces duplicated current-version wording in docs, documents
+`handoff_index.md` as a package navigation/operator handoff artifact, and
+hardens the maintenance release checklist/process.
+
+It keeps selection policies, evidence thresholds, download strategy, guarded
+execution boundaries, and runtime workflow behavior unchanged. It does not
+include real download validation.
 
 Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
 `--version`, README, release docs, citation metadata, and changelog all report
-`2.2.11`; run final pytest and smoke checks without live downloads.
+`2.2.12`; run final pytest, release consistency, wheel build, and wheel smoke
+checks without live downloads.
 
 ## v2.2.10 UX and Reporting Notes
 

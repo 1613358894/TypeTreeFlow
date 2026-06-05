@@ -1,6 +1,6 @@
 # v2.2.x Release Notes
 
-These notes consolidate the v2.2.2 through v2.2.11 integration review.
+These notes consolidate the v2.2.2 through v2.2.12 integration review.
 They describe user-visible release-verification behavior only; this document
 does not introduce new workflow features.
 
@@ -69,6 +69,11 @@ does not introduce new workflow features.
 - v2.2.11 is a maintenance/refactor-only release. It changes no selection
   policy, evidence threshold, download strategy, real download validation, or
   user-visible workflow behavior.
+- v2.2.12 adds the release consistency checker, reduces duplicated
+  current-version wording in docs, documents `handoff_index.md` as a package
+  navigation/operator handoff artifact, and hardens the maintenance release
+  checklist/process. It changes no download strategy, selection safety, or
+  evidence thresholds.
 
 ## Scientific Boundary
 
@@ -78,7 +83,7 @@ strict, likely type-material, or representative-only evidence boundaries.
 v2.2.5 is published, but complex large-genera representative selection had a
 species-identity limitation that v2.2.6 fixes before auto-selection.
 
-v2.2.11 does not add full Clostridium completion, expanded discovery
+v2.2.12 does not add full Clostridium completion, expanded discovery
 auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
 It does not change download strategy, selection safety, or evidence thresholds.
 

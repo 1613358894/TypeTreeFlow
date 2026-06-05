@@ -18,6 +18,13 @@ documented in [release_process.md](release_process.md).
 
 ## Required Local Validation
 
+- Run the release consistency checker before version bump, tag, wheel smoke, or
+  release PR publication:
+
+```bash
+python scripts/check_release_consistency.py
+```
+
 - For v2.0.0rc1 and final v2.0.0 preparation, confirm the release is
   stability/readiness work for the existing LPSN-first acquisition and audit
   workflow plus the guarded provider automation framework skeleton, not a
@@ -35,10 +42,12 @@ documented in [release_process.md](release_process.md).
   be written to `assembly_accession`, or claims that external-inclusive
   readiness is NCBI Assembly strict completion.
 
-- Run tests without pytest cache output:
+- Use a repo-local pytest base temp directory named for the release, for
+  example `.tmp_pytest_vX_Y_Z`. Run the full test suite without pytest cache
+  output:
 
 ```bash
-pytest -p no:cacheprovider --basetemp .pytest_tmp
+python -m pytest -p no:cacheprovider --basetemp .tmp_pytest_vX_Y_Z
 ```
 
 - Check the CLI entry point:
@@ -51,6 +60,9 @@ python typetreeflow.py --help
 python typetreeflow.py doctor
 ```
 
+- For maintenance-only release checklist validation, do not run real downloads
+  unless the explicit release scope requires live guarded validation.
+
 - Confirm project governance files are present:
 
 ```bash
@@ -61,14 +73,27 @@ test -f SECURITY.md
 test -f .github/workflows/ci.yml
 ```
 
-- Build a wheel:
+- Build the release wheel into `dist`:
 
 ```bash
-python -m pip wheel . --no-deps -w .dist_test
+python -m pip wheel . --no-deps -w dist
 ```
 
 - Confirm the wheel filename contains the intended release-candidate or stable
   release version before tagging or publishing.
+- Install the built wheel in a temporary repo-local virtual environment and
+  smoke test the installed console entry point:
+
+```bash
+python -m venv .tmp_smoke_venv_vX_Y_Z
+.tmp_smoke_venv_vX_Y_Z\Scripts\python -m pip install dist\typetreeflow-*.whl
+.tmp_smoke_venv_vX_Y_Z\Scripts\typetreeflow --version
+.tmp_smoke_venv_vX_Y_Z\Scripts\typetreeflow doctor
+.tmp_smoke_venv_vX_Y_Z\Scripts\typetreeflow --help
+```
+
+On POSIX shells, use `.tmp_smoke_venv_vX_Y_Z/bin/python` and
+`.tmp_smoke_venv_vX_Y_Z/bin/typetreeflow`.
 
 - Confirm candidate and selection examples are present:
 
@@ -196,8 +221,8 @@ audit review but is not a required input for the current release checklist.
 
 ## Files And Directories Not To Commit
 
-- `.pytest_tmp/`
-- `.dist_test/`
+- `.tmp_pytest_vX_Y_Z/`
+- `.tmp_smoke_venv_vX_Y_Z/`
 - `build/`
 - `dist/`
 - `results/`
@@ -207,6 +232,11 @@ audit review but is not a required input for the current release checklist.
 - Local real-run output directories such as `output_dry_run/`, `phase*_*/`, and other disposable run folders unless intentionally curated as documentation evidence.
 - Downloaded NCBI Datasets ZIPs under `cache/ncbi/*.zip`.
 - Large local GTDB metadata files under `data/` unless intentionally tracked.
+- Do not commit large `results/` trees or real-run output. Preserve only
+  intentionally curated, small documentation fixtures.
+- Keep `dist/*.whl` only as the local release artifact for upload or smoke
+  evidence; remove it before non-release documentation commits unless the
+  release packaging workflow explicitly needs it.
 
 ## Known Limitations
 
@@ -222,6 +252,7 @@ audit review but is not a required input for the current release checklist.
 
 ## Before Tagging
 
+- Confirm `python scripts/check_release_consistency.py` passes.
 - Confirm the version-source files listed in
   [release_process.md](release_process.md) match the intended tag.
 - For a release candidate, confirm `CHANGELOG.md` has an Unreleased or
@@ -236,10 +267,33 @@ audit review but is not a required input for the current release checklist.
 - Confirm `README.md` and docs reflect the current guarded execution state.
 - Confirm the cookbook starts from high-level commands and keeps low-level
   primitives marked as advanced/manual recovery.
-- Confirm the test suite, CLI help, and wheel build commands pass from a clean checkout.
+- Confirm the test suite, CLI help, wheel build, and temporary-venv wheel smoke
+  commands pass from a clean checkout.
+- Confirm no real downloads were run unless the release scope explicitly
+  required live guarded validation.
 - Remove generated validation artifacts that should not be committed.
+- Remove repo-local pytest temp directories and temporary smoke virtual
+  environments.
 - Complete the clean-clone verification required by
   [release_process.md](release_process.md).
 - Review this checklist for release-date accuracy. Historical archive evidence
   mapped from `docs/index.md` may be consulted when validating past claims, but
   it is not a current release gate.
+
+## Release Closure
+
+- Confirm the annotated tag points to the intended release commit before
+  publishing.
+- Confirm the release PR targets `main`, required CI passes, and the PR is
+  merged with a merge commit so the tag commit remains reachable.
+- Confirm the GitHub Release is attached to the intended tag, published only
+  after merge, and not left as draft or prerelease for a stable release.
+- Confirm the merged release branch is deleted after publication.
+- Sync local `main` and confirm the tag commit is reachable from `main`.
+- Run a final post-release status check:
+
+```bash
+git fetch --tags origin
+git merge-base --is-ancestor vX.Y.Z^{} main
+git status -sb
+```

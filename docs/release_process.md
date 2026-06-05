@@ -17,6 +17,11 @@ Releases, release PRs, and post-release repository cleanup.
 Use `docs/release_checklist.md` as the detailed execution checklist when
 preparing release artifacts or validating a release candidate.
 
+For maintenance releases, treat the checklist as the release gate for
+version-consistency checks, repo-local pytest temp usage, wheel smoke testing,
+temporary-directory cleanup, and "no real downloads unless explicitly scoped"
+confirmation.
+
 ## Release Commit
 
 - Create a release readiness commit.
@@ -73,6 +78,8 @@ record's `tagName` before publishing.
 
 - Confirm the latest GitHub Release points to the intended stable release.
 - Confirm the tag commit is reachable from `main`.
+- Confirm the release PR was merged, required CI passed, and the published
+  GitHub Release is attached to the intended tag.
 - Delete the merged release branch.
 - Sync local `main`.
 - Verify the worktree is clean.

@@ -13,7 +13,7 @@ opt-in flags.
 The long-term goal is to collect auditable type-strain genomes and 16S
 sequences, compare a query genome against references with ANI, build a 16S
 phylogeny, and report reproducible tables, figures, name maps, and summaries.
-The current 2.2.11 release is a maintenance/refactor-only release on top of the
+The current 2.2.12 release is a maintenance-only release on top of the
 LPSN-first acquisition workflow. It keeps strict evidence boundaries, stable
 I/O contracts, guarded execution, fake-runner tested wrappers, selection
 policies, evidence thresholds, and download strategy unchanged.
@@ -95,7 +95,7 @@ Start with [docs/index.md](docs/index.md) for the full documentation map.
   high-level `doctor`, `verify-genus`, `status`, `next-step`,
   `package-results`, and `verify-release-genus` commands.
 - [docs/release_verification.md](docs/release_verification.md): current
-  release-verification behavior, v2.2.11 maintenance notes, reliability
+  release-verification behavior, v2.2.12 maintenance notes, reliability
   history, and gap-report interpretation.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
@@ -219,7 +219,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.11 workflow
+## Recommended v2.2.12 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample
@@ -359,15 +359,16 @@ typetreeflow package-results \
 
 The delivery package includes manifest, selected-accession and evidence
 summaries, optional reports, copied genome FASTA files, optional 16S FASTA
-files, and `run_state.json` when present. It does not copy credentials,
-environment files, API keys, NCBI ZIP caches, pytest caches, or temporary
-directories.
+files, `handoff_index.md` for package navigation/operator handoff, and
+`run_state.json` when present. It does not copy credentials, environment files,
+API keys, NCBI ZIP caches, pytest caches, or temporary directories.
 
 When a run fails before `manifest.tsv`, use
 `package-results --failed-handoff` to collect `run_state.json`, selection
 tables, available early acquisition/cache/diagnostic artifacts, reports if
-available, and `README_failure.md`. Then run `next-step` for specific recovery
-guidance. Normal `package-results` still requires a packageable `manifest.tsv`.
+available, `README_failure.md`, and `handoff_index.md`. Then run `next-step`
+for specific recovery guidance. Normal `package-results` still requires a
+packageable `manifest.tsv`.
 
 Run the release verification matrix for balanced plus representative policies:
 

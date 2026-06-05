@@ -829,6 +829,14 @@ Problem records are filtered from manifest statuses containing failed, missing,
 ambiguous, not_found, invalid, or non-existing skipped terms. Normal resume
 reuse statuses containing `skipped_existing` are not listed as problem records.
 
+`handoff_index.md` is a package navigation and operator handoff artifact
+written by `package-results` for both successful delivery packages and
+`--failed-handoff` review packages. It is not a new scientific decision source
+and does not replace `manifest.tsv`, `report/summary.md`, or
+`report/run_review.md`. Its included-file list, status summary, warnings, and
+`Recommended Next Step` are operator guidance for review or recovery, not an
+automatically executed plan or a schema that upgrades evidence.
+
 Final project audit packages may add species-level companions outside the
 canonical run directory, for example
 `results/fusobacterium_final_audit_v2/species_completion_status.tsv` and
