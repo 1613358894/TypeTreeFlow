@@ -6,7 +6,6 @@ import argparse
 import re
 import subprocess
 import sys
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -102,14 +101,28 @@ def run_checks(repo_root: Path) -> list[CheckResult]:
 def _read_pyproject_version(repo_root: Path) -> str | None:
     pyproject_path = repo_root / "pyproject.toml"
     try:
-        with pyproject_path.open("rb") as handle:
-            pyproject = tomllib.load(handle)
+        text = pyproject_path.read_text(encoding="utf-8")
     except OSError:
         return None
 
-    version = pyproject.get("project", {}).get("version")
-    if isinstance(version, str) and version:
-        return version
+    return _parse_project_version(text)
+
+
+def _parse_project_version(text: str) -> str | None:
+    in_project = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]"):
+            in_project = stripped == "[project]"
+            continue
+        if not in_project:
+            continue
+
+        match = re.match(r"""^version\s*=\s*(['"])(?P<version>[^'"]+)\1\s*(?:#.*)?$""", stripped)
+        if match:
+            return match.group("version")
     return None
 
 
