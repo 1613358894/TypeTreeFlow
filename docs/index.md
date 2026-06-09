@@ -12,10 +12,8 @@ The top level of `docs/` is reserved for current, intentionally maintained
 documentation: implemented contracts, current operator guidance, release
 process material, and narrowly scoped active design or policy documents.
 
-Historical plans, old audits, stale PR drafts, stage-specific roadmap notes,
-and phase-specific release or validation evidence belong under
-`docs/archive/`. Files listed there are historical support material, not
-current behavior contracts.
+Historical material belongs under `docs/archive/` and is not a current behavior
+contract unless a current contract page links it for a specific fact.
 
 ## Current Entry Points
 
@@ -29,10 +27,7 @@ current behavior contracts.
 - [output_layout.md](output_layout.md): run-directory files and stage ownership.
   Use [workspace_policy.md](workspace_policy.md) for repository-independent
   workspace roots.
-- [workspace_policy.md](workspace_policy.md): canonical workspace policy for
-  `--outdir`, `TYPETREEFLOW_WORKSPACE`, `<workspace>/runs/`,
-  `<workspace>/deliveries/`, `<workspace>/data/`, and
-  `<workspace>/manifests/`.
+- [workspace_policy.md](workspace_policy.md): canonical workspace root policy.
 - [results_policy.md](results_policy.md): canonical policy for the repository
   `results/` directory and its allowlist.
 - [handoff_index_contract.md](handoff_index_contract.md): contract for

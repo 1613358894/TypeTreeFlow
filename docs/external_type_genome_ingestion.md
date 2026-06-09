@@ -104,36 +104,12 @@ websites, NCBI, Entrez, LPSN, or GTDB.
 
 ## Data Model
 
-The registration/provenance input table is:
+The registration/provenance input table is `external_genomes.tsv`.
 
-```text
-external_genomes.tsv
-```
-
-Implemented fields:
-
-- `species`: checklist species represented by the registered genome.
-- `strain`: registered strain text.
-- `type_strain_id`: recognized type-strain/deposit identifier, such as an ATCC
-  or DSM identifier, normalized with the same deposit-ID conventions used in
-  culture collection audit.
-- `external_source`: stable short source label.
-- `external_source_name`: provider or collection name, such as `ATCC Genome Portal`.
-- `external_genome_id`: provider-native genome or asset identifier.
-- `external_source_url`: provider or record URL when the curator can cite one.
-- `genome_fasta_path`: local FASTA path supplied by the curator.
-- `sha256`: SHA-256 checksum of the local FASTA file, or blank to compute it.
-- `is_type_material`: boolean type-material flag.
-- `requires_manual_review`: boolean flag that prevents automatic install use
-  until review is resolved.
-- `status`: registration status such as `external_genome_registered`,
-  `external_genome_missing_file`, `external_genome_checksum_mismatch`, or
-  `external_genome_manual_review_required`.
-- `notes`: free-text provenance and review note.
-
-The manifest carries external registered genome records through existing fields:
-`assembly_accession` remains empty, `source` and `assembly_source` use
-`external_registered_genome`, and notes preserve external provenance.
+The field dictionary is maintained in [schemas.md](schemas.md), and emitted
+registration statuses are maintained in [statuses.md](statuses.md). The design
+requires species, strain/type-strain evidence, provider/source provenance, a
+local FASTA path, checksum/review state, and notes sufficient for audit.
 
 ## Manifest and Provenance
 
@@ -144,17 +120,10 @@ The manifest/report surface must distinguish source categories explicitly:
 - `external registered genome`: records with no NCBI assembly accession but
   with a validated external FASTA registration.
 
-External registered records may have `has_genome=true` and `genome_path` set to
-the registered FASTA path after validation. They must also have a clear source
-label, for example `source=external_registered_genome` and/or
-`assembly_source=external_registered_genome`, but the design should prefer
-dedicated provenance fields or a companion table where possible.
-
 Reports and manifests must not display `external_genome_id` in the
-`assembly_accession` column. If the current manifest schema cannot add fields
-without compatibility work, the companion `external_genomes.tsv` should be the
-authoritative source for external metadata, and report generation should join it
-for display.
+`assembly_accession` column. The companion `external_genomes.tsv` remains the
+authoritative source for external metadata when manifest compatibility limits
+dedicated fields.
 
 ## Download Planning
 
@@ -211,32 +180,16 @@ external-inclusive numerator may additionally count validated external
 registered genomes that meet the same type-strain evidence requirements through
 registration provenance.
 
-External registered genomes should also have their own count, for example:
-
-```text
-External registered type genomes: 1
-```
-
-The authoritative counting rules and TSV fields are maintained in
-[completion_audit.md](completion_audit.md) and [schemas.md](schemas.md).
+The authoritative counting rules, status values, and TSV fields are maintained
+in [completion_audit.md](completion_audit.md), [statuses.md](statuses.md), and
+[schemas.md](schemas.md).
 
 ## Reporting
 
-`report/summary.md` has a dedicated section when external genomes are
-registered. Content includes:
-
-- Count of NCBI Assembly-backed records.
-- Count of external registered genome-backed records.
-- Count of records still missing any genome.
-- Split completion metrics.
-- External provenance table with species, strain, type strain ID, provider,
-  external genome ID, registered FASTA path, checksum, and status.
-- Clear note that external records were manually registered and were not
-  downloaded by NCBI Datasets.
-
-Any manifest or report table that currently labels genome identity as
-`assembly_accession` should either leave it blank for external records or add a
-separate display column such as `genome_source` / `external_genome_id`.
+`report/summary.md` reports external registered genomes separately from NCBI
+Assembly-backed records and consumes split completion metrics when the
+completion audit exists. Report paths and ownership are maintained in
+[output_layout.md](output_layout.md).
 
 ## CLI Sketch
 

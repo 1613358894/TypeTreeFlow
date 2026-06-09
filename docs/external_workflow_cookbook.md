@@ -169,9 +169,7 @@ For the `F. mortiferum` pilot shape, success means:
 ## Preserved Boundaries
 
 External registered genomes improve only external-inclusive readiness:
-external-inclusive `17/17` is not NCBI Assembly strict `17/17`. The full
-provider boundary is in
-[provider_automation_policy.md](provider_automation_policy.md), output path
-ownership is in [output_layout.md](output_layout.md), workspace policy is in
-[workspace_policy.md](workspace_policy.md), and repository `results/` policy is
-in [results_policy.md](results_policy.md).
+external-inclusive `17/17` is not NCBI Assembly strict `17/17`. Use
+[completion_audit.md](completion_audit.md) for counting rules,
+[provider_automation_policy.md](provider_automation_policy.md) for provider
+boundaries, and [output_layout.md](output_layout.md) for path ownership.

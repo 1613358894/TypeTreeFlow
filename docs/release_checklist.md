@@ -15,12 +15,9 @@ documented in [release_process.md](release_process.md).
   - `fastANI` for ANI execution.
   - `mafft`, `trimal`, and `iqtree2` for phylogeny execution.
 - Entrez fallback requires network access plus `--enable-entrez --email`.
-- Use a disposable release workspace for generated outputs. Real runs and
-  large release checks should go under
-  `<workspace>/runs/release/<run-name>` or `<tmp>/...`; delivery packages
-  should go under `<workspace>/deliveries/<delivery-name>`. See
-  [workspace_policy.md](workspace_policy.md) for default workspace resolution
-  and [output_layout.md](output_layout.md) for run-directory file contracts.
+- Use a disposable release workspace for generated outputs. See
+  [workspace_policy.md](workspace_policy.md), [results_policy.md](results_policy.md),
+  and [output_layout.md](output_layout.md) for placement and path contracts.
 
 ## Required Local Validation
 
@@ -248,8 +245,7 @@ evidence and result interpretation.
 - `.tmp_smoke_venv_vX_Y_Z/`
 - `build/`
 - `dist/`
-- `results/` except the small verification evidence allowlist in
-  [results_policy.md](results_policy.md).
+- `results/` outside the [results_policy.md](results_policy.md) allowlist.
 - `*.egg-info/`
 - `__pycache__/`
 - `.pytest_cache/`
@@ -259,8 +255,6 @@ evidence and result interpretation.
 - Downloaded NCBI Datasets ZIPs under `cache/ncbi/*.zip`.
 - Large local GTDB metadata files under `data/` unless intentionally tracked.
 - Do not commit large `results/` trees, real-run output, or scratch output.
-  Preserve only the intentionally curated, small verification evidence allowed
-  by [results_policy.md](results_policy.md).
 - Keep `dist/*.whl` only as the local release artifact for upload or smoke
   evidence; remove it before non-release documentation commits unless the
   release packaging workflow explicitly needs it.

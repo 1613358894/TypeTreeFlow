@@ -12,17 +12,10 @@ retained only as archived historical evidence.
 
 ## Output Locations
 
-Release verification outputs should normally be outside the repository:
-
-- real or large release runs: `<workspace>/runs/release/<run-name>`
-- delivery packages: `<workspace>/deliveries/<delivery-name>`
-- short-lived local smoke output: a disposable temp directory
-
-Workspace root selection is governed by
-[workspace_policy.md](workspace_policy.md). Repository `results/` content is
-limited by [results_policy.md](results_policy.md), including the small
-historical verification-matrix allowlist entry. Run-directory file locations
-and stage ownership are defined in
+Release verification outputs should normally be outside the repository.
+Workspace placement is governed by [workspace_policy.md](workspace_policy.md),
+repository `results/` content is limited by
+[results_policy.md](results_policy.md), and run-directory files are defined in
 [output_layout.md](output_layout.md).
 
 ## Current Release Scope

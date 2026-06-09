@@ -23,12 +23,10 @@ version-consistency checks, repo-local pytest temp usage, wheel smoke testing,
 temporary-directory cleanup, and "no real downloads unless explicitly scoped"
 confirmation.
 
-Release validation outputs should live outside the repository by default. Use
-`<workspace>/runs/release/<run-name>` for real or large run outputs and
-`<workspace>/deliveries/<delivery-name>` for package handoffs. See
-[workspace_policy.md](workspace_policy.md) for workspace default resolution
-and local maintainer examples, and [output_layout.md](output_layout.md) for
-run-directory file contracts.
+Release validation outputs should live outside the repository by default. See
+[workspace_policy.md](workspace_policy.md) for workspace placement,
+[results_policy.md](results_policy.md) for repository `results/` limits, and
+[output_layout.md](output_layout.md) for run-directory file contracts.
 
 ## Release Commit
 
@@ -38,9 +36,7 @@ run-directory file contracts.
   download data, or large artifacts.
 - Do not include `typetreeflow_out/`; it is the old default/historical example
   path and is not the current default output location.
-- Keep repository `results/` limited to the small verification evidence
-  allowlist in [results_policy.md](results_policy.md). Do not commit real runs,
-  large downloads, or scratch output there.
+- Keep repository `results/` within [results_policy.md](results_policy.md).
 - Do not mix unrelated feature work into the release readiness commit.
 
 ## Annotated Tag

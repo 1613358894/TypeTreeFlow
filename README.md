@@ -88,45 +88,35 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 ## Documentation
 
 README is the user entry point. Start with [docs/index.md](docs/index.md) for
-the maintained documentation map.
+the maintained documentation map and [docs/maintenance.md](docs/maintenance.md)
+for documentation maintenance rules.
 
-- [docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md): LPSN-first
-  acquisition workflow, implementation-history summary, and evidence boundaries.
-- [docs/cookbook.md](docs/cookbook.md): concise operator cookbook for the
-  high-level `doctor`, `verify-genus`, `status`, `next-step`,
-  `package-results`, and `verify-release-genus` commands.
-- [docs/release_process.md](docs/release_process.md): release commit, tag,
-  GitHub Release, PR, and post-release cleanup process.
-- [docs/release_checklist.md](docs/release_checklist.md): executable release
-  gates, blocking criteria, and validation commands.
-- [docs/release_verification.md](docs/release_verification.md): release
-  evidence, verification matrix, and result interpretation.
-- [docs/release_notes_v2_2_x.md](docs/release_notes_v2_2_x.md): v2.2.x
-  release history.
-- [docs/output_layout.md](docs/output_layout.md): canonical output directory
-  layout, stage ownership, and path invariants.
-- [docs/workspace_policy.md](docs/workspace_policy.md): default workspace
-  resolution, `TYPETREEFLOW_WORKSPACE`, and workspace directory policy.
+Common entry points:
+
+- [docs/cookbook.md](docs/cookbook.md): high-level operator commands.
+- [docs/output_layout.md](docs/output_layout.md): run-directory path contract.
+- [docs/workspace_policy.md](docs/workspace_policy.md): workspace root policy.
 - [docs/results_policy.md](docs/results_policy.md): repository `results/`
-  allowlist and generated-output boundary.
-- [docs/handoff_index_contract.md](docs/handoff_index_contract.md): how to
-  interpret generated `handoff_index.md` files as package navigation/status
-  summaries, not scientific decision sources.
-- [docs/schemas.md](docs/schemas.md): TSV and table field dictionary.
-- [docs/statuses.md](docs/statuses.md): emitted status values and meanings.
-- [docs/design.md](docs/design.md): current architecture and safety contract.
-- [docs/species_checklist_audit.md](docs/species_checklist_audit.md):
-  user-supplied species checklist auditing.
-- [docs/external_type_genome_ingestion.md](docs/external_type_genome_ingestion.md):
-  authoritative manual external type-genome registration design, boundary, and
-  data contract.
-- [docs/external_workflow_cookbook.md](docs/external_workflow_cookbook.md):
-  short operator workflow for curator-provided local FASTA registration.
-- [docs/completion_audit.md](docs/completion_audit.md): implemented local
-  mixed-provenance completion/gap outputs and split completion metrics.
-- [docs/provider_automation_policy.md](docs/provider_automation_policy.md):
-  current provider/ATCC boundary, including no-default-download, credentials,
-  terms, manual-review, and future-design gates.
+  allowlist.
+- [docs/schemas.md](docs/schemas.md) and
+  [docs/statuses.md](docs/statuses.md): table fields and emitted statuses.
+- [docs/external_type_genome_ingestion.md](docs/external_type_genome_ingestion.md),
+  [docs/external_workflow_cookbook.md](docs/external_workflow_cookbook.md),
+  [docs/completion_audit.md](docs/completion_audit.md), and
+  [docs/provider_automation_policy.md](docs/provider_automation_policy.md):
+  external registration, operator flow, completion metrics, and provider
+  boundaries.
+- [docs/release_process.md](docs/release_process.md),
+  [docs/release_checklist.md](docs/release_checklist.md),
+  [docs/release_verification.md](docs/release_verification.md), and
+  [docs/release_notes_v2_2_x.md](docs/release_notes_v2_2_x.md): release
+  process and history.
+- [docs/design.md](docs/design.md),
+  [docs/stable_contracts.md](docs/stable_contracts.md),
+  [docs/handoff_index_contract.md](docs/handoff_index_contract.md),
+  [docs/species_checklist_audit.md](docs/species_checklist_audit.md), and
+  [docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md): design,
+  contract, handoff, checklist, and deep LPSN-first references.
 Historical plans, old audits, roadmap notes, and run evidence are indexed from
 [docs/index.md](docs/index.md). They are evidence snapshots, not current
 behavior contracts or required release gates. The redistributable
@@ -678,10 +668,10 @@ skipped plan rows. It does not create `manifest.tsv`, copy FASTA files, or run
 the NCBI download workflow. The bundled example uses a tiny synthetic FASTA
 fixture and `external_source=external_registered_fixture`; it is only for
 workflow demonstration and is not a real provider or ATCC genome download.
-Relative `genome_fasta_path` values are resolved relative to the TSV location.
-Manual registration assumes the curator has already obtained any external FASTA
-through permitted means outside TypeTreeFlow. The CLI does not log in to,
-scrape, purchase from, or download from external provider portals.
+See [docs/external_workflow_cookbook.md](docs/external_workflow_cookbook.md)
+for the full operator flow and
+[docs/provider_automation_policy.md](docs/provider_automation_policy.md) for
+the provider boundary.
 
 Provider registration planning dry run:
 
@@ -700,19 +690,9 @@ python typetreeflow.py --plan-provider-registration examples/provider_request_mi
 This writes `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` for curator review. The command is
 dry-run-only even without `--dry-run`. It reads the request TSV and writes
-review files only; it does not contact provider portals, log in, handle
-credentials, download or copy FASTA files, write `external_genomes.tsv`,
-`manifest.tsv`, `name_map.tsv`, or create `cache/ncbi/download_plan.tsv`.
-Existing provider planning outputs require `--force` to overwrite. The bundled
-minimal provider request is synthetic and provider-neutral; it validates
-reviewable plan and proposal outputs only, not provider automation. Provider
-proposal rows do not count toward NCBI Assembly strict completion or
-external-inclusive completion. If a curator accepts proposed rows, the handoff
-is manual: prepare a local `external_genomes.tsv` and run the existing external
-registration workflow explicitly. Provider planning notes call out missing
-terms review, local FASTA paths, SHA-256 checksums, and manual-review flags so
-the handoff can be completed without treating proposal rows as installed
-genomes.
+review files only; it does not install genomes, write manifests, create NCBI
+download plans, or change completion metrics. The full provider/ATCC boundary
+is in [docs/provider_automation_policy.md](docs/provider_automation_policy.md).
 
 Install reviewed external genome FASTA files:
 
@@ -727,10 +707,9 @@ then copies only planned FASTA files to `genomes/references/` and writes
 `external_genome_install_results.tsv`, `manifest.tsv`, and `name_map.tsv`.
 External manifest rows keep `assembly_accession` empty, use
 `external_registered_genome` provenance, and preserve the external genome ID in
-notes. Invalid rows do not block valid rows from installing or being written to
-the manifest, but the CLI exits non-zero when any row is skipped as invalid,
-fails, has an installed checksum mismatch, or no manifest-eligible row remains.
-This still does not write an NCBI download plan or report.
+notes. See
+[docs/external_type_genome_ingestion.md](docs/external_type_genome_ingestion.md)
+for the registration data contract.
 
 If `manifest.tsv` already exists, non-dry-run external registration is
 protected by default and exits with an error. Use `--merge-manifest` to append
@@ -744,26 +723,14 @@ typetreeflow \
   --merge-manifest
 ```
 
-The merge keeps existing records first, appends new external records, skips
-duplicates with the same external genome ID or installed genome path, and
-stabilizes only new conflicting `record_id` or `normalized_id` values.
-`--force` remains the overwrite mode for rebuilding the external registration
-manifest from install results, and cannot be combined with `--merge-manifest`.
-Dry-runs never merge manifest files.
+Merge and overwrite behavior is defined in
+[docs/output_layout.md](docs/output_layout.md) and
+[docs/external_workflow_cookbook.md](docs/external_workflow_cookbook.md).
 
 Once the manifest exists, `--report-only` can generate `report/summary.md` and
-`report/run_review.md` from existing files. The review file is a plain-language
-interpretation layer for coverage, 16S provenance, Entrez fallback warnings,
-uncovered species, strict blocking, and next-step guidance. External registered
-genomes appear in their own section and in provenance counts, but remain
-separate from NCBI Assembly-backed records.
-Registered external genomes with installed local FASTA paths can enter
-downstream planning as mixed-provenance references. If existing provider
-planning outputs are present under `provider/`, the same report also adds
-review-only provider registration planning counts, including proposed rows
-missing local FASTA paths or checksums. It does not read `provider_request.tsv`,
-rerun provider planning, download, log in, install proposed genomes, write
-manifests, or change completion audit metrics.
+`report/run_review.md` from existing files. External registered genomes remain
+separate from NCBI Assembly-backed records; report-only provider summaries are
+review-only and do not rerun provider planning or change manifests.
 
 ```bash
 typetreeflow \
@@ -787,10 +754,8 @@ existing completion summary when present; it does not generate the audit.
 The completion audit reports NCBI Assembly strict completion separately from
 external-inclusive strict completion. Registered external genomes can improve
 external-inclusive local readiness after validation and manifest registration,
-but they do not change NCBI Assembly strict completion. Manifest records marked
-`representative_only`, `representative_not_type_confirmed`, or
-`likely_type_material` are risk-layered for review and do not inflate strict
-completion counts.
+but they do not change NCBI Assembly strict completion. Counting rules are in
+[docs/completion_audit.md](docs/completion_audit.md).
 
 Run the LPSN-first genus acquisition path from local caches:
 

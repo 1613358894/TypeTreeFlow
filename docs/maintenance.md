@@ -14,61 +14,23 @@ link to the canonical policy or contract page.
 
 ## Documentation layers
 
-### Current contracts
+Use [index.md](index.md) for the reader-facing map. This page only defines how
+to maintain the layers:
 
-These files describe behavior that users, tests, and downstream scripts can
-treat as current:
-
-- `README.md`
-- `docs/design.md`
-- `docs/workspace_policy.md`
-- `docs/results_policy.md`
-- `docs/output_layout.md`
-- `docs/schemas.md`
-- `docs/statuses.md`
-- `docs/species_checklist_audit.md`
-- `docs/completion_audit.md`
-- `docs/handoff_index_contract.md`
-
-Use these for implemented CLI behavior, output paths, TSV schemas, emitted
-status values, and safety guarantees. If code changes current behavior, update
-the relevant contract document in the same change.
-
-### Active designs
-
-These files describe planned or partially scoped work:
-
-- `docs/lpsn_first_acquisition.md`
-- `docs/external_type_genome_ingestion.md`
-- `docs/provider_automation_policy.md`
-
-Use active designs for design intent, phase notes, and future behavior. Mark
-whether a section is implemented, proposed, or historical. Do not let planned
-text read like current behavior. For provider/ATCC work,
-`docs/provider_automation_policy.md` is the current boundary; archived
-feasibility, gate-review, framework, spike, and local-artifact-normalization
-notes are historical support material only.
+- Current contracts document implemented CLI behavior, output paths, TSV
+  schemas, emitted status values, and safety guarantees. If code changes
+  current behavior, update the relevant contract document in the same change.
+- Active designs document design intent, phase notes, and future behavior. Mark
+  whether a section is implemented, proposed, or historical, and do not let
+  planned text read like current behavior.
+- Operational and release docs guide repeatable project work: release policy,
+  validation steps, contribution expectations, and documentation hygiene.
 
 For manual external genomes, keep the split narrow:
 `docs/external_type_genome_ingestion.md` is the design/data-contract entry,
 `docs/external_workflow_cookbook.md` is the short operator workflow, and
 `docs/completion_audit.md` explains completion/gap metrics. Fusobacterium
 material stays in `docs/archive/` or `examples/` as case/template context.
-
-### Operational and release docs
-
-These files guide maintainers through repeatable project work:
-
-- `docs/maintenance.md`
-- `docs/external_workflow_cookbook.md`
-- `docs/release_process.md`
-- `docs/release_checklist.md`
-- `docs/release_verification.md`
-- `CHANGELOG.md`
-- `CONTRIBUTING.md`
-
-Use these for release policy, validation steps, contribution expectations, and
-documentation hygiene. Keep workflow steps concrete and testable.
 
 ### Archive And Historical Material
 
@@ -82,9 +44,6 @@ evidence summaries; do not use it for generated run outputs.
 Archive content is evidence, not the current behavior contract. Do not update
 archive files to make them look current. If archived evidence reveals a current
 rule, write that rule in `README.md` or the appropriate current docs instead.
-
-Treat archived files as historical support material unless `docs/index.md` or a
-current contract page explicitly links one for a specific historical fact.
 
 ## Change checklist
 

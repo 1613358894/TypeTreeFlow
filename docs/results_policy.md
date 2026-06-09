@@ -25,17 +25,9 @@ allowlist.
 
 Large runs, real analyses, release-validation runs, local downloaded data,
 delivery packages, and operator scratch work should live outside the
-repository under a workspace. See [workspace_policy.md](workspace_policy.md).
-Compact historical evidence summaries in the documentation archive are not
-run-output locations.
-
-Recommended locations:
-
-- Runs: `<workspace>/runs/<run-name>`
-- Release verification runs: `<workspace>/runs/release/<run-name>`
-- Delivery packages: `<workspace>/deliveries/<delivery-name>`
-- Local data and caches: `<workspace>/data/<name>`
-- Reviewed manifest snapshots: `<workspace>/manifests/<name>`
+repository under a workspace. See [workspace_policy.md](workspace_policy.md)
+for workspace layout. Compact historical evidence summaries in the
+documentation archive are not run-output locations.
 
 ## Hygiene Checker Relationship
 

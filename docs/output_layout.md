@@ -9,16 +9,10 @@ lives in [results_policy.md](results_policy.md).
 
 ## Default And Recommended Roots
 
-An explicit `--outdir` always takes precedence, and the path is exactly the
-user-supplied run directory. When `--outdir` is omitted, TypeTreeFlow writes to
-the default workspace run described in
-[workspace_policy.md](workspace_policy.md).
-
-Real runs and large outputs should usually live outside the repository under
-`<workspace>/runs/<run-name>`. Delivery packages should usually be written to
-`<workspace>/deliveries/<delivery-name>`. The repository `results/` directory
-is governed by [results_policy.md](results_policy.md), not by the run layout
-contract below.
+An explicit `--outdir` is the run directory. Default workspace resolution,
+recommended workspace roots, and repository `results/` boundaries are owned by
+[workspace_policy.md](workspace_policy.md) and
+[results_policy.md](results_policy.md).
 
 Canonical run directory layout, shown under a user-selected `<run_dir>`:
 
@@ -140,18 +134,17 @@ skipped-existing install results are converted into external registered genome
 records in `manifest.tsv` and `name_map.tsv`. These records keep
 `assembly_accession` empty, use `external_registered_genome` provenance, store
 the external genome ID in `notes`, and do not create NCBI download workflow
-files or reports.
+files or reports. The registration design is maintained in
+[external_type_genome_ingestion.md](external_type_genome_ingestion.md).
 `external_genomes.tsv` is the curator-supplied input table, usually outside the
-run directory unless the user chooses to place it there. TypeTreeFlow reads
-local FASTA paths from that table only; it does not log in to, scrape, or
-download from external provider portals.
+run directory unless the user chooses to place it there.
 `--plan-provider-registration PATH` reads a curator-authored
 `provider_request.tsv` and writes only `provider/provider_registration_plan.tsv`
 and `provider/proposed_external_genomes.tsv`. This command is dry-run-only
-whether or not `--dry-run` is supplied. It does not log in, contact provider
-portals, download provider artifacts, copy FASTA files, write
-`external_genomes.tsv`, write `manifest.tsv`, write `name_map.tsv`, or create
-`cache/ncbi/download_plan.tsv`.
+whether or not `--dry-run` is supplied. It does not write manifests, install
+FASTA files, create NCBI download plans, or change completion metrics. Provider
+network and credential boundaries are owned by
+[provider_automation_policy.md](provider_automation_policy.md).
 If `manifest.tsv` already exists, non-dry-run registration requires either
 `--force` or `--merge-manifest`. `--force` overwrites the manifest with the
 external registration manifest. `--merge-manifest` reads the existing manifest,
@@ -166,12 +159,8 @@ only the new records are stabilized to unique values. `--merge-manifest` and
 `--force` are mutually exclusive, and dry-runs never merge the manifest.
 External registered genome records with existing genome paths can participate
 in local downstream barrnap, ANI, and 16S phylogeny planning from resume mode.
-The minimal offline example can be run without network access:
-`typetreeflow --register-external-genomes examples/external_genomes_minimal.tsv --outdir <run_dir> --dry-run`,
-then rerun without `--dry-run` to install the synthetic fixture FASTA and write
-`manifest.tsv`/`name_map.tsv`, and finally run
-`typetreeflow --outdir <run_dir> --report-only` to
-refresh `report/summary.md` and `report/run_review.md`.
+The short operator flow is in
+[external_workflow_cookbook.md](external_workflow_cookbook.md).
 
 `external_genome_registration_results.tsv` records reviewable validation
 results for standalone external-genome registration rows. It does not create
@@ -195,11 +184,8 @@ strict blocking, and recommended next steps. Creating either report does not
 execute external tools, assign final species conclusions, regenerate missing
 inputs, or generate completion audit files. Missing optional artifacts are
 reported as unavailable. When
-`manifest.tsv` contains external registered genome records, the summary reports
-their count, display names, strains, installed genome paths, statuses, and
-manifest notes as provenance text, alongside provenance counts for NCBI
-Assembly-backed records, external registered genome records, genome-ready
-records, and records missing genomes.
+`manifest.tsv` contains external registered genome records, the summary keeps
+them separate from NCBI Assembly-backed records.
 The review file explicitly keeps representative-only rows and Entrez fallback
 16S records out of strict same-genome evidence. Its total 16S including Entrez
 fallback count is an availability count, not a strict-ready count, and it points
@@ -220,9 +206,7 @@ When `provider/provider_registration_plan.tsv` already exists, the report adds
 a Provider Registration Planning section with provider request, review,
 unsupported-download, unsupported-credential, and optional proposed external
 genome counts. Report-only mode reads only the existing provider planning
-outputs; it does not read `provider_request.tsv`, rerun provider planning,
-download, log in, write `manifest.tsv`, write `name_map.tsv`, write NCBI
-download plans, or alter completion audit metrics.
+outputs and does not alter manifests or completion audit metrics.
 
 `delivery/` under the run directory is the default output for `package-results`
 when `--delivery-dir` is omitted. For reviewed handoffs, prefer an explicit
@@ -397,9 +381,9 @@ the type strain.
 existing `manifest.tsv`. These files compare NCBI Assembly strict completion
 with external-inclusive strict completion while preserving the boundary that
 external registered genomes do not change NCBI Assembly strict completion
-counts. Likely type-material and representative-only manifest risk layers also
-do not change strict completion counts. The stage is local and does not contact
-external providers or generate reports by itself.
+counts. The stage is local and does not contact external providers or generate
+reports by itself. Counting rules are owned by
+[completion_audit.md](completion_audit.md).
 `source_audit/completion_summary.tsv` is the compact metric table consumed by
 `report/summary.md`; it keeps NCBI Assembly strict completion separate from
 external-inclusive strict completion.
@@ -440,9 +424,8 @@ metrics, or manifests.
 `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv` are review-only provider planning
 outputs. Existing provider planning files are protected unless `--force` is
-supplied.
-They are planning artifacts only. Provider planning never writes a manifest,
-installs FASTA files, or creates NCBI Assembly accessions.
+supplied. They are planning artifacts only; provider boundary rules are in
+[provider_automation_policy.md](provider_automation_policy.md).
 
 ## Download Artifacts
 
