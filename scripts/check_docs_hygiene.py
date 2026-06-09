@@ -22,6 +22,7 @@ TOP_LEVEL_DOCS_ALLOWLIST = {
     "completion_audit.md",
     "cookbook.md",
     "design.md",
+    "docs_simplification_plan.md",
     "docs_inventory.md",
     "external_type_genome_ingestion.md",
     "external_workflow_cookbook.md",
