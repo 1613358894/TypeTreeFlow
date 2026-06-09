@@ -72,10 +72,12 @@ documentation hygiene. Keep workflow steps concrete and testable.
 
 ### Archive And Historical Material
 
-`docs/archive/` contains historical plans, stale PR drafts, run evidence, and
-audit records. Historical plans, old audits, stage-specific roadmap notes,
-phase-specific release or validation evidence, and stale PR drafts should live
-under `docs/archive/` after an explicit archive pass.
+`docs/archive/` contains historical plans, stale PR drafts, compact run
+evidence summaries, and audit records. Historical plans, old audits,
+stage-specific roadmap notes, phase-specific release or validation evidence,
+and stale PR drafts should live under `docs/archive/` after an explicit archive
+pass. Use `docs/archive/run_evidence/` for small tracked historical run
+evidence summaries; do not use it for generated run outputs.
 
 Archive content is evidence, not the current behavior contract. Do not update
 archive files to make them look current. If archived evidence reveals a current

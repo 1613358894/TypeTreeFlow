@@ -75,6 +75,7 @@ def run_checks(root: Path = REPO_ROOT) -> list[DocsHygieneCheckResult]:
         _check_top_level_allowlist(root),
         _check_top_level_versioned_stage_docs(root),
         _check_inactive_current_doc_dirs(root),
+        _check_archive_run_evidence_location(root),
         _check_markdown_links(root),
         _check_readme_docs_links(root),
         _check_typetreeflow_out_context(root),
@@ -189,6 +190,27 @@ def _check_inactive_current_doc_dirs(root: Path) -> DocsHygieneCheckResult:
         "docs/roadmap and docs/validation must not contain Markdown file(s): "
         + ", ".join(offenders),
     )
+
+
+def _check_archive_run_evidence_location(root: Path) -> DocsHygieneCheckResult:
+    old_dir = root / "docs" / "archive" / "runs"
+    evidence_dir = root / "docs" / "archive" / "run_evidence"
+    old_label = "docs/archive/" + "runs/"
+    if old_dir.exists():
+        return DocsHygieneCheckResult(
+            "archive run evidence location",
+            False,
+            "archived run evidence belongs in docs/archive/run_evidence/, "
+            f"not {old_label}",
+        )
+    if not evidence_dir.is_dir():
+        return DocsHygieneCheckResult(
+            "archive run evidence location",
+            False,
+            f"missing archived run evidence directory: "
+            f"{evidence_dir.relative_to(root).as_posix()}",
+        )
+    return DocsHygieneCheckResult("archive run evidence location", True, "ok")
 
 
 def _check_markdown_links(root: Path) -> DocsHygieneCheckResult:

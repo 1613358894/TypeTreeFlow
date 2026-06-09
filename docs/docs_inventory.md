@@ -49,12 +49,12 @@ Allowed actions in this inventory: 保留, 合并, 改名, 归档, 删除候选,
 | `docs/archive/pr_description_v2_2_x.md` | v2.2.x PR description draft。 | 发布审阅者。 | 否，stale PR 草稿，已归档。 | 与 release notes / release verification / acceptance checklist 重复。 | 归档 |
 | `docs/archive/README.md` | archive inventory、retention rules、deleted evidence summaries。 | 维护者、历史追溯读者。 | 是，作为 archive 索引有效。 | 与 `docs/index.md` archive section 重复。 | 保留 |
 | `docs/archive/ncbi_candidate_discovery_phase22.md` | Phase 22 NCBI candidate discovery historical design。 | 维护者、历史追溯读者。 | 否，历史计划。 | 当前 discovery 行为已分散在 LPSN/acquisition/schema/status docs。 | 保留 |
-| `docs/archive/runs/fusobacterium_v0_5_0/README.md` | compact v0.5.0 Fusobacterium evidence index。 | 维护者、历史追溯读者。 | 否，archive evidence。 | 与 archive README 和 nested evidence docs 重复。 | 保留 |
-| `docs/archive/runs/fusobacterium_v0_5_0/delivery/README.md` | Fusobacterium 16/17 delivery archived evidence。 | 历史追溯读者。 | 否，archive evidence。 | 与 final audit/current status 有事实重复。 | 保留 |
-| `docs/archive/runs/fusobacterium_v0_5_0/final_audit/current_status.md` | Fusobacterium final audit status evidence。 | 历史追溯读者。 | 否，archive evidence。 | 与 delivery README 重复。 | 保留 |
-| `docs/archive/runs/fusobacterium_v0_5_0/mortiferum_final_review/mortiferum_final_decision.md` | `F. mortiferum` final non-selection rationale。 | 历史追溯读者、curator。 | 否，archive evidence。 | 与 Fusobacterium delivery/current status 互补。 | 保留 |
-| `docs/archive/runs/phase15_smoke/README.md` | Phase 15 smoke run compact evidence index。 | 历史追溯读者。 | 否，archive evidence。 | 与 archive README 重复。 | 保留 |
-| `docs/archive/runs/phase15_smoke/actinocorallia/report/summary.md` | Archived generated summary for Actinocorallia smoke run。 | 历史追溯读者。 | 否，archive generated evidence。 | 与 Phase 15 smoke README 重复。 | 保留 |
+| `docs/archive/run_evidence/fusobacterium_v0_5_0/README.md` | compact v0.5.0 Fusobacterium evidence index。 | 维护者、历史追溯读者。 | 否，archive evidence。 | 与 archive README 和 nested evidence docs 重复。 | 保留 |
+| `docs/archive/run_evidence/fusobacterium_v0_5_0/delivery/README.md` | Fusobacterium 16/17 delivery archived evidence。 | 历史追溯读者。 | 否，archive evidence。 | 与 final audit/current status 有事实重复。 | 保留 |
+| `docs/archive/run_evidence/fusobacterium_v0_5_0/final_audit/current_status.md` | Fusobacterium final audit status evidence。 | 历史追溯读者。 | 否，archive evidence。 | 与 delivery README 重复。 | 保留 |
+| `docs/archive/run_evidence/fusobacterium_v0_5_0/mortiferum_final_review/mortiferum_final_decision.md` | `F. mortiferum` final non-selection rationale。 | 历史追溯读者、curator。 | 否，archive evidence。 | 与 Fusobacterium delivery/current status 互补。 | 保留 |
+| `docs/archive/run_evidence/phase15_smoke/README.md` | Phase 15 smoke run compact evidence index。 | 历史追溯读者。 | 否，archive evidence。 | 与 archive README 重复。 | 保留 |
+| `docs/archive/run_evidence/phase15_smoke/actinocorallia/report/summary.md` | Archived generated summary for Actinocorallia smoke run。 | 历史追溯读者。 | 否，archive generated evidence。 | 与 Phase 15 smoke README 重复。 | 保留 |
 | `docs/roadmap/v2.2.10-ux-followups.md` | v2.2.10 UX/reporting follow-up checklist from v2.2.9 validation。 | 维护者、历史追溯读者。 | 否，阶段性 roadmap。 | 与 release notes / release verification 的 v2.2.10 history 重复。 | 归档 |
 | `docs/roadmap/v2.2.12-maintenance-plan.md` | v2.2.12 maintenance staged plan and dedup notes。 | 维护者。 | 部分有效；当前 release 后更像 history。 | 与 release checklist、release verification、release notes 的 current 2.2.12 内容重复。 | 归档 |
 | `docs/validation/v2.2.9-real-world-validation.md` | v2.2.9 real-world validation evidence。 | 发布审阅者、历史追溯读者。 | 否，validation evidence。 | 与 v2.2.10 roadmap and release notes 重复。 | 归档 |
@@ -127,8 +127,8 @@ Already archived and recommended to remain archived:
 
 - `docs/archive/README.md`
 - `docs/archive/ncbi_candidate_discovery_phase22.md`
-- `docs/archive/runs/fusobacterium_v0_5_0/`
-- `docs/archive/runs/phase15_smoke/`
+- `docs/archive/run_evidence/fusobacterium_v0_5_0/`
+- `docs/archive/run_evidence/phase15_smoke/`
 
 ## Merge Or Dedup Groups
 
@@ -141,7 +141,7 @@ Already archived and recommended to remain archived:
 | External genome workflow | `docs/external_type_genome_ingestion.md`, `docs/external_workflow_cookbook.md`, `docs/archive/fusobacterium_external_pilot.md`, `docs/archive/fusobacterium_real_pilot_template.md`, `docs/completion_audit.md` | General design, cookbook, completion metrics, and Fusobacterium case templates historically overlapped. | Current split: design/data contract in `external_type_genome_ingestion`, short operator path in `external_workflow_cookbook`, completion/gap counting in `completion_audit`, and Fusobacterium material as archive/examples only. |
 | Provider/ATCC boundary | `docs/provider_automation_policy.md`, `docs/archive/provider_automation_feasibility.md`, `docs/archive/atcc_downloader_gate_review.md`, `docs/archive/local_artifact_normalization_design.md`, `docs/archive/v0_9_0_provider_adapter_spike_plan.md`, `docs/archive/v2_0_0_provider_automation_framework.md` | Multiple historical docs repeated no-default-provider-download, credential, gate, local-artifact, and review-only planning boundaries. | Current policy has been consolidated into one canonical provider boundary doc; archived files are history only. |
 | v2.2.x historical evidence | `docs/release_notes_v2_2_x.md`, `docs/release_verification.md`, `docs/validation/v2.2.9-real-world-validation.md`, `docs/roadmap/v2.2.10-ux-followups.md`, `docs/roadmap/v2.2.12-maintenance-plan.md`, `docs/v2_2_2_*`, `docs/v2_2_3_*`, `docs/v2_2_4_*` | Release history is split across current docs, validation notes, roadmap notes, and baseline files. | Keep release notes and current verification summary; archive validation/roadmap/baseline details. |
-| Archive evidence index | `docs/archive/README.md`, nested archive run READMEs, `docs/index.md` archive sections | Archive entries are listed in both current map and archive README. | Keep `docs/index.md` as pointer only; keep detailed retention rationale in `docs/archive/README.md`. |
+| Archive evidence index | `docs/archive/README.md`, nested `docs/archive/run_evidence/` READMEs, `docs/index.md` archive sections | Archive entries are listed in both current map and archive README. | Keep `docs/index.md` as pointer only; keep detailed retention rationale in `docs/archive/README.md`. |
 
 ## Broken Links, Path Risks, And Old Output Path Risks
 

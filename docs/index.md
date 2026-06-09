@@ -101,9 +101,9 @@ entry points or behavior contracts.
   and cleanup criteria.
 - [archive/ncbi_candidate_discovery_phase22.md](archive/ncbi_candidate_discovery_phase22.md):
   historical Phase 22 candidate-discovery design and implementation record.
-- [archive/runs/fusobacterium_v0_5_0/](archive/runs/fusobacterium_v0_5_0/):
+- [archive/run_evidence/fusobacterium_v0_5_0/](archive/run_evidence/fusobacterium_v0_5_0/):
   compact archived Fusobacterium v0.5.0 evidence.
-- [archive/runs/phase15_smoke/](archive/runs/phase15_smoke/):
+- [archive/run_evidence/phase15_smoke/](archive/run_evidence/phase15_smoke/):
   compact Phase 15 smoke-run evidence.
 
 Archive files preserve history. Do not read them as current operator

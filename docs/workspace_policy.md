@@ -49,6 +49,8 @@ Recommended workspace layout:
 download, release verification, report refresh, and analysis outputs should
 normally live here. Use descriptive run names, and use
 `<workspace>/runs/release/<run-name>` for release validation runs.
+This is distinct from tracked documentation archive evidence summaries, which
+are not generated run-output directories.
 
 `<workspace>/deliveries/` is for reviewed package handoffs produced by
 `package-results --delivery-dir`. Delivery packages are handoff artifacts, not
