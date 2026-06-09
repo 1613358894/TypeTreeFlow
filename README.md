@@ -206,6 +206,29 @@ Supported environment defaults:
 - `TYPETREEFLOW_LPSN_EMAIL` or `TYPETREEFLOW_LPSN_USERNAME`: official LPSN
   account identifier.
 - `TYPETREEFLOW_LPSN_PASSWORD`: official LPSN password.
+- `TYPETREEFLOW_WORKSPACE`: optional default workspace root for run outputs.
+
+## Output workspace
+
+When `--outdir` is omitted, TypeTreeFlow writes to a workspace default run
+directory:
+
+- `TYPETREEFLOW_WORKSPACE` set: `<workspace>/runs/default`
+- Windows: `%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default`
+- POSIX: `$XDG_DATA_HOME/typetreeflow/workspace/runs/default`, or
+  `~/.local/share/typetreeflow/workspace/runs/default` if `XDG_DATA_HOME` is
+  unset
+
+An explicit `--outdir` always wins and is used exactly as supplied. For real
+runs and large outputs, prefer `<workspace>/runs/<run-name>`; for package
+handoffs, prefer `<workspace>/deliveries/<delivery-name>`. A local maintainer
+workspace on this project may be `D:\Draft\TypeTreeFlow_workspace`.
+
+The repository `results/` directory is only for selected, small, trackable
+verification evidence. Do not write real runs, large downloads, or scratch
+outputs there. `typetreeflow_out/` is an old default or historical example
+path; current TypeTreeFlow no longer defaults to writing it in the repository
+root, and it should not be committed.
 
 ## Quickstart and common commands
 
@@ -237,7 +260,7 @@ typetreeflow verify-genus Fusobacterium \
   --policy balanced \
   --source-audit-policy strict \
   --strains-per-species 1 \
-  --outdir results/fusobacterium_verify
+  --outdir <run_dir>
 ```
 
 This is the recommended plan-only acquisition command. A local LPSN cache only
@@ -256,7 +279,7 @@ typetreeflow verify-genus Fusobacterium \
   --email user@example.org \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir results/fusobacterium_verify
+  --outdir <run_dir>
 ```
 
 By default, `verify-genus` stops at reviewable planning. Review
@@ -276,7 +299,7 @@ typetreeflow verify-genus Fusobacterium \
   --enrich-biosample \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --auto-accept-selection \
   --enable-downloads
 ```
@@ -295,7 +318,7 @@ typetreeflow verify-genus Fusobacterium \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --auto-accept-selection \
   --enable-downloads \
   --extract-16s barrnap
@@ -311,7 +334,7 @@ rebuilding protected outputs. Resume local barrnap from the existing manifest:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --resume \
   --enable-barrnap
 ```
@@ -321,7 +344,7 @@ left missing records:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --resume \
   --enable-entrez \
   --email user@example.org
@@ -337,11 +360,11 @@ coverage.
 Inspect or continue a run:
 
 ```bash
-typetreeflow status --outdir results/fusobacterium_verify
-typetreeflow next-step --outdir results/fusobacterium_verify
-typetreeflow status --outdir results/fusobacterium_verify --json
-typetreeflow verify-genus Fusobacterium --outdir results/fusobacterium_verify --resume --dry-run
-typetreeflow --outdir results/fusobacterium_verify --report-only
+typetreeflow status --outdir <run_dir>
+typetreeflow next-step --outdir <run_dir>
+typetreeflow status --outdir <run_dir> --json
+typetreeflow verify-genus Fusobacterium --outdir <run_dir> --resume --dry-run
+typetreeflow --outdir <run_dir> --report-only
 ```
 
 `--report-only` refreshes `report/summary.md` and `report/run_review.md` from
@@ -352,8 +375,8 @@ Package a reviewed delivery directory:
 
 ```bash
 typetreeflow package-results \
-  --outdir results/fusobacterium_verify \
-  --delivery-dir results/fusobacterium_delivery \
+  --outdir <run_dir> \
+  --delivery-dir <delivery_dir> \
   --include all
 ```
 
@@ -378,13 +401,13 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_9_release_verification \
+  --outdir <workspace>/runs/release/v2_2_9_release_verification \
   --policies balanced,representative \
   --force
 ```
 
 This writes per-policy outdirs plus
-`results/v2_2_9_release_verification/verification_matrix.tsv` and
+`<workspace>/runs/release/v2_2_9_release_verification/verification_matrix.tsv` and
 `release_verification_summary.md`.
 
 In v2.2.9, `verify-release-genus` retains the v2.2.6 shared acquisition cache:
@@ -495,7 +518,7 @@ planning is a metadata/review handoff only:
 ```bash
 typetreeflow \
   --plan-provider-registration data/provider_request.tsv \
-  --outdir results/provider_plan \
+  --outdir <run_dir> \
   --force
 ```
 
@@ -508,12 +531,12 @@ explicitly:
 ```bash
 typetreeflow \
   --register-external-genomes data/external_genomes.tsv \
-  --outdir results/external_registration \
+  --outdir <run_dir> \
   --dry-run
 
 typetreeflow \
   --register-external-genomes data/external_genomes.tsv \
-  --outdir results/external_registration \
+  --outdir <run_dir> \
   --merge-manifest
 ```
 
@@ -533,7 +556,7 @@ Run a minimal legacy/local GTDB dry run:
 typetreeflow \
   --genus Aliivibrio \
   --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
-  --outdir output_dry_run \
+  --outdir <tmp>/output_dry_run \
   --dry-run
 ```
 
@@ -552,18 +575,18 @@ Convert an offline LPSN child-taxa export into a species checklist:
 ```bash
 typetreeflow \
   --lpsn-child-taxa examples/fusobacterium_lpsn_child_taxa_minimal.tsv \
-  --write-species-checklist results/offline_smoke/species_checklist_from_lpsn.tsv \
-  --write-excluded-lpsn-taxa results/offline_smoke/excluded_lpsn_child_taxa.tsv
+  --write-species-checklist <run_dir>/species_checklist_from_lpsn.tsv \
+  --write-excluded-lpsn-taxa <run_dir>/excluded_lpsn_child_taxa.tsv
 ```
 
 Generate candidates from a local discovery cache:
 
 ```bash
 typetreeflow \
-  --species-checklist results/offline_smoke/species_checklist_from_lpsn.tsv \
+  --species-checklist <run_dir>/species_checklist_from_lpsn.tsv \
   --discover-assembly-candidates \
   --discovery-cache examples/discovery_records_minimal.tsv \
-  --outdir results/offline_smoke \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -571,7 +594,7 @@ Prepare an offline selection TSV:
 
 ```bash
 typetreeflow \
-  --outdir results/offline_smoke \
+  --outdir <run_dir> \
   --prepare-selection \
   --selection-policy balanced \
   --strains-per-species 1
@@ -603,14 +626,14 @@ BioSample Entrez lookup when real NCBI lookups are appropriate:
 
 ```bash
 typetreeflow \
-  --species-checklist results/fusobacterium_acquisition/species_checklist.tsv \
+  --species-checklist <run_dir>/species_checklist.tsv \
   --discover-assembly-candidates \
   --enable-ncbi-discovery \
   --enrich-biosample \
   --enable-biosample-entrez \
   --email user@example.org \
   --selection-policy balanced \
-  --outdir results/fusobacterium_acquisition_refresh \
+  --outdir <workspace>/runs/fusobacterium_acquisition_refresh \
   --force
 ```
 
@@ -619,7 +642,7 @@ For exploratory representative planning, keep it dry-run and review the
 
 ```bash
 typetreeflow \
-  --outdir results/offline_smoke \
+  --outdir <run_dir> \
   --prepare-selection \
   --selection-policy representative \
   --strains-per-species 1 \
@@ -630,8 +653,8 @@ Validate and plan from a curator-edited selection:
 
 ```bash
 typetreeflow \
-  --outdir results/offline_smoke \
-  --selection-tsv results/offline_smoke/selection/user_selection.tsv \
+  --outdir <run_dir> \
+  --selection-tsv <run_dir>/selection/user_selection.tsv \
   --dry-run \
   --force
 ```
@@ -641,7 +664,7 @@ Manual external genome registration dry run:
 ```bash
 typetreeflow \
   --register-external-genomes examples/external_genomes_minimal.tsv \
-  --outdir results/external_registration_minimal \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -663,13 +686,13 @@ Provider registration planning dry run:
 ```bash
 typetreeflow \
   --plan-provider-registration provider_request.tsv \
-  --outdir results/provider_spike
+  --outdir <run_dir>
 ```
 
 Minimal synthetic provider planning fixture:
 
 ```bash
-python typetreeflow.py --plan-provider-registration examples/provider_request_minimal.tsv --outdir results/provider_plan_minimal --force
+python typetreeflow.py --plan-provider-registration examples/provider_request_minimal.tsv --outdir <run_dir> --force
 ```
 
 This writes `provider/provider_registration_plan.tsv` and
@@ -694,7 +717,7 @@ Install reviewed external genome FASTA files:
 ```bash
 typetreeflow \
   --register-external-genomes examples/external_genomes_minimal.tsv \
-  --outdir results/external_registration_minimal
+  --outdir <run_dir>
 ```
 
 Non-dry-run registration writes the same validation results and install plan,
@@ -715,7 +738,7 @@ preserving existing NCBI rows and record order:
 ```bash
 typetreeflow \
   --register-external-genomes data/external_genomes.tsv \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --merge-manifest
 ```
 
@@ -742,7 +765,7 @@ manifests, or change completion audit metrics.
 
 ```bash
 typetreeflow \
-  --outdir results/external_registration_minimal \
+  --outdir <run_dir> \
   --report-only
 ```
 
@@ -779,7 +802,7 @@ typetreeflow \
   --selection-policy strict \
   --source-audit-policy strict \
   --strains-per-species 1 \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -795,7 +818,7 @@ typetreeflow \
   --selection-policy strict \
   --source-audit-policy strict \
   --strains-per-species 1 \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -809,14 +832,14 @@ an LPSN type-strain ID; type-material wording alone remains
 
 ```bash
 typetreeflow \
-  --species-checklist results/fusobacterium_acquisition/species_checklist.tsv \
+  --species-checklist <run_dir>/species_checklist.tsv \
   --discover-assembly-candidates \
   --enable-ncbi-discovery \
   --enrich-biosample \
   --enable-biosample-entrez \
   --email user@example.org \
   --selection-policy balanced \
-  --outdir results/fusobacterium_acquisition_refresh \
+  --outdir <workspace>/runs/fusobacterium_acquisition_refresh \
   --force
 ```
 
@@ -824,8 +847,8 @@ Drive guarded downloads from a reviewed selection TSV:
 
 ```bash
 typetreeflow \
-  --outdir results/fusobacterium_acquisition \
-  --selection-tsv results/fusobacterium_acquisition/selection/user_selection.tsv \
+  --outdir <run_dir> \
+  --selection-tsv <run_dir>/selection/user_selection.tsv \
   --selection-policy strict \
   --source-audit-policy strict \
   --strains-per-species 1 \
@@ -844,8 +867,8 @@ completion.
 Resume with existing outputs:
 
 ```bash
-python typetreeflow.py --outdir results --resume --dry-run
-python typetreeflow.py --outdir results --resume --dry-run --skip-ani --skip-tree
+python typetreeflow.py --outdir <run_dir> --resume --dry-run
+python typetreeflow.py --outdir <run_dir> --resume --dry-run --skip-ani --skip-tree
 ```
 
 Run a query-genome ANI dry run from a legacy/local manifest path:
@@ -856,7 +879,7 @@ typetreeflow \
   --gtdb-metadata gtdb_metadata.tsv \
   --query-genome query.fna \
   --query-16s query_16s.fasta \
-  --outdir results \
+  --outdir <run_dir> \
   --threads 8 \
   --dry-run
 ```
@@ -864,7 +887,7 @@ typetreeflow \
 Write a report from existing files only:
 
 ```bash
-python typetreeflow.py --outdir results --report-only
+python typetreeflow.py --outdir <run_dir> --report-only
 ```
 
 Manual curator-evidence helper commands are documented in
@@ -923,13 +946,13 @@ Examples:
 typetreeflow \
   --genus Bacillus \
   --gtdb-metadata gtdb_metadata.tsv \
-  --outdir results \
+  --outdir <run_dir> \
   --enable-downloads
 ```
 
 ```bash
 typetreeflow \
-  --outdir results \
+  --outdir <run_dir> \
   --resume \
   --enable-entrez \
   --email user@example.org
@@ -937,7 +960,7 @@ typetreeflow \
 
 ```bash
 typetreeflow \
-  --outdir results \
+  --outdir <run_dir> \
   --resume \
   --query-genome query.fna \
   --enable-fastani \
@@ -946,7 +969,7 @@ typetreeflow \
 
 ```bash
 typetreeflow \
-  --outdir results \
+  --outdir <run_dir> \
   --resume \
   --enable-phylo \
   --skip-ani

@@ -18,7 +18,7 @@ def test_release_consistency_script_passes_in_current_repo():
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "[PASS] pyproject.toml project.version" in completed.stdout
-    assert "Release consistency check passed." in completed.stdout
+    assert "Release consistency check passed: all checks passed." in completed.stdout
 
 
 def test_release_consistency_script_fails_when_fixture_version_mismatches(tmp_path):
@@ -34,7 +34,7 @@ def test_release_consistency_script_fails_when_fixture_version_mismatches(tmp_pa
 
     assert completed.returncode != 0
     assert "[FAIL] typetreeflow.__version__" in completed.stdout
-    assert "expected 9.9.9, got 9.9.8" in completed.stdout
+    assert "expected '9.9.9', found '9.9.8'" in completed.stdout
     assert "Release consistency check failed" in completed.stdout
 
 

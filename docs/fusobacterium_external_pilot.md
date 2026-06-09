@@ -54,7 +54,7 @@ external record into its manifest.
 ```bash
 typetreeflow \
   --register-external-genomes data/fusobacterium_external_genomes.tsv \
-  --outdir results/fusobacterium_external_pilot \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -69,7 +69,7 @@ manual-review, or status issue before continuing.
 ```bash
 typetreeflow \
   --register-external-genomes data/fusobacterium_external_genomes.tsv \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --merge-manifest
 ```
 
@@ -85,7 +85,7 @@ while preserving existing NCBI rows. The external manifest row must keep
 ```bash
 typetreeflow \
   --species-checklist examples/fusobacterium_external_pilot/species_checklist.tsv \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --write-completion-audit
 ```
 
@@ -93,7 +93,7 @@ typetreeflow \
 
 ```bash
 typetreeflow \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --report-only
 ```
 

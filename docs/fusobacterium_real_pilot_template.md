@@ -71,7 +71,7 @@ for command rehearsal; the real ATCC evidence must come from the
 curator-provided FASTA and reviewed `external_genomes.tsv`.
 
 ```powershell
-$out = "results/fusobacterium_external_pilot_real_local"
+$out = "D:\Draft\TypeTreeFlow_workspace\runs\fusobacterium_external_pilot_real_local"
 New-Item -ItemType Directory -Force $out | Out-Null
 # For real evidence, copy the reviewed 16-row NCBI strict manifest into:
 # "$out/manifest.tsv"

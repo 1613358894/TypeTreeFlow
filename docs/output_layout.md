@@ -5,10 +5,36 @@ the canonical files, the stages that create them, and the durable invariants
 downstream tools can rely on. TSV/table field definitions live in
 [schemas.md](schemas.md).
 
-Canonical output directory layout:
+## Default And Recommended Roots
+
+When `--outdir` is omitted, TypeTreeFlow writes to the default workspace run:
+
+- If `TYPETREEFLOW_WORKSPACE` is set:
+  `<workspace>/runs/default`
+- On Windows:
+  `%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default`
+- On POSIX:
+  `$XDG_DATA_HOME/typetreeflow/workspace/runs/default`, or
+  `~/.local/share/typetreeflow/workspace/runs/default` when `XDG_DATA_HOME`
+  is unset.
+
+An explicit `--outdir` always takes precedence, and the path is exactly the
+user-supplied run directory. Real runs and large outputs should usually live
+outside the repository under `<workspace>/runs/<run-name>`. Delivery packages
+should usually be written to `<workspace>/deliveries/<delivery-name>`. On this
+project's maintainer machine, examples may use
+`D:\Draft\TypeTreeFlow_workspace` as the local workspace root.
+
+`results/` in this repository is reserved for curated, small, trackable
+verification evidence. Do not use it for real runs, large downloads, or scratch
+output. `typetreeflow_out/` was the old default or a historical example path;
+current TypeTreeFlow no longer defaults to writing `typetreeflow_out/` in the
+repository root, and that directory should not be committed.
+
+Canonical run directory layout, shown under a user-selected `<run_dir>`:
 
 ```text
-typetreeflow_out/
+<run_dir>/
   external_genomes.tsv                 # optional user input, not generated
   species_checklist.tsv
   excluded_lpsn_taxa.tsv
@@ -152,10 +178,10 @@ only the new records are stabilized to unique values. `--merge-manifest` and
 External registered genome records with existing genome paths can participate
 in local downstream barrnap, ANI, and 16S phylogeny planning from resume mode.
 The minimal offline example can be run without network access:
-`typetreeflow --register-external-genomes examples/external_genomes_minimal.tsv --outdir results/external_registration_minimal --dry-run`,
+`typetreeflow --register-external-genomes examples/external_genomes_minimal.tsv --outdir <run_dir> --dry-run`,
 then rerun without `--dry-run` to install the synthetic fixture FASTA and write
 `manifest.tsv`/`name_map.tsv`, and finally run
-`typetreeflow --outdir results/external_registration_minimal --report-only` to
+`typetreeflow --outdir <run_dir> --report-only` to
 refresh `report/summary.md` and `report/run_review.md`.
 
 `external_genome_registration_results.tsv` records reviewable validation
@@ -209,8 +235,10 @@ outputs; it does not read `provider_request.tsv`, rerun provider planning,
 download, log in, write `manifest.tsv`, write `name_map.tsv`, write NCBI
 download plans, or alter completion audit metrics.
 
-`delivery/` is the default output for `package-results` when `--delivery-dir`
-is omitted. Delivery packages are handoff artifacts, not a cache mirror. They
+`delivery/` under the run directory is the default output for `package-results`
+when `--delivery-dir` is omitted. For reviewed handoffs, prefer an explicit
+`--delivery-dir <workspace>/deliveries/<delivery-name>`. Delivery packages are
+handoff artifacts, not a cache mirror. They
 copy the manifest, `run_state.json` when present, selected-accession and
 evidence summaries when present, download results when present, optional
 reports, genome FASTA files, and optional 16S FASTA files. They do not copy

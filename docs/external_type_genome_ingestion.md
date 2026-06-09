@@ -247,9 +247,9 @@ separate display column such as `genome_source` / `external_genome_id`.
 Implemented v0.6.0 CLI surface:
 
 ```text
-typetreeflow --register-external-genomes external_genomes.tsv --outdir typetreeflow_out
-typetreeflow --register-external-genomes external_genomes.tsv --outdir typetreeflow_out --dry-run
-typetreeflow --register-external-genomes external_genomes.tsv --outdir typetreeflow_out --merge-manifest
+typetreeflow --register-external-genomes external_genomes.tsv --outdir <run_dir>
+typetreeflow --register-external-genomes external_genomes.tsv --outdir <run_dir> --dry-run
+typetreeflow --register-external-genomes external_genomes.tsv --outdir <run_dir> --merge-manifest
 ```
 
 The CLI should keep existing safety rules:

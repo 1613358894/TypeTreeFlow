@@ -22,12 +22,27 @@ version-consistency checks, repo-local pytest temp usage, wheel smoke testing,
 temporary-directory cleanup, and "no real downloads unless explicitly scoped"
 confirmation.
 
+Release validation outputs should live outside the repository by default. Use
+`<workspace>/runs/release/<run-name>` for real or large run outputs and
+`<workspace>/deliveries/<delivery-name>` for package handoffs; a local
+maintainer workspace may be `D:\Draft\TypeTreeFlow_workspace`. If `--outdir` is
+omitted, TypeTreeFlow writes to `TYPETREEFLOW_WORKSPACE/runs/default` when that
+environment variable is set, otherwise to the user-level platform workspace
+(`%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default` on Windows, or
+`$XDG_DATA_HOME/typetreeflow/workspace/runs/default` with
+`~/.local/share/typetreeflow/workspace/runs/default` as the POSIX fallback).
+Explicit `--outdir` paths are always used exactly as supplied.
+
 ## Release Commit
 
 - Create a release readiness commit.
 - Confirm the release commit hash.
 - Do not include caches, local environment files, generated run output, real
   download data, or large artifacts.
+- Do not include `typetreeflow_out/`; it is the old default/historical example
+  path and is not the current default output location.
+- Keep repository `results/` limited to curated, small, trackable verification
+  evidence. Do not commit real runs, large downloads, or scratch output there.
 - Do not mix unrelated feature work into the release readiness commit.
 
 ## Annotated Tag

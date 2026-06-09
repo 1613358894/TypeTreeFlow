@@ -63,6 +63,52 @@ def test_dry_run_basic_writes_core_plans_and_report(tmp_path):
     assert not paths.rrna_dir.exists()
 
 
+def test_dry_run_default_outdir_uses_workspace_env(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    monkeypatch.setenv("TYPETREEFLOW_WORKSPACE", str(workspace))
+
+    result = main(
+        [
+            "--genus",
+            "Aliivibrio",
+            "--gtdb-metadata",
+            str(FIXTURE),
+            "--dry-run",
+        ]
+    )
+
+    outdir = workspace / "runs" / "default"
+    paths = get_output_paths(outdir)
+    assert result == 0
+    assert paths.manifest.exists()
+    assert paths.run_summary_path.exists()
+
+
+def test_explicit_outdir_overrides_workspace_env(tmp_path, monkeypatch):
+    workspace = tmp_path / "workspace"
+    explicit_outdir = tmp_path / "explicit_outdir"
+    monkeypatch.setenv("TYPETREEFLOW_WORKSPACE", str(workspace))
+
+    result = main(
+        [
+            "--genus",
+            "Aliivibrio",
+            "--gtdb-metadata",
+            str(FIXTURE),
+            "--outdir",
+            str(explicit_outdir),
+            "--dry-run",
+        ]
+    )
+
+    default_outdir = workspace / "runs" / "default"
+    explicit_paths = get_output_paths(explicit_outdir)
+    assert result == 0
+    assert explicit_paths.run_state_path.exists()
+    assert explicit_paths.manifest.exists()
+    assert not default_outdir.exists()
+
+
 def test_dry_run_skip_ani_does_not_create_ani_plan(tmp_path):
     outdir = tmp_path / "out"
     paths = get_output_paths(outdir)

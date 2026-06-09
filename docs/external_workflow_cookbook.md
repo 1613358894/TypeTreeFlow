@@ -23,7 +23,7 @@ Use the synthetic fixture when you want to verify software behavior with
 redistributable data:
 
 - input directory: `examples/fusobacterium_external_pilot/`
-- recommended output: `results/fusobacterium_external_pilot_synthetic`
+- recommended output: `<workspace>/runs/fusobacterium_external_pilot_synthetic`
 - purpose: prove registration, manifest merge, completion audit, and
   report-only behavior
 - evidence meaning: workflow fixture only, not ATCC or biological evidence
@@ -32,7 +32,7 @@ Use a real curator-provided `F. mortiferum` ATCC 25557 FASTA only for a local
 evidence package:
 
 - input table: a local `external_genomes.tsv` prepared by the curator
-- recommended output: `results/fusobacterium_external_pilot_real_local`
+- recommended output: `<workspace>/runs/fusobacterium_external_pilot_real_local`
 - purpose: evaluate local external-inclusive completion with a permitted FASTA
 - evidence meaning: local review evidence, subject to provider terms
 
@@ -60,7 +60,7 @@ provider/external fields and must not be copied into NCBI `assembly_accession`.
 From the repository root, run the bundled fixture:
 
 ```powershell
-$out = "results/fusobacterium_external_pilot_synthetic"
+$out = "D:\Draft\TypeTreeFlow_workspace\runs\fusobacterium_external_pilot_synthetic"
 Remove-Item -Recurse -Force $out -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $out | Out-Null
 Copy-Item examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv "$out/manifest.tsv"
@@ -107,7 +107,7 @@ Then run the same registration and audit shape against a completed
 Assembly strict manifest rows, and audit against the 17-species checklist:
 
 ```powershell
-$out = "results/fusobacterium_external_pilot_real_local"
+$out = "D:\Draft\TypeTreeFlow_workspace\runs\fusobacterium_external_pilot_real_local"
 python typetreeflow.py --register-external-genomes local_evidence/fusobacterium_mortiferum_atcc25557/external_genomes.tsv --outdir $out --dry-run
 python typetreeflow.py --register-external-genomes local_evidence/fusobacterium_mortiferum_atcc25557/external_genomes.tsv --outdir $out --merge-manifest
 python typetreeflow.py --species-checklist examples/fusobacterium_external_pilot/species_checklist.tsv --outdir $out --write-completion-audit

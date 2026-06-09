@@ -3,6 +3,28 @@
 This page describes the current release-verification contract. It complements
 the historical v2.2.0 matrix runbook in `docs/v2_2_0_release_verification.md`.
 
+## Output Locations
+
+Release verification outputs should normally be outside the repository under
+`<workspace>/runs/release/<run-name>`; package handoffs should use
+`<workspace>/deliveries/<delivery-name>`. On this project's maintainer machine,
+`D:\Draft\TypeTreeFlow_workspace` is an acceptable local workspace example.
+
+If `--outdir` is omitted, TypeTreeFlow uses the workspace default:
+`TYPETREEFLOW_WORKSPACE/runs/default` when `TYPETREEFLOW_WORKSPACE` is set,
+`%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default` on Windows, or
+`$XDG_DATA_HOME/typetreeflow/workspace/runs/default` with
+`~/.local/share/typetreeflow/workspace/runs/default` as the POSIX fallback.
+Explicit `--outdir` paths always take precedence and are used exactly as
+supplied.
+
+Repository `results/` is reserved for curated, small, trackable verification
+evidence, including existing historical release evidence such as
+`results/v2_2_0_release_verification/verification_matrix.tsv`. Do not use it
+for real runs, large downloads, or scratch output. `typetreeflow_out/` is the
+old default or a historical example path; current TypeTreeFlow no longer
+defaults to writing it in the repository root, and it should not be committed.
+
 ## v2.2.12 Maintenance Notes
 
 v2.2.12 is a maintenance-only release. It adds release consistency checking,

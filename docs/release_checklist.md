@@ -15,6 +15,17 @@ documented in [release_process.md](release_process.md).
   - `fastANI` for ANI execution.
   - `mafft`, `trimal`, and `iqtree2` for phylogeny execution.
 - Entrez fallback requires network access plus `--enable-entrez --email`.
+- Use a disposable release workspace for generated outputs, for example
+  `D:\Draft\TypeTreeFlow_workspace`. Real runs and large release checks should
+  go under `<workspace>/runs/release/<run-name>` or `<tmp>/...`; delivery
+  packages should go under `<workspace>/deliveries/<delivery-name>`.
+- If `--outdir` is omitted, TypeTreeFlow uses the workspace default:
+  `TYPETREEFLOW_WORKSPACE/runs/default` when `TYPETREEFLOW_WORKSPACE` is set,
+  `%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default` on Windows, or
+  `$XDG_DATA_HOME/typetreeflow/workspace/runs/default` with
+  `~/.local/share/typetreeflow/workspace/runs/default` as the POSIX fallback.
+  An explicit `--outdir` always takes precedence and is used exactly as
+  supplied.
 
 ## Required Local Validation
 
@@ -23,6 +34,13 @@ documented in [release_process.md](release_process.md).
 
 ```bash
 python scripts/check_release_consistency.py
+```
+
+- Run the workspace hygiene checker before tagging or publishing. It reports
+  repository-root residue only; it does not delete, move, or modify files:
+
+```bash
+python scripts/check_workspace_hygiene.py
 ```
 
 - For v2.0.0rc1 and final v2.0.0 preparation, confirm the release is
@@ -142,7 +160,7 @@ python typetreeflow.py --outdir <tmp>/external_registration --report-only
 python typetreeflow.py \
   --genus Aliivibrio \
   --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
-  --outdir output_dry_run \
+  --outdir <tmp>/output_dry_run \
   --dry-run
 ```
 
@@ -209,11 +227,11 @@ python typetreeflow.py \
   --skip-ani
 ```
 
-Report-only refresh:
+Report-only refresh and package handoff:
 
 ```bash
 python typetreeflow.py --outdir <run_dir> --report-only
-python typetreeflow.py package-results --outdir <run_dir>
+python typetreeflow.py package-results --outdir <run_dir> --delivery-dir <delivery_dir>
 ```
 
 Historical smoke-run evidence is mapped from `docs/index.md`; it can support
@@ -225,15 +243,18 @@ audit review but is not a required input for the current release checklist.
 - `.tmp_smoke_venv_vX_Y_Z/`
 - `build/`
 - `dist/`
-- `results/`
+- `results/` except intentionally curated, small verification evidence.
 - `*.egg-info/`
 - `__pycache__/`
 - `.pytest_cache/`
 - Local real-run output directories such as `output_dry_run/`, `phase*_*/`, and other disposable run folders unless intentionally curated as documentation evidence.
+- `typetreeflow_out/`; this is the old default or a historical example path,
+  not the current default output location.
 - Downloaded NCBI Datasets ZIPs under `cache/ncbi/*.zip`.
 - Large local GTDB metadata files under `data/` unless intentionally tracked.
-- Do not commit large `results/` trees or real-run output. Preserve only
-  intentionally curated, small documentation fixtures.
+- Do not commit large `results/` trees, real-run output, or scratch output.
+  Preserve only intentionally curated, small documentation fixtures and
+  verification evidence.
 - Keep `dist/*.whl` only as the local release artifact for upload or smoke
   evidence; remove it before non-release documentation commits unless the
   release packaging workflow explicitly needs it.
@@ -253,6 +274,8 @@ audit review but is not a required input for the current release checklist.
 ## Before Tagging
 
 - Confirm `python scripts/check_release_consistency.py` passes.
+- Confirm `python scripts/check_workspace_hygiene.py` passes, or manually
+  review and clean any reported local residue outside the script.
 - Confirm the version-source files listed in
   [release_process.md](release_process.md) match the intended tag.
 - For a release candidate, confirm `CHANGELOG.md` has an Unreleased or

@@ -15,6 +15,7 @@ def test_release_check_passes_current_repository():
 
     assert all(result.passed for result in results), release_check.format_results(results)
     assert "all checks passed" in release_check.format_results(results)
+    assert "[PASS] pyproject.toml project.version" in release_check.format_results(results)
 
 
 def test_release_check_reports_inconsistent_citation_version(tmp_path):
@@ -33,13 +34,13 @@ def test_release_check_reports_inconsistent_citation_version(tmp_path):
     output = release_check.format_results(results)
 
     assert not all(result.passed for result in results)
-    assert "CITATION.cff version matches typetreeflow.__version__" in output
+    assert "[FAIL] CITATION.cff version" in output
     assert f"expected {typetreeflow.__version__!r}, found {wrong_version!r}" in output
 
 
-def test_release_check_main_rejects_arguments(capsys):
-    assert release_check.main(["--unexpected"]) == 2
-    assert "usage: python -m typetreeflow.release_check" in capsys.readouterr().err
+def test_release_check_main_supports_repo_root(capsys):
+    assert release_check.main(["--repo-root", str(PROJECT_ROOT)]) == 0
+    assert "[PASS] pyproject.toml project.version" in capsys.readouterr().out
 
 
 def _copy_release_check_fixture(tmp_path: Path) -> Path:

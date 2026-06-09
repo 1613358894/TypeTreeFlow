@@ -194,6 +194,7 @@ from typetreeflow.taxonomy.selection import (
 from typetreeflow.taxonomy.source_audit import (
     evaluate_sequence_source_audit_policy,
 )
+from typetreeflow.workflow.defaults import default_outdir
 from typetreeflow.workflow.paths import get_output_paths, get_release_acquisition_paths
 from typetreeflow.workflow.resume import (
     load_existing_manifest,
@@ -305,7 +306,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--query-genome", type=Path, help="Query genome FASTA path.")
     parser.add_argument("--query-16s", type=Path, help="Query 16S FASTA path.")
     parser.add_argument("--outgroup", help="Optional outgroup taxon or strain.")
-    parser.add_argument("--outdir", type=Path, default=Path("typetreeflow_out"))
+    parser.add_argument(
+        "--outdir",
+        type=Path,
+        default=None,
+        help=(
+            "Output directory. Defaults to TYPETREEFLOW_WORKSPACE/runs/default "
+            "when set, otherwise a user-level TypeTreeFlow workspace."
+        ),
+    )
     parser.add_argument(
         "--delivery-dir",
         type=Path,
@@ -694,7 +703,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         query_genome=args.query_genome,
         query_16s=args.query_16s,
         outgroup=args.outgroup,
-        outdir=args.outdir,
+        outdir=args.outdir if args.outdir is not None else default_outdir(),
         threads=args.threads,
         email=args.email or _env_value("TYPETREEFLOW_EMAIL"),
         api_key=args.api_key or _env_value("TYPETREEFLOW_API_KEY"),

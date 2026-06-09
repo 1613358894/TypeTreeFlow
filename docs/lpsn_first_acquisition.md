@@ -142,7 +142,7 @@ python typetreeflow.py \
   --selection-policy strict \
   --source-audit-policy strict \
   --strains-per-species 1 \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -167,7 +167,7 @@ python typetreeflow.py \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --selection-policy strict \
   --source-audit-policy strict \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -182,7 +182,7 @@ python typetreeflow.py \
   --enable-synonym-discovery \
   --selection-policy strict \
   --source-audit-policy strict \
-  --outdir results/fusobacterium_acquisition \
+  --outdir <run_dir> \
   --dry-run
 ```
 
@@ -197,14 +197,14 @@ Entrez before final review:
 
 ```bash
 python typetreeflow.py \
-  --species-checklist results/fusobacterium_acquisition/species_checklist.tsv \
+  --species-checklist <run_dir>/species_checklist.tsv \
   --discover-assembly-candidates \
   --enable-ncbi-discovery \
   --enrich-biosample \
   --enable-biosample-entrez \
   --email user@example.org \
   --selection-policy strict \
-  --outdir results/fusobacterium_acquisition_refresh \
+  --outdir <workspace>/runs/fusobacterium_acquisition_refresh \
   --force
 ```
 
@@ -213,8 +213,8 @@ separate opt-in step:
 
 ```bash
 python typetreeflow.py \
-  --outdir results/fusobacterium_acquisition \
-  --selection-tsv results/fusobacterium_acquisition/selection/user_selection.tsv \
+  --outdir <run_dir> \
+  --selection-tsv <run_dir>/selection/user_selection.tsv \
   --selection-policy strict \
   --source-audit-policy strict \
   --strains-per-species 1 \
@@ -232,10 +232,10 @@ offline manual evidence package before changing any selection values:
 ```bash
 python typetreeflow.py \
   --write-manual-review-template \
-  --candidate-tsv results/fusobacterium_acquisition_enriched_dryrun/candidates/assembly_candidates.tsv \
-  --biosample-cache results/fusobacterium_acquisition_enriched_dryrun/cache/ncbi/biosample_records.tsv \
-  --selection-tsv results/fusobacterium_acquisition_enriched_dryrun/selection/user_selection.tsv \
-  --outdir results/fusobacterium_manual_review
+  --candidate-tsv <run_dir>/candidates/assembly_candidates.tsv \
+  --biosample-cache <run_dir>/cache/ncbi/biosample_records.tsv \
+  --selection-tsv <run_dir>/selection/user_selection.tsv \
+  --outdir <workspace>/runs/fusobacterium_manual_review
 ```
 
 The command targets species with no `selected=yes` row and writes
@@ -246,11 +246,11 @@ strict selection preparation:
 
 ```bash
 python typetreeflow.py \
-  --apply-curator-evidence results/fusobacterium_manual_review/manual_deposit_evidence_template.tsv \
-  --candidate-tsv results/fusobacterium_acquisition_enriched_dryrun/candidates/assembly_candidates.tsv \
+  --apply-curator-evidence <workspace>/runs/fusobacterium_manual_review/manual_deposit_evidence_template.tsv \
+  --candidate-tsv <run_dir>/candidates/assembly_candidates.tsv \
   --selection-policy strict \
   --strains-per-species 1 \
-  --outdir results/fusobacterium_manual_review_applied
+  --outdir <workspace>/runs/fusobacterium_manual_review_applied
 ```
 
 This import is offline. It writes a new `candidates/assembly_candidates.tsv`

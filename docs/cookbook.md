@@ -3,6 +3,19 @@
 This cookbook uses the high-level commands as the ordinary user entry point.
 Use lower-level flags only for developer audits or manual recovery.
 
+Use `<run_dir>` for the run output directory, typically
+`<workspace>/runs/<run-name>`, and `<delivery_dir>` for handoff packages,
+typically `<workspace>/deliveries/<delivery-name>`. If `--outdir` is omitted,
+TypeTreeFlow uses the workspace default: `TYPETREEFLOW_WORKSPACE/runs/default`
+when `TYPETREEFLOW_WORKSPACE` is set, otherwise the user-level platform
+workspace (`%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default` on Windows, or
+`$XDG_DATA_HOME/typetreeflow/workspace/runs/default` with
+`~/.local/share/typetreeflow/workspace/runs/default` as the POSIX fallback).
+An explicit `--outdir` always wins and is used exactly as supplied.
+Do not use repository `results/` for ordinary runs, large downloads, or scratch
+output; it is only for curated, small verification evidence. `typetreeflow_out/`
+is an old default/historical example path and is no longer the current default.
+
 ## Quick Start: Plan-Only Genus Verification
 
 ```bash
@@ -15,10 +28,10 @@ typetreeflow verify-genus Fusobacterium \
   --enrich-biosample \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir results/fusobacterium_verify
+  --outdir <run_dir>
 
-typetreeflow status --outdir results/fusobacterium_verify
-typetreeflow next-step --outdir results/fusobacterium_verify
+typetreeflow status --outdir <run_dir>
+typetreeflow next-step --outdir <run_dir>
 ```
 
 Review `selection/user_selection.tsv`,
@@ -42,7 +55,7 @@ typetreeflow verify-genus Fusobacterium \
   --enrich-biosample \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --auto-accept-selection \
   --enable-downloads
 ```
@@ -65,7 +78,7 @@ typetreeflow verify-genus Fusobacterium \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --auto-accept-selection \
   --enable-downloads \
   --extract-16s barrnap
@@ -80,7 +93,7 @@ Resume local barrnap from an existing genome-ready manifest:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --resume \
   --enable-barrnap
 ```
@@ -89,7 +102,7 @@ Resume guarded Entrez fallback only for records still missing 16S:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
-  --outdir results/fusobacterium_verify \
+  --outdir <run_dir> \
   --resume \
   --enable-entrez \
   --email user@example.org
@@ -104,8 +117,8 @@ coverage.
 
 ```bash
 typetreeflow package-results \
-  --outdir results/fusobacterium_verify \
-  --delivery-dir results/fusobacterium_delivery \
+  --outdir <run_dir> \
+  --delivery-dir <delivery_dir> \
   --include all
 ```
 
@@ -121,7 +134,7 @@ typetreeflow verify-release-genus Fusobacterium \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
-  --outdir results/v2_2_x_release_verification \
+  --outdir <workspace>/runs/release/v2_2_x_release_verification \
   --policies balanced,representative \
   --force
 ```
@@ -160,7 +173,7 @@ typetreeflow verify-genus Enterobacter \
   --biosample-cache data/enterobacter_biosample_records.tsv \
   --enrich-biosample \
   --policy representative \
-  --outdir results/enterobacter_verify \
+  --outdir <workspace>/runs/enterobacter_verify \
   --enable-expanded-discovery \
   --force
 ```
@@ -197,9 +210,9 @@ rules.
 ## Resume Or Inspect Current State
 
 ```bash
-typetreeflow status --outdir results/fusobacterium_verify
-typetreeflow status --outdir results/fusobacterium_verify --json
-typetreeflow next-step --outdir results/fusobacterium_verify
+typetreeflow status --outdir <run_dir>
+typetreeflow status --outdir <run_dir> --json
+typetreeflow next-step --outdir <run_dir>
 ```
 
 When `completion/uncovered_species.tsv`,
@@ -212,10 +225,10 @@ TypeTreeFlow will download, fix, or accept a candidate automatically.
 For manual recovery only, lower-level resume commands remain available:
 
 ```bash
-python typetreeflow.py --outdir results/fusobacterium_verify --resume --dry-run
-python typetreeflow.py --outdir results/fusobacterium_verify --resume --enable-barrnap
-python typetreeflow.py --outdir results/fusobacterium_verify --resume --enable-entrez --email user@example.org
-python typetreeflow.py --outdir results/fusobacterium_verify --report-only
+python typetreeflow.py --outdir <run_dir> --resume --dry-run
+python typetreeflow.py --outdir <run_dir> --resume --enable-barrnap
+python typetreeflow.py --outdir <run_dir> --resume --enable-entrez --email user@example.org
+python typetreeflow.py --outdir <run_dir> --report-only
 ```
 
 `--report-only` refreshes `report/summary.md` and `report/run_review.md` from
