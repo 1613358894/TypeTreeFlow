@@ -3,6 +3,13 @@
 This directory is a template for a local real-evidence pilot for
 `Fusobacterium mortiferum` ATCC 25557.
 
+Current docs: `docs/external_type_genome_ingestion.md` defines the external
+registration contract, `docs/external_workflow_cookbook.md` gives the operator
+flow, `docs/completion_audit.md` defines completion/gap metrics, and
+`docs/provider_automation_policy.md` defines provider/ATCC boundaries. The
+historical template note is archived at
+`docs/archive/fusobacterium_real_pilot_template.md`.
+
 It contains no real ATCC FASTA, no provider artifact, and no credential. The
 curator must obtain any real FASTA through permitted manual means outside
 TypeTreeFlow and confirm that provider terms/license allow local analysis.
@@ -44,7 +51,7 @@ and do not count toward completion until `--register-external-genomes` succeeds.
 From the repository root:
 
 ```powershell
-$out = "results/fusobacterium_external_pilot_real_local"
+$out = "D:\Draft\TypeTreeFlow_workspace\runs\fusobacterium_external_pilot_real_local"
 New-Item -ItemType Directory -Force $out | Out-Null
 # For real evidence, copy the reviewed 16-row NCBI strict manifest into:
 # "$out/manifest.tsv"

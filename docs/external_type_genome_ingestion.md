@@ -5,6 +5,14 @@
 Manual local FASTA registration implemented for v0.6.0; provider automation
 remains future/out of scope.
 
+This is the authoritative design, boundary, and data-contract entry point for
+manual external type-genome registration. Use
+[external_workflow_cookbook.md](external_workflow_cookbook.md) for the short
+operator workflow, [completion_audit.md](completion_audit.md) for
+completion/gap counting, [output_layout.md](output_layout.md) for output paths,
+and [provider_automation_policy.md](provider_automation_policy.md) for
+provider/ATCC boundaries.
+
 External type-genome ingestion currently means manual external FASTA
 registration: a curator provides a local genome FASTA and explicit provenance
 for a type strain that cannot be completed through the existing high-confidence
@@ -61,26 +69,16 @@ none exists.
 
 ## Current Constraints
 
-`StrainRecord.assembly_accession` is persisted in `manifest.tsv` and drives
-selection-derived NCBI download planning. `typetreeflow/genomes/plan.py` builds
-`cache/ncbi/download_plan.tsv` around this field and expected NCBI Datasets ZIP
-paths under `cache/ncbi/`.
+`assembly_accession` remains an NCBI Assembly field. Selection-derived NCBI
+download planning and strict selection validation continue to treat it as a
+`GCF_` or `GCA_` identity, not as a generic provider identifier.
 
-Selection tables also use `assembly_accession` as the unique selected NCBI
-candidate identifier. Strict selection validation requires selected rows to have
-an accession, rejects duplicates, and treats the value as the assembly identity
-used later for manifest records.
-
-The canonical output layout already separates `cache/ncbi/download_plan.tsv`,
-`cache/ncbi/download_results.tsv`, installed reference FASTA files under
-`genomes/references/`, and source audit outputs under `source_audit/`. External
-registered genomes must integrate with the installed reference FASTA concept
-without entering NCBI-specific cache or plan files.
-
-Existing source audit rows use `genome_accession` to describe the genome-side
-source. For external registered genomes, this value needs source labeling or a
-companion field so reports do not display a provider identifier as though it
-were an NCBI assembly accession.
+External registered genomes integrate as local registered FASTA evidence
+without entering NCBI-specific planning or cache artifacts. Output path
+ownership is defined in [output_layout.md](output_layout.md); repository
+workspace and `results/` boundaries are defined in
+[workspace_policy.md](workspace_policy.md) and
+[results_policy.md](results_policy.md).
 
 ## Implemented v0.6.0 Manual Registration Workflow
 
@@ -162,12 +160,6 @@ for display.
 
 External genomes do not enter the NCBI Datasets download plan.
 
-`cache/ncbi/download_plan.tsv` remains an NCBI-only artifact. A record backed
-only by an external registered genome must not produce a planned item with a
-provider identifier in `assembly_accession`, a fake ZIP path, or a
-`skipped_no_accession` row that obscures the fact that it has an external
-registered genome.
-
 External registration uses separate local validation and install artifacts:
 
 ```text
@@ -176,8 +168,9 @@ external_genome_install_plan.tsv
 external_genome_install_results.tsv
 ```
 
-Those files should describe local validation, checksum, and installation status,
-not network download status.
+Those files describe local validation, checksum, and installation status, not
+network download status. The complete output layout is maintained in
+[output_layout.md](output_layout.md).
 
 ## Source Audit
 
@@ -223,6 +216,9 @@ External registered genomes should also have their own count, for example:
 ```text
 External registered type genomes: 1
 ```
+
+The authoritative counting rules and TSV fields are maintained in
+[completion_audit.md](completion_audit.md) and [schemas.md](schemas.md).
 
 ## Reporting
 
@@ -289,15 +285,7 @@ Future releases may add provider-specific automation only after the manual
 registration contract is stable. Automation should produce the same
 registration/provenance layer rather than bypassing it.
 
-For ATCC Genome Portal or similar providers, a later design must address:
-
-- Access and licensing constraints.
-- Authentication and credential handling.
-- Stable provider identifiers and citation URLs.
-- User consent for any network access.
-- Reproducible checksum capture after manual or automated retrieval.
-- Provider-specific failure modes.
-- Clear separation from NCBI Assembly discovery and download execution.
-
-Even with future automation, NCBI Assembly completion metrics should remain
-NCBI-only, and external-inclusive metrics should remain explicitly labeled.
+The current provider/ATCC boundary, including no-default-download,
+credential/terms limits, manual-review requirements, and future-design gates,
+is maintained in
+[provider_automation_policy.md](provider_automation_policy.md).

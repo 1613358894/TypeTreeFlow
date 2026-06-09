@@ -185,17 +185,12 @@ def test_provider_planning_redacts_secret_like_values_from_outputs(tmp_path):
     assert "[REDACTED]" in combined
 
 
-def test_provider_framework_docs_preserve_skeleton_boundaries():
-    design = Path("docs/v2_0_0_provider_automation_framework.md").read_text(
-        encoding="utf-8"
-    )
+def test_provider_boundary_policy_preserves_skeleton_boundaries():
     policy = Path("docs/provider_automation_policy.md").read_text(encoding="utf-8")
-    gate = Path("docs/atcc_downloader_gate_review.md").read_text(encoding="utf-8")
 
-    for docs in [design, policy, gate]:
-        assert "planning-only" in docs
-        assert "cache/ncbi/download_plan.tsv" in docs
-        assert "assembly_accession" in docs
-    assert "Credential Redaction Policy" in design
-    assert "Provider cache behavior is disabled" in policy
-    assert "ATCC downloader gate: not passed" in gate
+    assert "planning-only" in policy
+    assert "cache/ncbi/download_plan.tsv" in policy
+    assert "assembly_accession" in policy
+    assert "There is no default provider download" in policy
+    assert "ATCC Genome Portal has no automated downloader" in policy
+    assert "provider cache outside `cache/ncbi/`" in policy

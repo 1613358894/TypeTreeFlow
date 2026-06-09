@@ -3,33 +3,22 @@
 This document is the path contract for TypeTreeFlow run directories. It names
 the canonical files, the stages that create them, and the durable invariants
 downstream tools can rely on. TSV/table field definitions live in
-[schemas.md](schemas.md).
+[schemas.md](schemas.md). Repository-independent workspace root policy lives in
+[workspace_policy.md](workspace_policy.md), and repository `results/` policy
+lives in [results_policy.md](results_policy.md).
 
 ## Default And Recommended Roots
 
-When `--outdir` is omitted, TypeTreeFlow writes to the default workspace run:
-
-- If `TYPETREEFLOW_WORKSPACE` is set:
-  `<workspace>/runs/default`
-- On Windows:
-  `%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default`
-- On POSIX:
-  `$XDG_DATA_HOME/typetreeflow/workspace/runs/default`, or
-  `~/.local/share/typetreeflow/workspace/runs/default` when `XDG_DATA_HOME`
-  is unset.
-
 An explicit `--outdir` always takes precedence, and the path is exactly the
-user-supplied run directory. Real runs and large outputs should usually live
-outside the repository under `<workspace>/runs/<run-name>`. Delivery packages
-should usually be written to `<workspace>/deliveries/<delivery-name>`. On this
-project's maintainer machine, examples may use
-`D:\Draft\TypeTreeFlow_workspace` as the local workspace root.
+user-supplied run directory. When `--outdir` is omitted, TypeTreeFlow writes to
+the default workspace run described in
+[workspace_policy.md](workspace_policy.md).
 
-`results/` in this repository is reserved for curated, small, trackable
-verification evidence. Do not use it for real runs, large downloads, or scratch
-output. `typetreeflow_out/` was the old default or a historical example path;
-current TypeTreeFlow no longer defaults to writing `typetreeflow_out/` in the
-repository root, and that directory should not be committed.
+Real runs and large outputs should usually live outside the repository under
+`<workspace>/runs/<run-name>`. Delivery packages should usually be written to
+`<workspace>/deliveries/<delivery-name>`. The repository `results/` directory
+is governed by [results_policy.md](results_policy.md), not by the run layout
+contract below.
 
 Canonical run directory layout, shown under a user-selected `<run_dir>`:
 

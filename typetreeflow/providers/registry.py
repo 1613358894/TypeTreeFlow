@@ -61,7 +61,7 @@ def build_default_provider_registry() -> ProviderRegistry:
                 provider_name=atcc.display_name,
                 capability=atcc.capability,
                 adapter=atcc,
-                gate_review_document="docs/atcc_downloader_gate_review.md",
+                gate_review_document="docs/provider_automation_policy.md",
                 notes=(
                     "ATCC downloader gate has not passed; only planning-only "
                     "user-assisted handoff guidance is available."

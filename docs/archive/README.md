@@ -22,6 +22,61 @@ Current references means references outside the archived item itself. The
 current map in `docs/index.md` intentionally links archive entries as historical
 records; those links are not behavior-contract dependencies.
 
+## Historical plans and release records
+
+### External registration case studies
+
+- [`fusobacterium_external_pilot.md`](fusobacterium_external_pilot.md):
+  historical `F. mortiferum` synthetic external-registration pilot. Current
+  external registration docs live in
+  [`../external_type_genome_ingestion.md`](../external_type_genome_ingestion.md)
+  and [`../external_workflow_cookbook.md`](../external_workflow_cookbook.md).
+- [`fusobacterium_real_pilot_template.md`](fusobacterium_real_pilot_template.md):
+  historical real-local `F. mortiferum` evidence-package template. The current
+  completion/gap contract lives in
+  [`../completion_audit.md`](../completion_audit.md).
+
+### Version and provider plans
+
+- [`v0_8_0_implementation_plan.md`](v0_8_0_implementation_plan.md):
+  historical v0.8.0 hardening and validation implementation plan.
+- [`provider_automation_feasibility.md`](provider_automation_feasibility.md):
+  historical provider and ATCC automation feasibility design.
+- [`atcc_downloader_gate_review.md`](atcc_downloader_gate_review.md):
+  historical ATCC downloader gate review and negative gate decision.
+- [`local_artifact_normalization_design.md`](local_artifact_normalization_design.md):
+  historical design-only offline local artifact normalization boundary.
+- [`v0_9_0_provider_adapter_spike_plan.md`](v0_9_0_provider_adapter_spike_plan.md):
+  historical v0.9.0 provider adapter spike plan.
+- [`v2_0_0_provider_automation_framework.md`](v2_0_0_provider_automation_framework.md):
+  historical v2.0.0 provider automation framework design-freeze note.
+- [`v1_0_0_readiness_review.md`](v1_0_0_readiness_review.md):
+  historical v1.0.0 readiness and stable-boundary review.
+
+### v2.2.x release and baseline evidence
+
+- [`v2_2_0_release_verification.md`](v2_2_0_release_verification.md):
+  historical v2.2.0 matrix runbook.
+- [`v2_2_2_enterobacter_baseline.md`](v2_2_2_enterobacter_baseline.md):
+  historical v2.2.2 Enterobacter baseline.
+- [`v2_2_3_expanded_discovery_baseline.md`](v2_2_3_expanded_discovery_baseline.md):
+  historical v2.2.3 expanded-discovery baseline.
+- [`v2_2_4_ncbi_taxonomy_baseline.md`](v2_2_4_ncbi_taxonomy_baseline.md):
+  historical v2.2.4 NCBI Taxonomy enrichment baseline.
+- [`v2_2_x_acceptance_checklist.md`](v2_2_x_acceptance_checklist.md):
+  historical v2.2.2-v2.2.4 acceptance checklist.
+- [`pr_description_v2_2_x.md`](pr_description_v2_2_x.md):
+  stale v2.2.x pull-request description draft retained for historical context.
+
+### Roadmap and validation notes
+
+- [`roadmap_v2.2.10-ux-followups.md`](roadmap_v2.2.10-ux-followups.md):
+  historical v2.2.10 UX and reporting follow-up checklist.
+- [`roadmap_v2.2.12-maintenance-plan.md`](roadmap_v2.2.12-maintenance-plan.md):
+  historical v2.2.12 documentation maintenance plan.
+- [`validation_v2.2.9-real-world-validation.md`](validation_v2.2.9-real-world-validation.md):
+  historical v2.2.9 real-world validation evidence.
+
 | Archive item | Current references | Retention value | Risk if removed | Recommendation | Next action |
 | --- | --- | --- | --- | --- | --- |
 | `species_checklist_implementation_plan.md` | Deleted after summary compression. No README, test, code, or current-doc dependency was found beyond `docs/index.md` and this inventory. | Historical v0.2.0 implementation breakdown for checklist parsing, normalization, audit comparison, output, reporting, CLI, and docs. Key retained facts are summarized below; current behavior lives in `docs/species_checklist_audit.md`, `docs/schemas.md`, and `docs/statuses.md`. | Low. The current docs preserve the durable behavior contract; deleting only removes phase-level work planning and old acceptance-command detail. | Deleted. | No further action unless future release notes need to cite the retained implementation-history summary. |

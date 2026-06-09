@@ -1,205 +1,121 @@
-# Provider Automation Policy
+# Provider Boundary Policy
 
-## Purpose
+This is the current authoritative provider boundary document for
+TypeTreeFlow. It supersedes the archived provider feasibility, ATCC gate
+review, v0.9.0 spike, v2.0.0 framework, and local artifact normalization design
+notes.
 
-This policy is the design-freeze boundary for provider automation behavior. It
-applies to the v2.0.0 provider automation framework and to any future
-provider-specific adapter, including ATCC Genome Portal.
+## Current Support
 
-The policy exists to keep TypeTreeFlow as an auditable workflow for local,
-reviewed evidence. It must not silently become a portal automation, credential
-handling, or acquisition agent.
+TypeTreeFlow supports only offline, reviewable provider-adjacent workflows:
 
-## Defaults
+- Provider registration planning from curator-authored `provider_request.tsv`
+  files.
+- Review-only provider outputs under `provider/`, including
+  `provider_registration_plan.tsv` and `proposed_external_genomes.tsv`.
+- Report-only summaries of already existing provider planning outputs.
+- Manual local FASTA registration through a reviewed `external_genomes.tsv`
+  and `--register-external-genomes`.
 
-Provider automation is off by default.
+Manual external registration is defined in
+[external_type_genome_ingestion.md](external_type_genome_ingestion.md), the
+short operator path is in
+[external_workflow_cookbook.md](external_workflow_cookbook.md), and completion
+counting is defined in [completion_audit.md](completion_audit.md). This policy
+only defines the provider/ATCC boundary.
 
-Default provider planning behavior:
+Provider proposals are not installed genomes, do not write manifests, and do
+not change completion metrics. A curator must review terms, provenance, local
+FASTA paths, checksums, and type-material status before any provider-sourced
+local file can become an external registered genome.
 
-- No provider network access.
-- No downloads.
-- No login.
-- No credential access.
-- No browser automation.
-- No terms acceptance.
-- No direct manifest, name-map, external registration, or NCBI download-plan
-  writes.
+## Default Boundary
 
-Provider network access must be explicit, provider-specific, and blocked unless
-the provider registry and gate review both allow the requested mode.
+There is no default provider download.
 
-## Credentials And Secret Material
+Default behavior is:
 
-TypeTreeFlow must not store credential, token, cookie, API-key, password,
-session, browser-profile, or account-export material.
+- no provider network access;
+- no ATCC Genome Portal automation;
+- no downloads from ATCC, DSMZ, JCM, NCTC, or other provider portals;
+- no login, browser automation, scraping, purchase, checkout, or terms
+  click-through;
+- no credential, token, cookie, API-key, password, browser-profile, or session
+  handling;
+- no provider writes to `manifest.tsv`, `name_map.tsv`,
+  `external_genomes.tsv`, `cache/ncbi/download_plan.tsv`, `cache/ncbi/`, or
+  installed FASTA directories.
 
-Forbidden persistence locations include:
+Provider-native identifiers stay in external/provider fields such as
+`external_genome_id`. They must never be written to NCBI
+`assembly_accession`, and they do not satisfy NCBI Assembly strict completion.
 
-- repository files;
-- examples and fixtures;
-- run TSVs;
-- `manifest.tsv`;
-- `name_map.tsv`;
-- reports;
-- logs;
-- provider plans;
-- proposed external genome rows;
-- cache metadata;
-- browser profiles under the run directory.
+## Credential And Terms Boundary
 
-Credential-like fields in provider request tables must be rejected. If a future
-provider-specific mode requires credentials, the design must use an external
-user-controlled mechanism and must redact all secret-like values from
-diagnostics before the adapter can be enabled.
+TypeTreeFlow must not store, log, persist, or embed provider credentials or
+secret-like material in repository files, examples, fixtures, run TSVs,
+manifests, reports, logs, provider plans, cache metadata, or browser profiles
+under run directories.
 
-## Terms, Login, Purchase, And Gated Pages
+TypeTreeFlow also must not accept provider terms on the user's behalf, infer
+permission from a provider name or URL, automate gated pages, reuse saved
+browser sessions, or purchase/request restricted assets.
 
-TypeTreeFlow must not:
+Curators remain responsible for confirming provider terms, account scope,
+license, retention, citation, redistribution, and local-analysis permission
+outside TypeTreeFlow. Those decisions belong in manual review notes before
+external registration.
 
-- automatically accept provider terms;
-- click through licenses or purchase flows;
-- perform checkout or account management;
-- log in to provider accounts;
-- scrape gated pages;
-- use hidden asset endpoints;
-- reuse saved browser sessions;
-- infer permission from a URL or provider name.
+## ATCC Boundary
 
-The curator remains responsible for confirming provider terms, license,
-account, retention, citation, redistribution, and local-analysis constraints.
-Those decisions should be recorded as review notes before external
-registration.
+ATCC Genome Portal has no automated downloader in the current project.
 
-## Adapter Write Boundary
+The current ATCC status is `planning-only` at most:
 
-A provider adapter may write only provider-owned review outputs approved by the
-framework, such as provider plans and proposed external genome handoff rows.
+- curator-authored ATCC request rows may produce review-only provider plan and
+  proposal rows;
+- curators may obtain permitted local FASTA files outside TypeTreeFlow and
+  register them manually;
+- TypeTreeFlow must not log in to ATCC, scrape ATCC, automate an ATCC browser
+  session, accept ATCC terms, purchase ATCC assets, download ATCC artifacts,
+  cache restricted ATCC files, install ATCC FASTA files directly, or write ATCC
+  records into NCBI download planning.
 
-A provider adapter must not directly write:
+Any future ATCC mode beyond planning-only requires a new reviewed design with
+provider-specific legal permission, a provider-permitted technical access
+route, explicit opt-in, no secret persistence, redaction, private cache rules,
+failure-mode handling, and tests that preserve manifest, NCBI, external
+registration, report, and completion boundaries.
 
-- `manifest.tsv`;
-- `name_map.tsv`;
-- `external_genomes.tsv`;
-- `cache/ncbi/download_plan.tsv`;
-- NCBI cache files under `cache/ncbi/`;
-- installed FASTA files under `genomes/references/`.
+## Future Design Boundary
 
-External installation remains the authority of
-`--register-external-genomes`. That command validates local FASTA files,
-checksums, manual review flags, and external provenance before installation or
-manifest integration.
+Future provider automation remains design-only unless a later change documents
+and implements all of these gates:
 
-## Identifier Policy
+- provider-specific terms and license approval for the exact access pattern;
+- explicit provider-specific opt-in, with network disabled by default;
+- credential non-storage and redaction design;
+- no terms acceptance, purchase, gated scraping, hidden endpoints, or browser
+  session reuse;
+- provider cache outside `cache/ncbi/` and outside tracked restricted data;
+- artifact provenance fields, retrieval date, local SHA-256, and review notes;
+- reviewable handoff into external registration rather than direct
+  installation;
+- tests proving no direct manifest, name-map, external registration, NCBI
+  download-plan, NCBI cache, or completion-metric writes.
 
-Provider-native identifiers remain external identifiers.
+Offline local artifact normalization is also future design only. If implemented
+later, it may prepare local curator-supplied FASTA evidence and checksums, but
+it must remain local-only and must still hand off to reviewed
+`external_genomes.tsv` registration.
 
-Rules:
+## Archived History
 
-- Provider record IDs, artifact IDs, portal IDs, and access URLs must not be
-  written to `assembly_accession`.
-- Provider IDs may be written to `external_genome_id` in proposal or
-  registration rows.
-- NCBI Assembly strict completion requires accepted NCBI `GCF_` or `GCA_`
-  accessions.
-- Provider proposals do not count toward any completion metric.
-- External-inclusive completion can count provider-backed local FASTA files
-  only after external registration and completion audit acceptance.
+The following files are retained as historical support material under
+`docs/archive/`. They are not current behavior contracts:
 
-## Network Policy
-
-Provider network behavior is disabled unless all of these are true:
-
-- The command includes an explicit provider-network opt-in.
-- The provider registry marks the requested provider and mode as allowed.
-- The provider gate review approves the mode.
-- The adapter can operate without storing secrets.
-- The adapter does not accept terms, purchase, log in, scrape gated pages, or
-  use hidden endpoints.
-- Tests prove no direct manifest, name-map, external registration, or NCBI
-  download-plan writes occur.
-
-Network-disabled mode must remain useful. It should produce review-only plan
-rows explaining what is blocked and why.
-
-## Private Cache Policy
-
-Provider cache behavior is disabled unless explicitly designed and enabled for
-a provider mode. Provider cache data must not be placed in `cache/ncbi/`.
-The v2.0.0 framework skeleton only validates this boundary and defines the
-default provider namespace shape, `cache/provider/<provider_key>/`; it does not
-download artifacts or write provider cache files.
-
-Allowed future cache categories:
-
-- public or provider-permitted metadata;
-- local checksums and artifact descriptors;
-- review notes that contain no secrets.
-
-Forbidden cache categories:
-
-- credentials;
-- cookies;
-- tokens;
-- signed URLs;
-- browser profiles;
-- account-specific session data;
-- non-redistributable provider artifacts in tracked repository paths.
-
-Restricted provider artifacts, if ever approved for local cache use, must stay
-private to the user environment and must not be committed or used in public
-fixtures.
-
-## Reports And Completion
-
-Reports may summarize existing provider planning outputs as review-only state.
-They must not trigger provider planning, network access, downloads, credential
-handling, FASTA installation, manifest changes, or completion metric changes.
-
-Completion metrics remain separated:
-
-- NCBI Assembly strict completion counts only accepted NCBI Assembly-backed
-  evidence.
-- External-inclusive strict completion counts accepted NCBI rows plus accepted
-  external registered genomes.
-- Provider proposals count toward neither metric.
-
-## ATCC Policy
-
-ATCC Genome Portal is not a default downloader. ATCC must remain unavailable or
-user-assisted unless a gate review approves a specific adapter mode.
-
-Permitted status choices:
-
-- `unavailable`
-- `planning-only`
-- `metadata-only`
-- `download-enabled`
-
-`download-enabled` is not approved by this policy alone. It requires separate
-legal permission, provider-permitted technical access, explicit opt-in,
-credential non-persistence, redaction, and acceptance tests.
-
-The current skeleton represents ATCC as `planning_only` only. It can emit
-review-only gate-failure and user-assisted handoff guidance, but it cannot
-perform login, download, scraping, browser automation, terms acceptance,
-purchase, credential storage, direct installation, or NCBI download planning.
-
-## Implementation Gate
-
-A provider adapter cannot move beyond planning-only until these conditions are
-documented:
-
-- Provider-specific terms review.
-- Provider-specific allowed access pattern.
-- Network opt-in design.
-- Credential redaction and non-storage design.
-- Cache retention and deletion policy.
-- Artifact provenance fields.
-- Failure modes.
-- Tests for no direct manifest/name-map/external registration/NCBI plan writes.
-- Tests for completion separation.
-- Redistributable or synthetic fixtures only.
-
-Until these conditions are satisfied, the supported path remains
-user-assisted provider access outside TypeTreeFlow plus
-`--register-external-genomes`.
+- [`archive/provider_automation_feasibility.md`](archive/provider_automation_feasibility.md)
+- [`archive/atcc_downloader_gate_review.md`](archive/atcc_downloader_gate_review.md)
+- [`archive/local_artifact_normalization_design.md`](archive/local_artifact_normalization_design.md)
+- [`archive/v0_9_0_provider_adapter_spike_plan.md`](archive/v0_9_0_provider_adapter_spike_plan.md)
+- [`archive/v2_0_0_provider_automation_framework.md`](archive/v2_0_0_provider_automation_framework.md)

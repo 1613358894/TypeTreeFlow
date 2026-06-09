@@ -3,6 +3,15 @@
 This page is the maintenance entry point for humans and AI agents updating the
 project documentation. Keep it short, current, and practical.
 
+## Entry Point Split
+
+- `README.md` is the user entry point.
+- `docs/index.md` is the documentation map.
+- `docs/maintenance.md` is the maintenance rulebook.
+
+Do not duplicate long policy text across these files. Keep summaries short and
+link to the canonical policy or contract page.
+
 ## Documentation layers
 
 ### Current contracts
@@ -12,10 +21,14 @@ treat as current:
 
 - `README.md`
 - `docs/design.md`
+- `docs/workspace_policy.md`
+- `docs/results_policy.md`
 - `docs/output_layout.md`
 - `docs/schemas.md`
 - `docs/statuses.md`
 - `docs/species_checklist_audit.md`
+- `docs/completion_audit.md`
+- `docs/handoff_index_contract.md`
 
 Use these for implemented CLI behavior, output paths, TSV schemas, emitted
 status values, and safety guarantees. If code changes current behavior, update
@@ -27,31 +40,49 @@ These files describe planned or partially scoped work:
 
 - `docs/lpsn_first_acquisition.md`
 - `docs/external_type_genome_ingestion.md`
+- `docs/provider_automation_policy.md`
 
 Use active designs for design intent, phase notes, and future behavior. Mark
 whether a section is implemented, proposed, or historical. Do not let planned
-text read like current behavior.
+text read like current behavior. For provider/ATCC work,
+`docs/provider_automation_policy.md` is the current boundary; archived
+feasibility, gate-review, framework, spike, and local-artifact-normalization
+notes are historical support material only.
+
+For manual external genomes, keep the split narrow:
+`docs/external_type_genome_ingestion.md` is the design/data-contract entry,
+`docs/external_workflow_cookbook.md` is the short operator workflow, and
+`docs/completion_audit.md` explains completion/gap metrics. Fusobacterium
+material stays in `docs/archive/` or `examples/` as case/template context.
 
 ### Operational and release docs
 
 These files guide maintainers through repeatable project work:
 
 - `docs/maintenance.md`
+- `docs/external_workflow_cookbook.md`
 - `docs/release_process.md`
 - `docs/release_checklist.md`
+- `docs/release_verification.md`
 - `CHANGELOG.md`
 - `CONTRIBUTING.md`
 
 Use these for release policy, validation steps, contribution expectations, and
 documentation hygiene. Keep workflow steps concrete and testable.
 
-### Archive
+### Archive And Historical Material
 
-`docs/archive/` contains historical plans, run evidence, and audit records.
+`docs/archive/` contains historical plans, stale PR drafts, run evidence, and
+audit records. Historical plans, old audits, stage-specific roadmap notes,
+phase-specific release or validation evidence, and stale PR drafts should live
+under `docs/archive/` after an explicit archive pass.
 
 Archive content is evidence, not the current behavior contract. Do not update
 archive files to make them look current. If archived evidence reveals a current
 rule, write that rule in `README.md` or the appropriate current docs instead.
+
+Treat archived files as historical support material unless `docs/index.md` or a
+current contract page explicitly links one for a specific historical fact.
 
 ## Change checklist
 
@@ -62,7 +93,13 @@ surfaces:
   user-visible behavior: update `README.md` and, where relevant,
   `docs/design.md`.
 - Output directories or filenames: update `docs/output_layout.md` and any
-  examples that mention the path.
+  examples that mention the path. If the change affects workspace root
+  selection, update `docs/workspace_policy.md`; if it affects repository
+  `results/` hygiene, update `docs/results_policy.md` and
+  `scripts/check_workspace_hygiene.py` together.
+- Documentation structure, top-level docs membership, archive boundaries, or
+  release-gate commands: update `scripts/check_docs_hygiene.py` and its tests
+  together with the affected docs.
 - TSV schemas, column order, required values, or example rows: update the
   matching docs and `examples/*.tsv`.
 - Emitted `status` values, reason fields, or audit statuses: update
@@ -95,7 +132,8 @@ release: vX.Y.Z
 ```
 
 Tests must not depend on ignored or local-only paths such as `data/`,
-`results/`, `.pytest_tmp/`, `build/`, `.dist_test/`,
+`results/` content outside the allowlist in `docs/results_policy.md`,
+`.pytest_tmp/`, `build/`, `.dist_test/`,
 `typetreeflow.egg-info/`, `output_*`, or `phase*`. Default tests must not
 require network access or external bioinformatics tools.
 
@@ -124,6 +162,7 @@ and that its `headSha` matches the intended `main` commit.
 For documentation-only maintenance, run at least:
 
 ```bash
+python scripts/check_docs_hygiene.py
 pytest tests/test_docs_consistency.py -q
 ```
 
@@ -131,7 +170,7 @@ On Windows environments where the default pytest temporary directory is
 blocked, use a repository-local temporary directory:
 
 ```bash
-pytest tests/test_docs_consistency.py -q --basetemp .pytest_tmp -p no:cacheprovider
+pytest tests/test_docs_consistency.py tests/test_docs_hygiene_script.py -q --basetemp .pytest_tmp -p no:cacheprovider
 ```
 
 For changes that affect CLI behavior, output files, schemas, or release

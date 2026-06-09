@@ -1,158 +1,111 @@
 # Documentation Map
 
-This index maps the current documentation in place. It does not imply any file
-move, archive, or deletion.
+This page is the formal entry point for TypeTreeFlow documentation.
 
-## Current contracts
+Use [../README.md](../README.md) as the user entry point, this page as the
+documentation map, and [maintenance.md](maintenance.md) as the maintenance
+rulebook.
 
-- [stable_contracts.md](stable_contracts.md): v1.0.0 contract classification
-  for stable, review-only, internal, and post-v1.0 CLI, TSV schema, status,
-  output layout, report, and safety surfaces.
-- [design.md](design.md): Current architecture and safety contract for the
-  LPSN-first workflow, stable manifests, guarded execution, and implemented
-  workflow surface.
-- [output_layout.md](output_layout.md): Canonical output directory and file
-  layout. Treat as the path contract for runs, tests, and downstream users.
-- [handoff_index_contract.md](handoff_index_contract.md): Contract for
-  interpreting generated delivery-package `handoff_index.md` files as package
-  navigation and status summaries, not new scientific decision sources.
-- [schemas.md](schemas.md): TSV and table field dictionary. Use
-  `output_layout.md` for paths and stage ownership; use this document for
-  field-level contracts.
-- [statuses.md](statuses.md): Current emitted status values for manifests,
-  plans, workflow results, source audits, reports, and taxonomy comparisons.
-- [species_checklist_audit.md](species_checklist_audit.md): Implemented CLI and
-  TSV contract for user-supplied species checklist auditing.
-- [completion_audit.md](completion_audit.md): Implemented local
-  mixed-provenance completion audit outputs and split completion metrics.
-- [cookbook.md](cookbook.md): Concise operator cookbook for the high-level
+## Top-Level Rule
+
+The top level of `docs/` is reserved for current, intentionally maintained
+documentation: implemented contracts, current operator guidance, release
+process material, and narrowly scoped active design or policy documents.
+
+Historical plans, old audits, stale PR drafts, stage-specific roadmap notes,
+and phase-specific release or validation evidence belong under
+`docs/archive/`. Files listed there are historical support material, not
+current behavior contracts.
+
+## Current Entry Points
+
+- [cookbook.md](cookbook.md): concise operator cookbook for high-level
   `doctor`, `verify-genus`, `status`, `next-step`, `package-results`, and
   `verify-release-genus` commands.
-- [external_workflow_cookbook.md](external_workflow_cookbook.md): Short
-  user-facing workflow for manual external FASTA registration, synthetic
-  fixture validation, real local `F. mortiferum` evidence packages, completion
-  audit, and report-only review.
-- [fusobacterium_real_pilot_template.md](fusobacterium_real_pilot_template.md):
-  Curator template for a local real `F. mortiferum` ATCC 25557 external pilot
-  evidence package without committing real FASTA, provider artifacts, or
-  credentials.
-- [local_artifact_normalization_design.md](local_artifact_normalization_design.md):
-  Design-only offline normalization boundary for curator-provided local FASTA
-  artifacts before `--register-external-genomes`; it excludes provider
-  download, login, scraping, credential handling, and direct manifest writes.
+- [design.md](design.md): current architecture and guarded-execution safety
+  contract.
+- [stable_contracts.md](stable_contracts.md): stable, review-only, internal,
+  and post-v1.0 contract classification.
+- [output_layout.md](output_layout.md): run-directory files and stage ownership.
+  Use [workspace_policy.md](workspace_policy.md) for repository-independent
+  workspace roots.
+- [workspace_policy.md](workspace_policy.md): canonical workspace policy for
+  `--outdir`, `TYPETREEFLOW_WORKSPACE`, `<workspace>/runs/`,
+  `<workspace>/deliveries/`, `<workspace>/data/`, and
+  `<workspace>/manifests/`.
+- [results_policy.md](results_policy.md): canonical policy for the repository
+  `results/` directory and its allowlist.
+- [handoff_index_contract.md](handoff_index_contract.md): contract for
+  generated delivery-package `handoff_index.md` files.
+- [schemas.md](schemas.md): TSV and table field dictionary.
+- [statuses.md](statuses.md): emitted status values and meanings.
+- [species_checklist_audit.md](species_checklist_audit.md): user-supplied
+  species checklist audit contract.
+- [completion_audit.md](completion_audit.md): mixed-provenance completion audit
+  contract for completion/gap outputs and split completion metrics.
+- [maintenance.md](maintenance.md): documentation maintenance rules for humans
+  and AI agents.
 
-## Active designs
+## Current Feature And Policy Detail
 
-- [v2_0_0_provider_automation_framework.md](v2_0_0_provider_automation_framework.md):
-  Design-freeze document for a possible v2.0.0 provider automation framework.
-  The target is framework, registry, policy, redaction, and review-only
-  provider request/plan/proposal flow; it is not a default ATCC downloader.
-- [provider_automation_policy.md](provider_automation_policy.md): Policy
-  boundary for provider automation defaults, provider-network opt-in,
-  credentials, terms, adapter writes, identifiers, private cache, reports,
-  completion, and ATCC status choices.
-- [atcc_downloader_gate_review.md](atcc_downloader_gate_review.md): Gate review
-  for ATCC downloader eligibility. The current conclusion is that ATCC remains
-  unavailable/user-assisted or planning-only until legal and technical gates
-  pass.
-- [v1_0_0_readiness_review.md](v1_0_0_readiness_review.md): Readiness review
-  for a stable v1.0.0 LPSN-first acquisition/audit release, including
-  non-scope, completion boundaries, provider planning boundaries, and a
-  release-readiness checklist.
-- [v0_8_0_implementation_plan.md](v0_8_0_implementation_plan.md): Planning
-  document for a possible v0.8.0 hardening and validation release. It keeps
-  manual external registration and mixed-provenance completion audit in scope,
-  and keeps ATCC/provider automation out of the v0.8.0 implementation boundary.
-- [v0_9_0_provider_adapter_spike_plan.md](v0_9_0_provider_adapter_spike_plan.md):
-  Planning document for a possible v0.9.0 provider adapter spike. It defines a
-  dry-run-only, provider-neutral planning boundary that can write reviewable
-  provider plans and proposed external registration rows, not ATCC/provider
-  downloads or direct manifest changes.
-- [lpsn_first_acquisition.md](lpsn_first_acquisition.md): Active detailed
-  design and implementation-history note for the LPSN-first acquisition route.
-  The current behavior is authoritative where it matches README and contract
-  docs; implementation-history notes are audit history.
+- [lpsn_first_acquisition.md](lpsn_first_acquisition.md): LPSN-first
+  acquisition detail and implementation history. Current behavior is
+  authoritative only where it matches README and the current contract docs.
 - [external_type_genome_ingestion.md](external_type_genome_ingestion.md):
-  Manual external type-genome registration design and provider-automation
-  boundary. The local FASTA registration path is implemented; provider portal
-  automation remains future/out of scope.
-- [fusobacterium_external_pilot.md](fusobacterium_external_pilot.md):
-  Curator-facing pilot procedure for evaluating whether a manually registered
-  `F. mortiferum` external type genome can make the `Fusobacterium`
-  external-inclusive strict completion metric reach 17/17 while preserving
-  16/17 NCBI Assembly strict completion.
-- [provider_automation_feasibility.md](provider_automation_feasibility.md):
-  Feasibility design for possible v0.9.0+ or experimental external provider
-  automation. It keeps ATCC Genome Portal and similar portal automation off by
-  default, recommends user-assisted download plus manual registration, and
-  defines gates before any provider adapter can move to implementation.
+  authoritative manual external type-genome registration design, boundary, and
+  data contract.
+- [external_workflow_cookbook.md](external_workflow_cookbook.md): short
+  operator workflow for curator-provided local FASTA registration.
+- [provider_automation_policy.md](provider_automation_policy.md): provider
+  boundary policy for current support, no-default-download behavior,
+  credential/terms/manual-review rules, ATCC limits, and future-design gates.
 
-## Operational and release docs
+## Release Documents
 
-- [maintenance.md](maintenance.md): Documentation maintenance rules for humans
-  and AI agents, including doc layers, archive boundaries, and validation.
-- [release_process.md](release_process.md): Recommended release process for
-  release commits, annotated tags, GitHub Releases, release PRs, branch
-  protection notes, and post-release cleanup.
-- [release_checklist.md](release_checklist.md): Execution checklist for local
-  validation, packaging, optional real staged validation, and pre-tag checks.
-- [release_notes_v2_2_x.md](release_notes_v2_2_x.md): Consolidated v2.2.x
-  release notes for shared acquisition, package failure behavior, gap reports,
-  expanded discovery audit, NCBI Taxonomy enrichment, and scientific
-  boundaries.
-- [v2_2_x_acceptance_checklist.md](v2_2_x_acceptance_checklist.md):
-  Executable v2.2.x integration acceptance checklist covering local validation,
-  Enterobacter-style gap/audit checks, and user-path documentation review.
-- [v2_2_0_release_verification.md](v2_2_0_release_verification.md): Lightweight
-  runbook and TSV recording contract for later real acquisition/download
-  verification of Fusobacterium, Spirosoma, Enterobacter, and Clostridium
-  balanced and representative outputs.
+- [release_process.md](release_process.md): release commit, annotated tag,
+  GitHub Release, release PR, and post-release cleanup process.
+- [release_checklist.md](release_checklist.md): executable release validation
+  checklist, blocking criteria, and commands.
+- [release_verification.md](release_verification.md): release evidence,
+  verification matrix, and result interpretation.
+- [release_notes_v2_2_x.md](release_notes_v2_2_x.md): consolidated v2.2.x
+  release history.
 
-## Historical plans
+## Historical Support Material
 
-Archive entries are historical plans, implementation notes, or evidence
-snapshots. They are not current behavior contracts or required release gates;
-use the current contract, active design, and operational docs above for current
-workflow decisions.
+The files below are retained for historical context, but they are not current
+entry points or behavior contracts.
 
-- [archive/README.md](archive/README.md): Archive inventory, retention rules,
+- [archive/fusobacterium_external_pilot.md](archive/fusobacterium_external_pilot.md)
+- [archive/fusobacterium_real_pilot_template.md](archive/fusobacterium_real_pilot_template.md)
+- [archive/v0_8_0_implementation_plan.md](archive/v0_8_0_implementation_plan.md)
+- [archive/provider_automation_feasibility.md](archive/provider_automation_feasibility.md)
+- [archive/atcc_downloader_gate_review.md](archive/atcc_downloader_gate_review.md)
+- [archive/local_artifact_normalization_design.md](archive/local_artifact_normalization_design.md)
+- [archive/v0_9_0_provider_adapter_spike_plan.md](archive/v0_9_0_provider_adapter_spike_plan.md)
+- [archive/v2_0_0_provider_automation_framework.md](archive/v2_0_0_provider_automation_framework.md)
+- [archive/v1_0_0_readiness_review.md](archive/v1_0_0_readiness_review.md)
+- [archive/v2_2_0_release_verification.md](archive/v2_2_0_release_verification.md)
+- [archive/v2_2_2_enterobacter_baseline.md](archive/v2_2_2_enterobacter_baseline.md)
+- [archive/v2_2_3_expanded_discovery_baseline.md](archive/v2_2_3_expanded_discovery_baseline.md)
+- [archive/v2_2_4_ncbi_taxonomy_baseline.md](archive/v2_2_4_ncbi_taxonomy_baseline.md)
+- [archive/v2_2_x_acceptance_checklist.md](archive/v2_2_x_acceptance_checklist.md)
+- [archive/pr_description_v2_2_x.md](archive/pr_description_v2_2_x.md)
+- [archive/roadmap_v2.2.10-ux-followups.md](archive/roadmap_v2.2.10-ux-followups.md)
+- [archive/roadmap_v2.2.12-maintenance-plan.md](archive/roadmap_v2.2.12-maintenance-plan.md)
+- [archive/validation_v2.2.9-real-world-validation.md](archive/validation_v2.2.9-real-world-validation.md)
+
+## Archive
+
+- [archive/README.md](archive/README.md): archive inventory, retention rules,
   and cleanup criteria.
 - [archive/ncbi_candidate_discovery_phase22.md](archive/ncbi_candidate_discovery_phase22.md):
-  Historical Phase 22 candidate-discovery design and implementation record.
-  Current implemented status is noted in the document, but it is not a new
-  release plan.
-- [archive/README.md#species-checklist-implementation-plan](archive/README.md#species-checklist-implementation-plan):
-  Compressed summary for the deleted historical v0.2.0 species checklist audit
-  implementation plan.
-
-## Run evidence
-
-- [archive/README.md](archive/README.md#deleted-evidence-summaries): Includes
-  the compressed summary for the deleted Phase 15 real-run checklist covering
-  staged Aalborgiella, Actinocorallia, and phylogeny validation facts.
+  historical Phase 22 candidate-discovery design and implementation record.
 - [archive/runs/fusobacterium_v0_5_0/](archive/runs/fusobacterium_v0_5_0/):
-  Compact archived evidence for the Fusobacterium v0.5.0 16/17 delivery,
-  final audit, and mortiferum final review. Large run products are excluded.
+  compact archived Fusobacterium v0.5.0 evidence.
 - [archive/runs/phase15_smoke/](archive/runs/phase15_smoke/):
-  Compact Phase 15B Actinocorallia smoke-run checkpoint with summary,
-  manifest, and phylogeny-plan evidence only.
+  compact Phase 15 smoke-run evidence.
 
-## Local run artifacts
-
-The repository root currently contains local run outputs and large data under
-`phase*`, `results/`, and `data/`. They are not moved or removed by this
-documentation map; review them separately before deciding what should remain
-tracked, be regenerated, or be cleaned locally.
-
-## Recommended Route
-
-Use README's recommended workflow section as the current operator guide and
-`cookbook.md` as the quick command cookbook. See
-`release_verification.md` for the release-verification route, including
-`verify-release-genus`, shared acquisition cache, checkpoint/resume,
-gap-report behavior, and current release notes.
-
-External provider planning remains metadata/review handoff only; legally
-obtained local FASTA files enter the workflow through
-`--register-external-genomes`, and provider IDs remain outside NCBI
-`assembly_accession`.
+Archive files preserve history. Do not read them as current operator
+instructions unless a current contract page explicitly points to them for a
+specific historical fact.

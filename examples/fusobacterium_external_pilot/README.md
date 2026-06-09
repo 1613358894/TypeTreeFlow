@@ -4,6 +4,12 @@ This directory is a local, redistributable pilot package for validating the
 implemented manual external genome registration and mixed-provenance completion
 audit workflow.
 
+Current docs: `docs/external_type_genome_ingestion.md` defines the external
+registration contract, `docs/external_workflow_cookbook.md` gives the operator
+flow, and `docs/completion_audit.md` defines completion/gap metrics. The
+historical pilot note is archived at
+`docs/archive/fusobacterium_external_pilot.md`.
+
 It does not contain a real `Fusobacterium mortiferum` ATCC 25557 genome. The
 FASTA file is a tiny synthetic fixture used only to prove workflow behavior.
 Do not cite it as ATCC evidence, provider evidence, or biological sequence
@@ -25,7 +31,7 @@ data.
 From the repository root:
 
 ```powershell
-$out = "results/fusobacterium_external_pilot_synthetic"
+$out = "D:\Draft\TypeTreeFlow_workspace\runs\fusobacterium_external_pilot_synthetic"
 Remove-Item -Recurse -Force $out -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $out | Out-Null
 Copy-Item examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv "$out/manifest.tsv"

@@ -10,6 +10,7 @@ Releases, release PRs, and post-release repository cleanup.
 - Worktree clean.
 - Version metadata consistent across `pyproject.toml`,
   `typetreeflow/__init__.py`, `CITATION.cff`, and `CHANGELOG.md`.
+- Documentation hygiene passes with `python scripts/check_docs_hygiene.py`.
 - Changelog entry present.
 - Targeted tests pass.
 - Full or release-appropriate CI passes.
@@ -24,14 +25,10 @@ confirmation.
 
 Release validation outputs should live outside the repository by default. Use
 `<workspace>/runs/release/<run-name>` for real or large run outputs and
-`<workspace>/deliveries/<delivery-name>` for package handoffs; a local
-maintainer workspace may be `D:\Draft\TypeTreeFlow_workspace`. If `--outdir` is
-omitted, TypeTreeFlow writes to `TYPETREEFLOW_WORKSPACE/runs/default` when that
-environment variable is set, otherwise to the user-level platform workspace
-(`%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default` on Windows, or
-`$XDG_DATA_HOME/typetreeflow/workspace/runs/default` with
-`~/.local/share/typetreeflow/workspace/runs/default` as the POSIX fallback).
-Explicit `--outdir` paths are always used exactly as supplied.
+`<workspace>/deliveries/<delivery-name>` for package handoffs. See
+[workspace_policy.md](workspace_policy.md) for workspace default resolution
+and local maintainer examples, and [output_layout.md](output_layout.md) for
+run-directory file contracts.
 
 ## Release Commit
 
@@ -41,8 +38,9 @@ Explicit `--outdir` paths are always used exactly as supplied.
   download data, or large artifacts.
 - Do not include `typetreeflow_out/`; it is the old default/historical example
   path and is not the current default output location.
-- Keep repository `results/` limited to curated, small, trackable verification
-  evidence. Do not commit real runs, large downloads, or scratch output there.
+- Keep repository `results/` limited to the small verification evidence
+  allowlist in [results_policy.md](results_policy.md). Do not commit real runs,
+  large downloads, or scratch output there.
 - Do not mix unrelated feature work into the release readiness commit.
 
 ## Annotated Tag

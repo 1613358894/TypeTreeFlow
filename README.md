@@ -87,41 +87,52 @@ See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
 ## Documentation
 
-Start with [docs/index.md](docs/index.md) for the full documentation map.
+README is the user entry point. Start with [docs/index.md](docs/index.md) for
+the maintained documentation map.
 
 - [docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md): LPSN-first
   acquisition workflow, implementation-history summary, and evidence boundaries.
 - [docs/cookbook.md](docs/cookbook.md): concise operator cookbook for the
   high-level `doctor`, `verify-genus`, `status`, `next-step`,
   `package-results`, and `verify-release-genus` commands.
-- [docs/release_verification.md](docs/release_verification.md): current
-  release-verification behavior, v2.2.12 maintenance notes, reliability
-  history, and gap-report interpretation.
+- [docs/release_process.md](docs/release_process.md): release commit, tag,
+  GitHub Release, PR, and post-release cleanup process.
+- [docs/release_checklist.md](docs/release_checklist.md): executable release
+  gates, blocking criteria, and validation commands.
+- [docs/release_verification.md](docs/release_verification.md): release
+  evidence, verification matrix, and result interpretation.
+- [docs/release_notes_v2_2_x.md](docs/release_notes_v2_2_x.md): v2.2.x
+  release history.
 - [docs/output_layout.md](docs/output_layout.md): canonical output directory
   layout, stage ownership, and path invariants.
+- [docs/workspace_policy.md](docs/workspace_policy.md): default workspace
+  resolution, `TYPETREEFLOW_WORKSPACE`, and workspace directory policy.
+- [docs/results_policy.md](docs/results_policy.md): repository `results/`
+  allowlist and generated-output boundary.
 - [docs/handoff_index_contract.md](docs/handoff_index_contract.md): how to
   interpret generated `handoff_index.md` files as package navigation/status
   summaries, not scientific decision sources.
 - [docs/schemas.md](docs/schemas.md): TSV and table field dictionary.
 - [docs/statuses.md](docs/statuses.md): emitted status values and meanings.
 - [docs/design.md](docs/design.md): current architecture and safety contract.
-- [docs/release_checklist.md](docs/release_checklist.md): release gates and
-  verification checklist.
 - [docs/species_checklist_audit.md](docs/species_checklist_audit.md):
   user-supplied species checklist auditing.
+- [docs/external_type_genome_ingestion.md](docs/external_type_genome_ingestion.md):
+  authoritative manual external type-genome registration design, boundary, and
+  data contract.
+- [docs/external_workflow_cookbook.md](docs/external_workflow_cookbook.md):
+  short operator workflow for curator-provided local FASTA registration.
 - [docs/completion_audit.md](docs/completion_audit.md): implemented local
-  mixed-provenance completion audit outputs and split completion metrics.
-- [docs/fusobacterium_external_pilot.md](docs/fusobacterium_external_pilot.md):
-  `F. mortiferum` external registered genome pilot route to external-inclusive
-  17/17 review without changing NCBI Assembly strict completion. A
-  redistributable synthetic/local fixture package is available at
-  [examples/fusobacterium_external_pilot/README.md](examples/fusobacterium_external_pilot/README.md)
-  to reproduce the report path; it is workflow validation only, not a real ATCC genome,
-  and not biological evidence.
-
-Historical plans and run evidence are indexed from [docs/index.md](docs/index.md).
-They are evidence snapshots, not current behavior contracts or required release
-gates.
+  mixed-provenance completion/gap outputs and split completion metrics.
+- [docs/provider_automation_policy.md](docs/provider_automation_policy.md):
+  current provider/ATCC boundary, including no-default-download, credentials,
+  terms, manual-review, and future-design gates.
+Historical plans, old audits, roadmap notes, and run evidence are indexed from
+[docs/index.md](docs/index.md). They are evidence snapshots, not current
+behavior contracts or required release gates. The redistributable
+[examples/fusobacterium_external_pilot/README.md](examples/fusobacterium_external_pilot/README.md)
+fixture can reproduce the external-registration report path; it is workflow
+validation only, not a real ATCC genome, and not biological evidence.
 
 ## Taxonomic scope
 
@@ -210,25 +221,16 @@ Supported environment defaults:
 
 ## Output workspace
 
-When `--outdir` is omitted, TypeTreeFlow writes to a workspace default run
-directory:
+An explicit `--outdir` always wins. When `--outdir` is omitted, TypeTreeFlow
+uses the default workspace run directory described in
+[docs/workspace_policy.md](docs/workspace_policy.md).
 
-- `TYPETREEFLOW_WORKSPACE` set: `<workspace>/runs/default`
-- Windows: `%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default`
-- POSIX: `$XDG_DATA_HOME/typetreeflow/workspace/runs/default`, or
-  `~/.local/share/typetreeflow/workspace/runs/default` if `XDG_DATA_HOME` is
-  unset
-
-An explicit `--outdir` always wins and is used exactly as supplied. For real
-runs and large outputs, prefer `<workspace>/runs/<run-name>`; for package
-handoffs, prefer `<workspace>/deliveries/<delivery-name>`. A local maintainer
-workspace on this project may be `D:\Draft\TypeTreeFlow_workspace`.
-
-The repository `results/` directory is only for selected, small, trackable
-verification evidence. Do not write real runs, large downloads, or scratch
-outputs there. `typetreeflow_out/` is an old default or historical example
-path; current TypeTreeFlow no longer defaults to writing it in the repository
-root, and it should not be committed.
+For real runs and large outputs, prefer `<workspace>/runs/<run-name>`; for
+package handoffs, prefer `<workspace>/deliveries/<delivery-name>`. The
+repository `results/` directory is not a run output directory; it is limited to
+the small verification evidence allowlist in
+[docs/results_policy.md](docs/results_policy.md). `typetreeflow_out/` is an old
+default or historical example path and should not be committed.
 
 ## Quickstart and common commands
 
@@ -1019,6 +1021,12 @@ a repository-local temporary directory:
 
 ```bash
 pytest tests/test_docs_consistency.py -q --basetemp .pytest_tmp -p no:cacheprovider
+```
+
+Documentation maintenance also has a read-only structure and link gate:
+
+```bash
+python scripts/check_docs_hygiene.py
 ```
 
 ## Contributing

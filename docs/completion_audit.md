@@ -27,6 +27,12 @@ strict accession, which are backed only by a validated external registered
 genome, which remain missing, and which need manual review because evidence is
 conflicting or ambiguous.
 
+This document explains completion/gap outputs and counting rules only. Use
+[external_type_genome_ingestion.md](external_type_genome_ingestion.md) for the
+external registration design and data contract, and
+[external_workflow_cookbook.md](external_workflow_cookbook.md) for operator
+commands.
+
 The audit should use already-recorded local state, such as checklist records,
 manifest rows, external registration results, and source-audit evidence. It
 must not contact NCBI, LPSN, GTDB, Entrez, ATCC, or any external provider.

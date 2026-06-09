@@ -50,7 +50,12 @@ def test_non_allowlisted_results_file_fails(tmp_path):
 
 
 def test_allowlisted_results_matrix_passes(tmp_path):
-    matrix = tmp_path / "results" / "v2_2_0_release_verification" / "verification_matrix.tsv"
+    matrix = (
+        tmp_path
+        / "results"
+        / "v2_2_0_release_verification"
+        / "verification_matrix.tsv"
+    )
     matrix.parent.mkdir(parents=True)
     matrix.write_text("genus\tpolicy\n", encoding="utf-8")
 

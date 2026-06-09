@@ -15,17 +15,12 @@ documented in [release_process.md](release_process.md).
   - `fastANI` for ANI execution.
   - `mafft`, `trimal`, and `iqtree2` for phylogeny execution.
 - Entrez fallback requires network access plus `--enable-entrez --email`.
-- Use a disposable release workspace for generated outputs, for example
-  `D:\Draft\TypeTreeFlow_workspace`. Real runs and large release checks should
-  go under `<workspace>/runs/release/<run-name>` or `<tmp>/...`; delivery
-  packages should go under `<workspace>/deliveries/<delivery-name>`.
-- If `--outdir` is omitted, TypeTreeFlow uses the workspace default:
-  `TYPETREEFLOW_WORKSPACE/runs/default` when `TYPETREEFLOW_WORKSPACE` is set,
-  `%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default` on Windows, or
-  `$XDG_DATA_HOME/typetreeflow/workspace/runs/default` with
-  `~/.local/share/typetreeflow/workspace/runs/default` as the POSIX fallback.
-  An explicit `--outdir` always takes precedence and is used exactly as
-  supplied.
+- Use a disposable release workspace for generated outputs. Real runs and
+  large release checks should go under
+  `<workspace>/runs/release/<run-name>` or `<tmp>/...`; delivery packages
+  should go under `<workspace>/deliveries/<delivery-name>`. See
+  [workspace_policy.md](workspace_policy.md) for default workspace resolution
+  and [output_layout.md](output_layout.md) for run-directory file contracts.
 
 ## Required Local Validation
 
@@ -34,6 +29,15 @@ documented in [release_process.md](release_process.md).
 
 ```bash
 python scripts/check_release_consistency.py
+```
+
+- Run the documentation hygiene checker before tagging or publishing. It
+  verifies current documentation entry points, top-level docs allowlists,
+  archive boundaries, local Markdown links, and release-gate commands without
+  modifying files:
+
+```bash
+python scripts/check_docs_hygiene.py
 ```
 
 - Run the workspace hygiene checker before tagging or publishing. It reports
@@ -47,12 +51,11 @@ python scripts/check_workspace_hygiene.py
   stability/readiness work for the existing LPSN-first acquisition and audit
   workflow plus the guarded provider automation framework skeleton, not a
   provider-downloader release.
-- Review `docs/v2_0_0_provider_automation_framework.md`,
-  `docs/provider_automation_policy.md`, `docs/atcc_downloader_gate_review.md`,
-  and `docs/stable_contracts.md` before any v2.0.0 release-candidate or final
-  version bump.
+- Review `docs/provider_automation_policy.md` and
+  `docs/stable_contracts.md` before any provider-framework release-candidate
+  or final version bump.
 - Confirm README/current capabilities, cookbook examples, schemas, statuses,
-  output-layout docs, release-verification docs, and provider framework docs
+  output-layout docs, release-verification docs, and provider boundary docs
   agree with the current stable contracts.
 - Search the repository for release-blocking wording before the version bump:
   claims that ATCC/provider download automation is implemented, claims that
@@ -236,6 +239,8 @@ python typetreeflow.py package-results --outdir <run_dir> --delivery-dir <delive
 
 Historical smoke-run evidence is mapped from `docs/index.md`; it can support
 audit review but is not a required input for the current release checklist.
+Use [release_verification.md](release_verification.md) for verification-matrix
+evidence and result interpretation.
 
 ## Files And Directories Not To Commit
 
@@ -243,7 +248,8 @@ audit review but is not a required input for the current release checklist.
 - `.tmp_smoke_venv_vX_Y_Z/`
 - `build/`
 - `dist/`
-- `results/` except intentionally curated, small verification evidence.
+- `results/` except the small verification evidence allowlist in
+  [results_policy.md](results_policy.md).
 - `*.egg-info/`
 - `__pycache__/`
 - `.pytest_cache/`
@@ -253,8 +259,8 @@ audit review but is not a required input for the current release checklist.
 - Downloaded NCBI Datasets ZIPs under `cache/ncbi/*.zip`.
 - Large local GTDB metadata files under `data/` unless intentionally tracked.
 - Do not commit large `results/` trees, real-run output, or scratch output.
-  Preserve only intentionally curated, small documentation fixtures and
-  verification evidence.
+  Preserve only the intentionally curated, small verification evidence allowed
+  by [results_policy.md](results_policy.md).
 - Keep `dist/*.whl` only as the local release artifact for upload or smoke
   evidence; remove it before non-release documentation commits unless the
   release packaging workflow explicitly needs it.
@@ -274,6 +280,7 @@ audit review but is not a required input for the current release checklist.
 ## Before Tagging
 
 - Confirm `python scripts/check_release_consistency.py` passes.
+- Confirm `python scripts/check_docs_hygiene.py` passes.
 - Confirm `python scripts/check_workspace_hygiene.py` passes, or manually
   review and clean any reported local residue outside the script.
 - Confirm the version-source files listed in

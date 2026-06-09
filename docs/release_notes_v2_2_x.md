@@ -1,8 +1,9 @@
-# v2.2.x Release Notes
+# v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.12 integration review.
-They describe user-visible release-verification behavior only; this document
-does not introduce new workflow features.
+These notes consolidate the v2.2.2 through v2.2.12 integration review as
+release history. They describe user-visible behavior and historical
+verification evidence only; this document is not the current release process,
+checklist, or verification contract.
 
 ## User-Visible Improvements
 
@@ -75,13 +76,56 @@ does not introduce new workflow features.
   checklist/process. It changes no download strategy, selection safety, or
   evidence thresholds.
 
+## Historical Verification Notes
+
+v2.2.5 is published. Its release verification remains useful evidence, but
+complex large-genera representative selection had a species-identity limitation
+that v2.2.6 fixes before auto-selection.
+
+The v2.2.5 release verification pass on 2026-06-01 completed with these local
+checks:
+
+- Version and doctor smoke: `typetreeflow 2.2.5`; Python/version/email and
+  working-directory checks passed, while optional external tools were reported
+  missing from `PATH` (`datasets`, `barrnap`, `fastANI`, `mafft`, `trimal`,
+  `iqtree2`).
+- Full pytest suite: 932 passed with repository-local pytest basetemp/cache.
+- CLI smoke: `--help`, `verify-genus --help`, `verify-release-genus --help`,
+  and `doctor` completed successfully.
+- Targeted smoke: report/run_review, resume UX including `--continue`, Entrez
+  fallback provenance preservation in `rrna/all_16S.fasta`, and expanded
+  discovery current/history outputs passed.
+
+Two small release blockers were fixed during verification: resume dry-run now
+takes priority over real execution enable flags, and combined 16S assembly
+detects duplicate primary FASTA IDs while preserving Entrez fallback provenance
+headers.
+
+The v2.2.7 Clostridium limited smoke was exploratory verification only. It used
+local cache or synthetic fixture inputs to exercise guarded planning,
+manifest/status/report/next-step handoff, and `package-results` packaging
+without running NCBI Datasets downloads or attempting Clostridium genus
+completion.
+
+The v2.2.2 Enterobacter pressure test had 28 checklist species. Representative
+verification covered 27/28 genomes, leaving `Enterobacter siamensis` uncovered.
+The 16S result was 26/27, with one 16S gap:
+`Enterobacter nematophilus E-TC7 GCF_026344075.1`.
+
+Interpret this as a useful stress test and an auditable set of gaps, not a
+software scientific failure. For the v2.2.3 Enterobacter-style acceptance case,
+`Enterobacter siamensis` carries LPSN type-strain tokens `C2361`,
+`KCTC 23282`, and `NBRC 107138`. The expanded discovery plan should contain
+3 tokens x NCBI Assembly/BioSample queries. If
+`--enable-expanded-discovery` is supplied, any matched or rejected candidates
+are audit evidence and manual supplement hints only; they are not automatically
+added to the manifest or promoted into selected type-strain evidence.
+
 ## Scientific Boundary
 
 v2.2.x does not promise automatic 100% coverage for a genus. Gap reporting and
 expanded discovery make missing evidence easier to review; they do not relax the
 strict, likely type-material, or representative-only evidence boundaries.
-v2.2.5 is published, but complex large-genera representative selection had a
-species-identity limitation that v2.2.6 fixes before auto-selection.
 
 v2.2.12 does not add full Clostridium completion, expanded discovery
 auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
@@ -92,8 +136,8 @@ automatically edit `manifest.tsv`, `selection/user_selection.tsv`, completion
 metrics, or evidence levels. Curators must still review any candidate before it
 enters the normal manifest, selection, or external genome registration paths.
 
-## Recommended Acceptance Path
+## Current Release Docs
 
-Use `docs/v2_2_x_acceptance_checklist.md` for the executable release-readiness
+Use `docs/release_checklist.md` for the current executable release-readiness
 checklist, and use `docs/release_verification.md` for the current behavior
 contract behind these notes.

@@ -93,8 +93,10 @@ def test_release_version_sources_are_consistent():
 def test_archive_references_stay_in_archive_map_and_boundary_docs():
     archive_dir = "docs" + "/archive"
     allowed_paths = {
+        "docs/docs_inventory.md",
         "docs/index.md",
         "docs/maintenance.md",
+        "docs/provider_automation_policy.md",
         archive_dir + "/README.md",
     }
     forbidden_patterns = [
@@ -154,8 +156,12 @@ def test_high_level_workflow_docs_are_current():
     design = _read("docs/design.md")
     current_release_verification = _read("docs/release_verification.md")
     release_notes = _read("docs/release_notes_v2_2_x.md")
-    acceptance_checklist = _read("docs/v2_2_x_acceptance_checklist.md")
-    release_verification = _read("docs/v2_2_0_release_verification.md")
+    acceptance_checklist = _read(
+        "docs/archive/v2_2_x_acceptance_" + "checklist.md"
+    )
+    release_verification = _read(
+        "docs/archive/v2_2_0_release_" + "verification.md"
+    )
 
     for docs in [
         readme,
@@ -246,7 +252,7 @@ def test_high_level_workflow_docs_are_current():
         "27/28",
         "26/27",
     ]:
-        assert phrase in current_release_verification
+        assert phrase in release_notes
 
 
 def test_output_layout_mentions_key_output_paths(tmp_path):
@@ -527,12 +533,12 @@ def test_gitattributes_pins_example_text_fixtures_to_lf():
 
 def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     readme = _read("README.md")
-    pilot_doc = _read("docs/fusobacterium_external_pilot.md")
+    pilot_doc = _read("docs/archive/fusobacterium_external_pilot.md")
     completion_doc = _read("docs/completion_audit.md")
     example_readme = _read("examples/fusobacterium_external_pilot/README.md")
 
     for path in [
-        Path("docs/fusobacterium_external_pilot.md"),
+        Path("docs/archive/fusobacterium_external_pilot.md"),
         Path("examples/fusobacterium_external_pilot/README.md"),
         Path("examples/fusobacterium_external_pilot/external_genomes.tsv"),
         Path("examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv"),
@@ -553,29 +559,32 @@ def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     assert "not real ATCC" in example_readme
 
 
-def test_provider_automation_feasibility_preserves_manual_registration_boundary():
+def test_provider_boundary_policy_preserves_manual_registration_boundary():
     index = _read("docs/index.md")
-    design = _read("docs/provider_automation_feasibility.md")
+    policy = _read("docs/provider_automation_policy.md")
 
-    assert "provider_automation_feasibility.md" in index
-    assert "user-assisted download plus manual registration" in design
-    assert "Automated login to ATCC Genome Portal" in design
-    assert "external_genomes.tsv" in design
-    assert "External provider IDs are never written to `assembly_accession`" in design
-    assert "NCBI Assembly strict completion" in design
-    assert "External-inclusive strict completion" in design
-    assert "No provider downloader" in design
+    assert "provider_automation_policy.md" in index
+    assert "no default provider download" in policy.lower()
+    assert "no ATCC Genome Portal automation" in policy
+    assert "external_genomes.tsv" in policy
+    assert "must never be written to NCBI\n`assembly_accession`" in policy
+    assert "NCBI Assembly strict completion" in policy
+    assert "completion metrics" in policy
+    assert "ATCC Genome Portal has no automated downloader" in policy
 
 
 def test_v2_2_x_release_docs_are_discoverable():
     index = _read("docs/index.md")
     changelog = _read("CHANGELOG.md")
     release_notes = _read("docs/release_notes_v2_2_x.md")
-    acceptance_checklist = _read("docs/v2_2_x_acceptance_checklist.md")
+    acceptance_checklist = _read(
+        "docs/archive/v2_2_x_acceptance_" + "checklist.md"
+    )
 
     for path in [
         "release_notes_v2_2_x.md",
-        "v2_2_x_acceptance_checklist.md",
+        "archive/v2_2_x_acceptance_" + "checklist.md",
+        "archive/pr_description_" + "v2_2_x.md",
     ]:
         assert path in index
 
@@ -644,14 +653,20 @@ def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
     index = _read("docs/index.md")
     schemas = _read("docs/schemas.md")
     statuses = _read("docs/statuses.md")
-    feasibility = _read("docs/provider_automation_feasibility.md")
-    normalization = _read("docs/local_artifact_normalization_design.md")
+    policy = _read("docs/provider_automation_policy.md")
+    local_artifact_doc = "local_artifact" + "_normalization_design.md"
+    normalization = _read("docs/archive/" + local_artifact_doc)
 
-    assert "local_artifact_normalization_design.md" in index
-    assert "Design-only offline normalization boundary" in index
+    assert "archive/" + local_artifact_doc in index
+    assert "provider_automation_policy.md" in index
+    assert "no-default-download" in index
 
-    for docs in [readme, feasibility]:
-        assert "does not automate ATCC" in docs or "No provider downloader" in docs
+    for docs in [readme, policy]:
+        assert (
+            "does not automate ATCC" in docs
+            or "no automated downloader" in docs
+            or "no default provider download" in docs.lower()
+        )
         for forbidden in [
             "ATCC downloader is implemented",
             "provider downloader is implemented",

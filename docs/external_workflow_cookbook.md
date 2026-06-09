@@ -17,6 +17,12 @@ External registration is local and manual. TypeTreeFlow does not log in to
 ATCC Genome Portal or any provider portal, scrape pages, accept terms, purchase
 data, handle credentials, or download provider files.
 
+Use [external_type_genome_ingestion.md](external_type_genome_ingestion.md) for
+the design and data contract, [completion_audit.md](completion_audit.md) for
+completion/gap counting, [output_layout.md](output_layout.md) for output paths,
+and [provider_automation_policy.md](provider_automation_policy.md) for
+provider/ATCC boundaries.
+
 ## Choose the Scenario
 
 Use the synthetic fixture when you want to verify software behavior with
@@ -38,22 +44,10 @@ evidence package:
 
 For real provider data, the curator must confirm that terms and license allow
 local analysis. Do not commit the real FASTA, restricted provider bundles, or
-non-redistributable evidence packages.
-
-Provider planning outputs can help prepare this manual path. A curator may
-review `provider/proposed_external_genomes.tsv`, supply or correct the local
-FASTA path, checksum, type-material assertion, and terms/license notes, then
-copy the reviewed rows into a local `external_genomes.tsv` for the existing
-manual registration command. TypeTreeFlow does not automatically copy
-`proposed_external_genomes.tsv` to `external_genomes.tsv`, does not start
-external registration from provider planning, and does not treat review-required
-proposal rows as install-ready.
-
-Provider planning is not provider automation. It does not log in to, scrape,
-purchase from, or download from ATCC, DSMZ, JCM, NCTC, or similar portals. It
-does not write `manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`, installed
-FASTA files, or NCBI download plans. Provider-native identifiers stay in
-provider/external fields and must not be copied into NCBI `assembly_accession`.
+non-redistributable evidence packages. Provider planning outputs can help
+prepare review rows, but they are not installed genomes and do not count toward
+completion until reviewed rows are registered through `external_genomes.tsv`;
+see [provider_automation_policy.md](provider_automation_policy.md).
 
 ## Scenario 1: Synthetic Fixture
 
@@ -122,8 +116,7 @@ manifest or synthetic FASTA as real evidence.
 ## Key Files to Review
 
 - `provider/provider_registration_plan.tsv`: planning-only review status for
-  provider requests; no network, download, manifest, or NCBI download-plan
-  action is taken.
+  provider requests.
 - `provider/proposed_external_genomes.tsv`: review-only handoff rows that can
   be copied into a local `external_genomes.tsv` only after curator review.
 - `external_genome_registration_results.tsv`: validation status for each input
@@ -134,8 +127,10 @@ manifest or synthetic FASTA as real evidence.
   installed checksum.
 - `manifest.tsv`: NCBI rows plus accepted external registered rows.
 - `name_map.tsv`: normalized IDs and source labels.
-- `source_audit/completion_audit.tsv`: one row per expected checklist species.
-- `source_audit/completion_summary.tsv`: split completion metrics for reports.
+- `source_audit/completion_audit.tsv`: species-level completion/gap audit; see
+  [completion_audit.md](completion_audit.md).
+- `source_audit/completion_summary.tsv`: split completion metrics for reports;
+  see [completion_audit.md](completion_audit.md).
 - `report/summary.md`: human-readable summary from recorded state.
 
 ## Success Standards
@@ -173,9 +168,10 @@ For the `F. mortiferum` pilot shape, success means:
 
 ## Preserved Boundaries
 
-- External registered genomes improve only external-inclusive readiness.
-- External-inclusive `17/17` is not NCBI Assembly strict `17/17`.
-- Provider-native IDs stay out of `assembly_accession`.
-- External rows stay out of NCBI Datasets download planning.
-- Real provider FASTA files and restricted local evidence packages stay out of
-  the repository unless redistribution is explicitly permitted.
+External registered genomes improve only external-inclusive readiness:
+external-inclusive `17/17` is not NCBI Assembly strict `17/17`. The full
+provider boundary is in
+[provider_automation_policy.md](provider_automation_policy.md), output path
+ownership is in [output_layout.md](output_layout.md), workspace policy is in
+[workspace_policy.md](workspace_policy.md), and repository `results/` policy is
+in [results_policy.md](results_policy.md).
