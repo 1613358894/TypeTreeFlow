@@ -38,6 +38,16 @@ records; those links are not behavior-contract dependencies.
   completion/gap contract lives in
   [`../completion_audit.md`](../completion_audit.md).
 
+### Documentation restructuring records
+
+- [`docs_inventory.md`](docs_inventory.md):
+  historical inventory from the documentation flattening/restructuring pass.
+  It records reviewed docs, overlap, and recommended actions at that point in
+  time.
+- [`docs_simplification_plan.md`](docs_simplification_plan.md):
+  historical read-only simplification plan for documentation deduplication and
+  archive decisions.
+
 ### Version and provider plans
 
 - [`v0_8_0_implementation_plan.md`](v0_8_0_implementation_plan.md):

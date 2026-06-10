@@ -75,6 +75,8 @@ entry points or behavior contracts.
 
 - [archive/fusobacterium_external_pilot.md](archive/fusobacterium_external_pilot.md)
 - [archive/fusobacterium_real_pilot_template.md](archive/fusobacterium_real_pilot_template.md)
+- [archive/docs_inventory.md](archive/docs_inventory.md)
+- [archive/docs_simplification_plan.md](archive/docs_simplification_plan.md)
 - [archive/v0_8_0_implementation_plan.md](archive/v0_8_0_implementation_plan.md)
 - [archive/provider_automation_feasibility.md](archive/provider_automation_feasibility.md)
 - [archive/atcc_downloader_gate_review.md](archive/atcc_downloader_gate_review.md)
