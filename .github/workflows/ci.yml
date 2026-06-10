@@ -40,6 +40,9 @@ jobs:
       - name: Run tests
         run: pytest -p no:cacheprovider --basetemp .pytest_tmp
 
+      - name: Check docs hygiene
+        run: python scripts/check_docs_hygiene.py
+
       - name: Check CLI help
         run: python typetreeflow.py --help
 
