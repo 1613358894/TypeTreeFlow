@@ -22,6 +22,8 @@ contract unless a current contract page links it for a specific fact.
   `verify-release-genus` commands.
 - [design.md](design.md): current architecture and guarded-execution safety
   contract.
+- [contracts.md](contracts.md): overview entry point for stable interfaces,
+  output contracts, policy contracts, and audit contracts.
 - [stable_contracts.md](stable_contracts.md): stable, review-only, internal,
   and post-v1.0 contract classification.
 - [output_layout.md](output_layout.md): run-directory files and stage ownership.

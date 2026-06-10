@@ -20,6 +20,7 @@ REQUIRED_DOCS = [
 
 TOP_LEVEL_DOCS_ALLOWLIST = {
     "completion_audit.md",
+    "contracts.md",
     "cookbook.md",
     "design.md",
     "docs_simplification_plan.md",

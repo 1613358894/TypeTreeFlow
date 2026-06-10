@@ -94,6 +94,8 @@ for documentation maintenance rules.
 Common entry points:
 
 - [docs/cookbook.md](docs/cookbook.md): high-level operator commands.
+- [docs/contracts.md](docs/contracts.md): overview of stable interfaces,
+  output contracts, policy contracts, and audit contracts.
 - [docs/output_layout.md](docs/output_layout.md): run-directory path contract.
 - [docs/workspace_policy.md](docs/workspace_policy.md): workspace root policy.
 - [docs/results_policy.md](docs/results_policy.md): repository `results/`

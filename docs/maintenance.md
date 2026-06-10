@@ -20,6 +20,8 @@ to maintain the layers:
 - Current contracts document implemented CLI behavior, output paths, TSV
   schemas, emitted status values, and safety guarantees. If code changes
   current behavior, update the relevant contract document in the same change.
+  Use [contracts.md](contracts.md) as the overview entry point; keep exact
+  field, status, path, policy, and audit rules in their canonical documents.
 - Active designs document design intent, phase notes, and future behavior. Mark
   whether a section is implemented, proposed, or historical, and do not let
   planned text read like current behavior.
