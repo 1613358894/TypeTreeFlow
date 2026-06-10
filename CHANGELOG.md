@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.2.13 - 2026-06-10
+
+v2.2.13 is a maintenance-only release based on v2.2.12.
+
+### Changed
+
+- Switched the default omitted-`--outdir` behavior to workspace-based run
+  directories.
+- Reorganized the maintained documentation system around current entry points,
+  contracts, workspace policy, and archived historical notes.
+- Added documentation and workspace hygiene checks, including CI coverage for
+  documentation hygiene.
+- Improved release consistency checking for version anchors and release
+  readiness metadata.
+
+### Notes
+
+- No changes to download strategy, selection policy, or evidence thresholds.
+- No provider or ATCC automatic download support is introduced.
+- No new real-genus coverage is claimed.
+
 ## v2.2.12 - 2026-06-06
 
 v2.2.12 is a maintenance-only release based on v2.2.11.

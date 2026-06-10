@@ -1,6 +1,6 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.12 integration review as
+These notes consolidate the v2.2.2 through v2.2.13 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
@@ -75,6 +75,11 @@ checklist, or verification contract.
   navigation/operator handoff artifact, and hardens the maintenance release
   checklist/process. It changes no download strategy, selection safety, or
   evidence thresholds.
+- v2.2.13 is a maintenance release for workspace-based default output
+  directories, documentation system restructuring, documentation/workspace
+  hygiene checks, CI documentation hygiene, and release consistency checker
+  improvements. It changes no download strategy, selection policy, evidence
+  thresholds, provider automation boundary, or real-genus coverage claims.
 
 ## Historical Verification Notes
 
@@ -127,7 +132,7 @@ v2.2.x does not promise automatic 100% coverage for a genus. Gap reporting and
 expanded discovery make missing evidence easier to review; they do not relax the
 strict, likely type-material, or representative-only evidence boundaries.
 
-v2.2.12 does not add full Clostridium completion, expanded discovery
+v2.2.13 does not add full Clostridium completion, expanded discovery
 auto-selection, provider/ATCC auto-download, or an evidence model rewrite.
 It does not change download strategy, selection safety, or evidence thresholds.
 

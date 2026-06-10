@@ -20,7 +20,7 @@ repository `results/` content is limited by
 
 ## Current Release Scope
 
-For the current v2.2.12 release, verification is maintenance-only. It confirms
+For the current v2.2.13 release, verification is maintenance-only. It confirms
 release metadata consistency, documentation entry points, package smoke
 behavior, and offline test coverage. It does not add real download validation,
 selection-policy changes, evidence-threshold changes, or workflow behavior
@@ -28,7 +28,7 @@ changes.
 
 Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
 `--version`, README, release docs, citation metadata, and changelog all report
-`2.2.12`; then run the release consistency checker, workspace hygiene checker,
+`2.2.13`; then run the release consistency checker, workspace hygiene checker,
 pytest, wheel build, and wheel smoke checks without live downloads unless the
 release scope explicitly requires guarded live validation.
 
