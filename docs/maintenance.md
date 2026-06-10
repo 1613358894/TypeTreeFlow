@@ -27,6 +27,9 @@ to maintain the layers:
   planned text read like current behavior.
 - Operational and release docs guide repeatable project work: release policy,
   validation steps, contribution expectations, and documentation hygiene.
+- Architecture audit docs under `docs/architecture/` record current
+  implementation review notes. Keep them evidence-oriented and clearly
+  separated from user tutorials, stable contracts, and future commitments.
 
 For manual external genomes, keep the split narrow:
 `docs/external_type_genome_ingestion.md` is the design/data-contract entry,

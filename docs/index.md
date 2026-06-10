@@ -42,6 +42,9 @@ contract unless a current contract page links it for a specific fact.
   contract for completion/gap outputs and split completion metrics.
 - [maintenance.md](maintenance.md): documentation maintenance rules for humans
   and AI agents.
+- [architecture/index.md](architecture/index.md): current-implementation
+  architecture audit framework for later focused review and cautious refactor
+  planning.
 
 ## Current Feature And Policy Detail
 
