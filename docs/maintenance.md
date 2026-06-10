@@ -69,6 +69,9 @@ surfaces:
   `docs/statuses.md`.
 - Release steps, version policy, validation commands, or packaging behavior:
   update `docs/release_process.md` or `docs/release_checklist.md`.
+- Maintenance-only release gates and real staged validation boundaries belong
+  in `docs/release_checklist.md`, with the policy summary in
+  `docs/release_process.md`.
 - Future design or not-yet-implemented behavior: update the relevant active
   design file and label it as proposed.
 

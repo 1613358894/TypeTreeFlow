@@ -7,6 +7,7 @@ __pycache__/
 .pytest-tmp*/
 .pytest_tmp/
 .pytest_tmp*/
+.tmp_pytest*
 pytest_tmp_v227_*/
 tmp_pytest/
 .mypy_cache/
@@ -27,6 +28,7 @@ logs/
 
 .venv/
 .venv_*/
+.tmp_smoke_venv*
 env/
 .env
 *.env

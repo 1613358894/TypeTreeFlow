@@ -1,8 +1,9 @@
 # Release Checklist
 
-Use this execution checklist before tagging a TypeTreeFlow release. Release
-policy, tag rules, GitHub Release requirements, and audit standards are
-documented in [release_process.md](release_process.md).
+Use this execution checklist before tagging a TypeTreeFlow release. The
+checklist follows the three release phases in
+[release_process.md](release_process.md): prepare release commit, local release
+gate, and publish.
 
 ## Environment Prerequisites
 
@@ -19,7 +20,88 @@ documented in [release_process.md](release_process.md).
   [workspace_policy.md](workspace_policy.md), [results_policy.md](results_policy.md),
   and [output_layout.md](output_layout.md) for placement and path contracts.
 
-## Required Local Validation
+## Phase 1: Prepare Release Commit
+
+- Keep one focused release readiness commit with subject `release: vX.Y.Z`.
+- Confirm version-source files match the intended release:
+  `pyproject.toml`, `typetreeflow/__init__.py`, `CITATION.cff`, and
+  `CHANGELOG.md`.
+- Confirm `CHANGELOG.md` has the intended release entry.
+- Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended
+  license.
+- Confirm `README.md` and docs reflect the current guarded execution state.
+- Confirm the cookbook starts from high-level commands and keeps low-level
+  primitives marked as advanced/manual recovery.
+- Do not include caches, local environment files, generated run output, real
+  download data, large artifacts, or unrelated feature work.
+- Keep repository `results/` within [results_policy.md](results_policy.md).
+- Do not include `typetreeflow_out/`; this is the old default or a historical
+  example path, not the current default output location.
+
+## Phase 2: Local Release Gate
+
+Maintenance-only release boundary: do not run real downloads by default. Real
+staged validation is required only when the explicit release scope involves
+live acquisition, download, selection, evidence, or report behavior.
+
+Future `scripts/release_gate.py` design: the script is a local release gate
+orchestrator for the commands in this section. It is not a release publishing
+script, and it must not replace the existing check scripts.
+
+The future gate should:
+
+- Confirm the intended version, using `--version` when provided or reading
+  `project.version` from `pyproject.toml`.
+- Run release consistency by invoking the existing script:
+
+```bash
+python scripts/check_release_consistency.py
+```
+
+- Run docs hygiene by invoking the existing script:
+
+```bash
+python scripts/check_docs_hygiene.py
+```
+
+- Run workspace hygiene by invoking the existing script:
+
+```bash
+python scripts/check_workspace_hygiene.py
+```
+
+- Run the full pytest suite with a repository-local or temporary base temp
+  directory, and disable the pytest cache provider so stale cache state cannot
+  influence the gate:
+
+```bash
+python -m pytest -p no:cacheprovider --basetemp .tmp_pytest_vX_Y_Z
+```
+
+- Build both wheel and sdist:
+
+```bash
+python -m build
+```
+
+- Create a temporary virtual environment, install the wheel that was just
+  built, and smoke test the installed wheel:
+
+```bash
+typetreeflow --version
+typetreeflow doctor
+python typetreeflow.py --version
+```
+
+- Run `python scripts/check_workspace_hygiene.py` again after build and smoke
+  testing.
+- Print a clear PASS/FAIL summary that includes the wheel and sdist filenames,
+  observed version output, `doctor` result, and the failed stage when any stage
+  fails.
+
+The future gate must not create tags, push commits or tags, create GitHub
+Releases, upload assets, or run real downloads. Those publishing actions remain
+manual Phase 3 maintainer actions after the local gate passes.
 
 - Run the release consistency checker before version bump, tag, wheel smoke, or
   release PR publication:
@@ -77,9 +159,6 @@ typetreeflow --version
 python typetreeflow.py --help
 python typetreeflow.py doctor
 ```
-
-- For maintenance-only release checklist validation, do not run real downloads
-  unless the explicit release scope requires live guarded validation.
 
 - Confirm project governance files are present:
 
@@ -165,6 +244,10 @@ python typetreeflow.py \
 ```
 
 ## Real Staged Validation Summary
+
+Use this section only when the release scope requires live guarded validation,
+including changes to live acquisition, download, selection, evidence, or report
+behavior. Maintenance-only releases skip it by default.
 
 Prefer the high-level guarded genus route in a disposable output directory.
 Network and download stages remain explicitly opt-in.
@@ -271,30 +354,16 @@ evidence and result interpretation.
 - TypeTreeFlow does not parse Newick trees, render tree figures, or assign final species names.
 - The 95% ANI threshold in summaries is advisory only.
 
-## Before Tagging
+## Local Gate Closure
 
-- Confirm `python scripts/check_release_consistency.py` passes.
-- Confirm `python scripts/check_docs_hygiene.py` passes.
-- Confirm `python scripts/check_workspace_hygiene.py` passes, or manually
-  review and clean any reported local residue outside the script.
-- Confirm the version-source files listed in
-  [release_process.md](release_process.md) match the intended tag.
 - For a release candidate, confirm `CHANGELOG.md` has an Unreleased or
   release-candidate entry that clearly states it is not v2.0.0 final.
 - For final v2.0.0, confirm `CHANGELOG.md` has a dated `2.0.0` entry and no
   release-candidate-only wording in the final entry.
-- Confirm `pyproject.toml`, `LICENSE`, and `README.md` report the intended
-  license.
-- Confirm the wheel filename contains the intended version.
 - Confirm `pyproject.toml` release classifier is still appropriate for the
   intended release status.
-- Confirm `README.md` and docs reflect the current guarded execution state.
-- Confirm the cookbook starts from high-level commands and keeps low-level
-  primitives marked as advanced/manual recovery.
 - Confirm the test suite, CLI help, wheel build, and temporary-venv wheel smoke
   commands pass from a clean checkout.
-- Confirm no real downloads were run unless the release scope explicitly
-  required live guarded validation.
 - Remove generated validation artifacts that should not be committed.
 - Remove repo-local pytest temp directories and temporary smoke virtual
   environments.
@@ -304,7 +373,7 @@ evidence and result interpretation.
   mapped from `docs/index.md` may be consulted when validating past claims, but
   it is not a current release gate.
 
-## Release Closure
+## Phase 3: Publish
 
 - Confirm the annotated tag points to the intended release commit before
   publishing.
