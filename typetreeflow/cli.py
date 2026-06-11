@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import logging
-import os
 import shutil
 import sys
 from dataclasses import dataclass, field, replace
@@ -16,7 +15,7 @@ from typetreeflow.completion import (
     write_completion_summary,
 )
 from typetreeflow.completion_gaps import generate_completion_gap_reports
-from typetreeflow.cli_config import _normalize_command_argv
+from typetreeflow.cli_config import _env_value, _normalize_command_argv
 from typetreeflow.cli_parser import build_parser
 from typetreeflow.config import AppConfig, ensure_real_action_allowed
 from typetreeflow.delivery import package_results
@@ -315,14 +314,6 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
         report_only=args.report_only,
         log_level=args.log_level,
     )
-
-
-def _env_value(name: str) -> str | None:
-    value = os.environ.get(name)
-    if value is None:
-        return None
-    stripped = value.strip()
-    return stripped or None
 
 
 def main(

@@ -3,11 +3,35 @@ from __future__ import annotations
 import pytest
 
 from typetreeflow import cli
+from typetreeflow.cli_config import _env_value as config_env_value
 from typetreeflow.cli_config import _normalize_command_argv as config_normalize_argv
 
 
 def test_cli_normalize_command_argv_compatibility_export():
     assert cli._normalize_command_argv is config_normalize_argv
+
+
+def test_cli_env_value_compatibility_export():
+    assert cli._env_value is config_env_value
+
+
+def test_env_value_returns_stripped_set_value(monkeypatch):
+    monkeypatch.setenv("TYPETREEFLOW_EMAIL", " user@example.org ")
+
+    assert cli._env_value("TYPETREEFLOW_EMAIL") == "user@example.org"
+    assert config_env_value("TYPETREEFLOW_EMAIL") == "user@example.org"
+
+
+def test_env_value_returns_none_for_unset_or_blank_value(monkeypatch):
+    monkeypatch.delenv("TYPETREEFLOW_EMAIL", raising=False)
+
+    assert cli._env_value("TYPETREEFLOW_EMAIL") is None
+    assert config_env_value("TYPETREEFLOW_EMAIL") is None
+
+    monkeypatch.setenv("TYPETREEFLOW_EMAIL", "   ")
+
+    assert cli._env_value("TYPETREEFLOW_EMAIL") is None
+    assert config_env_value("TYPETREEFLOW_EMAIL") is None
 
 
 def test_normalize_command_aliases_preserves_existing_rewrites():

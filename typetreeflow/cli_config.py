@@ -1,6 +1,15 @@
 from __future__ import annotations
 
+import os
 import sys
+
+
+def _env_value(name: str) -> str | None:
+    value = os.environ.get(name)
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
 
 
 def _normalize_command_argv(
