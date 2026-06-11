@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import importlib.util
 import sys
 from pathlib import Path
@@ -32,6 +33,34 @@ def test_reads_version_from_pyproject(tmp_path):
         ),
         encoding="utf-8",
     )
+
+    assert release_gate.read_project_version(tmp_path) == "8.7.6"
+
+
+def test_reads_version_without_tomllib(tmp_path, monkeypatch):
+    release_gate = _load_release_gate()
+    (tmp_path / "pyproject.toml").write_text(
+        "\n".join(
+            [
+                "[build-system]",
+                'requires = ["setuptools>=68"]',
+                "",
+                "[project]",
+                'name = "typetreeflow"',
+                'version = "8.7.6"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    original_import = builtins.__import__
+
+    def import_without_tomllib(name, *args, **kwargs):
+        if name == "tomllib":
+            raise ModuleNotFoundError("No module named 'tomllib'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", import_without_tomllib)
 
     assert release_gate.read_project_version(tmp_path) == "8.7.6"
 

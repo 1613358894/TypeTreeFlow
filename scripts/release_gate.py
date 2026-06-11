@@ -12,7 +12,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Sequence
@@ -72,12 +71,32 @@ Runner = Callable[[Sequence[str], Path], CommandResult]
 
 def read_project_version(repo_root: Path = REPO_ROOT) -> str:
     pyproject_path = repo_root / "pyproject.toml"
-    with pyproject_path.open("rb") as handle:
-        payload = tomllib.load(handle)
     try:
-        return str(payload["project"]["version"])
-    except KeyError as exc:  # pragma: no cover - defensive error path
-        raise ValueError(f"missing project.version in {pyproject_path}") from exc
+        import tomllib
+    except ModuleNotFoundError:
+        version = _read_project_version_fallback(pyproject_path)
+    else:
+        with pyproject_path.open("rb") as handle:
+            payload = tomllib.load(handle)
+        version = payload.get("project", {}).get("version")
+
+    if version is None:
+        raise ValueError(f"missing project.version in {pyproject_path}")
+    return str(version)
+
+
+def _read_project_version_fallback(pyproject_path: Path) -> str | None:
+    section = None
+    for raw_line in pyproject_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line.strip("[]")
+            continue
+        if section == "project" and line.startswith("version") and "=" in line:
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return None
 
 
 def expected_artifacts(repo_root: Path, version: str) -> tuple[Path, Path]:
