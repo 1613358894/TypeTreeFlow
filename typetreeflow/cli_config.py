@@ -3,6 +3,10 @@ from __future__ import annotations
 import os
 import sys
 
+from typetreeflow.config import AppConfig
+from typetreeflow.env import load_env_files
+from typetreeflow.workflow.defaults import default_outdir
+
 
 def _env_value(name: str) -> str | None:
     value = os.environ.get(name)
@@ -70,3 +74,84 @@ def _normalize_command_argv(
         normalized.append(item)
         index += 1
     return normalized, True, False
+
+
+def build_app_config_from_args(
+    args,
+    *,
+    verify_genus: bool,
+    package_results_command: bool,
+) -> AppConfig:
+    load_env_files(args.env_file)
+    return AppConfig(
+        doctor=args.doctor,
+        doctor_strict=args.doctor_strict,
+        status=args.status,
+        next_step=args.next_step,
+        json_output=args.json_output,
+        package_results=package_results_command or args.package_results,
+        failed_handoff=args.failed_handoff,
+        delivery_dir=args.delivery_dir,
+        include=args.include,
+        verify_release_genus=args.verify_release_genus,
+        release_policies=args.policies,
+        verify_genus=verify_genus,
+        auto_accept_selection=args.auto_accept_selection,
+        review_required=args.review_required,
+        acquire_genus=args.acquire_genus,
+        genus=args.genus,
+        query_genome=args.query_genome,
+        query_16s=args.query_16s,
+        outgroup=args.outgroup,
+        outdir=args.outdir if args.outdir is not None else default_outdir(),
+        threads=args.threads,
+        email=args.email or _env_value("TYPETREEFLOW_EMAIL"),
+        api_key=args.api_key or _env_value("TYPETREEFLOW_API_KEY"),
+        gtdb_metadata=args.gtdb_metadata,
+        gtdb_release=args.gtdb_release,
+        species_checklist=args.species_checklist,
+        lpsn_child_taxa=args.lpsn_child_taxa,
+        lpsn_genus=args.lpsn_genus,
+        lpsn_cache=args.lpsn_cache,
+        write_lpsn_cache=args.write_lpsn_cache,
+        write_species_checklist=args.write_species_checklist,
+        write_excluded_lpsn_taxa=args.write_excluded_lpsn_taxa,
+        enable_lpsn_api=args.enable_lpsn_api,
+        audit_culture_collections=args.audit_culture_collections,
+        write_completion_audit=args.write_completion_audit,
+        discover_assembly_candidates=args.discover_assembly_candidates,
+        write_manual_review_template=args.write_manual_review_template,
+        apply_curator_evidence=args.apply_curator_evidence,
+        candidate_tsv=args.candidate_tsv,
+        discovery_cache=args.discovery_cache,
+        enable_ncbi_discovery=args.enable_ncbi_discovery,
+        enable_ncbi_taxonomy=args.enable_ncbi_taxonomy,
+        enable_expanded_discovery=args.enable_expanded_discovery,
+        enable_synonym_discovery=args.enable_synonym_discovery,
+        enrich_biosample=args.enrich_biosample,
+        biosample_cache=args.biosample_cache,
+        enable_biosample_entrez=args.enable_biosample_entrez,
+        prepare_selection=args.prepare_selection,
+        selection_tsv=args.selection_tsv,
+        selection_policy=args.selection_policy,
+        source_audit_policy=args.source_audit_policy,
+        strains_per_species=args.strains_per_species,
+        register_external_genomes=args.register_external_genomes,
+        plan_provider_registration=args.plan_provider_registration,
+        merge_manifest=args.merge_manifest,
+        resume=args.resume,
+        force=args.force,
+        allow_genus_change=args.allow_genus_change,
+        dry_run=args.dry_run,
+        enable_downloads=args.enable_downloads,
+        enable_barrnap=args.enable_barrnap,
+        extract_16s=args.extract_16s,
+        enable_entrez=args.enable_entrez,
+        enable_fastani=args.enable_fastani,
+        enable_phylo=args.enable_phylo,
+        skip_ani=args.skip_ani,
+        skip_tree=args.skip_tree,
+        keep_temp=args.keep_temp,
+        report_only=args.report_only,
+        log_level=args.log_level,
+    )

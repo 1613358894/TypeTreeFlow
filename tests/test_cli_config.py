@@ -5,6 +5,7 @@ import pytest
 from typetreeflow import cli
 from typetreeflow.cli_config import _env_value as config_env_value
 from typetreeflow.cli_config import _normalize_command_argv as config_normalize_argv
+from typetreeflow.cli_config import build_app_config_from_args
 
 
 def test_cli_normalize_command_argv_compatibility_export():
@@ -81,6 +82,53 @@ def test_normalize_verify_genus_aliases_policy_and_biosample_entrez():
     )
 
 
+def test_build_app_config_from_args_preserves_env_default_precedence(
+    tmp_path,
+    monkeypatch,
+):
+    env_file = tmp_path / "local.env"
+    env_file.write_text(
+        "TYPETREEFLOW_EMAIL=file@example.org\n"
+        "TYPETREEFLOW_API_KEY=file-key\n",
+        encoding="utf-8",
+    )
+    workspace = tmp_path / "workspace"
+    monkeypatch.setenv("TYPETREEFLOW_WORKSPACE", str(workspace))
+    monkeypatch.setenv("TYPETREEFLOW_EMAIL", "process@example.org")
+    monkeypatch.delenv("TYPETREEFLOW_API_KEY", raising=False)
+
+    args = cli.build_parser().parse_args(["--env-file", str(env_file)])
+    config = build_app_config_from_args(
+        args,
+        verify_genus=False,
+        package_results_command=False,
+    )
+
+    assert config.outdir == workspace / "runs" / "default"
+    assert config.email == "process@example.org"
+    assert config.api_key == "file-key"
+
+    explicit_outdir = tmp_path / "explicit"
+    args = cli.build_parser().parse_args(
+        [
+            "--env-file",
+            str(env_file),
+            "--email",
+            "cli@example.org",
+            "--outdir",
+            str(explicit_outdir),
+        ]
+    )
+    config = build_app_config_from_args(
+        args,
+        verify_genus=False,
+        package_results_command=False,
+    )
+
+    assert config.outdir == explicit_outdir
+    assert config.email == "cli@example.org"
+
+
 def test_parse_args_handles_doctor_version_and_common_flags(tmp_path):
     doctor_config = cli.parse_args(["doctor", "--strict", "--outdir", str(tmp_path)])
     assert doctor_config.doctor is True
@@ -103,3 +151,48 @@ def test_parse_args_handles_doctor_version_and_common_flags(tmp_path):
     assert config.acquire_genus == "Aliivibrio"
     assert config.dry_run is True
     assert config.selection_policy == "balanced"
+
+
+def test_parse_args_verify_genus_preserves_policy_dry_run_and_biosample_entrez(
+    tmp_path,
+):
+    config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--policy",
+            "strict",
+            "--enable-biosample-entrez",
+            "--outdir",
+            str(tmp_path / "verify"),
+        ]
+    )
+
+    assert config.verify_genus is True
+    assert config.acquire_genus == "Fusobacterium"
+    assert config.selection_policy == "strict"
+    assert config.dry_run is True
+    assert config.enrich_biosample is True
+    assert config.enable_biosample_entrez is True
+
+
+def test_parse_args_package_results_command_sets_package_results(tmp_path):
+    config = cli.parse_args(["package-results", "--outdir", str(tmp_path)])
+
+    assert config.package_results is True
+
+
+def test_parse_args_release_policies_map_from_parser_policies(tmp_path):
+    config = cli.parse_args(
+        [
+            "verify-release-genus",
+            "Fusobacterium",
+            "--policies",
+            "balanced,representative",
+            "--outdir",
+            str(tmp_path / "release"),
+        ]
+    )
+
+    assert config.verify_release_genus == "Fusobacterium"
+    assert config.release_policies == "balanced,representative"
