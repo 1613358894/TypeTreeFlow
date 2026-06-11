@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This document is a gradual refactor plan for `typetreeflow/cli.py`. It records
-candidate implementation steps only; no refactor has been executed by this
-plan.
+This document is a gradual refactor plan for `typetreeflow/cli.py`. It now
+records the completed parser/config extraction phase and the remaining
+candidate implementation steps.
 
 The goal is to reduce the size and responsibility mix of `cli.py` while
 preserving public CLI behavior. The plan is based on the architecture audit
@@ -19,14 +19,11 @@ those audit notes.
 
 ## Current cli.py Responsibilities
 
-`typetreeflow/cli.py` currently owns or coordinates these responsibility
-groups:
+After the completed parser/config extraction phase, `typetreeflow/cli.py`
+currently owns or coordinates these responsibility groups:
 
-- Parser construction through `build_parser()`.
-- Command-form and argv normalization through `_normalize_command_argv()`.
-- Environment/default handling through env-file loading, `TYPETREEFLOW_*`
-  fallbacks, and `default_outdir()`.
-- `AppConfig` construction in `parse_args()`.
+- `parse_args()` compatibility wrapper that delegates argv normalization,
+  parser construction, and `AppConfig` construction to helper modules.
 - Argument-combination validation in
   `validate_cli_argument_combinations()` plus extra validation inside `main()`
   and stage branches.
@@ -45,6 +42,40 @@ groups:
 - Error handling and next-action handling for existing outdirs, source-audit
   blocking, selection integrity failures, missing prerequisites, and guarded
   real-action paths.
+
+## Current CLI Helper Responsibilities
+
+`typetreeflow/cli_parser.py` currently owns parser construction through
+`build_parser()`. This includes the `argparse.ArgumentParser`, command and flag
+definitions, defaults, hidden compatibility flags, types, and help text.
+
+`typetreeflow/cli_config.py` currently owns command-form and argv normalization
+through `_normalize_command_argv()`, environment fallback handling through
+`_env_value()`, env-file loading, default outdir resolution, and `AppConfig`
+construction through `build_app_config_from_args()`.
+
+## Completed Refactor Steps
+
+The following staged refactor steps have been completed and merged through HEAD
+`04b3745`:
+
+- Step 1: parser construction was extracted to `typetreeflow/cli_parser.py`.
+- Step 2A: argv normalization was extracted to
+  `typetreeflow/cli_config.py`.
+- Step 2B: the environment helper was extracted to
+  `typetreeflow/cli_config.py`.
+- Step 2C: `AppConfig` construction was extracted to
+  `build_app_config_from_args()`.
+
+Validation status for this completed phase:
+
+- Latest CI passed for HEAD `04b3745`.
+- The local release gate and full pytest suite passed before push.
+
+The compatibility boundaries and non-goals below remain unchanged. These
+completed movements were code organization changes only, with no intended CLI
+behavior, download, selection, evidence, provider, output schema, status, or
+run-state policy change.
 
 ## Compatibility Boundaries
 
@@ -74,16 +105,34 @@ separate contract-changing task explicitly approves otherwise:
 
 ## Proposed Refactor Sequence
 
-1. Extract CLI parser construction.
-2. Extract argv normalization and config construction helpers.
-3. Extract high-level command dispatch.
-4. Extract release workflow orchestration if it still provides a clear benefit
+1. Extract CLI parser construction. Completed in
+   `typetreeflow/cli_parser.py`.
+2. Extract argv normalization and config construction helpers. Completed in
+   `typetreeflow/cli_config.py`.
+3. Plan and audit high-level command dispatch before any broad extraction.
+4. Consider a very small command dispatch extraction only if the audit confirms
+   a narrow, behavior-preserving slice.
+5. Extract release workflow orchestration if it still provides a clear benefit
    after dispatch is smaller.
-5. Evaluate workflow/status read-side extraction.
-6. Only later consider deeper stage orchestration extraction.
+6. Evaluate workflow/status read-side extraction.
+7. Only later consider deeper stage orchestration extraction.
 
-This sequence intentionally starts with lower-risk code movement around parser
-and dispatch seams before attempting workflow-stage movement.
+This sequence intentionally completed lower-risk code movement around parser
+and config seams first. The next recommended step is not a broad workflow/stage
+extraction. The next candidate is command dispatch planning/audit, or at most a
+very small dispatch extraction after the ordering, return-code, stdout/stderr,
+and precedence risks are characterized.
+
+## Risks Before Next Step
+
+- Command ordering, return codes, and stdout/stderr behavior are compatibility
+  sensitive.
+- Diagnostics, report-only, and package-results dispatch precedence must remain
+  unchanged.
+- The release workflow versus `scripts/release_gate.py` naming and ownership
+  boundary must stay clear: release workflow code validates local release
+  readiness, while release gate tooling remains local validation and does not
+  publish.
 
 ## Step Details
 
@@ -123,6 +172,9 @@ Stop conditions:
 - Help/version output changes unexpectedly.
 - A default value or parsed type changes.
 - The wrapper cannot remain import-compatible without circular imports.
+
+Status: completed. Parser construction now lives in
+`typetreeflow/cli_parser.py`; `typetreeflow/cli.py` imports `build_parser()`.
 
 ### Step 2: Extract argv Normalization And Config Construction Helpers
 
@@ -164,6 +216,11 @@ Stop conditions:
 - `AppConfig` values differ for the same argv/environment inputs.
 - Any compatibility command no longer normalizes to the same underlying flags.
 - Env defaults or explicit CLI overrides change.
+
+Status: completed. `_normalize_command_argv()`, `_env_value()`, env-file
+loading, default outdir resolution, and `AppConfig` construction now live in
+`typetreeflow/cli_config.py`; `typetreeflow/cli.py::parse_args()` remains a
+compatibility wrapper.
 
 ### Step 3: Extract High-Level Command Dispatch
 
@@ -374,8 +431,8 @@ for every small parser-only movement.
   publishing automation.
 - Do not change public CLI behavior, output paths, TSV schemas, status values,
   or run-state JSON shape as part of these extractions.
-- Do not use this plan as evidence that any code refactor has already been
-  implemented.
+- Do not use this plan as evidence that any unlisted code refactor has already
+  been implemented.
 
 ## Open Questions
 
