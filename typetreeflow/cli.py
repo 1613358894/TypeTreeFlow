@@ -251,20 +251,7 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
     )
 
 
-def main(
-    argv: list[str] | None = None,
-    download_runner=None,
-    barrnap_runner=None,
-    fastani_runner=None,
-    phylo_runner=None,
-    assembly_discovery_client: AssemblyDiscoveryClient | None = None,
-    biosample_client: BioSampleClient | None = None,
-    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
-    lpsn_client=None,
-) -> int:
-    config = parse_args(argv)
-    setup_logging(config.log_level)
-    paths = get_output_paths(config.outdir)
+def _run_diagnostics_dispatch(config: AppConfig, paths) -> int | None:
     if config.doctor:
         report = build_doctor_report(
             email_available=bool(config.email),
@@ -289,6 +276,26 @@ def main(
             return 2
         print(format_next_step(summary, json_output=config.json_output))
         return 0
+    return None
+
+
+def main(
+    argv: list[str] | None = None,
+    download_runner=None,
+    barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
+    assembly_discovery_client: AssemblyDiscoveryClient | None = None,
+    biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+    lpsn_client=None,
+) -> int:
+    config = parse_args(argv)
+    setup_logging(config.log_level)
+    paths = get_output_paths(config.outdir)
+    diagnostics_exit = _run_diagnostics_dispatch(config, paths)
+    if diagnostics_exit is not None:
+        return diagnostics_exit
     if config.package_results:
         try:
             result = package_results(
