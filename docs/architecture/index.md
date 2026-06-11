@@ -31,6 +31,7 @@ authoritative in their canonical documents under `docs/`.
 | 10 | Tests map | [tests_map.md](tests_map.md) | Audited complete | Coverage and safety-gate map |
 | 11 | Risks and refactor candidates | [risks_and_refactor_candidates.md](risks_and_refactor_candidates.md) | Audited complete | Summary/index, not a final plan |
 | 12 | Architecture index | [index.md](index.md) | Audited complete | Directory entry and status summary |
+| 13 | CLI refactor plan | [cli_refactor_plan.md](cli_refactor_plan.md) | Planned, not implemented | Refactor planning document, not implementation audit |
 
 ## Suggested Reading Order
 
@@ -47,10 +48,12 @@ Read the audit in this order when preparing for a refactor discussion:
 9. [release_and_maintenance_tooling.md](release_and_maintenance_tooling.md)
 10. [tests_map.md](tests_map.md)
 11. [risks_and_refactor_candidates.md](risks_and_refactor_candidates.md)
+12. [cli_refactor_plan.md](cli_refactor_plan.md)
 
 This order starts with repository and CLI shape, then follows workflow state,
 domain evidence, acquisition and analysis stages, presentation/release tooling,
-test coverage, and finally the cross-audit risk index.
+test coverage, the cross-audit risk index, and finally the dedicated
+`cli.py` refactor plan.
 
 ## Cross-Cutting Boundaries
 
@@ -84,10 +87,10 @@ The architecture audit is ready to inform planning. It has mapped the current
 implementation responsibilities, stable contracts, test gates, risk groups,
 and remaining open questions across the main code and maintenance areas.
 
-The next planning artifact should be a separate `cli.py` refactor plan
-document, because the repeated cross-audit risk is the size and responsibility
-mix inside CLI parsing, validation, dispatch, orchestration, state writing, and
-report glue.
+The next planning artifact is [cli_refactor_plan.md](cli_refactor_plan.md),
+which turns the repeated cross-audit `cli.py` risk into a staged refactor plan.
+It is a planning document only, not evidence that parser, validation, dispatch,
+or orchestration code has already been moved.
 
 No code refactor has been performed by this audit. The audit documents
 candidate directions only. Each candidate still requires a scoped
