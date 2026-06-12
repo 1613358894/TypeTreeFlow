@@ -162,6 +162,7 @@ def test_verify_release_genus_creates_policy_outdirs_and_planning_matrix(
     )
 
     assert result == 0
+    assert not (tmp_path / "run_state.json").exists()
     assert (tmp_path / "fusobacterium_balanced").is_dir()
     assert (tmp_path / "fusobacterium_representative").is_dir()
     assert (tmp_path / "fusobacterium_balanced" / "completion" / "gaps.tsv").exists()

@@ -300,6 +300,34 @@ def _run_package_results_dispatch(config: AppConfig) -> int | None:
     return 0
 
 
+def _run_verify_release_genus_dispatch(
+    config: AppConfig,
+    download_runner=None,
+    barrnap_runner=None,
+    assembly_discovery_client: AssemblyDiscoveryClient | None = None,
+    biosample_client: BioSampleClient | None = None,
+    ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+    lpsn_client=None,
+) -> int | None:
+    if config.verify_release_genus is None:
+        return None
+    try:
+        validate_cli_argument_combinations(config)
+        run_release_genus_verification(
+            config,
+            download_runner=download_runner,
+            barrnap_runner=barrnap_runner,
+            assembly_discovery_client=assembly_discovery_client,
+            biosample_client=biosample_client,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
+            lpsn_client=lpsn_client,
+        )
+    except (ManifestError, ValueError, RuntimeError) as error:
+        LOGGER.error("%s", error)
+        return 2
+    return 0
+
+
 def main(
     argv: list[str] | None = None,
     download_runner=None,
@@ -320,22 +348,17 @@ def main(
     package_exit = _run_package_results_dispatch(config)
     if package_exit is not None:
         return package_exit
-    if config.verify_release_genus is not None:
-        try:
-            validate_cli_argument_combinations(config)
-            run_release_genus_verification(
-                config,
-                download_runner=download_runner,
-                barrnap_runner=barrnap_runner,
-                assembly_discovery_client=assembly_discovery_client,
-                biosample_client=biosample_client,
-                ncbi_taxonomy_client=ncbi_taxonomy_client,
-                lpsn_client=lpsn_client,
-            )
-        except (ManifestError, ValueError, RuntimeError) as error:
-            LOGGER.error("%s", error)
-            return 2
-        return 0
+    release_exit = _run_verify_release_genus_dispatch(
+        config,
+        download_runner=download_runner,
+        barrnap_runner=barrnap_runner,
+        assembly_discovery_client=assembly_discovery_client,
+        biosample_client=biosample_client,
+        ncbi_taxonomy_client=ncbi_taxonomy_client,
+        lpsn_client=lpsn_client,
+    )
+    if release_exit is not None:
+        return release_exit
     run_error: Exception | None = None
     try:
         validate_cli_argument_combinations(config)
