@@ -3,7 +3,7 @@
 ## Purpose
 
 This document is a gradual refactor plan for `typetreeflow/cli.py`. It now
-records the completed parser/config extraction phase, the first two small
+records the completed parser/config extraction phase, the first three small
 dispatch extractions, and the remaining candidate implementation steps.
 
 The goal is to reduce the size and responsibility mix of `cli.py` while
@@ -19,23 +19,26 @@ those audit notes.
 
 ## Current cli.py Responsibilities
 
-After the completed parser/config extraction phase and two small dispatch
+After the completed parser/config extraction phase and three small dispatch
 extractions, `typetreeflow/cli.py` currently owns or coordinates these
 responsibility groups:
 
 - `parse_args()` compatibility wrapper that delegates argv normalization,
   parser construction, and `AppConfig` construction to helper modules.
-- Diagnostics and package-results helper dispatch through
-  `_run_diagnostics_dispatch()` and `_run_package_results_dispatch()`.
+- Diagnostics, package-results, and verify-release-genus helper dispatch
+  through `_run_diagnostics_dispatch()`, `_run_package_results_dispatch()`,
+  and `_run_verify_release_genus_dispatch()`.
 - Argument-combination validation in
   `validate_cli_argument_combinations()` plus extra validation inside `main()`
   and stage branches.
 - Release verification orchestration through
   `run_release_genus_verification()` and its release acquisition/policy helper
-  functions, with release verification dispatch still in `main()`.
+  functions.
 - Workflow and stage orchestration for genus acquisition, selection,
   downloads, rRNA, ANI, phylogeny, taxonomy audit, completion, provider
-  planning, external genomes, and report refresh.
+  planning, external genomes, report refresh, and the normal workflow
+  `try`/`finally` in `main()`.
+- The legacy `--genus` path still in `main()`.
 - Report/status/run-state glue, including `_write_run_summary()`,
   `_write_inferred_run_state()`, `_infer_run_state()`, next-action selection,
   and stage summary helpers.
@@ -57,7 +60,7 @@ construction through `build_app_config_from_args()`.
 ## Completed Refactor Steps
 
 The following staged refactor steps have been completed and merged through HEAD
-`242181f`:
+`928a174`:
 
 - Step 1: parser construction was extracted to `typetreeflow/cli_parser.py`.
 - Step 2A: argv normalization was extracted to
@@ -70,10 +73,12 @@ The following staged refactor steps have been completed and merged through HEAD
   `_run_diagnostics_dispatch()`.
 - Step 3B: package-results dispatch was extracted to
   `_run_package_results_dispatch()`.
+- Step 3C: verify-release-genus dispatch was extracted to
+  `_run_verify_release_genus_dispatch()`.
 
 Validation status for this completed phase:
 
-- Latest CI passed for HEAD `242181f` in CI run `27403027900`.
+- Latest CI passed for HEAD `928a174` in CI run `27407143715`.
 - Earlier parser/config local release gate and full pytest suite validation
   remained the baseline before the later dispatch-only updates.
 
@@ -115,8 +120,8 @@ separate contract-changing task explicitly approves otherwise:
 2. Extract argv normalization and config construction helpers. Completed in
    `typetreeflow/cli_config.py`.
 3. Plan and audit high-level command dispatch before any broad extraction.
-   Completed for two narrow slices: diagnostics dispatch and package-results
-   dispatch.
+   Completed for three narrow slices: diagnostics dispatch, package-results
+   dispatch, and verify-release-genus dispatch.
 4. Consider only additional command dispatch extraction if an audit confirms a
    narrow, behavior-preserving slice with characterization coverage.
 5. Extract release workflow orchestration if it still provides a clear benefit
@@ -134,14 +139,15 @@ return-code, stdout/stderr, validation timing, and side-effect precedence.
 
 - Command ordering, return codes, and stdout/stderr behavior are compatibility
   sensitive.
-- Diagnostics, report-only, and package-results dispatch precedence must remain
-  unchanged.
-- `verify_release_genus` and the normal workflow `try`/`finally` remain
-  intentionally untouched.
+- Diagnostics, package-results, and verify-release-genus dispatch precedence
+  must remain unchanged.
+- The normal workflow `try`/`finally` remains intentionally untouched.
+- Resume, acquire, report-only, selection, download, and legacy paths are
+  higher risk.
 - Do not move the workflow `try`/`finally` or the legacy `--genus` path without
   characterization tests.
-- The next candidates are higher risk and should start with audit and planning,
-  not direct extraction.
+- The next step should be a read-only audit of normal workflow dispatch before
+  any code movement.
 - The release workflow versus `scripts/release_gate.py` naming and ownership
   boundary must stay clear: release workflow code validates local release
   readiness, while release gate tooling remains local validation and does not

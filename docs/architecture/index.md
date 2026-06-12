@@ -31,7 +31,7 @@ authoritative in their canonical documents under `docs/`.
 | 10 | Tests map | [tests_map.md](tests_map.md) | Audited complete | Coverage and safety-gate map |
 | 11 | Risks and refactor candidates | [risks_and_refactor_candidates.md](risks_and_refactor_candidates.md) | Audited complete | Summary/index, not a final plan |
 | 12 | Architecture index | [index.md](index.md) | Audited complete | Directory entry and status summary |
-| 13 | CLI refactor plan | [cli_refactor_plan.md](cli_refactor_plan.md) | Parser/config complete; diagnostics and package-results dispatch extracted | Refactor planning and staged status document |
+| 13 | CLI refactor plan | [cli_refactor_plan.md](cli_refactor_plan.md) | Parser/config complete; diagnostics, package-results, and verify-release-genus dispatch extracted | Refactor planning and staged status document |
 
 ## Suggested Reading Order
 
@@ -91,9 +91,10 @@ The staged planning artifact is [cli_refactor_plan.md](cli_refactor_plan.md),
 which turns the repeated cross-audit `cli.py` risk into a staged refactor plan
 and status record. It records that parser construction and parser-adjacent
 config construction have been extracted, and that diagnostics plus
-package-results dispatch now live in small helpers. Validation, broader command
-dispatch, release workflow orchestration, and workflow/stage orchestration
-remain future candidates.
+package-results plus verify-release-genus dispatch now live in small helpers.
+Validation, normal workflow dispatch, release workflow orchestration, and
+workflow/stage orchestration remain future candidates. The next recommended
+step is a read-only audit of normal workflow dispatch before any code movement.
 
 The architecture audit itself did not perform code refactors. Completed
 parser/config movements are documented in the refactor plan; remaining
