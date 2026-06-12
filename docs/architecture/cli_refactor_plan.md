@@ -3,8 +3,8 @@
 ## Purpose
 
 This document is a gradual refactor plan for `typetreeflow/cli.py`. It now
-records the completed parser/config extraction phase and the remaining
-candidate implementation steps.
+records the completed parser/config extraction phase, the first two small
+dispatch extractions, and the remaining candidate implementation steps.
 
 The goal is to reduce the size and responsibility mix of `cli.py` while
 preserving public CLI behavior. The plan is based on the architecture audit
@@ -19,20 +19,20 @@ those audit notes.
 
 ## Current cli.py Responsibilities
 
-After the completed parser/config extraction phase, `typetreeflow/cli.py`
-currently owns or coordinates these responsibility groups:
+After the completed parser/config extraction phase and two small dispatch
+extractions, `typetreeflow/cli.py` currently owns or coordinates these
+responsibility groups:
 
 - `parse_args()` compatibility wrapper that delegates argv normalization,
   parser construction, and `AppConfig` construction to helper modules.
+- Diagnostics and package-results helper dispatch through
+  `_run_diagnostics_dispatch()` and `_run_package_results_dispatch()`.
 - Argument-combination validation in
   `validate_cli_argument_combinations()` plus extra validation inside `main()`
   and stage branches.
-- Command dispatch in `main()`, including diagnostics, status, next-step,
-  packaging, provider planning, external genome registration, resume,
-  acquisition, selection, reporting, and legacy low-level paths.
 - Release verification orchestration through
   `run_release_genus_verification()` and its release acquisition/policy helper
-  functions.
+  functions, with release verification dispatch still in `main()`.
 - Workflow and stage orchestration for genus acquisition, selection,
   downloads, rRNA, ANI, phylogeny, taxonomy audit, completion, provider
   planning, external genomes, and report refresh.
@@ -57,7 +57,7 @@ construction through `build_app_config_from_args()`.
 ## Completed Refactor Steps
 
 The following staged refactor steps have been completed and merged through HEAD
-`04b3745`:
+`242181f`:
 
 - Step 1: parser construction was extracted to `typetreeflow/cli_parser.py`.
 - Step 2A: argv normalization was extracted to
@@ -66,11 +66,16 @@ The following staged refactor steps have been completed and merged through HEAD
   `typetreeflow/cli_config.py`.
 - Step 2C: `AppConfig` construction was extracted to
   `build_app_config_from_args()`.
+- Step 3A: diagnostics dispatch was extracted to
+  `_run_diagnostics_dispatch()`.
+- Step 3B: package-results dispatch was extracted to
+  `_run_package_results_dispatch()`.
 
 Validation status for this completed phase:
 
-- Latest CI passed for HEAD `04b3745`.
-- The local release gate and full pytest suite passed before push.
+- Latest CI passed for HEAD `242181f` in CI run `27403027900`.
+- Earlier parser/config local release gate and full pytest suite validation
+  remained the baseline before the later dispatch-only updates.
 
 The compatibility boundaries and non-goals below remain unchanged. These
 completed movements were code organization changes only, with no intended CLI
@@ -110,25 +115,33 @@ separate contract-changing task explicitly approves otherwise:
 2. Extract argv normalization and config construction helpers. Completed in
    `typetreeflow/cli_config.py`.
 3. Plan and audit high-level command dispatch before any broad extraction.
-4. Consider a very small command dispatch extraction only if the audit confirms
-   a narrow, behavior-preserving slice.
+   Completed for two narrow slices: diagnostics dispatch and package-results
+   dispatch.
+4. Consider only additional command dispatch extraction if an audit confirms a
+   narrow, behavior-preserving slice with characterization coverage.
 5. Extract release workflow orchestration if it still provides a clear benefit
    after dispatch is smaller.
 6. Evaluate workflow/status read-side extraction.
 7. Only later consider deeper stage orchestration extraction.
 
 This sequence intentionally completed lower-risk code movement around parser
-and config seams first. The next recommended step is not a broad workflow/stage
-extraction. The next candidate is command dispatch planning/audit, or at most a
-very small dispatch extraction after the ordering, return-code, stdout/stderr,
-and precedence risks are characterized.
+and config helpers first, then two narrow dispatch helper extractions. The next
+recommended step is not a broad workflow/stage extraction. Remaining candidates
+are higher risk and should start with a fresh audit/plan focused on ordering,
+return-code, stdout/stderr, validation timing, and side-effect precedence.
 
-## Risks Before Next Step
+## Current Caution Before Next Step
 
 - Command ordering, return codes, and stdout/stderr behavior are compatibility
   sensitive.
 - Diagnostics, report-only, and package-results dispatch precedence must remain
   unchanged.
+- `verify_release_genus` and the normal workflow `try`/`finally` remain
+  intentionally untouched.
+- Do not move the workflow `try`/`finally` or the legacy `--genus` path without
+  characterization tests.
+- The next candidates are higher risk and should start with audit and planning,
+  not direct extraction.
 - The release workflow versus `scripts/release_gate.py` naming and ownership
   boundary must stay clear: release workflow code validates local release
   readiness, while release gate tooling remains local validation and does not
