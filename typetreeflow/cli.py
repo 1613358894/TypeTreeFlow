@@ -279,6 +279,27 @@ def _run_diagnostics_dispatch(config: AppConfig, paths) -> int | None:
     return None
 
 
+def _run_package_results_dispatch(config: AppConfig) -> int | None:
+    if not config.package_results:
+        return None
+    try:
+        result = package_results(
+            config.outdir,
+            delivery_dir=config.delivery_dir,
+            include=config.include,
+            failed_handoff=config.failed_handoff,
+        )
+    except (ManifestError, ValueError, RuntimeError) as error:
+        LOGGER.error("%s", error)
+        return 2
+    LOGGER.info(
+        "Packaged delivery results: %s (%d files copied).",
+        result.delivery_dir,
+        len(result.copied_files),
+    )
+    return 0
+
+
 def main(
     argv: list[str] | None = None,
     download_runner=None,
@@ -296,23 +317,9 @@ def main(
     diagnostics_exit = _run_diagnostics_dispatch(config, paths)
     if diagnostics_exit is not None:
         return diagnostics_exit
-    if config.package_results:
-        try:
-            result = package_results(
-                config.outdir,
-                delivery_dir=config.delivery_dir,
-                include=config.include,
-                failed_handoff=config.failed_handoff,
-            )
-        except (ManifestError, ValueError, RuntimeError) as error:
-            LOGGER.error("%s", error)
-            return 2
-        LOGGER.info(
-            "Packaged delivery results: %s (%d files copied).",
-            result.delivery_dir,
-            len(result.copied_files),
-        )
-        return 0
+    package_exit = _run_package_results_dispatch(config)
+    if package_exit is not None:
+        return package_exit
     if config.verify_release_genus is not None:
         try:
             validate_cli_argument_combinations(config)

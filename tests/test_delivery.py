@@ -190,6 +190,98 @@ def test_package_results_missing_manifest_fails(tmp_path):
     assert main(["package-results", "--outdir", str(tmp_path)]) == 2
 
 
+def test_package_results_cli_success_returns_zero(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    assert main(["package-results", "--outdir", str(tmp_path)]) == 0
+
+    assert (tmp_path / "delivery" / "manifest.tsv").exists()
+    assert (tmp_path / "delivery" / "README.md").exists()
+
+
+def test_package_results_cli_uses_delivery_dir(tmp_path):
+    paths = get_output_paths(tmp_path)
+    delivery_dir = tmp_path / "review_package"
+    _write_manifest_with_files(paths)
+
+    assert (
+        main(
+            [
+                "package-results",
+                "--outdir",
+                str(tmp_path),
+                "--delivery-dir",
+                str(delivery_dir),
+            ]
+        )
+        == 0
+    )
+
+    assert (delivery_dir / "manifest.tsv").exists()
+    assert not (tmp_path / "delivery" / "manifest.tsv").exists()
+
+
+def test_package_results_cli_include_reports_does_not_copy_genomes_or_16s(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    rrna = paths.rrna_sequences_dir / "rec-1.16s.fasta"
+    rrna.parent.mkdir(parents=True)
+    rrna.write_text(">rec-1\nACGT\n", encoding="utf-8")
+    paths.run_summary_path.parent.mkdir(parents=True)
+    paths.run_summary_path.write_text("# Summary\n", encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "package-results",
+                "--outdir",
+                str(tmp_path),
+                "--include",
+                "reports",
+            ]
+        )
+        == 0
+    )
+
+    assert (tmp_path / "delivery" / "reports" / "summary.md").exists()
+    assert not (tmp_path / "delivery" / "genomes").exists()
+    assert not (tmp_path / "delivery" / "16S").exists()
+
+
+def test_package_results_cli_failed_handoff_without_manifest_returns_zero(tmp_path):
+    assert (
+        main(
+            [
+                "package-results",
+                "--outdir",
+                str(tmp_path),
+                "--failed-handoff",
+            ]
+        )
+        == 0
+    )
+
+    assert (tmp_path / "failed_handoff" / "README_failure.md").exists()
+    assert (tmp_path / "failed_handoff" / "handoff_index.md").exists()
+    assert not (tmp_path / "failed_handoff" / "manifest.tsv").exists()
+
+
+def test_package_results_cli_does_not_create_run_state(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    assert main(["package-results", "--outdir", str(tmp_path)]) == 0
+
+    assert not paths.run_state_path.exists()
+
+
+def test_package_results_cli_error_does_not_write_stdout(tmp_path, capsys):
+    assert main(["package-results", "--outdir", str(tmp_path)]) == 2
+
+    assert capsys.readouterr().out == ""
+
+
 def test_package_results_early_acquisition_artifacts_do_not_relax_manifest_contract(
     tmp_path,
 ):
