@@ -4,7 +4,7 @@
 
 This document is a gradual refactor plan for `typetreeflow/cli.py`. It now
 records the completed parser/config extraction phase, the first three small
-dispatch extractions, and the remaining candidate implementation steps.
+dispatch extractions, and the normal workflow dispatch audit conclusion.
 
 The goal is to reduce the size and responsibility mix of `cli.py` while
 preserving public CLI behavior. The plan is based on the architecture audit
@@ -19,9 +19,9 @@ those audit notes.
 
 ## Current cli.py Responsibilities
 
-After the completed parser/config extraction phase and three small dispatch
-extractions, `typetreeflow/cli.py` currently owns or coordinates these
-responsibility groups:
+After the completed parser/config extraction phase, three small dispatch
+extractions, and the normal workflow dispatch audit, `typetreeflow/cli.py`
+currently owns or coordinates these responsibility groups:
 
 - `parse_args()` compatibility wrapper that delegates argv normalization,
   parser construction, and `AppConfig` construction to helper modules.
@@ -46,6 +46,10 @@ responsibility groups:
   blocking, selection integrity failures, missing prerequisites, and guarded
   real-action paths.
 
+The current normal workflow boundary is not pure dispatch. The branch order,
+expected failures, explicit returns, and `finally`-mediated run-state writes
+are part of the behavior being preserved.
+
 ## Current CLI Helper Responsibilities
 
 `typetreeflow/cli_parser.py` currently owns parser construction through
@@ -59,21 +63,17 @@ construction through `build_app_config_from_args()`.
 
 ## Completed Refactor Steps
 
-The following staged refactor steps have been completed and merged through HEAD
-`928a174`:
+The following staged refactor steps have been completed:
 
-- Step 1: parser construction was extracted to `typetreeflow/cli_parser.py`.
-- Step 2A: argv normalization was extracted to
-  `typetreeflow/cli_config.py`.
-- Step 2B: the environment helper was extracted to
-  `typetreeflow/cli_config.py`.
-- Step 2C: `AppConfig` construction was extracted to
+- Parser construction was extracted to `typetreeflow/cli_parser.py`.
+- Argv normalization was extracted to `typetreeflow/cli_config.py`.
+- The environment helper was extracted to `typetreeflow/cli_config.py`.
+- `AppConfig` construction was extracted to
   `build_app_config_from_args()`.
-- Step 3A: diagnostics dispatch was extracted to
-  `_run_diagnostics_dispatch()`.
-- Step 3B: package-results dispatch was extracted to
+- Diagnostics dispatch was extracted to `_run_diagnostics_dispatch()`.
+- Package-results dispatch was extracted to
   `_run_package_results_dispatch()`.
-- Step 3C: verify-release-genus dispatch was extracted to
+- Verify-release-genus dispatch was extracted to
   `_run_verify_release_genus_dispatch()`.
 
 Validation status for this completed phase:
@@ -86,6 +86,57 @@ The compatibility boundaries and non-goals below remain unchanged. These
 completed movements were code organization changes only, with no intended CLI
 behavior, download, selection, evidence, provider, output schema, status, or
 run-state policy change.
+
+## Normal Workflow Audit Conclusion
+
+A read-only audit of the normal workflow dispatch in `main()` found that the
+normal workflow `try`/`finally` should remain intentionally in
+`typetreeflow/cli.py` for now. Deeper extraction is paused at the current
+stable point.
+
+The audited boundary is not pure dispatch. The `try` body combines validation,
+resume, acquisition, report-only, selection, download, provider planning,
+external genome registration, and other stage branches with return-code and
+run-state behavior. Returns from inside the `try` still depend on the
+`finally` block to call `_write_inferred_run_state(paths, config, run_error)`.
+
+Key audit findings:
+
+- `run_error`, `return 0`/`return 2`, and
+  `_write_inferred_run_state()` semantics are order-dependent.
+- The normal workflow `finally` records inferred run state even when branches
+  return inside the `try`.
+- `register_external_genomes` and report-only strict source-audit blocking can
+  return `2` while `run_error` remains `None`; this is existing behavior and
+  must be preserved.
+- `CrossGenusOutdirError` behavior is a protected skip case for run-state
+  writing and cannot be hidden by a generic dispatch wrapper.
+- The legacy `--genus --gtdb-metadata` path is outside the normal workflow
+  `try`/`finally` and must not be mixed into the normal workflow extraction
+  boundary.
+- Real-action gate interactions are intertwined with branch ordering and
+  expected failure handling.
+
+Because of these findings, this plan does not recommend continuing with a
+large normal workflow dispatch extraction. If future work resumes, it should
+first add characterization tests for the current behavior, then consider only
+an extremely small wrapper if the tests show a behavior-preserving seam.
+
+Required tests before any future normal workflow extraction:
+
+- Dispatch order tests for the normal workflow branches.
+- `try`/`finally` run-state write tests covering returns inside the `try`.
+- Characterization for explicit `return 2` with `run_error=None`.
+- `CrossGenusOutdirError` no-run-state behavior.
+- Report-only and prepare-selection ordering.
+- Legacy `--genus --gtdb-metadata` boundary behavior outside the normal
+  workflow `try`/`finally`.
+
+Recommendation:
+
+- Pause the CLI refactor at the current stable point.
+- Future work should either add the characterization tests above first or
+  target smaller non-CLI modules with clearer boundaries.
 
 ## Compatibility Boundaries
 
@@ -122,18 +173,23 @@ separate contract-changing task explicitly approves otherwise:
 3. Plan and audit high-level command dispatch before any broad extraction.
    Completed for three narrow slices: diagnostics dispatch, package-results
    dispatch, and verify-release-genus dispatch.
-4. Consider only additional command dispatch extraction if an audit confirms a
+4. Audit normal workflow dispatch before any broad extraction. Completed: the
+   audit found that the normal workflow `try`/`finally` should stay in
+   `cli.py`, deeper extraction should pause, and characterization tests are
+   required before any future movement.
+5. Consider only additional command dispatch extraction if an audit confirms a
    narrow, behavior-preserving slice with characterization coverage.
-5. Extract release workflow orchestration if it still provides a clear benefit
+6. Extract release workflow orchestration if it still provides a clear benefit
    after dispatch is smaller.
-6. Evaluate workflow/status read-side extraction.
-7. Only later consider deeper stage orchestration extraction.
+7. Evaluate workflow/status read-side extraction.
+8. Only later consider deeper stage orchestration extraction.
 
 This sequence intentionally completed lower-risk code movement around parser
-and config helpers first, then two narrow dispatch helper extractions. The next
-recommended step is not a broad workflow/stage extraction. Remaining candidates
-are higher risk and should start with a fresh audit/plan focused on ordering,
-return-code, stdout/stderr, validation timing, and side-effect precedence.
+and config helpers first, then three narrow dispatch helper extractions. The
+normal workflow audit now blocks a broad workflow dispatch extraction. Remaining
+candidates are higher risk and should start with characterization tests focused
+on ordering, return-code, stdout/stderr, validation timing, run-state writes,
+and side-effect precedence.
 
 ## Current Caution Before Next Step
 
@@ -141,13 +197,13 @@ return-code, stdout/stderr, validation timing, and side-effect precedence.
   sensitive.
 - Diagnostics, package-results, and verify-release-genus dispatch precedence
   must remain unchanged.
-- The normal workflow `try`/`finally` remains intentionally untouched.
-- Resume, acquire, report-only, selection, download, and legacy paths are
-  higher risk.
-- Do not move the workflow `try`/`finally` or the legacy `--genus` path without
-  characterization tests.
-- The next step should be a read-only audit of normal workflow dispatch before
-  any code movement.
+- The normal workflow `try`/`finally` remains intentionally in `cli.py`.
+- Resume, acquire, report-only, selection, download, provider, external genome,
+  and legacy paths are higher risk.
+- Do not move the workflow `try`/`finally`, normal workflow dispatch body, or
+  legacy `--genus` path without characterization tests.
+- The current recommended next step is no further broad CLI refactor. Add
+  characterization tests first, or target smaller non-CLI modules.
 - The release workflow versus `scripts/release_gate.py` naming and ownership
   boundary must stay clear: release workflow code validates local release
   readiness, while release gate tooling remains local validation and does not
