@@ -1,9 +1,9 @@
 # Stable Contracts
 
-This document classifies TypeTreeFlow surfaces for the v2.0.0 readiness target.
-The intended v2.0.0 identity is a stable LPSN-first type-strain acquisition and
-audit workflow plus a guarded provider automation framework skeleton. It is not
-an ATCC/provider downloader release.
+This document classifies TypeTreeFlow surfaces that became the stable contract
+baseline during the v2.0.0 readiness work. The stable identity is an LPSN-first
+type-strain acquisition and audit workflow plus a guarded provider automation
+framework skeleton. It is not an ATCC/provider downloader contract.
 
 ## Contract Classes
 
@@ -17,7 +17,7 @@ unless a stable downstream workflow explicitly consumes it.
 Internal means code structure or helper behavior that should not be promised as
 a public contract.
 
-Out of scope means explicitly outside the v2.0.0 release target.
+Out of scope means explicitly outside this stable contract baseline.
 
 ## CLI
 

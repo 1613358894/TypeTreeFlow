@@ -3,6 +3,14 @@
 TypeTreeFlow is a command-line LPSN-first type-strain genome acquisition and
 audit workflow for microbial novel species studies.
 
+## What TypeTreeFlow Is And Is Not
+
+TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
+workflow. It is not a simple `wget` downloader, an automatic type-strain proof
+engine, an automatic species-conclusion tool, or an ATCC/provider downloader.
+rRNA, ANI, and phylogeny stages are downstream/supporting analyses, not
+required acquisition steps.
+
 The current workflow starts from validly published correct species, discovers
 NCBI Assembly candidates, enriches candidate evidence from BioSample and culture
 collection metadata, prepares curator-reviewable type-strain selections, and
@@ -302,8 +310,8 @@ The download pair is deliberately strict: `--enable-downloads` is ignored for
 real execution unless paired with `--auto-accept-selection` in `verify-genus`.
 For a manual stop, omit both or add `--review-required`.
 
-For a full-auto genome plus same-genome barrnap 16S run, use downloads and
-`--extract-16s barrnap` together:
+For a guarded genome download plus same-genome barrnap 16S run, use downloads
+and `--extract-16s barrnap` together:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \

@@ -6,6 +6,7 @@ project documentation. Keep it short, current, and practical.
 ## Entry Point Split
 
 - `README.md` is the user entry point.
+- `AGENTS.md` is the Codex project-level maintenance rule entry point.
 - `docs/index.md` is the documentation map.
 - `docs/maintenance.md` is the maintenance rulebook.
 

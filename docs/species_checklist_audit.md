@@ -1,5 +1,9 @@
 # Species Checklist Audit
 
+This is a legacy, GTDB-compatible, user-supplied checklist audit surface. It is
+retained for local/compatibility workflows and is not the current LPSN-first
+main entry point.
+
 This document defines the v0.2.0 design and implemented CLI behavior for
 auditing GTDB-selected TypeTreeFlow records against a user-provided species
 checklist.

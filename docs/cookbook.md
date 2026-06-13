@@ -65,7 +65,7 @@ The command requires the NCBI Datasets CLI executable named `datasets` on
 `conda install -c conda-forge ncbi-datasets-cli`; it is not the Python package
 named `datasets`.
 
-## Full-Auto Genome Plus barrnap 16S Extraction
+## Guarded Genome Download Plus barrnap 16S Extraction
 
 `--extract-16s barrnap` runs after guarded downloads and depends on a
 genome-ready manifest. It requires `barrnap` on `PATH` and produces

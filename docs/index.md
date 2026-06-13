@@ -15,6 +15,17 @@ process material, and narrowly scoped active design or policy documents.
 Historical material belongs under `docs/archive/` and is not a current behavior
 contract unless a current contract page links it for a specific fact.
 
+## Shortest Reading Paths
+
+- Ordinary users: [../README.md](../README.md) -> [cookbook.md](cookbook.md).
+- Contract and output maintenance:
+  [contracts.md](contracts.md) -> [output_layout.md](output_layout.md),
+  [schemas.md](schemas.md), and [statuses.md](statuses.md).
+- AI/Codex maintenance: [../AGENTS.md](../AGENTS.md) ->
+  [maintenance.md](maintenance.md) -> [architecture/index.md](architecture/index.md).
+- Release work:
+  [release_process.md](release_process.md) -> [release_checklist.md](release_checklist.md).
+
 ## Current Entry Points
 
 - [cookbook.md](cookbook.md): concise operator cookbook for high-level
