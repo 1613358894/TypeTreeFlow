@@ -31,7 +31,7 @@ authoritative in their canonical documents under `docs/`.
 | 10 | Tests map | [tests_map.md](tests_map.md) | Audited complete | Coverage and safety-gate map |
 | 11 | Risks and refactor candidates | [risks_and_refactor_candidates.md](risks_and_refactor_candidates.md) | Audited complete | Summary/index, not a final plan |
 | 12 | Architecture index | [index.md](index.md) | Audited complete | Directory entry and status summary |
-| 13 | CLI refactor plan | [cli_refactor_plan.md](cli_refactor_plan.md) | Parser/config complete; diagnostics, package-results, and verify-release-genus dispatch extracted; normal workflow extraction paused after audit | Refactor planning and staged status document |
+| 13 | CLI refactor plan | [cli_refactor_plan.md](cli_refactor_plan.md) | Parser/config complete; diagnostics, package-results, and verify-release-genus dispatch extracted; normal workflow characterization tests complete; normal workflow extraction paused | Refactor planning and staged status document |
 
 ## Suggested Reading Order
 
@@ -94,11 +94,14 @@ config construction have been extracted, and that diagnostics plus
 package-results plus verify-release-genus dispatch now live in small helpers.
 It also records the normal workflow dispatch audit conclusion: the normal
 workflow `try`/`finally` remains intentionally in `cli.py`, the current
-boundary is not pure dispatch, and deeper normal workflow extraction is paused.
-Future CLI movement must first add characterization tests for dispatch order,
-`try`/`finally` run-state writes, explicit `return 2` with `run_error=None`,
-`CrossGenusOutdirError` no-run-state behavior, report-only/selection ordering,
-and the legacy `--genus --gtdb-metadata` boundary.
+boundary is not pure dispatch, and deeper normal workflow extraction is paused
+at a stable current-phase stopping point. The normal workflow dispatch
+characterization tests are now complete and cover dispatch order,
+`try`/`finally` run-state writes, expected failure returns, explicit `return 2`
+with `run_error=None`, `CrossGenusOutdirError` no-run-state behavior,
+report-only/selection ordering, and the legacy `--genus --gtdb-metadata`
+boundary. Future normal workflow extraction should start from a separate
+focused plan rather than continuing this phase.
 
 The architecture audit itself did not perform code refactors. Completed
 parser/config movements are documented in the refactor plan; remaining
