@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.2.14 - 2026-06-13
+
+v2.2.14 is a maintenance-only release based on v2.2.13.
+
+### Added
+
+- Added the local `scripts/release_gate.py` release gate.
+- Added architecture audit documentation covering release tooling, CLI/config,
+  workflow paths, acquisition, selection/evidence, taxonomy sources, reports,
+  diagnostics, and tests.
+- Added CLI compatibility and workflow dispatch characterization tests.
+
+### Changed
+
+- Reorganized the release process and checklist into clearer three-phase
+  preparation, verification, and publication steps.
+- Clarified the maintenance-release gate and local release readiness checks.
+- Continued the gradual `cli.py` parser, configuration, and dispatch
+  refactoring without changing operator-facing workflow behavior.
+
+### Fixed
+
+- Fixed Python 3.10 compatibility for the local release gate.
+
+### Notes
+
+- No changes to download strategy, selection policy, or evidence thresholds.
+- No provider or ATCC automatic download support is introduced.
+- No new real-genus coverage is claimed.
+- No live downloads are required for this maintenance release.
+
 ## v2.2.13 - 2026-06-10
 
 v2.2.13 is a maintenance-only release based on v2.2.12.

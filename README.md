@@ -13,7 +13,7 @@ opt-in flags.
 The long-term goal is to collect auditable type-strain genomes and 16S
 sequences, compare a query genome against references with ANI, build a 16S
 phylogeny, and report reproducible tables, figures, name maps, and summaries.
-The current 2.2.13 release is a maintenance-only release on top of the
+The current 2.2.14 release is a maintenance-only release on top of the
 LPSN-first acquisition workflow. It keeps strict evidence boundaries, stable
 I/O contracts, guarded execution, fake-runner tested wrappers, selection
 policies, evidence thresholds, and download strategy unchanged.
@@ -236,7 +236,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.13 workflow
+## Recommended v2.2.14 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample
