@@ -111,6 +111,33 @@ def test_existing_verify_genus_outdir_without_resume_suggests_barrnap(
     assert "--resume --enable-entrez --email" in caplog.text
 
 
+def test_cross_genus_existing_outdir_error_does_not_write_run_state(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    outdir.mkdir()
+    (outdir / "species_checklist.tsv").write_text(
+        "genus\tspecies\tstatus\ttype_strain\tsource\tnotes\n"
+        "Aliivibrio\tfischeri\taccepted\tES114\tfixture\t\n",
+        encoding="utf-8",
+    )
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(tmp_path / "missing_lpsn.tsv"),
+            "--discovery-cache",
+            str(tmp_path / "missing_discovery.tsv"),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    assert result == 2
+    assert not paths.run_state_path.exists()
+
+
 def test_resume_with_manifest_reuses_without_metadata_parse(tmp_path):
     write_manifest([_record("from-existing-manifest")], tmp_path / "manifest.tsv")
 

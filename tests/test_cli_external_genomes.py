@@ -14,6 +14,7 @@ from typetreeflow.external_genomes import (
 from typetreeflow.manifest import read_manifest, write_manifest, write_name_map
 from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import read_run_state
 
 
 def _write(path: Path, text: str) -> Path:
@@ -393,6 +394,7 @@ def test_register_external_genomes_non_dry_run_mixed_rows_installs_valid_and_ret
         paths.external_genome_install_results_path
     )
     manifest_records = read_manifest(paths.manifest)
+    state = read_run_state(paths.run_state_path)
     assert result == 2
     assert [row.external_genome_id for row in install_results] == ["missing", "good"]
     assert install_results[0].status == "external_genome_install_skipped_invalid"
@@ -401,6 +403,7 @@ def test_register_external_genomes_non_dry_run_mixed_rows_installs_valid_and_ret
     assert len(manifest_records) == 1
     assert manifest_records[0].assembly_accession == ""
     assert "external_genome_id=good" in manifest_records[0].notes
+    assert state.errors == []
 
 
 def test_register_external_genomes_non_dry_run_all_invalid_keeps_results_without_manifest(tmp_path):
@@ -428,6 +431,7 @@ def test_register_external_genomes_non_dry_run_all_invalid_keeps_results_without
     install_results = read_external_genome_install_results(
         paths.external_genome_install_results_path
     )
+    state = read_run_state(paths.run_state_path)
     assert result == 2
     assert install_results[0].status == "external_genome_install_skipped_invalid"
     assert paths.external_genome_registration_results_path.exists()
@@ -435,6 +439,7 @@ def test_register_external_genomes_non_dry_run_all_invalid_keeps_results_without
     assert paths.external_genome_install_results_path.exists()
     assert not paths.manifest.exists()
     assert not paths.name_map.exists()
+    assert state.errors == []
 
 
 def test_register_external_genomes_non_dry_run_does_not_create_ncbi_download_plan_or_report(tmp_path):

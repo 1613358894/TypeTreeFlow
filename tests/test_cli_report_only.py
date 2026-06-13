@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from typetreeflow import cli
 from typetreeflow.completion import CompletionSummary, write_completion_summary
 from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
@@ -9,6 +10,7 @@ from typetreeflow.taxonomy.source_audit import (
     write_sequence_source_audits,
 )
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import read_run_state
 
 
 def _record(record_id: str, status: str, has_16s: bool = False) -> StrainRecord:
@@ -127,10 +129,42 @@ def test_report_only_strict_source_audit_returns_nonzero_after_summary(tmp_path)
     )
 
     summary = paths.run_summary_path.read_text(encoding="utf-8")
+    state = read_run_state(paths.run_state_path)
     assert result == 2
     assert "- Source audit policy: strict" in summary
     assert "- Source audit policy result: blocked" in summary
     assert "- Manual review required count: 1" in summary
+    assert state.errors == []
+
+
+def test_report_only_prepare_selection_keeps_report_only_priority(tmp_path, monkeypatch):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "rrna_16s_ready", has_16s=True)], paths.manifest)
+
+    def fail_if_prepare_selection_runs(paths, config, biosample_client=None):
+        raise AssertionError("--report-only must return before --prepare-selection")
+
+    monkeypatch.setattr(
+        cli,
+        "run_selection_prepare_stage",
+        fail_if_prepare_selection_runs,
+    )
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--report-only",
+            "--prepare-selection",
+        ]
+    )
+
+    assert result == 0
+    assert paths.run_summary_path.exists()
+    assert paths.run_state_path.exists()
+    assert not paths.user_selection_path.exists()
+    assert not paths.strain_candidates_path.exists()
 
 
 def test_report_only_warn_source_audit_does_not_block_and_highlights_counts(tmp_path):

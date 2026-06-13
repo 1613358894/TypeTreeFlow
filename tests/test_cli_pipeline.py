@@ -1,12 +1,17 @@
 import csv
 from pathlib import Path
 
+import pytest
+
+from typetreeflow import cli
 from typetreeflow.cli import main
+from typetreeflow.exceptions import ManifestError
 from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.sources.entrez import EntrezCandidate
 from typetreeflow.taxonomy.source_audit import read_sequence_source_audits
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import read_run_state
 
 
 FIXTURE = Path("tests/fixtures/gtdb_metadata_small.tsv")
@@ -524,3 +529,98 @@ def test_fixture_without_ready_genomes_or_reference_16s_does_not_fail(tmp_path):
 
     assert result == 0
     assert get_output_paths(tmp_path).run_summary_path.exists()
+
+
+def test_normal_workflow_return_zero_inside_try_writes_run_state(tmp_path, monkeypatch):
+    called = False
+
+    def fake_provider_registration_stage(paths, config):
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr(
+        cli,
+        "run_provider_registration_planning_stage",
+        fake_provider_registration_stage,
+    )
+    outdir = tmp_path / "out"
+
+    result = main(
+        [
+            "--plan-provider-registration",
+            str(tmp_path / "provider_requests.tsv"),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    state = read_run_state(get_output_paths(outdir).run_state_path)
+    assert result == 0
+    assert called is True
+    assert state.status == "succeeded"
+    assert state.errors == []
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_status"),
+    [
+        (ManifestError("manifest failed in normal workflow"), "failed"),
+        (ValueError("value failed in normal workflow"), "failed"),
+        (RuntimeError("runtime failed in normal workflow"), "failed"),
+    ],
+)
+def test_normal_workflow_expected_errors_inside_try_return_two_and_write_failed_run_state(
+    tmp_path,
+    monkeypatch,
+    error,
+    expected_status,
+):
+    def fake_provider_registration_stage(paths, config):
+        raise error
+
+    monkeypatch.setattr(
+        cli,
+        "run_provider_registration_planning_stage",
+        fake_provider_registration_stage,
+    )
+    outdir = tmp_path / "out"
+
+    result = main(
+        [
+            "--plan-provider-registration",
+            str(tmp_path / "provider_requests.tsv"),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    state = read_run_state(get_output_paths(outdir).run_state_path)
+    assert result == 2
+    assert state.status == expected_status
+    assert state.errors == [str(error)]
+
+
+def test_legacy_genus_gtdb_metadata_path_remains_outside_normal_try_finally(
+    tmp_path,
+    monkeypatch,
+):
+    def fail_in_legacy_path(metadata_path):
+        raise RuntimeError("legacy metadata load failed")
+
+    monkeypatch.setattr(cli, "load_gtdb_metadata", fail_in_legacy_path)
+
+    with pytest.raises(RuntimeError, match="legacy metadata load failed"):
+        main(
+            [
+                "--genus",
+                "Aliivibrio",
+                "--gtdb-metadata",
+                str(FIXTURE),
+                "--outdir",
+                str(tmp_path),
+                "--dry-run",
+            ]
+        )
+
+    state = read_run_state(get_output_paths(tmp_path).run_state_path)
+    assert state.errors == []
