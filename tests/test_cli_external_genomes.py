@@ -990,10 +990,10 @@ def test_register_external_genomes_dry_run_does_not_create_workflow_outputs(tmp_
     assert not (paths.cache_dir / "ncbi" / "download_plan.tsv").exists()
 
 
-def test_examples_external_genomes_minimal_end_to_end_smoke(tmp_path):
+def test_external_genomes_minimal_fixture_end_to_end_smoke(tmp_path):
     repo_root = Path(__file__).resolve().parents[1]
-    external_genomes = repo_root / "examples" / "external_genomes_minimal.tsv"
-    source_fasta = repo_root / "examples" / "external_genome_minimal.fna"
+    external_genomes = repo_root / "tests" / "fixtures" / "external_genomes_minimal" / "external_genomes_minimal.tsv"
+    source_fasta = repo_root / "tests" / "fixtures" / "external_genomes_minimal" / "external_genome_minimal.fna"
     expected_sha256 = calculate_sha256(source_fasta)
 
     dry_run_outdir = tmp_path / "dry_run"
