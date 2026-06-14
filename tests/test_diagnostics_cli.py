@@ -640,3 +640,123 @@ def test_status_missing_outdir_returns_nonzero_and_clear_message(tmp_path, capsy
 
     captured = capsys.readouterr()
     assert "outdir does not exist" in captured.err
+
+
+def test_next_step_fallback_selection_and_manifest_no_download_results(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    # 1. run_state.json does not exist (not created)
+    # 2. selection/user_selection.tsv exists
+    paths.user_selection_path.parent.mkdir(parents=True)
+    paths.user_selection_path.write_text(
+        "species\tassembly_accession\tselected\tpolicy_decision\t"
+        "blocking_reasons\tmanual_review_reason\tselection_reason\tnotes\n"
+        "Fusobacterium mortiferum\tGCF_000000001.1\ttrue\t"
+        "auto_selected_lpsn_type_strain_match\t\t\tlpsn_type_strain_match\t\n",
+        encoding="utf-8",
+    )
+    # 3. manifest.tsv exists and contains records
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="rec-1",
+                canonical_name="Fusobacterium mortiferum",
+                display_name="Fusobacterium mortiferum ATCC 25557",
+                genus="Fusobacterium",
+                species="mortiferum",
+                strain="ATCC 25557",
+                assembly_accession="GCF_000001",
+                has_genome=False,
+                genome_path="",
+                has_16s=False,
+                rrna_16s_path="",
+                status="pending",
+            )
+        ],
+        paths.manifest,
+    )
+    # 4. cache/ncbi/download_results.tsv does not exist (not created)
+    # 5. Not rRNA-ready
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+    output = capsys.readouterr().out.strip()
+    assert output == "Review selection/user_selection.tsv, then rerun with --auto-accept-selection --enable-downloads."
+
+
+def test_next_step_fallback_manifest_only_keeps_generalized_resume(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    # 1. run_state.json does not exist (not created)
+    # 2. selection/user_selection.tsv does NOT exist
+    # 3. manifest.tsv exists and contains records
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="rec-1",
+                canonical_name="Fusobacterium mortiferum",
+                display_name="Fusobacterium mortiferum ATCC 25557",
+                genus="Fusobacterium",
+                species="mortiferum",
+                strain="ATCC 25557",
+                assembly_accession="GCF_000001",
+                has_genome=False,
+                genome_path="",
+                has_16s=False,
+                rrna_16s_path="",
+                status="pending",
+            )
+        ],
+        paths.manifest,
+    )
+    # 4. cache/ncbi/download_results.tsv does not exist (not created)
+    # 5. Not rRNA-ready
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+    output = capsys.readouterr().out.strip()
+    assert output == "Review manifest.tsv, then continue with --resume and the explicit stage flag."
+
+
+def test_next_step_fallback_selection_with_existing_download_results_does_not_suggest_first_time_download(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    # 1. run_state.json does not exist (not created)
+    # 2. selection/user_selection.tsv exists
+    paths.user_selection_path.parent.mkdir(parents=True)
+    paths.user_selection_path.write_text(
+        "species\tassembly_accession\tselected\tpolicy_decision\t"
+        "blocking_reasons\tmanual_review_reason\tselection_reason\tnotes\n"
+        "Fusobacterium mortiferum\tGCF_000000001.1\ttrue\t"
+        "auto_selected_lpsn_type_strain_match\t\t\tlpsn_type_strain_match\t\n",
+        encoding="utf-8",
+    )
+    # 3. manifest.tsv exists and contains records (genomes are ready)
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="rec-1",
+                canonical_name="Fusobacterium mortiferum",
+                display_name="Fusobacterium mortiferum ATCC 25557",
+                genus="Fusobacterium",
+                species="mortiferum",
+                strain="ATCC 25557",
+                assembly_accession="GCF_000001",
+                has_genome=True,
+                genome_path="genomes/references/rec-1.fna",
+                has_16s=False,
+                rrna_16s_path="",
+                status="genome_ready",
+            )
+        ],
+        paths.manifest,
+    )
+    # 4. cache/ncbi/download_results.tsv exists
+    paths.ncbi_download_results_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.ncbi_download_results_path.write_text(
+        "record_id\tnormalized_id\tassembly_accession\tstatus\tzip_path\treturncode\tstderr\tnotes\n"
+        "rec-1\trec-1\tGCF_000001\tgenome_download_succeeded\tcache/ncbi/a.zip\t0\t\t\n",
+        encoding="utf-8",
+    )
+    # 5. Not rRNA-ready
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+    output = capsys.readouterr().out.strip()
+    # Should suggest running barrnap (or next stage), not first-time download suggestion
+    assert "rerun with --auto-accept-selection --enable-downloads" not in output
+    assert "enable-barrnap" in output

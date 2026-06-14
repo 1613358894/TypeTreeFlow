@@ -466,14 +466,8 @@ def _infer_next_action(
         and (paths.run_summary_path.exists() or paths.run_review_path.exists())
     ):
         return "package-results"
-    stale_fallback_replacement = entrez_fallback_completion_next_action(paths)
-    if stale_fallback_replacement:
-        return stale_fallback_replacement
-    if _rrna_gap_count(paths):
-        return (
-            "typetreeflow verify-genus <GENUS> --outdir "
-            f"{paths.manifest.parent.as_posix()} --resume --enable-entrez --email <EMAIL>"
-        )
+    if paths.user_selection_path.exists() and not paths.ncbi_download_results_path.exists():
+        return "Review selection/user_selection.tsv, then rerun with --auto-accept-selection --enable-downloads."
     if paths.manifest.exists() and genome_ready and not rrna_ready:
         return (
             "typetreeflow verify-genus <GENUS> --outdir "
@@ -481,8 +475,14 @@ def _infer_next_action(
         )
     if paths.manifest.exists() and manifest_count and not rrna_ready:
         return "Review manifest.tsv, then continue with --resume and the explicit stage flag."
-    if paths.user_selection_path.exists() and not paths.ncbi_download_results_path.exists():
-        return "Review selection/user_selection.tsv, then rerun with --auto-accept-selection --enable-downloads."
+    if _rrna_gap_count(paths):
+        return (
+            "typetreeflow verify-genus <GENUS> --outdir "
+            f"{paths.manifest.parent.as_posix()} --resume --enable-entrez --email <EMAIL>"
+        )
+    stale_fallback_replacement = entrez_fallback_completion_next_action(paths)
+    if stale_fallback_replacement:
+        return stale_fallback_replacement
     if paths.run_summary_path.exists() or paths.run_review_path.exists():
         return "package-results"
     return "Continue the verify-genus workflow."
