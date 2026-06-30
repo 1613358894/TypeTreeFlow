@@ -2412,6 +2412,9 @@ def run_genus_acquisition_workflow(
         acquisition_config,
         ncbi_taxonomy_client=ncbi_taxonomy_client,
     )
+    query_record_changed = _sync_local_query_if_requested(records, paths, acquisition_config)
+    if query_record_changed:
+        write_name_map(records, paths.name_map)
     if verify_genus_guarded_download:
         download_config = replace(
             acquisition_config,
@@ -2451,6 +2454,7 @@ def run_genus_acquisition_workflow(
             records,
             paths,
             download_config,
+            barrnap_runner=barrnap_runner,
             fastani_runner=fastani_runner,
             phylo_runner=phylo_runner,
         )
@@ -2489,6 +2493,7 @@ def _run_guarded_downstream_analysis_stages(
     paths,
     config: AppConfig,
     *,
+    barrnap_runner=None,
     fastani_runner=None,
     phylo_runner=None,
 ) -> None:
@@ -2507,6 +2512,13 @@ def _run_guarded_downstream_analysis_stages(
 
     if not config.enable_phylo:
         return
+    _prepare_query_16s_for_phylo_if_needed(
+        records,
+        paths,
+        config,
+        barrnap_runner=barrnap_runner,
+    )
+    _assemble_all_16s_if_ready(records, paths, config.query_16s)
     if not _source_audit_policy_allows_stage(paths, config, "phylo"):
         _write_run_summary(records, paths, config)
         raise ValueError("Sequence source audit policy blocked phylo stage.")
