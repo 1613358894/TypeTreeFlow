@@ -191,6 +191,74 @@ def _write_discovery_cache(path: Path) -> Path:
     return path
 
 
+def _write_multi_selected_caches(tmp_path: Path) -> tuple[Path, Path]:
+    lpsn_cache = tmp_path / "multi_lpsn_cache.tsv"
+    discovery_cache = tmp_path / "multi_discovery_records.tsv"
+    write_lpsn_species_cache(
+        [
+            _lpsn_record("nucleatum", type_strain="ATCC 25586; DSM 15643"),
+            _lpsn_record("necrophorum", type_strain="NCTC 10575; ATCC 25286"),
+        ],
+        lpsn_cache,
+    )
+    write_discovery_records(
+        [
+            LocalAssemblyDiscoveryRecord(
+                species="Fusobacterium nucleatum",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000007325.1",
+                    organism_name="Fusobacterium nucleatum ATCC 25586",
+                    strain="ATCC 25586",
+                    assembly_level="Complete Genome",
+                    refseq_category="reference genome",
+                    is_type_material=True,
+                    source="local_discovery_cache",
+                ),
+            ),
+            LocalAssemblyDiscoveryRecord(
+                species="Fusobacterium nucleatum",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000007326.1",
+                    organism_name="Fusobacterium nucleatum DSM 15643",
+                    strain="DSM 15643",
+                    assembly_level="Complete Genome",
+                    is_type_material=True,
+                    source="local_discovery_cache",
+                ),
+            ),
+            LocalAssemblyDiscoveryRecord(
+                species="Fusobacterium necrophorum",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000009925.1",
+                    organism_name="Fusobacterium necrophorum NCTC 10575",
+                    strain="NCTC 10575",
+                    assembly_level="Scaffold",
+                    is_type_material=True,
+                    source="local_discovery_cache",
+                ),
+            ),
+            LocalAssemblyDiscoveryRecord(
+                species="Fusobacterium necrophorum",
+                record=AssemblyDiscoveryRecord(
+                    assembly_accession="GCF_000009926.1",
+                    organism_name="Fusobacterium necrophorum ATCC 25286",
+                    strain="ATCC 25286",
+                    assembly_level="Scaffold",
+                    is_type_material=True,
+                    source="local_discovery_cache",
+                ),
+            ),
+        ],
+        discovery_cache,
+    )
+    return lpsn_cache, discovery_cache
+
+
+def _read_selected_limit_summary(path: Path) -> dict[str, str]:
+    with path.open(newline="", encoding="utf-8") as handle:
+        return next(csv.DictReader(handle, delimiter="\t"))
+
+
 def _write_clostridium_limited_smoke_caches(tmp_path: Path) -> tuple[Path, Path, Path]:
     lpsn_cache = tmp_path / "clostridium_lpsn_cache.tsv"
     discovery_cache = tmp_path / "clostridium_discovery_records.tsv"
@@ -1174,6 +1242,117 @@ def test_verify_genus_auto_accept_without_enable_downloads_is_planning_only(
     assert "auto_accepted_selection for planning only" in summary
 
 
+def test_verify_genus_limit_selected_rejects_non_positive_value(tmp_path, caplog):
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--limit-selected",
+            "0",
+            "--outdir",
+            str(tmp_path / "out"),
+        ]
+    )
+
+    assert result == 2
+    assert "--limit-selected must be at least 1" in caplog.text
+
+
+def test_verify_genus_limit_selected_caps_plan_only_outputs(tmp_path, monkeypatch):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("limit-selected plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--limit-selected",
+            "1",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    rows = read_user_selection(paths.user_selection_path)
+    records = read_manifest(paths.manifest)
+    state = read_run_state(paths.run_state_path)
+    limit_summary = _read_selected_limit_summary(paths.selected_limit_summary_path)
+    assert result == 0
+    assert sum(1 for row in rows if row.selected) == 1
+    assert len(records) == 1
+    assert limit_summary == {
+        "limit_selected": "1",
+        "selected_before_limit": "2",
+        "selected_after_limit": "1",
+        "limit_applied": "true",
+    }
+    assert "limit_selected=1" in state.stages["selection"].summary
+    assert "selected_before_limit=2" in state.stages["selection"].summary
+    assert "selected_after_limit=1" in state.stages["selection"].summary
+    assert "limit_applied=true" in state.stages["selection"].summary
+    assert any(
+        "excluded_by_limit_selected_cap" in row.notes
+        for row in rows
+        if not row.selected
+    )
+    assert not paths.ncbi_download_results_path.exists()
+
+
+def test_verify_genus_limit_selected_above_selected_count_does_not_change_result(
+    tmp_path,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--limit-selected",
+            "5",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    rows = read_user_selection(paths.user_selection_path)
+    records = read_manifest(paths.manifest)
+    limit_summary = _read_selected_limit_summary(paths.selected_limit_summary_path)
+    assert result == 0
+    assert sum(1 for row in rows if row.selected) == 2
+    assert len(records) == 2
+    assert limit_summary == {
+        "limit_selected": "5",
+        "selected_before_limit": "2",
+        "selected_after_limit": "2",
+        "limit_applied": "false",
+    }
+
+
 def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     tmp_path,
     monkeypatch,
@@ -1222,6 +1401,61 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     assert not paths.all_16s_fasta_path.exists()
     assert "auto_accepted_selection" in summary
     assert {record.status for record in records} == {"genome_ready"}
+
+
+def test_verify_genus_limit_selected_with_strains_per_species_caps_fake_downloads(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache, discovery_cache = _write_multi_selected_caches(tmp_path)
+    runner = _FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--strains-per-species",
+            "2",
+            "--limit-selected",
+            "3",
+            "--auto-accept-selection",
+            "--enable-downloads",
+            "--outdir",
+            str(outdir),
+        ],
+        download_runner=runner,
+    )
+
+    paths = get_output_paths(outdir)
+    rows = read_user_selection(paths.user_selection_path)
+    records = read_manifest(paths.manifest)
+    selected_species_counts: dict[str, int] = {}
+    for row in rows:
+        if row.selected:
+            selected_species_counts[row.species] = (
+                selected_species_counts.get(row.species, 0) + 1
+            )
+    limit_summary = _read_selected_limit_summary(paths.selected_limit_summary_path)
+    state = read_run_state(paths.run_state_path)
+    assert result == 0
+    assert sum(1 for row in rows if row.selected) == 3
+    assert all(count <= 2 for count in selected_species_counts.values())
+    assert len(records) == 3
+    assert len(runner.commands) == 3
+    assert paths.ncbi_download_results_path.exists()
+    assert limit_summary == {
+        "limit_selected": "3",
+        "selected_before_limit": "4",
+        "selected_after_limit": "3",
+        "limit_applied": "true",
+    }
+    assert "limit_selected=3" in state.stages["selection"].summary
 
 
 def test_verify_genus_extract_16s_without_downloads_is_blocked_cleanly(

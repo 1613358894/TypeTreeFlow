@@ -32,3 +32,10 @@ documents.
 Use this overview to find the right contract quickly. For exact columns,
 status meanings, path ownership, or audit counting rules, cite the linked
 canonical document directly.
+
+`verify-genus --limit-selected N` is a bounded-smoke selection contract, not a
+completion contract. It caps the final selected reference genome rows after
+per-species selection and before manifest/download planning, and records the
+cap in `selection/selected_limit_summary.tsv` plus `run_state.json`. Cap
+exclusions do not imply provider failure, missing genome evidence, taxonomy
+failure, or strict type-strain confirmation changes.

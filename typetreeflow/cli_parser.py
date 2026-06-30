@@ -377,6 +377,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of top-ranked strains to preselect per species; default: 1.",
     )
     parser.add_argument(
+        "--limit-selected",
+        type=int,
+        help=(
+            "For verify-genus, cap the total selected reference genomes after "
+            "--strains-per-species selection and before download planning."
+        ),
+    )
+    parser.add_argument(
         "--resume",
         "--continue",
         dest="resume",

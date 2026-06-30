@@ -90,6 +90,12 @@ rows are eligible for external registered genome records in `manifest.tsv` and
 - `genome_download_skipped`: CLI planning summary found only skipped genome download items.
 - `genome_plan_empty`: CLI planning summary found no genome download items.
 
+`--limit-selected N` is not a failure status. When it excludes otherwise
+selected rows from a bounded `verify-genus` smoke run, the affected
+`selection/user_selection.tsv` rows are marked unselected with a neutral
+`excluded_by_limit_selected_cap` note, and
+`selection/selected_limit_summary.tsv` records the before/after counts.
+
 ## rRNA, barrnap, Extract, And Entrez
 
 - `rrna_extraction_planned`: Local 16S extraction plan item is ready for barrnap and extraction.

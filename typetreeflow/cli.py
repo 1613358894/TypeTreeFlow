@@ -213,6 +213,13 @@ from typetreeflow.workflow.state import StageState, WorkflowState, write_run_sta
 
 LOGGER = logging.getLogger(__name__)
 _BIOSAMPLE_RECOMMENDATION_POLICIES = {"strict", "balanced"}
+SELECTED_LIMIT_SUMMARY_FIELDS = [
+    "limit_selected",
+    "selected_before_limit",
+    "selected_after_limit",
+    "limit_applied",
+]
+SELECTED_LIMIT_EXCLUSION_NOTE = "excluded_by_limit_selected_cap"
 
 
 @dataclass(frozen=True)
@@ -364,6 +371,8 @@ def main(
         validate_cli_argument_combinations(config)
         if config.strains_per_species < 1:
             raise ValueError("--strains-per-species must be at least 1")
+        if config.limit_selected is not None and config.limit_selected < 1:
+            raise ValueError("--limit-selected must be at least 1")
         if config.plan_provider_registration is not None:
             run_provider_registration_planning_stage(paths, config)
             return 0
@@ -585,6 +594,8 @@ def main(
 
 
 def validate_cli_argument_combinations(config: AppConfig) -> None:
+    if config.limit_selected is not None and not config.verify_genus:
+        raise ValueError("--limit-selected is only supported by verify-genus.")
     if (
         config.extract_16s != "none"
         and not config.verify_genus
@@ -1549,7 +1560,12 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
 
     selection_outputs = [
         path
-        for path in (paths.strain_candidates_path, paths.user_selection_path, paths.manifest)
+        for path in (
+            paths.strain_candidates_path,
+            paths.user_selection_path,
+            paths.selected_limit_summary_path,
+            paths.manifest,
+        )
         if path.exists()
     ]
     if selection_outputs:
@@ -1890,14 +1906,17 @@ def _has_ready_rrna_status(status_counts: dict[str, int]) -> bool:
 
 def _selection_summary(paths, config: AppConfig) -> str:
     acceptance = _selection_acceptance_summary(config)
+    limit_summary = _selected_limit_summary_text(paths)
     if paths.user_selection_path.exists():
         rows = _read_tsv_rows(paths.user_selection_path)
         selected = sum(1 for row in rows if row.get("selected", "").strip().lower() == "yes")
         summary = f"{selected} selected records"
-        return f"{summary}; {acceptance}" if acceptance else summary
+        parts = [summary, acceptance, limit_summary]
+        return "; ".join(part for part in parts if part)
     if paths.manifest.exists():
         summary = _row_count_summary(paths.manifest, "manifest records")
-        return f"{summary}; {acceptance}" if acceptance else summary
+        parts = [summary, acceptance, limit_summary]
+        return "; ".join(part for part in parts if part)
     return ""
 
 
@@ -2155,6 +2174,7 @@ def run_genus_acquisition_workflow(
         acquisition_config,
         biosample_client=biosample_client,
     )
+    _apply_verify_genus_selected_limit(paths, acquisition_config)
     records = run_selection_dry_run_stage(
         paths,
         acquisition_config,
@@ -2637,6 +2657,108 @@ def run_selection_prepare_stage(
     )
     LOGGER.info("Wrote user selection table: %s.", output_path)
     return output_path
+
+
+def _apply_verify_genus_selected_limit(paths, config: AppConfig) -> None:
+    if config.limit_selected is None:
+        return
+    rows = read_user_selection(paths.user_selection_path)
+    selected_seen = 0
+    selected_before_limit = sum(1 for row in rows if row.selected)
+    for row in rows:
+        if not row.selected:
+            continue
+        selected_seen += 1
+        if selected_seen <= config.limit_selected:
+            continue
+        row.selected = False
+        row.notes = _append_selection_note(row.notes, SELECTED_LIMIT_EXCLUSION_NOTE)
+    selected_after_limit = sum(1 for row in rows if row.selected)
+    validate_user_selection(
+        rows,
+        strains_per_species=config.strains_per_species,
+        selection_policy=config.selection_policy,
+    )
+    write_user_selection(rows, paths.strain_candidates_path)
+    write_user_selection(rows, paths.user_selection_path)
+    summary_path = _write_selected_limit_summary(
+        paths.selected_limit_summary_path,
+        limit_selected=config.limit_selected,
+        selected_before_limit=selected_before_limit,
+        selected_after_limit=selected_after_limit,
+    )
+    LOGGER.info(
+        "Applied total selected reference genome cap: limit_selected=%d, "
+        "selected_before_limit=%d, selected_after_limit=%d, limit_applied=%s.",
+        config.limit_selected,
+        selected_before_limit,
+        selected_after_limit,
+        str(selected_after_limit < selected_before_limit).lower(),
+    )
+    LOGGER.info("Wrote selected limit summary: %s.", summary_path)
+
+
+def _append_selection_note(notes: str, note: str) -> str:
+    parts = [part.strip() for part in str(notes or "").split(";") if part.strip()]
+    if note not in parts:
+        parts.append(note)
+    return "; ".join(parts)
+
+
+def _write_selected_limit_summary(
+    path: Path,
+    *,
+    limit_selected: int,
+    selected_before_limit: int,
+    selected_after_limit: int,
+) -> Path:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=SELECTED_LIMIT_SUMMARY_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "limit_selected": str(limit_selected),
+                "selected_before_limit": str(selected_before_limit),
+                "selected_after_limit": str(selected_after_limit),
+                "limit_applied": (
+                    "true"
+                    if selected_after_limit < selected_before_limit
+                    else "false"
+                ),
+            }
+        )
+    return output_path
+
+
+def _read_selected_limit_summary(path: Path) -> dict[str, str]:
+    rows = _read_tsv_rows(path)
+    if not rows:
+        return {}
+    return {
+        field: rows[0].get(field, "").strip()
+        for field in SELECTED_LIMIT_SUMMARY_FIELDS
+    }
+
+
+def _selected_limit_summary_text(paths) -> str:
+    if not paths.selected_limit_summary_path.exists():
+        return ""
+    row = _read_selected_limit_summary(paths.selected_limit_summary_path)
+    if not row:
+        return ""
+    return (
+        f"limit_selected={row['limit_selected']}; "
+        f"selected_before_limit={row['selected_before_limit']}; "
+        f"selected_after_limit={row['selected_after_limit']}; "
+        f"limit_applied={row['limit_applied']}"
+    )
 
 
 def _validate_generated_selection(selection_rows: list, config: AppConfig) -> None:

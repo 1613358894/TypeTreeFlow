@@ -41,6 +41,12 @@ type-material rows only; likely rows are not strict completion.
 `--lpsn-cache` supplies the expected LPSN checklist. It does not supply NCBI
 Assembly candidates; use `--discovery-cache` for offline discovery or
 `--enable-ncbi-discovery --email user@example.org` for guarded live discovery.
+Use `--limit-selected N` for bounded smoke runs. The cap is applied after
+`--strains-per-species` selection and before manifest/download planning, so
+plan-only and guarded real runs operate on at most `N` selected reference
+genomes. The cap writes `selection/selected_limit_summary.tsv` and run-state
+selection metadata; rows excluded by the cap are not provider, genome, or
+taxonomy failures.
 
 ## Guarded Download With Auto-Accepted Selection
 
@@ -64,6 +70,21 @@ The command requires the NCBI Datasets CLI executable named `datasets` on
 `PATH`. Install the CLI with conda, for example
 `conda install -c conda-forge ncbi-datasets-cli`; it is not the Python package
 named `datasets`.
+
+For a bounded real smoke test, add `--limit-selected N` to the guarded command:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --policy balanced \
+  --source-audit-policy strict \
+  --strains-per-species 1 \
+  --limit-selected 5 \
+  --outdir <smoke_run_dir> \
+  --auto-accept-selection \
+  --enable-downloads
+```
 
 ## Guarded Genome Download Plus barrnap 16S Extraction
 

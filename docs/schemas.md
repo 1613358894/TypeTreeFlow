@@ -816,6 +816,12 @@ and `notes`.
 `name_map.tsv` fields are `record_id`, `normalized_id`, `canonical_name`,
 `display_name`, and `assembly_accession`.
 
+`selection/selected_limit_summary.tsv` is written when `verify-genus` receives
+`--limit-selected N`. It is a one-row TSV with `limit_selected`,
+`selected_before_limit`, `selected_after_limit`, and `limit_applied`. The cap
+is applied after per-species selection and before selected rows are converted
+to manifest/download planning records.
+
 `report/summary.md` is generated from existing manifest state and
 already-written output files. If `ani/ani_summary.tsv` or `rrna/all_16S.fasta`
 is absent, the report marks those artifacts as not available instead of

@@ -269,6 +269,11 @@ This is the recommended plan-only acquisition command. A local LPSN cache only
 builds the checklist; it is not a discovery cache and does not supply NCBI
 Assembly candidates. Use `--discovery-cache` for offline candidate discovery,
 or use guarded live discovery with `--enable-ncbi-discovery --email`.
+`--limit-selected N` is an optional total selected reference genome cap for
+bounded smoke runs. It is applied after per-species selection and before
+manifest/download planning; `selection/selected_limit_summary.tsv` and
+`run_state.json` record `limit_selected`, `selected_before_limit`,
+`selected_after_limit`, and `limit_applied`.
 
 Plan the same shape with guarded live LPSN, NCBI Assembly, and BioSample
 lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
@@ -309,6 +314,22 @@ typetreeflow verify-genus Fusobacterium \
 The download pair is deliberately strict: `--enable-downloads` is ignored for
 real execution unless paired with `--auto-accept-selection` in `verify-genus`.
 For a manual stop, omit both or add `--review-required`.
+
+For a bounded real smoke test, keep the same double opt-in and add a total
+selected cap:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --policy balanced \
+  --source-audit-policy strict \
+  --strains-per-species 1 \
+  --limit-selected 5 \
+  --outdir <smoke_run_dir> \
+  --auto-accept-selection \
+  --enable-downloads
+```
 
 For a guarded genome download plus same-genome barrnap 16S run, use downloads
 and `--extract-16s barrnap` together:

@@ -311,6 +311,15 @@ selection-driven downloads. Rows selected under `balanced` may include
 `likely_type_material`; rows selected under `representative` may include
 `representative_only`. Only `strict_confirmed` rows are strict type-strain
 evidence.
+For bounded `verify-genus` smoke runs, `--limit-selected N` applies a total
+selected reference genome cap after `--strains-per-species` selection and
+before manifest, download preflight, guarded download, and report stages.
+When supplied, TypeTreeFlow writes
+`selection/selected_limit_summary.tsv` with `limit_selected`,
+`selected_before_limit`, `selected_after_limit`, and `limit_applied`; the same
+metadata appears in the `run_state.json` selection-stage summary. Rows excluded
+only by this cap are reviewable cap exclusions, not provider failures, missing
+genomes, or taxonomy failures.
 
 Selection policies are risk-tiered. `strict` preselects only confirmed LPSN
 type-strain matches, `balanced` preselects only strong type-evidence rows

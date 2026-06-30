@@ -136,6 +136,7 @@ def build_app_config_from_args(
         selection_policy=args.selection_policy,
         source_audit_policy=args.source_audit_policy,
         strains_per_species=args.strains_per_species,
+        limit_selected=args.limit_selected,
         register_external_genomes=args.register_external_genomes,
         plan_provider_registration=args.plan_provider_registration,
         merge_manifest=args.merge_manifest,

@@ -64,6 +64,7 @@ class OutputPaths:
     selection_dir: Path
     strain_candidates_path: Path
     user_selection_path: Path
+    selected_limit_summary_path: Path
     download_preflight_summary_path: Path
     manual_deposit_evidence_template_path: Path
     manual_species_gap_summary_path: Path
@@ -153,6 +154,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         selection_dir=root / "selection",
         strain_candidates_path=root / "selection" / "strain_candidates.tsv",
         user_selection_path=root / "selection" / "user_selection.tsv",
+        selected_limit_summary_path=root / "selection" / "selected_limit_summary.tsv",
         download_preflight_summary_path=root
         / "selection"
         / "download_preflight_summary.tsv",
