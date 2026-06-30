@@ -687,6 +687,22 @@ def summarize_phylo_status(
     }
 
 
+def summarize_ani_stage_status(paths: OutputPaths) -> dict[str, str] | None:
+    if not paths.run_state_path.exists():
+        return None
+    try:
+        state = read_run_state(paths.run_state_path)
+    except (ValueError, RuntimeError):
+        return None
+    stage = state.stages.get("ani")
+    if stage is None:
+        return None
+    return {
+        "status": stage.status,
+        "notes": stage.summary,
+    }
+
+
 def build_run_summary_markdown(
     records: Iterable[StrainRecord],
     paths: OutputPaths,
@@ -701,6 +717,7 @@ def build_run_summary_markdown(
     output_files = summarize_output_files(paths, assume_run_summary_exists=True)
     problem_records = summarize_problem_records(record_list)
     ani_summary = read_optional_ani_summary(paths.ani_summary_path)
+    ani_stage_status = summarize_ani_stage_status(paths)
     phylo_status = summarize_phylo_status(paths, manifest_summary["rrna_ready_count"])
     checklist_comparison_error = ""
     try:
@@ -1042,7 +1059,15 @@ def build_run_summary_markdown(
         ]
     )
     if ani_summary is None:
-        lines.append("ANI summary not available.")
+        if ani_stage_status is None:
+            lines.append("ANI summary not available.")
+        else:
+            lines.extend(
+                [
+                    f"- Status: {ani_stage_status['status']}",
+                    f"- Notes: {ani_stage_status['notes']}",
+                ]
+            )
     elif not ani_summary:
         lines.append("ANI summary file is empty.")
     else:

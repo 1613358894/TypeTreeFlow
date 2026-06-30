@@ -125,6 +125,12 @@ it to preserve stage status, outputs, next action, and errors. `status` and
 `next-step` prefer this file when present and infer status from durable outputs
 only when it is absent.
 
+Downstream stage keys include `rrna_barrnap`, `ani`, and `phylo` when those
+stages are requested or have durable outputs. `ani` stage summaries preserve
+specific workflow statuses such as `ani_skipped_no_query` and
+`ani_results_ready`; `phylo` stage summaries preserve statuses such as
+`phylo_skipped_too_few_sequences` and `phylo_tree_ready`.
+
 `--register-external-genomes PATH --dry-run` writes
 `external_genome_registration_results.tsv` and
 `external_genome_install_plan.tsv` for review. Non-dry-run external genome
@@ -471,18 +477,23 @@ including Entrez fallback" for availability counts that include opt-in external
 fallback records. Fallback warnings and strict blocking counts come from the
 source-audit/report layer, not from the raw FASTA layout alone.
 
-When `--query-genome` is provided and reference records have registered genome
-files, TypeTreeFlow writes `ani/ani_plan.tsv` for debugging and
-`ani/references.txt` with ANI-planned reference genome paths. The controlled
-FastANI wrapper writes/checks `ani/fastani_raw.tsv`. The parser reads existing
-FastANI raw output and writes `ani/ani_query_vs_refs.tsv`,
-`ani/ani_summary.tsv`, and `ani/ani_query_vs_refs.png` when enough data is
-available. The 95% ANI threshold is advisory only; TypeTreeFlow does not
-automatically make species-level conclusions from ANI fields.
+FastANI is query-vs-reference only. When `--query-genome` is provided and
+reference records have registered genome files, TypeTreeFlow writes
+`ani/ani_plan.tsv` for debugging and `ani/references.txt` with ANI-planned
+reference genome paths. The controlled FastANI wrapper writes/checks
+`ani/fastani_raw.tsv`. The parser reads existing FastANI raw output and writes
+`ani/ani_query_vs_refs.tsv`, `ani/ani_summary.tsv`, and
+`ani/ani_query_vs_refs.png` when enough data is available. If
+`--enable-fastani` is explicit but `--query-genome` is absent, the `ani` stage
+is recorded as `ani_skipped_no_query` in `run_state.json` and the report. The
+95% ANI threshold is advisory only; TypeTreeFlow does not automatically make
+species-level conclusions from ANI fields.
 
 Given an existing `rrna/all_16S.fasta`, TypeTreeFlow can write
 `phylo/phylo_plan.tsv` with the planned MAFFT alignment path
 `phylo/all_16S.aln.fasta`, trimAl output path
 `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix `phylo/iqtree/all_16S`, and
 expected treefile `phylo/iqtree/all_16S.treefile`. CLI dry-runs do not execute
-MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures.
+MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures. The
+current IQ-TREE ultrafast bootstrap workflow requires at least 4 16S FASTA
+records; smaller inputs are recorded as `phylo_skipped_too_few_sequences`.

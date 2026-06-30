@@ -112,6 +112,56 @@ class _FakeBarrnapRunner:
         )
 
 
+class _FakeFastaniRunner:
+    def __init__(self):
+        self.commands: list[list[str]] = []
+
+    def run(self, command: list[str], cwd=None) -> CommandResult:
+        del cwd
+        self.commands.append(command)
+        output_path = Path(command[command.index("-o") + 1])
+        query_path = command[command.index("-q") + 1]
+        references_path = Path(command[command.index("--rl") + 1])
+        reference_path = references_path.read_text(encoding="utf-8").splitlines()[0]
+        output_path.write_text(
+            f"{query_path}\t{reference_path}\t99.25\t80\t100\n",
+            encoding="utf-8",
+        )
+        return CommandResult(command=command, returncode=0, stdout="", stderr="")
+
+
+class _FakePhyloRunner:
+    def __init__(self):
+        self.commands: list[list[str]] = []
+
+    def run(self, command: list[str], cwd=None) -> CommandResult:
+        del cwd
+        self.commands.append(command)
+        executable = command[0]
+        if executable == "mafft":
+            return CommandResult(
+                command=command,
+                returncode=0,
+                stdout=">seq1\nACGT\n>seq2\nACGT\n>seq3\nACGT\n>seq4\nACGT\n",
+                stderr="",
+            )
+        if executable == "trimal":
+            output_path = Path(command[command.index("-out") + 1])
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                ">seq1\nACGT\n>seq2\nACGT\n>seq3\nACGT\n>seq4\nACGT\n",
+                encoding="utf-8",
+            )
+            return CommandResult(command=command, returncode=0, stdout="", stderr="")
+        if executable == "iqtree2":
+            prefix_path = Path(command[command.index("-pre") + 1])
+            treefile_path = Path(f"{prefix_path}.treefile")
+            treefile_path.parent.mkdir(parents=True, exist_ok=True)
+            treefile_path.write_text("(seq1,seq2,seq3,seq4);\n", encoding="utf-8")
+            return CommandResult(command=command, returncode=0, stdout="", stderr="")
+        raise AssertionError(f"Unexpected command: {command}")
+
+
 def _fake_barrnap_gff() -> str:
     return (
         "##gff-version 3\n"
@@ -1555,6 +1605,181 @@ def test_verify_genus_guarded_download_extract_16s_barrnap_fake_success(
     assert state.stages["rrna_barrnap"].status == "succeeded"
     assert "rrna_16s_ready=2" in state.stages["rrna_barrnap"].summary
     assert "- 16S-ready records: 2" in summary
+
+
+def test_verify_genus_enable_fastani_without_query_writes_explicit_stage_status(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    download_runner = _FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--auto-accept-selection",
+            "--enable-downloads",
+            "--enable-fastani",
+            "--outdir",
+            str(outdir),
+        ],
+        download_runner=download_runner,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert state.stages["ani"].status == "skipped"
+    assert "ani_skipped_no_query" in state.stages["ani"].summary
+    assert "- Notes: ani_skipped_no_query" in summary
+    assert not paths.fastani_raw_output_path.exists()
+
+    assert main(["package-results", "--outdir", str(outdir)]) == 0
+    packaged_state = read_run_state(outdir / "delivery" / "run_state.json")
+    assert "ani_skipped_no_query" in packaged_state.stages["ani"].summary
+
+
+def test_verify_genus_enable_fastani_with_query_uses_query_path(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    query = tmp_path / "query.fna"
+    query.write_text(">query\nACGT\n", encoding="utf-8")
+    download_runner = _FakeDatasetsRunner()
+    fastani_runner = _FakeFastaniRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--auto-accept-selection",
+            "--enable-downloads",
+            "--enable-fastani",
+            "--query-genome",
+            str(query),
+            "--outdir",
+            str(outdir),
+        ],
+        download_runner=download_runner,
+        fastani_runner=fastani_runner,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    assert result == 0
+    assert len(fastani_runner.commands) == 1
+    assert fastani_runner.commands[0][fastani_runner.commands[0].index("-q") + 1] == str(query)
+    assert paths.ani_query_vs_refs_path.exists()
+    assert paths.ani_summary_path.exists()
+    assert state.stages["ani"].status == "succeeded"
+
+
+def test_verify_genus_enable_phylo_after_barrnap_four_16s_runs_fake_tools(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache, discovery_cache = _write_multi_selected_caches(tmp_path)
+    download_runner = _FakeDatasetsRunner()
+    barrnap_runner = _FakeBarrnapRunner([(0, _fake_barrnap_gff(), "")] * 4)
+    phylo_runner = _FakePhyloRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--strains-per-species",
+            "2",
+            "--auto-accept-selection",
+            "--enable-downloads",
+            "--extract-16s",
+            "barrnap",
+            "--enable-phylo",
+            "--outdir",
+            str(outdir),
+        ],
+        download_runner=download_runner,
+        barrnap_runner=barrnap_runner,
+        phylo_runner=phylo_runner,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    assert result == 0
+    assert len(barrnap_runner.commands) == 4
+    assert [command[0] for command in phylo_runner.commands] == ["mafft", "trimal", "iqtree2"]
+    assert paths.phylo_plan_path.exists()
+    assert paths.iqtree_treefile_path.exists()
+    assert state.stages["phylo"].status == "succeeded"
+    assert "phylo_tree_ready" in state.stages["phylo"].summary
+
+
+def test_verify_genus_enable_phylo_with_insufficient_16s_writes_skipped_status(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    download_runner = _FakeDatasetsRunner()
+    barrnap_runner = _FakeBarrnapRunner(
+        [(0, _fake_barrnap_gff(), ""), (0, _fake_barrnap_gff(), "")]
+    )
+    phylo_runner = _FakePhyloRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--auto-accept-selection",
+            "--enable-downloads",
+            "--extract-16s",
+            "barrnap",
+            "--enable-phylo",
+            "--outdir",
+            str(outdir),
+        ],
+        download_runner=download_runner,
+        barrnap_runner=barrnap_runner,
+        phylo_runner=phylo_runner,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert phylo_runner.commands == []
+    assert paths.phylo_plan_path.exists()
+    assert state.stages["phylo"].status == "skipped"
+    assert "phylo_skipped_too_few_sequences" in state.stages["phylo"].summary
+    assert "- Status: phylo_skipped_too_few_sequences" in summary
 
 
 def test_verify_genus_extract_16s_barrnap_missing_dependency_writes_state(

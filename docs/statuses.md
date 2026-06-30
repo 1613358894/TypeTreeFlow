@@ -137,7 +137,7 @@ input. That file is the phylogeny input checked by `phylo_planned`,
 - `fastani_failed`: FastANI runner returned a failure.
 - `fastani_missing_output`: FastANI runner succeeded but raw output was absent or empty.
 - `ani_skipped`: ANI workflow was explicitly skipped.
-- `ani_skipped_no_query`: ANI workflow skipped because no query genome was provided.
+- `ani_skipped_no_query`: ANI workflow skipped because no query genome was provided. FastANI is query-vs-reference only unless a future reference-vs-reference ANI workflow is added.
 - `fastani_not_enabled`: FastANI execution was requested without `--enable-fastani`.
 - `fastani_execution_not_wired`: FastANI execution was enabled but no runner was available through the safe workflow path.
 - `ani_skipped_no_ready_references`: ANI workflow found no reference genomes ready for comparison.
@@ -153,7 +153,7 @@ input. That file is the phylogeny input checked by `phylo_planned`,
 - `phylo_planned`: 16S phylogeny plan is ready; current IQ-TREE bootstrap planning requires at least 4 FASTA sequences.
 - `phylo_skipped`: Phylogeny workflow was explicitly skipped.
 - `phylo_skipped_no_input`: `rrna/all_16S.fasta` was missing.
-- `phylo_skipped_too_few_sequences`: Combined 16S FASTA had fewer than 4 sequences, which is too few for the current IQ-TREE ultrafast bootstrap command.
+- `phylo_skipped_too_few_sequences`: Combined 16S FASTA had fewer than 4 sequences, which is too few for the current IQ-TREE ultrafast bootstrap command. This is an input-size skip, not a provider, download, or barrnap failure.
 - `phylo_skipped_existing_tree`: Existing IQ-TREE treefile was reused.
 - `mafft_missing_input`: MAFFT could not run because combined 16S FASTA was missing.
 - `mafft_planned`: MAFFT command would run in dry-run mode.

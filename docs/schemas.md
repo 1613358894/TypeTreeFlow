@@ -755,6 +755,11 @@ are normalized to contain no whitespace, and duplicate headers are rejected.
 `status`, and `notes`. `ani/references.txt` contains ANI-planned reference
 genome paths, one per line.
 
+FastANI is query-vs-reference only in the current workflow. `--enable-fastani`
+without `--query-genome` does not write a FastANI command output; the durable
+stage status is recorded in `run_state.json` as `ani_skipped_no_query` and may
+be repeated in `report/summary.md`.
+
 `ani/fastani_raw.tsv` is the raw five-column FastANI output:
 `query_path`, `reference_path`, `ani`, `matching_fragments`, and
 `total_fragments`.
@@ -794,6 +799,11 @@ path is `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix is
 `phylo/iqtree/all_16S.treefile`. The current IQ-TREE command uses ultrafast
 bootstrap, so the plan requires at least 4 FASTA records; smaller inputs are
 recorded as `phylo_skipped_too_few_sequences`.
+
+`run_state.json` records the high-level `phylo` stage whenever phylogeny is
+requested or durable phylogeny outputs exist. The stage summary preserves the
+specific plan/workflow status, including `phylo_skipped_too_few_sequences`,
+`phylo_skipped_no_input`, and `phylo_tree_ready`.
 
 The controlled MAFFT wrapper writes alignment stdout to
 `phylo/all_16S.aln.fasta` when invoked through an injected runner and stdout is

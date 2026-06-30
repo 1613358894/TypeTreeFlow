@@ -80,16 +80,17 @@ scrape, purchase, or download from external portals, and does not treat
   as review-only counts, without triggering provider planning, downloads,
   credential handling, FASTA installation, manifest changes, or completion
   metric changes.
-- Plan and run guarded resume-mode barrnap, FastANI, Entrez 16S fallback, and
-  MAFFT/trimAl/IQ-TREE wrappers.
+- Plan and run guarded barrnap, query-vs-reference FastANI, Entrez 16S
+  fallback, and MAFFT/trimAl/IQ-TREE wrappers from resume mode or the guarded
+  `verify-genus` download path where supported.
 - Select type-material records from local GTDB metadata TSVs for legacy or
   direct GTDB-based workflows.
 - Write `report/summary.md` and `report/run_review.md` from existing files
   without making species conclusions.
 
-The CLI can run guarded resume-mode FastANI and write an ANI PNG from parsed
-results. It does not parse Newick trees. Guarded phylogeny execution writes a
-Newick treefile only; it does not render a tree figure.
+The CLI can run guarded query-vs-reference FastANI and write an ANI PNG from
+parsed results. It does not parse Newick trees. Guarded phylogeny execution
+writes a Newick treefile only; it does not render a tree figure.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
@@ -350,6 +351,18 @@ typetreeflow verify-genus Fusobacterium \
 `--extract-16s barrnap` depends on a genome-ready manifest produced by guarded
 download or external local FASTA registration, and it requires `barrnap` on
 `PATH`.
+
+`--enable-fastani` on a guarded download run is query-vs-reference only. When
+`--query-genome` is omitted, TypeTreeFlow does not run FastANI and records an
+explicit `ani_skipped_no_query` stage status in `run_state.json` and the
+report. When `--query-genome` is provided, ready reference genomes are compared
+against that query genome.
+
+`--enable-phylo` on a guarded download plus barrnap run uses
+`rrna/all_16S.fasta` after same-genome 16S extraction. The current IQ-TREE
+ultrafast bootstrap workflow requires at least 4 16S FASTA records; smaller
+inputs are recorded as `phylo_skipped_too_few_sequences`, not as download or
+provider failures.
 
 If a run already has an output directory, ordinary continuation should use
 `--resume` (or `--continue`), not `--force`. `--force` is for intentionally
@@ -934,8 +947,8 @@ The source-audit gate is controlled by:
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery; local `--discovery-cache` mode remains offline. |
 | NCBI Taxonomy lookup | `--enable-ncbi-taxonomy --email user@example.org` | Guarded optional taxonomy lookup from `taxonomy/ncbi_taxonomy_plan.tsv`; writes only `taxonomy/ncbi_taxonomy_cache.tsv`. |
 | expanded NCBI token discovery | `--enable-expanded-discovery` | Optional second-pass audit for uncovered species; writes review files only and does not change selection or manifest outputs. |
-| FastANI | `--enable-fastani` | Resume-mode local ANI when `fastANI` is installed and `--query-genome` is provided. |
-| phylogeny | `--enable-phylo` | Resume-mode MAFFT, trimAl, and IQ-TREE wrappers. |
+| FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires `--query-genome` to execute `fastANI`; without it the stage records `ani_skipped_no_query`. |
+| phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
 
 Examples:
@@ -1052,10 +1065,13 @@ See [LICENSE](LICENSE).
   credentials configured outside this repository.
 - NCBI discovery, BioSample enrichment, Entrez fallback, downloads, barrnap,
   FastANI, and phylogeny execution are guarded and require explicit opt-in.
-- Guarded real FastANI execution is resume-only, requires `--query-genome`, and
-  requires the `fastANI` executable on `PATH`.
-- Guarded real phylogeny execution is resume-only and requires `mafft`,
-  `trimal`, and `iqtree2` on `PATH`.
+- Guarded real FastANI execution is query-vs-reference only, runs from a
+  resumed or guarded-download genome-ready manifest, requires `--query-genome`,
+  and requires the `fastANI` executable on `PATH`. Without `--query-genome`, an
+  explicit `ani_skipped_no_query` stage status is recorded.
+- Guarded real phylogeny execution runs from a resumed or guarded-download
+  16S-ready manifest and requires `mafft`, `trimal`, and `iqtree2` on `PATH`
+  when `rrna/all_16S.fasta` has enough input sequences.
 - Candidate generation can read a local discovery cache, or contact NCBI only
   with `--enable-ncbi-discovery --email`.
 - Synonym-aware candidate discovery is off by default and available only with

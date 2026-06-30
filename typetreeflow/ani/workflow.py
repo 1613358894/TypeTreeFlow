@@ -57,12 +57,6 @@ def prepare_ani(
                 status="fastani_not_enabled",
                 notes="FastANI execution requires --enable-fastani; no command was run.",
             )
-        if runner is None:
-            return _result(
-                paths,
-                status="fastani_execution_not_wired",
-                notes="FastANI execution remains disabled in this release; no command was run.",
-            )
 
     record_list = list(records)
     plan_items = build_ani_plan(
@@ -90,6 +84,15 @@ def prepare_ani(
                 parsed_output_path="",
                 status="ani_skipped_no_ready_references",
                 notes="ANI plan written, but no reference genomes were ready for FastANI.",
+            )
+        if runner is None:
+            return AniWorkflowResult(
+                plan_path=str(plan_path),
+                reference_list_path=reference_list_path,
+                raw_output_path=str(paths.fastani_raw_output_path),
+                parsed_output_path="",
+                status="fastani_execution_not_wired",
+                notes="FastANI execution remains disabled in this release; no command was run.",
             )
 
         fastani_result = execute_fastani(

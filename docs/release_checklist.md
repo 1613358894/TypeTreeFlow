@@ -293,7 +293,8 @@ python typetreeflow.py verify-genus <Genus> \
   --extract-16s barrnap
 ```
 
-FastANI and phylogeny remain resume-mode lower-level validation stages:
+FastANI and phylogeny can run from resume mode, or on the same guarded
+`verify-genus` download run when explicit flags and inputs are present:
 
 ```bash
 python typetreeflow.py \
@@ -344,7 +345,9 @@ evidence and result interpretation.
 
 ## Known Limitations
 
-- Guarded real barrnap, FastANI, and phylogeny execution are resume-mode workflows.
+- Guarded real barrnap, FastANI, and phylogeny execution are supported from
+  resume mode and from the guarded `verify-genus` download path where required
+  inputs are available.
 - High-level `verify-genus --extract-16s barrnap` requires genome-ready records
   produced by guarded downloads or local external FASTA registration.
 - Guarded real FastANI requires `--query-genome` and `fastANI` on `PATH`.

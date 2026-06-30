@@ -105,6 +105,29 @@ typetreeflow verify-genus Fusobacterium \
   --extract-16s barrnap
 ```
 
+Optional guarded downstream stages can be requested on the same guarded
+download run:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --policy balanced \
+  --outdir <run_dir> \
+  --auto-accept-selection \
+  --enable-downloads \
+  --extract-16s barrnap \
+  --enable-fastani \
+  --query-genome data/query.fna \
+  --enable-phylo
+```
+
+FastANI is query-vs-reference only. If `--enable-fastani` is provided without
+`--query-genome`, the stage is skipped explicitly as `ani_skipped_no_query`.
+Phylogeny uses `rrna/all_16S.fasta`; the current IQ-TREE bootstrap workflow
+requires at least 4 16S FASTA records and records smaller inputs as
+`phylo_skipped_too_few_sequences`.
+
 ## Resume barrnap Or Entrez Fallback
 
 Use `--resume` or `--continue` for an existing outdir. Use `--force` only when

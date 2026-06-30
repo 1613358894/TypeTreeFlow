@@ -311,6 +311,8 @@ def _run_verify_release_genus_dispatch(
     config: AppConfig,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
@@ -324,6 +326,8 @@ def _run_verify_release_genus_dispatch(
             config,
             download_runner=download_runner,
             barrnap_runner=barrnap_runner,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
             assembly_discovery_client=assembly_discovery_client,
             biosample_client=biosample_client,
             ncbi_taxonomy_client=ncbi_taxonomy_client,
@@ -359,6 +363,8 @@ def main(
         config,
         download_runner=download_runner,
         barrnap_runner=barrnap_runner,
+        fastani_runner=fastani_runner,
+        phylo_runner=phylo_runner,
         assembly_discovery_client=assembly_discovery_client,
         biosample_client=biosample_client,
         ncbi_taxonomy_client=ncbi_taxonomy_client,
@@ -396,6 +402,8 @@ def main(
                 config,
                 download_runner=download_runner,
                 barrnap_runner=barrnap_runner,
+                fastani_runner=fastani_runner,
+                phylo_runner=phylo_runner,
                 assembly_discovery_client=assembly_discovery_client,
                 biosample_client=biosample_client,
                 ncbi_taxonomy_client=ncbi_taxonomy_client,
@@ -649,6 +657,8 @@ def run_release_genus_verification(
     config: AppConfig,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
@@ -710,6 +720,8 @@ def run_release_genus_verification(
                 acquisition_paths,
                 download_runner=download_runner,
                 barrnap_runner=barrnap_runner,
+                fastani_runner=fastani_runner,
+                phylo_runner=phylo_runner,
                 ncbi_taxonomy_client=ncbi_taxonomy_client,
             )
         except (ManifestError, ValueError, RuntimeError) as error:
@@ -889,6 +901,8 @@ def run_release_policy_verification_from_acquisition(
     acquisition_paths,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
 ) -> Path:
     _copy_shared_acquisition_outputs(acquisition_paths, paths)
@@ -931,6 +945,13 @@ def run_release_policy_verification_from_acquisition(
                 rrna_config,
                 runner=barrnap_runner,
             )
+        _run_guarded_downstream_analysis_stages(
+            records,
+            paths,
+            download_config,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
+        )
         write_manifest(records, paths.manifest)
         if download_config.species_checklist is not None:
             run_taxonomy_audit_stage(
@@ -938,6 +959,7 @@ def run_release_policy_verification_from_acquisition(
                 paths,
                 download_config.species_checklist,
             )
+        _write_inferred_run_state(paths, download_config, None)
         _write_run_summary(
             records,
             paths,
@@ -1599,6 +1621,14 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
     if rrna_stage is not None:
         stages["rrna_barrnap"] = rrna_stage
 
+    ani_stage = _ani_stage_state(paths, config)
+    if ani_stage is not None:
+        stages["ani"] = ani_stage
+
+    phylo_stage = _phylo_stage_state(paths, config, error)
+    if phylo_stage is not None:
+        stages["phylo"] = phylo_stage
+
     _add_file_stage(
         stages,
         "completion_audit",
@@ -1768,6 +1798,148 @@ def _rrna_stage_state(
         outputs=[_state_output_path(path, paths) for path in outputs],
         summary=summary,
     )
+
+
+def _ani_stage_state(paths, config: AppConfig) -> StageState | None:
+    outputs = [
+        path
+        for path in (
+            paths.ani_plan_path,
+            paths.fastani_reference_list_path,
+            paths.fastani_raw_output_path,
+            paths.ani_query_vs_refs_path,
+            paths.ani_summary_path,
+            paths.ani_heatmap_path,
+        )
+        if path.exists()
+    ]
+    requested = config.enable_fastani or config.query_genome is not None or config.skip_ani
+    if not requested and not outputs:
+        return None
+    if config.skip_ani:
+        return StageState(
+            status="skipped",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary="ani_skipped: ANI workflow was skipped by configuration.",
+        )
+    if config.query_genome is None:
+        return StageState(
+            status="skipped",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=(
+                "ani_skipped_no_query: FastANI is query-vs-reference only; "
+                "--query-genome was not provided."
+            ),
+        )
+    if paths.ani_summary_path.exists():
+        row = _read_first_tsv_row(paths.ani_summary_path)
+        summary_status = row.get("status", "ani_results_ready") if row else "ani_results_ready"
+        return StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=f"{summary_status}: ANI summary is ready.",
+        )
+    if paths.ani_query_vs_refs_path.exists():
+        return StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary="ani_results_ready: parsed ANI results are ready.",
+        )
+    if paths.fastani_raw_output_path.exists():
+        raw_status = (
+            "fastani_succeeded"
+            if paths.fastani_raw_output_path.stat().st_size > 0
+            else "fastani_missing_output"
+        )
+        return StageState(
+            status="partial",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=f"{raw_status}: FastANI raw output did not produce parsed ANI summary.",
+        )
+    if paths.ani_plan_path.exists():
+        plan_statuses = _status_counts(paths.ani_plan_path)
+        if plan_statuses:
+            summary = ", ".join(
+                f"{status}={count}" for status, count in sorted(plan_statuses.items())
+            )
+            if "ani_planned" in plan_statuses:
+                status = "planned" if config.dry_run else "partial"
+            else:
+                status = "skipped"
+        else:
+            summary = "ani_planned: ANI plan was written."
+            status = "planned"
+        return StageState(
+            status=status,
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=summary,
+        )
+    if requested:
+        return StageState(
+            status="skipped",
+            outputs=[],
+            summary="ani_skipped_no_ready_references: no reference genomes were ready for ANI.",
+        )
+    return None
+
+
+def _phylo_stage_state(
+    paths,
+    config: AppConfig,
+    error: Exception | None = None,
+) -> StageState | None:
+    outputs = [
+        path
+        for path in (
+            paths.phylo_plan_path,
+            paths.aligned_16s_fasta_path,
+            paths.trimmed_16s_fasta_path,
+            paths.iqtree_treefile_path,
+        )
+        if path.exists()
+    ]
+    requested = config.enable_phylo or config.skip_tree
+    if not requested and not outputs:
+        return None
+    if error is not None and "Sequence source audit policy blocked phylo stage" in str(error):
+        return StageState(
+            status="blocked_by_manual_review",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=f"Review {_state_output_path(paths.sequence_source_audit_path, paths)}.",
+        )
+    if paths.iqtree_treefile_path.exists():
+        return StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary="phylo_tree_ready: IQ-TREE treefile is ready.",
+        )
+    if paths.phylo_plan_path.exists():
+        row = _read_first_tsv_row(paths.phylo_plan_path)
+        workflow_status = row.get("status", "") if row else ""
+        notes = row.get("notes", "") if row else ""
+        if workflow_status == "phylo_planned":
+            status = "planned"
+        elif workflow_status.startswith("phylo_skipped"):
+            status = "skipped"
+        elif workflow_status:
+            status = "partial"
+        else:
+            status = "planned"
+        summary = workflow_status or "phylo_planned"
+        if notes:
+            summary = f"{summary}: {notes}"
+        return StageState(
+            status=status,
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=summary,
+        )
+    if requested:
+        return StageState(
+            status="skipped",
+            outputs=[],
+            summary="phylo_skipped_no_input: rrna/all_16S.fasta was not available.",
+        )
+    return None
 
 
 def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
@@ -1985,6 +2157,11 @@ def _read_tsv_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle, delimiter="\t"))
 
 
+def _read_first_tsv_row(path: Path) -> dict[str, str]:
+    rows = _read_tsv_rows(path)
+    return rows[0] if rows else {}
+
+
 def _allow_large_csv_fields() -> None:
     limit = sys.maxsize
     while True:
@@ -2088,6 +2265,8 @@ def run_genus_acquisition_workflow(
     config: AppConfig,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
@@ -2215,6 +2394,13 @@ def run_genus_acquisition_workflow(
                 rrna_config,
                 runner=barrnap_runner,
             )
+        _run_guarded_downstream_analysis_stages(
+            records,
+            paths,
+            download_config,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
+        )
         write_manifest(records, paths.manifest)
         if download_config.species_checklist is not None:
             run_taxonomy_audit_stage(
@@ -2222,6 +2408,7 @@ def run_genus_acquisition_workflow(
                 paths,
                 download_config.species_checklist,
             )
+        _write_inferred_run_state(paths, download_config, None)
         _write_run_summary(
             records,
             paths,
@@ -2242,6 +2429,49 @@ def run_genus_acquisition_workflow(
         paths.user_selection_path,
     )
     return paths.user_selection_path
+
+
+def _run_guarded_downstream_analysis_stages(
+    records,
+    paths,
+    config: AppConfig,
+    *,
+    fastani_runner=None,
+    phylo_runner=None,
+) -> None:
+    if config.enable_fastani:
+        if (
+            config.query_genome is not None
+            and not config.skip_ani
+            and _has_ani_ready_references(records, paths)
+        ):
+            if fastani_runner is None:
+                require_executable(FASTANI.executable)
+                fastani_runner = SubprocessRunner()
+            run_ani_stage(records, paths, config, runner=fastani_runner)
+        else:
+            run_ani_stage(records, paths, config, runner=fastani_runner)
+
+    if not config.enable_phylo:
+        return
+    if not _source_audit_policy_allows_stage(paths, config, "phylo"):
+        _write_run_summary(records, paths, config)
+        raise ValueError("Sequence source audit policy blocked phylo stage.")
+    if not config.skip_tree and phylo_runner is None:
+        phylo_plan = prepare_phylogeny(
+            paths,
+            dry_run=True,
+            force=config.force,
+            skip_tree=config.skip_tree,
+            enable_phylo=config.enable_phylo,
+            threads=config.threads,
+        )
+        if phylo_plan.status == "phylo_planned":
+            require_executable(MAFFT.executable)
+            require_executable(TRIMAL.executable)
+            require_executable(IQTREE.executable)
+            phylo_runner = SubprocessRunner()
+    run_phylo_stage(records, paths, config, runner=phylo_runner)
 
 
 def run_culture_collection_audit_stage(paths, config: AppConfig) -> Path:

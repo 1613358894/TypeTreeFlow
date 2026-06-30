@@ -26,6 +26,8 @@ WORKFLOW_STAGES = (
     "download_preflight",
     "download",
     "rrna_barrnap",
+    "ani",
+    "phylo",
     "completion_audit",
     "ncbi_taxonomy_enrichment",
     "report",

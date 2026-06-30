@@ -39,3 +39,16 @@ per-species selection and before manifest/download planning, and records the
 cap in `selection/selected_limit_summary.tsv` plus `run_state.json`. Cap
 exclusions do not imply provider failure, missing genome evidence, taxonomy
 failure, or strict type-strain confirmation changes.
+
+`verify-genus --enable-fastani` is a query-vs-reference ANI contract. It may
+run after resume from a genome-ready manifest or after a guarded download run
+that used `--auto-accept-selection --enable-downloads`. Execution requires
+`--query-genome`; without it, the workflow records `ani_skipped_no_query`
+instead of silently doing nothing.
+
+`verify-genus --enable-phylo` uses the combined `rrna/all_16S.fasta` generated
+from ready 16S records. It may run after resume or after guarded download plus
+barrnap extraction. The current IQ-TREE ultrafast bootstrap workflow requires
+at least 4 16S FASTA records; smaller inputs record
+`phylo_skipped_too_few_sequences` and do not count as provider or download
+failures.

@@ -48,9 +48,9 @@ Real actions require explicit flags:
 
 - `--enable-downloads` permits real NCBI Datasets ZIP download execution and requires the `datasets` executable.
 - `--enable-entrez --email` permits real Entrez 16S fallback through Biopython Entrez.
-- `--enable-barrnap`, `--enable-fastani`, and `--enable-phylo` are recognized guard flags. The CLI can run guarded barrnap execution from a resumed genome-ready manifest, guarded FastANI execution from a resumed genome-ready manifest with `--query-genome`, and guarded phylogeny execution from a resumed manifest with an existing combined 16S FASTA.
+- `--enable-barrnap`, `--enable-fastani`, and `--enable-phylo` are recognized guard flags. The CLI can run guarded barrnap execution from a resumed or guarded-download genome-ready manifest, guarded query-vs-reference FastANI execution from a resumed or guarded-download genome-ready manifest with `--query-genome`, and guarded phylogeny execution from a resumed or guarded-download manifest with an existing combined 16S FASTA.
 
-The workflow libraries for barrnap, FastANI, MAFFT, trimAl, and IQ-TREE are fake-runner tested and can be exercised by injected runners. Barrnap, FastANI, and phylogeny are wired for guarded resume-mode CLI execution. Real FastANI execution requires `fastANI` on `PATH`. Real phylogeny execution requires `mafft`, `trimal`, and `iqtree2` on `PATH`; conda environments that expose IQ-TREE as `iqtree` need an `iqtree2` alias or symlink unless a future fallback is added.
+The workflow libraries for barrnap, FastANI, MAFFT, trimAl, and IQ-TREE are fake-runner tested and can be exercised by injected runners. Barrnap, FastANI, and phylogeny are wired for guarded resume-mode CLI execution and for guarded `verify-genus` download continuation where inputs are available. Real FastANI execution requires `fastANI` on `PATH`. Real phylogeny execution requires `mafft`, `trimal`, and `iqtree2` on `PATH`; conda environments that expose IQ-TREE as `iqtree` need an `iqtree2` alias or symlink unless a future fallback is added.
 
 ## Implemented workflow surface
 
