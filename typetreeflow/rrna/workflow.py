@@ -176,11 +176,12 @@ def _barrnap_internal_16s_audit(
         part.strip() for part in (record.genus, record.species) if part.strip()
     )
     note_value = result.rrna_16s_path or result.normalized_id
+    scope_note = "record_scope=local_query; " if record.is_query else ""
     return audit_sequence_sources(
         species=species,
         genome_accession=record.assembly_accession,
         genome_strain=record.strain,
         rrna_source="barrnap",
         rrna_strain=record.strain,
-        notes=f"16S sequence: {note_value}",
+        notes=f"{scope_note}16S sequence: {note_value}",
     )

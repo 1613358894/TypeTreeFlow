@@ -208,7 +208,7 @@ def test_success_without_output_is_missing_output(tmp_path):
     assert result.status == "fastani_missing_output"
 
 
-def test_success_with_empty_output_is_missing_output(tmp_path):
+def test_success_with_empty_output_is_no_hits(tmp_path):
     runner = FakeRunner(returncode=0, write_output=True, output_text="")
 
     result = execute_fastani(
@@ -220,7 +220,8 @@ def test_success_with_empty_output_is_missing_output(tmp_path):
     )
 
     assert len(runner.commands) == 1
-    assert result.status == "fastani_missing_output"
+    assert result.status == "fastani_no_hits"
+    assert "zero raw hit rows" in result.notes
 
 
 def test_failure_is_failed(tmp_path):

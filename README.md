@@ -356,13 +356,21 @@ download or external local FASTA registration, and it requires `barrnap` on
 `--query-genome` is omitted, TypeTreeFlow does not run FastANI and records an
 explicit `ani_skipped_no_query` stage status in `run_state.json` and the
 report. When `--query-genome` is provided, ready reference genomes are compared
-against that query genome.
+against that query genome. The query is also recorded in `manifest.tsv` as a
+local query row with `source=local_query`, `is_query=true`,
+`is_type_material=false`, the query genome path, and a SHA-256 digest in the
+provenance notes. A local query row is not type-strain evidence and is not a
+confirmed species assignment.
 
 `--enable-phylo` on a guarded download plus barrnap run uses
 `rrna/all_16S.fasta` after same-genome 16S extraction. The current IQ-TREE
 ultrafast bootstrap workflow requires at least 4 16S FASTA records; smaller
 inputs are recorded as `phylo_skipped_too_few_sequences`, not as download or
-provider failures.
+provider failures. When a local query genome is present, query-inclusive
+phylogeny requires a query 16S record. If query barrnap cannot produce one,
+`phylo/phylo_plan.tsv`, `run_state.json`, and the report record
+`phylo_skipped_query_no_16s` / `skipped_query_no_16s` rather than silently
+building a reference-only tree.
 
 If a run already has an output directory, ordinary continuation should use
 `--resume` (or `--continue`), not `--force`. `--force` is for intentionally
@@ -895,6 +903,14 @@ typetreeflow \
   --dry-run
 ```
 
+For a local query smoke run, check these offline artifacts before interpreting
+biology: `manifest.tsv` should contain exactly one `source=local_query` row
+with `is_query=true` and a SHA-256 note; `rrna/rrna_plan.tsv` and
+`source_audit/sequence_source_audit.tsv` should distinguish reference barrnap
+16S from query barrnap 16S; `ani/ani_summary.tsv` may report `ani_no_hits`
+when FastANI exits 0 with zero raw hit rows; and `phylo/phylo_plan.tsv` should
+record `query_16s_included` or `skipped_query_no_16s`.
+
 Write a report from existing files only:
 
 ```bash
@@ -947,8 +963,8 @@ The source-audit gate is controlled by:
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery; local `--discovery-cache` mode remains offline. |
 | NCBI Taxonomy lookup | `--enable-ncbi-taxonomy --email user@example.org` | Guarded optional taxonomy lookup from `taxonomy/ncbi_taxonomy_plan.tsv`; writes only `taxonomy/ncbi_taxonomy_cache.tsv`. |
 | expanded NCBI token discovery | `--enable-expanded-discovery` | Optional second-pass audit for uncovered species; writes review files only and does not change selection or manifest outputs. |
-| FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires `--query-genome` to execute `fastANI`; without it the stage records `ani_skipped_no_query`. |
-| phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. |
+| FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires `--query-genome` to execute `fastANI`; without it the stage records `ani_skipped_no_query`. Exit 0 with an empty raw output file is `fastani_no_hits` / `ani_no_hits`, not missing output. |
+| phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. With `--query-genome`, query 16S must be included or the plan records `phylo_skipped_query_no_16s`. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
 
 Examples:

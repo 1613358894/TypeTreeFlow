@@ -44,6 +44,7 @@ from typetreeflow.expanded_discovery import (
 )
 from typetreeflow.external.runner import SubprocessRunner
 from typetreeflow.external.tools import (
+    BARRNAP,
     FASTANI,
     IQTREE,
     MAFFT,
@@ -89,6 +90,7 @@ from typetreeflow.manifest import (
     write_manifest,
     write_name_map,
 )
+from typetreeflow.local_query import LOCAL_QUERY_SOURCE, sync_local_query_record
 from typetreeflow.naming import ensure_unique_names
 from typetreeflow.phylo.workflow import prepare_phylogeny
 from typetreeflow.provider_plan import (
@@ -479,6 +481,7 @@ def main(
         ensure_unique_names(selected_records)
         ensure_unique_record_ids(selected_records)
         ensure_unique_normalized_ids(selected_records)
+        _sync_local_query_if_requested(selected_records, paths, config)
         genome_plan_status = _write_genome_download_plan(selected_records, paths)
         ani_status = _write_ani_plan_if_ready(selected_records, paths, config)
         phylo_status = _write_phylo_plan(selected_records, paths, config)
@@ -542,6 +545,7 @@ def main(
         ensure_unique_names(selected_records)
         ensure_unique_record_ids(selected_records)
         ensure_unique_normalized_ids(selected_records)
+        _sync_local_query_if_requested(selected_records, paths, config)
         if config.enable_downloads:
             if not _source_audit_policy_allows_stage(paths, config, "download"):
                 _write_run_summary(selected_records, paths, config)
@@ -1090,7 +1094,10 @@ def _run_resume_from_manifest(
         paths.manifest,
         len(records),
     )
+    query_record_changed = _sync_local_query_if_requested(records, paths, config)
     if not paths.name_map.exists():
+        write_name_map(records, paths.name_map)
+    elif query_record_changed:
         write_name_map(records, paths.name_map)
 
     run_config = _effective_resume_config(config)
@@ -1111,6 +1118,13 @@ def _run_resume_from_manifest(
             fastani_runner = SubprocessRunner()
         run_ani_stage(records, paths, run_config, runner=fastani_runner)
     elif run_config.enable_phylo:
+        _prepare_query_16s_for_phylo_if_needed(
+            records,
+            paths,
+            run_config,
+            barrnap_runner=barrnap_runner,
+        )
+        _assemble_all_16s_if_ready(records, paths, run_config.query_16s)
         if not _source_audit_policy_allows_stage(paths, run_config, "phylo"):
             _write_run_summary(records, paths, run_config)
             raise ValueError("Sequence source audit policy blocked phylo stage.")
@@ -1793,6 +1807,9 @@ def _rrna_stage_state(
         if status_counts
         else _rrna_no_records_summary(config)
     )
+    query_summary = _local_query_rrna_summary(paths)
+    if query_summary:
+        summary = f"{summary}; {query_summary}"
     return StageState(
         status=status,
         outputs=[_state_output_path(path, paths) for path in outputs],
@@ -1849,7 +1866,7 @@ def _ani_stage_state(paths, config: AppConfig) -> StageState | None:
         raw_status = (
             "fastani_succeeded"
             if paths.fastani_raw_output_path.stat().st_size > 0
-            else "fastani_missing_output"
+            else "fastani_no_hits"
         )
         return StageState(
             status="partial",
@@ -1908,10 +1925,14 @@ def _phylo_stage_state(
             summary=f"Review {_state_output_path(paths.sequence_source_audit_path, paths)}.",
         )
     if paths.iqtree_treefile_path.exists():
+        query_status = _phylo_plan_query_status(paths)
+        summary = "phylo_tree_ready: IQ-TREE treefile is ready."
+        if query_status:
+            summary = f"{summary} {query_status}"
         return StageState(
             status="succeeded",
             outputs=[_state_output_path(path, paths) for path in outputs],
-            summary="phylo_tree_ready: IQ-TREE treefile is ready.",
+            summary=summary,
         )
     if paths.phylo_plan_path.exists():
         row = _read_first_tsv_row(paths.phylo_plan_path)
@@ -1928,6 +1949,9 @@ def _phylo_stage_state(
         summary = workflow_status or "phylo_planned"
         if notes:
             summary = f"{summary}: {notes}"
+        query_status = _phylo_plan_query_status(paths)
+        if query_status:
+            summary = f"{summary} {query_status}"
         return StageState(
             status=status,
             outputs=[_state_output_path(path, paths) for path in outputs],
@@ -1940,6 +1964,35 @@ def _phylo_stage_state(
             summary="phylo_skipped_no_input: rrna/all_16S.fasta was not available.",
         )
     return None
+
+
+def _local_query_rrna_summary(paths) -> str:
+    if not paths.manifest.exists():
+        return ""
+    rows = [row for row in _read_tsv_rows(paths.manifest) if _truthy(row.get("is_query", ""))]
+    if not rows:
+        return ""
+    ready = sum(1 for row in rows if _truthy(row.get("has_16s", "")))
+    return f"query_16s_ready={ready}/{len(rows)}"
+
+
+def _phylo_plan_query_status(paths) -> str:
+    if not paths.phylo_plan_path.exists():
+        return ""
+    row = _read_first_tsv_row(paths.phylo_plan_path)
+    if not row:
+        return ""
+    status = row.get("query_16s_status", "").strip()
+    count = row.get("query_sequence_count", "").strip()
+    if not status:
+        return ""
+    if count:
+        return f"query_16s_status={status}; query_sequence_count={count}."
+    return f"query_16s_status={status}."
+
+
+def _truthy(value: object) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "y"}
 
 
 def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
@@ -3329,6 +3382,14 @@ def _needs_fastani_execution(config: AppConfig) -> bool:
     return not config.skip_ani and config.query_genome is not None
 
 
+def _sync_local_query_if_requested(records, paths, config: AppConfig) -> bool:
+    changed = sync_local_query_record(records, config.query_genome)
+    if changed:
+        LOGGER.info("Registered local query genome provenance in manifest.")
+        write_manifest(records, paths.manifest)
+    return changed
+
+
 def _cli_real_action_allowed(
     stage_name: str,
     enabled: bool,
@@ -3436,6 +3497,7 @@ def _write_phylo_plan(records, paths, config: AppConfig) -> str:
         force=config.force,
         skip_tree=config.skip_tree,
         enable_phylo=config.enable_phylo,
+        query_required=_query_16s_required(config),
         threads=config.threads,
     )
     LOGGER.info("Phylogeny workflow status: %s. %s", result.status, result.notes)
@@ -3454,6 +3516,7 @@ def run_phylo_stage(records, paths, config: AppConfig, runner=None) -> str:
         force=config.force,
         skip_tree=config.skip_tree,
         enable_phylo=config.enable_phylo,
+        query_required=_query_16s_required(config),
         threads=config.threads,
     )
     LOGGER.info("Phylogeny workflow status: %s. %s", result.status, result.notes)
@@ -3476,6 +3539,45 @@ def _prepare_local_16s_if_ready(records, paths, config: AppConfig, runner=None) 
     )
     LOGGER.info("Local 16S workflow status: %s. %s", result.status, result.notes)
     return result.status
+
+
+def _prepare_query_16s_for_phylo_if_needed(
+    records,
+    paths,
+    config: AppConfig,
+    barrnap_runner=None,
+) -> None:
+    if config.query_genome is None or config.query_16s is not None:
+        return
+    if _has_ready_local_query_16s(records):
+        return
+    if barrnap_runner is None:
+        require_executable(BARRNAP.executable)
+        barrnap_runner = SubprocessRunner()
+    rrna_config = replace(config, enable_barrnap=True, dry_run=False)
+    status = _prepare_local_16s_if_ready(
+        records,
+        paths,
+        rrna_config,
+        runner=barrnap_runner,
+    )
+    LOGGER.info("Local query 16S preparation before phylogeny: %s.", status)
+
+
+def _query_16s_required(config: AppConfig) -> bool:
+    return config.query_genome is not None or config.query_16s is not None
+
+
+def _has_ready_local_query_16s(records) -> bool:
+    for record in records:
+        if (
+            record.is_query
+            and record.source == LOCAL_QUERY_SOURCE
+            and record.has_16s
+            and record.rrna_16s_path
+        ):
+            return True
+    return False
 
 
 def run_rrna_stage(records, paths, config: AppConfig, runner=None) -> None:

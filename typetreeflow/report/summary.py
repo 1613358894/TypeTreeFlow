@@ -120,6 +120,12 @@ def summarize_manifest(records: Iterable[StrainRecord]) -> dict[str, int]:
             1 for record in record_list if record.has_genome or record.status == "genome_ready"
         ),
         "rrna_ready_count": sum(1 for record in record_list if record.has_16s),
+        "reference_rrna_ready_count": sum(
+            1 for record in record_list if record.has_16s and not record.is_query
+        ),
+        "query_rrna_ready_count": sum(
+            1 for record in record_list if record.has_16s and record.is_query
+        ),
         "failed_count": sum(1 for record in record_list if _is_failed_status(record.status)),
         "skipped_count": sum(1 for record in record_list if _is_skipped_status(record.status)),
         "outgroup_count": sum(1 for record in record_list if record.is_outgroup),
@@ -146,6 +152,11 @@ def summarize_provenance_counts(records: Iterable[StrainRecord]) -> dict[str, in
         ),
         "external_registered_genome_count": sum(
             1 for record in record_list if _is_external_registered_genome(record)
+        ),
+        "local_query_genome_count": sum(
+            1
+            for record in record_list
+            if record.is_query and record.source == "local_query"
         ),
         "genome_ready_count": sum(
             1 for record in record_list if record.has_genome or record.status == "genome_ready"
@@ -640,10 +651,20 @@ def summarize_phylo_status(
     paths: OutputPaths,
     rrna_ready_count: int,
 ) -> dict[str, str]:
+    plan_query_status = _read_phylo_plan_query_status(paths)
+    if paths.phylo_plan_path.exists():
+        plan_row = _read_first_tsv_row(paths.phylo_plan_path)
+        if plan_row and plan_row.get("status", "") == "phylo_skipped_query_no_16s":
+            return {
+                "status": plan_row.get("status", ""),
+                "notes": plan_row.get("notes", ""),
+                **_phylo_query_status_from_row(plan_row),
+            }
     if paths.iqtree_treefile_path.exists():
         return {
             "status": "phylo_tree_ready",
             "notes": f"IQ-TREE treefile exists: {_display_path(paths.iqtree_treefile_path, paths)}",
+            **plan_query_status,
         }
 
     if paths.all_16s_fasta_path.exists():
@@ -655,6 +676,7 @@ def summarize_phylo_status(
                     f"At least {MIN_PHYLO_SEQUENCES} 16S sequences are required; "
                     f"found {sequence_count} in rrna/all_16S.fasta."
                 ),
+                **plan_query_status,
             }
         return {
             "status": "phylo_ready_to_plan",
@@ -662,6 +684,7 @@ def summarize_phylo_status(
                 f"rrna/all_16S.fasta contains {sequence_count} sequences; "
                 "tree execution still requires the phylogeny stage to be enabled."
             ),
+            **plan_query_status,
         }
 
     if paths.phylo_plan_path.exists():
@@ -670,21 +693,44 @@ def summarize_phylo_status(
             return {
                 "status": plan_row.get("status", ""),
                 "notes": plan_row.get("notes", ""),
+                **_phylo_query_status_from_row(plan_row),
             }
 
     if rrna_ready_count < MIN_PHYLO_SEQUENCES:
         return {
-            "status": "phylo_skipped_too_few_sequences",
-            "notes": (
-                f"At least {MIN_PHYLO_SEQUENCES} 16S sequences are required; "
-                f"manifest has {rrna_ready_count} 16S-ready records."
-            ),
-        }
+        "status": "phylo_skipped_too_few_sequences",
+        "notes": (
+            f"At least {MIN_PHYLO_SEQUENCES} 16S sequences are required; "
+            f"manifest has {rrna_ready_count} 16S-ready records."
+        ),
+        **plan_query_status,
+    }
 
     return {
         "status": "phylo_skipped_no_input",
         "notes": "Combined 16S FASTA does not exist: rrna/all_16S.fasta",
+        **plan_query_status,
     }
+
+
+def _read_phylo_plan_query_status(paths: OutputPaths) -> dict[str, str]:
+    if not paths.phylo_plan_path.exists():
+        return {}
+    row = _read_first_tsv_row(paths.phylo_plan_path)
+    if not row:
+        return {}
+    return _phylo_query_status_from_row(row)
+
+
+def _phylo_query_status_from_row(row: dict[str, str]) -> dict[str, str]:
+    status = row.get("query_16s_status", "").strip()
+    count = row.get("query_sequence_count", "").strip()
+    result: dict[str, str] = {}
+    if status:
+        result["query_16s_status"] = status
+    if count:
+        result["query_sequence_count"] = count
+    return result
 
 
 def summarize_ani_stage_status(paths: OutputPaths) -> dict[str, str] | None:
@@ -884,6 +930,7 @@ def build_run_summary_markdown(
             "- External registered genome records: "
             f"{provenance_counts['external_registered_genome_count']}"
         ),
+        f"- Local query genome records: {provenance_counts['local_query_genome_count']}",
         f"- Genome-ready records: {provenance_counts['genome_ready_count']}",
         f"- Records missing genome: {provenance_counts['missing_genome_count']}",
         (
@@ -892,6 +939,11 @@ def build_run_summary_markdown(
             "and are not counted as NCBI Assembly-backed records. Registered "
             "external genomes with installed local FASTA paths can participate "
             "in downstream planning as mixed-provenance references."
+        ),
+        (
+            "Local query genome records use `source=local_query`, are marked "
+            "`is_query=true`, and are not type-strain or confirmed-species "
+            "evidence."
         ),
     ]
 
@@ -1002,6 +1054,14 @@ def build_run_summary_markdown(
             "## 16S Status",
             "",
             f"- 16S-ready records: {manifest_summary['rrna_ready_count']}",
+            (
+                "- Reference 16S-ready records: "
+                f"{manifest_summary['reference_rrna_ready_count']}"
+            ),
+            (
+                "- Query 16S-ready records: "
+                f"{manifest_summary['query_rrna_ready_count']}"
+            ),
             (
                 "- Genome coverage: "
                 f"{rrna_coverage['genome_ready_count']}/{rrna_coverage['total_records']}"
@@ -1549,6 +1609,14 @@ def build_run_summary_markdown(
             "",
             f"- Status: {phylo_status['status']}",
             f"- Notes: {phylo_status['notes']}",
+            (
+                "- Query 16S status: "
+                f"{phylo_status.get('query_16s_status', 'query_not_recorded')}"
+            ),
+            (
+                "- Query sequence count: "
+                f"{phylo_status.get('query_sequence_count', '')}"
+            ),
         ]
     )
 

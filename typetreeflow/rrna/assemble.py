@@ -41,6 +41,8 @@ def collect_reference_16s(
 ) -> list[FastaEntry]:
     entries: list[FastaEntry] = []
     for record in records:
+        if record.is_query:
+            continue
         if not record.has_16s or not record.rrna_16s_path:
             continue
         rrna_path = resolve_manifest_path(record.rrna_16s_path, base_dir)
@@ -53,6 +55,31 @@ def collect_reference_16s(
                 header=header,
                 sequence=sequence,
                 source="reference",
+                path=str(rrna_path),
+            )
+        )
+    return entries
+
+
+def collect_query_16s(
+    records: Iterable[StrainRecord],
+    base_dir: str | Path | None = None,
+) -> list[FastaEntry]:
+    entries: list[FastaEntry] = []
+    for record in records:
+        if not record.is_query:
+            continue
+        if not record.has_16s or not record.rrna_16s_path:
+            continue
+        rrna_path = resolve_manifest_path(record.rrna_16s_path, base_dir)
+        if not rrna_path.exists():
+            continue
+        _source_header, sequence = read_single_fasta(rrna_path)
+        entries.append(
+            FastaEntry(
+                header=f"{_normalize_header(record.normalized_id)}|source=local_query",
+                sequence=sequence,
+                source="local_query",
                 path=str(rrna_path),
             )
         )
@@ -110,6 +137,8 @@ def assemble_all_16s(
     entries = collect_reference_16s(records, base_dir=base_dir)
     if query_16s_path is not None:
         entries.append(build_query_16s_entry(Path(query_16s_path), query_name=query_name))
+    else:
+        entries.extend(collect_query_16s(records, base_dir=base_dir))
     if not entries:
         raise ValueError("No 16S FASTA entries are available for combined assembly.")
     return write_combined_16s(entries, Path(output_path))

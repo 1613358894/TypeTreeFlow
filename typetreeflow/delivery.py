@@ -95,6 +95,36 @@ def package_results(
             copied,
             missing,
         )
+        _copy_optional(
+            paths.rrna_plan_path,
+            output_dir / "reports" / "rrna_plan.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.sequence_source_audit_path,
+            output_dir / "reports" / "sequence_source_audit.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.ani_query_vs_refs_path,
+            output_dir / "reports" / "ani_query_vs_refs.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.ani_summary_path,
+            output_dir / "reports" / "ani_summary.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.phylo_plan_path,
+            output_dir / "reports" / "phylo_plan.tsv",
+            copied,
+            missing,
+        )
 
     genome_count = 0
     if "genomes" in requested:
@@ -361,6 +391,11 @@ def build_delivery_readme(
         "- Download results: download_results.tsv when available",
         "- Run state: run_state.json when available",
         "- Reports: reports/summary.md and reports/run_review.md when requested and available",
+        (
+            "- Query audit tables: reports/rrna_plan.tsv, "
+            "reports/sequence_source_audit.tsv, reports/ani_query_vs_refs.tsv, "
+            "reports/ani_summary.tsv, and reports/phylo_plan.tsv when available"
+        ),
         f"- Genome FASTA files copied: {genome_count}",
         (
             "- 16S sequence FASTA files copied: "

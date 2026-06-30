@@ -470,8 +470,10 @@ extracted 16S FASTA paths are `rrna/sequences/<normalized_id>.16s.fasta`.
 The controlled barrnap execution interface writes barrnap stdout to
 `rrna/barrnap/<normalized_id>.gff` and checks for non-empty output. The
 extractor writes `rrna/sequences/<normalized_id>.16s.fasta`. The assembler
-combines ready reference 16S records and an optional query 16S FASTA into
-`rrna/all_16S.fasta`.
+combines ready non-query reference 16S records and either an explicit query 16S
+FASTA or a local-query barrnap 16S record into `rrna/all_16S.fasta`. Local query
+16S headers include `source=local_query` when they come from the query genome
+record.
 Use "Same-genome barrnap 16S" for barrnap/internal-genome counts and "Total 16S
 including Entrez fallback" for availability counts that include opt-in external
 fallback records. Fallback warnings and strict blocking counts come from the
@@ -486,6 +488,9 @@ reference genome paths. The controlled FastANI wrapper writes/checks
 `ani/ani_query_vs_refs.png` when enough data is available. If
 `--enable-fastani` is explicit but `--query-genome` is absent, the `ani` stage
 is recorded as `ani_skipped_no_query` in `run_state.json` and the report. The
+FastANI wrapper distinguishes absent raw output (`fastani_missing_output`) from
+an existing empty raw output file (`fastani_no_hits`); the latter writes an
+empty parsed table plus `ani_summary.tsv` with `status=ani_no_hits`. The
 95% ANI threshold is advisory only; TypeTreeFlow does not automatically make
 species-level conclusions from ANI fields.
 
@@ -497,3 +502,12 @@ expected treefile `phylo/iqtree/all_16S.treefile`. CLI dry-runs do not execute
 MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures. The
 current IQ-TREE ultrafast bootstrap workflow requires at least 4 16S FASTA
 records; smaller inputs are recorded as `phylo_skipped_too_few_sequences`.
+When `--query-genome` is present, `phylo/phylo_plan.tsv` also records
+`query_16s_status` and `query_sequence_count`. Missing query 16S records are
+reported as `phylo_skipped_query_no_16s` / `skipped_query_no_16s`.
+
+`package-results` copies `manifest.tsv`, `run_state.json`, reports, and when
+available the query audit tables `reports/rrna_plan.tsv`,
+`reports/sequence_source_audit.tsv`, `reports/ani_query_vs_refs.tsv`,
+`reports/ani_summary.tsv`, and `reports/phylo_plan.tsv`. The manifest remains
+the authoritative local query provenance record.

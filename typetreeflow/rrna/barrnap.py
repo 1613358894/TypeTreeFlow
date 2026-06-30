@@ -167,4 +167,15 @@ def mark_barrnap_results(
         if result is None:
             continue
         record.status = result.status
-        record.notes = result.notes
+        record.notes = _merged_notes(record, result.notes)
+
+
+def _merged_notes(record: StrainRecord, new_notes: str) -> str:
+    old_notes = record.notes or ""
+    if record.is_query and "source=local_query" in old_notes:
+        if not new_notes:
+            return old_notes
+        if new_notes in old_notes:
+            return old_notes
+        return f"{old_notes}; {new_notes}"
+    return new_notes

@@ -107,6 +107,7 @@ def prepare_ani(
         if fastani_result.status not in {
             "fastani_succeeded",
             "fastani_skipped_existing",
+            "fastani_no_hits",
         }:
             return AniWorkflowResult(
                 plan_path=str(plan_path),
@@ -117,7 +118,7 @@ def prepare_ani(
                 notes=fastani_result.notes,
             )
 
-    if _has_existing_raw_output(paths.fastani_raw_output_path):
+    if paths.fastani_raw_output_path.exists():
         try:
             parsed_output_path = parse_and_write_ani_results(
                 paths.fastani_raw_output_path,
@@ -157,7 +158,7 @@ def prepare_ani(
             parsed_output_path=str(parsed_output_path),
             status="ani_results_ready",
             notes=(
-                f"Parsed existing FastANI raw output and wrote ANI PNG: "
+                f"Parsed existing FastANI raw output and wrote ANI summary: "
                 f"{paths.fastani_raw_output_path}"
             ),
         )
@@ -211,10 +212,6 @@ def prepare_ani(
     )
 
 
-def _has_existing_raw_output(path: Path) -> bool:
-    return path.exists() and path.stat().st_size > 0
-
-
 def _write_summary_if_readable(parsed_output_path: Path, summary_path: Path) -> Path:
     summary = summarize_ani_results(parsed_output_path)
     return write_ani_summary(summary, summary_path)
@@ -225,7 +222,10 @@ def _write_summary_and_plot_if_readable(
     summary_path: Path,
     heatmap_path: Path,
 ) -> Path:
-    _write_summary_if_readable(parsed_output_path, summary_path)
+    summary = summarize_ani_results(parsed_output_path)
+    write_ani_summary(summary, summary_path)
+    if summary.hit_count == 0:
+        return summary_path
     return plot_ani_query_vs_refs(parsed_output_path, heatmap_path)
 
 

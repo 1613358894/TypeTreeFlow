@@ -743,10 +743,13 @@ and `rrna_source=barrnap`, preserving unrelated audit rows. Guarded Entrez
 fallback writes separate audit rows keyed by `rrna_source=Entrez` and is never
 automatically labeled `same_genome_internal_16s`.
 
-`rrna/all_16S.fasta` combines ready reference 16S records and, when provided,
-a user query 16S FASTA. Reference-only assembly is supported. Reference headers
-use manifest `normalized_id`; the query header defaults to `Query`. Headers
-are normalized to contain no whitespace, and duplicate headers are rejected.
+`rrna/all_16S.fasta` combines ready non-query reference 16S records and, when
+provided, a user query 16S FASTA or local-query barrnap 16S record.
+Reference-only assembly is supported when no query genome is required.
+Reference headers use manifest `normalized_id`; an explicit `--query-16s`
+header defaults to `Query`; local query barrnap headers include
+`source=local_query`. Headers are normalized to contain no whitespace, and
+duplicate headers are rejected.
 
 ## ANI Outputs
 
@@ -758,11 +761,16 @@ genome paths, one per line.
 FastANI is query-vs-reference only in the current workflow. `--enable-fastani`
 without `--query-genome` does not write a FastANI command output; the durable
 stage status is recorded in `run_state.json` as `ani_skipped_no_query` and may
-be repeated in `report/summary.md`.
+be repeated in `report/summary.md`. With `--query-genome`, `manifest.tsv`
+includes one local query row with `source=local_query`, `is_query=true`,
+`is_type_material=false`, `genome_path` set to the query FASTA path, and
+SHA-256/query path provenance in `notes`.
 
 `ani/fastani_raw.tsv` is the raw five-column FastANI output:
 `query_path`, `reference_path`, `ani`, `matching_fragments`, and
-`total_fragments`.
+`total_fragments`. A successful FastANI command with an existing empty raw file
+is `fastani_no_hits`; a successful command with no raw file is
+`fastani_missing_output`.
 
 `ani/ani_query_vs_refs.tsv` is parsed from raw FastANI output:
 
@@ -792,13 +800,18 @@ automatically make species-level conclusions from ANI fields.
 ## Phylogeny Outputs
 
 `phylo/phylo_plan.tsv` records `input_fasta_path`, `aligned_fasta_path`,
-`trimmed_fasta_path`, `iqtree_prefix`, `treefile_path`, `status`, and `notes`.
+`trimmed_fasta_path`, `iqtree_prefix`, `treefile_path`, `query_16s_status`,
+`query_sequence_count`, `status`, and `notes`.
 The planned MAFFT alignment path is `phylo/all_16S.aln.fasta`, trimAl output
 path is `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix is
 `phylo/iqtree/all_16S`, and the expected treefile is
 `phylo/iqtree/all_16S.treefile`. The current IQ-TREE command uses ultrafast
 bootstrap, so the plan requires at least 4 FASTA records; smaller inputs are
 recorded as `phylo_skipped_too_few_sequences`.
+With `--query-genome`, `query_16s_status` is `query_16s_included` when the
+combined FASTA contains query 16S and `skipped_query_no_16s` when query 16S is
+required but absent. In the latter case `status` is
+`phylo_skipped_query_no_16s`.
 
 `run_state.json` records the high-level `phylo` stage whenever phylogeny is
 requested or durable phylogeny outputs exist. The stage summary preserves the

@@ -108,7 +108,7 @@ selected rows from a bounded `verify-genus` smoke run, the affected
 - `barrnap_failed`: barrnap runner returned a failure.
 - `barrnap_missing_output`: barrnap runner succeeded but produced no usable GFF.
 - `rrna_16s_skipped_existing`: Existing extracted 16S FASTA was reused.
-- `rrna_16s_ready`: A reference 16S FASTA is registered and ready.
+- `rrna_16s_ready`: A reference or local query 16S FASTA is registered and ready.
 - `rrna_16s_not_found`: barrnap output did not contain a usable 16S sequence.
 - `rrna_16s_extract_failed`: barrnap GFF or genome FASTA could not produce a usable 16S sequence.
 - `rrna_workflow_dry_run`: Local 16S workflow planned only and did not run barrnap.
@@ -125,6 +125,9 @@ When enough reference records are `rrna_16s_ready` or `rrna_16s_skipped_existing
 the local 16S workflow can assemble `rrna/all_16S.fasta` without a query 16S
 input. That file is the phylogeny input checked by `phylo_planned`,
 `phylo_skipped_too_few_sequences`, and `phylo_tree_ready`.
+When `--query-genome` is present, query 16S comes from explicit `--query-16s`
+or local-query barrnap and is reported separately in `run_state.json` and
+`phylo/phylo_plan.tsv`.
 
 ## ANI
 
@@ -135,7 +138,8 @@ input. That file is the phylogeny input checked by `phylo_planned`,
 - `fastani_skipped_existing`: Existing `ani/fastani_raw.tsv` was reused.
 - `fastani_succeeded`: FastANI runner succeeded and produced non-empty raw output.
 - `fastani_failed`: FastANI runner returned a failure.
-- `fastani_missing_output`: FastANI runner succeeded but raw output was absent or empty.
+- `fastani_no_hits`: FastANI runner exited 0 and produced an existing but empty raw output file. This is a valid no-hit result, not missing output.
+- `fastani_missing_output`: FastANI runner succeeded but raw output was absent.
 - `ani_skipped`: ANI workflow was explicitly skipped.
 - `ani_skipped_no_query`: ANI workflow skipped because no query genome was provided. FastANI is query-vs-reference only unless a future reference-vs-reference ANI workflow is added.
 - `fastani_not_enabled`: FastANI execution was requested without `--enable-fastani`.
@@ -154,6 +158,7 @@ input. That file is the phylogeny input checked by `phylo_planned`,
 - `phylo_skipped`: Phylogeny workflow was explicitly skipped.
 - `phylo_skipped_no_input`: `rrna/all_16S.fasta` was missing.
 - `phylo_skipped_too_few_sequences`: Combined 16S FASTA had fewer than 4 sequences, which is too few for the current IQ-TREE ultrafast bootstrap command. This is an input-size skip, not a provider, download, or barrnap failure.
+- `phylo_skipped_query_no_16s`: Query-inclusive phylogeny was requested with `--query-genome`, but no query 16S record was present in `rrna/all_16S.fasta`; the workflow does not silently build a reference-only tree.
 - `phylo_skipped_existing_tree`: Existing IQ-TREE treefile was reused.
 - `mafft_missing_input`: MAFFT could not run because combined 16S FASTA was missing.
 - `mafft_planned`: MAFFT command would run in dry-run mode.

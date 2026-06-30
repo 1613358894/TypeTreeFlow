@@ -12,6 +12,8 @@ PHYLO_PLAN_FIELDS = [
     "trimmed_fasta_path",
     "iqtree_prefix",
     "treefile_path",
+    "query_16s_status",
+    "query_sequence_count",
     "status",
     "notes",
 ]
@@ -28,12 +30,15 @@ class PhyloPlan:
     treefile_path: Path
     status: str
     notes: str = ""
+    query_16s_status: str = "query_not_requested"
+    query_sequence_count: int = 0
 
 
 def build_phylo_plan(
     paths: OutputPaths,
     skip_tree: bool = False,
     force: bool = False,
+    query_required: bool = False,
 ) -> PhyloPlan:
     input_fasta_path = paths.all_16s_fasta_path
     aligned_fasta_path = paths.aligned_16s_fasta_path
@@ -43,16 +48,37 @@ def build_phylo_plan(
 
     status = "phylo_planned"
     notes = "Phylogeny plan written; MAFFT, trimAl, and IQ-TREE were not executed."
+    query_16s_status = "query_not_requested"
+    query_sequence_count = 0
 
     if skip_tree:
         status = "phylo_skipped"
         notes = "Tree workflow was skipped by configuration."
     elif not input_fasta_path.exists():
-        status = "phylo_skipped_no_input"
-        notes = f"Combined 16S FASTA does not exist: {input_fasta_path}"
+        if query_required:
+            status = "phylo_skipped_query_no_16s"
+            query_16s_status = "skipped_query_no_16s"
+            notes = (
+                "Local query 16S was required for query-inclusive phylogeny, "
+                f"but combined 16S FASTA does not exist: {input_fasta_path}"
+            )
+        else:
+            status = "phylo_skipped_no_input"
+            notes = f"Combined 16S FASTA does not exist: {input_fasta_path}"
     else:
         sequence_count = count_fasta_sequences(input_fasta_path)
-        if sequence_count < MIN_PHYLO_SEQUENCES:
+        if query_required:
+            query_sequence_count = count_query_fasta_sequences(input_fasta_path)
+            if query_sequence_count:
+                query_16s_status = "query_16s_included"
+            else:
+                query_16s_status = "skipped_query_no_16s"
+                status = "phylo_skipped_query_no_16s"
+                notes = (
+                    "Local query 16S was required for query-inclusive phylogeny, "
+                    "but rrna/all_16S.fasta contains no query 16S record."
+                )
+        if status == "phylo_planned" and sequence_count < MIN_PHYLO_SEQUENCES:
             status = "phylo_skipped_too_few_sequences"
             notes = (
                 f"At least {MIN_PHYLO_SEQUENCES} FASTA sequences are required for "
@@ -69,6 +95,8 @@ def build_phylo_plan(
         trimmed_fasta_path=trimmed_fasta_path,
         iqtree_prefix=iqtree_prefix,
         treefile_path=treefile_path,
+        query_16s_status=query_16s_status,
+        query_sequence_count=query_sequence_count,
         status=status,
         notes=notes,
     )
@@ -79,6 +107,24 @@ def count_fasta_sequences(path: str | Path) -> int:
     with Path(path).open("r", encoding="utf-8") as handle:
         for line in handle:
             if line.startswith(">"):
+                count += 1
+    return count
+
+
+def count_query_fasta_sequences(path: str | Path) -> int:
+    count = 0
+    with Path(path).open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.startswith(">"):
+                continue
+            header = line[1:].strip()
+            primary = header.split("|", 1)[0]
+            fields = set(header.split("|")[1:])
+            if (
+                primary == "Query"
+                or primary.startswith("query_")
+                or "source=local_query" in fields
+            ):
                 count += 1
     return count
 
