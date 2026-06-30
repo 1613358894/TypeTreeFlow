@@ -70,7 +70,12 @@ def build_parser() -> argparse.ArgumentParser:
             "preserving each intermediate table under --outdir."
         ),
     )
-    parser.add_argument("--query-genome", type=Path, help="Query genome FASTA path.")
+    parser.add_argument(
+        "--query-genome",
+        type=Path,
+        action="append",
+        help="Query genome FASTA path. May be repeated for multiple query genomes.",
+    )
     parser.add_argument("--query-16s", type=Path, help="Query 16S FASTA path.")
     parser.add_argument("--outgroup", help="Optional outgroup taxon or strain.")
     parser.add_argument(

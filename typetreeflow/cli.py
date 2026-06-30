@@ -90,7 +90,7 @@ from typetreeflow.manifest import (
     write_manifest,
     write_name_map,
 )
-from typetreeflow.local_query import LOCAL_QUERY_SOURCE, sync_local_query_record
+from typetreeflow.local_query import LOCAL_QUERY_SOURCE, sync_local_query_records
 from typetreeflow.naming import ensure_unique_names
 from typetreeflow.phylo.workflow import prepare_phylogeny
 from typetreeflow.provider_plan import (
@@ -1830,7 +1830,7 @@ def _ani_stage_state(paths, config: AppConfig) -> StageState | None:
         )
         if path.exists()
     ]
-    requested = config.enable_fastani or config.query_genome is not None or config.skip_ani
+    requested = config.enable_fastani or bool(config.query_genomes) or config.skip_ani
     if not requested and not outputs:
         return None
     if config.skip_ani:
@@ -1839,7 +1839,7 @@ def _ani_stage_state(paths, config: AppConfig) -> StageState | None:
             outputs=[_state_output_path(path, paths) for path in outputs],
             summary="ani_skipped: ANI workflow was skipped by configuration.",
         )
-    if config.query_genome is None:
+    if not config.query_genomes:
         return StageState(
             status="skipped",
             outputs=[_state_output_path(path, paths) for path in outputs],
@@ -1851,10 +1851,14 @@ def _ani_stage_state(paths, config: AppConfig) -> StageState | None:
     if paths.ani_summary_path.exists():
         row = _read_first_tsv_row(paths.ani_summary_path)
         summary_status = row.get("status", "ani_results_ready") if row else "ani_results_ready"
+        query_summary = _ani_query_summary(paths)
+        summary = f"{summary_status}: ANI summary is ready."
+        if query_summary:
+            summary = f"{summary} {query_summary}"
         return StageState(
             status="succeeded",
             outputs=[_state_output_path(path, paths) for path in outputs],
-            summary=f"{summary_status}: ANI summary is ready.",
+            summary=summary,
         )
     if paths.ani_query_vs_refs_path.exists():
         return StageState(
@@ -1886,6 +1890,9 @@ def _ani_stage_state(paths, config: AppConfig) -> StageState | None:
         else:
             summary = "ani_planned: ANI plan was written."
             status = "planned"
+        query_summary = _ani_query_summary(paths)
+        if query_summary:
+            summary = f"{summary}; {query_summary}"
         return StageState(
             status=status,
             outputs=[_state_output_path(path, paths) for path in outputs],
@@ -1973,7 +1980,61 @@ def _local_query_rrna_summary(paths) -> str:
     if not rows:
         return ""
     ready = sum(1 for row in rows if _truthy(row.get("has_16s", "")))
-    return f"query_16s_ready={ready}/{len(rows)}"
+    query_ids = _query_ids_from_manifest_rows(rows)
+    return (
+        f"query_count={len(rows)}; query_ids={','.join(query_ids)}; "
+        f"query_16s_ready={ready}/{len(rows)}"
+    )
+
+
+def _ani_query_summary(paths) -> str:
+    if not paths.ani_plan_path.exists():
+        return ""
+    rows = _read_tsv_rows(paths.ani_plan_path)
+    if not rows:
+        return ""
+    query_ids = sorted(
+        {
+            row.get("query_id", "").strip()
+            for row in rows
+            if row.get("query_id", "").strip()
+        }
+    )
+    planned = sum(
+        1
+        for row in rows
+        if row.get("status", "") in {"ani_planned", "ani_success", "ani_no_hits"}
+    )
+    statuses = _status_counts(paths.ani_plan_path)
+    status_summary = ",".join(
+        f"{status}={count}" for status, count in sorted(statuses.items())
+    )
+    parts = [
+        f"query_count={len(query_ids)}",
+        f"query_ids={','.join(query_ids)}",
+        f"planned_comparisons={planned}",
+    ]
+    if status_summary:
+        parts.append(f"query_statuses={status_summary}")
+    return "; ".join(parts)
+
+
+def _query_ids_from_manifest_rows(rows: list[dict[str, str]]) -> list[str]:
+    query_ids = []
+    for row in rows:
+        query_id = _query_id_from_notes(row.get("notes", ""))
+        if not query_id:
+            query_id = row.get("normalized_id", "") or row.get("record_id", "")
+        query_ids.append(query_id)
+    return sorted(query_ids)
+
+
+def _query_id_from_notes(notes: str) -> str:
+    for part in notes.split(";"):
+        key, separator, value = part.strip().partition("=")
+        if separator and key == "query_id":
+            return value.strip()
+    return ""
 
 
 def _phylo_plan_query_status(paths) -> str:
@@ -2499,7 +2560,7 @@ def _run_guarded_downstream_analysis_stages(
 ) -> None:
     if config.enable_fastani:
         if (
-            config.query_genome is not None
+            bool(config.query_genomes)
             and not config.skip_ani
             and _has_ani_ready_references(records, paths)
         ):
@@ -3391,11 +3452,11 @@ def _selection_tsv_to_records(paths, config: AppConfig) -> list:
 
 
 def _needs_fastani_execution(config: AppConfig) -> bool:
-    return not config.skip_ani and config.query_genome is not None
+    return not config.skip_ani and bool(config.query_genomes)
 
 
 def _sync_local_query_if_requested(records, paths, config: AppConfig) -> bool:
-    changed = sync_local_query_record(records, config.query_genome)
+    changed = sync_local_query_records(records, config.query_genomes)
     if changed:
         LOGGER.info("Registered local query genome provenance in manifest.")
         write_manifest(records, paths.manifest)
@@ -3447,7 +3508,7 @@ def _assemble_all_16s_if_ready(records, paths, query_16s_path: Path | None) -> N
 
 def _write_ani_plan_if_ready(records, paths, config: AppConfig) -> str:
     if (
-        config.query_genome is not None
+        bool(config.query_genomes)
         and not config.skip_ani
         and not _has_ani_ready_references(records, paths)
     ):
@@ -3456,7 +3517,7 @@ def _write_ani_plan_if_ready(records, paths, config: AppConfig) -> str:
     result = prepare_ani(
         records,
         paths,
-        query_genome_path=config.query_genome,
+        query_genome_path=config.query_genomes,
         dry_run=config.dry_run,
         force=config.force,
         skip_ani=config.skip_ani,
@@ -3475,7 +3536,7 @@ def run_ani_stage(records, paths, config: AppConfig, runner=None) -> str:
     result = prepare_ani(
         records,
         paths,
-        query_genome_path=config.query_genome,
+        query_genome_path=config.query_genomes,
         dry_run=config.dry_run,
         force=config.force,
         skip_ani=config.skip_ani,
@@ -3559,7 +3620,7 @@ def _prepare_query_16s_for_phylo_if_needed(
     config: AppConfig,
     barrnap_runner=None,
 ) -> None:
-    if config.query_genome is None or config.query_16s is not None:
+    if not config.query_genomes or config.query_16s is not None:
         return
     if _has_ready_local_query_16s(records):
         return
@@ -3577,7 +3638,7 @@ def _prepare_query_16s_for_phylo_if_needed(
 
 
 def _query_16s_required(config: AppConfig) -> bool:
-    return config.query_genome is not None or config.query_16s is not None
+    return bool(config.query_genomes) or config.query_16s is not None
 
 
 def _has_ready_local_query_16s(records) -> bool:

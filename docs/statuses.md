@@ -125,13 +125,15 @@ When enough reference records are `rrna_16s_ready` or `rrna_16s_skipped_existing
 the local 16S workflow can assemble `rrna/all_16S.fasta` without a query 16S
 input. That file is the phylogeny input checked by `phylo_planned`,
 `phylo_skipped_too_few_sequences`, and `phylo_tree_ready`.
-When `--query-genome` is present, query 16S comes from explicit `--query-16s`
-or local-query barrnap and is reported separately in `run_state.json` and
-`phylo/phylo_plan.tsv`.
+When one or more `--query-genome` values are present, query 16S comes from
+explicit `--query-16s` or local-query barrnap and is reported separately in
+`run_state.json` and `phylo/phylo_plan.tsv`. Local query FASTA headers retain
+`source=local_query` and `query_id`.
 
 ## ANI
 
 - `ani_planned`: ANI planning found at least one ready reference genome.
+- `ani_success`: Per-query ANI plan rows whose FastANI run produced or reused non-empty raw output.
 - `skipped_no_genome`: ANI planning skipped a record without a registered genome.
 - `skipped_missing_genome_file`: ANI planning skipped a record whose genome path is missing on disk.
 - `fastani_planned`: FastANI command would run in dry-run mode.
@@ -149,7 +151,7 @@ or local-query barrnap and is reported separately in `run_state.json` and
 - `ani_summary_failed`: Parsed ANI output existed but summary generation failed.
 - `ani_plot_failed`: Parsed ANI output existed but PNG generation failed.
 - `ani_results_ready`: Parsed ANI results, and when possible the ANI summary, are ready.
-- `ani_no_hits`: ANI summary saw a valid result file with no hits.
+- `ani_no_hits`: ANI summary saw a valid result file with no hits, or a per-query ANI plan row whose FastANI run exited 0 with no raw hit rows.
 - `ani_hits_ready`: ANI summary contains at least one parsed hit.
 
 ## Phylo

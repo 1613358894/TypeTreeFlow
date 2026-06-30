@@ -34,6 +34,7 @@ class AppConfig:
     acquire_genus: str | None
     genus: str | None
     query_genome: Path | None
+    query_genomes: tuple[Path, ...]
     query_16s: Path | None
     outgroup: str | None
     outdir: Path

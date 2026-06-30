@@ -83,6 +83,7 @@ def build_app_config_from_args(
     package_results_command: bool,
 ) -> AppConfig:
     load_env_files(args.env_file)
+    query_genomes = tuple(args.query_genome or ())
     return AppConfig(
         doctor=args.doctor,
         doctor_strict=args.doctor_strict,
@@ -100,7 +101,8 @@ def build_app_config_from_args(
         review_required=args.review_required,
         acquire_genus=args.acquire_genus,
         genus=args.genus,
-        query_genome=args.query_genome,
+        query_genome=query_genomes[0] if query_genomes else None,
+        query_genomes=query_genomes,
         query_16s=args.query_16s,
         outgroup=args.outgroup,
         outdir=args.outdir if args.outdir is not None else default_outdir(),

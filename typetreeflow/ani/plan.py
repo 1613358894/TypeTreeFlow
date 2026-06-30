@@ -5,12 +5,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.local_query import build_query_id_map
 from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 
 ANI_PLAN_FIELDS = [
     "record_id",
     "normalized_id",
+    "query_id",
     "reference_genome_path",
     "query_genome_path",
     "status",
@@ -22,6 +24,7 @@ ANI_PLAN_FIELDS = [
 class AniPlanItem:
     record_id: str
     normalized_id: str
+    query_id: str
     reference_genome_path: str
     query_genome_path: str
     status: str
@@ -30,49 +33,57 @@ class AniPlanItem:
 
 def build_ani_plan(
     records: Iterable[StrainRecord],
-    query_genome_path: str | Path,
+    query_genome_path: str | Path | Iterable[str | Path],
     force: bool = False,
     base_dir: str | Path | None = None,
 ) -> list[AniPlanItem]:
     del force
 
-    query_path = Path(query_genome_path)
-    if not query_path.exists():
-        raise ValueError(f"Query genome path does not exist: {query_path}")
-    query_path_text = str(query_path)
+    query_paths = _query_paths(query_genome_path)
+    query_ids = build_query_id_map(query_paths)
+    for query_path in query_paths:
+        if not query_path.exists():
+            raise ValueError(f"Query genome path does not exist: {query_path}")
 
     plan_items: list[AniPlanItem] = []
-    for record in records:
-        if record.is_query:
-            continue
+    for query_path in query_paths:
+        query_path_text = str(query_path)
+        query_id = query_ids[query_path.resolve(strict=False).as_posix()]
+        for record in records:
+            if record.is_query:
+                continue
 
-        status = "ani_planned"
-        notes = ""
-        reference_genome_path = record.genome_path
-        resolved_reference_genome_path = _existing_path(record.genome_path, base_dir)
+            status = "ani_planned"
+            notes = ""
+            reference_genome_path = record.genome_path
+            resolved_reference_genome_path = _existing_path(record.genome_path, base_dir)
 
-        if not record.has_genome:
-            status = "skipped_no_genome"
-            notes = "No registered reference genome is available for ANI planning."
-        elif not record.genome_path:
-            status = "skipped_missing_genome_file"
-            notes = "Registered reference genome path is empty."
-        elif resolved_reference_genome_path is None:
-            status = "skipped_missing_genome_file"
-            notes = f"Registered reference genome path does not exist: {record.genome_path}"
-        else:
-            reference_genome_path = str(resolved_reference_genome_path)
+            if not record.has_genome:
+                status = "skipped_no_genome"
+                notes = "No registered reference genome is available for ANI planning."
+            elif not record.genome_path:
+                status = "skipped_missing_genome_file"
+                notes = "Registered reference genome path is empty."
+            elif resolved_reference_genome_path is None:
+                status = "skipped_missing_genome_file"
+                notes = (
+                    "Registered reference genome path does not exist: "
+                    f"{record.genome_path}"
+                )
+            else:
+                reference_genome_path = str(resolved_reference_genome_path)
 
-        plan_items.append(
-            AniPlanItem(
-                record_id=record.record_id,
-                normalized_id=record.normalized_id,
-                reference_genome_path=reference_genome_path,
-                query_genome_path=query_path_text,
-                status=status,
-                notes=notes,
+            plan_items.append(
+                AniPlanItem(
+                    record_id=record.record_id,
+                    normalized_id=record.normalized_id,
+                    query_id=query_id,
+                    reference_genome_path=reference_genome_path,
+                    query_genome_path=query_path_text,
+                    status=status,
+                    notes=notes,
+                )
             )
-        )
 
     return plan_items
 
@@ -88,11 +99,13 @@ def write_fastani_reference_list(
     plan_items: Iterable[AniPlanItem],
     path: str | Path,
 ) -> Path:
-    planned_paths = [
-        item.reference_genome_path
-        for item in plan_items
-        if item.status == "ani_planned"
-    ]
+    planned_paths = []
+    seen_paths: set[str] = set()
+    for item in plan_items:
+        if item.status != "ani_planned" or item.reference_genome_path in seen_paths:
+            continue
+        planned_paths.append(item.reference_genome_path)
+        seen_paths.add(item.reference_genome_path)
     if not planned_paths:
         raise ValueError("No ANI-ready reference genomes are available for fastANI.")
 
@@ -127,3 +140,9 @@ def mark_ani_planned_records(
             continue
         record.status = item.status
         record.notes = item.notes
+
+
+def _query_paths(query_genome_path: str | Path | Iterable[str | Path]) -> list[Path]:
+    if isinstance(query_genome_path, (str, Path)):
+        return [Path(query_genome_path)]
+    return [Path(path) for path in query_genome_path]

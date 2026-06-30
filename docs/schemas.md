@@ -748,23 +748,29 @@ provided, a user query 16S FASTA or local-query barrnap 16S record.
 Reference-only assembly is supported when no query genome is required.
 Reference headers use manifest `normalized_id`; an explicit `--query-16s`
 header defaults to `Query`; local query barrnap headers include
-`source=local_query`. Headers are normalized to contain no whitespace, and
-duplicate headers are rejected.
+`source=local_query` and `query_id=<stable_query_id>`. Headers are normalized
+to contain no whitespace, and duplicate headers are rejected.
 
 ## ANI Outputs
 
 `ani/ani_plan.tsv` records the planned ANI query/reference inputs with
-`record_id`, `normalized_id`, `reference_genome_path`, `query_genome_path`,
-`status`, and `notes`. `ani/references.txt` contains ANI-planned reference
-genome paths, one per line.
+`record_id`, `normalized_id`, `query_id`, `reference_genome_path`,
+`query_genome_path`, `status`, and `notes`. Repeated `--query-genome` values
+produce one plan row per query/reference combination, so planned comparisons
+equal `query_count x ANI-ready_reference_count`. `ani/references.txt` contains
+ANI-planned reference genome paths, one per line, with duplicate reference
+paths removed.
 
 FastANI is query-vs-reference only in the current workflow. `--enable-fastani`
 without `--query-genome` does not write a FastANI command output; the durable
 stage status is recorded in `run_state.json` as `ani_skipped_no_query` and may
-be repeated in `report/summary.md`. With `--query-genome`, `manifest.tsv`
-includes one local query row with `source=local_query`, `is_query=true`,
+be repeated in `report/summary.md`. With one or more `--query-genome` values,
+`manifest.tsv` includes one local query row per query with
+`source=local_query`, `assembly_source=local_query`, `is_query=true`,
 `is_type_material=false`, `genome_path` set to the query FASTA path, and
-SHA-256/query path provenance in `notes`.
+`query_id`, SHA-256, query path, and `not_type_strain=true` provenance in
+`notes`. Query IDs use the normalized file stem when unique; duplicate stems
+receive a stable path-hash suffix.
 
 `ani/fastani_raw.tsv` is the raw five-column FastANI output:
 `query_path`, `reference_path`, `ani`, `matching_fragments`, and
@@ -809,8 +815,9 @@ path is `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix is
 bootstrap, so the plan requires at least 4 FASTA records; smaller inputs are
 recorded as `phylo_skipped_too_few_sequences`.
 With `--query-genome`, `query_16s_status` is `query_16s_included` when the
-combined FASTA contains query 16S and `skipped_query_no_16s` when query 16S is
-required but absent. In the latter case `status` is
+combined FASTA contains at least one query 16S and `skipped_query_no_16s` when
+query 16S is required but absent. `query_sequence_count` records how many query
+16S records entered the phylogeny input. In the latter case `status` is
 `phylo_skipped_query_no_16s`.
 
 `run_state.json` records the high-level `phylo` stage whenever phylogeny is

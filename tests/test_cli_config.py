@@ -194,6 +194,30 @@ def test_parse_args_verify_genus_preserves_limit_selected(tmp_path):
     assert config.limit_selected == 3
 
 
+def test_parse_args_verify_genus_preserves_repeated_query_genomes(tmp_path):
+    q1 = tmp_path / "q1.fna"
+    q2 = tmp_path / "q2.fna"
+    q3 = tmp_path / "q3.fna"
+
+    config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--query-genome",
+            str(q1),
+            "--query-genome",
+            str(q2),
+            "--query-genome",
+            str(q3),
+            "--outdir",
+            str(tmp_path / "verify"),
+        ]
+    )
+
+    assert config.query_genomes == (q1, q2, q3)
+    assert config.query_genome == q1
+
+
 def test_parse_args_package_results_command_sets_package_results(tmp_path):
     config = cli.parse_args(["package-results", "--outdir", str(tmp_path)])
 

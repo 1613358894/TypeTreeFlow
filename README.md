@@ -355,12 +355,15 @@ download or external local FASTA registration, and it requires `barrnap` on
 `--enable-fastani` on a guarded download run is query-vs-reference only. When
 `--query-genome` is omitted, TypeTreeFlow does not run FastANI and records an
 explicit `ani_skipped_no_query` stage status in `run_state.json` and the
-report. When `--query-genome` is provided, ready reference genomes are compared
-against that query genome. The query is also recorded in `manifest.tsv` as a
-local query row with `source=local_query`, `is_query=true`,
-`is_type_material=false`, the query genome path, and a SHA-256 digest in the
-provenance notes. A local query row is not type-strain evidence and is not a
-confirmed species assignment.
+report. `--query-genome` may be repeated, for example
+`--query-genome q1.fna --query-genome q2.fna --query-genome q3.fna`. Ready
+reference genomes are compared against each query genome, and
+`ani/ani_plan.tsv` has one row per query/reference comparison. Each query is
+also recorded in `manifest.tsv` as a local query row with
+`source=local_query`, `is_query=true`, `is_type_material=false`, the query
+genome path, `query_id`, and a SHA-256 digest in the provenance notes. A local
+query row is not type-strain evidence and is not a confirmed species
+assignment.
 
 `--enable-phylo` on a guarded download plus barrnap run uses
 `rrna/all_16S.fasta` after same-genome 16S extraction. The current IQ-TREE
@@ -903,13 +906,33 @@ typetreeflow \
   --dry-run
 ```
 
+Repeat `--query-genome` to compare several local query genomes in the same run:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --outdir <run_dir> \
+  --auto-accept-selection \
+  --enable-downloads \
+  --extract-16s barrnap \
+  --enable-fastani \
+  --query-genome TJA_020.fna \
+  --query-genome TJ_220.fna \
+  --query-genome TJ_226.fna \
+  --enable-phylo
+```
+
 For a local query smoke run, check these offline artifacts before interpreting
-biology: `manifest.tsv` should contain exactly one `source=local_query` row
-with `is_query=true` and a SHA-256 note; `rrna/rrna_plan.tsv` and
+biology: `manifest.tsv` should contain one `source=local_query` row per query
+with `is_query=true`, `query_id`, `query_path`, `sha256`, and
+`not_type_strain=true` notes; `rrna/rrna_plan.tsv` and
 `source_audit/sequence_source_audit.tsv` should distinguish reference barrnap
-16S from query barrnap 16S; `ani/ani_summary.tsv` may report `ani_no_hits`
-when FastANI exits 0 with zero raw hit rows; and `phylo/phylo_plan.tsv` should
-record `query_16s_included` or `skipped_query_no_16s`.
+16S from query barrnap 16S; `ani/ani_plan.tsv` should have
+`query_count x reference_count` comparison rows; `ani/ani_summary.tsv` may
+report `ani_no_hits` when FastANI exits 0 with zero raw hit rows; and
+`phylo/phylo_plan.tsv` should record `query_16s_included` or
+`skipped_query_no_16s` plus the query sequence count.
 
 Write a report from existing files only:
 
@@ -963,8 +986,8 @@ The source-audit gate is controlled by:
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery; local `--discovery-cache` mode remains offline. |
 | NCBI Taxonomy lookup | `--enable-ncbi-taxonomy --email user@example.org` | Guarded optional taxonomy lookup from `taxonomy/ncbi_taxonomy_plan.tsv`; writes only `taxonomy/ncbi_taxonomy_cache.tsv`. |
 | expanded NCBI token discovery | `--enable-expanded-discovery` | Optional second-pass audit for uncovered species; writes review files only and does not change selection or manifest outputs. |
-| FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires `--query-genome` to execute `fastANI`; without it the stage records `ani_skipped_no_query`. Exit 0 with an empty raw output file is `fastani_no_hits` / `ani_no_hits`, not missing output. |
-| phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. With `--query-genome`, query 16S must be included or the plan records `phylo_skipped_query_no_16s`. |
+| FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires one or more `--query-genome` values to execute `fastANI`; without it the stage records `ani_skipped_no_query`. Multi-query plans have `query_count x reference_count` rows. Exit 0 with an empty raw output file is `fastani_no_hits` / `ani_no_hits`, not missing output. |
+| phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. With `--query-genome`, query 16S must be included or the plan records `phylo_skipped_query_no_16s`; multi-query inputs preserve `source=local_query` and `query_id` in FASTA headers. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
 
 Examples:
@@ -1082,9 +1105,10 @@ See [LICENSE](LICENSE).
 - NCBI discovery, BioSample enrichment, Entrez fallback, downloads, barrnap,
   FastANI, and phylogeny execution are guarded and require explicit opt-in.
 - Guarded real FastANI execution is query-vs-reference only, runs from a
-  resumed or guarded-download genome-ready manifest, requires `--query-genome`,
-  and requires the `fastANI` executable on `PATH`. Without `--query-genome`, an
-  explicit `ani_skipped_no_query` stage status is recorded.
+  resumed or guarded-download genome-ready manifest, requires one or more
+  `--query-genome` values, and requires the `fastANI` executable on `PATH`.
+  Without `--query-genome`, an explicit `ani_skipped_no_query` stage status is
+  recorded.
 - Guarded real phylogeny execution runs from a resumed or guarded-download
   16S-ready manifest and requires `mafft`, `trimal`, and `iqtree2` on `PATH`
   when `rrna/all_16S.fasta` has enough input sequences.

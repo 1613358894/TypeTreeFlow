@@ -5,6 +5,7 @@ from pathlib import Path
 
 from typetreeflow.cli import main
 from typetreeflow.external.runner import CommandResult
+from typetreeflow.local_query import build_query_id_map
 from typetreeflow.manifest import read_manifest, write_manifest, write_name_map
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.candidate_discovery import (
@@ -113,6 +114,17 @@ def _write_query(outdir: Path) -> Path:
     query.parent.mkdir(parents=True, exist_ok=True)
     query.write_text(">query_contig\nAACCGGTTAACCGGTT\n", encoding="utf-8")
     return query
+
+
+def _write_named_queries(outdir: Path, names: list[str]) -> list[Path]:
+    query_dir = outdir / "genomes" / "query"
+    query_dir.mkdir(parents=True, exist_ok=True)
+    queries = []
+    for name in names:
+        query = query_dir / f"{name}.fna"
+        query.write_text(">query_contig\nAACCGGTTAACCGGTT\n", encoding="utf-8")
+        queries.append(query)
+    return queries
 
 
 def _write_reference_manifest(outdir: Path, count: int = 1, with_16s: bool = False) -> None:
@@ -283,6 +295,22 @@ def test_query_genome_records_local_query_provenance_and_barrnap_audit(tmp_path)
     summary = paths.run_summary_path.read_text(encoding="utf-8")
     assert "- Local query genome records: 1" in summary
     assert "- Query 16S-ready records: 1" in summary
+
+
+def test_duplicate_query_stems_get_stable_unique_query_ids(tmp_path):
+    q1 = tmp_path / "a" / "query.fna"
+    q2 = tmp_path / "b" / "query.fna"
+    q1.parent.mkdir(parents=True)
+    q2.parent.mkdir(parents=True)
+    q1.write_text(">q1\nACGT\n", encoding="utf-8")
+    q2.write_text(">q2\nACGT\n", encoding="utf-8")
+
+    first = build_query_id_map([q1, q2])
+    second = build_query_id_map([q1, q2])
+
+    assert first == second
+    assert len(set(first.values())) == 2
+    assert all(query_id.startswith("query_") for query_id in first.values())
 
 
 def test_query_phylogeny_includes_query_when_query_16s_available(tmp_path):
@@ -499,3 +527,107 @@ def test_verify_genus_guarded_query_enters_manifest_rrna_phylo_and_package(
     ]
     assert len(delivery_query_rows) == 1
     assert delivery_query_rows[0]["notes"] == query_row["notes"]
+
+
+def test_verify_genus_guarded_multi_query_enters_manifest_rrna_ani_phylo_and_package(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache, discovery_cache = _write_four_reference_caches(tmp_path)
+    queries = _write_named_queries(tmp_path, ["TJA_020", "TJ_220", "TJ_226"])
+    download_runner = FakeDatasetsRunner()
+    barrnap_runner = FakeBarrnapRunner([(0, _gff(), "")] * 7)
+    fastani_runner = EmptyFastaniRunner()
+    phylo_runner = FakePhyloRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    args = [
+        "verify-genus",
+        "Fusobacterium",
+        "--lpsn-cache",
+        str(lpsn_cache),
+        "--discovery-cache",
+        str(discovery_cache),
+        "--strains-per-species",
+        "2",
+        "--limit-selected",
+        "4",
+        "--auto-accept-selection",
+        "--enable-downloads",
+        "--enable-fastani",
+        "--extract-16s",
+        "barrnap",
+        "--enable-phylo",
+        "--outdir",
+        str(outdir),
+    ]
+    for query in queries:
+        args.extend(["--query-genome", str(query)])
+
+    result = main(
+        args,
+        download_runner=download_runner,
+        barrnap_runner=barrnap_runner,
+        fastani_runner=fastani_runner,
+        phylo_runner=phylo_runner,
+    )
+
+    paths = get_output_paths(outdir)
+    manifest_rows = _read_tsv(paths.manifest)
+    query_rows = [row for row in manifest_rows if row["source"] == "local_query"]
+    reference_count = len([row for row in manifest_rows if row["source"] != "local_query"])
+    rrna_rows = _read_tsv(paths.rrna_plan_path)
+    query_rrna_rows = [
+        row for row in rrna_rows if row["record_id"].startswith("local_query_")
+    ]
+    ani_plan_rows = _read_tsv(paths.ani_plan_path)
+    phylo_rows = _read_tsv(paths.phylo_plan_path)
+    all_16s = paths.all_16s_fasta_path.read_text(encoding="utf-8")
+    state = read_run_state(paths.run_state_path)
+    query_ids = {
+        row["notes"].split("query_id=", 1)[1].split(";", 1)[0]
+        for row in query_rows
+    }
+
+    assert result == 0
+    assert len(download_runner.commands) == 4
+    assert len(barrnap_runner.commands) == 7
+    assert len(fastani_runner.commands) == 3
+    assert [command[0] for command in phylo_runner.commands] == [
+        "mafft",
+        "trimal",
+        "iqtree2",
+    ]
+    assert len(query_rows) == 3
+    assert query_ids == {"TJA_020", "TJ_220", "TJ_226"}
+    for query_row in query_rows:
+        assert query_row["assembly_source"] == "local_query"
+        assert query_row["is_query"] == "true"
+        assert query_row["is_type_material"] == "false"
+        assert "sha256=" in query_row["notes"]
+        assert "not_type_strain=true" in query_row["notes"]
+    assert len(query_rrna_rows) == 3
+    assert all(
+        row["status"] in {"rrna_extraction_planned", "ani_no_hits"}
+        for row in query_rrna_rows
+    )
+    assert len(ani_plan_rows) == 3 * reference_count
+    assert {row["query_id"] for row in ani_plan_rows} == query_ids
+    assert {row["status"] for row in ani_plan_rows} == {"ani_no_hits"}
+    assert phylo_rows[0]["status"] == "phylo_planned"
+    assert phylo_rows[0]["query_16s_status"] == "query_16s_included"
+    assert phylo_rows[0]["query_sequence_count"] == "3"
+    for query_id in query_ids:
+        assert f"source=local_query|query_id={query_id}" in all_16s
+    assert "query_count=3" in state.stages["rrna_barrnap"].summary
+    assert "query_count=3" in state.stages["ani"].summary
+    assert "planned_comparisons=12" in state.stages["ani"].summary
+    assert "query_sequence_count=3" in state.stages["phylo"].summary
+
+    assert main(["package-results", "--outdir", str(outdir)]) == 0
+    delivery_rows = _read_tsv(outdir / "delivery" / "manifest.tsv")
+    delivery_query_rows = [
+        row for row in delivery_rows if row["source"] == "local_query"
+    ]
+    assert len(delivery_query_rows) == 3

@@ -881,7 +881,7 @@ def build_run_summary_markdown(
         "## Inputs",
         "",
         f"- Genus: {_config_value(args, 'genus')}",
-        f"- Query genome: {_config_value(args, 'query_genome')}",
+        f"- Query genomes: {_config_query_genomes_value(args)}",
         f"- Query 16S: {_config_value(args, 'query_16s')}",
         f"- Outgroup: {_config_value(args, 'outgroup')}",
         f"- Dry run: {_config_value(args, 'dry_run')}",
@@ -2034,6 +2034,15 @@ def _config_value(args: object | None, name: str) -> str:
     if value is None or value == "":
         return "not provided"
     return str(value)
+
+
+def _config_query_genomes_value(args: object | None) -> str:
+    if args is None:
+        return "not provided"
+    values = tuple(getattr(args, "query_genomes", ()) or ())
+    if values:
+        return ", ".join(str(value) for value in values)
+    return _config_value(args, "query_genome")
 
 
 def _ncbi_taxonomy_lookup_executed(paths: OutputPaths, args: object | None) -> bool:

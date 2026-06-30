@@ -9,6 +9,7 @@ from Bio import SeqIO
 from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.naming import normalize_token
+from typetreeflow.local_query import query_id_from_record
 
 
 @dataclass(frozen=True)
@@ -75,9 +76,13 @@ def collect_query_16s(
         if not rrna_path.exists():
             continue
         _source_header, sequence = read_single_fasta(rrna_path)
+        query_id = query_id_from_record(record)
         entries.append(
             FastaEntry(
-                header=f"{_normalize_header(record.normalized_id)}|source=local_query",
+                header=(
+                    f"{_normalize_header(record.normalized_id)}|source=local_query|"
+                    f"query_id={_normalize_header(query_id)}"
+                ),
                 sequence=sequence,
                 source="local_query",
                 path=str(rrna_path),

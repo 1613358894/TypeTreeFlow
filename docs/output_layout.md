@@ -471,19 +471,22 @@ The controlled barrnap execution interface writes barrnap stdout to
 `rrna/barrnap/<normalized_id>.gff` and checks for non-empty output. The
 extractor writes `rrna/sequences/<normalized_id>.16s.fasta`. The assembler
 combines ready non-query reference 16S records and either an explicit query 16S
-FASTA or a local-query barrnap 16S record into `rrna/all_16S.fasta`. Local query
-16S headers include `source=local_query` when they come from the query genome
-record.
+FASTA or local-query barrnap 16S records into `rrna/all_16S.fasta`. Local
+query 16S headers include `source=local_query` and `query_id` when they come
+from query genome records.
 Use "Same-genome barrnap 16S" for barrnap/internal-genome counts and "Total 16S
 including Entrez fallback" for availability counts that include opt-in external
 fallback records. Fallback warnings and strict blocking counts come from the
 source-audit/report layer, not from the raw FASTA layout alone.
 
-FastANI is query-vs-reference only. When `--query-genome` is provided and
-reference records have registered genome files, TypeTreeFlow writes
-`ani/ani_plan.tsv` for debugging and `ani/references.txt` with ANI-planned
-reference genome paths. The controlled FastANI wrapper writes/checks
-`ani/fastani_raw.tsv`. The parser reads existing FastANI raw output and writes
+FastANI is query-vs-reference only. `--query-genome` may be repeated. When one
+or more query genomes are provided and reference records have registered genome
+files, TypeTreeFlow writes `ani/ani_plan.tsv` for debugging and
+`ani/references.txt` with ANI-planned reference genome paths. The plan has one
+row per query/reference combination, so planned comparisons equal query count
+times ANI-ready reference count. The controlled FastANI wrapper writes/checks
+`ani/fastani_raw.tsv`; in multi-query runs, per-query raw files are combined
+into that compatibility path. The parser reads existing FastANI raw output and writes
 `ani/ani_query_vs_refs.tsv`, `ani/ani_summary.tsv`, and
 `ani/ani_query_vs_refs.png` when enough data is available. If
 `--enable-fastani` is explicit but `--query-genome` is absent, the `ani` stage
@@ -503,8 +506,9 @@ MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures. The
 current IQ-TREE ultrafast bootstrap workflow requires at least 4 16S FASTA
 records; smaller inputs are recorded as `phylo_skipped_too_few_sequences`.
 When `--query-genome` is present, `phylo/phylo_plan.tsv` also records
-`query_16s_status` and `query_sequence_count`. Missing query 16S records are
-reported as `phylo_skipped_query_no_16s` / `skipped_query_no_16s`.
+`query_16s_status` and `query_sequence_count`; the count can be greater than
+one for multi-query runs. Missing query 16S records are reported as
+`phylo_skipped_query_no_16s` / `skipped_query_no_16s`.
 
 `package-results` copies `manifest.tsv`, `run_state.json`, reports, and when
 available the query audit tables `reports/rrna_plan.tsv`,

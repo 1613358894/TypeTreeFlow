@@ -119,21 +119,27 @@ typetreeflow verify-genus Fusobacterium \
   --extract-16s barrnap \
   --enable-fastani \
   --query-genome data/query.fna \
+  --query-genome data/second_query.fna \
   --enable-phylo
 ```
 
 FastANI is query-vs-reference only. If `--enable-fastani` is provided without
 `--query-genome`, the stage is skipped explicitly as `ani_skipped_no_query`.
-When `--query-genome` is provided, `manifest.tsv` records a local query row with
-`source=local_query`, `is_query=true`, `is_type_material=false`, the query FASTA
-path, and a SHA-256 digest in the provenance notes. This row is audit input for
-ANI/16S/phylogeny only; it is not type-strain or confirmed species evidence.
+`--query-genome` may be repeated. When query genomes are provided,
+`manifest.tsv` records one local query row per FASTA with `source=local_query`,
+`is_query=true`, `is_type_material=false`, `query_id`, the query FASTA path,
+SHA-256 digest, and `not_type_strain=true` in the provenance notes. These rows
+are audit input for ANI/16S/phylogeny only; they are not type-strain or
+confirmed species evidence. `ani/ani_plan.tsv` has one row per query/reference
+comparison.
 Phylogeny uses `rrna/all_16S.fasta`; the current IQ-TREE bootstrap workflow
 requires at least 4 16S FASTA records and records smaller inputs as
 `phylo_skipped_too_few_sequences`. With a local query genome, query-inclusive
 phylogeny requires query 16S from explicit `--query-16s` or query barrnap. If
 query 16S is absent, the plan records `phylo_skipped_query_no_16s` /
 `skipped_query_no_16s` rather than silently building a reference-only tree.
+Local-query barrnap headers in `rrna/all_16S.fasta` preserve
+`source=local_query` and `query_id`.
 FastANI exit 0 with an empty raw output file is recorded as no hits
 (`fastani_no_hits` and `ani_no_hits`), while absent raw output remains
 `fastani_missing_output`.
