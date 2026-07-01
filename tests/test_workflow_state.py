@@ -51,3 +51,18 @@ def test_run_state_rejects_unknown_stage():
             outdir="out",
             stages={"unknown": StageState(status="succeeded")},
         )
+
+
+def test_run_state_accepts_gtdb_metadata_stage_statuses():
+    state = WorkflowState(
+        status="partial",
+        outdir="out",
+        stages={
+            "gtdb_audit": StageState(
+                status="gtdb_metadata_load_failed",
+                summary="load_status=gtdb_metadata_load_failed",
+            )
+        },
+    )
+
+    assert state.stages["gtdb_audit"].status == "gtdb_metadata_load_failed"

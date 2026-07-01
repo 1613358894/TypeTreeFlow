@@ -258,6 +258,8 @@ Plan a genus verification from local caches:
 typetreeflow verify-genus Fusobacterium \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --gtdb-metadata data/gtdb_metadata_r220.tsv \
+  --gtdb-release r220 \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
@@ -275,6 +277,13 @@ bounded smoke runs. It is applied after per-species selection and before
 manifest/download planning; `selection/selected_limit_summary.tsv` and
 `run_state.json` record `limit_selected`, `selected_before_limit`,
 `selected_after_limit`, and `limit_applied`.
+When `--gtdb-metadata` is supplied, plan-only runs read the local TSV and
+write `taxonomy/gtdb_metadata_audit.json` with metadata path, file status,
+file size, row count, release, load status, audit timestamp, and accession
+coverage counts. If the file cannot be loaded, the audit records
+`gtdb_metadata_load_failed` and GTDB coverage counts are unavailable rather
+than reported as missing. `--gtdb-release` is recorded in `run_state.json`,
+`report/summary.md`, and delivery packages when present.
 
 Plan the same shape with guarded live LPSN, NCBI Assembly, and BioSample
 lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
@@ -603,6 +612,7 @@ Run a minimal legacy/local GTDB dry run:
 typetreeflow \
   --genus Aliivibrio \
   --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
+  --gtdb-release fixture \
   --outdir <tmp>/output_dry_run \
   --dry-run
 ```
@@ -613,6 +623,7 @@ Audit a user-provided species checklist:
 typetreeflow \
   --genus Aliivibrio \
   --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
+  --gtdb-release fixture \
   --species-checklist examples/species_checklist_minimal.tsv \
   --dry-run
 ```

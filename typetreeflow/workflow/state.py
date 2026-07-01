@@ -16,6 +16,9 @@ WORKFLOW_STATUSES = {
     "blocked_by_dependency",
     "blocked_by_manual_review",
     "blocked_by_argument_conflict",
+    "gtdb_metadata_loaded",
+    "gtdb_metadata_not_loaded",
+    "gtdb_metadata_load_failed",
 }
 
 WORKFLOW_STAGES = (
@@ -23,6 +26,7 @@ WORKFLOW_STAGES = (
     "assembly_discovery",
     "biosample_enrichment",
     "selection",
+    "gtdb_audit",
     "download_preflight",
     "download",
     "rrna_barrnap",

@@ -24,6 +24,8 @@ typetreeflow doctor
 typetreeflow verify-genus Fusobacterium \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --gtdb-metadata data/gtdb_metadata_r220.tsv \
+  --gtdb-release r220 \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
@@ -47,6 +49,12 @@ plan-only and guarded real runs operate on at most `N` selected reference
 genomes. The cap writes `selection/selected_limit_summary.tsv` and run-state
 selection metadata; rows excluded by the cap are not provider, genome, or
 taxonomy failures.
+If a local `--gtdb-metadata` TSV is provided, plan-only verification reads it
+and records `taxonomy/gtdb_metadata_audit.json`. The audit records the metadata
+path, existence/readability, file size, row count, `--gtdb-release`, load
+status, timestamp, and accession coverage counts only after a successful load.
+If loading fails, the status is `gtdb_metadata_load_failed` and GTDB coverage
+counts are unavailable rather than interpreted as missing coverage.
 
 ## Guarded Download With Auto-Accepted Selection
 

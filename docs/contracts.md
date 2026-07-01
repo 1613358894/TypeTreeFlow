@@ -40,6 +40,18 @@ cap in `selection/selected_limit_summary.tsv` plus `run_state.json`. Cap
 exclusions do not imply provider failure, missing genome evidence, taxonomy
 failure, or strict type-strain confirmation changes.
 
+`verify-genus --gtdb-metadata PATH --gtdb-release RELEASE` is a local
+GTDB-metadata audit contract for plan-only review. The workflow must either
+read the supplied TSV or record `gtdb_metadata_load_failed`; it must not
+silently skip the input. `taxonomy/gtdb_metadata_audit.json`, `run_state.json`,
+`report/summary.md`, and `package-results --include reports` preserve the
+metadata path, file existence/readability, file size, row count when loaded,
+release, load status, and audit timestamp. GTDB coverage counts are emitted
+only after metadata loads successfully; when metadata is absent or unreadable,
+counts are unavailable and must not be interpreted as real GTDB missing
+coverage. These counts compare selected assembly accessions with the supplied
+local metadata and do not make taxonomy conclusions.
+
 `verify-genus --enable-fastani` is a query-vs-reference ANI contract. It may
 run after resume from a genome-ready manifest or after a guarded download run
 that used `--auto-accept-selection --enable-downloads`. Execution requires

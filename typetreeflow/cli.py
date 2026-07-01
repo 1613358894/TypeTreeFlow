@@ -158,6 +158,12 @@ from typetreeflow.taxonomy.culture_collections import (
     lpsn_records_to_culture_collection_audit_rows,
     write_culture_collection_audit,
 )
+from typetreeflow.taxonomy.gtdb_audit import (
+    GTDB_METADATA_LOADED,
+    build_gtdb_metadata_audit,
+    read_gtdb_metadata_audit,
+    write_gtdb_metadata_audit,
+)
 from typetreeflow.taxonomy.lpsn_child_taxa import (
     filter_lpsn_child_taxa,
     lpsn_child_taxa_to_checklist_entries,
@@ -1612,6 +1618,10 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
             summary=str(error) if selection_failed else _selection_summary(paths, config),
         )
 
+    gtdb_stage = _gtdb_audit_stage_state(paths, config)
+    if gtdb_stage is not None:
+        stages["gtdb_audit"] = gtdb_stage
+
     preflight_outputs = [
         path
         for path in (
@@ -1759,6 +1769,30 @@ def _download_stage_state(
     if config.enable_downloads and error is not None:
         return StageState(status=_blocked_or_failed_status(error), outputs=[], summary=str(error))
     return None
+
+
+def _gtdb_audit_stage_state(paths, config: AppConfig) -> StageState | None:
+    if not paths.gtdb_metadata_audit_path.exists():
+        if config.gtdb_metadata is None and config.gtdb_release is None:
+            return None
+        return StageState(
+            status="gtdb_metadata_not_loaded",
+            outputs=[],
+            summary=_gtdb_not_loaded_summary(config),
+        )
+    try:
+        audit = read_gtdb_metadata_audit(paths.gtdb_metadata_audit_path)
+    except (OSError, ValueError) as error:
+        return StageState(
+            status="gtdb_metadata_load_failed",
+            outputs=[_state_output_path(paths.gtdb_metadata_audit_path, paths)],
+            summary=f"GTDB metadata audit could not be read: {error}",
+        )
+    return StageState(
+        status=audit.load_status,
+        outputs=[_state_output_path(paths.gtdb_metadata_audit_path, paths)],
+        summary=_gtdb_audit_summary(audit),
+    )
 
 
 def _rrna_stage_state(
@@ -2216,6 +2250,37 @@ def _selection_acceptance_summary(config: AppConfig) -> str:
     return "manual_review_required"
 
 
+def _gtdb_not_loaded_summary(config: AppConfig) -> str:
+    release = config.gtdb_release or "not provided"
+    metadata = str(config.gtdb_metadata) if config.gtdb_metadata is not None else "not provided"
+    return (
+        "load_status=gtdb_metadata_not_loaded; "
+        f"metadata_path={metadata}; release={release}; "
+        "GTDB coverage counts were not computed."
+    )
+
+
+def _gtdb_audit_summary(audit) -> str:
+    parts = [
+        f"load_status={audit.load_status}",
+        f"metadata_path={audit.metadata_path}",
+        f"file_exists={str(audit.file_exists).lower()}",
+        f"file_readable={str(audit.file_readable).lower()}",
+        f"file_size={audit.file_size if audit.file_size is not None else 'unavailable'}",
+        f"row_count={audit.row_count if audit.row_count is not None else 'unavailable'}",
+        f"release={audit.release}",
+        f"audit_timestamp={audit.audit_timestamp}",
+    ]
+    if audit.load_status == GTDB_METADATA_LOADED and audit.counts is not None:
+        parts.extend(
+            f"{key}={audit.counts[key]}"
+            for key in ("matched", "missing_from_gtdb", "mismatch", "extra_in_gtdb")
+        )
+    else:
+        parts.append("GTDB coverage counts were not computed.")
+    return "; ".join(parts)
+
+
 def _manual_review_download_summary(config: AppConfig) -> str:
     if config.verify_genus and config.auto_accept_selection and not config.enable_downloads:
         return (
@@ -2339,6 +2404,22 @@ def run_taxonomy_audit_stage(records, paths, checklist_path: Path) -> Path:
     comparisons = compare_checklist_to_records(checklist_entries, list(records))
     output_path = write_checklist_comparison(comparisons, paths.checklist_comparison_path)
     LOGGER.info("Wrote taxonomy checklist comparison: %s.", output_path)
+    return output_path
+
+
+def run_gtdb_metadata_audit_stage(records, paths, config: AppConfig) -> Path:
+    audit = build_gtdb_metadata_audit(
+        records,
+        metadata_path=config.gtdb_metadata,
+        release=config.gtdb_release,
+        genus=config.acquire_genus or config.genus,
+    )
+    output_path = write_gtdb_metadata_audit(audit, paths.gtdb_metadata_audit_path)
+    LOGGER.info(
+        "Wrote GTDB metadata audit: %s (%s).",
+        output_path,
+        audit.load_status,
+    )
     return output_path
 
 
@@ -3389,6 +3470,8 @@ def run_selection_dry_run_stage(
     write_name_map(records, paths.name_map)
     if config.species_checklist is not None:
         run_taxonomy_audit_stage(records, paths, config.species_checklist)
+    if config.verify_genus or config.gtdb_metadata is not None or config.gtdb_release is not None:
+        run_gtdb_metadata_audit_stage(records, paths, config)
     _write_run_summary(
         records,
         paths,

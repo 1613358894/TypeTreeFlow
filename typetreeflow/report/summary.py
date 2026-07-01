@@ -53,6 +53,10 @@ from typetreeflow.taxonomy.audit import (
     MISSING_GENOME,
     POSSIBLE_NAME_MISMATCH,
 )
+from typetreeflow.taxonomy.gtdb_audit import (
+    GTDB_METADATA_LOADED,
+    read_gtdb_metadata_audit,
+)
 from typetreeflow.taxonomy.ncbi_taxonomy import (
     read_ncbi_taxonomy_cache,
     read_ncbi_taxonomy_plan,
@@ -324,6 +328,13 @@ def read_optional_checklist_comparison(path: str | Path) -> list[dict[str, str]]
             rows.append(dict(row))
 
     return rows
+
+
+def read_optional_gtdb_metadata_audit(path: str | Path):
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_gtdb_metadata_audit(input_path)
 
 
 def read_optional_ncbi_taxonomy_plan(path: str | Path):
@@ -773,6 +784,14 @@ def build_run_summary_markdown(
     except ValueError as error:
         checklist_comparison = None
         checklist_comparison_error = str(error)
+    gtdb_metadata_audit_error = ""
+    try:
+        gtdb_metadata_audit = read_optional_gtdb_metadata_audit(
+            paths.gtdb_metadata_audit_path
+        )
+    except (OSError, ValueError) as error:
+        gtdb_metadata_audit = None
+        gtdb_metadata_audit_error = str(error)
     ncbi_taxonomy_error = ""
     try:
         ncbi_taxonomy_plan = read_optional_ncbi_taxonomy_plan(
@@ -885,6 +904,8 @@ def build_run_summary_markdown(
         f"- Query 16S: {_config_value(args, 'query_16s')}",
         f"- Outgroup: {_config_value(args, 'outgroup')}",
         f"- Dry run: {_config_value(args, 'dry_run')}",
+        f"- GTDB metadata: {_config_value(args, 'gtdb_metadata')}",
+        f"- GTDB release: {_config_value(args, 'gtdb_release')}",
         f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
         f"- Selection acceptance: {_selection_acceptance_value(args)}",
         "",
@@ -1143,7 +1164,82 @@ def build_run_summary_markdown(
             ]
         )
 
-    if checklist_comparison_error:
+    if gtdb_metadata_audit_error:
+        lines.extend(
+            [
+                "",
+                "## GTDB Metadata Audit",
+                "",
+                f"GTDB metadata audit could not be read: {gtdb_metadata_audit_error}",
+                "GTDB coverage counts are unavailable.",
+            ]
+        )
+    elif gtdb_metadata_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## GTDB Metadata Audit",
+                "",
+                f"- Metadata path: {gtdb_metadata_audit.metadata_path}",
+                f"- File exists: {str(gtdb_metadata_audit.file_exists).lower()}",
+                f"- File readable: {str(gtdb_metadata_audit.file_readable).lower()}",
+                (
+                    "- File size: "
+                    f"{_format_optional_count(gtdb_metadata_audit.file_size)}"
+                ),
+                (
+                    "- Row count: "
+                    f"{_format_optional_count(gtdb_metadata_audit.row_count)}"
+                ),
+                f"- Release: {gtdb_metadata_audit.release}",
+                f"- Load status: {gtdb_metadata_audit.load_status}",
+                f"- Audit timestamp: {gtdb_metadata_audit.audit_timestamp}",
+            ]
+        )
+        if (
+            gtdb_metadata_audit.load_status == GTDB_METADATA_LOADED
+            and gtdb_metadata_audit.counts is not None
+        ):
+            counts = gtdb_metadata_audit.counts
+            lines.extend(
+                [
+                    f"- Matched count: {counts['matched']}",
+                    f"- Missing from GTDB count: {counts['missing_from_gtdb']}",
+                    f"- Mismatch count: {counts['mismatch']}",
+                    f"- Extra in GTDB count: {counts['extra_in_gtdb']}",
+                    (
+                        "These counts compare selected assembly accessions to "
+                        "the supplied local GTDB metadata and do not make "
+                        "taxonomy conclusions."
+                    ),
+                ]
+            )
+        else:
+            lines.append(
+                "GTDB coverage counts were not computed because metadata was "
+                "not loaded successfully; do not interpret this run as GTDB "
+                "coverage evidence."
+            )
+
+    suppress_checklist_counts = (
+        gtdb_metadata_audit is not None
+        and gtdb_metadata_audit.load_status != GTDB_METADATA_LOADED
+    )
+    if suppress_checklist_counts:
+        lines.extend(
+            [
+                "",
+                "## Taxonomic Audit Summary",
+                "",
+                (
+                    "Taxonomic checklist comparison counts are not interpreted "
+                    "because GTDB metadata was not loaded successfully. Review "
+                    "`taxonomy/gtdb_metadata_audit.json` before drawing any "
+                    "GTDB coverage conclusions."
+                ),
+            ]
+        )
+    elif checklist_comparison_error:
         lines.extend(
             [
                 "",

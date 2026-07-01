@@ -66,6 +66,29 @@ contents do not select records, change manifests, or change evidence levels.
 - `source`: cache source label.
 - `notes`: lookup or curation notes.
 
+## taxonomy/gtdb_metadata_audit.json
+
+Local GTDB metadata provenance and accession coverage audit written by
+`verify-genus` plan-only and selection dry-run paths when `--gtdb-metadata` or
+`--gtdb-release` is supplied. It is JSON rather than TSV because provenance and
+counts are a single structured audit object.
+
+- `schema_version`: integer audit schema version.
+- `metadata_path`: user-supplied GTDB metadata path, or `not provided`.
+- `file_exists`: boolean file existence check at audit time.
+- `file_readable`: boolean indicating whether the file was opened and parsed.
+- `file_size`: byte size when the file exists, otherwise null.
+- `row_count`: parsed metadata row count when loading succeeds, otherwise null.
+- `release`: `--gtdb-release` value, or `not provided`.
+- `load_status`: one of `gtdb_metadata_loaded`,
+  `gtdb_metadata_not_loaded`, or `gtdb_metadata_load_failed`.
+- `audit_timestamp`: UTC timestamp for the local audit.
+- `counts`: object with `matched`, `missing_from_gtdb`, `mismatch`, and
+  `extra_in_gtdb` only when `load_status=gtdb_metadata_loaded`; otherwise null.
+- `notes`: human-readable audit caveat. Counts compare selected assembly
+  accessions with the supplied local metadata and are not taxonomy
+  conclusions.
+
 ## excluded_lpsn_taxa.tsv
 
 Review table for LPSN rows excluded from the retained checklist.

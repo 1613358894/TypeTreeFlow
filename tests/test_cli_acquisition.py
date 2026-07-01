@@ -1,4 +1,5 @@
 import csv
+import json
 import zipfile
 from pathlib import Path
 
@@ -238,6 +239,64 @@ def _write_discovery_cache(path: Path) -> Path:
         ],
         path,
     )
+    return path
+
+
+def _write_tiny_gtdb_metadata(path: Path, *, include_necrophorum: bool = False) -> Path:
+    rows = [
+        {
+            "accession": "RS_GCF_000007325.1",
+            "gtdb_taxonomy": (
+                "d__Bacteria;p__Bacillota;c__Fusobacteriia;o__Fusobacteriales;"
+                "f__Fusobacteriaceae;g__Fusobacterium;s__Fusobacterium nucleatum"
+            ),
+            "ncbi_genbank_assembly_accession": "GCF_000007325.1",
+            "ncbi_organism_name": "Fusobacterium nucleatum ATCC 25586",
+            "ncbi_taxid": "851",
+            "ncbi_strain_identifiers": "ATCC 25586",
+            "gtdb_type_designation": "type strain",
+            "ncbi_type_material": "assembly from type material",
+            "genome_size": "2400000",
+        },
+        {
+            "accession": "RS_GCF_999999999.1",
+            "gtdb_taxonomy": (
+                "d__Bacteria;p__Bacillota;c__Fusobacteriia;o__Fusobacteriales;"
+                "f__Fusobacteriaceae;g__Fusobacterium;s__Fusobacterium extra"
+            ),
+            "ncbi_genbank_assembly_accession": "GCF_999999999.1",
+            "ncbi_organism_name": "Fusobacterium extra DSM 1",
+            "ncbi_taxid": "999",
+            "ncbi_strain_identifiers": "DSM 1",
+            "gtdb_type_designation": "type strain",
+            "ncbi_type_material": "",
+            "genome_size": "2400000",
+        },
+    ]
+    if include_necrophorum:
+        rows.append(
+            {
+                "accession": "RS_GCF_000009925.1",
+                "gtdb_taxonomy": (
+                    "d__Bacteria;p__Bacillota;c__Fusobacteriia;o__Fusobacteriales;"
+                    "f__Fusobacteriaceae;g__Fusobacterium;"
+                    "s__Fusobacterium necrophorum"
+                ),
+                "ncbi_genbank_assembly_accession": "GCF_000009925.1",
+                "ncbi_organism_name": "Fusobacterium necrophorum NCTC 10575",
+                "ncbi_taxid": "859",
+                "ncbi_strain_identifiers": "NCTC 10575",
+                "gtdb_type_designation": "type strain",
+                "ncbi_type_material": "assembly from type material",
+                "genome_size": "2400000",
+            }
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = list(rows[0])
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
     return path
 
 
@@ -1076,6 +1135,190 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert not paths.ncbi_download_results_path.exists()
     policies = {row.selection_policy for row in read_user_selection(paths.user_selection_path)}
     assert policies == {"balanced"}
+
+
+def test_verify_genus_plan_only_records_gtdb_metadata_provenance_and_package(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    gtdb_metadata = _write_tiny_gtdb_metadata(
+        tmp_path / "gtdb_metadata_r220.tsv",
+        include_necrophorum=True,
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--gtdb-metadata",
+            str(gtdb_metadata),
+            "--gtdb-release",
+            "r220",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    audit = json.loads(paths.gtdb_metadata_audit_path.read_text(encoding="utf-8"))
+    state = read_run_state(paths.run_state_path)
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    delivery_dir = tmp_path / "delivery"
+    package_result = main(
+        [
+            "package-results",
+            "--outdir",
+            str(outdir),
+            "--delivery-dir",
+            str(delivery_dir),
+            "--include",
+            "reports",
+        ]
+    )
+    packaged_audit = delivery_dir / "reports" / "gtdb_metadata_audit.json"
+    package_readme = (delivery_dir / "README.md").read_text(encoding="utf-8")
+
+    assert result == 0
+    assert audit["metadata_path"] == str(gtdb_metadata)
+    assert audit["file_exists"] is True
+    assert audit["file_readable"] is True
+    assert audit["file_size"] == gtdb_metadata.stat().st_size
+    assert audit["row_count"] == 3
+    assert audit["release"] == "r220"
+    assert audit["load_status"] == "gtdb_metadata_loaded"
+    assert audit["counts"]["matched"] == 2
+    assert state.stages["gtdb_audit"].status == "gtdb_metadata_loaded"
+    assert "release=r220" in state.stages["gtdb_audit"].summary
+    assert "row_count=3" in state.stages["gtdb_audit"].summary
+    assert "- GTDB release: r220" in summary
+    assert "- Release: r220" in summary
+    assert "GTDB metadata was loaded locally" not in summary
+    assert package_result == 0
+    assert packaged_audit.exists()
+    assert "release=r220" in package_readme
+
+
+def test_verify_genus_plan_only_gtdb_accession_hit_sets_matched_count(tmp_path):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    gtdb_metadata = _write_tiny_gtdb_metadata(tmp_path / "gtdb_metadata.tsv")
+
+    assert (
+        main(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--lpsn-cache",
+                str(lpsn_cache),
+                "--discovery-cache",
+                str(discovery_cache),
+                "--gtdb-metadata",
+                str(gtdb_metadata),
+                "--gtdb-release",
+                "r220",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    audit = json.loads(
+        get_output_paths(outdir).gtdb_metadata_audit_path.read_text(encoding="utf-8")
+    )
+    assert audit["counts"]["matched"] > 0
+
+
+def test_verify_genus_plan_only_gtdb_accession_miss_sets_missing_count(tmp_path):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    gtdb_metadata = _write_tiny_gtdb_metadata(tmp_path / "gtdb_metadata.tsv")
+
+    assert (
+        main(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--lpsn-cache",
+                str(lpsn_cache),
+                "--discovery-cache",
+                str(discovery_cache),
+                "--gtdb-metadata",
+                str(gtdb_metadata),
+                "--gtdb-release",
+                "r220",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    audit = json.loads(
+        get_output_paths(outdir).gtdb_metadata_audit_path.read_text(encoding="utf-8")
+    )
+    assert audit["counts"]["missing_from_gtdb"] > 0
+
+
+def test_verify_genus_plan_only_missing_gtdb_metadata_records_load_failed_not_counts(
+    tmp_path,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    missing_metadata = tmp_path / "missing_gtdb_metadata.tsv"
+
+    assert (
+        main(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--lpsn-cache",
+                str(lpsn_cache),
+                "--discovery-cache",
+                str(discovery_cache),
+                "--gtdb-metadata",
+                str(missing_metadata),
+                "--gtdb-release",
+                "r220",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    paths = get_output_paths(outdir)
+    audit = json.loads(paths.gtdb_metadata_audit_path.read_text(encoding="utf-8"))
+    state = read_run_state(paths.run_state_path)
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+
+    assert audit["load_status"] == "gtdb_metadata_load_failed"
+    assert audit["file_exists"] is False
+    assert audit["file_readable"] is False
+    assert audit["row_count"] is None
+    assert audit["counts"] is None
+    assert state.stages["gtdb_audit"].status == "gtdb_metadata_load_failed"
+    assert "missing_from_gtdb=" not in state.stages["gtdb_audit"].summary
+    assert "- Load status: gtdb_metadata_load_failed" in summary
+    assert "GTDB coverage counts were not computed" in summary
+    assert "do not interpret this run as GTDB coverage evidence" in summary
+    assert "Missing from GTDB count:" not in summary
+    assert "Taxonomic checklist comparison counts are not interpreted" in summary
 
 
 def test_verify_genus_cross_genus_force_rejects_existing_outdir(tmp_path, caplog):

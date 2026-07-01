@@ -89,6 +89,7 @@ Canonical run directory layout, shown under a user-selected `<run_dir>`:
   manual_review_report.md
   taxonomy/
     checklist_comparison.tsv
+    gtdb_metadata_audit.json
     ncbi_taxonomy_plan.tsv
     ncbi_taxonomy_cache.tsv
   report/
@@ -105,6 +106,7 @@ Canonical run directory layout, shown under a user-selected `<run_dir>`:
     download_results.tsv
     reports/
       summary.md
+      gtdb_metadata_audit.json
     genomes/
       <normalized_id>.fna
     16S/
@@ -271,6 +273,16 @@ dry-run or resume workflows. Report-only mode does not regenerate this file,
 but `report/summary.md` reads an existing comparison and adds a taxonomic audit
 summary when available; `report/run_review.md` can use existing comparison or
 completion files to report checklist coverage when available.
+
+`taxonomy/gtdb_metadata_audit.json` is written by `verify-genus` plan-only
+runs and selection dry-runs when `--gtdb-metadata` or `--gtdb-release` is
+provided. It records local GTDB metadata provenance: metadata path,
+existence/readability, file size, row count, release, load status, and audit
+timestamp. Accession coverage counts (`matched`, `missing_from_gtdb`,
+`mismatch`, and `extra_in_gtdb`) are present only when the metadata file was
+loaded successfully. If metadata is absent or unreadable, the file records
+`gtdb_metadata_not_loaded` or `gtdb_metadata_load_failed`, and reports must not
+interpret GTDB coverage counts.
 
 `taxonomy/ncbi_taxonomy_plan.tsv` and
 `taxonomy/ncbi_taxonomy_cache.tsv` are scaffolds for optional NCBI Taxonomy
@@ -513,5 +525,6 @@ one for multi-query runs. Missing query 16S records are reported as
 `package-results` copies `manifest.tsv`, `run_state.json`, reports, and when
 available the query audit tables `reports/rrna_plan.tsv`,
 `reports/sequence_source_audit.tsv`, `reports/ani_query_vs_refs.tsv`,
-`reports/ani_summary.tsv`, and `reports/phylo_plan.tsv`. The manifest remains
-the authoritative local query provenance record.
+`reports/ani_summary.tsv`, `reports/phylo_plan.tsv`, and
+`reports/gtdb_metadata_audit.json`. The manifest remains the authoritative
+local query provenance record.

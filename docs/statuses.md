@@ -199,6 +199,19 @@ These statuses are written to `taxonomy/checklist_comparison.tsv` in the
 - `missing_genome`: A matching GTDB-selected record exists but has no registered genome artifact in the manifest state.
 - `manual_review_required`: The row cannot be classified safely, including synonym-supported matches that require user review.
 
+## GTDB Metadata Audit
+
+These statuses are written to `taxonomy/gtdb_metadata_audit.json` in
+`load_status` and to the `gtdb_audit` stage in `run_state.json`.
+
+- `gtdb_metadata_loaded`: The user-supplied local GTDB metadata TSV was opened
+  and parsed; provenance and accession coverage counts are available.
+- `gtdb_metadata_not_loaded`: No GTDB metadata path was available for the audit;
+  coverage counts are unavailable and must not be interpreted.
+- `gtdb_metadata_load_failed`: A GTDB metadata path was provided but could not
+  be read; coverage counts are unavailable and must not be reported as real
+  `missing_from_gtdb` results.
+
 ## Offline Selection And Source Audit
 
 Selection tables use `selected=yes` or `selected=no` rather than manifest
