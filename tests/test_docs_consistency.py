@@ -93,8 +93,6 @@ def test_release_version_sources_are_consistent():
 def test_archive_references_stay_in_archive_map_and_boundary_docs():
     archive_dir = "docs" + "/archive"
     allowed_paths = {
-        archive_dir + "/docs_inventory.md",
-        archive_dir + "/docs_simplification_plan.md",
         "docs/index.md",
         "docs/maintenance.md",
         "docs/provider_automation_policy.md",

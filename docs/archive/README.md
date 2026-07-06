@@ -39,26 +39,18 @@ as the single archive inventory instead of listing archived drafts one by one.
 
 ### Documentation restructuring records
 
-- [`docs_inventory.md`](docs_inventory.md):
-  historical inventory from the documentation flattening/restructuring pass.
-  It records reviewed docs, overlap, and recommended actions at that point in
-  time.
-- [`docs_simplification_plan.md`](docs_simplification_plan.md):
-  historical read-only simplification plan for documentation deduplication and
-  archive decisions.
+Detailed restructuring audit drafts were compressed into the deleted evidence
+summaries below. Current documentation governance lives in
+[`../index.md`](../index.md), [`../maintenance.md`](../maintenance.md), and this
+archive inventory.
 
 ### Version and provider plans
 
-- [`provider_automation_feasibility.md`](provider_automation_feasibility.md):
-  historical provider and ATCC automation feasibility design.
-- [`atcc_downloader_gate_review.md`](atcc_downloader_gate_review.md):
-  historical ATCC downloader gate review and negative gate decision.
+Provider feasibility, ATCC gate, v0.9.0 spike, and v2.0.0 framework rationale
+were compressed into the deleted evidence summaries below. Current provider
+boundaries live in [`../provider_automation_policy.md`](../provider_automation_policy.md).
 - [`local_artifact_normalization_design.md`](local_artifact_normalization_design.md):
   historical design-only offline local artifact normalization boundary.
-- [`v0_9_0_provider_adapter_spike_plan.md`](v0_9_0_provider_adapter_spike_plan.md):
-  historical v0.9.0 provider adapter spike plan.
-- [`v2_0_0_provider_automation_framework.md`](v2_0_0_provider_automation_framework.md):
-  historical v2.0.0 provider automation framework design-freeze note.
 - [`v1_0_0_readiness_review.md`](v1_0_0_readiness_review.md):
   historical v1.0.0 readiness and stable-boundary review.
 
@@ -95,6 +87,121 @@ rewrite history to match current behavior. Deletion is acceptable only after the
 reference check and coverage check above pass.
 
 ## Deleted evidence summaries
+
+### Documentation inventory
+
+`docs_inventory.md` was deleted in cleanup pass 3 after confirming that it was
+a historical restructuring audit, not a current behavior contract. It was
+referenced only by archive/governance surfaces and the docs consistency
+allowlist before this pass. The retained facts are:
+
+- The current user route is README first, then the cookbook and contract docs.
+- `docs/index.md` should stay as a compact documentation map, while detailed
+archive retention rationale belongs in this README.
+- Current behavior contracts are the top-level docs such as contracts,
+  schemas, statuses, output layout, workspace/results policy, completion audit,
+  external registration, provider policy, and release docs.
+- Historical stage plans, release baselines, validation notes, provider-era
+  rationale, and compact run evidence belong under the archive.
+- Examples and small synthetic fixtures are current test/documentation
+  dependencies and were not simplification targets.
+
+### Documentation simplification plan
+
+`docs_simplification_plan.md` was deleted in cleanup pass 3 after confirming
+that it was a read-only planning memo and that current maintenance rules and
+this archive inventory preserve the durable governance decisions. The retained
+facts are:
+
+- Keep schema, status, output-layout, stable-contract, handoff, workspace, and
+  results policy docs independent because they serve different consumers.
+- Deduplicate current docs by replacing repeated boundary prose with links to
+  the canonical owner instead of merging broad contract documents.
+- Keep the external registration split between design/data contract, short
+  operator cookbook, and completion-counting contract.
+- Treat `docs/lpsn_first_acquisition.md` as a deep design note for later
+  focused review rather than archiving it in a cleanup-only pass.
+- Avoid broad current-doc merges, top-level file renames, or behavior changes
+  during documentation simplification.
+
+### Provider automation feasibility design
+
+`provider_automation_feasibility.md` was deleted in cleanup pass 3 after its
+provider/ATCC boundary rationale was compressed into this inventory and the
+current provider policy was confirmed as canonical. The retained facts are:
+
+- TypeTreeFlow should not become a provider portal acquisition agent by
+  default.
+- The safe route is curator-permitted provider access outside TypeTreeFlow,
+  followed by reviewed local FASTA registration through `external_genomes.tsv`.
+- Provider automation must not log in, scrape, accept terms, purchase, reuse
+  sessions, store credentials, download restricted artifacts, write NCBI
+  download plans, or count provider rows toward NCBI Assembly strict
+  completion.
+- Provider-native IDs stay external/provider identifiers and must never become
+  NCBI `assembly_accession` values.
+- Any future provider adapter would need explicit opt-in, terms approval,
+  secret redaction, private provider cache rules, checksum/provenance capture,
+  reviewable handoff to external registration, and tests preserving manifest,
+  NCBI, and completion boundaries.
+
+### ATCC downloader gate review
+
+`atcc_downloader_gate_review.md` was deleted in cleanup pass 3 after the
+negative ATCC gate decision was retained here and in the provider policy. The
+retained facts are:
+
+- ATCC downloader gate: not passed.
+- No ATCC-specific legal approval, provider-permitted technical access route,
+  credential design, or testable download contract was documented.
+- ATCC may be unavailable or planning-only in current support; metadata-only or
+  download-enabled modes require a later provider-specific gate review.
+- TypeTreeFlow must not automate ATCC login, browser sessions, scraping, terms
+  acceptance, purchase, download, restricted cache writes, direct FASTA
+  installation, manifest/name-map writes, or NCBI download-plan writes.
+- Curator-obtained permitted local ATCC FASTA files remain manual external
+  registration inputs, not automated provider downloads.
+
+### v0.9.0 provider adapter spike plan
+
+`v0_9_0_provider_adapter_spike_plan.md` was deleted in cleanup pass 3 after
+the durable spike boundaries were retained here and the implemented provider
+planning contract remained covered by current docs. The retained facts are:
+
+- The provider adapter spike was planning-only and provider-neutral, not an
+  ATCC automated-download release.
+- `provider_request.tsv` could produce review-only
+  `provider/provider_registration_plan.tsv` and
+  `provider/proposed_external_genomes.tsv`.
+- Provider planning was dry-run/review-only and could not create manifests,
+  name maps, NCBI download plans, installed FASTA files, external registration
+  inputs, or completion metric changes.
+- Proposed external genome rows required curator review of provenance, terms,
+  local FASTA path, checksum, and type-material evidence before any manual
+  external registration.
+- Synthetic provider fixtures validate planning/reporting boundaries only and
+  are not provider downloads, login, scraping, credential handling, or terms
+  acceptance.
+
+### v2.0.0 provider automation framework design freeze
+
+`v2_0_0_provider_automation_framework.md` was deleted in cleanup pass 3 after
+the framework rationale was summarized here and the current provider policy
+remained the authoritative boundary. The retained facts are:
+
+- The v2.0.0 framework target was a guarded provider planning skeleton, not a
+  default ATCC downloader.
+- Provider network behavior must be disabled by default and fail closed unless
+  a later provider-specific design approves an explicit opt-in mode.
+- Provider adapters cannot directly write `manifest.tsv`, `name_map.tsv`,
+  `external_genomes.tsv`, `cache/ncbi/`, `cache/ncbi/download_plan.tsv`, or
+  NCBI `assembly_accession` fields.
+- Provider proposals remain excluded from NCBI Assembly strict and
+  external-inclusive completion until reviewed through external registration
+  and completion audit.
+- Future private provider caches, metadata access, artifact preparation, and
+  ATCC status transitions require policy gates, redaction, provenance,
+  retention rules, and focused tests.
 
 ### Species checklist implementation plan
 

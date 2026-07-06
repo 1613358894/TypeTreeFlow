@@ -318,3 +318,43 @@ The pass intentionally did not delete `examples`, `docs\archive\run_evidence`,
 `docs\archive\v2_2_0_release_verification.md`,
 `docs\archive\v2_2_x_acceptance_checklist.md`, or
 `docs\archive\local_artifact_normalization_design.md`.
+
+## 10. Cleanup pass 3 archive governance audit
+
+Cleanup pass 3 audited the documentation-governance candidates requested after
+commit `97c178c682ec65adb59c651624e078b254b77692`. The repository was clean at
+audit start. The pass did not inspect examples, run-evidence sequence content,
+private environment material, cache/tmp data, compressed artifacts, or
+functional code.
+
+Candidate assessment:
+
+| Candidate | Purpose | Current references before cleanup | Archive README coverage before cleanup | Maintenance value | Decision |
+| --- | --- | --- | --- | --- | --- |
+| `docs\archive\docs_inventory.md` | Historical documentation inventory from the flattening/restructuring pass. | Linked from the archive README and allowed by the docs consistency archive-reference test; mentioned in this audit. | Only a short inventory entry. | Low after current docs map, maintenance rules, and archive README became canonical. | Delete after merging summary into archive README. |
+| `docs\archive\docs_simplification_plan.md` | Historical read-only simplification plan for current-doc deduplication. | Linked from the archive README and allowed by the docs consistency archive-reference test; mentioned in this audit. | Only a short inventory entry. | Low after current maintenance rules preserve the durable split between contract docs. | Delete after merging summary into archive README. |
+| `docs\archive\provider_automation_feasibility.md` | Provider/ATCC automation feasibility rationale and safe route. | Linked from provider policy and archive README; mentioned only by historical archive and audit notes otherwise. | Short entry only. | Low as a standalone file because provider policy is current and the rationale is compressible. | Delete after merging provider-boundary facts into archive README and pointing policy to the summary. |
+| `docs\archive\atcc_downloader_gate_review.md` | Negative ATCC downloader gate decision. | Linked from provider policy and archive README. | Short entry only. | Low as a standalone file after the negative gate decision is summarized. | Delete after merging gate facts into archive README and provider policy. |
+| `docs\archive\v0_9_0_provider_adapter_spike_plan.md` | Historical provider-neutral planning spike. | Linked from provider policy and archive README; mentioned in historical v1.0.0 readiness notes. | Short entry only. | Low after implemented planning boundaries are covered by current schemas/status/policy docs. | Delete after merging spike boundaries into archive README. |
+| `docs\archive\v2_0_0_provider_automation_framework.md` | Historical provider framework design-freeze note. | Linked from provider policy and archive README. | Short entry only. | Low after the current provider policy owns the framework boundary. | Delete after merging framework rationale into archive README. |
+| `docs\archive\local_artifact_normalization_design.md` | Historical local artifact normalization boundary. | Current docs consistency tests read it and require archive README discoverability. | Retained as a direct archive item. | Medium; it supports test-pinned provider/local-artifact review boundaries. | Keep. |
+| Release archive docs and Fusobacterium archive docs | Historical release and case-study evidence. | Current tests read or pin selected files. | Retained as direct archive items. | Medium to high. | Keep. |
+| `docs\archive\run_evidence\` | Compact historical run evidence. | Explicitly out of scope for this pass. | Retained evidence group. | High enough to keep. | Keep. |
+
+Deletion rationale:
+
+- The deleted files were historical governance or provider-era rationale files,
+  not current behavior contracts.
+- `rg` found no remaining Markdown links to the deleted files after the archive
+  README and provider policy updates.
+- Durable facts were compressed into `docs\archive\README.md`.
+- The docs consistency test no longer needs the deleted documentation-governance
+  files as allowed archive-reference locations.
+- Examples, run evidence, release archive docs, Fusobacterium archive docs, and
+  `docs\archive\local_artifact_normalization_design.md` were intentionally
+  left untouched.
+
+Recommendation after pass 3: pause broad archive-structure cleanup. If another
+cleanup pass is needed, make it a narrow release-archive compression pass only
+after confirming tests no longer read those release boundary files. Otherwise,
+move to the planned `environment.yml` / `doctor` follow-up.

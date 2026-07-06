@@ -3,7 +3,8 @@
 This is the current authoritative provider boundary document for
 TypeTreeFlow. It supersedes the archived provider feasibility, ATCC gate
 review, v0.9.0 spike, v2.0.0 framework, and local artifact normalization design
-notes.
+notes. The deleted provider-era rationale is summarized in
+[`archive/README.md`](archive/README.md).
 
 ## Current Support
 
@@ -111,11 +112,8 @@ it must remain local-only and must still hand off to reviewed
 
 ## Archived History
 
-The following files are retained as historical support material under
-`docs/archive/`. They are not current behavior contracts:
-
-- [`archive/provider_automation_feasibility.md`](archive/provider_automation_feasibility.md)
-- [`archive/atcc_downloader_gate_review.md`](archive/atcc_downloader_gate_review.md)
-- [`archive/local_artifact_normalization_design.md`](archive/local_artifact_normalization_design.md)
-- [`archive/v0_9_0_provider_adapter_spike_plan.md`](archive/v0_9_0_provider_adapter_spike_plan.md)
-- [`archive/v2_0_0_provider_automation_framework.md`](archive/v2_0_0_provider_automation_framework.md)
+Provider-era history is summarized in
+[`archive/README.md`](archive/README.md). The retained
+[`archive/local_artifact_normalization_design.md`](archive/local_artifact_normalization_design.md)
+note is historical design-only support material, not a current behavior
+contract.
