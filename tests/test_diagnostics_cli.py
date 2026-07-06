@@ -98,6 +98,71 @@ def _write_manual_supplement_hints(path):
     )
 
 
+def _patch_doctor_imports(monkeypatch, *, missing=()):
+    missing = set(missing)
+
+    def fake_find_spec(name):
+        if name in missing:
+            return None
+        return object()
+
+    monkeypatch.setattr(
+        "typetreeflow.diagnostics.importlib.util.find_spec",
+        fake_find_spec,
+    )
+
+
+def _patch_doctor_tools(monkeypatch, tmp_path, *, missing=(), iqtree_fallback=False):
+    missing = set(missing)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for executable in (
+        "datasets",
+        "barrnap",
+        "bedtools",
+        "fastANI",
+        "mafft",
+        "trimal",
+        "iqtree2",
+        "iqtree",
+    ):
+        (bin_dir / executable).write_text("", encoding="utf-8")
+    db_dir = tmp_path / "share" / "barrnap" / "db"
+    db_dir.mkdir(parents=True)
+    (db_dir / "bac.hmm").write_text("fixture\n", encoding="utf-8")
+
+    def fake_which(name):
+        if name in missing:
+            return None
+        if name == "iqtree2" and iqtree_fallback:
+            return None
+        if name == "iqtree" and not iqtree_fallback:
+            return None
+        return str(bin_dir / name)
+
+    monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", fake_which)
+
+
+def _doctor_payload(capsys):
+    output = capsys.readouterr().out
+    return json.loads(output), output
+
+
+def _stdout_payload(capsys):
+    output = capsys.readouterr().out
+    return json.loads(output), output
+
+
+def _recommended_message(capsys):
+    payload, _ = _stdout_payload(capsys)
+    return payload["recommended_action"]["message"]
+
+
+def _status_next_message(capsys):
+    payload, _ = _stdout_payload(capsys)
+    return payload["next_actions"][0]["message"]
+
+
 def test_verify_genus_help_exits_zero_and_mentions_recovery_flags():
     result = subprocess.run(
         [sys.executable, "typetreeflow.py", "verify-genus", "--help"],
@@ -128,22 +193,141 @@ def test_verify_release_genus_help_exits_zero_and_mentions_recovery_flags():
     assert "--enable-entrez" in result.stdout
 
 
-def test_doctor_reports_missing_tools_and_install_hints(monkeypatch, capsys):
+def test_doctor_stdout_is_valid_json(monkeypatch, tmp_path, capsys):
+    _patch_doctor_imports(monkeypatch)
+    _patch_doctor_tools(monkeypatch, tmp_path)
+
+    assert main(["doctor"]) == 0
+
+    payload, output = _doctor_payload(capsys)
+    assert output.strip().startswith("{")
+    assert payload["command"] == "doctor"
+    assert payload["schema_version"] == "1"
+    assert set(payload) == {
+        "command",
+        "schema_version",
+        "status",
+        "summary",
+        "checks",
+        "blocking",
+        "warnings",
+        "next_actions",
+    }
+    check = payload["checks"][0]
+    assert {"id", "status", "required_for", "message"} <= set(check)
+
+
+def test_doctor_reports_missing_tools_in_json(monkeypatch, capsys):
+    _patch_doctor_imports(monkeypatch)
     monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", lambda name: None)
 
     assert main(["doctor"]) == 0
 
-    output = capsys.readouterr().out
-    assert "missing: NCBI Datasets CLI - datasets not found on PATH" in output
-    assert "conda install -c conda-forge ncbi-datasets-cli" in output
-    assert "missing: barrnap - barrnap not found on PATH" in output
-    assert "conda install -c bioconda barrnap" in output
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert payload["status"] == "blocked"
+    assert checks["datasets"]["status"] == "blocked"
+    assert checks["datasets"]["hint"] == "conda install -c conda-forge ncbi-datasets-cli"
+    assert checks["barrnap"]["status"] == "blocked"
+    assert checks["barrnap"]["hint"] == "conda install -c bioconda barrnap"
+    assert any(item["id"] == "datasets" for item in payload["blocking"])
 
 
 def test_doctor_strict_returns_nonzero_when_critical_tool_missing(monkeypatch):
+    _patch_doctor_imports(monkeypatch)
     monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", lambda name: None)
 
     assert main(["doctor", "--strict"]) == 2
+
+
+def test_doctor_does_not_print_secret_values(monkeypatch, tmp_path, capsys):
+    _patch_doctor_imports(monkeypatch)
+    _patch_doctor_tools(monkeypatch, tmp_path)
+    monkeypatch.setenv("TYPETREEFLOW_EMAIL", "secret-doctor@example.org")
+    monkeypatch.setenv("TYPETREEFLOW_API_KEY", "super-secret-api-key")
+    monkeypatch.setenv("TYPETREEFLOW_LPSN_PASSWORD", "super-secret-password")
+
+    assert main(["doctor"]) == 0
+
+    payload, output = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["typetreeflow_email"]["status"] == "pass"
+    assert "secret-doctor@example.org" not in output
+    assert "super-secret-api-key" not in output
+    assert "super-secret-password" not in output
+
+
+def test_doctor_lpsn_missing_is_optional_warning(monkeypatch, tmp_path, capsys):
+    _patch_doctor_imports(monkeypatch, missing={"lpsn"})
+    _patch_doctor_tools(monkeypatch, tmp_path)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["lpsn"]["status"] == "warning"
+    assert checks["lpsn"]["required_for"] == ["optional_lpsn_api"]
+    assert not any(item["id"] == "lpsn" for item in payload["blocking"])
+    assert any(item["id"] == "lpsn" for item in payload["warnings"])
+
+
+def test_doctor_reports_barrnap_database_check_when_missing(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    barrnap = bin_dir / "barrnap"
+    barrnap.write_text("", encoding="utf-8")
+
+    def fake_which(name):
+        if name == "iqtree":
+            return None
+        return str(bin_dir / name)
+
+    monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", fake_which)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["barrnap_cm_database"]["status"] == "warning"
+    assert "not detected" in checks["barrnap_cm_database"]["message"]
+
+
+def test_doctor_iqtree2_missing_iqtree_present_is_explicit(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    _patch_doctor_tools(monkeypatch, tmp_path, iqtree_fallback=True)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["iqtree2"]["status"] == "blocked"
+    assert "requires iqtree2" in checks["iqtree2"]["message"]
+    assert any(item["id"] == "iqtree2" for item in payload["blocking"])
+
+
+def test_doctor_gtdb_metadata_not_configured_is_optional(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    _patch_doctor_tools(monkeypatch, tmp_path)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["gtdb_metadata"]["status"] == "not_configured"
+    assert checks["gtdb_metadata"]["required_for"] == ["legacy_gtdb"]
 
 
 def test_status_reads_run_state_and_outputs_overall_stage_next(tmp_path, capsys):
@@ -167,11 +351,18 @@ def test_status_reads_run_state_and_outputs_overall_stage_next(tmp_path, capsys)
 
     assert main(["status", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out
-    assert "Overall: partial" in output
-    assert "Checklist: succeeded, 12 checklist species" in output
-    assert "Selection: succeeded, 12 selected" in output
-    assert "Next: package-results" in output
+    payload, output = _stdout_payload(capsys)
+    assert output.strip().startswith("{")
+    assert payload["command"] == "status"
+    assert payload["schema_version"] == "1"
+    assert payload["status"] == "warning"
+    assert payload["outdir"] == str(tmp_path)
+    assert payload["run_state_path"] == str(paths.run_state_path)
+    stages = {item["id"]: item for item in payload["stages"]}
+    assert stages["lpsn_checklist"]["status"] == "succeeded"
+    assert stages["lpsn_checklist"]["summary"] == "12 checklist species"
+    assert stages["selection"]["summary"] == "12 selected"
+    assert payload["next_actions"][0]["message"] == "package-results"
 
 
 def test_status_json_outputs_parseable_json(tmp_path, capsys):
@@ -189,10 +380,11 @@ def test_status_json_outputs_parseable_json(tmp_path, capsys):
     assert main(["status", "--outdir", str(tmp_path), "--json"]) == 0
 
     payload = json.loads(capsys.readouterr().out)
-    assert payload["overall"] == "succeeded"
-    assert payload["stages"]["report"]["status"] == "succeeded"
-    assert payload["next"] == "package-results"
-    assert payload["source"] == "run_state"
+    assert payload["command"] == "status"
+    assert payload["status"] == "pass"
+    assert payload["next_actions"][0]["message"] == "package-results"
+    stages = {item["id"]: item for item in payload["stages"]}
+    assert stages["report"]["status"] == "succeeded"
 
 
 def test_status_infers_without_run_state_from_existing_files(tmp_path, capsys):
@@ -231,12 +423,13 @@ def test_status_infers_without_run_state_from_existing_files(tmp_path, capsys):
 
     assert main(["status", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out
-    assert "Overall: succeeded" in output
-    assert "Selection: succeeded, 1 selected" in output
-    assert "Download: succeeded, 1/1" in output
-    assert "16S: succeeded, 1 ready" in output
-    assert "Next: package-results" in output
+    payload, _ = _stdout_payload(capsys)
+    assert payload["status"] == "pass"
+    stages = {item["id"]: item for item in payload["stages"]}
+    assert stages["selection"]["summary"] == "1 selected"
+    assert stages["download"]["summary"] == "1/1"
+    assert stages["rrna_barrnap"]["summary"] == "1 ready"
+    assert payload["next_actions"][0]["message"] == "package-results"
 
 
 def test_next_step_prefers_run_state_next_action(tmp_path, capsys):
@@ -252,7 +445,10 @@ def test_next_step_prefers_run_state_next_action(tmp_path, capsys):
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    assert capsys.readouterr().out.strip() == (
+    payload, _ = _stdout_payload(capsys)
+    assert payload["command"] == "next-step"
+    assert payload["schema_version"] == "1"
+    assert payload["recommended_action"]["message"] == (
         "Review selection/user_selection.tsv, then download."
     )
 
@@ -278,14 +474,14 @@ def test_next_step_does_not_repeat_entrez_after_fallback_completes_16s(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert output == "package-results"
     assert "--enable-entrez" not in output
 
     assert main(["status", "--outdir", str(tmp_path)]) == 0
 
-    status_output = capsys.readouterr().out
-    assert "Next: package-results" in status_output
+    status_output = _status_next_message(capsys)
+    assert status_output == "package-results"
     assert "--enable-entrez" not in status_output
 
 
@@ -300,7 +496,7 @@ def test_next_step_keeps_entrez_when_rrna_16s_not_found_remains(tmp_path, capsys
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    assert "--resume --enable-entrez --email" in capsys.readouterr().out
+    assert "--resume --enable-entrez --email" in _recommended_message(capsys)
 
 
 def test_next_step_reviews_source_audit_for_entrez_warning_after_fallback(
@@ -329,7 +525,7 @@ def test_next_step_reviews_source_audit_for_entrez_warning_after_fallback(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert "Review source_audit/sequence_source_audit.tsv" in output
     assert "Entrez fallback weak/mismatch warning" in output
     assert "--enable-entrez" not in output
@@ -355,7 +551,7 @@ def test_next_step_refines_duplicate_selected_accession_failed_run_state(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert "Duplicate selected assembly accession" in output
     assert "GCF_055383455.1" in output
     assert "selection/user_selection.tsv" in output
@@ -381,7 +577,7 @@ def test_next_step_refines_biosample_transient_failed_run_state(tmp_path, capsys
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert output != "Fix the reported error and rerun."
     assert "NCBI BioSample lookup failed" in output
     assert "likely transient backend/network error" in output
@@ -413,9 +609,10 @@ def test_status_refines_biosample_transient_failed_run_state(tmp_path, capsys):
 
     assert main(["status", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out
-    assert "Overall: failed" in output
-    assert "Next: NCBI BioSample lookup failed" in output
+    payload, _ = _stdout_payload(capsys)
+    output = payload["next_actions"][0]["message"]
+    assert payload["status"] == "failed"
+    assert "NCBI BioSample lookup failed" in output
     assert "transient" in output
     assert "Retry later" in output
     assert "cache" in output
@@ -435,7 +632,7 @@ def test_next_step_keeps_unknown_failed_error_fallback(tmp_path, capsys):
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    assert capsys.readouterr().out.strip() == "Fix the reported error and rerun."
+    assert _recommended_message(capsys) == "Fix the reported error and rerun."
 
 
 def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
@@ -464,7 +661,9 @@ def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    payload, _ = _stdout_payload(capsys)
+    output = payload["recommended_action"]["message"]
+    assert payload["status"] == "blocked"
     assert output.startswith(
         "Review selection/user_selection.tsv before guarded downloads"
     )
@@ -477,11 +676,15 @@ def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
 
     assert main(["status", "--outdir", str(tmp_path)]) == 0
 
-    status_output = capsys.readouterr().out
-    assert "Download: blocked_by_manual_review" in status_output
+    payload, _ = _stdout_payload(capsys)
+    status_output = payload["next_actions"][0]["message"]
+    assert payload["status"] == "blocked"
+    stages = {item["id"]: item for item in payload["stages"]}
+    assert stages["download"]["status"] == "blocked"
     assert (
-        "Next: Review selection/user_selection.tsv before guarded downloads"
-        in status_output
+        status_output.startswith(
+            "Review selection/user_selection.tsv before guarded downloads"
+        )
     )
 
 
@@ -514,7 +717,7 @@ def test_next_step_plan_only_rejected_mismatch_is_secondary_rejected_candidate(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert output.startswith(
         "Review selection/user_selection.tsv before guarded downloads"
     )
@@ -540,7 +743,7 @@ def test_next_step_zero_checklist_with_excluded_rows_does_not_suggest_download(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert "No accepted checklist species were retained" in output
     assert "excluded_lpsn_taxa.tsv" in output
     assert "synonym, orphaned, non-target" in output
@@ -570,7 +773,7 @@ def test_next_step_zero_checklist_takes_priority_over_biosample_error(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert "No accepted checklist species were retained" in output
     assert "NCBI BioSample lookup failed" not in output
 
@@ -595,8 +798,10 @@ def test_status_zero_checklist_next_points_to_excluded_lpsn_taxa(tmp_path, capsy
 
     assert main(["status", "--outdir", str(tmp_path)]) == 0
 
-    output = capsys.readouterr().out
-    assert "Next: No accepted checklist species were retained" in output
+    payload, _ = _stdout_payload(capsys)
+    output = payload["next_actions"][0]["message"]
+    assert payload["status"] == "blocked"
+    assert "No accepted checklist species were retained" in output
     assert "Review excluded_lpsn_taxa.tsv" in output
     assert "not a download failure" in output
     assert "then run guarded download" not in output
@@ -628,7 +833,7 @@ def test_next_step_checklist_positive_keeps_existing_plan_only_handoff(
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
-    assert capsys.readouterr().out.strip() == (
+    assert _recommended_message(capsys) == (
         "Review selection/user_selection.tsv, then run guarded download."
     )
 
@@ -638,8 +843,69 @@ def test_status_missing_outdir_returns_nonzero_and_clear_message(tmp_path, capsy
 
     assert main(["status", "--outdir", str(missing)]) == 2
 
-    captured = capsys.readouterr()
-    assert "outdir does not exist" in captured.err
+    payload, _ = _stdout_payload(capsys)
+    assert payload["command"] == "status"
+    assert payload["status"] == "failed"
+    assert payload["blocking"][0]["id"] == "missing_outdir"
+    assert "outdir does not exist" in payload["summary"]
+
+
+def test_status_missing_run_state_returns_json_error_envelope(tmp_path, capsys):
+    assert main(["status", "--outdir", str(tmp_path)]) == 2
+
+    payload, output = _stdout_payload(capsys)
+    assert output.strip().startswith("{")
+    assert payload["command"] == "status"
+    assert payload["status"] == "failed"
+    assert payload["blocking"][0]["id"] == "missing_run_state"
+    assert "run_state.json not found" in payload["summary"]
+
+
+def test_next_step_missing_run_state_returns_json_error_envelope(tmp_path, capsys):
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 2
+
+    payload, _ = _stdout_payload(capsys)
+    assert payload["command"] == "next-step"
+    assert payload["status"] == "failed"
+    assert payload["blocking"][0]["id"] == "missing_run_state"
+
+
+def test_status_and_next_step_do_not_print_sequence_content(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    fasta = tmp_path / "rrna" / "sequences" / "rec-1.16s.fasta"
+    fasta.parent.mkdir(parents=True)
+    fasta.write_text(
+        ">rec-1\nACGTACGTACGTSECRETSEQUENCEACGTACGT\n",
+        encoding="utf-8",
+    )
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="rec-1",
+                canonical_name="Fusobacterium mortiferum",
+                display_name="Fusobacterium mortiferum ATCC 25557",
+                genus="Fusobacterium",
+                species="mortiferum",
+                strain="ATCC 25557",
+                assembly_accession="GCF_000001",
+                has_genome=True,
+                genome_path="genomes/references/rec-1.fna",
+                has_16s=True,
+                rrna_16s_path="rrna/sequences/rec-1.16s.fasta",
+            )
+        ],
+        paths.manifest,
+    )
+
+    assert main(["status", "--outdir", str(tmp_path)]) == 0
+    _, status_output = _stdout_payload(capsys)
+    assert "ACGTACGTACGTSECRETSEQUENCE" not in status_output
+    assert ">rec-1" not in status_output
+
+    assert main(["next-step", "--outdir", str(tmp_path)]) == 0
+    _, next_output = _stdout_payload(capsys)
+    assert "ACGTACGTACGTSECRETSEQUENCE" not in next_output
+    assert ">rec-1" not in next_output
 
 
 def test_next_step_fallback_selection_and_manifest_no_download_results(tmp_path, capsys):
@@ -678,7 +944,7 @@ def test_next_step_fallback_selection_and_manifest_no_download_results(tmp_path,
     # 5. Not rRNA-ready
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert output == "Review selection/user_selection.tsv, then rerun with --auto-accept-selection --enable-downloads."
 
 
@@ -710,7 +976,7 @@ def test_next_step_fallback_manifest_only_keeps_generalized_resume(tmp_path, cap
     # 5. Not rRNA-ready
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     assert output == "Review manifest.tsv, then continue with --resume and the explicit stage flag."
 
 
@@ -756,7 +1022,7 @@ def test_next_step_fallback_selection_with_existing_download_results_does_not_su
     # 5. Not rRNA-ready
 
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
-    output = capsys.readouterr().out.strip()
+    output = _recommended_message(capsys)
     # Should suggest running barrnap (or next stage), not first-time download suggestion
     assert "rerun with --auto-accept-selection --enable-downloads" not in output
     assert "enable-barrnap" in output

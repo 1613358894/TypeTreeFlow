@@ -4,7 +4,8 @@ This page is the formal entry point for TypeTreeFlow documentation.
 
 Use [../README.md](../README.md) as the user entry point, this page as the
 documentation map, and [maintenance.md](maintenance.md) as the maintenance
-rulebook.
+rulebook. Prefer the shortest authoritative route below before opening
+feature-specific or historical material.
 
 ## Top-Level Rule
 
@@ -18,6 +19,9 @@ contract unless a current contract page links it for a specific fact.
 ## Shortest Reading Paths
 
 - Ordinary users: [../README.md](../README.md) -> [cookbook.md](cookbook.md).
+- AI-first command and file contracts:
+  [contracts.md](contracts.md) -> [output_layout.md](output_layout.md),
+  [statuses.md](statuses.md), and [schemas.md](schemas.md).
 - Contract and output maintenance:
   [contracts.md](contracts.md) -> [output_layout.md](output_layout.md),
   [schemas.md](schemas.md), and [statuses.md](statuses.md).
@@ -31,8 +35,6 @@ contract unless a current contract page links it for a specific fact.
 - [cookbook.md](cookbook.md): concise operator cookbook for high-level
   `doctor`, `verify-genus`, `status`, `next-step`, `package-results`, and
   `verify-release-genus` commands.
-- [design.md](design.md): current architecture and guarded-execution safety
-  contract.
 - [contracts.md](contracts.md): overview entry point for stable interfaces,
   output contracts, policy contracts, and audit contracts.
 - [stable_contracts.md](stable_contracts.md): stable, review-only, internal,
@@ -40,6 +42,8 @@ contract unless a current contract page links it for a specific fact.
 - [output_layout.md](output_layout.md): run-directory files and stage ownership.
   Use [workspace_policy.md](workspace_policy.md) for repository-independent
   workspace roots.
+- [design.md](design.md): current architecture and guarded-execution safety
+  contract.
 - [workspace_policy.md](workspace_policy.md): canonical workspace root policy.
 - [results_policy.md](results_policy.md): canonical policy for the repository
   `results/` directory and its allowlist.

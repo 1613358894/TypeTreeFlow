@@ -14,6 +14,193 @@ recommended workspace roots, and repository `results/` boundaries are owned by
 [workspace_policy.md](workspace_policy.md) and
 [results_policy.md](results_policy.md).
 
+## Doctor Stdout Contract
+
+`typetreeflow doctor` is a local readiness check and writes a compact JSON
+object to stdout. It does not contact LPSN, NCBI, Entrez, GTDB, or providers;
+does not download genomes; and does not run barrnap, FastANI, MAFFT, trimAl,
+IQ-TREE, or other external analyses. It may inspect Python imports, environment
+variable presence, configured local paths, PATH availability, and lightweight
+local file readability.
+
+The envelope fields are stable:
+
+```json
+{
+  "command": "doctor",
+  "schema_version": "1",
+  "status": "pass|warning|blocked|failed",
+  "summary": "short readiness summary",
+  "checks": [
+    {
+      "id": "python",
+      "status": "pass",
+      "required_for": ["core"],
+      "message": "Python 3.x.y"
+    }
+  ],
+  "blocking": [],
+  "warnings": [],
+  "next_actions": []
+}
+```
+
+`blocking` lists checks that block the named readiness area, such as downloads,
+same-genome barrnap 16S extraction, ANI, or phylogeny. Default `doctor` keeps
+the existing non-strict exit behavior and exits 0 even when readiness status is
+`blocked`; the existing strict path exits 2 when a blocking check fails.
+`TYPETREEFLOW_EMAIL` is reported by presence only, never by value. Optional
+checks such as the `lpsn` package and unconfigured local GTDB metadata are not
+core blockers.
+
+## Verify-Genus Stdout Contract
+
+`typetreeflow verify-genus GENUS ...` writes exactly one compact JSON object to
+stdout at the end of the command. It does not print Markdown, long tables,
+FASTA, sequence content, secret values, logs, or report bodies to stdout.
+Detailed review materials remain in `selection/`, `manifest.tsv`,
+`report/summary.md`, `report/run_review.md`, and the other durable run files
+described below.
+
+The top-level `status` is reader-facing: `pass`, `warning`, `blocked`, or
+`failed`. Internal workflow values such as `partial` remain in
+`run_state.json`; plan-only/manual-review stops are surfaced as
+`status: "blocked"` with `reason: "manual_review_required"` so agents do not
+need to infer the meaning of `partial`.
+
+```json
+{
+  "command": "verify-genus",
+  "schema_version": "1",
+  "status": "pass|warning|blocked|failed",
+  "reason": "completed|manual_review_required|dependency_missing|workflow_failed",
+  "summary": "short workflow summary or next action",
+  "genus": "<Genus>",
+  "outdir": "<run_dir>",
+  "run_state_path": "<run_dir>/run_state.json",
+  "manifest_path": "<run_dir>/manifest.tsv",
+  "report_path": "<run_dir>/report/summary.md",
+  "counts": {
+    "manifest_rows": 0,
+    "selected_rows": 0,
+    "downloaded_genomes": 0,
+    "query_genomes": 0
+  },
+  "blocking": [],
+  "warnings": [],
+  "next_actions": []
+}
+```
+
+Successful guarded downloads keep exit code 0 and normally report
+`status: "pass"` with `reason: "completed"`. Expected plan-only review stops
+also keep exit code 0 but report `status: "blocked"` with
+`reason: "manual_review_required"`. Dependency blocks and workflow failures
+keep the existing nonzero exit behavior and return the same envelope shape with
+structured `blocking` entries.
+
+## Status And Next-Step Stdout Contracts
+
+`typetreeflow status --outdir <run_dir>` writes one compact JSON object to
+stdout. It prefers `run_state.json` and otherwise infers from durable output
+tables. It does not print markdown, long tables, FASTA, sequence content,
+secret values, or logs. The top-level `status` is normalized for readers:
+`pass`, `warning`, `blocked`, `failed`, `not_started`, or `running`. Internal
+workflow values such as `partial` and `blocked_by_manual_review` are not exposed
+as top-level status values; plan-only/manual-review states are reported as
+`blocked` when they prevent the next guarded step.
+
+```json
+{
+  "command": "status",
+  "schema_version": "1",
+  "status": "pass|warning|blocked|failed|not_started|running",
+  "summary": "short workflow status summary",
+  "outdir": "<run_dir>",
+  "run_state_path": "<run_dir>/run_state.json",
+  "stages": [
+    {
+      "id": "selection",
+      "status": "succeeded|blocked|failed|skipped",
+      "summary": "short stage summary"
+    }
+  ],
+  "blocking": [],
+  "warnings": [],
+  "next_actions": []
+}
+```
+
+`typetreeflow next-step --outdir <run_dir>` also writes one compact JSON object.
+`recommended_action.message` preserves the bounded action sentence that earlier
+text output exposed; `recommended_action.command` is populated only when the
+recommendation is already a direct command-shaped action.
+
+```json
+{
+  "command": "next-step",
+  "schema_version": "1",
+  "status": "pass|warning|blocked|failed",
+  "summary": "short next-action summary",
+  "outdir": "<run_dir>",
+  "recommended_action": {
+    "id": "continue_workflow",
+    "message": "bounded action sentence",
+    "command": ""
+  },
+  "alternatives": [],
+  "blocking": [],
+  "warnings": []
+}
+```
+
+Missing `outdir`, an empty directory without `run_state.json` or durable
+TypeTreeFlow outputs, and unreadable state files return exit code 2 with a JSON
+error envelope on stdout. Successful status and next-step reads keep the prior
+exit code 0 behavior.
+
+## Package-Results Stdout Contract
+
+`typetreeflow package-results --outdir <run_dir>` writes exactly one compact
+JSON object to stdout on success and validation failure. It does not print
+Markdown, copied file contents, FASTA, sequence content, secret values, large
+tables, or package navigation text to stdout. Detailed handoff text remains in
+`README.md`, `README_failure.md`, and `handoff_index.md` inside the package.
+
+```json
+{
+  "command": "package-results",
+  "schema_version": "1",
+  "status": "pass|warning|failed",
+  "summary": "short package summary or error summary",
+  "outdir": "<run_dir>",
+  "package_path": "<delivery_dir>",
+  "mode": "normal_all|normal_reports|failed_handoff",
+  "included": {
+    "reports": true,
+    "handoff": true
+  },
+  "artifacts": [
+    {
+      "id": "package",
+      "path": "<delivery_dir>",
+      "kind": "directory"
+    }
+  ],
+  "blocking": [],
+  "warnings": [],
+  "next_actions": []
+}
+```
+
+Normal packages use `delivery/` under the run directory when `--delivery-dir`
+is omitted. Failed handoff packages use `failed_handoff/` when
+`--delivery-dir` is omitted. `artifacts` is bounded to the package directory
+and key navigation files. Optional missing package inputs are summarized as a
+warning count, not as copied table contents. Missing `manifest.tsv`, invalid
+include values, and other validation failures keep exit code 2 and return a
+JSON envelope with `status: "failed"` and a short `blocking` item.
+
 Canonical run directory layout, shown under a user-selected `<run_dir>`:
 
 ```text

@@ -36,6 +36,14 @@ typetreeflow status --outdir <run_dir>
 typetreeflow next-step --outdir <run_dir>
 ```
 
+`doctor` and `verify-genus` write compact JSON envelopes to stdout. Read the
+`checks`, `blocking`, `warnings`, and `next_actions` arrays directly; field
+details live in [output_layout.md](output_layout.md). For plan-only
+`verify-genus` runs, stdout reports `status: "blocked"` and
+`reason: "manual_review_required"` when `selection/user_selection.tsv` needs
+review before guarded downloads. Reports, detailed tables, logs, and
+FASTA/sequence content remain file-based under `<run_dir>`.
+
 Review `selection/user_selection.tsv`,
 `selection/download_preflight_summary.tsv`, `manifest.tsv`, and
 `report/summary.md`. `balanced` selects strict-confirmed and likely
@@ -193,6 +201,10 @@ typetreeflow package-results \
 Delivery packages include reviewed manifests, evidence summaries, reports, and
 copied genome/16S FASTA files when present. Credentials, `.env` files, API
 keys, NCBI ZIP caches, pytest caches, and temporary directories are excluded.
+The command writes one short JSON envelope to stdout. Read `status`,
+`package_path`, `mode`, `included`, `artifacts`, `blocking`, and `warnings`
+directly; `README.md`, `README_failure.md`, and `handoff_index.md` remain the
+human review files inside the package.
 
 ## Release Verification For Balanced And Representative
 
@@ -279,9 +291,12 @@ rules.
 
 ```bash
 typetreeflow status --outdir <run_dir>
-typetreeflow status --outdir <run_dir> --json
 typetreeflow next-step --outdir <run_dir>
 ```
+
+Both commands write compact JSON envelopes to stdout by default. Read
+`status.stages`, `status.blocking`, `status.next_actions`, and
+`next-step.recommended_action` directly; there is no separate human text mode.
 
 When `completion/uncovered_species.tsv`,
 `completion/manual_supplement_hints.tsv`, or
@@ -309,7 +324,6 @@ Run:
 
 ```bash
 typetreeflow doctor
-typetreeflow doctor --strict
 ```
 
 Common external executables:

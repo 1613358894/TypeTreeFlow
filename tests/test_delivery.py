@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from typetreeflow.cli import main
@@ -12,6 +14,11 @@ from typetreeflow.taxonomy.source_audit import (
 )
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
+
+
+def _package_stdout_payload(capsys):
+    output = capsys.readouterr().out
+    return json.loads(output), output
 
 
 def test_package_results_writes_readme_and_core_tsvs(tmp_path):
@@ -182,25 +189,45 @@ def test_package_results_succeeds_with_missing_optional_files(tmp_path):
     assert "report/summary.md" in readme
 
 
-def test_package_results_missing_manifest_fails(tmp_path):
+def test_package_results_missing_manifest_fails(tmp_path, capsys):
     with pytest.raises(ValueError, match="manifest.tsv not found") as excinfo:
         package_results(tmp_path)
     assert "workflow status" not in str(excinfo.value)
 
     assert main(["package-results", "--outdir", str(tmp_path)]) == 2
+    payload, _ = _package_stdout_payload(capsys)
+    assert payload["command"] == "package-results"
+    assert payload["schema_version"] == "1"
+    assert payload["status"] == "failed"
+    assert payload["outdir"] == str(tmp_path)
+    assert payload["package_path"] == str(tmp_path / "delivery")
+    assert payload["mode"] == "normal_all"
+    assert payload["included"] == {"reports": True, "handoff": True}
+    assert payload["artifacts"] == []
+    assert payload["blocking"][0]["id"] == "missing_manifest"
 
 
-def test_package_results_cli_success_returns_zero(tmp_path):
+def test_package_results_cli_success_returns_zero(tmp_path, capsys):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)
 
     assert main(["package-results", "--outdir", str(tmp_path)]) == 0
+    payload, _ = _package_stdout_payload(capsys)
 
+    assert payload["command"] == "package-results"
+    assert payload["schema_version"] == "1"
+    assert payload["status"] == "warning"
+    assert payload["outdir"] == str(tmp_path)
+    assert payload["package_path"] == str(tmp_path / "delivery")
+    assert payload["mode"] == "normal_all"
+    assert payload["included"] == {"reports": True, "handoff": True}
+    assert {"id", "path", "kind"} <= set(payload["artifacts"][0])
+    assert any(item["id"] == "package" for item in payload["artifacts"])
     assert (tmp_path / "delivery" / "manifest.tsv").exists()
     assert (tmp_path / "delivery" / "README.md").exists()
 
 
-def test_package_results_cli_uses_delivery_dir(tmp_path):
+def test_package_results_cli_uses_delivery_dir(tmp_path, capsys):
     paths = get_output_paths(tmp_path)
     delivery_dir = tmp_path / "review_package"
     _write_manifest_with_files(paths)
@@ -217,17 +244,20 @@ def test_package_results_cli_uses_delivery_dir(tmp_path):
         )
         == 0
     )
+    payload, _ = _package_stdout_payload(capsys)
 
+    assert payload["package_path"] == str(delivery_dir)
     assert (delivery_dir / "manifest.tsv").exists()
     assert not (tmp_path / "delivery" / "manifest.tsv").exists()
 
 
-def test_package_results_cli_include_reports_does_not_copy_genomes_or_16s(tmp_path):
+def test_package_results_cli_normal_reports_stdout_is_valid_json(tmp_path, capsys):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)
     rrna = paths.rrna_sequences_dir / "rec-1.16s.fasta"
     rrna.parent.mkdir(parents=True)
-    rrna.write_text(">rec-1\nACGT\n", encoding="utf-8")
+    rrna.write_text(">rec-1\nACGTSECRETSEQ\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("TYPETREEFLOW_API_KEY=secret-token\n", encoding="utf-8")
     paths.run_summary_path.parent.mkdir(parents=True)
     paths.run_summary_path.write_text("# Summary\n", encoding="utf-8")
 
@@ -243,13 +273,29 @@ def test_package_results_cli_include_reports_does_not_copy_genomes_or_16s(tmp_pa
         )
         == 0
     )
+    payload, output = _package_stdout_payload(capsys)
 
+    assert payload["command"] == "package-results"
+    assert payload["schema_version"] == "1"
+    assert payload["status"] in {"pass", "warning"}
+    assert payload["package_path"] == str(tmp_path / "delivery")
+    assert payload["mode"] == "normal_reports"
+    assert payload["included"] == {"reports": True, "handoff": True}
+    assert any(item["id"] == "package" for item in payload["artifacts"])
+    assert any(item["id"] == "handoff_index" for item in payload["artifacts"])
+    assert any(item["id"] == "readme" for item in payload["artifacts"])
+    assert "secret-token" not in output
+    assert "ACGTSECRETSEQ" not in output
+    assert ">rec-1" not in output
     assert (tmp_path / "delivery" / "reports" / "summary.md").exists()
     assert not (tmp_path / "delivery" / "genomes").exists()
     assert not (tmp_path / "delivery" / "16S").exists()
 
 
-def test_package_results_cli_failed_handoff_without_manifest_returns_zero(tmp_path):
+def test_package_results_cli_failed_handoff_stdout_is_valid_json(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+
     assert (
         main(
             [
@@ -261,7 +307,17 @@ def test_package_results_cli_failed_handoff_without_manifest_returns_zero(tmp_pa
         )
         == 0
     )
+    payload, output = _package_stdout_payload(capsys)
 
+    assert payload["command"] == "package-results"
+    assert payload["schema_version"] == "1"
+    assert payload["status"] in {"pass", "warning"}
+    assert payload["package_path"] == str(tmp_path / "failed_handoff")
+    assert payload["mode"] == "failed_handoff"
+    assert payload["included"]["handoff"] is True
+    assert any(item["id"] == "package" for item in payload["artifacts"])
+    assert any(item["id"] == "handoff_index" for item in payload["artifacts"])
+    assert "Duplicate selected assembly_accession" not in output
     assert (tmp_path / "failed_handoff" / "README_failure.md").exists()
     assert (tmp_path / "failed_handoff" / "handoff_index.md").exists()
     assert not (tmp_path / "failed_handoff" / "manifest.tsv").exists()
@@ -276,10 +332,23 @@ def test_package_results_cli_does_not_create_run_state(tmp_path):
     assert not paths.run_state_path.exists()
 
 
-def test_package_results_cli_error_does_not_write_stdout(tmp_path, capsys):
-    assert main(["package-results", "--outdir", str(tmp_path)]) == 2
+def test_package_results_cli_missing_outdir_writes_json_error_envelope(tmp_path, capsys):
+    missing_outdir = tmp_path / "missing-outdir"
 
-    assert capsys.readouterr().out == ""
+    assert main(["package-results", "--outdir", str(missing_outdir)]) == 2
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.strip().startswith("{")
+    assert payload["command"] == "package-results"
+    assert payload["schema_version"] == "1"
+    assert payload["status"] == "failed"
+    assert payload["outdir"] == str(missing_outdir)
+    assert payload["package_path"] == str(missing_outdir / "delivery")
+    assert payload["mode"] == "normal_all"
+    assert payload["artifacts"] == []
+    assert payload["blocking"]
+    assert payload["warnings"] == []
+    assert payload["next_actions"] == []
 
 
 def test_package_results_early_acquisition_artifacts_do_not_relax_manifest_contract(

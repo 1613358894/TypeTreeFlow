@@ -247,6 +247,11 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
+`doctor` prints a short JSON readiness envelope on stdout. It does not print
+secret values and does not run downloads, live lookups, or external analyses.
+See [docs/output_layout.md](docs/output_layout.md) for the AI-first stdout
+contracts and [docs/cookbook.md](docs/cookbook.md) for operator recipes.
+
 ## Recommended v2.2.15 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
@@ -269,6 +274,12 @@ typetreeflow verify-genus Fusobacterium \
   --strains-per-species 1 \
   --outdir <run_dir>
 ```
+
+`verify-genus` writes one compact JSON envelope to stdout. Detailed logs,
+reports, tables, and FASTA/sequence content stay in files under `<run_dir>`.
+Plan-only runs that stop for review expose a reader-facing
+`status: "blocked"` with `reason: "manual_review_required"`; agents do not
+need to infer that from the internal `run_state.json` value `partial`.
 
 This is the recommended plan-only acquisition command. A local LPSN cache only
 builds the checklist; it is not a discovery cache and does not supply NCBI
@@ -420,10 +431,14 @@ Inspect or continue a run:
 ```bash
 typetreeflow status --outdir <run_dir>
 typetreeflow next-step --outdir <run_dir>
-typetreeflow status --outdir <run_dir> --json
 typetreeflow verify-genus Fusobacterium --outdir <run_dir> --resume --dry-run
 typetreeflow --outdir <run_dir> --report-only
 ```
+
+`verify-genus`, `status`, and `next-step` print compact JSON envelopes by
+default. The same JSON is intended for humans and agents; no separate human
+output mode is required. See [docs/output_layout.md](docs/output_layout.md)
+for field-level details.
 
 `--report-only` refreshes `report/summary.md` and `report/run_review.md` from
 existing outputs. It does not run discovery, downloads, barrnap, Entrez,
@@ -443,6 +458,9 @@ summaries, optional reports, copied genome FASTA files, optional 16S FASTA
 files, `handoff_index.md` for package navigation/operator handoff, and
 `run_state.json` when present. It does not copy credentials, environment files,
 API keys, NCBI ZIP caches, pytest caches, or temporary directories.
+`package-results` writes a single compact JSON envelope to stdout and keeps the
+detailed handoff text in package files. See
+[docs/cookbook.md](docs/cookbook.md#package-delivery) for packaging recipes.
 
 When a run fails before `manifest.tsv`, use
 `package-results --failed-handoff` to collect `run_state.json`, selection
