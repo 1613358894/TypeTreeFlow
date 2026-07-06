@@ -3,7 +3,8 @@
 `docs/archive/` preserves selected historical records. It is not a source of
 current behavior contracts, required release gates, or active implementation
 plans. Use `README.md`, current contract docs, active design docs, and release
-docs for current workflow decisions.
+docs for current workflow decisions. The current documentation map links here
+as the single archive inventory instead of listing archived drafts one by one.
 
 ## Retention rules
 
@@ -18,25 +19,23 @@ docs for current workflow decisions.
   that important information is already covered by current docs, `CHANGELOG.md`,
   release docs, or an archive summary.
 
-## Retention matrix
+## Retained evidence groups
 
-Current references means references outside the archived item itself. The
-current map in `docs/index.md` intentionally links archive entries as historical
-records; those links are not behavior-contract dependencies.
+- [`run_evidence/fusobacterium_v0_5_0/`](run_evidence/fusobacterium_v0_5_0/):
+  compact case study for the v0.5.0 strict NCBI Assembly delivery, including
+  16/17 completion, final audit tables, delivery manifest, and the
+  `F. mortiferum` non-selection rationale.
+- [`run_evidence/phase15_smoke/`](run_evidence/phase15_smoke/): compact
+  Phase 15B smoke checkpoint for Actinocorallia with summary, manifest, and
+  phylo plan evidence only.
+- [`fusobacterium_external_pilot.md`](fusobacterium_external_pilot.md) and
+  [`fusobacterium_real_pilot_template.md`](fusobacterium_real_pilot_template.md):
+  historical external-registration case studies. Current workflow docs remain
+  [`../external_type_genome_ingestion.md`](../external_type_genome_ingestion.md),
+  [`../external_workflow_cookbook.md`](../external_workflow_cookbook.md), and
+  [`../completion_audit.md`](../completion_audit.md).
 
 ## Historical plans and release records
-
-### External registration case studies
-
-- [`fusobacterium_external_pilot.md`](fusobacterium_external_pilot.md):
-  historical `F. mortiferum` synthetic external-registration pilot. Current
-  external registration docs live in
-  [`../external_type_genome_ingestion.md`](../external_type_genome_ingestion.md)
-  and [`../external_workflow_cookbook.md`](../external_workflow_cookbook.md).
-- [`fusobacterium_real_pilot_template.md`](fusobacterium_real_pilot_template.md):
-  historical real-local `F. mortiferum` evidence-package template. The current
-  completion/gap contract lives in
-  [`../completion_audit.md`](../completion_audit.md).
 
 ### Documentation restructuring records
 
@@ -50,8 +49,6 @@ records; those links are not behavior-contract dependencies.
 
 ### Version and provider plans
 
-- [`v0_8_0_implementation_plan.md`](v0_8_0_implementation_plan.md):
-  historical v0.8.0 hardening and validation implementation plan.
 - [`provider_automation_feasibility.md`](provider_automation_feasibility.md):
   historical provider and ATCC automation feasibility design.
 - [`atcc_downloader_gate_review.md`](atcc_downloader_gate_review.md):
@@ -77,15 +74,9 @@ records; those links are not behavior-contract dependencies.
   historical v2.2.4 NCBI Taxonomy enrichment baseline.
 - [`v2_2_x_acceptance_checklist.md`](v2_2_x_acceptance_checklist.md):
   historical v2.2.2-v2.2.4 acceptance checklist.
-- [`pr_description_v2_2_x.md`](pr_description_v2_2_x.md):
-  stale v2.2.x pull-request description draft retained for historical context.
 
 ### Roadmap and validation notes
 
-- [`roadmap_v2.2.10-ux-followups.md`](roadmap_v2.2.10-ux-followups.md):
-  historical v2.2.10 UX and reporting follow-up checklist.
-- [`roadmap_v2.2.12-maintenance-plan.md`](roadmap_v2.2.12-maintenance-plan.md):
-  historical v2.2.12 documentation maintenance plan.
 - [`validation_v2.2.9-real-world-validation.md`](validation_v2.2.9-real-world-validation.md):
   historical v2.2.9 real-world validation evidence.
 
@@ -149,3 +140,68 @@ inventory. The retained historical facts are:
   `phylo_tree_ready`.
 - The run established that reference-only `rrna/all_16S.fasta` aggregation is
   valid and that `--query-16s` should be optional for a reference-only tree.
+
+### v0.8.0 implementation plan
+
+`v0_8_0_implementation_plan.md` was deleted in cleanup pass 2 after confirming
+that current behavior is covered by the external-registration, completion-audit,
+provider-policy, contract, and release docs, and that no current README, test,
+code, or current-doc dependency required the file. The retained historical facts
+are:
+
+- The plan was explicitly planning-only and did not implement a version bump,
+  provider automation, credential handling, or ATCC Genome Portal downloads.
+- The intended boundary was hardening the existing LPSN-first strict NCBI
+  Assembly workflow and manual external genome registration without broadening
+  acquisition automation.
+- NCBI Assembly strict completion and external-inclusive strict completion were
+  required to remain separate metrics.
+- External registered genome rows were expected to preserve external provenance,
+  keep `assembly_accession` empty, and stay out of NCBI Datasets plans.
+- Provider automation remained parked behind later design gates covering terms
+  review, off-by-default consent, secret handling, provider provenance, private
+  cache separation, and reviewable external registration.
+
+### v2.2.x pull-request draft
+
+`pr_description_v2_2_x.md` was deleted in cleanup pass 2 after confirming that
+release notes, the historical acceptance checklist, and this summary retain the
+useful release-history facts. The retained historical facts are:
+
+- The draft summarized v2.2.2 through v2.2.4 release-verification work:
+  shared `verify-release-genus` acquisition, package-results failure-message
+  improvements, completion gap reports, BioSample checkpoint/resume,
+  expanded-discovery planning, and NCBI Taxonomy enrichment.
+- Expanded discovery and taxonomy-derived rows were audit-only and did not
+  automatically change `manifest.tsv`, `selection/user_selection.tsv`,
+  completion metrics, or evidence levels.
+- `representative_only` remained exploratory and was not strict type-strain
+  completion.
+
+### v2.2.10 UX follow-up roadmap
+
+`roadmap_v2.2.10-ux-followups.md` was deleted in cleanup pass 2 after
+confirming that it was a historical checklist, not a current roadmap or release
+gate. The retained historical facts are:
+
+- The roadmap covered small UX/reporting polish for repeated Entrez fallback
+  guidance, plan-only next-step ordering, taxonomy enrichment summary wording,
+  and package-results handoff index/readme output.
+- It explicitly excluded download strategy changes, evidence-threshold changes,
+  provider additions, and reinterpretation of representative-only results as
+  strict type-strain completion.
+
+### v2.2.12 maintenance plan
+
+`roadmap_v2.2.12-maintenance-plan.md` was deleted in cleanup pass 2 after
+confirming that current maintenance and release-checklist docs retain the
+durable boundaries. The retained historical facts are:
+
+- v2.2.12 was scoped as a maintenance-only release for release consistency,
+  checklist hardening, and handoff/reporting documentation clarity.
+- The plan forbade runtime behavior changes, selection-safety changes,
+  evidence-threshold changes, provider automation, real large-genus download
+  runs, and large results artifacts.
+- Later stages documented release-consistency checking, release checklist
+  hardening, and handoff-index documentation without version bumps, tags,
+  commits, pushes, or live downloads.
