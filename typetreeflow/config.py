@@ -34,6 +34,7 @@ class AppConfig:
     acquire_genus: str | None
     genus: str | None
     query_genome: Path | None
+    query_genomes: tuple[Path, ...]
     query_16s: Path | None
     outgroup: str | None
     outdir: Path
@@ -69,6 +70,7 @@ class AppConfig:
     selection_policy: str
     source_audit_policy: str
     strains_per_species: int
+    limit_selected: int | None
     register_external_genomes: Path | None
     plan_provider_registration: Path | None
     merge_manifest: bool

@@ -151,7 +151,7 @@ def mark_16s_extraction_result(
         if record.record_id != record_id:
             continue
         record.status = status
-        record.notes = notes or ""
+        record.notes = _merged_notes(record, notes or "")
         if status in {"rrna_16s_ready", "rrna_16s_skipped_existing"} and rrna_path:
             record.has_16s = True
             record.rrna_16s_path = str(rrna_path)
@@ -159,6 +159,17 @@ def mark_16s_extraction_result(
             record.has_16s = False
         return
     raise ValueError(f"Record not found in manifest: {record_id}")
+
+
+def _merged_notes(record: StrainRecord, new_notes: str) -> str:
+    old_notes = record.notes or ""
+    if record.is_query and "source=local_query" in old_notes:
+        if not new_notes:
+            return old_notes
+        if new_notes in old_notes:
+            return old_notes
+        return f"{old_notes}; {new_notes}"
+    return new_notes
 
 
 def extract_16s_from_barrnap_results(

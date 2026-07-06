@@ -13,6 +13,7 @@ from typetreeflow.diagnostics import next_step_summary
 from typetreeflow.manifest import read_manifest, resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
+    read_optional_gtdb_metadata_audit,
     read_optional_sequence_source_audit,
     summarize_16s_coverage,
     summarize_sequence_source_audit,
@@ -92,6 +93,42 @@ def package_results(
         _copy_optional(
             paths.run_review_path,
             output_dir / "reports" / "run_review.md",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.rrna_plan_path,
+            output_dir / "reports" / "rrna_plan.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.sequence_source_audit_path,
+            output_dir / "reports" / "sequence_source_audit.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.ani_query_vs_refs_path,
+            output_dir / "reports" / "ani_query_vs_refs.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.ani_summary_path,
+            output_dir / "reports" / "ani_summary.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.phylo_plan_path,
+            output_dir / "reports" / "phylo_plan.tsv",
+            copied,
+            missing,
+        )
+        _copy_optional(
+            paths.gtdb_metadata_audit_path,
+            output_dir / "reports" / "gtdb_metadata_audit.json",
             copied,
             missing,
         )
@@ -203,6 +240,7 @@ def package_failed_handoff(
             "taxonomy/lpsn_species_cache.tsv",
         ),
         (paths.checklist_comparison_path, "taxonomy/checklist_comparison.tsv"),
+        (paths.gtdb_metadata_audit_path, "taxonomy/gtdb_metadata_audit.json"),
         (paths.ncbi_taxonomy_plan_path, "taxonomy/ncbi_taxonomy_plan.tsv"),
         (paths.ncbi_taxonomy_cache_path, "taxonomy/ncbi_taxonomy_cache.tsv"),
         (
@@ -323,6 +361,7 @@ def build_delivery_readme(
     download_counts = _read_download_counts(paths.ncbi_download_results_path)
     policy = _summarize_policy(record_list)
     acceptance = _selection_acceptance_status(paths)
+    gtdb_audit = _read_gtdb_audit_if_available(paths)
     source_outdir = _portable_source_outdir(paths)
 
     lines = [
@@ -353,6 +392,10 @@ def build_delivery_readme(
             "as strict completion."
         ),
         "",
+        "## GTDB Metadata Audit",
+        "",
+        f"- {_gtdb_audit_package_summary(gtdb_audit)}",
+        "",
         "## Delivery Contents",
         "",
         "- Core manifest: manifest.tsv",
@@ -361,6 +404,12 @@ def build_delivery_readme(
         "- Download results: download_results.tsv when available",
         "- Run state: run_state.json when available",
         "- Reports: reports/summary.md and reports/run_review.md when requested and available",
+        (
+            "- Query audit tables: reports/rrna_plan.tsv, "
+            "reports/sequence_source_audit.tsv, reports/ani_query_vs_refs.tsv, "
+            "reports/ani_summary.tsv, and reports/phylo_plan.tsv when available"
+        ),
+        "- GTDB metadata audit: reports/gtdb_metadata_audit.json when requested and available",
         f"- Genome FASTA files copied: {genome_count}",
         (
             "- 16S sequence FASTA files copied: "
@@ -418,6 +467,7 @@ def build_handoff_index(
     source_audit_summary = (
         summarize_sequence_source_audit(source_audit) if source_audit is not None else None
     )
+    gtdb_audit = _read_gtdb_audit_if_available(paths)
     run_state = _read_run_state_if_available(paths)
     generated_time = _utc_timestamp()
     status = run_state.status if run_state is not None else "packageable"
@@ -459,6 +509,7 @@ def build_handoff_index(
         f"- Strict type-strain confirmed: {type_counts[STRICT_CONFIRMED_COUNT]}",
         f"- Likely type-material candidate: {type_counts[LIKELY_TYPE_MATERIAL_COUNT]}",
         f"- Representative only: {type_counts[REPRESENTATIVE_ONLY_COUNT]}",
+        f"- GTDB metadata audit: {_gtdb_audit_package_summary(gtdb_audit)}",
         "",
         "## Included Files",
         "",
@@ -852,6 +903,32 @@ def _read_run_state_if_available(paths: OutputPaths) -> WorkflowState | None:
         return read_run_state(paths.run_state_path)
     except (OSError, ValueError):
         return None
+
+
+def _read_gtdb_audit_if_available(paths: OutputPaths):
+    try:
+        return read_optional_gtdb_metadata_audit(paths.gtdb_metadata_audit_path)
+    except (OSError, ValueError):
+        return None
+
+
+def _gtdb_audit_package_summary(audit) -> str:
+    if audit is None:
+        return "not available"
+    parts = [
+        f"load_status={audit.load_status}",
+        f"release={audit.release}",
+        f"metadata_path={audit.metadata_path}",
+        f"row_count={audit.row_count if audit.row_count is not None else 'unavailable'}",
+    ]
+    if audit.counts is None:
+        parts.append("counts=unavailable")
+    else:
+        parts.extend(
+            f"{key}={audit.counts[key]}"
+            for key in ("matched", "missing_from_gtdb", "mismatch", "extra_in_gtdb")
+        )
+    return "; ".join(parts)
 
 
 def _read_source_audit_for_handoff(paths: OutputPaths) -> list[dict[str, str]] | None:

@@ -66,6 +66,29 @@ contents do not select records, change manifests, or change evidence levels.
 - `source`: cache source label.
 - `notes`: lookup or curation notes.
 
+## taxonomy/gtdb_metadata_audit.json
+
+Local GTDB metadata provenance and accession coverage audit written by
+`verify-genus` plan-only and selection dry-run paths when `--gtdb-metadata` or
+`--gtdb-release` is supplied. It is JSON rather than TSV because provenance and
+counts are a single structured audit object.
+
+- `schema_version`: integer audit schema version.
+- `metadata_path`: user-supplied GTDB metadata path, or `not provided`.
+- `file_exists`: boolean file existence check at audit time.
+- `file_readable`: boolean indicating whether the file was opened and parsed.
+- `file_size`: byte size when the file exists, otherwise null.
+- `row_count`: parsed metadata row count when loading succeeds, otherwise null.
+- `release`: `--gtdb-release` value, or `not provided`.
+- `load_status`: one of `gtdb_metadata_loaded`,
+  `gtdb_metadata_not_loaded`, or `gtdb_metadata_load_failed`.
+- `audit_timestamp`: UTC timestamp for the local audit.
+- `counts`: object with `matched`, `missing_from_gtdb`, `mismatch`, and
+  `extra_in_gtdb` only when `load_status=gtdb_metadata_loaded`; otherwise null.
+- `notes`: human-readable audit caveat. Counts compare selected assembly
+  accessions with the supplied local metadata and are not taxonomy
+  conclusions.
+
 ## excluded_lpsn_taxa.tsv
 
 Review table for LPSN rows excluded from the retained checklist.
@@ -743,21 +766,40 @@ and `rrna_source=barrnap`, preserving unrelated audit rows. Guarded Entrez
 fallback writes separate audit rows keyed by `rrna_source=Entrez` and is never
 automatically labeled `same_genome_internal_16s`.
 
-`rrna/all_16S.fasta` combines ready reference 16S records and, when provided,
-a user query 16S FASTA. Reference-only assembly is supported. Reference headers
-use manifest `normalized_id`; the query header defaults to `Query`. Headers
-are normalized to contain no whitespace, and duplicate headers are rejected.
+`rrna/all_16S.fasta` combines ready non-query reference 16S records and, when
+provided, a user query 16S FASTA or local-query barrnap 16S record.
+Reference-only assembly is supported when no query genome is required.
+Reference headers use manifest `normalized_id`; an explicit `--query-16s`
+header defaults to `Query`; local query barrnap headers include
+`source=local_query` and `query_id=<stable_query_id>`. Headers are normalized
+to contain no whitespace, and duplicate headers are rejected.
 
 ## ANI Outputs
 
 `ani/ani_plan.tsv` records the planned ANI query/reference inputs with
-`record_id`, `normalized_id`, `reference_genome_path`, `query_genome_path`,
-`status`, and `notes`. `ani/references.txt` contains ANI-planned reference
-genome paths, one per line.
+`record_id`, `normalized_id`, `query_id`, `reference_genome_path`,
+`query_genome_path`, `status`, and `notes`. Repeated `--query-genome` values
+produce one plan row per query/reference combination, so planned comparisons
+equal `query_count x ANI-ready_reference_count`. `ani/references.txt` contains
+ANI-planned reference genome paths, one per line, with duplicate reference
+paths removed.
+
+FastANI is query-vs-reference only in the current workflow. `--enable-fastani`
+without `--query-genome` does not write a FastANI command output; the durable
+stage status is recorded in `run_state.json` as `ani_skipped_no_query` and may
+be repeated in `report/summary.md`. With one or more `--query-genome` values,
+`manifest.tsv` includes one local query row per query with
+`source=local_query`, `assembly_source=local_query`, `is_query=true`,
+`is_type_material=false`, `genome_path` set to the query FASTA path, and
+`query_id`, SHA-256, query path, and `not_type_strain=true` provenance in
+`notes`. Query IDs use the normalized file stem when unique; duplicate stems
+receive a stable path-hash suffix.
 
 `ani/fastani_raw.tsv` is the raw five-column FastANI output:
 `query_path`, `reference_path`, `ani`, `matching_fragments`, and
-`total_fragments`.
+`total_fragments`. A successful FastANI command with an existing empty raw file
+is `fastani_no_hits`; a successful command with no raw file is
+`fastani_missing_output`.
 
 `ani/ani_query_vs_refs.tsv` is parsed from raw FastANI output:
 
@@ -787,13 +829,24 @@ automatically make species-level conclusions from ANI fields.
 ## Phylogeny Outputs
 
 `phylo/phylo_plan.tsv` records `input_fasta_path`, `aligned_fasta_path`,
-`trimmed_fasta_path`, `iqtree_prefix`, `treefile_path`, `status`, and `notes`.
+`trimmed_fasta_path`, `iqtree_prefix`, `treefile_path`, `query_16s_status`,
+`query_sequence_count`, `status`, and `notes`.
 The planned MAFFT alignment path is `phylo/all_16S.aln.fasta`, trimAl output
 path is `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix is
 `phylo/iqtree/all_16S`, and the expected treefile is
 `phylo/iqtree/all_16S.treefile`. The current IQ-TREE command uses ultrafast
 bootstrap, so the plan requires at least 4 FASTA records; smaller inputs are
 recorded as `phylo_skipped_too_few_sequences`.
+With `--query-genome`, `query_16s_status` is `query_16s_included` when the
+combined FASTA contains at least one query 16S and `skipped_query_no_16s` when
+query 16S is required but absent. `query_sequence_count` records how many query
+16S records entered the phylogeny input. In the latter case `status` is
+`phylo_skipped_query_no_16s`.
+
+`run_state.json` records the high-level `phylo` stage whenever phylogeny is
+requested or durable phylogeny outputs exist. The stage summary preserves the
+specific plan/workflow status, including `phylo_skipped_too_few_sequences`,
+`phylo_skipped_no_input`, and `phylo_tree_ready`.
 
 The controlled MAFFT wrapper writes alignment stdout to
 `phylo/all_16S.aln.fasta` when invoked through an injected runner and stdout is
@@ -815,6 +868,12 @@ after completed stages. `manifest.tsv` fields are `record_id`,
 and `notes`.
 `name_map.tsv` fields are `record_id`, `normalized_id`, `canonical_name`,
 `display_name`, and `assembly_accession`.
+
+`selection/selected_limit_summary.tsv` is written when `verify-genus` receives
+`--limit-selected N`. It is a one-row TSV with `limit_selected`,
+`selected_before_limit`, `selected_after_limit`, and `limit_applied`. The cap
+is applied after per-species selection and before selected rows are converted
+to manifest/download planning records.
 
 `report/summary.md` is generated from existing manifest state and
 already-written output files. If `ani/ani_summary.tsv` or `rrna/all_16S.fasta`

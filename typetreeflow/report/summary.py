@@ -53,6 +53,10 @@ from typetreeflow.taxonomy.audit import (
     MISSING_GENOME,
     POSSIBLE_NAME_MISMATCH,
 )
+from typetreeflow.taxonomy.gtdb_audit import (
+    GTDB_METADATA_LOADED,
+    read_gtdb_metadata_audit,
+)
 from typetreeflow.taxonomy.ncbi_taxonomy import (
     read_ncbi_taxonomy_cache,
     read_ncbi_taxonomy_plan,
@@ -120,6 +124,12 @@ def summarize_manifest(records: Iterable[StrainRecord]) -> dict[str, int]:
             1 for record in record_list if record.has_genome or record.status == "genome_ready"
         ),
         "rrna_ready_count": sum(1 for record in record_list if record.has_16s),
+        "reference_rrna_ready_count": sum(
+            1 for record in record_list if record.has_16s and not record.is_query
+        ),
+        "query_rrna_ready_count": sum(
+            1 for record in record_list if record.has_16s and record.is_query
+        ),
         "failed_count": sum(1 for record in record_list if _is_failed_status(record.status)),
         "skipped_count": sum(1 for record in record_list if _is_skipped_status(record.status)),
         "outgroup_count": sum(1 for record in record_list if record.is_outgroup),
@@ -146,6 +156,11 @@ def summarize_provenance_counts(records: Iterable[StrainRecord]) -> dict[str, in
         ),
         "external_registered_genome_count": sum(
             1 for record in record_list if _is_external_registered_genome(record)
+        ),
+        "local_query_genome_count": sum(
+            1
+            for record in record_list
+            if record.is_query and record.source == "local_query"
         ),
         "genome_ready_count": sum(
             1 for record in record_list if record.has_genome or record.status == "genome_ready"
@@ -313,6 +328,13 @@ def read_optional_checklist_comparison(path: str | Path) -> list[dict[str, str]]
             rows.append(dict(row))
 
     return rows
+
+
+def read_optional_gtdb_metadata_audit(path: str | Path):
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    return read_gtdb_metadata_audit(input_path)
 
 
 def read_optional_ncbi_taxonomy_plan(path: str | Path):
@@ -640,10 +662,20 @@ def summarize_phylo_status(
     paths: OutputPaths,
     rrna_ready_count: int,
 ) -> dict[str, str]:
+    plan_query_status = _read_phylo_plan_query_status(paths)
+    if paths.phylo_plan_path.exists():
+        plan_row = _read_first_tsv_row(paths.phylo_plan_path)
+        if plan_row and plan_row.get("status", "") == "phylo_skipped_query_no_16s":
+            return {
+                "status": plan_row.get("status", ""),
+                "notes": plan_row.get("notes", ""),
+                **_phylo_query_status_from_row(plan_row),
+            }
     if paths.iqtree_treefile_path.exists():
         return {
             "status": "phylo_tree_ready",
             "notes": f"IQ-TREE treefile exists: {_display_path(paths.iqtree_treefile_path, paths)}",
+            **plan_query_status,
         }
 
     if paths.all_16s_fasta_path.exists():
@@ -655,6 +687,7 @@ def summarize_phylo_status(
                     f"At least {MIN_PHYLO_SEQUENCES} 16S sequences are required; "
                     f"found {sequence_count} in rrna/all_16S.fasta."
                 ),
+                **plan_query_status,
             }
         return {
             "status": "phylo_ready_to_plan",
@@ -662,6 +695,7 @@ def summarize_phylo_status(
                 f"rrna/all_16S.fasta contains {sequence_count} sequences; "
                 "tree execution still requires the phylogeny stage to be enabled."
             ),
+            **plan_query_status,
         }
 
     if paths.phylo_plan_path.exists():
@@ -670,20 +704,59 @@ def summarize_phylo_status(
             return {
                 "status": plan_row.get("status", ""),
                 "notes": plan_row.get("notes", ""),
+                **_phylo_query_status_from_row(plan_row),
             }
 
     if rrna_ready_count < MIN_PHYLO_SEQUENCES:
         return {
-            "status": "phylo_skipped_too_few_sequences",
-            "notes": (
-                f"At least {MIN_PHYLO_SEQUENCES} 16S sequences are required; "
-                f"manifest has {rrna_ready_count} 16S-ready records."
-            ),
-        }
+        "status": "phylo_skipped_too_few_sequences",
+        "notes": (
+            f"At least {MIN_PHYLO_SEQUENCES} 16S sequences are required; "
+            f"manifest has {rrna_ready_count} 16S-ready records."
+        ),
+        **plan_query_status,
+    }
 
     return {
         "status": "phylo_skipped_no_input",
         "notes": "Combined 16S FASTA does not exist: rrna/all_16S.fasta",
+        **plan_query_status,
+    }
+
+
+def _read_phylo_plan_query_status(paths: OutputPaths) -> dict[str, str]:
+    if not paths.phylo_plan_path.exists():
+        return {}
+    row = _read_first_tsv_row(paths.phylo_plan_path)
+    if not row:
+        return {}
+    return _phylo_query_status_from_row(row)
+
+
+def _phylo_query_status_from_row(row: dict[str, str]) -> dict[str, str]:
+    status = row.get("query_16s_status", "").strip()
+    count = row.get("query_sequence_count", "").strip()
+    result: dict[str, str] = {}
+    if status:
+        result["query_16s_status"] = status
+    if count:
+        result["query_sequence_count"] = count
+    return result
+
+
+def summarize_ani_stage_status(paths: OutputPaths) -> dict[str, str] | None:
+    if not paths.run_state_path.exists():
+        return None
+    try:
+        state = read_run_state(paths.run_state_path)
+    except (ValueError, RuntimeError):
+        return None
+    stage = state.stages.get("ani")
+    if stage is None:
+        return None
+    return {
+        "status": stage.status,
+        "notes": stage.summary,
     }
 
 
@@ -701,6 +774,7 @@ def build_run_summary_markdown(
     output_files = summarize_output_files(paths, assume_run_summary_exists=True)
     problem_records = summarize_problem_records(record_list)
     ani_summary = read_optional_ani_summary(paths.ani_summary_path)
+    ani_stage_status = summarize_ani_stage_status(paths)
     phylo_status = summarize_phylo_status(paths, manifest_summary["rrna_ready_count"])
     checklist_comparison_error = ""
     try:
@@ -710,6 +784,14 @@ def build_run_summary_markdown(
     except ValueError as error:
         checklist_comparison = None
         checklist_comparison_error = str(error)
+    gtdb_metadata_audit_error = ""
+    try:
+        gtdb_metadata_audit = read_optional_gtdb_metadata_audit(
+            paths.gtdb_metadata_audit_path
+        )
+    except (OSError, ValueError) as error:
+        gtdb_metadata_audit = None
+        gtdb_metadata_audit_error = str(error)
     ncbi_taxonomy_error = ""
     try:
         ncbi_taxonomy_plan = read_optional_ncbi_taxonomy_plan(
@@ -818,10 +900,12 @@ def build_run_summary_markdown(
         "## Inputs",
         "",
         f"- Genus: {_config_value(args, 'genus')}",
-        f"- Query genome: {_config_value(args, 'query_genome')}",
+        f"- Query genomes: {_config_query_genomes_value(args)}",
         f"- Query 16S: {_config_value(args, 'query_16s')}",
         f"- Outgroup: {_config_value(args, 'outgroup')}",
         f"- Dry run: {_config_value(args, 'dry_run')}",
+        f"- GTDB metadata: {_config_value(args, 'gtdb_metadata')}",
+        f"- GTDB release: {_config_value(args, 'gtdb_release')}",
         f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
         f"- Selection acceptance: {_selection_acceptance_value(args)}",
         "",
@@ -867,6 +951,7 @@ def build_run_summary_markdown(
             "- External registered genome records: "
             f"{provenance_counts['external_registered_genome_count']}"
         ),
+        f"- Local query genome records: {provenance_counts['local_query_genome_count']}",
         f"- Genome-ready records: {provenance_counts['genome_ready_count']}",
         f"- Records missing genome: {provenance_counts['missing_genome_count']}",
         (
@@ -875,6 +960,11 @@ def build_run_summary_markdown(
             "and are not counted as NCBI Assembly-backed records. Registered "
             "external genomes with installed local FASTA paths can participate "
             "in downstream planning as mixed-provenance references."
+        ),
+        (
+            "Local query genome records use `source=local_query`, are marked "
+            "`is_query=true`, and are not type-strain or confirmed-species "
+            "evidence."
         ),
     ]
 
@@ -986,6 +1076,14 @@ def build_run_summary_markdown(
             "",
             f"- 16S-ready records: {manifest_summary['rrna_ready_count']}",
             (
+                "- Reference 16S-ready records: "
+                f"{manifest_summary['reference_rrna_ready_count']}"
+            ),
+            (
+                "- Query 16S-ready records: "
+                f"{manifest_summary['query_rrna_ready_count']}"
+            ),
+            (
                 "- Genome coverage: "
                 f"{rrna_coverage['genome_ready_count']}/{rrna_coverage['total_records']}"
             ),
@@ -1042,7 +1140,15 @@ def build_run_summary_markdown(
         ]
     )
     if ani_summary is None:
-        lines.append("ANI summary not available.")
+        if ani_stage_status is None:
+            lines.append("ANI summary not available.")
+        else:
+            lines.extend(
+                [
+                    f"- Status: {ani_stage_status['status']}",
+                    f"- Notes: {ani_stage_status['notes']}",
+                ]
+            )
     elif not ani_summary:
         lines.append("ANI summary file is empty.")
     else:
@@ -1058,7 +1164,82 @@ def build_run_summary_markdown(
             ]
         )
 
-    if checklist_comparison_error:
+    if gtdb_metadata_audit_error:
+        lines.extend(
+            [
+                "",
+                "## GTDB Metadata Audit",
+                "",
+                f"GTDB metadata audit could not be read: {gtdb_metadata_audit_error}",
+                "GTDB coverage counts are unavailable.",
+            ]
+        )
+    elif gtdb_metadata_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## GTDB Metadata Audit",
+                "",
+                f"- Metadata path: {gtdb_metadata_audit.metadata_path}",
+                f"- File exists: {str(gtdb_metadata_audit.file_exists).lower()}",
+                f"- File readable: {str(gtdb_metadata_audit.file_readable).lower()}",
+                (
+                    "- File size: "
+                    f"{_format_optional_count(gtdb_metadata_audit.file_size)}"
+                ),
+                (
+                    "- Row count: "
+                    f"{_format_optional_count(gtdb_metadata_audit.row_count)}"
+                ),
+                f"- Release: {gtdb_metadata_audit.release}",
+                f"- Load status: {gtdb_metadata_audit.load_status}",
+                f"- Audit timestamp: {gtdb_metadata_audit.audit_timestamp}",
+            ]
+        )
+        if (
+            gtdb_metadata_audit.load_status == GTDB_METADATA_LOADED
+            and gtdb_metadata_audit.counts is not None
+        ):
+            counts = gtdb_metadata_audit.counts
+            lines.extend(
+                [
+                    f"- Matched count: {counts['matched']}",
+                    f"- Missing from GTDB count: {counts['missing_from_gtdb']}",
+                    f"- Mismatch count: {counts['mismatch']}",
+                    f"- Extra in GTDB count: {counts['extra_in_gtdb']}",
+                    (
+                        "These counts compare selected assembly accessions to "
+                        "the supplied local GTDB metadata and do not make "
+                        "taxonomy conclusions."
+                    ),
+                ]
+            )
+        else:
+            lines.append(
+                "GTDB coverage counts were not computed because metadata was "
+                "not loaded successfully; do not interpret this run as GTDB "
+                "coverage evidence."
+            )
+
+    suppress_checklist_counts = (
+        gtdb_metadata_audit is not None
+        and gtdb_metadata_audit.load_status != GTDB_METADATA_LOADED
+    )
+    if suppress_checklist_counts:
+        lines.extend(
+            [
+                "",
+                "## Taxonomic Audit Summary",
+                "",
+                (
+                    "Taxonomic checklist comparison counts are not interpreted "
+                    "because GTDB metadata was not loaded successfully. Review "
+                    "`taxonomy/gtdb_metadata_audit.json` before drawing any "
+                    "GTDB coverage conclusions."
+                ),
+            ]
+        )
+    elif checklist_comparison_error:
         lines.extend(
             [
                 "",
@@ -1524,6 +1705,14 @@ def build_run_summary_markdown(
             "",
             f"- Status: {phylo_status['status']}",
             f"- Notes: {phylo_status['notes']}",
+            (
+                "- Query 16S status: "
+                f"{phylo_status.get('query_16s_status', 'query_not_recorded')}"
+            ),
+            (
+                "- Query sequence count: "
+                f"{phylo_status.get('query_sequence_count', '')}"
+            ),
         ]
     )
 
@@ -1941,6 +2130,15 @@ def _config_value(args: object | None, name: str) -> str:
     if value is None or value == "":
         return "not provided"
     return str(value)
+
+
+def _config_query_genomes_value(args: object | None) -> str:
+    if args is None:
+        return "not provided"
+    values = tuple(getattr(args, "query_genomes", ()) or ())
+    if values:
+        return ", ".join(str(value) for value in values)
+    return _config_value(args, "query_genome")
 
 
 def _ncbi_taxonomy_lookup_executed(paths: OutputPaths, args: object | None) -> bool:

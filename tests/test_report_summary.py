@@ -322,6 +322,8 @@ def test_summarize_manifest_counts_record_roles_and_ready_states():
         "type_material_count": 2,
         "genome_ready_count": 1,
         "rrna_ready_count": 1,
+        "reference_rrna_ready_count": 1,
+        "query_rrna_ready_count": 0,
         "failed_count": 1,
         "skipped_count": 1,
         "outgroup_count": 1,
@@ -426,6 +428,7 @@ def test_summarize_provenance_counts_mixed_ncbi_and_external_records():
     assert summarize_provenance_counts(records) == {
         "ncbi_assembly_backed_count": 1,
         "external_registered_genome_count": 1,
+        "local_query_genome_count": 0,
         "genome_ready_count": 2,
         "missing_genome_count": 1,
     }

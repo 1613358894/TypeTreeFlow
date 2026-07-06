@@ -90,6 +90,12 @@ rows are eligible for external registered genome records in `manifest.tsv` and
 - `genome_download_skipped`: CLI planning summary found only skipped genome download items.
 - `genome_plan_empty`: CLI planning summary found no genome download items.
 
+`--limit-selected N` is not a failure status. When it excludes otherwise
+selected rows from a bounded `verify-genus` smoke run, the affected
+`selection/user_selection.tsv` rows are marked unselected with a neutral
+`excluded_by_limit_selected_cap` note, and
+`selection/selected_limit_summary.tsv` records the before/after counts.
+
 ## rRNA, barrnap, Extract, And Entrez
 
 - `rrna_extraction_planned`: Local 16S extraction plan item is ready for barrnap and extraction.
@@ -102,7 +108,7 @@ rows are eligible for external registered genome records in `manifest.tsv` and
 - `barrnap_failed`: barrnap runner returned a failure.
 - `barrnap_missing_output`: barrnap runner succeeded but produced no usable GFF.
 - `rrna_16s_skipped_existing`: Existing extracted 16S FASTA was reused.
-- `rrna_16s_ready`: A reference 16S FASTA is registered and ready.
+- `rrna_16s_ready`: A reference or local query 16S FASTA is registered and ready.
 - `rrna_16s_not_found`: barrnap output did not contain a usable 16S sequence.
 - `rrna_16s_extract_failed`: barrnap GFF or genome FASTA could not produce a usable 16S sequence.
 - `rrna_workflow_dry_run`: Local 16S workflow planned only and did not run barrnap.
@@ -119,19 +125,25 @@ When enough reference records are `rrna_16s_ready` or `rrna_16s_skipped_existing
 the local 16S workflow can assemble `rrna/all_16S.fasta` without a query 16S
 input. That file is the phylogeny input checked by `phylo_planned`,
 `phylo_skipped_too_few_sequences`, and `phylo_tree_ready`.
+When one or more `--query-genome` values are present, query 16S comes from
+explicit `--query-16s` or local-query barrnap and is reported separately in
+`run_state.json` and `phylo/phylo_plan.tsv`. Local query FASTA headers retain
+`source=local_query` and `query_id`.
 
 ## ANI
 
 - `ani_planned`: ANI planning found at least one ready reference genome.
+- `ani_success`: Per-query ANI plan rows whose FastANI run produced or reused non-empty raw output.
 - `skipped_no_genome`: ANI planning skipped a record without a registered genome.
 - `skipped_missing_genome_file`: ANI planning skipped a record whose genome path is missing on disk.
 - `fastani_planned`: FastANI command would run in dry-run mode.
 - `fastani_skipped_existing`: Existing `ani/fastani_raw.tsv` was reused.
 - `fastani_succeeded`: FastANI runner succeeded and produced non-empty raw output.
 - `fastani_failed`: FastANI runner returned a failure.
-- `fastani_missing_output`: FastANI runner succeeded but raw output was absent or empty.
+- `fastani_no_hits`: FastANI runner exited 0 and produced an existing but empty raw output file. This is a valid no-hit result, not missing output.
+- `fastani_missing_output`: FastANI runner succeeded but raw output was absent.
 - `ani_skipped`: ANI workflow was explicitly skipped.
-- `ani_skipped_no_query`: ANI workflow skipped because no query genome was provided.
+- `ani_skipped_no_query`: ANI workflow skipped because no query genome was provided. FastANI is query-vs-reference only unless a future reference-vs-reference ANI workflow is added.
 - `fastani_not_enabled`: FastANI execution was requested without `--enable-fastani`.
 - `fastani_execution_not_wired`: FastANI execution was enabled but no runner was available through the safe workflow path.
 - `ani_skipped_no_ready_references`: ANI workflow found no reference genomes ready for comparison.
@@ -139,7 +151,7 @@ input. That file is the phylogeny input checked by `phylo_planned`,
 - `ani_summary_failed`: Parsed ANI output existed but summary generation failed.
 - `ani_plot_failed`: Parsed ANI output existed but PNG generation failed.
 - `ani_results_ready`: Parsed ANI results, and when possible the ANI summary, are ready.
-- `ani_no_hits`: ANI summary saw a valid result file with no hits.
+- `ani_no_hits`: ANI summary saw a valid result file with no hits, or a per-query ANI plan row whose FastANI run exited 0 with no raw hit rows.
 - `ani_hits_ready`: ANI summary contains at least one parsed hit.
 
 ## Phylo
@@ -147,7 +159,8 @@ input. That file is the phylogeny input checked by `phylo_planned`,
 - `phylo_planned`: 16S phylogeny plan is ready; current IQ-TREE bootstrap planning requires at least 4 FASTA sequences.
 - `phylo_skipped`: Phylogeny workflow was explicitly skipped.
 - `phylo_skipped_no_input`: `rrna/all_16S.fasta` was missing.
-- `phylo_skipped_too_few_sequences`: Combined 16S FASTA had fewer than 4 sequences, which is too few for the current IQ-TREE ultrafast bootstrap command.
+- `phylo_skipped_too_few_sequences`: Combined 16S FASTA had fewer than 4 sequences, which is too few for the current IQ-TREE ultrafast bootstrap command. This is an input-size skip, not a provider, download, or barrnap failure.
+- `phylo_skipped_query_no_16s`: Query-inclusive phylogeny was requested with `--query-genome`, but no query 16S record was present in `rrna/all_16S.fasta`; the workflow does not silently build a reference-only tree.
 - `phylo_skipped_existing_tree`: Existing IQ-TREE treefile was reused.
 - `mafft_missing_input`: MAFFT could not run because combined 16S FASTA was missing.
 - `mafft_planned`: MAFFT command would run in dry-run mode.
@@ -185,6 +198,19 @@ These statuses are written to `taxonomy/checklist_comparison.tsv` in the
 - `possible_name_mismatch`: Names are close but not automatically equivalent, including GTDB suffix or genus-name mismatch cases.
 - `missing_genome`: A matching GTDB-selected record exists but has no registered genome artifact in the manifest state.
 - `manual_review_required`: The row cannot be classified safely, including synonym-supported matches that require user review.
+
+## GTDB Metadata Audit
+
+These statuses are written to `taxonomy/gtdb_metadata_audit.json` in
+`load_status` and to the `gtdb_audit` stage in `run_state.json`.
+
+- `gtdb_metadata_loaded`: The user-supplied local GTDB metadata TSV was opened
+  and parsed; provenance and accession coverage counts are available.
+- `gtdb_metadata_not_loaded`: No GTDB metadata path was available for the audit;
+  coverage counts are unavailable and must not be interpreted.
+- `gtdb_metadata_load_failed`: A GTDB metadata path was provided but could not
+  be read; coverage counts are unavailable and must not be reported as real
+  `missing_from_gtdb` results.
 
 ## Offline Selection And Source Audit
 

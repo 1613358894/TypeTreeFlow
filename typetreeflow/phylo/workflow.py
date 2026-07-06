@@ -29,11 +29,17 @@ def prepare_phylogeny(
     force: bool = False,
     skip_tree: bool = False,
     enable_phylo: bool = False,
+    query_required: bool = False,
     threads: int = 1,
     bootstrap: int = 1000,
     model: str = "MFP",
 ) -> PhyloWorkflowResult:
-    plan = build_phylo_plan(paths, skip_tree=skip_tree, force=force)
+    plan = build_phylo_plan(
+        paths,
+        skip_tree=skip_tree,
+        force=force,
+        query_required=query_required,
+    )
     plan_path = write_phylo_plan(plan, paths.phylo_plan_path)
 
     if skip_tree:

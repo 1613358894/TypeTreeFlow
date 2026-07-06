@@ -44,6 +44,7 @@ from typetreeflow.expanded_discovery import (
 )
 from typetreeflow.external.runner import SubprocessRunner
 from typetreeflow.external.tools import (
+    BARRNAP,
     FASTANI,
     IQTREE,
     MAFFT,
@@ -89,6 +90,7 @@ from typetreeflow.manifest import (
     write_manifest,
     write_name_map,
 )
+from typetreeflow.local_query import LOCAL_QUERY_SOURCE, sync_local_query_records
 from typetreeflow.naming import ensure_unique_names
 from typetreeflow.phylo.workflow import prepare_phylogeny
 from typetreeflow.provider_plan import (
@@ -156,6 +158,12 @@ from typetreeflow.taxonomy.culture_collections import (
     lpsn_records_to_culture_collection_audit_rows,
     write_culture_collection_audit,
 )
+from typetreeflow.taxonomy.gtdb_audit import (
+    GTDB_METADATA_LOADED,
+    build_gtdb_metadata_audit,
+    read_gtdb_metadata_audit,
+    write_gtdb_metadata_audit,
+)
 from typetreeflow.taxonomy.lpsn_child_taxa import (
     filter_lpsn_child_taxa,
     lpsn_child_taxa_to_checklist_entries,
@@ -213,6 +221,13 @@ from typetreeflow.workflow.state import StageState, WorkflowState, write_run_sta
 
 LOGGER = logging.getLogger(__name__)
 _BIOSAMPLE_RECOMMENDATION_POLICIES = {"strict", "balanced"}
+SELECTED_LIMIT_SUMMARY_FIELDS = [
+    "limit_selected",
+    "selected_before_limit",
+    "selected_after_limit",
+    "limit_applied",
+]
+SELECTED_LIMIT_EXCLUSION_NOTE = "excluded_by_limit_selected_cap"
 
 
 @dataclass(frozen=True)
@@ -304,6 +319,8 @@ def _run_verify_release_genus_dispatch(
     config: AppConfig,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
@@ -317,6 +334,8 @@ def _run_verify_release_genus_dispatch(
             config,
             download_runner=download_runner,
             barrnap_runner=barrnap_runner,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
             assembly_discovery_client=assembly_discovery_client,
             biosample_client=biosample_client,
             ncbi_taxonomy_client=ncbi_taxonomy_client,
@@ -352,6 +371,8 @@ def main(
         config,
         download_runner=download_runner,
         barrnap_runner=barrnap_runner,
+        fastani_runner=fastani_runner,
+        phylo_runner=phylo_runner,
         assembly_discovery_client=assembly_discovery_client,
         biosample_client=biosample_client,
         ncbi_taxonomy_client=ncbi_taxonomy_client,
@@ -364,6 +385,8 @@ def main(
         validate_cli_argument_combinations(config)
         if config.strains_per_species < 1:
             raise ValueError("--strains-per-species must be at least 1")
+        if config.limit_selected is not None and config.limit_selected < 1:
+            raise ValueError("--limit-selected must be at least 1")
         if config.plan_provider_registration is not None:
             run_provider_registration_planning_stage(paths, config)
             return 0
@@ -387,6 +410,8 @@ def main(
                 config,
                 download_runner=download_runner,
                 barrnap_runner=barrnap_runner,
+                fastani_runner=fastani_runner,
+                phylo_runner=phylo_runner,
                 assembly_discovery_client=assembly_discovery_client,
                 biosample_client=biosample_client,
                 ncbi_taxonomy_client=ncbi_taxonomy_client,
@@ -462,6 +487,7 @@ def main(
         ensure_unique_names(selected_records)
         ensure_unique_record_ids(selected_records)
         ensure_unique_normalized_ids(selected_records)
+        _sync_local_query_if_requested(selected_records, paths, config)
         genome_plan_status = _write_genome_download_plan(selected_records, paths)
         ani_status = _write_ani_plan_if_ready(selected_records, paths, config)
         phylo_status = _write_phylo_plan(selected_records, paths, config)
@@ -525,6 +551,7 @@ def main(
         ensure_unique_names(selected_records)
         ensure_unique_record_ids(selected_records)
         ensure_unique_normalized_ids(selected_records)
+        _sync_local_query_if_requested(selected_records, paths, config)
         if config.enable_downloads:
             if not _source_audit_policy_allows_stage(paths, config, "download"):
                 _write_run_summary(selected_records, paths, config)
@@ -585,6 +612,8 @@ def main(
 
 
 def validate_cli_argument_combinations(config: AppConfig) -> None:
+    if config.limit_selected is not None and not config.verify_genus:
+        raise ValueError("--limit-selected is only supported by verify-genus.")
     if (
         config.extract_16s != "none"
         and not config.verify_genus
@@ -638,6 +667,8 @@ def run_release_genus_verification(
     config: AppConfig,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
@@ -699,6 +730,8 @@ def run_release_genus_verification(
                 acquisition_paths,
                 download_runner=download_runner,
                 barrnap_runner=barrnap_runner,
+                fastani_runner=fastani_runner,
+                phylo_runner=phylo_runner,
                 ncbi_taxonomy_client=ncbi_taxonomy_client,
             )
         except (ManifestError, ValueError, RuntimeError) as error:
@@ -878,6 +911,8 @@ def run_release_policy_verification_from_acquisition(
     acquisition_paths,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
 ) -> Path:
     _copy_shared_acquisition_outputs(acquisition_paths, paths)
@@ -920,6 +955,13 @@ def run_release_policy_verification_from_acquisition(
                 rrna_config,
                 runner=barrnap_runner,
             )
+        _run_guarded_downstream_analysis_stages(
+            records,
+            paths,
+            download_config,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
+        )
         write_manifest(records, paths.manifest)
         if download_config.species_checklist is not None:
             run_taxonomy_audit_stage(
@@ -927,6 +969,7 @@ def run_release_policy_verification_from_acquisition(
                 paths,
                 download_config.species_checklist,
             )
+        _write_inferred_run_state(paths, download_config, None)
         _write_run_summary(
             records,
             paths,
@@ -1057,7 +1100,10 @@ def _run_resume_from_manifest(
         paths.manifest,
         len(records),
     )
+    query_record_changed = _sync_local_query_if_requested(records, paths, config)
     if not paths.name_map.exists():
+        write_name_map(records, paths.name_map)
+    elif query_record_changed:
         write_name_map(records, paths.name_map)
 
     run_config = _effective_resume_config(config)
@@ -1078,6 +1124,13 @@ def _run_resume_from_manifest(
             fastani_runner = SubprocessRunner()
         run_ani_stage(records, paths, run_config, runner=fastani_runner)
     elif run_config.enable_phylo:
+        _prepare_query_16s_for_phylo_if_needed(
+            records,
+            paths,
+            run_config,
+            barrnap_runner=barrnap_runner,
+        )
+        _assemble_all_16s_if_ready(records, paths, run_config.query_16s)
         if not _source_audit_policy_allows_stage(paths, run_config, "phylo"):
             _write_run_summary(records, paths, run_config)
             raise ValueError("Sequence source audit policy blocked phylo stage.")
@@ -1549,7 +1602,12 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
 
     selection_outputs = [
         path
-        for path in (paths.strain_candidates_path, paths.user_selection_path, paths.manifest)
+        for path in (
+            paths.strain_candidates_path,
+            paths.user_selection_path,
+            paths.selected_limit_summary_path,
+            paths.manifest,
+        )
         if path.exists()
     ]
     if selection_outputs:
@@ -1559,6 +1617,10 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
             outputs=[_state_output_path(path, paths) for path in selection_outputs],
             summary=str(error) if selection_failed else _selection_summary(paths, config),
         )
+
+    gtdb_stage = _gtdb_audit_stage_state(paths, config)
+    if gtdb_stage is not None:
+        stages["gtdb_audit"] = gtdb_stage
 
     preflight_outputs = [
         path
@@ -1582,6 +1644,14 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
     rrna_stage = _rrna_stage_state(paths, config, error)
     if rrna_stage is not None:
         stages["rrna_barrnap"] = rrna_stage
+
+    ani_stage = _ani_stage_state(paths, config)
+    if ani_stage is not None:
+        stages["ani"] = ani_stage
+
+    phylo_stage = _phylo_stage_state(paths, config, error)
+    if phylo_stage is not None:
+        stages["phylo"] = phylo_stage
 
     _add_file_stage(
         stages,
@@ -1701,6 +1771,30 @@ def _download_stage_state(
     return None
 
 
+def _gtdb_audit_stage_state(paths, config: AppConfig) -> StageState | None:
+    if not paths.gtdb_metadata_audit_path.exists():
+        if config.gtdb_metadata is None and config.gtdb_release is None:
+            return None
+        return StageState(
+            status="gtdb_metadata_not_loaded",
+            outputs=[],
+            summary=_gtdb_not_loaded_summary(config),
+        )
+    try:
+        audit = read_gtdb_metadata_audit(paths.gtdb_metadata_audit_path)
+    except (OSError, ValueError) as error:
+        return StageState(
+            status="gtdb_metadata_load_failed",
+            outputs=[_state_output_path(paths.gtdb_metadata_audit_path, paths)],
+            summary=f"GTDB metadata audit could not be read: {error}",
+        )
+    return StageState(
+        status=audit.load_status,
+        outputs=[_state_output_path(paths.gtdb_metadata_audit_path, paths)],
+        summary=_gtdb_audit_summary(audit),
+    )
+
+
 def _rrna_stage_state(
     paths,
     config: AppConfig,
@@ -1747,11 +1841,253 @@ def _rrna_stage_state(
         if status_counts
         else _rrna_no_records_summary(config)
     )
+    query_summary = _local_query_rrna_summary(paths)
+    if query_summary:
+        summary = f"{summary}; {query_summary}"
     return StageState(
         status=status,
         outputs=[_state_output_path(path, paths) for path in outputs],
         summary=summary,
     )
+
+
+def _ani_stage_state(paths, config: AppConfig) -> StageState | None:
+    outputs = [
+        path
+        for path in (
+            paths.ani_plan_path,
+            paths.fastani_reference_list_path,
+            paths.fastani_raw_output_path,
+            paths.ani_query_vs_refs_path,
+            paths.ani_summary_path,
+            paths.ani_heatmap_path,
+        )
+        if path.exists()
+    ]
+    requested = config.enable_fastani or bool(config.query_genomes) or config.skip_ani
+    if not requested and not outputs:
+        return None
+    if config.skip_ani:
+        return StageState(
+            status="skipped",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary="ani_skipped: ANI workflow was skipped by configuration.",
+        )
+    if not config.query_genomes:
+        return StageState(
+            status="skipped",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=(
+                "ani_skipped_no_query: FastANI is query-vs-reference only; "
+                "--query-genome was not provided."
+            ),
+        )
+    if paths.ani_summary_path.exists():
+        row = _read_first_tsv_row(paths.ani_summary_path)
+        summary_status = row.get("status", "ani_results_ready") if row else "ani_results_ready"
+        query_summary = _ani_query_summary(paths)
+        summary = f"{summary_status}: ANI summary is ready."
+        if query_summary:
+            summary = f"{summary} {query_summary}"
+        return StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=summary,
+        )
+    if paths.ani_query_vs_refs_path.exists():
+        return StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary="ani_results_ready: parsed ANI results are ready.",
+        )
+    if paths.fastani_raw_output_path.exists():
+        raw_status = (
+            "fastani_succeeded"
+            if paths.fastani_raw_output_path.stat().st_size > 0
+            else "fastani_no_hits"
+        )
+        return StageState(
+            status="partial",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=f"{raw_status}: FastANI raw output did not produce parsed ANI summary.",
+        )
+    if paths.ani_plan_path.exists():
+        plan_statuses = _status_counts(paths.ani_plan_path)
+        if plan_statuses:
+            summary = ", ".join(
+                f"{status}={count}" for status, count in sorted(plan_statuses.items())
+            )
+            if "ani_planned" in plan_statuses:
+                status = "planned" if config.dry_run else "partial"
+            else:
+                status = "skipped"
+        else:
+            summary = "ani_planned: ANI plan was written."
+            status = "planned"
+        query_summary = _ani_query_summary(paths)
+        if query_summary:
+            summary = f"{summary}; {query_summary}"
+        return StageState(
+            status=status,
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=summary,
+        )
+    if requested:
+        return StageState(
+            status="skipped",
+            outputs=[],
+            summary="ani_skipped_no_ready_references: no reference genomes were ready for ANI.",
+        )
+    return None
+
+
+def _phylo_stage_state(
+    paths,
+    config: AppConfig,
+    error: Exception | None = None,
+) -> StageState | None:
+    outputs = [
+        path
+        for path in (
+            paths.phylo_plan_path,
+            paths.aligned_16s_fasta_path,
+            paths.trimmed_16s_fasta_path,
+            paths.iqtree_treefile_path,
+        )
+        if path.exists()
+    ]
+    requested = config.enable_phylo or config.skip_tree
+    if not requested and not outputs:
+        return None
+    if error is not None and "Sequence source audit policy blocked phylo stage" in str(error):
+        return StageState(
+            status="blocked_by_manual_review",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=f"Review {_state_output_path(paths.sequence_source_audit_path, paths)}.",
+        )
+    if paths.iqtree_treefile_path.exists():
+        query_status = _phylo_plan_query_status(paths)
+        summary = "phylo_tree_ready: IQ-TREE treefile is ready."
+        if query_status:
+            summary = f"{summary} {query_status}"
+        return StageState(
+            status="succeeded",
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=summary,
+        )
+    if paths.phylo_plan_path.exists():
+        row = _read_first_tsv_row(paths.phylo_plan_path)
+        workflow_status = row.get("status", "") if row else ""
+        notes = row.get("notes", "") if row else ""
+        if workflow_status == "phylo_planned":
+            status = "planned"
+        elif workflow_status.startswith("phylo_skipped"):
+            status = "skipped"
+        elif workflow_status:
+            status = "partial"
+        else:
+            status = "planned"
+        summary = workflow_status or "phylo_planned"
+        if notes:
+            summary = f"{summary}: {notes}"
+        query_status = _phylo_plan_query_status(paths)
+        if query_status:
+            summary = f"{summary} {query_status}"
+        return StageState(
+            status=status,
+            outputs=[_state_output_path(path, paths) for path in outputs],
+            summary=summary,
+        )
+    if requested:
+        return StageState(
+            status="skipped",
+            outputs=[],
+            summary="phylo_skipped_no_input: rrna/all_16S.fasta was not available.",
+        )
+    return None
+
+
+def _local_query_rrna_summary(paths) -> str:
+    if not paths.manifest.exists():
+        return ""
+    rows = [row for row in _read_tsv_rows(paths.manifest) if _truthy(row.get("is_query", ""))]
+    if not rows:
+        return ""
+    ready = sum(1 for row in rows if _truthy(row.get("has_16s", "")))
+    query_ids = _query_ids_from_manifest_rows(rows)
+    return (
+        f"query_count={len(rows)}; query_ids={','.join(query_ids)}; "
+        f"query_16s_ready={ready}/{len(rows)}"
+    )
+
+
+def _ani_query_summary(paths) -> str:
+    if not paths.ani_plan_path.exists():
+        return ""
+    rows = _read_tsv_rows(paths.ani_plan_path)
+    if not rows:
+        return ""
+    query_ids = sorted(
+        {
+            row.get("query_id", "").strip()
+            for row in rows
+            if row.get("query_id", "").strip()
+        }
+    )
+    planned = sum(
+        1
+        for row in rows
+        if row.get("status", "") in {"ani_planned", "ani_success", "ani_no_hits"}
+    )
+    statuses = _status_counts(paths.ani_plan_path)
+    status_summary = ",".join(
+        f"{status}={count}" for status, count in sorted(statuses.items())
+    )
+    parts = [
+        f"query_count={len(query_ids)}",
+        f"query_ids={','.join(query_ids)}",
+        f"planned_comparisons={planned}",
+    ]
+    if status_summary:
+        parts.append(f"query_statuses={status_summary}")
+    return "; ".join(parts)
+
+
+def _query_ids_from_manifest_rows(rows: list[dict[str, str]]) -> list[str]:
+    query_ids = []
+    for row in rows:
+        query_id = _query_id_from_notes(row.get("notes", ""))
+        if not query_id:
+            query_id = row.get("normalized_id", "") or row.get("record_id", "")
+        query_ids.append(query_id)
+    return sorted(query_ids)
+
+
+def _query_id_from_notes(notes: str) -> str:
+    for part in notes.split(";"):
+        key, separator, value = part.strip().partition("=")
+        if separator and key == "query_id":
+            return value.strip()
+    return ""
+
+
+def _phylo_plan_query_status(paths) -> str:
+    if not paths.phylo_plan_path.exists():
+        return ""
+    row = _read_first_tsv_row(paths.phylo_plan_path)
+    if not row:
+        return ""
+    status = row.get("query_16s_status", "").strip()
+    count = row.get("query_sequence_count", "").strip()
+    if not status:
+        return ""
+    if count:
+        return f"query_16s_status={status}; query_sequence_count={count}."
+    return f"query_16s_status={status}."
+
+
+def _truthy(value: object) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "y"}
 
 
 def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
@@ -1890,14 +2226,17 @@ def _has_ready_rrna_status(status_counts: dict[str, int]) -> bool:
 
 def _selection_summary(paths, config: AppConfig) -> str:
     acceptance = _selection_acceptance_summary(config)
+    limit_summary = _selected_limit_summary_text(paths)
     if paths.user_selection_path.exists():
         rows = _read_tsv_rows(paths.user_selection_path)
         selected = sum(1 for row in rows if row.get("selected", "").strip().lower() == "yes")
         summary = f"{selected} selected records"
-        return f"{summary}; {acceptance}" if acceptance else summary
+        parts = [summary, acceptance, limit_summary]
+        return "; ".join(part for part in parts if part)
     if paths.manifest.exists():
         summary = _row_count_summary(paths.manifest, "manifest records")
-        return f"{summary}; {acceptance}" if acceptance else summary
+        parts = [summary, acceptance, limit_summary]
+        return "; ".join(part for part in parts if part)
     return ""
 
 
@@ -1909,6 +2248,37 @@ def _selection_acceptance_summary(config: AppConfig) -> str:
     if config.auto_accept_selection:
         return "auto_accepted_selection for planning only; downloads not enabled"
     return "manual_review_required"
+
+
+def _gtdb_not_loaded_summary(config: AppConfig) -> str:
+    release = config.gtdb_release or "not provided"
+    metadata = str(config.gtdb_metadata) if config.gtdb_metadata is not None else "not provided"
+    return (
+        "load_status=gtdb_metadata_not_loaded; "
+        f"metadata_path={metadata}; release={release}; "
+        "GTDB coverage counts were not computed."
+    )
+
+
+def _gtdb_audit_summary(audit) -> str:
+    parts = [
+        f"load_status={audit.load_status}",
+        f"metadata_path={audit.metadata_path}",
+        f"file_exists={str(audit.file_exists).lower()}",
+        f"file_readable={str(audit.file_readable).lower()}",
+        f"file_size={audit.file_size if audit.file_size is not None else 'unavailable'}",
+        f"row_count={audit.row_count if audit.row_count is not None else 'unavailable'}",
+        f"release={audit.release}",
+        f"audit_timestamp={audit.audit_timestamp}",
+    ]
+    if audit.load_status == GTDB_METADATA_LOADED and audit.counts is not None:
+        parts.extend(
+            f"{key}={audit.counts[key]}"
+            for key in ("matched", "missing_from_gtdb", "mismatch", "extra_in_gtdb")
+        )
+    else:
+        parts.append("GTDB coverage counts were not computed.")
+    return "; ".join(parts)
 
 
 def _manual_review_download_summary(config: AppConfig) -> str:
@@ -1964,6 +2334,11 @@ def _read_tsv_rows(path: Path) -> list[dict[str, str]]:
     _allow_large_csv_fields()
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _read_first_tsv_row(path: Path) -> dict[str, str]:
+    rows = _read_tsv_rows(path)
+    return rows[0] if rows else {}
 
 
 def _allow_large_csv_fields() -> None:
@@ -2032,6 +2407,22 @@ def run_taxonomy_audit_stage(records, paths, checklist_path: Path) -> Path:
     return output_path
 
 
+def run_gtdb_metadata_audit_stage(records, paths, config: AppConfig) -> Path:
+    audit = build_gtdb_metadata_audit(
+        records,
+        metadata_path=config.gtdb_metadata,
+        release=config.gtdb_release,
+        genus=config.acquire_genus or config.genus,
+    )
+    output_path = write_gtdb_metadata_audit(audit, paths.gtdb_metadata_audit_path)
+    LOGGER.info(
+        "Wrote GTDB metadata audit: %s (%s).",
+        output_path,
+        audit.load_status,
+    )
+    return output_path
+
+
 def run_completion_audit_stage(paths, config: AppConfig) -> tuple[Path, Path]:
     if config.species_checklist is None:
         raise ValueError("--write-completion-audit requires --species-checklist.")
@@ -2069,6 +2460,8 @@ def run_genus_acquisition_workflow(
     config: AppConfig,
     download_runner=None,
     barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
@@ -2155,11 +2548,15 @@ def run_genus_acquisition_workflow(
         acquisition_config,
         biosample_client=biosample_client,
     )
+    _apply_verify_genus_selected_limit(paths, acquisition_config)
     records = run_selection_dry_run_stage(
         paths,
         acquisition_config,
         ncbi_taxonomy_client=ncbi_taxonomy_client,
     )
+    query_record_changed = _sync_local_query_if_requested(records, paths, acquisition_config)
+    if query_record_changed:
+        write_name_map(records, paths.name_map)
     if verify_genus_guarded_download:
         download_config = replace(
             acquisition_config,
@@ -2195,6 +2592,14 @@ def run_genus_acquisition_workflow(
                 rrna_config,
                 runner=barrnap_runner,
             )
+        _run_guarded_downstream_analysis_stages(
+            records,
+            paths,
+            download_config,
+            barrnap_runner=barrnap_runner,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
+        )
         write_manifest(records, paths.manifest)
         if download_config.species_checklist is not None:
             run_taxonomy_audit_stage(
@@ -2202,6 +2607,7 @@ def run_genus_acquisition_workflow(
                 paths,
                 download_config.species_checklist,
             )
+        _write_inferred_run_state(paths, download_config, None)
         _write_run_summary(
             records,
             paths,
@@ -2222,6 +2628,57 @@ def run_genus_acquisition_workflow(
         paths.user_selection_path,
     )
     return paths.user_selection_path
+
+
+def _run_guarded_downstream_analysis_stages(
+    records,
+    paths,
+    config: AppConfig,
+    *,
+    barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
+) -> None:
+    if config.enable_fastani:
+        if (
+            bool(config.query_genomes)
+            and not config.skip_ani
+            and _has_ani_ready_references(records, paths)
+        ):
+            if fastani_runner is None:
+                require_executable(FASTANI.executable)
+                fastani_runner = SubprocessRunner()
+            run_ani_stage(records, paths, config, runner=fastani_runner)
+        else:
+            run_ani_stage(records, paths, config, runner=fastani_runner)
+
+    if not config.enable_phylo:
+        return
+    _prepare_query_16s_for_phylo_if_needed(
+        records,
+        paths,
+        config,
+        barrnap_runner=barrnap_runner,
+    )
+    _assemble_all_16s_if_ready(records, paths, config.query_16s)
+    if not _source_audit_policy_allows_stage(paths, config, "phylo"):
+        _write_run_summary(records, paths, config)
+        raise ValueError("Sequence source audit policy blocked phylo stage.")
+    if not config.skip_tree and phylo_runner is None:
+        phylo_plan = prepare_phylogeny(
+            paths,
+            dry_run=True,
+            force=config.force,
+            skip_tree=config.skip_tree,
+            enable_phylo=config.enable_phylo,
+            threads=config.threads,
+        )
+        if phylo_plan.status == "phylo_planned":
+            require_executable(MAFFT.executable)
+            require_executable(TRIMAL.executable)
+            require_executable(IQTREE.executable)
+            phylo_runner = SubprocessRunner()
+    run_phylo_stage(records, paths, config, runner=phylo_runner)
 
 
 def run_culture_collection_audit_stage(paths, config: AppConfig) -> Path:
@@ -2639,6 +3096,108 @@ def run_selection_prepare_stage(
     return output_path
 
 
+def _apply_verify_genus_selected_limit(paths, config: AppConfig) -> None:
+    if config.limit_selected is None:
+        return
+    rows = read_user_selection(paths.user_selection_path)
+    selected_seen = 0
+    selected_before_limit = sum(1 for row in rows if row.selected)
+    for row in rows:
+        if not row.selected:
+            continue
+        selected_seen += 1
+        if selected_seen <= config.limit_selected:
+            continue
+        row.selected = False
+        row.notes = _append_selection_note(row.notes, SELECTED_LIMIT_EXCLUSION_NOTE)
+    selected_after_limit = sum(1 for row in rows if row.selected)
+    validate_user_selection(
+        rows,
+        strains_per_species=config.strains_per_species,
+        selection_policy=config.selection_policy,
+    )
+    write_user_selection(rows, paths.strain_candidates_path)
+    write_user_selection(rows, paths.user_selection_path)
+    summary_path = _write_selected_limit_summary(
+        paths.selected_limit_summary_path,
+        limit_selected=config.limit_selected,
+        selected_before_limit=selected_before_limit,
+        selected_after_limit=selected_after_limit,
+    )
+    LOGGER.info(
+        "Applied total selected reference genome cap: limit_selected=%d, "
+        "selected_before_limit=%d, selected_after_limit=%d, limit_applied=%s.",
+        config.limit_selected,
+        selected_before_limit,
+        selected_after_limit,
+        str(selected_after_limit < selected_before_limit).lower(),
+    )
+    LOGGER.info("Wrote selected limit summary: %s.", summary_path)
+
+
+def _append_selection_note(notes: str, note: str) -> str:
+    parts = [part.strip() for part in str(notes or "").split(";") if part.strip()]
+    if note not in parts:
+        parts.append(note)
+    return "; ".join(parts)
+
+
+def _write_selected_limit_summary(
+    path: Path,
+    *,
+    limit_selected: int,
+    selected_before_limit: int,
+    selected_after_limit: int,
+) -> Path:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=SELECTED_LIMIT_SUMMARY_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "limit_selected": str(limit_selected),
+                "selected_before_limit": str(selected_before_limit),
+                "selected_after_limit": str(selected_after_limit),
+                "limit_applied": (
+                    "true"
+                    if selected_after_limit < selected_before_limit
+                    else "false"
+                ),
+            }
+        )
+    return output_path
+
+
+def _read_selected_limit_summary(path: Path) -> dict[str, str]:
+    rows = _read_tsv_rows(path)
+    if not rows:
+        return {}
+    return {
+        field: rows[0].get(field, "").strip()
+        for field in SELECTED_LIMIT_SUMMARY_FIELDS
+    }
+
+
+def _selected_limit_summary_text(paths) -> str:
+    if not paths.selected_limit_summary_path.exists():
+        return ""
+    row = _read_selected_limit_summary(paths.selected_limit_summary_path)
+    if not row:
+        return ""
+    return (
+        f"limit_selected={row['limit_selected']}; "
+        f"selected_before_limit={row['selected_before_limit']}; "
+        f"selected_after_limit={row['selected_after_limit']}; "
+        f"limit_applied={row['limit_applied']}"
+    )
+
+
 def _validate_generated_selection(selection_rows: list, config: AppConfig) -> None:
     try:
         validate_user_selection(
@@ -2911,6 +3470,8 @@ def run_selection_dry_run_stage(
     write_name_map(records, paths.name_map)
     if config.species_checklist is not None:
         run_taxonomy_audit_stage(records, paths, config.species_checklist)
+    if config.verify_genus or config.gtdb_metadata is not None or config.gtdb_release is not None:
+        run_gtdb_metadata_audit_stage(records, paths, config)
     _write_run_summary(
         records,
         paths,
@@ -2974,7 +3535,15 @@ def _selection_tsv_to_records(paths, config: AppConfig) -> list:
 
 
 def _needs_fastani_execution(config: AppConfig) -> bool:
-    return not config.skip_ani and config.query_genome is not None
+    return not config.skip_ani and bool(config.query_genomes)
+
+
+def _sync_local_query_if_requested(records, paths, config: AppConfig) -> bool:
+    changed = sync_local_query_records(records, config.query_genomes)
+    if changed:
+        LOGGER.info("Registered local query genome provenance in manifest.")
+        write_manifest(records, paths.manifest)
+    return changed
 
 
 def _cli_real_action_allowed(
@@ -3022,7 +3591,7 @@ def _assemble_all_16s_if_ready(records, paths, query_16s_path: Path | None) -> N
 
 def _write_ani_plan_if_ready(records, paths, config: AppConfig) -> str:
     if (
-        config.query_genome is not None
+        bool(config.query_genomes)
         and not config.skip_ani
         and not _has_ani_ready_references(records, paths)
     ):
@@ -3031,7 +3600,7 @@ def _write_ani_plan_if_ready(records, paths, config: AppConfig) -> str:
     result = prepare_ani(
         records,
         paths,
-        query_genome_path=config.query_genome,
+        query_genome_path=config.query_genomes,
         dry_run=config.dry_run,
         force=config.force,
         skip_ani=config.skip_ani,
@@ -3050,7 +3619,7 @@ def run_ani_stage(records, paths, config: AppConfig, runner=None) -> str:
     result = prepare_ani(
         records,
         paths,
-        query_genome_path=config.query_genome,
+        query_genome_path=config.query_genomes,
         dry_run=config.dry_run,
         force=config.force,
         skip_ani=config.skip_ani,
@@ -3084,6 +3653,7 @@ def _write_phylo_plan(records, paths, config: AppConfig) -> str:
         force=config.force,
         skip_tree=config.skip_tree,
         enable_phylo=config.enable_phylo,
+        query_required=_query_16s_required(config),
         threads=config.threads,
     )
     LOGGER.info("Phylogeny workflow status: %s. %s", result.status, result.notes)
@@ -3102,6 +3672,7 @@ def run_phylo_stage(records, paths, config: AppConfig, runner=None) -> str:
         force=config.force,
         skip_tree=config.skip_tree,
         enable_phylo=config.enable_phylo,
+        query_required=_query_16s_required(config),
         threads=config.threads,
     )
     LOGGER.info("Phylogeny workflow status: %s. %s", result.status, result.notes)
@@ -3124,6 +3695,45 @@ def _prepare_local_16s_if_ready(records, paths, config: AppConfig, runner=None) 
     )
     LOGGER.info("Local 16S workflow status: %s. %s", result.status, result.notes)
     return result.status
+
+
+def _prepare_query_16s_for_phylo_if_needed(
+    records,
+    paths,
+    config: AppConfig,
+    barrnap_runner=None,
+) -> None:
+    if not config.query_genomes or config.query_16s is not None:
+        return
+    if _has_ready_local_query_16s(records):
+        return
+    if barrnap_runner is None:
+        require_executable(BARRNAP.executable)
+        barrnap_runner = SubprocessRunner()
+    rrna_config = replace(config, enable_barrnap=True, dry_run=False)
+    status = _prepare_local_16s_if_ready(
+        records,
+        paths,
+        rrna_config,
+        runner=barrnap_runner,
+    )
+    LOGGER.info("Local query 16S preparation before phylogeny: %s.", status)
+
+
+def _query_16s_required(config: AppConfig) -> bool:
+    return bool(config.query_genomes) or config.query_16s is not None
+
+
+def _has_ready_local_query_16s(records) -> bool:
+    for record in records:
+        if (
+            record.is_query
+            and record.source == LOCAL_QUERY_SOURCE
+            and record.has_16s
+            and record.rrna_16s_path
+        ):
+            return True
+    return False
 
 
 def run_rrna_stage(records, paths, config: AppConfig, runner=None) -> None:

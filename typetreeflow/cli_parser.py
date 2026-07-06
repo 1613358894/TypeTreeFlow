@@ -70,7 +70,12 @@ def build_parser() -> argparse.ArgumentParser:
             "preserving each intermediate table under --outdir."
         ),
     )
-    parser.add_argument("--query-genome", type=Path, help="Query genome FASTA path.")
+    parser.add_argument(
+        "--query-genome",
+        type=Path,
+        action="append",
+        help="Query genome FASTA path. May be repeated for multiple query genomes.",
+    )
     parser.add_argument("--query-16s", type=Path, help="Query 16S FASTA path.")
     parser.add_argument("--outgroup", help="Optional outgroup taxon or strain.")
     parser.add_argument(
@@ -375,6 +380,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Number of top-ranked strains to preselect per species; default: 1.",
+    )
+    parser.add_argument(
+        "--limit-selected",
+        type=int,
+        help=(
+            "For verify-genus, cap the total selected reference genomes after "
+            "--strains-per-species selection and before download planning."
+        ),
     )
     parser.add_argument(
         "--resume",

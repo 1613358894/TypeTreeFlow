@@ -80,16 +80,17 @@ scrape, purchase, or download from external portals, and does not treat
   as review-only counts, without triggering provider planning, downloads,
   credential handling, FASTA installation, manifest changes, or completion
   metric changes.
-- Plan and run guarded resume-mode barrnap, FastANI, Entrez 16S fallback, and
-  MAFFT/trimAl/IQ-TREE wrappers.
+- Plan and run guarded barrnap, query-vs-reference FastANI, Entrez 16S
+  fallback, and MAFFT/trimAl/IQ-TREE wrappers from resume mode or the guarded
+  `verify-genus` download path where supported.
 - Select type-material records from local GTDB metadata TSVs for legacy or
   direct GTDB-based workflows.
 - Write `report/summary.md` and `report/run_review.md` from existing files
   without making species conclusions.
 
-The CLI can run guarded resume-mode FastANI and write an ANI PNG from parsed
-results. It does not parse Newick trees. Guarded phylogeny execution writes a
-Newick treefile only; it does not render a tree figure.
+The CLI can run guarded query-vs-reference FastANI and write an ANI PNG from
+parsed results. It does not parse Newick trees. Guarded phylogeny execution
+writes a Newick treefile only; it does not render a tree figure.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
@@ -257,6 +258,8 @@ Plan a genus verification from local caches:
 typetreeflow verify-genus Fusobacterium \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --gtdb-metadata data/gtdb_metadata_r220.tsv \
+  --gtdb-release r220 \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
@@ -269,6 +272,18 @@ This is the recommended plan-only acquisition command. A local LPSN cache only
 builds the checklist; it is not a discovery cache and does not supply NCBI
 Assembly candidates. Use `--discovery-cache` for offline candidate discovery,
 or use guarded live discovery with `--enable-ncbi-discovery --email`.
+`--limit-selected N` is an optional total selected reference genome cap for
+bounded smoke runs. It is applied after per-species selection and before
+manifest/download planning; `selection/selected_limit_summary.tsv` and
+`run_state.json` record `limit_selected`, `selected_before_limit`,
+`selected_after_limit`, and `limit_applied`.
+When `--gtdb-metadata` is supplied, plan-only runs read the local TSV and
+write `taxonomy/gtdb_metadata_audit.json` with metadata path, file status,
+file size, row count, release, load status, audit timestamp, and accession
+coverage counts. If the file cannot be loaded, the audit records
+`gtdb_metadata_load_failed` and GTDB coverage counts are unavailable rather
+than reported as missing. `--gtdb-release` is recorded in `run_state.json`,
+`report/summary.md`, and delivery packages when present.
 
 Plan the same shape with guarded live LPSN, NCBI Assembly, and BioSample
 lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
@@ -310,6 +325,22 @@ The download pair is deliberately strict: `--enable-downloads` is ignored for
 real execution unless paired with `--auto-accept-selection` in `verify-genus`.
 For a manual stop, omit both or add `--review-required`.
 
+For a bounded real smoke test, keep the same double opt-in and add a total
+selected cap:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --policy balanced \
+  --source-audit-policy strict \
+  --strains-per-species 1 \
+  --limit-selected 5 \
+  --outdir <smoke_run_dir> \
+  --auto-accept-selection \
+  --enable-downloads
+```
+
 For a guarded genome download plus same-genome barrnap 16S run, use downloads
 and `--extract-16s barrnap` together:
 
@@ -329,6 +360,29 @@ typetreeflow verify-genus Fusobacterium \
 `--extract-16s barrnap` depends on a genome-ready manifest produced by guarded
 download or external local FASTA registration, and it requires `barrnap` on
 `PATH`.
+
+`--enable-fastani` on a guarded download run is query-vs-reference only. When
+`--query-genome` is omitted, TypeTreeFlow does not run FastANI and records an
+explicit `ani_skipped_no_query` stage status in `run_state.json` and the
+report. `--query-genome` may be repeated, for example
+`--query-genome q1.fna --query-genome q2.fna --query-genome q3.fna`. Ready
+reference genomes are compared against each query genome, and
+`ani/ani_plan.tsv` has one row per query/reference comparison. Each query is
+also recorded in `manifest.tsv` as a local query row with
+`source=local_query`, `is_query=true`, `is_type_material=false`, the query
+genome path, `query_id`, and a SHA-256 digest in the provenance notes. A local
+query row is not type-strain evidence and is not a confirmed species
+assignment.
+
+`--enable-phylo` on a guarded download plus barrnap run uses
+`rrna/all_16S.fasta` after same-genome 16S extraction. The current IQ-TREE
+ultrafast bootstrap workflow requires at least 4 16S FASTA records; smaller
+inputs are recorded as `phylo_skipped_too_few_sequences`, not as download or
+provider failures. When a local query genome is present, query-inclusive
+phylogeny requires a query 16S record. If query barrnap cannot produce one,
+`phylo/phylo_plan.tsv`, `run_state.json`, and the report record
+`phylo_skipped_query_no_16s` / `skipped_query_no_16s` rather than silently
+building a reference-only tree.
 
 If a run already has an output directory, ordinary continuation should use
 `--resume` (or `--continue`), not `--force`. `--force` is for intentionally
@@ -558,6 +612,7 @@ Run a minimal legacy/local GTDB dry run:
 typetreeflow \
   --genus Aliivibrio \
   --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
+  --gtdb-release fixture \
   --outdir <tmp>/output_dry_run \
   --dry-run
 ```
@@ -568,6 +623,7 @@ Audit a user-provided species checklist:
 typetreeflow \
   --genus Aliivibrio \
   --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
+  --gtdb-release fixture \
   --species-checklist examples/species_checklist_minimal.tsv \
   --dry-run
 ```
@@ -861,6 +917,34 @@ typetreeflow \
   --dry-run
 ```
 
+Repeat `--query-genome` to compare several local query genomes in the same run:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
+  --discovery-cache data/fusobacterium_discovery_records.tsv \
+  --outdir <run_dir> \
+  --auto-accept-selection \
+  --enable-downloads \
+  --extract-16s barrnap \
+  --enable-fastani \
+  --query-genome TJA_020.fna \
+  --query-genome TJ_220.fna \
+  --query-genome TJ_226.fna \
+  --enable-phylo
+```
+
+For a local query smoke run, check these offline artifacts before interpreting
+biology: `manifest.tsv` should contain one `source=local_query` row per query
+with `is_query=true`, `query_id`, `query_path`, `sha256`, and
+`not_type_strain=true` notes; `rrna/rrna_plan.tsv` and
+`source_audit/sequence_source_audit.tsv` should distinguish reference barrnap
+16S from query barrnap 16S; `ani/ani_plan.tsv` should have
+`query_count x reference_count` comparison rows; `ani/ani_summary.tsv` may
+report `ani_no_hits` when FastANI exits 0 with zero raw hit rows; and
+`phylo/phylo_plan.tsv` should record `query_16s_included` or
+`skipped_query_no_16s` plus the query sequence count.
+
 Write a report from existing files only:
 
 ```bash
@@ -913,8 +997,8 @@ The source-audit gate is controlled by:
 | NCBI assembly discovery | `--enable-ncbi-discovery --email user@example.org` | Guarded real candidate discovery; local `--discovery-cache` mode remains offline. |
 | NCBI Taxonomy lookup | `--enable-ncbi-taxonomy --email user@example.org` | Guarded optional taxonomy lookup from `taxonomy/ncbi_taxonomy_plan.tsv`; writes only `taxonomy/ncbi_taxonomy_cache.tsv`. |
 | expanded NCBI token discovery | `--enable-expanded-discovery` | Optional second-pass audit for uncovered species; writes review files only and does not change selection or manifest outputs. |
-| FastANI | `--enable-fastani` | Resume-mode local ANI when `fastANI` is installed and `--query-genome` is provided. |
-| phylogeny | `--enable-phylo` | Resume-mode MAFFT, trimAl, and IQ-TREE wrappers. |
+| FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires one or more `--query-genome` values to execute `fastANI`; without it the stage records `ani_skipped_no_query`. Multi-query plans have `query_count x reference_count` rows. Exit 0 with an empty raw output file is `fastani_no_hits` / `ani_no_hits`, not missing output. |
+| phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. With `--query-genome`, query 16S must be included or the plan records `phylo_skipped_query_no_16s`; multi-query inputs preserve `source=local_query` and `query_id` in FASTA headers. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
 
 Examples:
@@ -1031,10 +1115,14 @@ See [LICENSE](LICENSE).
   credentials configured outside this repository.
 - NCBI discovery, BioSample enrichment, Entrez fallback, downloads, barrnap,
   FastANI, and phylogeny execution are guarded and require explicit opt-in.
-- Guarded real FastANI execution is resume-only, requires `--query-genome`, and
-  requires the `fastANI` executable on `PATH`.
-- Guarded real phylogeny execution is resume-only and requires `mafft`,
-  `trimal`, and `iqtree2` on `PATH`.
+- Guarded real FastANI execution is query-vs-reference only, runs from a
+  resumed or guarded-download genome-ready manifest, requires one or more
+  `--query-genome` values, and requires the `fastANI` executable on `PATH`.
+  Without `--query-genome`, an explicit `ani_skipped_no_query` stage status is
+  recorded.
+- Guarded real phylogeny execution runs from a resumed or guarded-download
+  16S-ready manifest and requires `mafft`, `trimal`, and `iqtree2` on `PATH`
+  when `rrna/all_16S.fasta` has enough input sequences.
 - Candidate generation can read a local discovery cache, or contact NCBI only
   with `--enable-ncbi-discovery --email`.
 - Synonym-aware candidate discovery is off by default and available only with

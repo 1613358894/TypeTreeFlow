@@ -137,6 +137,7 @@ def test_readme_mentions_guarded_cli_flags():
         "--selection-policy",
         "--plan-provider-registration",
         "--strains-per-species",
+        "--limit-selected",
         "--query-genome",
         "--query-16s",
         "--email",

@@ -32,3 +32,52 @@ documents.
 Use this overview to find the right contract quickly. For exact columns,
 status meanings, path ownership, or audit counting rules, cite the linked
 canonical document directly.
+
+`verify-genus --limit-selected N` is a bounded-smoke selection contract, not a
+completion contract. It caps the final selected reference genome rows after
+per-species selection and before manifest/download planning, and records the
+cap in `selection/selected_limit_summary.tsv` plus `run_state.json`. Cap
+exclusions do not imply provider failure, missing genome evidence, taxonomy
+failure, or strict type-strain confirmation changes.
+
+`verify-genus --gtdb-metadata PATH --gtdb-release RELEASE` is a local
+GTDB-metadata audit contract for plan-only review. The workflow must either
+read the supplied TSV or record `gtdb_metadata_load_failed`; it must not
+silently skip the input. `taxonomy/gtdb_metadata_audit.json`, `run_state.json`,
+`report/summary.md`, and `package-results --include reports` preserve the
+metadata path, file existence/readability, file size, row count when loaded,
+release, load status, and audit timestamp. GTDB coverage counts are emitted
+only after metadata loads successfully; when metadata is absent or unreadable,
+counts are unavailable and must not be interpreted as real GTDB missing
+coverage. These counts compare selected assembly accessions with the supplied
+local metadata and do not make taxonomy conclusions.
+
+`verify-genus --enable-fastani` is a query-vs-reference ANI contract. It may
+run after resume from a genome-ready manifest or after a guarded download run
+that used `--auto-accept-selection --enable-downloads`. Execution requires
+`--query-genome`; without it, the workflow records `ani_skipped_no_query`
+instead of silently doing nothing. `--query-genome` may be repeated; config
+normalizes those values to `query_genomes`, while `query_genome` remains a
+single-query compatibility alias. With one or more query genomes, each query is
+recorded as its own `source=local_query`, `is_query=true`, and
+`is_type_material=false` row in `manifest.tsv` with `query_id`, path, SHA-256
+digest, and `not_type_strain=true` in provenance notes. Duplicate file stems
+are disambiguated with a stable path-hash suffix in `query_id`. Local query
+rows are audit inputs only and must not be described as type strains or
+confirmed species evidence. FastANI planning writes one query/reference row per
+combination, so planned comparisons equal query count times ANI-ready reference
+count. FastANI exit 0 with an empty raw output file is `fastani_no_hits` /
+`ani_no_hits`; a missing raw output file remains `fastani_missing_output`.
+
+`verify-genus --enable-phylo` uses the combined `rrna/all_16S.fasta` generated
+from ready 16S records. It may run after resume or after guarded download plus
+barrnap extraction. The current IQ-TREE ultrafast bootstrap workflow requires
+at least 4 16S FASTA records; smaller inputs record
+`phylo_skipped_too_few_sequences` and do not count as provider or download
+failures. When any `--query-genome` is present, query-inclusive phylogeny
+requires query 16S from explicit `--query-16s` or query barrnap. Multiple
+local-query barrnap 16S records can enter `rrna/all_16S.fasta`; headers retain
+`source=local_query` and `query_id`. If query 16S is absent,
+`phylo/phylo_plan.tsv`, `run_state.json`, and the report record
+`phylo_skipped_query_no_16s` / `skipped_query_no_16s` rather than silently
+running a reference-only tree.

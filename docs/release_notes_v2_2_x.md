@@ -5,6 +5,33 @@ release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
 
+## Current PR Readiness Notes
+
+The `codex/limit-selected-cap` branch prepares post-v2.2.14 workflow coverage
+for bounded PR/release smoke checks:
+
+- `verify-genus --limit-selected N` limits total selected reference genomes
+  after policy-based selection, so plan-only and guarded real smoke runs can be
+  bounded without changing selection semantics.
+- Guarded ANI and phylogeny stages now preserve explicit stage statuses in run
+  state and reports. Query-vs-reference ANI without a query records a skip, too
+  few 16S records records `phylo_skipped_too_few_sequences`, and missing query
+  16S records `phylo_skipped_query_no_16s` instead of silently building a
+  reference-only tree.
+- Local query genomes are audit inputs only. They are recorded as
+  `source=local_query`, `is_query=true`, `is_type_material=false` manifest rows
+  with stable `query_id`, query path, and SHA-256 provenance, and their rRNA and
+  phylogeny FASTA headers retain local-query provenance.
+- Repeated `--query-genome` values are supported for multi-query
+  query-vs-reference FastANI planning and combined local-query 16S provenance.
+- Local GTDB metadata review writes audit provenance for metadata path, file
+  status, release label, load status, audit timestamp, and coverage counts when
+  loading succeeds.
+
+These notes do not claim live provider execution, genome downloads, provider
+automation, external bioinformatics execution, completed genus coverage, or
+stricter type-strain confirmation.
+
 ## User-Visible Improvements
 
 - `verify-release-genus` now uses a shared acquisition cache so balanced and

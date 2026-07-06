@@ -99,7 +99,7 @@ def mark_rrna_planned_records(
         if item is None:
             continue
         record.status = item.status
-        record.notes = item.notes
+        record.notes = _merged_notes(record, item.notes)
         if item.status == "rrna_extraction_planned":
             record.rrna_16s_path = item.expected_rrna_fasta_path
         elif item.status == "skipped_existing_16s":
@@ -110,3 +110,14 @@ def mark_rrna_planned_records(
 def _path_exists(path: str, paths: OutputPaths) -> bool:
     candidate = resolve_manifest_path(path, paths.manifest.parent)
     return candidate.exists()
+
+
+def _merged_notes(record: StrainRecord, new_notes: str) -> str:
+    old_notes = record.notes or ""
+    if record.is_query and "source=local_query" in old_notes:
+        if not new_notes:
+            return old_notes
+        if new_notes in old_notes:
+            return old_notes
+        return f"{old_notes}; {new_notes}"
+    return new_notes

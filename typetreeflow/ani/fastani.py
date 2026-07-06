@@ -94,7 +94,7 @@ def execute_fastani(
             or f"fastANI failed with return code {command_result.returncode}.",
         )
 
-    if not raw_output_path.exists() or raw_output_path.stat().st_size == 0:
+    if not raw_output_path.exists():
         return FastaniResult(
             command=command,
             status="fastani_missing_output",
@@ -102,7 +102,18 @@ def execute_fastani(
             returncode=command_result.returncode,
             stdout=command_result.stdout,
             stderr=command_result.stderr,
-            notes=f"fastANI completed but raw output was missing or empty: {raw_output_path}",
+            notes=f"fastANI completed but raw output was missing: {raw_output_path}",
+        )
+
+    if raw_output_path.stat().st_size == 0:
+        return FastaniResult(
+            command=command,
+            status="fastani_no_hits",
+            raw_output_path=str(raw_output_path),
+            returncode=command_result.returncode,
+            stdout=command_result.stdout,
+            stderr=command_result.stderr,
+            notes=f"fastANI completed with zero raw hit rows: {raw_output_path}",
         )
 
     return FastaniResult(

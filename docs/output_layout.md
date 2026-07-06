@@ -89,6 +89,7 @@ Canonical run directory layout, shown under a user-selected `<run_dir>`:
   manual_review_report.md
   taxonomy/
     checklist_comparison.tsv
+    gtdb_metadata_audit.json
     ncbi_taxonomy_plan.tsv
     ncbi_taxonomy_cache.tsv
   report/
@@ -105,6 +106,7 @@ Canonical run directory layout, shown under a user-selected `<run_dir>`:
     download_results.tsv
     reports/
       summary.md
+      gtdb_metadata_audit.json
     genomes/
       <normalized_id>.fna
     16S/
@@ -124,6 +126,12 @@ names used in reports and tree labels.
 it to preserve stage status, outputs, next action, and errors. `status` and
 `next-step` prefer this file when present and infer status from durable outputs
 only when it is absent.
+
+Downstream stage keys include `rrna_barrnap`, `ani`, and `phylo` when those
+stages are requested or have durable outputs. `ani` stage summaries preserve
+specific workflow statuses such as `ani_skipped_no_query` and
+`ani_results_ready`; `phylo` stage summaries preserve statuses such as
+`phylo_skipped_too_few_sequences` and `phylo_tree_ready`.
 
 `--register-external-genomes PATH --dry-run` writes
 `external_genome_registration_results.tsv` and
@@ -266,6 +274,16 @@ but `report/summary.md` reads an existing comparison and adds a taxonomic audit
 summary when available; `report/run_review.md` can use existing comparison or
 completion files to report checklist coverage when available.
 
+`taxonomy/gtdb_metadata_audit.json` is written by `verify-genus` plan-only
+runs and selection dry-runs when `--gtdb-metadata` or `--gtdb-release` is
+provided. It records local GTDB metadata provenance: metadata path,
+existence/readability, file size, row count, release, load status, and audit
+timestamp. Accession coverage counts (`matched`, `missing_from_gtdb`,
+`mismatch`, and `extra_in_gtdb`) are present only when the metadata file was
+loaded successfully. If metadata is absent or unreadable, the file records
+`gtdb_metadata_not_loaded` or `gtdb_metadata_load_failed`, and reports must not
+interpret GTDB coverage counts.
+
 `taxonomy/ncbi_taxonomy_plan.tsv` and
 `taxonomy/ncbi_taxonomy_cache.tsv` are scaffolds for optional NCBI Taxonomy
 enrichment. `verify-genus` and `verify-release-genus` policy outputs write
@@ -311,6 +329,15 @@ selection-driven downloads. Rows selected under `balanced` may include
 `likely_type_material`; rows selected under `representative` may include
 `representative_only`. Only `strict_confirmed` rows are strict type-strain
 evidence.
+For bounded `verify-genus` smoke runs, `--limit-selected N` applies a total
+selected reference genome cap after `--strains-per-species` selection and
+before manifest, download preflight, guarded download, and report stages.
+When supplied, TypeTreeFlow writes
+`selection/selected_limit_summary.tsv` with `limit_selected`,
+`selected_before_limit`, `selected_after_limit`, and `limit_applied`; the same
+metadata appears in the `run_state.json` selection-stage summary. Rows excluded
+only by this cap are reviewable cap exclusions, not provider failures, missing
+genomes, or taxonomy failures.
 
 Selection policies are risk-tiered. `strict` preselects only confirmed LPSN
 type-strain matches, `balanced` preselects only strong type-evidence rows
@@ -455,25 +482,49 @@ extracted 16S FASTA paths are `rrna/sequences/<normalized_id>.16s.fasta`.
 The controlled barrnap execution interface writes barrnap stdout to
 `rrna/barrnap/<normalized_id>.gff` and checks for non-empty output. The
 extractor writes `rrna/sequences/<normalized_id>.16s.fasta`. The assembler
-combines ready reference 16S records and an optional query 16S FASTA into
-`rrna/all_16S.fasta`.
+combines ready non-query reference 16S records and either an explicit query 16S
+FASTA or local-query barrnap 16S records into `rrna/all_16S.fasta`. Local
+query 16S headers include `source=local_query` and `query_id` when they come
+from query genome records.
 Use "Same-genome barrnap 16S" for barrnap/internal-genome counts and "Total 16S
 including Entrez fallback" for availability counts that include opt-in external
 fallback records. Fallback warnings and strict blocking counts come from the
 source-audit/report layer, not from the raw FASTA layout alone.
 
-When `--query-genome` is provided and reference records have registered genome
+FastANI is query-vs-reference only. `--query-genome` may be repeated. When one
+or more query genomes are provided and reference records have registered genome
 files, TypeTreeFlow writes `ani/ani_plan.tsv` for debugging and
-`ani/references.txt` with ANI-planned reference genome paths. The controlled
-FastANI wrapper writes/checks `ani/fastani_raw.tsv`. The parser reads existing
-FastANI raw output and writes `ani/ani_query_vs_refs.tsv`,
-`ani/ani_summary.tsv`, and `ani/ani_query_vs_refs.png` when enough data is
-available. The 95% ANI threshold is advisory only; TypeTreeFlow does not
-automatically make species-level conclusions from ANI fields.
+`ani/references.txt` with ANI-planned reference genome paths. The plan has one
+row per query/reference combination, so planned comparisons equal query count
+times ANI-ready reference count. The controlled FastANI wrapper writes/checks
+`ani/fastani_raw.tsv`; in multi-query runs, per-query raw files are combined
+into that compatibility path. The parser reads existing FastANI raw output and writes
+`ani/ani_query_vs_refs.tsv`, `ani/ani_summary.tsv`, and
+`ani/ani_query_vs_refs.png` when enough data is available. If
+`--enable-fastani` is explicit but `--query-genome` is absent, the `ani` stage
+is recorded as `ani_skipped_no_query` in `run_state.json` and the report. The
+FastANI wrapper distinguishes absent raw output (`fastani_missing_output`) from
+an existing empty raw output file (`fastani_no_hits`); the latter writes an
+empty parsed table plus `ani_summary.tsv` with `status=ani_no_hits`. The
+95% ANI threshold is advisory only; TypeTreeFlow does not automatically make
+species-level conclusions from ANI fields.
 
 Given an existing `rrna/all_16S.fasta`, TypeTreeFlow can write
 `phylo/phylo_plan.tsv` with the planned MAFFT alignment path
 `phylo/all_16S.aln.fasta`, trimAl output path
 `phylo/all_16S.trimmed.fasta`, IQ-TREE prefix `phylo/iqtree/all_16S`, and
 expected treefile `phylo/iqtree/all_16S.treefile`. CLI dry-runs do not execute
-MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures.
+MAFFT, trimAl, or IQ-TREE, and TypeTreeFlow does not draw tree figures. The
+current IQ-TREE ultrafast bootstrap workflow requires at least 4 16S FASTA
+records; smaller inputs are recorded as `phylo_skipped_too_few_sequences`.
+When `--query-genome` is present, `phylo/phylo_plan.tsv` also records
+`query_16s_status` and `query_sequence_count`; the count can be greater than
+one for multi-query runs. Missing query 16S records are reported as
+`phylo_skipped_query_no_16s` / `skipped_query_no_16s`.
+
+`package-results` copies `manifest.tsv`, `run_state.json`, reports, and when
+available the query audit tables `reports/rrna_plan.tsv`,
+`reports/sequence_source_audit.tsv`, `reports/ani_query_vs_refs.tsv`,
+`reports/ani_summary.tsv`, `reports/phylo_plan.tsv`, and
+`reports/gtdb_metadata_audit.json`. The manifest remains the authoritative
+local query provenance record.

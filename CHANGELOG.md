@@ -1,5 +1,24 @@
 # Changelog
 
+### Post-v2.2.14 PR Readiness Notes
+
+- Added `verify-genus --limit-selected N` as a bounded-smoke cap that applies
+  after selection policy and before optional guarded execution.
+- Recorded guarded ANI and phylogeny stage status in run state and reports,
+  including input-size and missing-query-16S skips that are not provider or
+  download failures.
+- Added local query genome provenance for ANI/rRNA/phylogeny review, with
+  `source=local_query`, `is_query=true`, stable `query_id`, query path, and
+  SHA-256 audit notes.
+- Supported repeated `--query-genome` inputs for multi-query
+  query-vs-reference FastANI planning and combined local-query 16S provenance.
+- Added GTDB metadata audit provenance for local GTDB TSV review, including
+  metadata path, file status, release label, load status, audit timestamp, and
+  coverage counts when loading succeeds.
+- These readiness notes do not introduce provider automation, live lookups,
+  genome downloads, external bioinformatics execution, or relaxed type-strain
+  evidence wording.
+
 ## v2.2.14 - 2026-06-13
 
 v2.2.14 is a maintenance-only release based on v2.2.13.
