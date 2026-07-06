@@ -1,14 +1,15 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.14 integration review as
+These notes consolidate the v2.2.2 through v2.2.15 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
 
-## Current PR Readiness Notes
+## v2.2.15
 
-The `codex/limit-selected-cap` branch prepares post-v2.2.14 workflow coverage
-for bounded PR/release smoke checks:
+v2.2.15 is a patch release for bounded PR/release smoke checks, local query
+audit provenance, guarded downstream status reporting, multi-query ANI
+planning, and local GTDB metadata audit provenance:
 
 - `verify-genus --limit-selected N` limits total selected reference genomes
   after policy-based selection, so plan-only and guarded real smoke runs can be
@@ -27,10 +28,15 @@ for bounded PR/release smoke checks:
 - Local GTDB metadata review writes audit provenance for metadata path, file
   status, release label, load status, audit timestamp, and coverage counts when
   loading succeeds.
+- Server cross-smoke validation passed for the bounded smoke, guarded download,
+  barrnap+rRNA, query-vs-reference FastANI, phylogeny invocation, package
+  handoff, GTDB r220 audit provenance, multi-query, and redaction/no forbidden
+  pullback paths.
 
-These notes do not claim live provider execution, genome downloads, provider
-automation, external bioinformatics execution, completed genus coverage, or
-stricter type-strain confirmation.
+v2.2.15 does not claim provider automation, provider login/scraping/purchase
+flows, automatic provider downloads, relaxed type-strain evidence thresholds,
+taxonomy or species-identification conclusions, or completed genus coverage.
+Local query genomes remain audit inputs, not confirmed type-strain records.
 
 ## User-Visible Improvements
 

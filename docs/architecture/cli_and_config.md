@@ -47,7 +47,7 @@ script target imports and resolves to `typetreeflow.cli.main`.
 as a script. Current docs and tests still reference this source-checkout entry
 point, so it is an external compatibility surface.
 
-`typetreeflow/__init__.py` exposes `__version__ = "2.2.14"`. `build_parser()`
+`typetreeflow/__init__.py` exposes `__version__ = "2.2.15"`. `build_parser()`
 uses this value for `--version`, and `tests/test_package_metadata.py` verifies it
 matches the project version from `pyproject.toml`.
 

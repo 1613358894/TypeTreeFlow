@@ -21,10 +21,12 @@ opt-in flags.
 The long-term goal is to collect auditable type-strain genomes and 16S
 sequences, compare a query genome against references with ANI, build a 16S
 phylogeny, and report reproducible tables, figures, name maps, and summaries.
-The current 2.2.14 release is a maintenance-only release on top of the
-LPSN-first acquisition workflow. It keeps strict evidence boundaries, stable
-I/O contracts, guarded execution, fake-runner tested wrappers, selection
-policies, evidence thresholds, and download strategy unchanged.
+The current 2.2.15 release is a patch release on top of the LPSN-first
+acquisition workflow. It adds bounded smoke controls, local query audit
+provenance, multi-query ANI planning, guarded downstream stage status
+reporting, and GTDB metadata audit provenance while keeping strict evidence
+boundaries, guarded execution, selection policies, evidence thresholds, and
+download strategy unchanged.
 
 GTDB support is retained for legacy/local metadata workflows and as a discovery
 or evidence layer. It is not the authority for species boundaries in the current
@@ -245,7 +247,7 @@ typetreeflow --version
 typetreeflow doctor
 ```
 
-## Recommended v2.2.14 workflow
+## Recommended v2.2.15 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample

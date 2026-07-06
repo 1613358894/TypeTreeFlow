@@ -1,12 +1,15 @@
 # Changelog
 
-### Post-v2.2.14 PR Readiness Notes
+## v2.2.15 - 2026-07-06
+
+v2.2.15 is a patch release based on v2.2.14. It adds bounded release-smoke
+controls, local query audit provenance, multi-query ANI planning, guarded
+downstream stage status reporting, and local GTDB metadata audit provenance.
+
+### Added
 
 - Added `verify-genus --limit-selected N` as a bounded-smoke cap that applies
   after selection policy and before optional guarded execution.
-- Recorded guarded ANI and phylogeny stage status in run state and reports,
-  including input-size and missing-query-16S skips that are not provider or
-  download failures.
 - Added local query genome provenance for ANI/rRNA/phylogeny review, with
   `source=local_query`, `is_query=true`, stable `query_id`, query path, and
   SHA-256 audit notes.
@@ -15,9 +18,23 @@
 - Added GTDB metadata audit provenance for local GTDB TSV review, including
   metadata path, file status, release label, load status, audit timestamp, and
   coverage counts when loading succeeds.
-- These readiness notes do not introduce provider automation, live lookups,
-  genome downloads, external bioinformatics execution, or relaxed type-strain
-  evidence wording.
+
+### Changed
+
+- Recorded guarded ANI and phylogeny stage status in run state and reports,
+  including input-size and missing-query-16S skips that are not provider or
+  download failures.
+- Documented server cross-smoke validation for the bounded smoke, local query,
+  multi-query, guarded downstream stage, packaging, and GTDB r220 audit paths.
+
+### Notes
+
+- No provider automation, provider login/scraping/purchase flow, or ATCC
+  automatic download support is introduced.
+- No live provider lookup, genome download, or external bioinformatics tool
+  execution is required by the local release gate.
+- No type-strain evidence threshold is relaxed, and no taxonomy or species
+  identification conclusion is claimed.
 
 ## v2.2.14 - 2026-06-13
 
