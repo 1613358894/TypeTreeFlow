@@ -19,7 +19,7 @@ contract unless a current contract page links it for a specific fact.
 ## Shortest Reading Paths
 
 - Ordinary users: [../README.md](../README.md) -> [cookbook.md](cookbook.md).
-- AI-first command and file contracts:
+- AI-first stdout and file contracts:
   [contracts.md](contracts.md) -> [output_layout.md](output_layout.md),
   [statuses.md](statuses.md), and [schemas.md](schemas.md).
 - Contract and output maintenance:
@@ -39,8 +39,9 @@ contract unless a current contract page links it for a specific fact.
   output contracts, policy contracts, and audit contracts.
 - [stable_contracts.md](stable_contracts.md): stable, review-only, internal,
   and post-v1.0 contract classification.
-- [output_layout.md](output_layout.md): run-directory files and stage ownership.
-  Use [workspace_policy.md](workspace_policy.md) for repository-independent
+- [output_layout.md](output_layout.md): primary command stdout envelopes,
+  smoke-profile boundaries, run-directory files, and stage ownership. Use
+  [workspace_policy.md](workspace_policy.md) for repository-independent
   workspace roots.
 - [design.md](design.md): current architecture and guarded-execution safety
   contract.

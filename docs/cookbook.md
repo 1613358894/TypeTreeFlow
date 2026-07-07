@@ -18,8 +18,9 @@ python typetreeflow.py doctor
 `environment.yml` pins Python 3.12 for reproducible local real-smoke readiness.
 The package metadata and CI currently cover Python 3.10, 3.11, 3.12, and 3.13.
 Python 3.14 is not declared yet.
-`doctor` writes compact JSON to stdout and does not contact providers, download
-genomes, or run external bioinformatics analyses.
+`doctor` follows the stdout contract in [output_layout.md](output_layout.md)
+and does not contact providers, download genomes, or run external
+bioinformatics analyses.
 
 Use `<run_dir>` for the run output directory, typically
 `<workspace>/runs/<run-name>`, and `<delivery_dir>` for handoff packages,
@@ -55,12 +56,8 @@ typetreeflow status --outdir <run_dir>
 typetreeflow next-step --outdir <run_dir>
 ```
 
-`doctor` and `verify-genus` write compact JSON envelopes to stdout. Read the
-`checks`, `blocking`, `warnings`, and `next_actions` arrays directly; field
-details live in [output_layout.md](output_layout.md). For plan-only
-`verify-genus` runs, stdout reports `status: "blocked"` and
-`reason: "manual_review_required"` when `selection/user_selection.tsv` needs
-review before guarded downloads. Reports, detailed tables, logs, and
+Command stdout, including plan-only manual-review status, is defined in
+[output_layout.md](output_layout.md). Reports, detailed tables, logs, and
 FASTA/sequence content remain file-based under `<run_dir>`.
 
 Review `selection/user_selection.tsv`,
@@ -70,13 +67,9 @@ type-material rows only; likely rows are not strict completion.
 `--lpsn-cache` supplies the expected LPSN checklist. It does not supply NCBI
 Assembly candidates; use `--discovery-cache` for offline discovery or
 `--enable-ncbi-discovery --email user@example.org` for guarded live discovery.
-`--smoke-profile plan-only` records the profile provenance without enabling
-downloads, auto-accepting selection, or expanding live provider access. Use
-`--limit-selected N` explicitly when you want a bounded plan-only cap. The cap
-is applied after `--strains-per-species` selection and before
-manifest/download planning. It writes `selection/selected_limit_summary.tsv`
-and run-state selection metadata; rows excluded by the cap are not provider,
-genome, or taxonomy failures.
+`--smoke-profile plan-only` records profile provenance without enabling
+downloads, auto-accepting selection, or live provider access. Use
+`--limit-selected N` explicitly when you want a bounded plan-only cap.
 If a local `--gtdb-metadata` TSV is provided, plan-only verification reads it
 and records `taxonomy/gtdb_metadata_audit.json`. The audit records the metadata
 path, existence/readability, file size, row count, `--gtdb-release`, load
@@ -101,13 +94,12 @@ typetreeflow verify-genus Fusobacterium \
 ```
 
 The profile expands only to `--limit-selected 4`,
-`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. It does
-not add `--query-genome`, GTDB inputs, FastANI, barrnap extraction, LPSN API,
-NCBI discovery, NCBI Taxonomy, or provider access. Downloads still require the
-NCBI Datasets CLI executable named `datasets` on `PATH`; it is not the Python
-package named `datasets`. Explicit conflicts fail fast, such as combining
-`--smoke-profile plan-only --enable-downloads` or
-`--smoke-profile limit4-real --limit-selected 10`.
+`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. Query
+genomes, GTDB inputs, FastANI, barrnap extraction, LPSN API, NCBI discovery,
+NCBI Taxonomy, and provider access remain explicit choices. Downloads still
+require the NCBI Datasets CLI executable named `datasets` on `PATH`; it is not
+the Python package named `datasets`. Explicit conflicts fail fast; see
+[output_layout.md](output_layout.md) for the profile contract.
 
 ## Guarded Genome Download Plus barrnap 16S Extraction
 
@@ -208,10 +200,9 @@ typetreeflow package-results \
 Delivery packages include reviewed manifests, evidence summaries, reports, and
 copied genome/16S FASTA files when present. Credentials, `.env` files, API
 keys, NCBI ZIP caches, pytest caches, and temporary directories are excluded.
-The command writes one short JSON envelope to stdout. Read `status`,
-`package_path`, `mode`, `included`, `artifacts`, `blocking`, and `warnings`
-directly; `README.md`, `README_failure.md`, and `handoff_index.md` remain the
-human review files inside the package.
+The command follows the stdout contract in [output_layout.md](output_layout.md);
+`README.md`, `README_failure.md`, and `handoff_index.md` remain the human
+review files inside the package.
 
 ## Release Verification For Balanced And Representative
 
@@ -301,16 +292,16 @@ typetreeflow status --outdir <run_dir>
 typetreeflow next-step --outdir <run_dir>
 ```
 
-Both commands write compact JSON envelopes to stdout by default. Read
-`status.stages`, `status.blocking`, `status.next_actions`, and
-`next-step.recommended_action` directly; there is no separate human text mode.
+Use `status` as the preferred machine-readable state check. `next-step` is a
+retained thin wrapper for callers that only need the next recommended action.
+The JSON field contract lives in [output_layout.md](output_layout.md).
 
 When `completion/uncovered_species.tsv`,
 `completion/manual_supplement_hints.tsv`, or
 `selection/user_selection.tsv` rejected-species-mismatch rows exist, `status`
-and `next-step` point at the concrete handoff file and action vocabulary. Treat
-that output as navigation for curator review, not as an instruction that
-TypeTreeFlow will download, fix, or accept a candidate automatically.
+points at the concrete handoff file and action vocabulary. Treat that output
+as navigation for curator review, not as an instruction that TypeTreeFlow will
+download, fix, or accept a candidate automatically.
 
 For manual recovery only, lower-level resume commands remain available:
 

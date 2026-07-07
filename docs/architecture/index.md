@@ -33,6 +33,7 @@ authoritative in their canonical documents under `docs/`.
 | 12 | Architecture index | [index.md](index.md) | Audited complete | Directory entry and status summary |
 | 13 | CLI refactor plan | [cli_refactor_plan.md](cli_refactor_plan.md) | Parser/config complete; diagnostics, package-results, and verify-release-genus dispatch extracted; normal workflow characterization tests complete; normal workflow extraction paused | Refactor planning and staged status document |
 | 14 | AI-first simplification | [ai_first_simplification_audit.md](ai_first_simplification_audit.md) | Pass 1 complete | Repository simplification and AI-first entry-point convergence |
+| 15 | CLI surface AI-first audit | [cli_surface_ai_first_audit.md](cli_surface_ai_first_audit.md) | Audited complete; pass 4 docs deduplication noted | Command inventory, JSON stdout compliance, and simplification priorities |
 
 ## Suggested Reading Order
 
@@ -51,11 +52,12 @@ Read the audit in this order when preparing for a refactor discussion:
 11. [risks_and_refactor_candidates.md](risks_and_refactor_candidates.md)
 12. [cli_refactor_plan.md](cli_refactor_plan.md)
 13. [ai_first_simplification_audit.md](ai_first_simplification_audit.md)
+14. [cli_surface_ai_first_audit.md](cli_surface_ai_first_audit.md)
 
 This order starts with repository and CLI shape, then follows workflow state,
 domain evidence, acquisition and analysis stages, presentation/release tooling,
 test coverage, the cross-audit risk index, and finally the dedicated
-`cli.py` refactor plan.
+`cli.py` refactor plan and AI-first CLI surface audits.
 
 ## Cross-Cutting Boundaries
 
