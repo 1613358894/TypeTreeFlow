@@ -177,8 +177,8 @@ python typetreeflow.py doctor
 ```
 
 `environment.yml` pins Python 3.12 for reproducible local real-smoke readiness.
-The package metadata and CI currently cover Python 3.10, 3.11, and 3.12; Python
-3.13 and 3.14 are not claimed until dependency and CI compatibility are added.
+The package metadata and CI currently cover Python 3.10, 3.11, 3.12, and 3.13.
+Python 3.14 is not declared yet.
 
 For development test extras, install them into the same activated environment:
 

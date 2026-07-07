@@ -141,9 +141,9 @@ Current entry points are well named but heavy:
 The current gaps are small but important:
 
 - `pyproject.toml` requires Python `>=3.10` and classifiers list 3.10, 3.11,
-  and 3.12 only.
-- CI tests Python 3.10, 3.11, and 3.12 only.
-- There is no current 3.13 or 3.14 support claim.
+  3.12, and 3.13.
+- CI tests Python 3.10, 3.11, 3.12, and 3.13.
+- There is no current 3.14 support claim.
 - `bedtools` is included as an explicit real-smoke prerequisite even though it
   is not currently invoked by the core wrappers.
 - barrnap planning hardcodes `--kingdom bac`; docs explain the executable
@@ -560,9 +560,9 @@ Implemented or retained follow-up choices:
 
 CI support recommendation:
 
-- Keep 3.10, 3.11, and 3.12 as the stable support matrix now.
-- Add 3.13 as an allowed-failure or focused branch check only after dependency
-  compatibility is confirmed.
+- Keep 3.10, 3.11, 3.12, and 3.13 as the stable support matrix now.
+- Keep the recommended conda real-smoke environment on Python 3.12 until
+  bioconda and external-tool readiness are validated for newer Python versions.
 - Do not add 3.14 before upstream package availability is clear.
 
 ## 7. Documentation consolidation proposal
@@ -664,7 +664,7 @@ live in git.
 3. Environment and CI support clarification.
    - Decide Python support range.
    - Keep single `environment.yml`.
-   - Add 3.13 only after compatibility is verified.
+   - Keep Python 3.13 in package and CI support after compatibility is verified.
    - Clarify IQ-TREE and barrnap preflight limitations.
 
 4. Profile proposal and implementation.
@@ -707,8 +707,8 @@ live in git.
   planning, external request rows, or local query rows. None of these should be
   described as strict confirmed type strains without evidence tying the genome
   record to the species type-strain equivalence set.
-- Python 3.13/3.14 support is currently unclaimed by CI and classifiers.
-  Expanding support without dependency validation would be risky.
+- Python 3.14 support is currently unclaimed by CI and classifiers. Expanding
+  support without dependency validation would be risky.
 - The current `iqtree` fallback is diagnostic-only. Execution still uses
   `iqtree2`, so docs and JSON doctor checks must not imply `iqtree` execution
   is supported unless code changes.
@@ -880,8 +880,8 @@ real-smoke tool set: `ncbi-datasets-cli`, `barrnap`, `bedtools`, `fastani`,
 README and cookbook installation guidance now point to the single environment
 path and `python typetreeflow.py doctor` as the readiness check. The documented
 Python policy is: local environment pinned to 3.12, package/CI support currently
-limited to 3.10, 3.11, and 3.12, and no 3.13/3.14 support claim until
-dependency and CI compatibility are added.
+covers 3.10, 3.11, 3.12, and 3.13, and no 3.14 support claim until dependency
+and CI compatibility are added.
 
 Doctor readiness remains JSON-only by default. It checks `bedtools`, reports
 barrnap CM/HMM database readability through non-executing file/PATH inspection,

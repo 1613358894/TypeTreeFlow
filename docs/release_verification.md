@@ -36,6 +36,10 @@ Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
 pytest, wheel build, and wheel smoke checks without live downloads unless the
 release scope explicitly requires guarded live validation.
 
+Package/test support covers Python 3.10, 3.11, 3.12, and 3.13. The recommended
+conda real-smoke environment remains Python 3.12 through `environment.yml`, and
+Python 3.14 is not declared yet.
+
 ## Verification Matrix
 
 Use `verify-release-genus` when a release needs both balanced and

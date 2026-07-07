@@ -7,7 +7,10 @@ gate, and publish.
 
 ## Environment Prerequisites
 
-- Python 3.10 or newer.
+- Package/test support covers Python 3.10, 3.11, 3.12, and 3.13.
+- The recommended conda real-smoke environment remains `environment.yml`, which
+  pins Python 3.12.
+- Python 3.14 is not declared yet.
 - Package build tooling available through `python -m pip`.
 - For tests only, no external bioinformatics tools or network access are required.
 - For guarded real validation, install stage-specific executables on `PATH`:
