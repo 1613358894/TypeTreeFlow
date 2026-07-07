@@ -40,6 +40,7 @@ is an old default/historical example path and is no longer the current default.
 python typetreeflow.py doctor
 
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile plan-only \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --gtdb-metadata data/gtdb_metadata_r220.tsv \
@@ -69,12 +70,13 @@ type-material rows only; likely rows are not strict completion.
 `--lpsn-cache` supplies the expected LPSN checklist. It does not supply NCBI
 Assembly candidates; use `--discovery-cache` for offline discovery or
 `--enable-ncbi-discovery --email user@example.org` for guarded live discovery.
-Use `--limit-selected N` for bounded smoke runs. The cap is applied after
-`--strains-per-species` selection and before manifest/download planning, so
-plan-only and guarded real runs operate on at most `N` selected reference
-genomes. The cap writes `selection/selected_limit_summary.tsv` and run-state
-selection metadata; rows excluded by the cap are not provider, genome, or
-taxonomy failures.
+`--smoke-profile plan-only` records the profile provenance without enabling
+downloads, auto-accepting selection, or expanding live provider access. Use
+`--limit-selected N` explicitly when you want a bounded plan-only cap. The cap
+is applied after `--strains-per-species` selection and before
+manifest/download planning. It writes `selection/selected_limit_summary.tsv`
+and run-state selection metadata; rows excluded by the cap are not provider,
+genome, or taxonomy failures.
 If a local `--gtdb-metadata` TSV is provided, plan-only verification reads it
 and records `taxonomy/gtdb_metadata_audit.json`. The audit records the metadata
 path, existence/readability, file size, row count, `--gtdb-release`, load
@@ -82,43 +84,30 @@ status, timestamp, and accession coverage counts only after a successful load.
 If loading fails, the status is `gtdb_metadata_load_failed` and GTDB coverage
 counts are unavailable rather than interpreted as missing coverage.
 
-## Guarded Download With Auto-Accepted Selection
+## Minimal Bounded Real Smoke
 
-Downloads are a double opt-in in `verify-genus`: use both
-`--auto-accept-selection` and `--enable-downloads`.
+Use `limit4-real` for the minimal guarded real-smoke expansion:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile limit4-real \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir <run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
+  --outdir <smoke_run_dir>
 ```
 
-The command requires the NCBI Datasets CLI executable named `datasets` on
-`PATH`. Install the CLI with conda, for example
-`conda install -c conda-forge ncbi-datasets-cli`; it is not the Python package
-named `datasets`.
-
-For a bounded real smoke test, add `--limit-selected N` to the guarded command:
-
-```bash
-typetreeflow verify-genus Fusobacterium \
-  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
-  --discovery-cache data/fusobacterium_discovery_records.tsv \
-  --policy balanced \
-  --source-audit-policy strict \
-  --strains-per-species 1 \
-  --limit-selected 5 \
-  --outdir <smoke_run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
-```
+The profile expands only to `--limit-selected 4`,
+`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. It does
+not add `--query-genome`, GTDB inputs, FastANI, barrnap extraction, LPSN API,
+NCBI discovery, NCBI Taxonomy, or provider access. Downloads still require the
+NCBI Datasets CLI executable named `datasets` on `PATH`; it is not the Python
+package named `datasets`. Explicit conflicts fail fast, such as combining
+`--smoke-profile plan-only --enable-downloads` or
+`--smoke-profile limit4-real --limit-selected 10`.
 
 ## Guarded Genome Download Plus barrnap 16S Extraction
 

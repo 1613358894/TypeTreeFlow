@@ -1163,6 +1163,52 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert policies == {"balanced"}
 
 
+def test_verify_genus_plan_only_profile_records_profile_without_downloads(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("plan-only smoke profile must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--smoke-profile",
+            "plan-only",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert payload["counts"]["smoke_profile"] == "plan-only"
+    assert payload["config"] == {
+        "smoke_profile": "plan-only",
+        "limit_selected": None,
+        "enable_downloads": False,
+        "auto_accept_selection": False,
+        "enable_phylo": False,
+    }
+    assert state.config == payload["config"]
+    assert state.stages["download"].status == "blocked_by_manual_review"
+    assert not paths.ncbi_download_results_path.exists()
+
+
 def test_verify_genus_plan_only_records_gtdb_metadata_provenance_and_package(
     tmp_path,
     monkeypatch,
@@ -1730,6 +1776,52 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     assert not paths.all_16s_fasta_path.exists()
     assert "auto_accepted_selection" in summary
     assert {record.status for record in records} == {"genome_ready"}
+
+
+def test_verify_genus_limit4_real_profile_expands_guarded_config(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache, discovery_cache = _write_multi_selected_caches(tmp_path)
+    runner = _FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--smoke-profile",
+            "limit4-real",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--strains-per-species",
+            "2",
+            "--outdir",
+            str(outdir),
+        ],
+        download_runner=runner,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert len(runner.commands) == 4
+    assert payload["counts"]["smoke_profile"] == "limit4-real"
+    assert payload["config"] == {
+        "smoke_profile": "limit4-real",
+        "limit_selected": 4,
+        "enable_downloads": True,
+        "auto_accept_selection": True,
+        "enable_phylo": True,
+    }
+    assert state.config == payload["config"]
+    assert state.stages["download"].status == "succeeded"
+    assert "limit_selected=4" in state.stages["selection"].summary
 
 
 def test_verify_genus_limit_selected_with_strains_per_species_caps_fake_downloads(

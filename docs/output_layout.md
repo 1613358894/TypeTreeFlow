@@ -91,7 +91,15 @@ need to infer the meaning of `partial`.
     "manifest_rows": 0,
     "selected_rows": 0,
     "downloaded_genomes": 0,
-    "query_genomes": 0
+    "query_genomes": 0,
+    "smoke_profile": "plan-only|limit4-real|"
+  },
+  "config": {
+    "smoke_profile": "plan-only|limit4-real|",
+    "limit_selected": 4,
+    "enable_downloads": true,
+    "auto_accept_selection": true,
+    "enable_phylo": true
   },
   "blocking": [],
   "warnings": [],
@@ -105,6 +113,10 @@ also keep exit code 0 but report `status: "blocked"` with
 `reason: "manual_review_required"`. Dependency blocks and workflow failures
 keep the existing nonzero exit behavior and return the same envelope shape with
 structured `blocking` entries.
+When `--smoke-profile` is supplied, stdout records both the profile name and
+the expanded key config. The same config keys are written to `run_state.json`:
+`smoke_profile`, `limit_selected`, `enable_downloads`,
+`auto_accept_selection`, and `enable_phylo`.
 
 ## Status And Next-Step Stdout Contracts
 
@@ -317,7 +329,9 @@ names used in reports and tree labels.
 
 `run_state.json` is the high-level workflow progress file. `verify-genus`,
 `verify-release-genus`, guarded download/extraction stages, and diagnostics use
-it to preserve stage status, outputs, next action, and errors. `status` and
+it to preserve stage status, outputs, next action, errors, and bounded config
+provenance. Smoke profile provenance is recorded as config metadata; it is not
+a stage status and does not replace row-level evidence files. `status` and
 `next-step` prefer this file when present and infer status from durable outputs
 only when it is absent.
 

@@ -76,6 +76,47 @@ def _normalize_command_argv(
     return normalized, True, False
 
 
+def _smoke_profile_effective_values(args, *, verify_genus: bool):
+    smoke_profile = args.smoke_profile
+    if smoke_profile is not None and not verify_genus:
+        raise ValueError("--smoke-profile is only supported by verify-genus.")
+    auto_accept_selection = args.auto_accept_selection
+    enable_downloads = args.enable_downloads
+    limit_selected = args.limit_selected
+    enable_phylo = args.enable_phylo
+    if smoke_profile == "plan-only":
+        conflicts = []
+        if args.auto_accept_selection:
+            conflicts.append("--auto-accept-selection")
+        if args.enable_downloads:
+            conflicts.append("--enable-downloads")
+        if args.enable_phylo:
+            conflicts.append("--enable-phylo")
+        if conflicts:
+            raise ValueError(
+                "--smoke-profile plan-only cannot be combined with "
+                + ", ".join(conflicts)
+                + "."
+            )
+    elif smoke_profile == "limit4-real":
+        if args.limit_selected is not None:
+            raise ValueError(
+                "--smoke-profile limit4-real expands --limit-selected 4; "
+                "do not also pass --limit-selected."
+            )
+        auto_accept_selection = True
+        enable_downloads = True
+        limit_selected = 4
+        enable_phylo = True
+    return (
+        smoke_profile,
+        auto_accept_selection,
+        enable_downloads,
+        limit_selected,
+        enable_phylo,
+    )
+
+
 def build_app_config_from_args(
     args,
     *,
@@ -84,6 +125,13 @@ def build_app_config_from_args(
 ) -> AppConfig:
     load_env_files(args.env_file)
     query_genomes = tuple(args.query_genome or ())
+    (
+        smoke_profile,
+        auto_accept_selection,
+        enable_downloads,
+        limit_selected,
+        enable_phylo,
+    ) = _smoke_profile_effective_values(args, verify_genus=verify_genus)
     return AppConfig(
         doctor=args.doctor,
         doctor_strict=args.doctor_strict,
@@ -97,7 +145,8 @@ def build_app_config_from_args(
         verify_release_genus=args.verify_release_genus,
         release_policies=args.policies,
         verify_genus=verify_genus,
-        auto_accept_selection=args.auto_accept_selection,
+        smoke_profile=smoke_profile,
+        auto_accept_selection=auto_accept_selection,
         review_required=args.review_required,
         acquire_genus=args.acquire_genus,
         genus=args.genus,
@@ -138,7 +187,7 @@ def build_app_config_from_args(
         selection_policy=args.selection_policy,
         source_audit_policy=args.source_audit_policy,
         strains_per_species=args.strains_per_species,
-        limit_selected=args.limit_selected,
+        limit_selected=limit_selected,
         register_external_genomes=args.register_external_genomes,
         plan_provider_registration=args.plan_provider_registration,
         merge_manifest=args.merge_manifest,
@@ -146,12 +195,12 @@ def build_app_config_from_args(
         force=args.force,
         allow_genus_change=args.allow_genus_change,
         dry_run=args.dry_run,
-        enable_downloads=args.enable_downloads,
+        enable_downloads=enable_downloads,
         enable_barrnap=args.enable_barrnap,
         extract_16s=args.extract_16s,
         enable_entrez=args.enable_entrez,
         enable_fastani=args.enable_fastani,
-        enable_phylo=args.enable_phylo,
+        enable_phylo=enable_phylo,
         skip_ani=args.skip_ani,
         skip_tree=args.skip_tree,
         keep_temp=args.keep_temp,

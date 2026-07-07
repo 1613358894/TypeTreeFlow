@@ -29,6 +29,7 @@ class AppConfig:
     verify_release_genus: str | None
     release_policies: str
     verify_genus: bool
+    smoke_profile: str | None
     auto_accept_selection: bool
     review_required: bool
     acquire_genus: str | None

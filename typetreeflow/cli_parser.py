@@ -329,6 +329,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--smoke-profile",
+        choices=["plan-only", "limit4-real"],
+        help=(
+            "For verify-genus, expand a minimal smoke profile: plan-only or "
+            "limit4-real."
+        ),
+    )
+    parser.add_argument(
         "--review-required",
         action="store_true",
         help=(

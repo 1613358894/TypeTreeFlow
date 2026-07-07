@@ -70,6 +70,7 @@ class WorkflowState:
     stages: dict[str, StageState] = field(default_factory=dict)
     next_action: str = ""
     errors: list[str] = field(default_factory=list)
+    config: dict[str, Any] = field(default_factory=dict)
     schema_version: int = 1
 
     def __post_init__(self) -> None:
@@ -90,6 +91,7 @@ class WorkflowState:
             },
             "next_action": self.next_action,
             "errors": list(self.errors),
+            "config": dict(self.config),
         }
 
     @classmethod
@@ -104,6 +106,7 @@ class WorkflowState:
             },
             next_action=str(data.get("next_action", "")),
             errors=[str(value) for value in data.get("errors", [])],
+            config=dict(data.get("config", {})),
         )
 
 

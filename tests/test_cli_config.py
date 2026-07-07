@@ -192,6 +192,89 @@ def test_parse_args_verify_genus_preserves_limit_selected(tmp_path):
     assert config.verify_genus is True
     assert config.acquire_genus == "Fusobacterium"
     assert config.limit_selected == 3
+    assert config.smoke_profile is None
+
+
+def test_parse_args_verify_genus_accepts_smoke_profiles(tmp_path):
+    plan_config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--smoke-profile",
+            "plan-only",
+            "--outdir",
+            str(tmp_path / "plan"),
+        ]
+    )
+
+    assert plan_config.smoke_profile == "plan-only"
+    assert plan_config.auto_accept_selection is False
+    assert plan_config.enable_downloads is False
+    assert plan_config.limit_selected is None
+    assert plan_config.enable_phylo is False
+
+    real_config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--smoke-profile",
+            "limit4-real",
+            "--outdir",
+            str(tmp_path / "real"),
+        ]
+    )
+
+    assert real_config.smoke_profile == "limit4-real"
+    assert real_config.limit_selected == 4
+    assert real_config.auto_accept_selection is True
+    assert real_config.enable_downloads is True
+    assert real_config.enable_phylo is True
+
+
+def test_parse_args_verify_genus_unknown_smoke_profile_fails(tmp_path):
+    with pytest.raises(SystemExit):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--smoke-profile",
+                "query",
+                "--outdir",
+                str(tmp_path / "verify"),
+            ]
+        )
+
+
+def test_parse_args_verify_genus_smoke_profile_conflicts_fail_fast(tmp_path):
+    with pytest.raises(ValueError, match="plan-only"):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--smoke-profile",
+                "plan-only",
+                "--enable-downloads",
+                "--outdir",
+                str(tmp_path / "plan"),
+            ]
+        )
+
+    with pytest.raises(ValueError, match="limit4-real"):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--smoke-profile",
+                "limit4-real",
+                "--limit-selected",
+                "10",
+                "--outdir",
+                str(tmp_path / "real"),
+            ]
+        )
+
+    with pytest.raises(ValueError, match="only supported by verify-genus"):
+        cli.parse_args(["doctor", "--smoke-profile", "plan-only"])
 
 
 def test_parse_args_verify_genus_preserves_repeated_query_genomes(tmp_path):

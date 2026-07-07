@@ -275,6 +275,7 @@ Plan a genus verification from local caches:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile plan-only \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --gtdb-metadata data/gtdb_metadata_r220.tsv \
@@ -297,8 +298,11 @@ This is the recommended plan-only acquisition command. A local LPSN cache only
 builds the checklist; it is not a discovery cache and does not supply NCBI
 Assembly candidates. Use `--discovery-cache` for offline candidate discovery,
 or use guarded live discovery with `--enable-ncbi-discovery --email`.
-`--limit-selected N` is an optional total selected reference genome cap for
-bounded smoke runs. It is applied after per-species selection and before
+`--smoke-profile plan-only` records the profile name without enabling
+downloads, auto-accepting selection, or expanding live provider access. Local
+or guarded LPSN/NCBI discovery and taxonomy flags remain explicit user
+choices. `--limit-selected N` remains available as an explicit total selected
+reference genome cap. It is applied after per-species selection and before
 manifest/download planning; `selection/selected_limit_summary.tsv` and
 `run_state.json` record `limit_selected`, `selected_before_limit`,
 `selected_after_limit`, and `limit_applied`.
@@ -315,6 +319,7 @@ lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile plan-only \
   --enable-lpsn-api \
   --enable-ncbi-discovery \
   --enable-biosample-entrez \
@@ -330,41 +335,28 @@ By default, `verify-genus` stops at reviewable planning. Review
 `completion/manual_supplement_hints.tsv` exists, treat it as the manual
 supplement task queue: inspect its `reason`, `recommended_action`, and
 `handoff_path` fields, then make curator-reviewed selection or external FASTA
-changes explicitly. To accept the generated selection and execute guarded NCBI
-Datasets downloads, pass both download opt-ins:
+changes explicitly. To accept the generated selection and execute the minimal
+bounded real-smoke guard, use `limit4-real`:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile limit4-real \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir <run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
+  --outdir <smoke_run_dir>
 ```
 
-The download pair is deliberately strict: `--enable-downloads` is ignored for
-real execution unless paired with `--auto-accept-selection` in `verify-genus`.
-For a manual stop, omit both or add `--review-required`.
-
-For a bounded real smoke test, keep the same double opt-in and add a total
-selected cap:
-
-```bash
-typetreeflow verify-genus Fusobacterium \
-  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
-  --discovery-cache data/fusobacterium_discovery_records.tsv \
-  --policy balanced \
-  --source-audit-policy strict \
-  --strains-per-species 1 \
-  --limit-selected 5 \
-  --outdir <smoke_run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
-```
+`limit4-real` expands only to `--limit-selected 4`,
+`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. It does
+not add `--query-genome`, GTDB inputs, FastANI, barrnap extraction, LPSN API,
+NCBI discovery, NCBI Taxonomy, or provider access. If a profile conflicts with
+an explicit flag, the command fails fast; for example, do not combine
+`--smoke-profile limit4-real` with a separate `--limit-selected` value.
+Without a profile, the underlying long-form flags keep their existing behavior.
 
 For a guarded genome download plus same-genome barrnap 16S run, use downloads
 and `--extract-16s barrnap` together:
@@ -1032,6 +1024,11 @@ The source-audit gate is controlled by:
 | FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires one or more `--query-genome` values to execute `fastANI`; without it the stage records `ani_skipped_no_query`. Multi-query plans have `query_count x reference_count` rows. Exit 0 with an empty raw output file is `fastani_no_hits` / `ani_no_hits`, not missing output. |
 | phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. With `--query-genome`, query 16S must be included or the plan records `phylo_skipped_query_no_16s`; multi-query inputs preserve `source=local_query` and `query_id` in FASTA headers. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
+
+The `verify-genus --smoke-profile plan-only` and
+`verify-genus --smoke-profile limit4-real` shortcuts are the preferred smoke
+entry points. The low-level flags below remain explicit recovery and developer
+audit controls.
 
 Examples:
 

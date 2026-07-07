@@ -520,6 +520,7 @@ def _format_verify_genus_envelope(
         "manifest_path": str(paths.manifest),
         "report_path": str(paths.run_summary_path),
         "counts": _verify_genus_counts(paths, config),
+        "config": _verify_genus_config_summary(config),
         "blocking": blocking,
         "warnings": warnings,
         "next_actions": (
@@ -720,12 +721,23 @@ def _verify_genus_action_id(message: str) -> str:
     return "continue_workflow" if message else "none"
 
 
-def _verify_genus_counts(paths, config: AppConfig) -> dict[str, int]:
+def _verify_genus_counts(paths, config: AppConfig) -> dict[str, object]:
     return {
         "manifest_rows": _count_manifest_rows(paths),
         "selected_rows": _count_selected_rows(paths.user_selection_path),
         "downloaded_genomes": _count_downloaded_genomes(paths),
         "query_genomes": len(config.query_genomes),
+        "smoke_profile": config.smoke_profile or "",
+    }
+
+
+def _verify_genus_config_summary(config: AppConfig) -> dict[str, object]:
+    return {
+        "smoke_profile": config.smoke_profile or "",
+        "limit_selected": config.limit_selected,
+        "enable_downloads": config.enable_downloads,
+        "auto_accept_selection": config.auto_accept_selection,
+        "enable_phylo": config.enable_phylo,
     }
 
 
@@ -2200,7 +2212,18 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         stages=stages,
         next_action=next_action,
         errors=errors,
+        config=_run_state_config_summary(config),
     )
+
+
+def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
+    return {
+        "smoke_profile": config.smoke_profile or "",
+        "limit_selected": config.limit_selected,
+        "enable_downloads": config.enable_downloads,
+        "auto_accept_selection": config.auto_accept_selection,
+        "enable_phylo": config.enable_phylo,
+    }
 
 
 def _add_file_stage(
