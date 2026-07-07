@@ -3,6 +3,24 @@
 This cookbook uses the high-level commands as the ordinary user entry point.
 Use lower-level flags only for developer audits or manual recovery.
 
+## Environment Readiness
+
+Use the single repository environment file, then run the repo-local doctor
+command as the readiness check:
+
+```bash
+mamba env create -f environment.yml
+conda activate typetreeflow
+python -m pip install -e .
+python typetreeflow.py doctor
+```
+
+`environment.yml` pins Python 3.12 for reproducible local real-smoke readiness.
+The package metadata and CI currently cover Python 3.10, 3.11, and 3.12; Python
+3.13 and 3.14 are not claimed until dependency and CI compatibility are added.
+`doctor` writes compact JSON to stdout and does not contact providers, download
+genomes, or run external bioinformatics analyses.
+
 Use `<run_dir>` for the run output directory, typically
 `<workspace>/runs/<run-name>`, and `<delivery_dir>` for handoff packages,
 typically `<workspace>/deliveries/<delivery-name>`. If `--outdir` is omitted,
@@ -19,7 +37,7 @@ is an old default/historical example path and is no longer the current default.
 ## Quick Start: Plan-Only Genus Verification
 
 ```bash
-typetreeflow doctor
+python typetreeflow.py doctor
 
 typetreeflow verify-genus Fusobacterium \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
@@ -320,23 +338,28 @@ barrnap, run Entrez fallback, generate completion audits, or change selection.
 
 ## Troubleshooting Dependencies
 
-Run:
+Run the readiness check:
 
 ```bash
-typetreeflow doctor
+python typetreeflow.py doctor
 ```
 
-Common external executables:
+The single `environment.yml` includes the external executables used by guarded
+real-smoke paths:
 
-| Stage | Executable | Install hint |
-| --- | --- | --- |
-| NCBI genome download | `datasets` | `conda install -c conda-forge ncbi-datasets-cli` |
-| 16S extraction | `barrnap` | `conda install -c bioconda barrnap` |
-| ANI | `fastANI` | `conda install -c bioconda fastani` |
-| Phylogeny | `mafft`, `trimal`, `iqtree2` | bioconda packages |
+| Stage | Executable |
+| --- | --- |
+| NCBI genome download | `datasets` from `ncbi-datasets-cli` |
+| 16S extraction | `barrnap` plus readable barrnap CM/HMM database files |
+| Real-smoke external prerequisite | `bedtools` |
+| ANI | `fastANI` |
+| Phylogeny | `mafft`, `trimal`, `iqtree2` |
 
-Real LPSN/NCBI/Entrez lookup also needs the relevant enable flag and, for
-NCBI/Entrez, `--email` or `TYPETREEFLOW_EMAIL`.
+Current TypeTreeFlow phylogeny execution calls `iqtree2`. If only `iqtree` is
+on `PATH`, `doctor` reports that as a diagnostic-only fallback and keeps
+phylogeny readiness blocked. Real LPSN/NCBI/Entrez lookup also needs the
+relevant enable flag and, for NCBI/Entrez, `--email` or
+`TYPETREEFLOW_EMAIL`.
 
 ## Common Sticking Points
 

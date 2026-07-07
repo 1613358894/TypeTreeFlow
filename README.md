@@ -166,35 +166,47 @@ equivalent to, that type strain.
 
 ## Installation
 
-Use Python 3.10 or newer.
+Use the single conda/mamba environment file as the recommended local entry
+point:
 
 ```bash
+mamba env create -f environment.yml
+conda activate typetreeflow
 python -m pip install -e .
+python typetreeflow.py doctor
+```
+
+`environment.yml` pins Python 3.12 for reproducible local real-smoke readiness.
+The package metadata and CI currently cover Python 3.10, 3.11, and 3.12; Python
+3.13 and 3.14 are not claimed until dependency and CI compatibility are added.
+
+For development test extras, install them into the same activated environment:
+
+```bash
 python -m pip install -e ".[test]"
 ```
 
+`python typetreeflow.py doctor` is the readiness check. It prints JSON on
+stdout, reports secret-bearing settings by presence only, and does not run
+downloads, live lookups, barrnap, FastANI, MAFFT, trimAl, IQ-TREE, or other
+external analyses.
+
 On Windows, editable installs place the `typetreeflow` console script in your
-Python Scripts directory. If `typetreeflow --help` is not found after
-`pip install -e .`, confirm that directory is on `PATH`. In PowerShell, you can
-print the expected Scripts directory with:
-
-```powershell
-python -c "import site; print(site.USER_BASE + '\\Scripts')"
-```
-
-You can also continue to run the CLI directly:
+Python Scripts directory. You can always run the repo-local CLI directly:
 
 ```bash
 python typetreeflow.py --help
 ```
 
-Core Python dependencies are declared in `pyproject.toml`. Real guarded
-downloads additionally require the `datasets` executable on `PATH`. Real
-barrnap execution requires `barrnap`. Real FastANI execution requires
-`fastANI`. Real phylogeny execution requires `mafft`, `trimal`, and `iqtree2`.
-Some conda IQ-TREE builds install the executable as `iqtree`; create an
-`iqtree2` alias/symlink or use a build that provides `iqtree2`. Entrez-backed
-operations require network access, `--email`, and the relevant enable flag.
+Core Python dependencies are declared in `pyproject.toml`; the single
+`environment.yml` adds real-smoke executables: `datasets` from
+`ncbi-datasets-cli`, `barrnap`, `bedtools`, `fastANI`, `mafft`, `trimal`, and
+the bioconda `iqtree` package. Current TypeTreeFlow phylogeny execution still
+calls an executable named `iqtree2`. If your conda IQ-TREE package only provides
+`iqtree`, `doctor` reports that as a diagnostic-only fallback and phylogeny is
+not fully ready until an `iqtree2` executable is available. Entrez-backed
+operations also require network access, `--email`, and the relevant enable
+flag.
 
 ## Local environment files
 
@@ -244,7 +256,7 @@ write `run_state.json`, and keep review/download boundaries explicit:
 typetreeflow --help
 python typetreeflow.py --help
 typetreeflow --version
-typetreeflow doctor
+python typetreeflow.py doctor
 ```
 
 `doctor` prints a short JSON readiness envelope on stdout. It does not print

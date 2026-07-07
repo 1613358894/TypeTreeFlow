@@ -3,13 +3,14 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python>=3.10
+  - python=3.12
   - biopython
   - pandas
   - seaborn
   - pytest
   - ncbi-datasets-cli
   - barrnap
+  - bedtools
   - fastani
   - mafft
   - trimal

@@ -230,6 +230,9 @@ def test_doctor_reports_missing_tools_in_json(monkeypatch, capsys):
     assert checks["datasets"]["hint"] == "conda install -c conda-forge ncbi-datasets-cli"
     assert checks["barrnap"]["status"] == "blocked"
     assert checks["barrnap"]["hint"] == "conda install -c bioconda barrnap"
+    assert checks["bedtools"]["status"] == "blocked"
+    assert checks["bedtools"]["required_for"] == ["real_smoke"]
+    assert checks["bedtools"]["hint"] == "conda install -c bioconda bedtools"
     assert any(item["id"] == "datasets" for item in payload["blocking"])
 
 
@@ -310,6 +313,7 @@ def test_doctor_iqtree2_missing_iqtree_present_is_explicit(
     payload, _ = _doctor_payload(capsys)
     checks = {item["id"]: item for item in payload["checks"]}
     assert checks["iqtree2"]["status"] == "blocked"
+    assert "diagnostic-only fallback" in checks["iqtree2"]["message"]
     assert "requires iqtree2" in checks["iqtree2"]["message"]
     assert any(item["id"] == "iqtree2" for item in payload["blocking"])
 

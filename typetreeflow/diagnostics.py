@@ -183,6 +183,7 @@ class NextStepSummary:
 INSTALL_HINTS = {
     "datasets": "conda install -c conda-forge ncbi-datasets-cli",
     "barrnap": "conda install -c bioconda barrnap",
+    "bedtools": "conda install -c bioconda bedtools",
     "fastANI": "conda install -c bioconda fastani",
     "mafft": "conda install -c bioconda mafft",
     "trimal": "conda install -c bioconda trimal",
@@ -219,7 +220,7 @@ def build_doctor_report(
         _tool_item("datasets", "datasets", required_for=("downloads",), blocking=True),
         _tool_item("barrnap", "barrnap", required_for=("rrna_barrnap",), blocking=True),
         _barrnap_database_item(barrnap_path),
-        _tool_item("bedtools", "bedtools", required_for=("optional_external",), blocking=False),
+        _tool_item("bedtools", "bedtools", required_for=("real_smoke",), blocking=True),
         _tool_item("fastani", "fastANI", required_for=("ani",), blocking=True),
         _tool_item("mafft", "mafft", required_for=("phylo",), blocking=True),
         _tool_item("trimal", "trimal", required_for=("phylo",), blocking=True),
@@ -729,8 +730,8 @@ def _iqtree_item() -> DiagnosticItem:
             status="blocked",
             required_for=("phylo",),
             message=(
-                "iqtree executable is available, but TypeTreeFlow phylogeny "
-                "execution currently requires iqtree2"
+                "iqtree executable is available as a diagnostic-only fallback, "
+                "but TypeTreeFlow phylogeny execution currently requires iqtree2"
             ),
             hint=INSTALL_HINTS["iqtree2"],
             blocking=True,

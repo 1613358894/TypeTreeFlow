@@ -132,9 +132,9 @@ Current entry points are well named but heavy:
 `environment.yml` is already a single authoritative conda-style environment:
 
 - Channels: `conda-forge` and `bioconda`.
-- Python: `python>=3.10`.
+- Python: `python=3.12`.
 - Python/runtime libraries: `biopython`, `pandas`, `seaborn`, `pytest`.
-- External tools: `ncbi-datasets-cli`, `barrnap`, `fastani`, `mafft`,
+- External tools: `ncbi-datasets-cli`, `barrnap`, `bedtools`, `fastani`, `mafft`,
   `trimal`, `iqtree`.
 - Pip dependency: `lpsn>=1.0.0`.
 
@@ -144,14 +144,13 @@ The current gaps are small but important:
   and 3.12 only.
 - CI tests Python 3.10, 3.11, and 3.12 only.
 - There is no current 3.13 or 3.14 support claim.
-- `bedtools` is not used by current audited wrappers and should not be added
-  unless a concrete workflow needs it.
+- `bedtools` is included as an explicit real-smoke prerequisite even though it
+  is not currently invoked by the core wrappers.
 - barrnap planning hardcodes `--kingdom bac`; docs explain the executable
   requirement but do not describe a database/data-file preflight beyond PATH
   discovery.
-- IQ-TREE execution uses `iqtree2`; doctor reports `iqtree` as a warning
-  fallback only. README already tells users to create an `iqtree2` alias or use
-  a build that provides `iqtree2`.
+- IQ-TREE execution uses `iqtree2`; doctor reports an `iqtree`-only environment
+  as diagnostic-only and blocking for phylogeny readiness.
 
 ### Current stdout behavior
 
@@ -538,28 +537,23 @@ Proposal:
 
 ## 6. Environment.yml simplification proposal
 
-Keep one `environment.yml`. Do not add `environment-dev.yml` in the next phase.
-The current file is already close to the desired single path.
+Keep one `environment.yml`. Do not add `environment-dev.yml`.
 
-Recommended changes for a later environment PR:
+Implemented or retained follow-up choices:
 
-- Pin a supported Python minor range if reproducibility is more important than
-  maximal flexibility, for example `python>=3.10,<3.13` until CI and dependency
-  checks support 3.13.
-- Alternatively, keep `python>=3.10` only if 3.13 is added to CI and release
-  docs explicitly mark it supported after passing.
+- Pin Python 3.12 in `environment.yml` when reproducibility is more important
+  than maximal flexibility.
 - Do not claim Python 3.14 until dependencies and CI support it. Treat 3.14 as
   future investigation.
-- Keep `ncbi-datasets-cli`, `barrnap`, `fastani`, `mafft`, `trimal`, and
+- Keep `ncbi-datasets-cli`, `barrnap`, `bedtools`, `fastani`, `mafft`, `trimal`, and
   `iqtree`.
-- Do not add `bedtools` unless a current command actually requires it.
 - Add comments or docs, not a second env file, for:
   - `datasets` executable comes from `ncbi-datasets-cli`, not the Python
     package named `datasets`.
-  - barrnap is checked by PATH only today; database/data availability failures
-    are execution-time failures unless a read-only preflight is implemented.
-  - IQ-TREE command wrapper expects `iqtree2`; an `iqtree` binary alone is a
-    warning until execution supports that fallback.
+  - barrnap readiness includes PATH plus read-only CM/HMM database file
+    inspection.
+  - IQ-TREE command wrapper expects `iqtree2`; an `iqtree` binary alone is
+    diagnostic-only and blocking until execution supports that fallback.
 - Consider moving plotting dependencies into environment comments only if
   plotting remains optional at runtime. Do not split the environment just for
   developer/test use unless dependency conflicts appear.
@@ -874,3 +868,25 @@ The next simplification pass should be a separate archive and examples audit. It
 should inventory which examples are test fixtures, documentation fixtures,
 active curator templates, or historical case-study material before moving or
 deleting anything.
+
+## 16. Environment and doctor readiness follow-up completion note
+
+The environment readiness follow-up kept a single `environment.yml` and did not
+add `environment-dev.yml` or setup scripts. The environment now pins Python
+3.12, keeps `lpsn>=1.0.0` under pip, and explicitly includes the guarded
+real-smoke tool set: `ncbi-datasets-cli`, `barrnap`, `bedtools`, `fastani`,
+`mafft`, `trimal`, and bioconda `iqtree`.
+
+README and cookbook installation guidance now point to the single environment
+path and `python typetreeflow.py doctor` as the readiness check. The documented
+Python policy is: local environment pinned to 3.12, package/CI support currently
+limited to 3.10, 3.11, and 3.12, and no 3.13/3.14 support claim until
+dependency and CI compatibility are added.
+
+Doctor readiness remains JSON-only by default. It checks `bedtools`, reports
+barrnap CM/HMM database readability through non-executing file/PATH inspection,
+and treats `iqtree` without `iqtree2` as diagnostic-only and blocking for
+phylogeny readiness. The IQ-TREE execution path was not changed because the
+current command wrapper and focused tests intentionally call `iqtree2`; adding
+an execution fallback would expand the phylogeny command contract beyond this
+small readiness follow-up.

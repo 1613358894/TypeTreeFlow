@@ -53,6 +53,13 @@ the existing non-strict exit behavior and exits 0 even when readiness status is
 checks such as the `lpsn` package and unconfigured local GTDB metadata are not
 core blockers.
 
+Real-smoke readiness includes the external executable set from
+`environment.yml`, including `bedtools`. barrnap readiness includes `barrnap`
+on `PATH` plus non-executing CM/HMM database file readability checks. Current
+phylogeny execution requires an executable named `iqtree2`; if only `iqtree` is
+available, `doctor` reports that as diagnostic-only and keeps phylogeny
+readiness blocked.
+
 ## Verify-Genus Stdout Contract
 
 `typetreeflow verify-genus GENUS ...` writes exactly one compact JSON object to
