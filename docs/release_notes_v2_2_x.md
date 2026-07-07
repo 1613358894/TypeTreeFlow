@@ -1,9 +1,33 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.15 integration review as
+These notes consolidate the v2.2.2 through v2.2.16 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.16
+
+v2.2.16 is a CLI/UX and maintenance release based on v2.2.15. It prepares the
+AI-first command contract and repository maintenance work from PR #10 for a
+stable release:
+
+- Key CLI status/readiness commands now emit short AI-first JSON envelopes by
+  default, including `doctor`, so automation can consume compact structured
+  stdout without parsing older human-readable summaries.
+- `environment.yml` and `doctor` readiness checks are aligned around the
+  recommended Python 3.12 real-smoke environment while package metadata and CI
+  cover Python 3.10, 3.11, 3.12, and 3.13.
+- Minimal smoke profiles document bounded plan-only and `limit4-real`
+  workflows without implying unguarded downloads or provider automation.
+- Repository simplification reduces stale governance discoverability surface
+  while preserving current documentation entry points and contracts.
+- Python 3.13 CI coverage and package metadata are part of the supported test
+  matrix.
+
+v2.2.16 does not introduce taxonomy conclusions, provider automation,
+provider login/scraping/purchase flows, automatic provider downloads,
+unguarded download behavior, relaxed type-strain evidence thresholds, or
+completed genus coverage claims.
 
 ## v2.2.15
 

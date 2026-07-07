@@ -21,12 +21,13 @@ opt-in flags.
 The long-term goal is to collect auditable type-strain genomes and 16S
 sequences, compare a query genome against references with ANI, build a 16S
 phylogeny, and report reproducible tables, figures, name maps, and summaries.
-The current 2.2.15 release is a patch release on top of the LPSN-first
-acquisition workflow. It adds bounded smoke controls, local query audit
-provenance, multi-query ANI planning, guarded downstream stage status
-reporting, and GTDB metadata audit provenance while keeping strict evidence
-boundaries, guarded execution, selection policies, evidence thresholds, and
-download strategy unchanged.
+The current 2.2.16 release is a CLI/UX and maintenance release on top of the
+LPSN-first acquisition workflow. It makes key status and readiness commands
+emit short AI-first JSON envelopes by default, aligns environment and `doctor`
+readiness checks, adds bounded smoke profiles, reduces stale repository
+surface area, and adds Python 3.13 CI/package metadata coverage while keeping
+strict evidence boundaries, guarded execution, selection policies, evidence
+thresholds, provider automation policy, and download strategy unchanged.
 
 GTDB support is retained for legacy/local metadata workflows and as a discovery
 or evidence layer. It is not the authority for species boundaries in the current
@@ -264,7 +265,7 @@ secret values and does not run downloads, live lookups, or external analyses.
 See [docs/output_layout.md](docs/output_layout.md) for the AI-first stdout
 contracts and [docs/cookbook.md](docs/cookbook.md) for operator recipes.
 
-## Recommended v2.2.15 workflow
+## Recommended v2.2.16 workflow
 
 For ordinary users, `verify-genus` is the main entry point. It prepares the
 LPSN-first checklist, NCBI Assembly candidate evidence, optional BioSample

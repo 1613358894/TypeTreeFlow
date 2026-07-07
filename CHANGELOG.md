@@ -1,5 +1,35 @@
 # Changelog
 
+## v2.2.16 - 2026-07-07
+
+v2.2.16 is a CLI/UX and maintenance release based on v2.2.15. It prepares the
+AI-first stdout contract, environment readiness cleanup, repository
+simplification, smoke profile updates, and Python 3.13 CI coverage for release.
+
+### Added
+
+- Added short AI-first JSON stdout envelopes for key status/readiness commands
+  by default, including `doctor`.
+- Added minimal smoke profiles for bounded plan-only and `limit4-real`
+  workflows.
+- Added Python 3.13 CI and package metadata coverage while keeping Python 3.12
+  as the recommended conda real-smoke environment.
+
+### Changed
+
+- Aligned `environment.yml` and `doctor` readiness checks for real-smoke
+  prerequisites.
+- Reduced stale governance discoverability surface while preserving maintained
+  documentation entry points and contracts.
+
+### Notes
+
+- This is a CLI/UX and maintenance release.
+- No taxonomy conclusion, provider automation, provider login/scraping/purchase
+  flow, unguarded download behavior, or automatic provider download support is
+  introduced.
+- No type-strain evidence threshold is relaxed.
+
 ## v2.2.15 - 2026-07-06
 
 v2.2.15 is a patch release based on v2.2.14. It adds bounded release-smoke

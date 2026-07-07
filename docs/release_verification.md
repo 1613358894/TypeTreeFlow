@@ -20,19 +20,19 @@ repository `results/` content is limited by
 
 ## Current Release Scope
 
-For the current v2.2.15 release, verification covers the post-v2.2.14 bounded
-smoke, local-query, multi-query, guarded downstream status, packaging, and GTDB
-metadata audit updates. Local release gates confirm release metadata
-consistency, documentation entry points, package smoke behavior, CLI
-compatibility, workflow tests, and offline test coverage. Server cross-smoke
-evidence validates the live guarded paths separately from the local release
-gate. This release does not add provider automation, selection-policy changes,
-evidence-threshold changes, taxonomy conclusion claims, or unguarded download
-behavior.
+For the current v2.2.16 release, verification covers the post-v2.2.15
+AI-first CLI stdout contract, environment and `doctor` readiness alignment,
+bounded smoke profiles, repository simplification, and Python 3.13 CI/package
+metadata coverage. Local release gates confirm release metadata consistency,
+documentation entry points, package build behavior, CLI compatibility,
+workflow tests, JSON `doctor` output, and offline test coverage. This
+CLI/UX and maintenance release does not add provider automation,
+selection-policy changes, evidence-threshold changes, taxonomy conclusion
+claims, or unguarded download behavior.
 
 Before tagging, confirm package metadata, `typetreeflow.__version__`, CLI
 `--version`, README, release docs, citation metadata, and changelog all report
-`2.2.15`; then run the release consistency checker, workspace hygiene checker,
+`2.2.16`; then run the release consistency checker, workspace hygiene checker,
 pytest, wheel build, and wheel smoke checks without live downloads unless the
 release scope explicitly requires guarded live validation.
 
