@@ -95,6 +95,10 @@ selected rows from a bounded `verify-genus` smoke run, the affected
 `selection/user_selection.tsv` rows are marked unselected with a neutral
 `excluded_by_limit_selected_cap` note, and
 `selection/selected_limit_summary.tsv` records the before/after counts.
+`--smoke-profile plan-only` and `--smoke-profile limit4-real` are config
+provenance, not workflow statuses. They appear in stdout/run-state config
+metadata; stage statuses continue to report the actual files and execution
+outcomes.
 
 ## rRNA, barrnap, Extract, And Entrez
 

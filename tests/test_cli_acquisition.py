@@ -176,6 +176,11 @@ def _read_tsv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle, delimiter="\t"))
 
 
+def _verify_genus_stdout_payload(capsys) -> tuple[dict, str]:
+    output = capsys.readouterr().out
+    return json.loads(output), output
+
+
 def _lpsn_record(
     species: str,
     *,
@@ -535,19 +540,24 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert "Clostridium nitritogenes" in manual_hints
     assert "review_species_identity_mismatch" in manual_hints
     assert "manual_deposit_evidence_template.tsv; external_genomes.tsv" in manual_hints
+    verify_payload, _ = _verify_genus_stdout_payload(capsys)
+    assert verify_payload["command"] == "verify-genus"
+    assert verify_payload["status"] == "blocked"
+    assert verify_payload["reason"] == "manual_review_required"
 
     assert main(["status", "--outdir", str(outdir)]) == 0
-    status_output = capsys.readouterr().out
-    assert "Overall: partial" in status_output
-    assert "Download: blocked_by_manual_review" in status_output
-    assert (
-        "Next: Review selection/user_selection.tsv before guarded downloads"
-        in status_output
+    status_payload = json.loads(capsys.readouterr().out)
+    assert status_payload["status"] == "blocked"
+    stages = {stage["id"]: stage for stage in status_payload["stages"]}
+    assert stages["download"]["status"] == "blocked"
+    assert status_payload["next_actions"][0]["message"].startswith(
+        "Review selection/user_selection.tsv before guarded downloads"
     )
-    assert "completion/manual_supplement_hints.tsv" in status_output
+    assert "completion/manual_supplement_hints.tsv" in status_payload["next_actions"][0]["message"]
 
     assert main(["next-step", "--outdir", str(outdir)]) == 0
-    next_step = capsys.readouterr().out
+    next_step_payload = json.loads(capsys.readouterr().out)
+    next_step = next_step_payload["recommended_action"]["message"]
     assert next_step.startswith(
         "Review selection/user_selection.tsv before guarded downloads"
     )
@@ -1095,6 +1105,7 @@ def test_acquire_genus_rejects_enable_downloads(tmp_path, caplog):
 def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     tmp_path,
     monkeypatch,
+    capsys,
 ):
     outdir = tmp_path / "out"
     lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
@@ -1123,7 +1134,22 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
 
     paths = get_output_paths(outdir)
     state = read_run_state(paths.run_state_path)
+    payload, output = _verify_genus_stdout_payload(capsys)
     assert result == 0
+    assert output.strip().startswith("{")
+    assert payload["command"] == "verify-genus"
+    assert payload["schema_version"] == "1"
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "manual_review_required"
+    assert payload["genus"] == "Fusobacterium"
+    assert payload["run_state_path"] == str(paths.run_state_path)
+    assert payload["manifest_path"] == str(paths.manifest)
+    assert payload["report_path"] == str(paths.run_summary_path)
+    assert payload["counts"]["manifest_rows"] == 2
+    assert payload["counts"]["selected_rows"] == 2
+    assert payload["counts"]["downloaded_genomes"] == 0
+    assert payload["blocking"]
+    assert payload["next_actions"][0]["id"] == "review_user_selection"
     assert paths.user_selection_path.exists()
     assert paths.download_preflight_summary_path.exists()
     assert paths.run_summary_path.exists()
@@ -1135,6 +1161,52 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert not paths.ncbi_download_results_path.exists()
     policies = {row.selection_policy for row in read_user_selection(paths.user_selection_path)}
     assert policies == {"balanced"}
+
+
+def test_verify_genus_plan_only_profile_records_profile_without_downloads(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("plan-only smoke profile must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--smoke-profile",
+            "plan-only",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert payload["counts"]["smoke_profile"] == "plan-only"
+    assert payload["config"] == {
+        "smoke_profile": "plan-only",
+        "limit_selected": None,
+        "enable_downloads": False,
+        "auto_accept_selection": False,
+        "enable_phylo": False,
+    }
+    assert state.config == payload["config"]
+    assert state.stages["download"].status == "blocked_by_manual_review"
+    assert not paths.ncbi_download_results_path.exists()
 
 
 def test_verify_genus_plan_only_records_gtdb_metadata_provenance_and_package(
@@ -1649,6 +1721,7 @@ def test_verify_genus_limit_selected_above_selected_count_does_not_change_result
 def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     tmp_path,
     monkeypatch,
+    capsys,
 ):
     outdir = tmp_path / "out"
     lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
@@ -1676,7 +1749,16 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     state = read_run_state(paths.run_state_path)
     records = read_manifest(paths.manifest)
     summary = paths.run_summary_path.read_text(encoding="utf-8")
+    payload, output = _verify_genus_stdout_payload(capsys)
     assert result == 0
+    assert payload["command"] == "verify-genus"
+    assert payload["status"] == "pass"
+    assert payload["reason"] == "completed"
+    assert payload["counts"]["manifest_rows"] == 2
+    assert payload["counts"]["selected_rows"] == 2
+    assert payload["counts"]["downloaded_genomes"] == 2
+    assert ">fake" not in output
+    assert "ACGT" not in output
     assert len(runner.commands) == 2
     assert paths.user_selection_path.exists()
     assert paths.download_preflight_summary_path.exists()
@@ -1694,6 +1776,52 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     assert not paths.all_16s_fasta_path.exists()
     assert "auto_accepted_selection" in summary
     assert {record.status for record in records} == {"genome_ready"}
+
+
+def test_verify_genus_limit4_real_profile_expands_guarded_config(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache, discovery_cache = _write_multi_selected_caches(tmp_path)
+    runner = _FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--smoke-profile",
+            "limit4-real",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--strains-per-species",
+            "2",
+            "--outdir",
+            str(outdir),
+        ],
+        download_runner=runner,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert len(runner.commands) == 4
+    assert payload["counts"]["smoke_profile"] == "limit4-real"
+    assert payload["config"] == {
+        "smoke_profile": "limit4-real",
+        "limit_selected": 4,
+        "enable_downloads": True,
+        "auto_accept_selection": True,
+        "enable_phylo": True,
+    }
+    assert state.config == payload["config"]
+    assert state.stages["download"].status == "succeeded"
+    assert "limit_selected=4" in state.stages["selection"].summary
 
 
 def test_verify_genus_limit_selected_with_strains_per_species_caps_fake_downloads(
@@ -2028,6 +2156,7 @@ def test_verify_genus_enable_phylo_with_insufficient_16s_writes_skipped_status(
 def test_verify_genus_extract_16s_barrnap_missing_dependency_writes_state(
     tmp_path,
     monkeypatch,
+    capsys,
 ):
     outdir = tmp_path / "out"
     lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
@@ -2062,12 +2191,100 @@ def test_verify_genus_extract_16s_barrnap_missing_dependency_writes_state(
     )
 
     state = read_run_state(get_output_paths(outdir).run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
     assert result == 2
+    assert payload["command"] == "verify-genus"
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "dependency_missing"
+    assert payload["blocking"][0]["id"] == "dependency_missing"
     assert state.status == "blocked_by_dependency"
     assert state.stages["download"].status == "succeeded"
     assert state.stages["rrna_barrnap"].status == "blocked_by_dependency"
     assert "conda install -c bioconda barrnap" in state.next_action
     assert "Required executable not found on PATH: barrnap" in state.errors[0]
+
+
+def test_verify_genus_workflow_exception_outputs_json_error_envelope(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_checklist(*args, **kwargs):
+        raise RuntimeError("synthetic verify-genus workflow failure")
+
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_lpsn_species_checklist_conversion",
+        fail_checklist,
+    )
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, output = _verify_genus_stdout_payload(capsys)
+    assert result == 2
+    assert json.loads(output) == payload
+    assert payload["command"] == "verify-genus"
+    assert payload["status"] == "failed"
+    assert payload["reason"] == "workflow_failed"
+    assert payload["blocking"][0]["id"] == "workflow_failed"
+    assert "synthetic verify-genus workflow failure" in payload["summary"]
+    assert state.status == "failed"
+    assert state.errors == ["synthetic verify-genus workflow failure"]
+
+
+def test_verify_genus_stdout_omits_secret_and_sequence_content(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    query = tmp_path / "query.fna"
+    query.write_text(">secret-query\nACGTACGTSECRETSEQUENCE\n", encoding="utf-8")
+    monkeypatch.setenv("TYPETREEFLOW_API_KEY", "super-secret-api-key")
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--query-genome",
+            str(query),
+            "--email",
+            "secret-user@example.org",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    payload, output = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert payload["counts"]["query_genomes"] == 1
+    assert "secret-user@example.org" not in output
+    assert "super-secret-api-key" not in output
+    assert ">secret-query" not in output
+    assert "ACGTACGTSECRETSEQUENCE" not in output
+    assert "species\tassembly_accession" not in output
 
 
 def test_verify_genus_can_plan_with_fake_api_clients_and_biosample_entrez(tmp_path):

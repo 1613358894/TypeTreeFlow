@@ -3,7 +3,8 @@
 `docs/archive/` preserves selected historical records. It is not a source of
 current behavior contracts, required release gates, or active implementation
 plans. Use `README.md`, current contract docs, active design docs, and release
-docs for current workflow decisions.
+docs for current workflow decisions. The current documentation map links here
+as the single archive inventory instead of listing archived drafts one by one.
 
 ## Retention rules
 
@@ -18,50 +19,38 @@ docs for current workflow decisions.
   that important information is already covered by current docs, `CHANGELOG.md`,
   release docs, or an archive summary.
 
-## Retention matrix
+## Retained evidence groups
 
-Current references means references outside the archived item itself. The
-current map in `docs/index.md` intentionally links archive entries as historical
-records; those links are not behavior-contract dependencies.
+- [`run_evidence/fusobacterium_v0_5_0/`](run_evidence/fusobacterium_v0_5_0/):
+  compact case study for the v0.5.0 strict NCBI Assembly delivery, including
+  16/17 completion, final audit tables, delivery manifest, and the
+  `F. mortiferum` non-selection rationale.
+- [`run_evidence/phase15_smoke/`](run_evidence/phase15_smoke/): compact
+  Phase 15B smoke checkpoint for Actinocorallia with summary, manifest, and
+  phylo plan evidence only.
+- [`fusobacterium_external_pilot.md`](fusobacterium_external_pilot.md) and
+  [`fusobacterium_real_pilot_template.md`](fusobacterium_real_pilot_template.md):
+  historical external-registration case studies. Current workflow docs remain
+  [`../external_type_genome_ingestion.md`](../external_type_genome_ingestion.md),
+  [`../external_workflow_cookbook.md`](../external_workflow_cookbook.md), and
+  [`../completion_audit.md`](../completion_audit.md).
 
 ## Historical plans and release records
 
-### External registration case studies
-
-- [`fusobacterium_external_pilot.md`](fusobacterium_external_pilot.md):
-  historical `F. mortiferum` synthetic external-registration pilot. Current
-  external registration docs live in
-  [`../external_type_genome_ingestion.md`](../external_type_genome_ingestion.md)
-  and [`../external_workflow_cookbook.md`](../external_workflow_cookbook.md).
-- [`fusobacterium_real_pilot_template.md`](fusobacterium_real_pilot_template.md):
-  historical real-local `F. mortiferum` evidence-package template. The current
-  completion/gap contract lives in
-  [`../completion_audit.md`](../completion_audit.md).
-
 ### Documentation restructuring records
 
-- [`docs_inventory.md`](docs_inventory.md):
-  historical inventory from the documentation flattening/restructuring pass.
-  It records reviewed docs, overlap, and recommended actions at that point in
-  time.
-- [`docs_simplification_plan.md`](docs_simplification_plan.md):
-  historical read-only simplification plan for documentation deduplication and
-  archive decisions.
+Detailed restructuring audit drafts were compressed into the deleted evidence
+summaries below. Current documentation governance lives in
+[`../index.md`](../index.md), [`../maintenance.md`](../maintenance.md), and this
+archive inventory.
 
 ### Version and provider plans
 
-- [`v0_8_0_implementation_plan.md`](v0_8_0_implementation_plan.md):
-  historical v0.8.0 hardening and validation implementation plan.
-- [`provider_automation_feasibility.md`](provider_automation_feasibility.md):
-  historical provider and ATCC automation feasibility design.
-- [`atcc_downloader_gate_review.md`](atcc_downloader_gate_review.md):
-  historical ATCC downloader gate review and negative gate decision.
+Provider feasibility, ATCC gate, v0.9.0 spike, and v2.0.0 framework rationale
+were compressed into the deleted evidence summaries below. Current provider
+boundaries live in [`../provider_automation_policy.md`](../provider_automation_policy.md).
 - [`local_artifact_normalization_design.md`](local_artifact_normalization_design.md):
   historical design-only offline local artifact normalization boundary.
-- [`v0_9_0_provider_adapter_spike_plan.md`](v0_9_0_provider_adapter_spike_plan.md):
-  historical v0.9.0 provider adapter spike plan.
-- [`v2_0_0_provider_automation_framework.md`](v2_0_0_provider_automation_framework.md):
-  historical v2.0.0 provider automation framework design-freeze note.
 - [`v1_0_0_readiness_review.md`](v1_0_0_readiness_review.md):
   historical v1.0.0 readiness and stable-boundary review.
 
@@ -77,15 +66,9 @@ records; those links are not behavior-contract dependencies.
   historical v2.2.4 NCBI Taxonomy enrichment baseline.
 - [`v2_2_x_acceptance_checklist.md`](v2_2_x_acceptance_checklist.md):
   historical v2.2.2-v2.2.4 acceptance checklist.
-- [`pr_description_v2_2_x.md`](pr_description_v2_2_x.md):
-  stale v2.2.x pull-request description draft retained for historical context.
 
 ### Roadmap and validation notes
 
-- [`roadmap_v2.2.10-ux-followups.md`](roadmap_v2.2.10-ux-followups.md):
-  historical v2.2.10 UX and reporting follow-up checklist.
-- [`roadmap_v2.2.12-maintenance-plan.md`](roadmap_v2.2.12-maintenance-plan.md):
-  historical v2.2.12 documentation maintenance plan.
 - [`validation_v2.2.9-real-world-validation.md`](validation_v2.2.9-real-world-validation.md):
   historical v2.2.9 real-world validation evidence.
 
@@ -104,6 +87,121 @@ rewrite history to match current behavior. Deletion is acceptable only after the
 reference check and coverage check above pass.
 
 ## Deleted evidence summaries
+
+### Documentation inventory
+
+`docs_inventory.md` was deleted in cleanup pass 3 after confirming that it was
+a historical restructuring audit, not a current behavior contract. It was
+referenced only by archive/governance surfaces and the docs consistency
+allowlist before this pass. The retained facts are:
+
+- The current user route is README first, then the cookbook and contract docs.
+- `docs/index.md` should stay as a compact documentation map, while detailed
+archive retention rationale belongs in this README.
+- Current behavior contracts are the top-level docs such as contracts,
+  schemas, statuses, output layout, workspace/results policy, completion audit,
+  external registration, provider policy, and release docs.
+- Historical stage plans, release baselines, validation notes, provider-era
+  rationale, and compact run evidence belong under the archive.
+- Examples and small synthetic fixtures are current test/documentation
+  dependencies and were not simplification targets.
+
+### Documentation simplification plan
+
+`docs_simplification_plan.md` was deleted in cleanup pass 3 after confirming
+that it was a read-only planning memo and that current maintenance rules and
+this archive inventory preserve the durable governance decisions. The retained
+facts are:
+
+- Keep schema, status, output-layout, stable-contract, handoff, workspace, and
+  results policy docs independent because they serve different consumers.
+- Deduplicate current docs by replacing repeated boundary prose with links to
+  the canonical owner instead of merging broad contract documents.
+- Keep the external registration split between design/data contract, short
+  operator cookbook, and completion-counting contract.
+- Treat `docs/lpsn_first_acquisition.md` as a deep design note for later
+  focused review rather than archiving it in a cleanup-only pass.
+- Avoid broad current-doc merges, top-level file renames, or behavior changes
+  during documentation simplification.
+
+### Provider automation feasibility design
+
+`provider_automation_feasibility.md` was deleted in cleanup pass 3 after its
+provider/ATCC boundary rationale was compressed into this inventory and the
+current provider policy was confirmed as canonical. The retained facts are:
+
+- TypeTreeFlow should not become a provider portal acquisition agent by
+  default.
+- The safe route is curator-permitted provider access outside TypeTreeFlow,
+  followed by reviewed local FASTA registration through `external_genomes.tsv`.
+- Provider automation must not log in, scrape, accept terms, purchase, reuse
+  sessions, store credentials, download restricted artifacts, write NCBI
+  download plans, or count provider rows toward NCBI Assembly strict
+  completion.
+- Provider-native IDs stay external/provider identifiers and must never become
+  NCBI `assembly_accession` values.
+- Any future provider adapter would need explicit opt-in, terms approval,
+  secret redaction, private provider cache rules, checksum/provenance capture,
+  reviewable handoff to external registration, and tests preserving manifest,
+  NCBI, and completion boundaries.
+
+### ATCC downloader gate review
+
+`atcc_downloader_gate_review.md` was deleted in cleanup pass 3 after the
+negative ATCC gate decision was retained here and in the provider policy. The
+retained facts are:
+
+- ATCC downloader gate: not passed.
+- No ATCC-specific legal approval, provider-permitted technical access route,
+  credential design, or testable download contract was documented.
+- ATCC may be unavailable or planning-only in current support; metadata-only or
+  download-enabled modes require a later provider-specific gate review.
+- TypeTreeFlow must not automate ATCC login, browser sessions, scraping, terms
+  acceptance, purchase, download, restricted cache writes, direct FASTA
+  installation, manifest/name-map writes, or NCBI download-plan writes.
+- Curator-obtained permitted local ATCC FASTA files remain manual external
+  registration inputs, not automated provider downloads.
+
+### v0.9.0 provider adapter spike plan
+
+`v0_9_0_provider_adapter_spike_plan.md` was deleted in cleanup pass 3 after
+the durable spike boundaries were retained here and the implemented provider
+planning contract remained covered by current docs. The retained facts are:
+
+- The provider adapter spike was planning-only and provider-neutral, not an
+  ATCC automated-download release.
+- `provider_request.tsv` could produce review-only
+  `provider/provider_registration_plan.tsv` and
+  `provider/proposed_external_genomes.tsv`.
+- Provider planning was dry-run/review-only and could not create manifests,
+  name maps, NCBI download plans, installed FASTA files, external registration
+  inputs, or completion metric changes.
+- Proposed external genome rows required curator review of provenance, terms,
+  local FASTA path, checksum, and type-material evidence before any manual
+  external registration.
+- Synthetic provider fixtures validate planning/reporting boundaries only and
+  are not provider downloads, login, scraping, credential handling, or terms
+  acceptance.
+
+### v2.0.0 provider automation framework design freeze
+
+`v2_0_0_provider_automation_framework.md` was deleted in cleanup pass 3 after
+the framework rationale was summarized here and the current provider policy
+remained the authoritative boundary. The retained facts are:
+
+- The v2.0.0 framework target was a guarded provider planning skeleton, not a
+  default ATCC downloader.
+- Provider network behavior must be disabled by default and fail closed unless
+  a later provider-specific design approves an explicit opt-in mode.
+- Provider adapters cannot directly write `manifest.tsv`, `name_map.tsv`,
+  `external_genomes.tsv`, `cache/ncbi/`, `cache/ncbi/download_plan.tsv`, or
+  NCBI `assembly_accession` fields.
+- Provider proposals remain excluded from NCBI Assembly strict and
+  external-inclusive completion until reviewed through external registration
+  and completion audit.
+- Future private provider caches, metadata access, artifact preparation, and
+  ATCC status transitions require policy gates, redaction, provenance,
+  retention rules, and focused tests.
 
 ### Species checklist implementation plan
 
@@ -149,3 +247,68 @@ inventory. The retained historical facts are:
   `phylo_tree_ready`.
 - The run established that reference-only `rrna/all_16S.fasta` aggregation is
   valid and that `--query-16s` should be optional for a reference-only tree.
+
+### v0.8.0 implementation plan
+
+`v0_8_0_implementation_plan.md` was deleted in cleanup pass 2 after confirming
+that current behavior is covered by the external-registration, completion-audit,
+provider-policy, contract, and release docs, and that no current README, test,
+code, or current-doc dependency required the file. The retained historical facts
+are:
+
+- The plan was explicitly planning-only and did not implement a version bump,
+  provider automation, credential handling, or ATCC Genome Portal downloads.
+- The intended boundary was hardening the existing LPSN-first strict NCBI
+  Assembly workflow and manual external genome registration without broadening
+  acquisition automation.
+- NCBI Assembly strict completion and external-inclusive strict completion were
+  required to remain separate metrics.
+- External registered genome rows were expected to preserve external provenance,
+  keep `assembly_accession` empty, and stay out of NCBI Datasets plans.
+- Provider automation remained parked behind later design gates covering terms
+  review, off-by-default consent, secret handling, provider provenance, private
+  cache separation, and reviewable external registration.
+
+### v2.2.x pull-request draft
+
+`pr_description_v2_2_x.md` was deleted in cleanup pass 2 after confirming that
+release notes, the historical acceptance checklist, and this summary retain the
+useful release-history facts. The retained historical facts are:
+
+- The draft summarized v2.2.2 through v2.2.4 release-verification work:
+  shared `verify-release-genus` acquisition, package-results failure-message
+  improvements, completion gap reports, BioSample checkpoint/resume,
+  expanded-discovery planning, and NCBI Taxonomy enrichment.
+- Expanded discovery and taxonomy-derived rows were audit-only and did not
+  automatically change `manifest.tsv`, `selection/user_selection.tsv`,
+  completion metrics, or evidence levels.
+- `representative_only` remained exploratory and was not strict type-strain
+  completion.
+
+### v2.2.10 UX follow-up roadmap
+
+`roadmap_v2.2.10-ux-followups.md` was deleted in cleanup pass 2 after
+confirming that it was a historical checklist, not a current roadmap or release
+gate. The retained historical facts are:
+
+- The roadmap covered small UX/reporting polish for repeated Entrez fallback
+  guidance, plan-only next-step ordering, taxonomy enrichment summary wording,
+  and package-results handoff index/readme output.
+- It explicitly excluded download strategy changes, evidence-threshold changes,
+  provider additions, and reinterpretation of representative-only results as
+  strict type-strain completion.
+
+### v2.2.12 maintenance plan
+
+`roadmap_v2.2.12-maintenance-plan.md` was deleted in cleanup pass 2 after
+confirming that current maintenance and release-checklist docs retain the
+durable boundaries. The retained historical facts are:
+
+- v2.2.12 was scoped as a maintenance-only release for release consistency,
+  checklist hardening, and handoff/reporting documentation clarity.
+- The plan forbade runtime behavior changes, selection-safety changes,
+  evidence-threshold changes, provider automation, real large-genus download
+  runs, and large results artifacts.
+- Later stages documented release-consistency checking, release checklist
+  hardening, and handoff-index documentation without version bumps, tags,
+  commits, pushes, or live downloads.

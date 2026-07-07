@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import logging
 import shutil
 import sys
@@ -22,12 +23,13 @@ from typetreeflow.cli_config import (
 )
 from typetreeflow.cli_parser import build_parser
 from typetreeflow.config import AppConfig, ensure_real_action_allowed
-from typetreeflow.delivery import package_results
+from typetreeflow.delivery import DeliveryResult, package_results, parse_include
 from typetreeflow.diagnostics import (
     build_doctor_report,
     doctor_exit_code,
     entrez_fallback_completion_next_action,
     format_doctor_report,
+    format_error_envelope,
     format_next_step,
     format_status_summary,
     handoff_next_action,
@@ -217,7 +219,12 @@ from typetreeflow.workflow.summary import (
     status_count_summary as _status_count_summary,
     status_counts as _status_counts,
 )
-from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
+from typetreeflow.workflow.state import (
+    StageState,
+    WorkflowState,
+    read_run_state,
+    write_run_state,
+)
 
 LOGGER = logging.getLogger(__name__)
 _BIOSAMPLE_RECOMMENDATION_POLICIES = {"strict", "balanced"}
@@ -269,7 +276,8 @@ def parse_args(argv: list[str] | None = None) -> AppConfig:
 def _run_diagnostics_dispatch(config: AppConfig, paths) -> int | None:
     if config.doctor:
         report = build_doctor_report(
-            email_available=bool(config.email),
+            email_available=bool(_env_value("TYPETREEFLOW_EMAIL")),
+            gtdb_metadata=config.gtdb_metadata,
         )
         print(format_doctor_report(report))
         return doctor_exit_code(report, strict=config.doctor_strict)
@@ -277,8 +285,7 @@ def _run_diagnostics_dispatch(config: AppConfig, paths) -> int | None:
         try:
             summary = inspect_workflow_status(config.outdir)
         except (FileNotFoundError, ValueError, RuntimeError) as error:
-            LOGGER.error("%s", error)
-            print(str(error), file=sys.stderr)
+            print(format_error_envelope("status", config.outdir, error))
             return 2
         print(format_status_summary(summary, json_output=config.json_output))
         return 0
@@ -286,8 +293,7 @@ def _run_diagnostics_dispatch(config: AppConfig, paths) -> int | None:
         try:
             summary = next_step_summary(config.outdir)
         except (FileNotFoundError, ValueError, RuntimeError) as error:
-            LOGGER.error("%s", error)
-            print(str(error), file=sys.stderr)
+            print(format_error_envelope("next-step", config.outdir, error))
             return 2
         print(format_next_step(summary, json_output=config.json_output))
         return 0
@@ -304,15 +310,511 @@ def _run_package_results_dispatch(config: AppConfig) -> int | None:
             include=config.include,
             failed_handoff=config.failed_handoff,
         )
-    except (ManifestError, ValueError, RuntimeError) as error:
+    except (FileNotFoundError, ManifestError, ValueError, RuntimeError) as error:
         LOGGER.error("%s", error)
+        print(_format_package_results_error_envelope(config, error))
         return 2
+    print(_format_package_results_envelope(config, result))
     LOGGER.info(
         "Packaged delivery results: %s (%d files copied).",
         result.delivery_dir,
         len(result.copied_files),
     )
     return 0
+
+
+def _format_package_results_envelope(
+    config: AppConfig,
+    result: DeliveryResult,
+) -> str:
+    warnings = []
+    if result.missing_optional_files:
+        warnings.append(
+            {
+                "id": "missing_optional_files",
+                "message": (
+                    f"{len(result.missing_optional_files)} optional package "
+                    "file(s) were not copied"
+                ),
+            }
+        )
+    return json.dumps(
+        {
+            "command": "package-results",
+            "schema_version": "1",
+            "status": "warning" if warnings else "pass",
+            "summary": _package_results_summary(config, result, warnings=warnings),
+            "outdir": str(config.outdir),
+            "package_path": str(result.delivery_dir),
+            "mode": _package_results_mode(config),
+            "included": _package_results_included(config, result),
+            "artifacts": _package_results_artifacts(config, result),
+            "blocking": [],
+            "warnings": warnings,
+            "next_actions": [],
+        },
+        sort_keys=True,
+    )
+
+
+def _format_package_results_error_envelope(
+    config: AppConfig,
+    error: Exception,
+) -> str:
+    message = str(error)
+    summary = message.splitlines()[0] if message else "package-results failed"
+    return json.dumps(
+        {
+            "command": "package-results",
+            "schema_version": "1",
+            "status": "failed",
+            "summary": summary,
+            "outdir": str(config.outdir),
+            "package_path": str(_package_results_default_package_path(config)),
+            "mode": _package_results_mode(config),
+            "included": _package_results_included(config, None),
+            "artifacts": [],
+            "blocking": [
+                {
+                    "id": _package_results_error_id(error),
+                    "message": message,
+                }
+            ],
+            "warnings": [],
+            "next_actions": [],
+        },
+        sort_keys=True,
+    )
+
+
+def _package_results_summary(
+    config: AppConfig,
+    result: DeliveryResult,
+    *,
+    warnings: list[dict[str, str]],
+) -> str:
+    if config.failed_handoff:
+        package_type = "failed handoff package"
+    else:
+        package_type = "delivery package"
+    copied_count = len(result.copied_files)
+    if warnings:
+        return f"{package_type} created with {copied_count} copied file(s) and warnings"
+    return f"{package_type} created with {copied_count} copied file(s)"
+
+
+def _package_results_artifacts(
+    config: AppConfig,
+    result: DeliveryResult,
+) -> list[dict[str, str]]:
+    artifacts = [
+        {
+            "id": "package",
+            "path": str(result.delivery_dir),
+            "kind": "directory",
+        }
+    ]
+    handoff_index = result.delivery_dir / "handoff_index.md"
+    if handoff_index.exists():
+        artifacts.append(
+            {
+                "id": "handoff_index",
+                "path": str(handoff_index),
+                "kind": "file",
+            }
+        )
+    readme_name = "README_failure.md" if config.failed_handoff else "README.md"
+    readme_path = result.delivery_dir / readme_name
+    if readme_path.exists():
+        artifacts.append(
+            {
+                "id": "readme",
+                "path": str(readme_path),
+                "kind": "file",
+            }
+        )
+    return artifacts
+
+
+def _package_results_included(
+    config: AppConfig,
+    result: DeliveryResult | None,
+) -> dict[str, bool]:
+    if config.failed_handoff:
+        reports = False
+        if result is not None:
+            report_files = {
+                result.delivery_dir / "report" / "summary.md",
+                result.delivery_dir / "report" / "run_review.md",
+            }
+            reports = any(path.exists() for path in report_files)
+        return {"reports": reports, "handoff": True}
+    try:
+        requested = parse_include(config.include)
+    except ValueError:
+        requested = set()
+    return {"reports": "reports" in requested, "handoff": True}
+
+
+def _package_results_mode(config: AppConfig) -> str:
+    if config.failed_handoff:
+        return "failed_handoff"
+    try:
+        requested = parse_include(config.include)
+    except ValueError:
+        return "normal_unknown"
+    if requested == {"reports"}:
+        return "normal_reports"
+    if requested == {"genomes", "16s", "reports"}:
+        return "normal_all"
+    if requested == {"genomes"}:
+        return "normal_genomes"
+    if requested == {"16s"}:
+        return "normal_16s"
+    return "normal_" + "_".join(sorted(requested))
+
+
+def _package_results_default_package_path(config: AppConfig) -> Path:
+    if config.delivery_dir is not None:
+        return Path(config.delivery_dir)
+    package_name = "failed_handoff" if config.failed_handoff else "delivery"
+    return Path(config.outdir) / package_name
+
+
+def _package_results_error_id(error: Exception) -> str:
+    if isinstance(error, FileNotFoundError):
+        return "missing_outdir"
+    message = str(error).lower()
+    if "manifest.tsv" in message and "not found" in message:
+        return "missing_manifest"
+    if "--include" in message:
+        return "invalid_include"
+    return "package_results_error"
+
+
+def _format_verify_genus_envelope(
+    config: AppConfig,
+    paths,
+    *,
+    exit_code: int,
+    error: Exception | None,
+) -> str:
+    state = _read_verify_genus_run_state(paths)
+    status, reason = _verify_genus_public_status_reason(
+        state=state,
+        exit_code=exit_code,
+        error=error,
+    )
+    next_action = state.next_action if state is not None else ""
+    blocking = _verify_genus_blocking_items(state, error=error)
+    warnings = _verify_genus_warning_items(state)
+    payload = {
+        "command": "verify-genus",
+        "schema_version": "1",
+        "status": status,
+        "reason": reason,
+        "summary": _verify_genus_summary(status, reason, state, error),
+        "genus": str(config.acquire_genus or config.genus or ""),
+        "outdir": str(config.outdir),
+        "run_state_path": str(paths.run_state_path),
+        "manifest_path": str(paths.manifest),
+        "report_path": str(paths.run_summary_path),
+        "counts": _verify_genus_counts(paths, config),
+        "config": _verify_genus_config_summary(config),
+        "blocking": blocking,
+        "warnings": warnings,
+        "next_actions": (
+            [{"id": _verify_genus_action_id(next_action), "message": next_action}]
+            if next_action
+            else []
+        ),
+    }
+    return json.dumps(_redact_verify_genus_payload(payload, config), sort_keys=True)
+
+
+def _read_verify_genus_run_state(paths) -> WorkflowState | None:
+    if not paths.run_state_path.exists():
+        return None
+    try:
+        return read_run_state(paths.run_state_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _verify_genus_public_status_reason(
+    *,
+    state: WorkflowState | None,
+    exit_code: int,
+    error: Exception | None,
+) -> tuple[str, str]:
+    state_status = state.status if state is not None else ""
+    stage_statuses = {
+        stage.status for stage in state.stages.values()
+    } if state is not None else set()
+    if exit_code != 0:
+        if (
+            state_status == "blocked_by_dependency"
+            or "blocked_by_dependency" in stage_statuses
+            or _looks_like_missing_dependency(error)
+        ):
+            return "blocked", "dependency_missing"
+        return "failed", "workflow_failed"
+    if state_status == "failed" or "failed" in stage_statuses:
+        return "failed", "workflow_failed"
+    if state_status.startswith("blocked_by_") or any(
+        status.startswith("blocked_by_") for status in stage_statuses
+    ):
+        if (
+            state_status == "blocked_by_manual_review"
+            or "blocked_by_manual_review" in stage_statuses
+        ):
+            return "blocked", "manual_review_required"
+        if (
+            state_status == "blocked_by_dependency"
+            or "blocked_by_dependency" in stage_statuses
+        ):
+            return "blocked", "dependency_missing"
+        return "blocked", "workflow_blocked"
+    if state_status == "partial":
+        if "blocked_by_manual_review" in stage_statuses:
+            return "blocked", "manual_review_required"
+        if _verify_genus_has_successful_guarded_download(state, stage_statuses):
+            return "pass", "completed"
+        return "warning", "completed_with_warnings"
+    if any(status in {"partial", "planned"} for status in stage_statuses):
+        return "warning", "completed_with_warnings"
+    return "pass", "completed"
+
+
+def _verify_genus_has_successful_guarded_download(
+    state: WorkflowState | None,
+    stage_statuses: set[str],
+) -> bool:
+    if state is None:
+        return False
+    download_stage = state.stages.get("download")
+    if download_stage is None or download_stage.status != "succeeded":
+        return False
+    blocking_or_failed = {
+        status
+        for status in stage_statuses
+        if status.startswith("blocked_by_")
+        or status in {"failed", "partial", "planned"}
+        or status.endswith("_failed")
+    }
+    return not blocking_or_failed
+
+
+def _looks_like_missing_dependency(error: Exception | None) -> bool:
+    if error is None:
+        return False
+    message = str(error).lower()
+    return (
+        "required executable not found" in message
+        or "not found on path" in message
+        or "conda install" in message
+    )
+
+
+def _verify_genus_summary(
+    status: str,
+    reason: str,
+    state: WorkflowState | None,
+    error: Exception | None,
+) -> str:
+    if error is not None:
+        message = str(error).splitlines()[0]
+        return message or "verify-genus failed"
+    if state is not None and state.next_action and status in {"blocked", "warning"}:
+        return state.next_action
+    if reason == "manual_review_required":
+        return "review selection outputs before guarded downloads"
+    if status == "pass":
+        return "verify-genus completed"
+    if status == "blocked":
+        return "verify-genus is blocked"
+    if status == "failed":
+        return "verify-genus failed"
+    return "verify-genus completed with warnings"
+
+
+def _verify_genus_blocking_items(
+    state: WorkflowState | None,
+    *,
+    error: Exception | None,
+) -> list[dict[str, str]]:
+    items: list[dict[str, str]] = []
+    if error is not None:
+        items.append(
+            {
+                "id": _verify_genus_error_id(error),
+                "message": str(error),
+            }
+        )
+    if state is None:
+        return items
+    for stage_id, stage in state.stages.items():
+        if (
+            stage.status.startswith("blocked_by_")
+            or stage.status in {"failed", "partial", "planned"}
+        ):
+            items.append(
+                {
+                    "id": stage_id,
+                    "status": _verify_genus_public_stage_status(stage.status),
+                    "summary": stage.summary,
+                }
+            )
+    return items
+
+
+def _verify_genus_warning_items(state: WorkflowState | None) -> list[dict[str, str]]:
+    if state is None:
+        return []
+    return [
+        {
+            "id": stage_id,
+            "status": _verify_genus_public_stage_status(stage.status),
+            "summary": stage.summary,
+        }
+        for stage_id, stage in state.stages.items()
+        if stage.status == "skipped" or "skipped" in stage.status
+    ]
+
+
+def _verify_genus_public_stage_status(status: str) -> str:
+    if status == "failed" or status.endswith("_failed"):
+        return "failed"
+    if status.startswith("blocked_by_") or status in {"partial", "planned"}:
+        return "blocked"
+    if status == "skipped" or "skipped" in status or status.endswith("_no_query"):
+        return "skipped"
+    if status == "succeeded" or status.endswith("_succeeded"):
+        return "succeeded"
+    return status or "unknown"
+
+
+def _verify_genus_error_id(error: Exception) -> str:
+    if _looks_like_missing_dependency(error):
+        return "dependency_missing"
+    if isinstance(error, ManifestError):
+        return "manifest_error"
+    if isinstance(error, ValueError):
+        return "invalid_workflow_state"
+    return "workflow_failed"
+
+
+def _verify_genus_action_id(message: str) -> str:
+    lowered = message.lower()
+    if "selection/user_selection.tsv" in lowered:
+        return "review_user_selection"
+    if "package-results" in lowered:
+        return "package_results"
+    if "conda install" in lowered or "required executable" in lowered:
+        return "install_dependency"
+    if "sequence_source_audit.tsv" in lowered:
+        return "review_sequence_source_audit"
+    if "manual_supplement_hints.tsv" in lowered:
+        return "review_manual_supplement_hints"
+    if "--resume" in lowered:
+        return "resume_workflow"
+    return "continue_workflow" if message else "none"
+
+
+def _verify_genus_counts(paths, config: AppConfig) -> dict[str, object]:
+    return {
+        "manifest_rows": _count_manifest_rows(paths),
+        "selected_rows": _count_selected_rows(paths.user_selection_path),
+        "downloaded_genomes": _count_downloaded_genomes(paths),
+        "query_genomes": len(config.query_genomes),
+        "smoke_profile": config.smoke_profile or "",
+    }
+
+
+def _verify_genus_config_summary(config: AppConfig) -> dict[str, object]:
+    return {
+        "smoke_profile": config.smoke_profile or "",
+        "limit_selected": config.limit_selected,
+        "enable_downloads": config.enable_downloads,
+        "auto_accept_selection": config.auto_accept_selection,
+        "enable_phylo": config.enable_phylo,
+    }
+
+
+def _count_manifest_rows(paths) -> int:
+    if not paths.manifest.exists():
+        return 0
+    try:
+        return len(read_manifest(paths.manifest))
+    except (OSError, ValueError):
+        return 0
+
+
+def _count_selected_rows(path: Path) -> int:
+    if not path.exists():
+        return 0
+    try:
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            return sum(
+                1
+                for row in reader
+                if str(row.get("selected", "")).strip().lower() in {"true", "yes", "1"}
+            )
+    except (OSError, csv.Error):
+        return 0
+
+
+def _count_downloaded_genomes(paths) -> int:
+    if paths.ncbi_download_results_path.exists():
+        try:
+            with paths.ncbi_download_results_path.open(
+                "r",
+                newline="",
+                encoding="utf-8",
+            ) as handle:
+                reader = csv.DictReader(handle, delimiter="\t")
+                return sum(
+                    1
+                    for row in reader
+                    if row.get("status") in {
+                        "genome_download_succeeded",
+                        "skipped_existing",
+                    }
+                )
+        except (OSError, csv.Error):
+            return 0
+    if not paths.manifest.exists():
+        return 0
+    try:
+        return sum(
+            1
+            for record in read_manifest(paths.manifest)
+            if record.has_genome or record.status == "genome_ready"
+        )
+    except (OSError, ValueError):
+        return 0
+
+
+def _redact_verify_genus_payload(value, config: AppConfig):
+    secrets = [
+        secret
+        for secret in (config.email, config.api_key)
+        if secret and str(secret).strip()
+    ]
+    if isinstance(value, dict):
+        return {
+            key: _redact_verify_genus_payload(item, config)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_verify_genus_payload(item, config) for item in value]
+    if isinstance(value, str):
+        redacted = value
+        for secret in secrets:
+            redacted = redacted.replace(str(secret), "<redacted>")
+        return redacted
+    return value
 
 
 def _run_verify_release_genus_dispatch(
@@ -381,6 +883,7 @@ def main(
     if release_exit is not None:
         return release_exit
     run_error: Exception | None = None
+    exit_code = 0
     try:
         validate_cli_argument_combinations(config)
         if config.strains_per_species < 1:
@@ -446,6 +949,7 @@ def main(
             records = load_existing_manifest(config.outdir)
             _write_run_summary(records, paths, config)
             if not _source_audit_policy_allows_stage(paths, config, "report"):
+                exit_code = 2
                 return 2
             return 0
         if config.discover_assembly_candidates:
@@ -473,10 +977,20 @@ def main(
             return 0
     except (ManifestError, ValueError, RuntimeError) as error:
         run_error = error
+        exit_code = 2
         LOGGER.error("%s", error)
         return 2
     finally:
         _write_inferred_run_state(paths, config, run_error)
+        if config.verify_genus:
+            print(
+                _format_verify_genus_envelope(
+                    config,
+                    paths,
+                    exit_code=exit_code,
+                    error=run_error,
+                )
+            )
 
     if config.dry_run and config.genus and config.gtdb_metadata:
         records = [
@@ -1698,7 +2212,18 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         stages=stages,
         next_action=next_action,
         errors=errors,
+        config=_run_state_config_summary(config),
     )
+
+
+def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
+    return {
+        "smoke_profile": config.smoke_profile or "",
+        "limit_selected": config.limit_selected,
+        "enable_downloads": config.enable_downloads,
+        "auto_accept_selection": config.auto_accept_selection,
+        "enable_phylo": config.enable_phylo,
+    }
 
 
 def _add_file_stage(

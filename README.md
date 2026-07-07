@@ -166,35 +166,47 @@ equivalent to, that type strain.
 
 ## Installation
 
-Use Python 3.10 or newer.
+Use the single conda/mamba environment file as the recommended local entry
+point:
 
 ```bash
+mamba env create -f environment.yml
+conda activate typetreeflow
 python -m pip install -e .
+python typetreeflow.py doctor
+```
+
+`environment.yml` pins Python 3.12 for reproducible local real-smoke readiness.
+The package metadata and CI currently cover Python 3.10, 3.11, 3.12, and 3.13.
+Python 3.14 is not declared yet.
+
+For development test extras, install them into the same activated environment:
+
+```bash
 python -m pip install -e ".[test]"
 ```
 
+`python typetreeflow.py doctor` is the readiness check. It prints JSON on
+stdout, reports secret-bearing settings by presence only, and does not run
+downloads, live lookups, barrnap, FastANI, MAFFT, trimAl, IQ-TREE, or other
+external analyses.
+
 On Windows, editable installs place the `typetreeflow` console script in your
-Python Scripts directory. If `typetreeflow --help` is not found after
-`pip install -e .`, confirm that directory is on `PATH`. In PowerShell, you can
-print the expected Scripts directory with:
-
-```powershell
-python -c "import site; print(site.USER_BASE + '\\Scripts')"
-```
-
-You can also continue to run the CLI directly:
+Python Scripts directory. You can always run the repo-local CLI directly:
 
 ```bash
 python typetreeflow.py --help
 ```
 
-Core Python dependencies are declared in `pyproject.toml`. Real guarded
-downloads additionally require the `datasets` executable on `PATH`. Real
-barrnap execution requires `barrnap`. Real FastANI execution requires
-`fastANI`. Real phylogeny execution requires `mafft`, `trimal`, and `iqtree2`.
-Some conda IQ-TREE builds install the executable as `iqtree`; create an
-`iqtree2` alias/symlink or use a build that provides `iqtree2`. Entrez-backed
-operations require network access, `--email`, and the relevant enable flag.
+Core Python dependencies are declared in `pyproject.toml`; the single
+`environment.yml` adds real-smoke executables: `datasets` from
+`ncbi-datasets-cli`, `barrnap`, `bedtools`, `fastANI`, `mafft`, `trimal`, and
+the bioconda `iqtree` package. Current TypeTreeFlow phylogeny execution still
+calls an executable named `iqtree2`. If your conda IQ-TREE package only provides
+`iqtree`, `doctor` reports that as a diagnostic-only fallback and phylogeny is
+not fully ready until an `iqtree2` executable is available. Entrez-backed
+operations also require network access, `--email`, and the relevant enable
+flag.
 
 ## Local environment files
 
@@ -244,8 +256,13 @@ write `run_state.json`, and keep review/download boundaries explicit:
 typetreeflow --help
 python typetreeflow.py --help
 typetreeflow --version
-typetreeflow doctor
+python typetreeflow.py doctor
 ```
+
+`doctor` prints a short JSON readiness envelope on stdout. It does not print
+secret values and does not run downloads, live lookups, or external analyses.
+See [docs/output_layout.md](docs/output_layout.md) for the AI-first stdout
+contracts and [docs/cookbook.md](docs/cookbook.md) for operator recipes.
 
 ## Recommended v2.2.15 workflow
 
@@ -258,6 +275,7 @@ Plan a genus verification from local caches:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile plan-only \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --gtdb-metadata data/gtdb_metadata_r220.tsv \
@@ -270,12 +288,21 @@ typetreeflow verify-genus Fusobacterium \
   --outdir <run_dir>
 ```
 
+`verify-genus` writes one compact JSON envelope to stdout. Detailed logs,
+reports, tables, and FASTA/sequence content stay in files under `<run_dir>`.
+Plan-only runs that stop for review expose a reader-facing
+`status: "blocked"` with `reason: "manual_review_required"`; agents do not
+need to infer that from the internal `run_state.json` value `partial`.
+
 This is the recommended plan-only acquisition command. A local LPSN cache only
 builds the checklist; it is not a discovery cache and does not supply NCBI
 Assembly candidates. Use `--discovery-cache` for offline candidate discovery,
 or use guarded live discovery with `--enable-ncbi-discovery --email`.
-`--limit-selected N` is an optional total selected reference genome cap for
-bounded smoke runs. It is applied after per-species selection and before
+`--smoke-profile plan-only` records the profile name without enabling
+downloads, auto-accepting selection, or expanding live provider access. Local
+or guarded LPSN/NCBI discovery and taxonomy flags remain explicit user
+choices. `--limit-selected N` remains available as an explicit total selected
+reference genome cap. It is applied after per-species selection and before
 manifest/download planning; `selection/selected_limit_summary.tsv` and
 `run_state.json` record `limit_selected`, `selected_before_limit`,
 `selected_after_limit`, and `limit_applied`.
@@ -292,6 +319,7 @@ lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile plan-only \
   --enable-lpsn-api \
   --enable-ncbi-discovery \
   --enable-biosample-entrez \
@@ -307,41 +335,28 @@ By default, `verify-genus` stops at reviewable planning. Review
 `completion/manual_supplement_hints.tsv` exists, treat it as the manual
 supplement task queue: inspect its `reason`, `recommended_action`, and
 `handoff_path` fields, then make curator-reviewed selection or external FASTA
-changes explicitly. To accept the generated selection and execute guarded NCBI
-Datasets downloads, pass both download opt-ins:
+changes explicitly. To accept the generated selection and execute the minimal
+bounded real-smoke guard, use `limit4-real`:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile limit4-real \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir <run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
+  --outdir <smoke_run_dir>
 ```
 
-The download pair is deliberately strict: `--enable-downloads` is ignored for
-real execution unless paired with `--auto-accept-selection` in `verify-genus`.
-For a manual stop, omit both or add `--review-required`.
-
-For a bounded real smoke test, keep the same double opt-in and add a total
-selected cap:
-
-```bash
-typetreeflow verify-genus Fusobacterium \
-  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
-  --discovery-cache data/fusobacterium_discovery_records.tsv \
-  --policy balanced \
-  --source-audit-policy strict \
-  --strains-per-species 1 \
-  --limit-selected 5 \
-  --outdir <smoke_run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
-```
+`limit4-real` expands only to `--limit-selected 4`,
+`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. It does
+not add `--query-genome`, GTDB inputs, FastANI, barrnap extraction, LPSN API,
+NCBI discovery, NCBI Taxonomy, or provider access. If a profile conflicts with
+an explicit flag, the command fails fast; for example, do not combine
+`--smoke-profile limit4-real` with a separate `--limit-selected` value.
+Without a profile, the underlying long-form flags keep their existing behavior.
 
 For a guarded genome download plus same-genome barrnap 16S run, use downloads
 and `--extract-16s barrnap` together:
@@ -420,10 +435,14 @@ Inspect or continue a run:
 ```bash
 typetreeflow status --outdir <run_dir>
 typetreeflow next-step --outdir <run_dir>
-typetreeflow status --outdir <run_dir> --json
 typetreeflow verify-genus Fusobacterium --outdir <run_dir> --resume --dry-run
 typetreeflow --outdir <run_dir> --report-only
 ```
+
+`verify-genus`, `status`, and `next-step` print compact JSON envelopes by
+default. The same JSON is intended for humans and agents; no separate human
+output mode is required. See [docs/output_layout.md](docs/output_layout.md)
+for field-level details.
 
 `--report-only` refreshes `report/summary.md` and `report/run_review.md` from
 existing outputs. It does not run discovery, downloads, barrnap, Entrez,
@@ -443,6 +462,9 @@ summaries, optional reports, copied genome FASTA files, optional 16S FASTA
 files, `handoff_index.md` for package navigation/operator handoff, and
 `run_state.json` when present. It does not copy credentials, environment files,
 API keys, NCBI ZIP caches, pytest caches, or temporary directories.
+`package-results` writes a single compact JSON envelope to stdout and keeps the
+detailed handoff text in package files. See
+[docs/cookbook.md](docs/cookbook.md#package-delivery) for packaging recipes.
 
 When a run fails before `manifest.tsv`, use
 `package-results --failed-handoff` to collect `run_state.json`, selection
@@ -1002,6 +1024,11 @@ The source-audit gate is controlled by:
 | FastANI | `--enable-fastani` | Query-vs-reference ANI from a resumed or guarded-download genome-ready manifest. Requires one or more `--query-genome` values to execute `fastANI`; without it the stage records `ani_skipped_no_query`. Multi-query plans have `query_count x reference_count` rows. Exit 0 with an empty raw output file is `fastani_no_hits` / `ani_no_hits`, not missing output. |
 | phylogeny | `--enable-phylo` | MAFFT, trimAl, and IQ-TREE wrappers from a resumed or guarded-download 16S-ready manifest; current planning requires at least 4 records in `rrna/all_16S.fasta`. With `--query-genome`, query 16S must be included or the plan records `phylo_skipped_query_no_16s`; multi-query inputs preserve `source=local_query` and `query_id` in FASTA headers. |
 | LPSN API | `--enable-lpsn-api` | Guarded official LPSN API adapter for `--lpsn-genus`; local `--lpsn-cache` mode remains offline. |
+
+The `verify-genus --smoke-profile plan-only` and
+`verify-genus --smoke-profile limit4-real` shortcuts are the preferred smoke
+entry points. The low-level flags below remain explicit recovery and developer
+audit controls.
 
 Examples:
 

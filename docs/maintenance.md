@@ -107,6 +107,14 @@ Tests must not depend on ignored or local-only paths such as `data/`,
 `typetreeflow.egg-info/`, `output_*`, or `phase*`. Default tests must not
 require network access or external bioinformatics tools.
 
+Generated artifacts stay out of the repository. Keep pytest basetemp
+directories such as `.pytest_tmp*` and `.tmp_pytest*`, `.pytest_cache/`,
+`__pycache__/`, build outputs such as `build/` and `dist/`, and
+`*.egg-info/` directories ignored and untracked. Clean them locally during
+maintenance when they add workspace noise, but do not delete tracked
+documentation, examples, archive material, or repository evidence while doing
+routine artifact cleanup.
+
 Before pushing, run at least the focused tests that cover the changed area.
 Before releasing, follow `docs/release_checklist.md`. If `main` CI fails after
 a push, fix it with a follow-up commit by default instead of rewriting history.

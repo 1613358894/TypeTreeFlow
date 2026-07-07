@@ -40,6 +40,19 @@ cap in `selection/selected_limit_summary.tsv` plus `run_state.json`. Cap
 exclusions do not imply provider failure, missing genome evidence, taxonomy
 failure, or strict type-strain confirmation changes.
 
+`verify-genus --smoke-profile plan-only` and
+`verify-genus --smoke-profile limit4-real` are the only supported smoke
+profiles. Profiles are transparent argument expansions, not hidden workflow
+modes. `plan-only` records profile provenance and does not enable downloads,
+auto-accept selection, phylogeny, live discovery, GTDB, query genomes, FastANI,
+or provider access. `limit4-real` expands only to `--limit-selected 4`,
+`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`; it does
+not add `--query-genome`, GTDB inputs, FastANI, barrnap extraction, LPSN API,
+NCBI discovery, NCBI Taxonomy, or provider access. Explicit conflicts fail
+fast rather than overriding profile values. `verify-genus` stdout records
+`smoke_profile` and the expanded key config, and `run_state.json` records the
+same profile provenance.
+
 `verify-genus --gtdb-metadata PATH --gtdb-release RELEASE` is a local
 GTDB-metadata audit contract for plan-only review. The workflow must either
 read the supplied TSV or record `gtdb_metadata_load_failed`; it must not

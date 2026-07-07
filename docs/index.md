@@ -4,7 +4,8 @@ This page is the formal entry point for TypeTreeFlow documentation.
 
 Use [../README.md](../README.md) as the user entry point, this page as the
 documentation map, and [maintenance.md](maintenance.md) as the maintenance
-rulebook.
+rulebook. Prefer the shortest authoritative route below before opening
+feature-specific or historical material.
 
 ## Top-Level Rule
 
@@ -18,6 +19,9 @@ contract unless a current contract page links it for a specific fact.
 ## Shortest Reading Paths
 
 - Ordinary users: [../README.md](../README.md) -> [cookbook.md](cookbook.md).
+- AI-first command and file contracts:
+  [contracts.md](contracts.md) -> [output_layout.md](output_layout.md),
+  [statuses.md](statuses.md), and [schemas.md](schemas.md).
 - Contract and output maintenance:
   [contracts.md](contracts.md) -> [output_layout.md](output_layout.md),
   [schemas.md](schemas.md), and [statuses.md](statuses.md).
@@ -31,8 +35,6 @@ contract unless a current contract page links it for a specific fact.
 - [cookbook.md](cookbook.md): concise operator cookbook for high-level
   `doctor`, `verify-genus`, `status`, `next-step`, `package-results`, and
   `verify-release-genus` commands.
-- [design.md](design.md): current architecture and guarded-execution safety
-  contract.
 - [contracts.md](contracts.md): overview entry point for stable interfaces,
   output contracts, policy contracts, and audit contracts.
 - [stable_contracts.md](stable_contracts.md): stable, review-only, internal,
@@ -40,6 +42,8 @@ contract unless a current contract page links it for a specific fact.
 - [output_layout.md](output_layout.md): run-directory files and stage ownership.
   Use [workspace_policy.md](workspace_policy.md) for repository-independent
   workspace roots.
+- [design.md](design.md): current architecture and guarded-execution safety
+  contract.
 - [workspace_policy.md](workspace_policy.md): canonical workspace root policy.
 - [results_policy.md](results_policy.md): canonical policy for the repository
   `results/` directory and its allowlist.
@@ -82,43 +86,19 @@ contract unless a current contract page links it for a specific fact.
 - [release_notes_v2_2_x.md](release_notes_v2_2_x.md): consolidated v2.2.x
   release history.
 
-## Historical Support Material
-
-The files below are retained for historical context, but they are not current
-entry points or behavior contracts.
-
-- [archive/fusobacterium_external_pilot.md](archive/fusobacterium_external_pilot.md)
-- [archive/fusobacterium_real_pilot_template.md](archive/fusobacterium_real_pilot_template.md)
-- [archive/docs_inventory.md](archive/docs_inventory.md)
-- [archive/docs_simplification_plan.md](archive/docs_simplification_plan.md)
-- [archive/v0_8_0_implementation_plan.md](archive/v0_8_0_implementation_plan.md)
-- [archive/provider_automation_feasibility.md](archive/provider_automation_feasibility.md)
-- [archive/atcc_downloader_gate_review.md](archive/atcc_downloader_gate_review.md)
-- [archive/local_artifact_normalization_design.md](archive/local_artifact_normalization_design.md)
-- [archive/v0_9_0_provider_adapter_spike_plan.md](archive/v0_9_0_provider_adapter_spike_plan.md)
-- [archive/v2_0_0_provider_automation_framework.md](archive/v2_0_0_provider_automation_framework.md)
-- [archive/v1_0_0_readiness_review.md](archive/v1_0_0_readiness_review.md)
-- [archive/v2_2_0_release_verification.md](archive/v2_2_0_release_verification.md)
-- [archive/v2_2_2_enterobacter_baseline.md](archive/v2_2_2_enterobacter_baseline.md)
-- [archive/v2_2_3_expanded_discovery_baseline.md](archive/v2_2_3_expanded_discovery_baseline.md)
-- [archive/v2_2_4_ncbi_taxonomy_baseline.md](archive/v2_2_4_ncbi_taxonomy_baseline.md)
-- [archive/v2_2_x_acceptance_checklist.md](archive/v2_2_x_acceptance_checklist.md)
-- [archive/pr_description_v2_2_x.md](archive/pr_description_v2_2_x.md)
-- [archive/roadmap_v2.2.10-ux-followups.md](archive/roadmap_v2.2.10-ux-followups.md)
-- [archive/roadmap_v2.2.12-maintenance-plan.md](archive/roadmap_v2.2.12-maintenance-plan.md)
-- [archive/validation_v2.2.9-real-world-validation.md](archive/validation_v2.2.9-real-world-validation.md)
-
 ## Archive
 
+The archive is historical support material, not a current user entry point.
+Use the archive README as the single inventory for archived plans, release
+notes, boundary records, and cleanup decisions.
+
 - [archive/README.md](archive/README.md): archive inventory, retention rules,
-  and cleanup criteria.
-- [archive/ncbi_candidate_discovery_phase22.md](archive/ncbi_candidate_discovery_phase22.md):
-  historical Phase 22 candidate-discovery design and implementation record.
+  retained evidence groups, and cleanup summaries.
 - [archive/run_evidence/fusobacterium_v0_5_0/](archive/run_evidence/fusobacterium_v0_5_0/):
   compact archived Fusobacterium v0.5.0 evidence.
 - [archive/run_evidence/phase15_smoke/](archive/run_evidence/phase15_smoke/):
   compact Phase 15 smoke-run evidence.
 
-Archive files preserve history. Do not read them as current operator
-instructions unless a current contract page explicitly points to them for a
-specific historical fact.
+Other archive files preserve history behind the archive README. Do not read
+them as current operator instructions unless a current contract page explicitly
+points to them for a specific historical fact.

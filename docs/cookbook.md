@@ -3,6 +3,24 @@
 This cookbook uses the high-level commands as the ordinary user entry point.
 Use lower-level flags only for developer audits or manual recovery.
 
+## Environment Readiness
+
+Use the single repository environment file, then run the repo-local doctor
+command as the readiness check:
+
+```bash
+mamba env create -f environment.yml
+conda activate typetreeflow
+python -m pip install -e .
+python typetreeflow.py doctor
+```
+
+`environment.yml` pins Python 3.12 for reproducible local real-smoke readiness.
+The package metadata and CI currently cover Python 3.10, 3.11, 3.12, and 3.13.
+Python 3.14 is not declared yet.
+`doctor` writes compact JSON to stdout and does not contact providers, download
+genomes, or run external bioinformatics analyses.
+
 Use `<run_dir>` for the run output directory, typically
 `<workspace>/runs/<run-name>`, and `<delivery_dir>` for handoff packages,
 typically `<workspace>/deliveries/<delivery-name>`. If `--outdir` is omitted,
@@ -19,9 +37,10 @@ is an old default/historical example path and is no longer the current default.
 ## Quick Start: Plan-Only Genus Verification
 
 ```bash
-typetreeflow doctor
+python typetreeflow.py doctor
 
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile plan-only \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --gtdb-metadata data/gtdb_metadata_r220.tsv \
@@ -36,6 +55,14 @@ typetreeflow status --outdir <run_dir>
 typetreeflow next-step --outdir <run_dir>
 ```
 
+`doctor` and `verify-genus` write compact JSON envelopes to stdout. Read the
+`checks`, `blocking`, `warnings`, and `next_actions` arrays directly; field
+details live in [output_layout.md](output_layout.md). For plan-only
+`verify-genus` runs, stdout reports `status: "blocked"` and
+`reason: "manual_review_required"` when `selection/user_selection.tsv` needs
+review before guarded downloads. Reports, detailed tables, logs, and
+FASTA/sequence content remain file-based under `<run_dir>`.
+
 Review `selection/user_selection.tsv`,
 `selection/download_preflight_summary.tsv`, `manifest.tsv`, and
 `report/summary.md`. `balanced` selects strict-confirmed and likely
@@ -43,12 +70,13 @@ type-material rows only; likely rows are not strict completion.
 `--lpsn-cache` supplies the expected LPSN checklist. It does not supply NCBI
 Assembly candidates; use `--discovery-cache` for offline discovery or
 `--enable-ncbi-discovery --email user@example.org` for guarded live discovery.
-Use `--limit-selected N` for bounded smoke runs. The cap is applied after
-`--strains-per-species` selection and before manifest/download planning, so
-plan-only and guarded real runs operate on at most `N` selected reference
-genomes. The cap writes `selection/selected_limit_summary.tsv` and run-state
-selection metadata; rows excluded by the cap are not provider, genome, or
-taxonomy failures.
+`--smoke-profile plan-only` records the profile provenance without enabling
+downloads, auto-accepting selection, or expanding live provider access. Use
+`--limit-selected N` explicitly when you want a bounded plan-only cap. The cap
+is applied after `--strains-per-species` selection and before
+manifest/download planning. It writes `selection/selected_limit_summary.tsv`
+and run-state selection metadata; rows excluded by the cap are not provider,
+genome, or taxonomy failures.
 If a local `--gtdb-metadata` TSV is provided, plan-only verification reads it
 and records `taxonomy/gtdb_metadata_audit.json`. The audit records the metadata
 path, existence/readability, file size, row count, `--gtdb-release`, load
@@ -56,43 +84,30 @@ status, timestamp, and accession coverage counts only after a successful load.
 If loading fails, the status is `gtdb_metadata_load_failed` and GTDB coverage
 counts are unavailable rather than interpreted as missing coverage.
 
-## Guarded Download With Auto-Accepted Selection
+## Minimal Bounded Real Smoke
 
-Downloads are a double opt-in in `verify-genus`: use both
-`--auto-accept-selection` and `--enable-downloads`.
+Use `limit4-real` for the minimal guarded real-smoke expansion:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
+  --smoke-profile limit4-real \
   --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
   --discovery-cache data/fusobacterium_discovery_records.tsv \
   --biosample-cache data/fusobacterium_biosample_records.tsv \
   --enrich-biosample \
   --policy balanced \
   --source-audit-policy strict \
-  --outdir <run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
+  --outdir <smoke_run_dir>
 ```
 
-The command requires the NCBI Datasets CLI executable named `datasets` on
-`PATH`. Install the CLI with conda, for example
-`conda install -c conda-forge ncbi-datasets-cli`; it is not the Python package
-named `datasets`.
-
-For a bounded real smoke test, add `--limit-selected N` to the guarded command:
-
-```bash
-typetreeflow verify-genus Fusobacterium \
-  --lpsn-cache data/fusobacterium_lpsn_species_cache.tsv \
-  --discovery-cache data/fusobacterium_discovery_records.tsv \
-  --policy balanced \
-  --source-audit-policy strict \
-  --strains-per-species 1 \
-  --limit-selected 5 \
-  --outdir <smoke_run_dir> \
-  --auto-accept-selection \
-  --enable-downloads
-```
+The profile expands only to `--limit-selected 4`,
+`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. It does
+not add `--query-genome`, GTDB inputs, FastANI, barrnap extraction, LPSN API,
+NCBI discovery, NCBI Taxonomy, or provider access. Downloads still require the
+NCBI Datasets CLI executable named `datasets` on `PATH`; it is not the Python
+package named `datasets`. Explicit conflicts fail fast, such as combining
+`--smoke-profile plan-only --enable-downloads` or
+`--smoke-profile limit4-real --limit-selected 10`.
 
 ## Guarded Genome Download Plus barrnap 16S Extraction
 
@@ -193,6 +208,10 @@ typetreeflow package-results \
 Delivery packages include reviewed manifests, evidence summaries, reports, and
 copied genome/16S FASTA files when present. Credentials, `.env` files, API
 keys, NCBI ZIP caches, pytest caches, and temporary directories are excluded.
+The command writes one short JSON envelope to stdout. Read `status`,
+`package_path`, `mode`, `included`, `artifacts`, `blocking`, and `warnings`
+directly; `README.md`, `README_failure.md`, and `handoff_index.md` remain the
+human review files inside the package.
 
 ## Release Verification For Balanced And Representative
 
@@ -279,9 +298,12 @@ rules.
 
 ```bash
 typetreeflow status --outdir <run_dir>
-typetreeflow status --outdir <run_dir> --json
 typetreeflow next-step --outdir <run_dir>
 ```
+
+Both commands write compact JSON envelopes to stdout by default. Read
+`status.stages`, `status.blocking`, `status.next_actions`, and
+`next-step.recommended_action` directly; there is no separate human text mode.
 
 When `completion/uncovered_species.tsv`,
 `completion/manual_supplement_hints.tsv`, or
@@ -305,24 +327,28 @@ barrnap, run Entrez fallback, generate completion audits, or change selection.
 
 ## Troubleshooting Dependencies
 
-Run:
+Run the readiness check:
 
 ```bash
-typetreeflow doctor
-typetreeflow doctor --strict
+python typetreeflow.py doctor
 ```
 
-Common external executables:
+The single `environment.yml` includes the external executables used by guarded
+real-smoke paths:
 
-| Stage | Executable | Install hint |
-| --- | --- | --- |
-| NCBI genome download | `datasets` | `conda install -c conda-forge ncbi-datasets-cli` |
-| 16S extraction | `barrnap` | `conda install -c bioconda barrnap` |
-| ANI | `fastANI` | `conda install -c bioconda fastani` |
-| Phylogeny | `mafft`, `trimal`, `iqtree2` | bioconda packages |
+| Stage | Executable |
+| --- | --- |
+| NCBI genome download | `datasets` from `ncbi-datasets-cli` |
+| 16S extraction | `barrnap` plus readable barrnap CM/HMM database files |
+| Real-smoke external prerequisite | `bedtools` |
+| ANI | `fastANI` |
+| Phylogeny | `mafft`, `trimal`, `iqtree2` |
 
-Real LPSN/NCBI/Entrez lookup also needs the relevant enable flag and, for
-NCBI/Entrez, `--email` or `TYPETREEFLOW_EMAIL`.
+Current TypeTreeFlow phylogeny execution calls `iqtree2`. If only `iqtree` is
+on `PATH`, `doctor` reports that as a diagnostic-only fallback and keeps
+phylogeny readiness blocked. Real LPSN/NCBI/Entrez lookup also needs the
+relevant enable flag and, for NCBI/Entrez, `--email` or
+`TYPETREEFLOW_EMAIL`.
 
 ## Common Sticking Points
 

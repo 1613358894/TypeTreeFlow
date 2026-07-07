@@ -32,6 +32,7 @@ authoritative in their canonical documents under `docs/`.
 | 11 | Risks and refactor candidates | [risks_and_refactor_candidates.md](risks_and_refactor_candidates.md) | Audited complete | Summary/index, not a final plan |
 | 12 | Architecture index | [index.md](index.md) | Audited complete | Directory entry and status summary |
 | 13 | CLI refactor plan | [cli_refactor_plan.md](cli_refactor_plan.md) | Parser/config complete; diagnostics, package-results, and verify-release-genus dispatch extracted; normal workflow characterization tests complete; normal workflow extraction paused | Refactor planning and staged status document |
+| 14 | AI-first simplification | [ai_first_simplification_audit.md](ai_first_simplification_audit.md) | Pass 1 complete | Repository simplification and AI-first entry-point convergence |
 
 ## Suggested Reading Order
 
@@ -49,6 +50,7 @@ Read the audit in this order when preparing for a refactor discussion:
 10. [tests_map.md](tests_map.md)
 11. [risks_and_refactor_candidates.md](risks_and_refactor_candidates.md)
 12. [cli_refactor_plan.md](cli_refactor_plan.md)
+13. [ai_first_simplification_audit.md](ai_first_simplification_audit.md)
 
 This order starts with repository and CLI shape, then follows workflow state,
 domain evidence, acquisition and analysis stages, presentation/release tooling,

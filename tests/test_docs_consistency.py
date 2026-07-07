@@ -93,8 +93,6 @@ def test_release_version_sources_are_consistent():
 def test_archive_references_stay_in_archive_map_and_boundary_docs():
     archive_dir = "docs" + "/archive"
     allowed_paths = {
-        archive_dir + "/docs_inventory.md",
-        archive_dir + "/docs_simplification_plan.md",
         "docs/index.md",
         "docs/maintenance.md",
         "docs/provider_automation_policy.md",
@@ -577,6 +575,7 @@ def test_provider_boundary_policy_preserves_manual_registration_boundary():
 
 def test_v2_2_x_release_docs_are_discoverable():
     index = _read("docs/index.md")
+    archive_readme = _read("docs/archive/README.md")
     changelog = _read("CHANGELOG.md")
     release_notes = _read("docs/release_notes_v2_2_x.md")
     acceptance_checklist = _read(
@@ -585,10 +584,11 @@ def test_v2_2_x_release_docs_are_discoverable():
 
     for path in [
         "release_notes_v2_2_x.md",
-        "archive/v2_2_x_acceptance_" + "checklist.md",
-        "archive/pr_description_" + "v2_2_x.md",
+        "archive/README.md",
     ]:
         assert path in index
+    assert "v2_2_x_acceptance_" + "checklist.md" in archive_readme
+    assert "pr_description_" + "v2_2_x.md" in archive_readme
 
     for docs in [changelog, release_notes]:
         for phrase in [
@@ -653,13 +653,14 @@ def test_handoff_index_contract_is_discoverable_and_preserves_boundaries():
 def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
     readme = _read("README.md")
     index = _read("docs/index.md")
+    archive_readme = _read("docs/archive/README.md")
     schemas = _read("docs/schemas.md")
     statuses = _read("docs/statuses.md")
     policy = _read("docs/provider_automation_policy.md")
     local_artifact_doc = "local_artifact" + "_normalization_design.md"
     normalization = _read("docs/archive/" + local_artifact_doc)
 
-    assert "archive/" + local_artifact_doc in index
+    assert local_artifact_doc in archive_readme
     assert "provider_automation_policy.md" in index
     assert "no-default-download" in index
 
