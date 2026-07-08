@@ -92,8 +92,6 @@ def test_release_version_sources_are_consistent():
 
 def test_archive_documentation_is_not_restored_or_linked():
     forbidden_patterns = [
-        "docs" + "/archive",
-        "archive" + "/",
         "species_checklist" + "_implementation_plan",
         "phase15_real" + "_run_checklist",
     ]
@@ -111,6 +109,8 @@ def test_archive_documentation_is_not_restored_or_linked():
         docs = _read(path)
         for pattern in forbidden_patterns:
             assert pattern not in docs, f"{path} should not reference {pattern}"
+        assert "](docs/archive" not in docs, f"{path} should not link to docs/archive"
+        assert "](archive/" not in docs, f"{path} should not link to archive/"
 
 
 def test_readme_mentions_guarded_cli_flags():

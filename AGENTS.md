@@ -45,10 +45,6 @@ workflow. Keep changes aligned with that scope.
 - Make the smallest reviewable change that solves the task.
 - When code behavior changes, update the relevant docs and focused tests in the
   same change.
-- Do not restore root `examples/`, `docs/archive/`, or repository-root
-  `results/`.
-- `tests/fixtures/` contains internal test data, not user examples. Future
-  user examples need a focused design instead of exposing fixtures directly.
 - Keep run output and release evidence outside the repository workspace.
 - Primary command stdout is short AI-first JSON; durable details belong in run
   files.
@@ -57,6 +53,23 @@ workflow. Keep changes aligned with that scope.
   includes focused compatibility tests.
 - Preserve current contract wording when editing examples, summaries, or release
   notes.
+
+## Repository Structure Contract
+
+- `.github/`: GitHub CI, templates, and community governance files.
+- `docs/`: consolidated authoritative docs only.
+- `scripts/`: repository maintenance, checks, and release gates only.
+- `tests/`: tests plus `tests/fixtures/` internal test data only.
+- `typetreeflow/`: importable package and application code only.
+- Do not restore root `examples/`, `docs/archive/`, repository-root `results/`,
+  or `docs/audit/`, `docs/roadmap/`, `docs/process/`, `docs/validation/`.
+- Do not restore root `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, or
+  `SECURITY.md`; keep governance files under `.github/`.
+- Do not reserve an empty `examples/` directory. Future user examples require a
+  separate deliberate PR.
+- Do not move package modules into `scripts/` without an import/call graph audit
+  and focused tests.
+- `tests/fixtures/` contains internal test data, not user examples.
 
 ## Validation Commands
 

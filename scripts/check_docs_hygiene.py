@@ -35,6 +35,14 @@ TOP_LEVEL_DOCS_ALLOWLIST = {
     "reference.md",
 }
 
+FORBIDDEN_DOC_DIRS = [
+    Path("docs/archive"),
+    Path("docs/audit"),
+    Path("docs/process"),
+    Path("docs/roadmap"),
+    Path("docs/validation"),
+]
+
 RELEASE_CHECKLIST_COMMANDS = [
     "python scripts/check_workspace_hygiene.py",
     "python scripts/check_release_consistency.py",
@@ -66,8 +74,7 @@ def run_checks(root: Path = REPO_ROOT) -> list[DocsHygieneCheckResult]:
         _check_required_docs(root),
         _check_top_level_allowlist(root),
         _check_top_level_versioned_stage_docs(root),
-        _check_inactive_current_doc_dirs(root),
-        _check_no_archive_docs_dir(root),
+        _check_forbidden_doc_dirs(root),
         _check_markdown_links(root),
         _check_readme_docs_links(root),
         _check_typetreeflow_out_context(root),
@@ -162,49 +169,18 @@ def _check_top_level_versioned_stage_docs(root: Path) -> DocsHygieneCheckResult:
     )
 
 
-def _check_inactive_current_doc_dirs(root: Path) -> DocsHygieneCheckResult:
-    offenders: list[str] = []
-    inactive_dirs = [
-        Path("docs/audit"),
-        Path("docs/architecture"),
-        Path("docs/process"),
-        Path("docs/roadmap"),
-        Path("docs/validation"),
+def _check_forbidden_doc_dirs(root: Path) -> DocsHygieneCheckResult:
+    offenders = [
+        relative_dir.as_posix()
+        for relative_dir in FORBIDDEN_DOC_DIRS
+        if (root / relative_dir).exists()
     ]
-    for relative_dir in inactive_dirs:
-        directory = root / relative_dir
-        if not directory.exists():
-            continue
-        if not directory.is_dir():
-            offenders.append(f"{relative_dir.as_posix()} is not a directory")
-            continue
-        offenders.extend(
-            path.relative_to(root).as_posix()
-            for path in sorted(directory.rglob("*.md"))
-        )
-
     if not offenders:
-        return DocsHygieneCheckResult("inactive docs directories", True, "ok")
+        return DocsHygieneCheckResult("forbidden docs directories", True, "ok")
     return DocsHygieneCheckResult(
-        "inactive docs directories",
+        "forbidden docs directories",
         False,
-        "docs/audit, docs/architecture, docs/process, docs/roadmap, and "
-        "docs/validation must not contain Markdown file(s): "
-        + ", ".join(offenders),
-    )
-
-
-def _check_no_archive_docs_dir(root: Path) -> DocsHygieneCheckResult:
-    archive_dir = root / "docs" / "archive"
-    if not archive_dir.exists():
-        return DocsHygieneCheckResult("archive docs removed", True, "ok")
-    return DocsHygieneCheckResult(
-        "archive docs removed",
-        False,
-        "the removed historical documentation directory must not be restored; "
-        "extract durable principles into current formal docs instead of "
-        "restoring archive inventories, "
-        "historical run evidence, baselines, pilots, or checklists.",
+        "forbidden docs directory path(s): " + ", ".join(offenders),
     )
 
 

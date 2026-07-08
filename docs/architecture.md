@@ -87,12 +87,23 @@ a scientific decision source.
 
 ## Repository Layout
 
-- `typetreeflow/`: package code and release tooling.
-- `tests/`: focused tests and internal fixtures.
-- `scripts/`: local hygiene wrappers.
-- `docs/`: consolidated authoritative documentation.
-- `README.md`, `AGENTS.md`, `.github/CONTRIBUTING.md`: entry and contributor
-  routing.
+| Path | Responsibility |
+| --- | --- |
+| `.github/` | GitHub CI, templates, and community governance files. |
+| `docs/` | Consolidated authoritative documentation only. |
+| `scripts/` | Repository maintenance, checks, and release gates only. |
+| `tests/` | Tests plus `tests/fixtures/` internal test data only. |
+| `typetreeflow/` | Importable package and application code only. |
+
+The repository intentionally keeps root `examples/`, `docs/archive/`,
+repository-root `results/`, and `docs/audit/`, `docs/roadmap/`,
+`docs/process/`, `docs/validation/` absent. Root `CODE_OF_CONDUCT.md`,
+`CONTRIBUTING.md`, and `SECURITY.md` are also absent; governance files belong
+under `.github/`.
+
+`tests/fixtures/` is internal test data, not user examples. `examples/` is
+intentionally absent; future user examples need a separate design and should not
+be reserved with an empty directory.
 
 Generated run outputs, downloaded archives, build products, release evidence,
 and local credential files stay outside the repository workspace.
