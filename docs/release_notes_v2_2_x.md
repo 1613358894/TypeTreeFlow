@@ -207,6 +207,6 @@ enters the normal manifest, selection, or external genome registration paths.
 
 ## Current Release Docs
 
-Use `docs/release_checklist.md` for the current executable release-readiness
-checklist, and use `docs/release_verification.md` for the current behavior
-contract behind these notes.
+Use `docs/development.md` for the current executable release-readiness
+checklist and verification contract. `docs/release_verification.md` is retained
+only as the release-check compatibility entry.
