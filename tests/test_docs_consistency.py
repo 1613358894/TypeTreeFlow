@@ -500,22 +500,22 @@ def test_stable_contracts_preserve_provider_and_completion_boundaries():
         assert phrase in docs
 
 
-def test_example_selection_tsv_headers_match_schemas():
-    assert _header("examples/assembly_candidates_minimal.tsv") == CANDIDATE_FIELDS
-    assert _header("examples/user_selection_minimal.tsv") == SELECTION_FIELDS
-    assert _header("examples/discovery_records_minimal.tsv") == DISCOVERY_RECORD_FIELDS
+def test_fixture_selection_tsv_headers_match_schemas():
+    assert _header("tests/fixtures/minimal/assembly_candidates_minimal.tsv") == CANDIDATE_FIELDS
+    assert _header("tests/fixtures/minimal/user_selection_minimal.tsv") == SELECTION_FIELDS
+    assert _header("tests/fixtures/minimal/discovery_records_minimal.tsv") == DISCOVERY_RECORD_FIELDS
     assert (
-        _header("examples/fusobacterium_lpsn_child_taxa_minimal.tsv")
+        _header("tests/fixtures/minimal/fusobacterium_lpsn_child_taxa_minimal.tsv")
         == LPSN_CHILD_TAXA_FIELDS
     )
 
 
-def test_example_discovery_and_lpsn_tsvs_are_readable():
+def test_fixture_discovery_and_lpsn_tsvs_are_readable():
     discovery_records = read_discovery_records(
-        "examples/discovery_records_minimal.tsv"
+        "tests/fixtures/minimal/discovery_records_minimal.tsv"
     )
     child_taxa = read_lpsn_child_taxa(
-        "examples/fusobacterium_lpsn_child_taxa_minimal.tsv"
+        "tests/fixtures/minimal/fusobacterium_lpsn_child_taxa_minimal.tsv"
     )
 
     assert len(discovery_records) == 3
@@ -524,7 +524,7 @@ def test_example_discovery_and_lpsn_tsvs_are_readable():
     assert child_taxa[-1].exclusion_reason == "taxonomic status is synonym"
 
 
-def test_gitattributes_pins_example_text_fixtures_to_lf():
+def test_gitattributes_pins_text_fixtures_to_lf():
     attributes = set(_read(".gitattributes").splitlines())
 
     for pattern in ["*.tsv", "*.fna", "*.fasta", "*.fa"]:
@@ -535,18 +535,17 @@ def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     readme = _read("README.md")
     pilot_doc = _read("docs/archive/fusobacterium_external_pilot.md")
     completion_doc = _read("docs/completion_audit.md")
-    example_readme = _read("examples/fusobacterium_external_pilot/README.md")
 
     for path in [
         Path("docs/archive/fusobacterium_external_pilot.md"),
-        Path("examples/fusobacterium_external_pilot/README.md"),
-        Path("examples/fusobacterium_external_pilot/external_genomes.tsv"),
-        Path("examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv"),
-        Path("examples/fusobacterium_external_pilot/synthetic_mortiferum_atcc25557.fna"),
+        Path("tests/fixtures/fusobacterium_external_pilot/external_genomes.tsv"),
+        Path("tests/fixtures/fusobacterium_external_pilot/ncbi_strict_manifest.tsv"),
+        Path("tests/fixtures/fusobacterium_external_pilot/synthetic_mortiferum_atcc25557.fna"),
     ]:
         assert path.exists(), f"{path.as_posix()} should exist"
 
-    assert "examples/fusobacterium_external_pilot/README.md" in readme
+    assert "root `examples/` directory is" in readme
+    assert "intentionally absent during cleanup" in readme
     assert "not a real ATCC genome" in readme
     assert "NCBI Assembly strict completion" in pilot_doc
     assert "external-inclusive strict completion" in pilot_doc
@@ -554,9 +553,6 @@ def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     assert "NCBI Assembly strict completion: 16/17" in completion_doc
     assert "External-inclusive strict completion: 17/17" in completion_doc
     assert "synthetic/local test data" in completion_doc
-    assert "NCBI Assembly strict completion: `16/17`" in example_readme
-    assert "External-inclusive strict completion: `17/17`" in example_readme
-    assert "not real ATCC" in example_readme
 
 
 def test_provider_boundary_policy_preserves_manual_registration_boundary():

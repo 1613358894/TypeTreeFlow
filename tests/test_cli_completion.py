@@ -313,7 +313,7 @@ def test_mixed_provenance_completion_acceptance_fixture(tmp_path):
 
 def test_fusobacterium_external_pilot_synthetic_fixture_reaches_17_of_17(tmp_path):
     repo_root = Path(__file__).resolve().parents[1]
-    pilot_dir = repo_root / "examples" / "fusobacterium_external_pilot"
+    pilot_dir = repo_root / "tests" / "fixtures" / "fusobacterium_external_pilot"
     outdir = tmp_path / "fusobacterium_external_pilot"
     paths = get_output_paths(outdir)
     paths.manifest.parent.mkdir(parents=True, exist_ok=True)

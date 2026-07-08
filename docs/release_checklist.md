@@ -195,11 +195,14 @@ python -m venv .tmp_smoke_venv_vX_Y_Z
 On POSIX shells, use `.tmp_smoke_venv_vX_Y_Z/bin/python` and
 `.tmp_smoke_venv_vX_Y_Z/bin/typetreeflow`.
 
-- Confirm candidate and selection examples are present:
+- Confirm root examples are not required for release gates. Minimal parser and
+  schema rows used by tests live under `tests/fixtures/` and are internal test
+  fixtures, not user examples:
 
 ```bash
-test -f examples/assembly_candidates_minimal.tsv
-test -f examples/user_selection_minimal.tsv
+test ! -d examples
+test -f tests/fixtures/minimal/assembly_candidates_minimal.tsv
+test -f tests/fixtures/minimal/user_selection_minimal.tsv
 ```
 
 - Run the high-level offline genus verification smoke test with a curated
@@ -222,16 +225,16 @@ python typetreeflow.py next-step --outdir <tmp>/verify_genus
 Use lower-level `--prepare-selection` smoke tests only when diagnosing
 selection internals or manual recovery behavior.
 
-- Run the manual external genome registration smoke path with the bundled
-  synthetic fixture:
+- Run the manual external genome registration smoke path with the internal
+  synthetic test fixture:
 
 ```bash
 python typetreeflow.py \
-  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --register-external-genomes tests/fixtures/external_genomes_minimal/external_genomes_minimal.tsv \
   --outdir <tmp>/external_registration \
   --dry-run
 python typetreeflow.py \
-  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --register-external-genomes tests/fixtures/external_genomes_minimal/external_genomes_minimal.tsv \
   --outdir <tmp>/external_registration
 python typetreeflow.py --outdir <tmp>/external_registration --report-only
 ```

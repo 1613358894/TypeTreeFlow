@@ -121,10 +121,12 @@ Common entry points:
   contract, handoff, checklist, and deep LPSN-first references.
 Historical plans, old audits, roadmap notes, and run evidence are indexed from
 [docs/index.md](docs/index.md). They are evidence snapshots, not current
-behavior contracts or required release gates. The redistributable
-[examples/fusobacterium_external_pilot/README.md](examples/fusobacterium_external_pilot/README.md)
-fixture can reproduce the external-registration report path; it is workflow
-validation only, not a real ATCC genome, and not biological evidence.
+behavior contracts or required release gates. The root `examples/` directory is
+intentionally absent during cleanup; user-facing examples will be rebuilt after
+the workflow is slimmer and real tests are complete. Fixtures under
+`tests/fixtures/` are internal test data, not user examples. The retained
+synthetic external-registration fixture is not a real ATCC genome and not
+biological evidence.
 
 ## Taxonomic scope
 
@@ -496,7 +498,7 @@ typetreeflow \
   --genus Aliivibrio \
   --gtdb-metadata tests/fixtures/gtdb_metadata_small.tsv \
   --gtdb-release fixture \
-  --species-checklist examples/species_checklist_minimal.tsv \
+  --species-checklist <species_checklist.tsv> \
   --dry-run
 ```
 
@@ -504,7 +506,7 @@ Convert an offline LPSN child-taxa export into a species checklist:
 
 ```bash
 typetreeflow \
-  --lpsn-child-taxa examples/fusobacterium_lpsn_child_taxa_minimal.tsv \
+  --lpsn-child-taxa <lpsn_child_taxa.tsv> \
   --write-species-checklist <run_dir>/species_checklist_from_lpsn.tsv \
   --write-excluded-lpsn-taxa <run_dir>/excluded_lpsn_child_taxa.tsv
 ```
@@ -515,7 +517,7 @@ Generate candidates from a local discovery cache:
 typetreeflow \
   --species-checklist <run_dir>/species_checklist_from_lpsn.tsv \
   --discover-assembly-candidates \
-  --discovery-cache examples/discovery_records_minimal.tsv \
+  --discovery-cache <discovery_records.tsv> \
   --outdir <run_dir> \
   --dry-run
 ```
@@ -593,21 +595,20 @@ Manual external genome registration dry run:
 
 ```bash
 typetreeflow \
-  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --register-external-genomes <external_genomes.tsv> \
   --outdir <run_dir> \
   --dry-run
 ```
 
-This validates `examples/external_genomes_minimal.tsv` and writes
+This validates the supplied `external_genomes.tsv` and writes
 `external_genome_registration_results.tsv` and
 `external_genome_install_plan.tsv` for review. Valid rows are planned for
 `genomes/references/<normalized_id>.fna`; invalid rows are retained as
 skipped plan rows. It does not create `manifest.tsv`, copy FASTA files, or run
-the NCBI download workflow. The bundled example uses a tiny synthetic FASTA
-fixture and `external_source=external_registered_fixture`; it is only for
-workflow demonstration and is not a real provider or ATCC genome download.
-See [docs/external_workflow_cookbook.md](docs/external_workflow_cookbook.md)
-for the full operator flow and
+the NCBI download workflow. Use curator-provided local FASTA paths only after
+terms, provenance, and type-material review. See
+[docs/external_workflow_cookbook.md](docs/external_workflow_cookbook.md) for
+the full operator flow and
 [docs/provider_automation_policy.md](docs/provider_automation_policy.md) for
 the provider boundary.
 
@@ -617,12 +618,6 @@ Provider registration planning dry run:
 typetreeflow \
   --plan-provider-registration provider_request.tsv \
   --outdir <run_dir>
-```
-
-Minimal synthetic provider planning fixture:
-
-```bash
-python typetreeflow.py --plan-provider-registration examples/provider_request_minimal.tsv --outdir <run_dir> --force
 ```
 
 This writes `provider/provider_registration_plan.tsv` and
@@ -636,7 +631,7 @@ Install reviewed external genome FASTA files:
 
 ```bash
 typetreeflow \
-  --register-external-genomes examples/external_genomes_minimal.tsv \
+  --register-external-genomes <external_genomes.tsv> \
   --outdir <run_dir>
 ```
 

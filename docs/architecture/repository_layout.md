@@ -62,10 +62,11 @@ The directory is linked from `docs/index.md` and governed by
 tutorials, stable contracts, and future commitments. At the time of this pass,
 the architecture set exists as an untracked directory in the working tree.
 
-`examples/` contains small tracked input examples and focused template
-directories. The tracked examples include minimal TSV/YAML/FASTA fixtures and
-Fusobacterium pilot/template material. These are source examples, not generated
-run directories.
+The root `examples/` directory is intentionally absent after the cleanup pass.
+Minimal TSV/FASTA data required by tests lives under `tests/fixtures/` as
+internal fixtures, not user examples. Future user-facing examples should be
+rebuilt deliberately after workflow slimming and real-test coverage are in
+place.
 
 `scripts/` contains repository maintenance and release helper scripts:
 workspace hygiene, docs hygiene, release consistency, and release gate checks.
@@ -170,8 +171,9 @@ Markdown link checks rather than by a per-file architecture allowlist.
 
 ## Current Strengths
 
-- The repository has a clear split between package code, tests, docs, examples,
-  maintenance scripts, CI metadata, and compact verification evidence.
+- The repository has a clear split between package code, tests and internal
+  fixtures, docs, maintenance scripts, CI metadata, and compact verification
+  evidence.
 - Current docs define a useful entry-point split: `README.md` for users,
   `docs/index.md` for the documentation map, and `docs/maintenance.md` for
   documentation maintenance rules.
@@ -182,8 +184,8 @@ Markdown link checks rather than by a per-file architecture allowlist.
   catches broken local links across README and docs.
 - The workspace and docs hygiene scripts are covered by focused tests that use
   temporary fixtures and subprocess execution of the real scripts.
-- Examples are tracked separately from generated outputs, and the repository
-  `results/` directory is narrow enough to audit.
+- Internal fixtures are tracked separately from generated outputs, and the
+  repository `results/` directory is narrow enough to audit.
 
 ## Risks And Improvement Candidates
 
@@ -201,7 +203,7 @@ Markdown link checks rather than by a per-file architecture allowlist.
   own inventory check.
 - The local ignored environment file demonstrates why credential examples must
   stay placeholder-only in tracked files. Do not promote local env content into
-  docs, tests, examples, or release artifacts.
+  docs, tests, fixtures, examples, or release artifacts.
 - `results/` policy is intentionally narrow. Future selected evidence files
   would require synchronized updates to `docs/results_policy.md`,
   `.gitignore`, `scripts/check_workspace_hygiene.py`, and the workspace hygiene
@@ -245,5 +247,5 @@ part of the verification command for this documentation update.
   should it add informational reporting for standard ignored build/test
   artifacts visible at the repository root?
 - Should `typetreeflow.env.example` remain at the repository root permanently,
-  or should a later documentation/security pass review whether examples for
-  credentials belong in a dedicated docs or examples location?
+  or should a later documentation/security pass review whether credential
+  placeholder guidance belongs in a dedicated docs location?

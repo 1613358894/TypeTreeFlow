@@ -99,11 +99,10 @@ operator safety depend on them:
 - `docs/results_policy.md`
 - provider, external-registration, completion-audit, and release-policy docs
 
-Do not delete `examples/` in the next pass. Root examples and the
-`examples/fusobacterium_external_pilot/` fixture are small and tied to docs and
-tests. A future examples pass should be read-only first: classify each example
-as test fixture, documentation fixture, active curator template, or historical
-case-study material before moving or deleting anything.
+The root `examples/` directory has been removed in the cleanup pass. Minimal
+data required by tests now lives under `tests/fixtures/` as internal fixtures,
+not user examples. Future user-facing examples should be redesigned
+deliberately after workflow slimming and real-test coverage are complete.
 
 ## Now
 
@@ -123,7 +122,8 @@ touching workflow code.
 
 ## Later
 
-- Re-audit examples in read-only mode after README and cookbook are thinner.
+- Redesign user-facing examples after README and cookbook are thinner and after
+  real-test coverage is in place.
 - Consider JSON envelopes for `verify-release-genus` only if release
   maintenance keeps needing machine-readable PR/status summaries.
 - Revisit a query smoke recipe after real users repeat the same explicit
@@ -139,8 +139,8 @@ touching workflow code.
   real install pain point is demonstrated.
 - Do not implement an `iqtree` execution fallback unless the phylogeny command
   contract and tests are explicitly updated.
-- Do not delete examples or modify retained historical material as part of
-  routine AI-first cleanup.
+- Do not recreate root examples or modify retained historical material as part
+  of routine AI-first cleanup.
 - Do not weaken evidence wording: `representative`, `likely_type_material`,
   provider proposals, external request rows, and local query rows are not
   strict confirmed type strains without evidence tying the genome record to

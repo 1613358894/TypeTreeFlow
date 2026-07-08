@@ -153,7 +153,7 @@ def test_plan_provider_registration_does_not_write_downstream_outputs(tmp_path):
 
 def test_plan_provider_registration_example_fixture_smoke(tmp_path):
     outdir = tmp_path / "out"
-    request = Path("examples/provider_request_minimal.tsv")
+    request = Path("tests/fixtures/minimal/provider_request_minimal.tsv")
 
     result = cli.main(
         [

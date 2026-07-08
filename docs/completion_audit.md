@@ -155,12 +155,12 @@ The labels must be preserved in generated summaries. The external-inclusive
 metric is a mixed-provenance readiness metric, not an NCBI Assembly strict
 completion claim.
 
-For the redistributable `examples/fusobacterium_external_pilot/` package, the
-17/17 external-inclusive result is a workflow fixture result only. Its
-`F. mortiferum` FASTA is synthetic/local test data, not a real ATCC Genome
-Portal genome and not biological evidence. That fixture can demonstrate that
-an external registered genome row does not change the 16/17 NCBI Assembly
-strict completion metric.
+The retained 17/17 external-inclusive synthetic fixture is internal test data
+under `tests/fixtures/`, not a user example. Its `F. mortiferum` FASTA is
+synthetic/local test data, not a real ATCC Genome Portal genome and not
+biological evidence. That fixture demonstrates in tests that an external
+registered genome row does not change the 16/17 NCBI Assembly strict
+completion metric.
 
 `--report-only` does not generate completion audit outputs. `report/summary.md`
 only consumes an existing `source_audit/completion_summary.tsv`, and when

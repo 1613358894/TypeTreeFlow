@@ -25,7 +25,7 @@ def test_lpsn_to_selection_download_resume_smoke_is_offline(tmp_path, monkeypatc
     lpsn_result = main(
         [
             "--lpsn-child-taxa",
-            "examples/fusobacterium_lpsn_child_taxa_minimal.tsv",
+            "tests/fixtures/minimal/fusobacterium_lpsn_child_taxa_minimal.tsv",
             "--write-species-checklist",
             str(checklist),
         ]
@@ -36,7 +36,7 @@ def test_lpsn_to_selection_download_resume_smoke_is_offline(tmp_path, monkeypatc
             str(checklist),
             "--discover-assembly-candidates",
             "--discovery-cache",
-            "examples/discovery_records_minimal.tsv",
+            "tests/fixtures/minimal/discovery_records_minimal.tsv",
             "--outdir",
             str(outdir),
             "--dry-run",

@@ -36,7 +36,9 @@ For manual external genomes, keep the split narrow:
 `docs/external_type_genome_ingestion.md` is the design/data-contract entry,
 `docs/external_workflow_cookbook.md` is the short operator workflow, and
 `docs/completion_audit.md` explains completion/gap metrics. Fusobacterium
-material stays in `docs/archive/` or `examples/` as case/template context.
+historical material stays in `docs/archive/` as case/template context. The
+root `examples/` directory is intentionally absent during cleanup; internal
+test fixtures live under `tests/fixtures/` and are not user examples.
 
 ### Archive And Historical Material
 
@@ -60,15 +62,15 @@ surfaces:
   user-visible behavior: update `README.md` and, where relevant,
   `docs/design.md`.
 - Output directories or filenames: update `docs/output_layout.md` and any
-  examples that mention the path. If the change affects workspace root
+  current docs that mention the path. If the change affects workspace root
   selection, update `docs/workspace_policy.md`; if it affects repository
   `results/` hygiene, update `docs/results_policy.md` and
   `scripts/check_workspace_hygiene.py` together.
 - Documentation structure, top-level docs membership, archive boundaries, or
   release-gate commands: update `scripts/check_docs_hygiene.py` and its tests
   together with the affected docs.
-- TSV schemas, column order, required values, or example rows: update the
-  matching docs and `examples/*.tsv`.
+- TSV schemas, column order, required values, or fixture rows: update the
+  matching docs and `tests/fixtures/`.
 - Emitted `status` values, reason fields, or audit statuses: update
   `docs/statuses.md`.
 - Release steps, version policy, validation commands, or packaging behavior:
@@ -133,7 +135,8 @@ and that its `headSha` matches the intended `main` commit.
 - Do not describe planned behavior as implemented behavior.
 - When uncertain, state the implementation status instead of smoothing over the
   gap.
-- Keep examples synchronized with parser and schema tests.
+- Keep test fixtures synchronized with parser and schema tests. Do not recreate
+  root user examples unless a focused examples redesign asks for it.
 
 ## Minimal validation
 

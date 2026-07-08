@@ -25,14 +25,11 @@ provider/ATCC boundaries.
 
 ## Choose the Scenario
 
-Use the synthetic fixture when you want to verify software behavior with
-redistributable data:
-
-- input directory: `examples/fusobacterium_external_pilot/`
-- recommended output: `<workspace>/runs/fusobacterium_external_pilot_synthetic`
-- purpose: prove registration, manifest merge, completion audit, and
-  report-only behavior
-- evidence meaning: workflow fixture only, not ATCC or biological evidence
+The former root `examples/` pilot package has been removed during cleanup.
+Synthetic data used by tests now lives under `tests/fixtures/` and is internal
+test data, not a user-facing example or scientific evidence. Rebuild a
+reviewed external registration input from local curator evidence instead of
+copying test fixtures into an analysis run.
 
 Use a real curator-provided `F. mortiferum` ATCC 25557 FASTA only for a local
 evidence package:
@@ -49,34 +46,7 @@ prepare review rows, but they are not installed genomes and do not count toward
 completion until reviewed rows are registered through `external_genomes.tsv`;
 see [provider_automation_policy.md](provider_automation_policy.md).
 
-## Scenario 1: Synthetic Fixture
-
-From the repository root, run the bundled fixture:
-
-```powershell
-$out = "D:\Draft\TypeTreeFlow_workspace\runs\fusobacterium_external_pilot_synthetic"
-Remove-Item -Recurse -Force $out -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Force $out | Out-Null
-Copy-Item examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv "$out/manifest.tsv"
-python typetreeflow.py --register-external-genomes examples/fusobacterium_external_pilot/external_genomes.tsv --outdir $out --dry-run
-python typetreeflow.py --register-external-genomes examples/fusobacterium_external_pilot/external_genomes.tsv --outdir $out --merge-manifest
-python typetreeflow.py --species-checklist examples/fusobacterium_external_pilot/species_checklist.tsv --outdir $out --write-completion-audit
-python typetreeflow.py --outdir $out --report-only
-```
-
-Successful synthetic validation means:
-
-- `manifest.tsv` contains the 16 archived NCBI strict records plus one external
-  registered `F. mortiferum` row.
-- The external row keeps `assembly_accession` empty.
-- `source_audit/completion_summary.tsv` reports NCBI Assembly strict completion
-  as `16/17`.
-- `source_audit/completion_summary.tsv` reports external-inclusive strict
-  completion as `17/17`.
-- `report/summary.md` consumes the completion summary and does not claim 17/17
-  NCBI Assembly strict completion.
-
-## Scenario 2: Real Local F. mortiferum Evidence Package
+## Real Local F. mortiferum Evidence Package
 
 Prepare a local evidence directory outside tracked repository data, for
 example:
@@ -104,14 +74,14 @@ Assembly strict manifest rows, and audit against the 17-species checklist:
 $out = "D:\Draft\TypeTreeFlow_workspace\runs\fusobacterium_external_pilot_real_local"
 python typetreeflow.py --register-external-genomes local_evidence/fusobacterium_mortiferum_atcc25557/external_genomes.tsv --outdir $out --dry-run
 python typetreeflow.py --register-external-genomes local_evidence/fusobacterium_mortiferum_atcc25557/external_genomes.tsv --outdir $out --merge-manifest
-python typetreeflow.py --species-checklist examples/fusobacterium_external_pilot/species_checklist.tsv --outdir $out --write-completion-audit
+python typetreeflow.py --species-checklist local_evidence/fusobacterium_mortiferum_atcc25557/species_checklist.tsv --outdir $out --write-completion-audit
 python typetreeflow.py --outdir $out --report-only
 ```
 
 If the 16-row NCBI strict manifest is in a different acquisition directory,
 copy or prepare that reviewed manifest in the selected output directory before
-`--merge-manifest`, as shown by the synthetic fixture. Do not use the synthetic
-manifest or synthetic FASTA as real evidence.
+`--merge-manifest`. Do not use internal test manifests or synthetic FASTA as
+real evidence.
 
 ## Key Files to Review
 
