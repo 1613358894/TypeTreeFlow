@@ -28,9 +28,9 @@ to maintain the layers:
   planned text read like current behavior.
 - Operational and release docs guide repeatable project work: release policy,
   validation steps, contribution expectations, and documentation hygiene.
-- Architecture audit docs under `docs/architecture/` record current
-  implementation review notes. Keep them evidence-oriented and clearly
-  separated from user tutorials, stable contracts, and future commitments.
+- Architecture docs under `docs/architecture/` record compact current
+  implementation maps. Keep them separated from user tutorials, stable
+  contracts, future commitments, and temporary audit or roadmap material.
 
 For manual external genomes, keep the split narrow:
 `docs/external_type_genome_ingestion.md` is the design/data-contract entry,
@@ -127,6 +127,9 @@ and that its `headSha` matches the intended `main` commit.
   docs. Link to the canonical contract instead.
 - Do not recreate historical inventories, root examples, or broad historical
   evidence stores as part of routine maintenance.
+- Do not add audit, roadmap, refactor-plan, process, pass-completion, or
+  deleted-file inventory notes under `docs/architecture/`; merge durable rules
+  into the nearest current architecture, contract, policy, or release document.
 - Do not describe planned behavior as implemented behavior.
 - When uncertain, state the implementation status instead of smoothing over the
   gap.

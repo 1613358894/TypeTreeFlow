@@ -2,11 +2,10 @@
 
 ## Scope
 
-This note records the first architecture audit pass for repository structure,
-documentation structure, examples, tests, maintenance scripts, and local
-generated-artifact governance. It describes the current checkout and current
-repository rules only. It is not a user tutorial and does not define future
-reorganization work.
+This note records the current repository structure, documentation structure,
+tests, maintenance scripts, and local generated-artifact governance. It
+describes the current checkout and current repository rules only. It is not a
+user tutorial and does not define future reorganization work.
 
 ## Source Files To Review
 
@@ -55,11 +54,11 @@ compact run-evidence summaries are no longer retained as a maintained
 documentation subtree. The current maintenance text says to extract durable
 principles into formal docs instead of restoring historical inventories.
 
-`docs/architecture/` contains current-implementation architecture audit notes.
-The directory is linked from `docs/index.md` and governed by
-`docs/maintenance.md` as evidence-oriented audit material, separate from user
-tutorials, stable contracts, and future commitments. At the time of this pass,
-the architecture set exists as an untracked directory in the working tree.
+`docs/architecture/` contains compact current-implementation architecture
+notes. The directory is linked from `docs/index.md` and governed by
+`docs/maintenance.md` as implementation orientation, separate from user
+tutorials, stable contracts, future commitments, and temporary process
+material.
 
 The root `examples/` directory is intentionally absent after the cleanup pass.
 Minimal TSV/FASTA data required by tests lives under `tests/fixtures/` as
@@ -191,15 +190,16 @@ Markdown link checks rather than by a per-file architecture allowlist.
 - The current checkout contains ignored local artifacts (`dist/`,
   `typetreeflow.egg-info/`, `.pytest_tmp/`, `.pytest_cache/`) and a local
   ignored env file. These should remain untracked; any cleanup should be an
-  explicit local maintenance action, not part of this architecture audit.
+  explicit local maintenance action, not part of architecture documentation
+  maintenance.
 - Standard build/test artifacts are ignored but not reported by
   `scripts/check_workspace_hygiene.py`. That is acceptable for the current
   script scope, but a future audit could decide whether the hygiene check
   should explicitly report them as informational local artifacts.
 - `docs/architecture/` is not part of the top-level docs allowlist because it
-  is a subdirectory. This is consistent with the current script, but a future
-  docs-governance pass could decide whether architecture audit files need their
-  own inventory check.
+  is a subdirectory. This is consistent with the current script; keep the
+  directory small through the architecture index and maintenance rules rather
+  than adding temporary process files.
 - The local ignored environment file demonstrates why credential examples must
   stay placeholder-only in tracked files. Do not promote local env content into
   docs, tests, fixtures, examples, or release artifacts.
@@ -210,13 +210,12 @@ Markdown link checks rather than by a per-file architecture allowlist.
 
 ## Content Not Recommended To Change In This Pass
 
-- Do not move, delete, or clean local generated artifacts as part of this
-  architecture documentation pass.
+- Do not move, delete, or clean local generated artifacts as part of
+  architecture documentation maintenance.
 - Do not restore historical inventories, pilots, baselines, or run-evidence
   stores without a focused cleanup task.
 - Do not make `results/` a normal run-output location.
-- Do not duplicate README operator instructions inside architecture audit
-  notes.
+- Do not duplicate README operator instructions inside architecture notes.
 - Do not change `typetreeflow/` product code for repository-layout governance.
 - Do not replace the current docs hygiene allowlist with broad discovery unless
   the documentation governance model is intentionally changed.
@@ -239,9 +238,8 @@ part of the verification command for this documentation update.
 
 ## Open Questions
 
-- Should `docs/architecture/` eventually have a small inventory check similar
-  to the top-level docs allowlist, or is link validation plus maintenance text
-  sufficient?
+- Is the architecture index plus Markdown link validation sufficient for this
+  compact architecture directory, or would a future inventory check add value?
 - Should workspace hygiene remain focused on forbidden run-output roots, or
   should it add informational reporting for standard ignored build/test
   artifacts visible at the repository root?

@@ -60,9 +60,9 @@ document instead of restoring the old file.
   contract for completion/gap outputs and split completion metrics.
 - [maintenance.md](maintenance.md): documentation maintenance rules for humans
   and AI agents.
-- [architecture/index.md](architecture/index.md): current-implementation
-  architecture audit framework for later focused review and cautious refactor
-  planning.
+- [architecture/index.md](architecture/index.md): compact current-implementation
+  architecture map for subsystem ownership, guarded boundaries, and maintenance
+  orientation.
 
 ## Current Feature And Policy Detail
 
