@@ -412,6 +412,20 @@ def test_expanded_discovery_records_query_exception():
     assert "network timeout" in rows[0].decision_reason
 
 
+def test_expanded_discovery_records_provider_timeout_as_query_failed():
+    rows = build_expanded_discovery_results(
+        [_plan_row()],
+        assembly_client=_TimeoutAssemblyClient(),
+    )
+    hints = build_manual_supplement_hints(rows)
+
+    assert [row.decision for row in rows] == [QUERY_FAILED]
+    assert "provider_timeout" in rows[0].decision_reason
+    assert "HTTP 404" not in rows[0].decision_reason
+    assert "taxonomy" not in rows[0].decision_reason.lower()
+    assert hints[0].recommended_action == RETRY_NETWORK_OR_USE_CACHE
+
+
 def test_expanded_discovery_biosample_match_uses_token_evidence():
     rows = build_expanded_discovery_results(
         [
@@ -701,6 +715,16 @@ class _AssemblyClient:
 class _FailingAssemblyClient:
     def search_species_assemblies(self, species_name: str):
         raise RuntimeError("network timeout")
+
+
+class _TimeoutAssemblyClient:
+    def search_species_assemblies(self, species_name: str):
+        raise RuntimeError(
+            "NCBI assembly discovery failed: provider_diagnostic "
+            "stage=assembly_discovery provider=NCBI Assembly "
+            "action=entrez_search_summary attempt=3 timeout_seconds=30 "
+            "exception_category=provider_timeout; final error: timed out"
+        )
 
 
 class _BioSampleSearchClient:

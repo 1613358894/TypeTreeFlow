@@ -78,6 +78,17 @@ class _FakeAssemblyDiscoveryClient:
         return records.get(species_name, [])
 
 
+class _TimeoutAssemblyDiscoveryClient:
+    def search_species_assemblies(self, species_name: str):
+        raise RuntimeError(
+            "NCBI assembly discovery failed: provider_diagnostic "
+            "stage=assembly_discovery provider=NCBI Assembly "
+            "action=entrez_search_summary attempt=3 timeout_seconds=30 "
+            "exception_category=provider_timeout; final error: "
+            "secret-user@example.org super-secret-api-key timed out"
+        )
+
+
 class _FakeDatasetsRunner:
     def __init__(self):
         self.commands: list[list[str]] = []
@@ -2285,6 +2296,46 @@ def test_verify_genus_stdout_omits_secret_and_sequence_content(
     assert ">secret-query" not in output
     assert "ACGTACGTSECRETSEQUENCE" not in output
     assert "species\tassembly_accession" not in output
+
+
+def test_verify_genus_provider_timeout_stdout_omits_secret(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--enable-ncbi-discovery",
+            "--email",
+            "secret-user@example.org",
+            "--api-key",
+            "super-secret-api-key",
+            "--provider-timeout-seconds",
+            "30",
+            "--outdir",
+            str(outdir),
+        ],
+        assembly_discovery_client=_TimeoutAssemblyDiscoveryClient(),
+    )
+
+    payload, output = _verify_genus_stdout_payload(capsys)
+    state = read_run_state(get_output_paths(outdir).run_state_path)
+    assert result == 2
+    assert payload["status"] == "failed"
+    assert "exception_category=provider_timeout" in output
+    assert "secret-user@example.org" not in output
+    assert "super-secret-api-key" not in output
+    assert state.status == "failed"
+    assert state.stages["assembly_discovery"].status == "failed"
+    assert "exception_category=provider_timeout" in state.errors[0]
+    assert "secret-user@example.org" not in state.errors[0]
+    assert "super-secret-api-key" not in state.errors[0]
 
 
 def test_verify_genus_can_plan_with_fake_api_clients_and_biosample_entrez(tmp_path):

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from http.client import IncompleteRead
 import logging
+import socket
 import time
 from typing import TypeVar
 from urllib.error import HTTPError, URLError
@@ -21,6 +22,10 @@ def retry_transient_network_errors(
     operation: str,
     func: Callable[[], T],
     *,
+    stage: str = "",
+    provider: str = "",
+    action: str = "",
+    timeout_seconds: float | None = None,
     attempts: int = 3,
     base_delay_seconds: float = 1.0,
     sleep: Callable[[float], None] = time.sleep,
@@ -40,20 +45,31 @@ def retry_transient_network_errors(
             if not is_transient_network_error(error):
                 raise
             last_error = error
+            category = transient_error_category(error)
+            diagnostic = _provider_diagnostic(
+                stage=stage,
+                provider=provider,
+                action=action or operation,
+                attempt=attempt,
+                timeout_seconds=timeout_seconds,
+                exception_category=category,
+            )
             if attempt >= attempts:
                 message = (
                     f"{operation} failed after {attempts} attempt(s); "
-                    f"final error: {error}"
+                    f"{diagnostic}; final error: {error}"
                 )
                 log.error(message)
                 raise RetryError(message) from error
             delay = base_delay_seconds * attempt
             log.warning(
-                "%s transient network error on attempt %d/%d: %s; retrying in %.2fs",
+                "%s transient network error on attempt %d/%d: %s; %s; "
+                "retrying in %.2fs",
                 operation,
                 attempt,
                 attempts,
                 error,
+                diagnostic,
                 delay,
             )
             sleep(delay)
@@ -73,3 +89,57 @@ def is_transient_network_error(error: BaseException) -> bool:
     if isinstance(error, (IncompleteRead, TimeoutError, ConnectionError, URLError)):
         return True
     return False
+
+
+def transient_error_category(error: BaseException) -> str:
+    if _is_timeout_error(error):
+        return "provider_timeout"
+    if isinstance(error, HTTPError):
+        return f"http_{error.code}"
+    if isinstance(error, URLError):
+        return "url_error"
+    if isinstance(error, IncompleteRead):
+        return "incomplete_read"
+    if isinstance(error, ConnectionError):
+        return "connection_error"
+    return type(error).__name__
+
+
+def _is_timeout_error(error: BaseException) -> bool:
+    if isinstance(error, (TimeoutError, socket.timeout)):
+        return True
+    if isinstance(error, URLError):
+        reason = getattr(error, "reason", None)
+        if isinstance(reason, (TimeoutError, socket.timeout)):
+            return True
+        reason_text = str(reason or error).lower()
+        return "timed out" in reason_text or "timeout" in reason_text
+    return False
+
+
+def _provider_diagnostic(
+    *,
+    stage: str,
+    provider: str,
+    action: str,
+    attempt: int,
+    timeout_seconds: float | None,
+    exception_category: str,
+) -> str:
+    fields = {
+        "stage": stage,
+        "provider": provider,
+        "action": action,
+        "attempt": str(attempt),
+        "timeout_seconds": _format_timeout_seconds(timeout_seconds),
+        "exception_category": exception_category,
+    }
+    return "provider_diagnostic " + " ".join(
+        f"{key}={value}" for key, value in fields.items() if value
+    )
+
+
+def _format_timeout_seconds(timeout_seconds: float | None) -> str:
+    if timeout_seconds is None:
+        return ""
+    return f"{float(timeout_seconds):g}"

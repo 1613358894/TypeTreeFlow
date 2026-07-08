@@ -185,6 +185,16 @@ Manual supplement actions: `review_matched_candidates`,
 `provide_curator_accession`, `provide_external_genome_fasta`,
 `retry_network_or_use_cache`.
 
+Live provider and Entrez request timeout contract: guarded live LPSN, NCBI
+Assembly, NCBI BioSample, NCBI Taxonomy, and Entrez 16S lookup requests use a
+bounded per-request timeout. The default is 30 seconds and can be overridden
+with `--provider-timeout-seconds` or `TYPETREEFLOW_PROVIDER_TIMEOUT_SECONDS`.
+Timeouts are transient provider failures, not `no_result`, HTTP 404, taxonomy
+failure, or type-strain evidence. Retry diagnostics include
+`stage`, `provider`, `action`, `attempt`, `timeout_seconds`, and
+`exception_category=provider_timeout`; workflow status and failed-handoff
+outputs preserve the failure for review instead of waiting indefinitely.
+
 `provider/proposed_external_genomes.tsv` rows remain review-only.
 `proposed_external_genomes.tsv` is always a review-only handoff table and its
 rows are always `external_genome_manual_review_required`.

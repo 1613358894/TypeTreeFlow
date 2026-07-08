@@ -181,6 +181,8 @@ ATCC Genome Portal.
 - Missing tools: `doctor` reports `datasets`, `barrnap`, `fastANI`, `mafft`,
   `trimal`, and `iqtree2` readiness without running them.
 - Incomplete run: use `status`, `next-step`, and failed handoff packaging.
+- Provider timeout: inspect `status` and package a failed handoff; retry with
+  network available, a local cache, or a reviewed timeout override.
 - Too broad a smoke: add `--limit-selected`, keep `--dry-run`, or use local
   cache fixtures.
 - Path confusion on Windows/WSL: keep run outputs under `<workspace>/runs/`.

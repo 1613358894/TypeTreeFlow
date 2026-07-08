@@ -42,6 +42,7 @@ class AppConfig:
     threads: int
     email: str | None
     api_key: str | None
+    provider_timeout_seconds: float
     gtdb_metadata: Path | None
     gtdb_release: str | None
     species_checklist: Path | None

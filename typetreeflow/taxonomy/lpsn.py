@@ -10,6 +10,11 @@ from pathlib import Path
 import time
 from typing import Any, Protocol
 
+from typetreeflow.sources.network import (
+    DEFAULT_PROVIDER_TIMEOUT_SECONDS,
+    bounded_socket_timeout,
+    provider_timeout_from_env,
+)
 from typetreeflow.sources.retry import RetryError, retry_transient_network_errors
 from typetreeflow.taxonomy.checklist import (
     SpeciesChecklistEntry,
@@ -115,6 +120,7 @@ class OfficialLpsnApiClient:
         password: str,
         *,
         client: Any | None = None,
+        provider_timeout_seconds: float | None = DEFAULT_PROVIDER_TIMEOUT_SECONDS,
         retry_sleep=None,
     ) -> None:
         if not username or not password:
@@ -123,6 +129,7 @@ class OfficialLpsnApiClient:
                 f"{LPSN_USERNAME_ENV} or {LPSN_EMAIL_ENV}, and {LPSN_PASSWORD_ENV}."
             )
         self._client = client or _build_official_lpsn_client(username, password)
+        self._provider_timeout_seconds = provider_timeout_seconds
         self._retry_sleep = retry_sleep or time.sleep
 
     @classmethod
@@ -135,13 +142,17 @@ class OfficialLpsnApiClient:
                 f"{LPSN_USERNAME_ENV} or {LPSN_EMAIL_ENV}, and {LPSN_PASSWORD_ENV}; "
                 "no HTML fallback is available."
             )
-        return cls(username, password)
+        return cls(username, password, provider_timeout_seconds=provider_timeout_from_env())
 
     def fetch_genus_species(self, genus: str) -> list[LpsnSpeciesRecord]:
         try:
             return retry_transient_network_errors(
                 f"Official LPSN API species search for {genus!r}",
                 lambda: self._fetch_genus_species_once(genus),
+                stage="lpsn_checklist",
+                provider="LPSN",
+                action="official_lpsn_species_search",
+                timeout_seconds=self._provider_timeout_seconds,
                 sleep=self._retry_sleep,
                 logger=LOGGER,
             )
@@ -149,12 +160,15 @@ class OfficialLpsnApiClient:
             raise RuntimeError(f"Official LPSN API lookup failed: {error}") from error
 
     def _fetch_genus_species_once(self, genus: str) -> list[LpsnSpeciesRecord]:
-        count = self._client.search(taxon_name=genus, category="species")
+        with bounded_socket_timeout(self._provider_timeout_seconds):
+            count = self._client.search(taxon_name=genus, category="species")
         if not count:
             return []
+        with bounded_socket_timeout(self._provider_timeout_seconds):
+            retrieved = list(self._client.retrieve())
         return [
             lpsn_api_record_to_species_record(entry)
-            for entry in self._client.retrieve()
+            for entry in retrieved
             if _api_record_matches_species_genus(entry, genus)
         ]
 

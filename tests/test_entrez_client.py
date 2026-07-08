@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from http.client import IncompleteRead
 from io import StringIO
+import logging
 
 import pytest
 
+from typetreeflow.sources import network as network_module
 from typetreeflow.sources import entrez as entrez_module
 from typetreeflow.sources.entrez import BiopythonEntrezClient
 from typetreeflow.sources.ncbi_assembly import (
@@ -55,6 +57,16 @@ class _FailingThenAssemblyBackend(_FakeAssemblyBackend):
         if self.read_calls <= self.failures:
             raise IncompleteRead(b"partial")
         return super().read(handle)
+
+
+class _TimeoutAssemblyBackend(_FakeAssemblyBackend):
+    def __init__(self):
+        super().__init__({"IdList": []})
+        self.search_calls = 0
+
+    def esearch(self, **kwargs):
+        self.search_calls += 1
+        raise TimeoutError("socket timed out")
 
 
 def test_biopython_entrez_client_requires_email():
@@ -270,6 +282,27 @@ def test_search_16s_uses_expected_entrez_parameters(monkeypatch):
     )
 
 
+def test_search_16s_applies_configured_socket_timeout(monkeypatch):
+    timeout_values: list[float | None] = []
+
+    monkeypatch.setattr(network_module.socket, "getdefaulttimeout", lambda: None)
+    monkeypatch.setattr(
+        network_module.socket,
+        "setdefaulttimeout",
+        lambda value: timeout_values.append(value),
+    )
+    monkeypatch.setattr(entrez_module.Entrez, "esearch", lambda **kwargs: _Handle(""))
+    monkeypatch.setattr(entrez_module.Entrez, "read", lambda handle: {"IdList": []})
+
+    client = BiopythonEntrezClient(
+        "user@example.org",
+        provider_timeout_seconds=12.5,
+    )
+
+    assert client.search_16s("Aliivibrio fischeri") == []
+    assert timeout_values == [12.5, None, 12.5, None]
+
+
 def test_build_assembly_search_term_quotes_species_and_filters_latest():
     assert build_assembly_search_term("Bacillus subtilis") == (
         '"Bacillus subtilis"[Organism] AND latest[filter]'
@@ -477,6 +510,31 @@ def test_ncbi_assembly_discovery_retries_incomplete_read_then_succeeds():
 
     assert [record.assembly_accession for record in records] == ["GCA_1"]
     assert sleeps == [1.0, 2.0]
+
+
+def test_ncbi_assembly_discovery_timeout_is_diagnostic_and_retried(caplog):
+    sleeps: list[float] = []
+    backend = _TimeoutAssemblyBackend()
+    client = NcbiAssemblyDiscoveryClient(
+        backend=backend,
+        provider_timeout_seconds=9,
+        retry_sleep=sleeps.append,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(RuntimeError) as excinfo:
+            client.search_species_assemblies("Bacillus subtilis")
+
+    message = str(excinfo.value)
+    assert "exception_category=provider_timeout" in message
+    assert "stage=assembly_discovery" in message
+    assert "provider=NCBI Assembly" in message
+    assert "timeout_seconds=9" in message
+    assert "HTTP 404" not in message
+    assert "taxonomy" not in message.lower()
+    assert sleeps == [1.0, 2.0]
+    assert backend.search_calls == 3
+    assert "exception_category=provider_timeout" in caplog.text
 
 
 def test_discover_assembly_candidates_consumes_ncbi_assembly_client():
