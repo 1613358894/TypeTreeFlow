@@ -187,10 +187,9 @@ For development test extras, install them into the same activated environment:
 python -m pip install -e ".[test]"
 ```
 
-`python typetreeflow.py doctor` is the readiness check. It prints JSON on
-stdout, reports secret-bearing settings by presence only, and does not run
-downloads, live lookups, barrnap, FastANI, MAFFT, trimAl, IQ-TREE, or other
-external analyses.
+`python typetreeflow.py doctor` is the readiness check. It reports
+secret-bearing settings by presence only and follows the stdout contract in
+[docs/output_layout.md](docs/output_layout.md).
 
 On Windows, editable installs place the `typetreeflow` console script in your
 Python Scripts directory. You can always run the repo-local CLI directly:
@@ -260,10 +259,9 @@ typetreeflow --version
 python typetreeflow.py doctor
 ```
 
-`doctor` prints a short JSON readiness envelope on stdout. It does not print
-secret values and does not run downloads, live lookups, or external analyses.
-See [docs/output_layout.md](docs/output_layout.md) for the AI-first stdout
-contracts and [docs/cookbook.md](docs/cookbook.md) for operator recipes.
+`doctor` follows the AI-first stdout contract in
+[docs/output_layout.md](docs/output_layout.md). Use
+[docs/cookbook.md](docs/cookbook.md) for operator recipes.
 
 ## Recommended v2.2.16 workflow
 
@@ -289,31 +287,15 @@ typetreeflow verify-genus Fusobacterium \
   --outdir <run_dir>
 ```
 
-`verify-genus` writes one compact JSON envelope to stdout. Detailed logs,
-reports, tables, and FASTA/sequence content stay in files under `<run_dir>`.
-Plan-only runs that stop for review expose a reader-facing
-`status: "blocked"` with `reason: "manual_review_required"`; agents do not
-need to infer that from the internal `run_state.json` value `partial`.
-
 This is the recommended plan-only acquisition command. A local LPSN cache only
-builds the checklist; it is not a discovery cache and does not supply NCBI
-Assembly candidates. Use `--discovery-cache` for offline candidate discovery,
-or use guarded live discovery with `--enable-ncbi-discovery --email`.
-`--smoke-profile plan-only` records the profile name without enabling
-downloads, auto-accepting selection, or expanding live provider access. Local
-or guarded LPSN/NCBI discovery and taxonomy flags remain explicit user
-choices. `--limit-selected N` remains available as an explicit total selected
-reference genome cap. It is applied after per-species selection and before
-manifest/download planning; `selection/selected_limit_summary.tsv` and
-`run_state.json` record `limit_selected`, `selected_before_limit`,
-`selected_after_limit`, and `limit_applied`.
-When `--gtdb-metadata` is supplied, plan-only runs read the local TSV and
-write `taxonomy/gtdb_metadata_audit.json` with metadata path, file status,
-file size, row count, release, load status, audit timestamp, and accession
-coverage counts. If the file cannot be loaded, the audit records
-`gtdb_metadata_load_failed` and GTDB coverage counts are unavailable rather
-than reported as missing. `--gtdb-release` is recorded in `run_state.json`,
-`report/summary.md`, and delivery packages when present.
+builds the checklist; use `--discovery-cache` for offline candidate discovery,
+or guarded live discovery with `--enable-ncbi-discovery --email`.
+`--smoke-profile plan-only` records profile provenance without enabling
+downloads, auto-accepting selection, or live provider access. Local GTDB
+metadata remains an optional audit input, not the LPSN-first authority. Use
+`--limit-selected N` only when you want an explicit selected-reference cap. See
+[docs/output_layout.md](docs/output_layout.md) for stdout, smoke-profile, and
+artifact contracts.
 
 Plan the same shape with guarded live LPSN, NCBI Assembly, and BioSample
 lookups. Network use is opt-in and requires `--email` for NCBI/Entrez:
@@ -351,13 +333,10 @@ typetreeflow verify-genus Fusobacterium \
   --outdir <smoke_run_dir>
 ```
 
-`limit4-real` expands only to `--limit-selected 4`,
-`--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. It does
-not add `--query-genome`, GTDB inputs, FastANI, barrnap extraction, LPSN API,
-NCBI discovery, NCBI Taxonomy, or provider access. If a profile conflicts with
-an explicit flag, the command fails fast; for example, do not combine
-`--smoke-profile limit4-real` with a separate `--limit-selected` value.
-Without a profile, the underlying long-form flags keep their existing behavior.
+`limit4-real` is the only bounded real-smoke profile. It keeps query genome,
+GTDB, FastANI, barrnap extraction, LPSN API, NCBI discovery, NCBI Taxonomy, and
+provider choices explicit. Profile expansion and conflict rules are owned by
+[docs/output_layout.md](docs/output_layout.md).
 
 For a guarded genome download plus same-genome barrnap 16S run, use downloads
 and `--extract-16s barrnap` together:
@@ -440,10 +419,9 @@ typetreeflow verify-genus Fusobacterium --outdir <run_dir> --resume --dry-run
 typetreeflow --outdir <run_dir> --report-only
 ```
 
-`verify-genus`, `status`, and `next-step` print compact JSON envelopes by
-default. The same JSON is intended for humans and agents; no separate human
-output mode is required. See [docs/output_layout.md](docs/output_layout.md)
-for field-level details.
+Use `status` as the preferred machine-readable state check. `next-step`
+remains a thin wrapper for callers that only need the next recommended action.
+Field-level stdout details live in [docs/output_layout.md](docs/output_layout.md).
 
 `--report-only` refreshes `report/summary.md` and `report/run_review.md` from
 existing outputs. It does not run discovery, downloads, barrnap, Entrez,
@@ -463,8 +441,8 @@ summaries, optional reports, copied genome FASTA files, optional 16S FASTA
 files, `handoff_index.md` for package navigation/operator handoff, and
 `run_state.json` when present. It does not copy credentials, environment files,
 API keys, NCBI ZIP caches, pytest caches, or temporary directories.
-`package-results` writes a single compact JSON envelope to stdout and keeps the
-detailed handoff text in package files. See
+`package-results` keeps detailed handoff text in package files and follows the
+stdout contract in [docs/output_layout.md](docs/output_layout.md). See
 [docs/cookbook.md](docs/cookbook.md#package-delivery) for packaging recipes.
 
 When a run fails before `manifest.tsv`, use

@@ -1,8 +1,10 @@
 # Output Layout
 
-This document is the path contract for TypeTreeFlow run directories. It names
-the canonical files, the stages that create them, and the durable invariants
-downstream tools can rely on. TSV/table field definitions live in
+This document is the stdout and artifact contract for TypeTreeFlow run
+directories. It defines the compact JSON stdout envelopes for primary
+AI-first commands, names the canonical files, the stages that create them, and
+the durable invariants downstream tools can rely on. TSV/table field
+definitions live in
 [schemas.md](schemas.md). Repository-independent workspace root policy lives in
 [workspace_policy.md](workspace_policy.md), and repository `results/` policy
 lives in [results_policy.md](results_policy.md).
@@ -13,6 +15,14 @@ An explicit `--outdir` is the run directory. Default workspace resolution,
 recommended workspace roots, and repository `results/` boundaries are owned by
 [workspace_policy.md](workspace_policy.md) and
 [results_policy.md](results_policy.md).
+
+## AI-First Stdout Boundary
+
+The primary command surfaces `doctor`, `verify-genus`, `status`, `next-step`,
+and `package-results` write compact JSON to stdout by default. Current
+operator documentation does not require `--json`, `--human`, or `--pretty`
+mode switches for these commands; detailed reports, tables, logs, FASTA,
+sequence content, and handoff prose stay in files.
 
 ## Doctor Stdout Contract
 
@@ -118,6 +128,29 @@ the expanded key config. The same config keys are written to `run_state.json`:
 `smoke_profile`, `limit_selected`, `enable_downloads`,
 `auto_accept_selection`, and `enable_phylo`.
 
+## Smoke Profile Contract
+
+TypeTreeFlow currently keeps two high-level smoke profiles:
+
+- `plan-only`: records smoke provenance while preserving review-first,
+  no-download behavior. It does not auto-accept selection, enable downloads,
+  enable phylogeny, or widen live provider access.
+- `limit4-real`: expands only to `--limit-selected 4`,
+  `--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`.
+
+Both profiles keep local query genomes, GTDB metadata, FastANI, barrnap
+extraction, LPSN API, NCBI discovery, NCBI Taxonomy, and provider access as
+explicit user choices. The project intentionally does not add query or GTDB
+profiles yet, because those presets would hide scientific and execution
+assumptions about local query files, reference readiness, ANI/16S intent, and
+the legacy/local role of GTDB metadata in an LPSN-first workflow.
+
+Profile/flag conflicts fail fast. For example, do not combine
+`--smoke-profile plan-only` with `--enable-downloads`, or
+`--smoke-profile limit4-real` with a separate `--limit-selected` value.
+Without a profile, the underlying long-form flags keep their existing
+behavior.
+
 ## Status And Next-Step Stdout Contracts
 
 `typetreeflow status --outdir <run_dir>` writes one compact JSON object to
@@ -128,6 +161,10 @@ secret values, or logs. The top-level `status` is normalized for readers:
 workflow values such as `partial` and `blocked_by_manual_review` are not exposed
 as top-level status values; plan-only/manual-review states are reported as
 `blocked` when they prevent the next guarded step.
+
+`status` is the preferred machine-readable state read. It includes the current
+state, stage summaries, blocking/warning arrays, and `next_actions` in one
+envelope.
 
 ```json
 {
@@ -151,6 +188,8 @@ as top-level status values; plan-only/manual-review states are reported as
 ```
 
 `typetreeflow next-step --outdir <run_dir>` also writes one compact JSON object.
+It is a retained thin wrapper for callers that only need the next recommended
+action; it is not deprecated and does not imply immediate removal.
 `recommended_action.message` preserves the bounded action sentence that earlier
 text output exposed; `recommended_action.command` is populated only when the
 recommendation is already a direct command-shaped action.
