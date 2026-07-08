@@ -8,6 +8,22 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+FORBIDDEN_ROOT_FILES = [
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+]
+
+FORBIDDEN_DOC_DIRS = [
+    Path("docs/archive"),
+    Path("docs/audit"),
+    Path("docs/process"),
+    Path("docs/roadmap"),
+    Path("docs/validation"),
+]
+
+
 @dataclass(frozen=True)
 class HygieneCheckResult:
     name: str
@@ -19,6 +35,14 @@ def run_checks(root: Path = REPO_ROOT) -> list[HygieneCheckResult]:
     root = root.resolve()
     return [
         _forbidden_path(root, "examples", expected_kind="directory"),
+        *[
+            _forbidden_path(root, name, expected_kind="file")
+            for name in FORBIDDEN_ROOT_FILES
+        ],
+        *[
+            _forbidden_relative_path(root, path, expected_kind="directory")
+            for path in FORBIDDEN_DOC_DIRS
+        ],
         _forbidden_path(root, "typetreeflow_out", expected_kind="directory"),
         _forbidden_path(root, "other", expected_kind="directory"),
         _forbidden_path(root, "cache", expected_kind="directory"),
@@ -78,6 +102,27 @@ def _forbidden_path(
         name,
         False,
         f"forbidden repository-root {expected_kind} exists: {path}",
+    )
+
+
+def _forbidden_relative_path(
+    root: Path,
+    relative_path: Path,
+    *,
+    expected_kind: str,
+) -> HygieneCheckResult:
+    path = root / relative_path
+    name = relative_path.as_posix()
+    if not path.exists():
+        return HygieneCheckResult(name, True, "ok")
+    if expected_kind == "directory" and not path.is_dir():
+        return HygieneCheckResult(name, True, "ok")
+    if expected_kind == "file" and not path.is_file():
+        return HygieneCheckResult(name, True, "ok")
+    return HygieneCheckResult(
+        name,
+        False,
+        f"forbidden repository path exists: {path}",
     )
 
 

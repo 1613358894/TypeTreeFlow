@@ -14,7 +14,8 @@ def test_current_repository_passes_docs_hygiene_check():
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "[PASS] required docs" in completed.stdout
-    assert "[PASS] archive docs removed" in completed.stdout
+    assert "[PASS] docs top-level allowlist" in completed.stdout
+    assert "[PASS] forbidden docs directories" in completed.stdout
     assert "[PASS] local Markdown links" in completed.stdout
     assert "Docs hygiene check passed" in completed.stdout
 
@@ -26,7 +27,19 @@ def test_minimal_fixture_passes(tmp_path):
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "[PASS] docs top-level allowlist" in completed.stdout
+    assert "[PASS] forbidden docs directories" in completed.stdout
     assert "[PASS] release gate commands" in completed.stdout
+
+
+def test_unexpected_top_level_doc_fails_consolidated_docs_set(tmp_path):
+    _write_docs_fixture(tmp_path)
+    (tmp_path / "docs" / "roadmap.md").write_text("# Roadmap\n", encoding="utf-8")
+
+    completed = _run_check(tmp_path)
+
+    assert completed.returncode == 1
+    assert "[FAIL] docs top-level allowlist" in completed.stdout
+    assert "docs/roadmap.md" in completed.stdout
 
 
 def test_top_level_versioned_stage_doc_fails(tmp_path):
@@ -84,40 +97,29 @@ def test_missing_release_gate_command_fails(tmp_path):
     assert "python scripts/check_docs_hygiene.py" in completed.stdout
 
 
-def test_markdown_in_inactive_docs_directory_fails(tmp_path):
+def test_inactive_docs_directories_fail(tmp_path):
     _write_docs_fixture(tmp_path)
-    roadmap = tmp_path / "docs" / "roadmap"
-    roadmap.mkdir()
-    (roadmap / "current.md").write_text("# Current\n", encoding="utf-8")
+    for relative in [
+        Path("docs/archive"),
+        Path("docs/audit"),
+        Path("docs/roadmap"),
+        Path("docs/process"),
+        Path("docs/validation"),
+    ]:
+        (tmp_path / relative).mkdir(parents=True)
 
     completed = _run_check(tmp_path)
 
     assert completed.returncode == 1
-    assert "[FAIL] inactive docs directories" in completed.stdout
-    assert "docs/roadmap/current.md" in completed.stdout
-
-    process = tmp_path / "docs" / "process"
-    process.mkdir()
-    (process / "release.md").write_text("# Release\n", encoding="utf-8")
-
-    completed = _run_check(tmp_path)
-
-    assert completed.returncode == 1
-    assert "docs/process/release.md" in completed.stdout
-
-
-def test_archive_docs_directory_fails(tmp_path):
-    _write_docs_fixture(tmp_path)
-    archive = tmp_path / "docs" / "archive"
-    archive.mkdir()
-    (archive / "README.md").write_text("# Archive\n", encoding="utf-8")
-
-    completed = _run_check(tmp_path)
-
-    assert completed.returncode == 1
-    assert "[FAIL] archive docs removed" in completed.stdout
-    assert "removed historical documentation directory" in completed.stdout
-    assert "historical run evidence" in completed.stdout
+    assert "[FAIL] forbidden docs directories" in completed.stdout
+    for name in [
+        "docs/archive",
+        "docs/audit",
+        "docs/roadmap",
+        "docs/process",
+        "docs/validation",
+    ]:
+        assert name in completed.stdout
 
 
 def _run_check(repo_root: Path) -> subprocess.CompletedProcess[str]:
