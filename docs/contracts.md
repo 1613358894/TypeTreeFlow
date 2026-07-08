@@ -22,8 +22,8 @@ documents.
 
 - [workspace_policy.md](workspace_policy.md): repository-independent workspace
   root and default output placement policy.
-- [results_policy.md](results_policy.md): repository `results/` allowlist and
-  tracked evidence policy.
+- [results_policy.md](results_policy.md): repository `results/` exclusion and
+  evidence-retention policy.
 - [completion_audit.md](completion_audit.md): NCBI-only and
   external-inclusive completion counting rules and outputs.
 - [species_checklist_audit.md](species_checklist_audit.md): user-supplied

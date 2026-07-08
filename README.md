@@ -99,7 +99,7 @@ Common entry points:
 - [docs/output_layout.md](docs/output_layout.md): run-directory path contract.
 - [docs/workspace_policy.md](docs/workspace_policy.md): workspace root policy.
 - [docs/results_policy.md](docs/results_policy.md): repository `results/`
-  allowlist.
+  exclusion policy.
 - [docs/schemas.md](docs/schemas.md) and
   [docs/statuses.md](docs/statuses.md): table fields and emitted statuses.
 - [docs/external_type_genome_ingestion.md](docs/external_type_genome_ingestion.md),
@@ -232,8 +232,8 @@ uses the default workspace run directory described in
 
 For real runs and large outputs, prefer `<workspace>/runs/<run-name>`; for
 package handoffs, prefer `<workspace>/deliveries/<delivery-name>`. The
-repository `results/` directory is not a run output directory; it is limited to
-the small verification evidence allowlist in
+repository `results/` directory is not a run output directory and should not be
+retained in the source tree; see
 [docs/results_policy.md](docs/results_policy.md). `typetreeflow_out/` is an old
 default or historical example path and should not be committed.
 

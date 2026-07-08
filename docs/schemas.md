@@ -898,9 +898,10 @@ automatically executed plan or a schema that upgrades evidence.
 
 Final project audit packages may add species-level companions outside the
 canonical run directory, for example
-`results/fusobacterium_final_audit_v2/species_completion_status.tsv` and
-`results/fusobacterium_final_audit_v2/evidence_layer_summary.tsv`. These
-tables should preserve evidence layers separately:
+`<workspace>/runs/fusobacterium_final_audit_v2/species_completion_status.tsv`
+and
+`<workspace>/runs/fusobacterium_final_audit_v2/evidence_layer_summary.tsv`.
+These tables should preserve evidence layers separately:
 `type_strain_equivalence_ids`, `regular_deposit_ids_seen`,
 `external_type_genome_available`, and `workflow_eligible`.
 

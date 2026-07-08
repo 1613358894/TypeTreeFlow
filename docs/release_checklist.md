@@ -37,7 +37,8 @@ gate, and publish.
   primitives marked as advanced/manual recovery.
 - Do not include caches, local environment files, generated run output, real
   download data, large artifacts, or unrelated feature work.
-- Keep repository `results/` within [results_policy.md](results_policy.md).
+- Do not include repository `results/`; keep release evidence in an external
+  workspace per [results_policy.md](results_policy.md).
 - Do not include `typetreeflow_out/`; this is the old default or a historical
   example path, not the current default output location.
 
@@ -335,7 +336,7 @@ evidence and result interpretation.
 - `.tmp_smoke_venv_vX_Y_Z/`
 - `build/`
 - `dist/`
-- `results/` outside the [results_policy.md](results_policy.md) allowlist.
+- repository-root `results/`.
 - `*.egg-info/`
 - `__pycache__/`
 - `.pytest_cache/`
@@ -344,7 +345,7 @@ evidence and result interpretation.
   not the current default output location.
 - Downloaded NCBI Datasets ZIPs under `cache/ncbi/*.zip`.
 - Large local GTDB metadata files under `data/` unless intentionally tracked.
-- Do not commit large `results/` trees, real-run output, or scratch output.
+- Do not commit `results/`, real-run output, or scratch output.
 - Keep `dist/*.whl` only as the local release artifact for upload or smoke
   evidence; remove it before non-release documentation commits unless the
   release packaging workflow explicitly needs it.

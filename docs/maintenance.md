@@ -60,8 +60,8 @@ surfaces:
 - Output directories or filenames: update `docs/output_layout.md` and any
   current docs that mention the path. If the change affects workspace root
   selection, update `docs/workspace_policy.md`; if it affects repository
-  `results/` hygiene, update `docs/results_policy.md` and
-  `scripts/check_workspace_hygiene.py` together.
+  `results/` hygiene, update `docs/results_policy.md`,
+  `scripts/check_workspace_hygiene.py`, and focused tests together.
 - Documentation structure, top-level docs membership, historical-doc handling, or
   release-gate commands: update `scripts/check_docs_hygiene.py` and its tests
   together with the affected docs.
@@ -100,7 +100,7 @@ release: vX.Y.Z
 ```
 
 Tests must not depend on ignored or local-only paths such as `data/`,
-`results/` content outside the allowlist in `docs/results_policy.md`,
+repository-root `results/`,
 `.pytest_tmp/`, `build/`, `.dist_test/`,
 `typetreeflow.egg-info/`, `output_*`, or `phase*`. Default tests must not
 require network access or external bioinformatics tools.

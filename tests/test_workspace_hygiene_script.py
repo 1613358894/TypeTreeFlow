@@ -37,7 +37,7 @@ def test_other_fails(tmp_path):
     assert "forbidden repository-root directory exists" in completed.stdout
 
 
-def test_non_allowlisted_results_file_fails(tmp_path):
+def test_results_directory_fails(tmp_path):
     results = tmp_path / "results"
     results.mkdir()
     (results / "foo.txt").write_text("local output\n", encoding="utf-8")
@@ -45,15 +45,15 @@ def test_non_allowlisted_results_file_fails(tmp_path):
     completed = _run_check(tmp_path)
 
     assert completed.returncode == 1
-    assert "[FAIL] results allowlist" in completed.stdout
-    assert "foo.txt" in completed.stdout
+    assert "[FAIL] results" in completed.stdout
+    assert "forbidden repository-root results path exists" in completed.stdout
 
 
-def test_allowlisted_results_matrix_passes(tmp_path):
+def test_release_matrix_under_results_fails(tmp_path):
     matrix = (
         tmp_path
         / "results"
-        / "v2_2_0_release_verification"
+        / "release_verification"
         / "verification_matrix.tsv"
     )
     matrix.parent.mkdir(parents=True)
@@ -61,9 +61,8 @@ def test_allowlisted_results_matrix_passes(tmp_path):
 
     completed = _run_check(tmp_path)
 
-    assert completed.returncode == 0, completed.stdout + completed.stderr
-    assert "[PASS] results allowlist" in completed.stdout
-    assert "Workspace hygiene check passed" in completed.stdout
+    assert completed.returncode == 1
+    assert "[FAIL] results" in completed.stdout
 
 
 def _run_check(repo_root: Path) -> subprocess.CompletedProcess[str]:

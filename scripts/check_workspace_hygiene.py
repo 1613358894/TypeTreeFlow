@@ -8,15 +8,6 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_RESULTS_FILE = Path(
-    "v2_2_0_release_verification/verification_matrix.tsv"
-)
-ALLOWED_RESULTS_DIRS = {
-    Path("."),
-    ALLOWED_RESULTS_FILE.parent,
-}
-
-
 @dataclass(frozen=True)
 class HygieneCheckResult:
     name: str
@@ -32,7 +23,7 @@ def run_checks(root: Path = REPO_ROOT) -> list[HygieneCheckResult]:
         _forbidden_path(root, "cache", expected_kind="directory"),
         _forbidden_prefix(root, "output"),
         _forbidden_prefix(root, "phase"),
-        _check_results_allowlist(root),
+        _check_results_absent(root),
     ]
 
 
@@ -100,32 +91,14 @@ def _forbidden_prefix(root: Path, prefix: str) -> HygieneCheckResult:
     )
 
 
-def _check_results_allowlist(root: Path) -> HygieneCheckResult:
+def _check_results_absent(root: Path) -> HygieneCheckResult:
     results_dir = root / "results"
     if not results_dir.exists():
-        return HygieneCheckResult("results allowlist", True, "ok")
-    if not results_dir.is_dir():
-        return HygieneCheckResult(
-            "results allowlist",
-            False,
-            f"results exists but is not a directory: {results_dir}",
-        )
-
-    forbidden: list[str] = []
-    for path in sorted(results_dir.rglob("*")):
-        relative = path.relative_to(results_dir)
-        if path.is_dir() and relative in ALLOWED_RESULTS_DIRS:
-            continue
-        if path.is_file() and relative == ALLOWED_RESULTS_FILE:
-            continue
-        forbidden.append(relative.as_posix())
-
-    if not forbidden:
-        return HygieneCheckResult("results allowlist", True, "ok")
+        return HygieneCheckResult("results", True, "ok")
     return HygieneCheckResult(
-        "results allowlist",
+        "results",
         False,
-        "forbidden results content: " + ", ".join(forbidden),
+        f"forbidden repository-root results path exists: {results_dir}",
     )
 
 

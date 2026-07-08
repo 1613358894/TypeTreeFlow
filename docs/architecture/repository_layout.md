@@ -71,9 +71,8 @@ workspace hygiene, docs hygiene, release consistency, and release gate checks.
 The audited hygiene scripts report failures and do not delete, move, or modify
 files.
 
-`results/` is a narrowly allowlisted repository evidence area, not a run output
-directory. The current tracked allowance is
-`results/v2_2_0_release_verification/verification_matrix.tsv`.
+Repository-root `results/` is intentionally absent. Verification matrices and
+run evidence belong in an external workspace, not in the source checkout.
 
 `.github/` contains repository collaboration and CI configuration:
 pull-request template, issue templates, issue-template config, and the CI
@@ -84,8 +83,7 @@ include `dist/`, `typetreeflow.egg-info/`, `.pytest_tmp/`, and
 `.pytest_cache/`. These are local build/test artifacts and should not be
 treated as files to commit. `.gitignore` also covers common generated paths
 such as `build/`, caches, coverage output, tox/nox state, local environments,
-`output*`, `phase*`, `typetreeflow_out/`, logs, and broad `results/*` content
-outside the explicit results allowlist.
+`output*`, `phase*`, `typetreeflow_out/`, logs, and `results/`.
 
 ## Top-Level File Responsibilities
 
@@ -120,7 +118,7 @@ security reporting, text attributes, and local generated-file boundaries.
 `.gitignore` and `scripts/check_workspace_hygiene.py` cover related but
 different boundaries. `.gitignore` prevents common local artifacts from being
 tracked, including caches, local env files, build artifacts, local output
-prefixes, logs, data files, and almost all repository `results/` content.
+prefixes, logs, data files, and repository `results/` content.
 `scripts/check_workspace_hygiene.py` is stricter for selected repository-root
 paths that should not exist in a clean source checkout.
 
@@ -132,20 +130,18 @@ directories or prefixes:
 - `cache`
 - `output*`
 - `phase*`
-- non-allowlisted content under `results/`
+- repository-root `results/`
 
 The script reports PASS/FAIL messages and exits nonzero on failures. It does
-not remove local artifacts. Its `results/` allowlist matches
-`docs/results_policy.md`: only
-`results/v2_2_0_release_verification/verification_matrix.tsv` is allowed as
-tracked repository evidence.
+not remove local artifacts. Its `results/` boundary matches
+`docs/results_policy.md`: repository-root `results/` is forbidden.
 
 `docs/workspace_policy.md` and `docs/results_policy.md` are consistent with the
 script boundary. Workspace policy directs generated runs, deliveries, local
 data, manifests, scratch, history, rewrite, and local historical material outside
 the repository workspace root. Results policy says repository `results/` is not
-a run output directory and must keep only selected compact evidence. The script
-enforces that policy at the repository root.
+a run output directory and should not be retained in the source tree. The
+script enforces that policy at the repository root.
 
 One implementation detail to note: `.gitignore` ignores broad `phase*` paths
 and the script also rejects `phase*` paths at the repository root. `.gitignore`
@@ -170,8 +166,7 @@ Markdown link checks rather than by a per-file architecture allowlist.
 ## Current Strengths
 
 - The repository has a clear split between package code, tests and internal
-  fixtures, docs, maintenance scripts, CI metadata, and compact verification
-  evidence.
+  fixtures, docs, maintenance scripts, and CI metadata.
 - Current docs define a useful entry-point split: `README.md` for users,
   `docs/index.md` for the documentation map, and `docs/maintenance.md` for
   documentation maintenance rules.
@@ -182,8 +177,8 @@ Markdown link checks rather than by a per-file architecture allowlist.
   catches broken local links across README and docs.
 - The workspace and docs hygiene scripts are covered by focused tests that use
   temporary fixtures and subprocess execution of the real scripts.
-- Internal fixtures are tracked separately from generated outputs, and the
-  repository `results/` directory is narrow enough to audit.
+- Internal fixtures are tracked separately from generated outputs, and
+  repository-root `results/` residue is directly reported.
 
 ## Risks And Improvement Candidates
 
@@ -203,10 +198,9 @@ Markdown link checks rather than by a per-file architecture allowlist.
 - The local ignored environment file demonstrates why credential examples must
   stay placeholder-only in tracked files. Do not promote local env content into
   docs, tests, fixtures, examples, or release artifacts.
-- `results/` policy is intentionally narrow. Future selected evidence files
-  would require synchronized updates to `docs/results_policy.md`,
-  `.gitignore`, `scripts/check_workspace_hygiene.py`, and the workspace hygiene
-  tests.
+- `results/` policy is intentionally strict. Future durable evidence should
+  stay in an external workspace, with only current rules or gate instructions
+  extracted into release documentation.
 
 ## Content Not Recommended To Change In This Pass
 
@@ -223,8 +217,8 @@ Markdown link checks rather than by a per-file architecture allowlist.
 ## Tests Covering This Area
 
 `tests/test_workspace_hygiene_script.py` verifies that the current repository
-passes when clean, forbidden root directories are reported, non-allowlisted
-`results/` content fails, and the allowlisted verification matrix passes.
+passes when clean, forbidden root directories are reported, and
+repository-root `results/` content fails.
 
 `tests/test_docs_hygiene_script.py` verifies that the current repository passes
 the docs hygiene check, a minimal fixture passes, top-level versioned stage docs

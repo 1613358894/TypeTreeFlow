@@ -15,7 +15,7 @@ their durable lessons in current release docs.
 
 Release verification outputs should normally be outside the repository.
 Workspace placement is governed by [workspace_policy.md](workspace_policy.md),
-repository `results/` content is limited by
+repository-root `results/` paths are excluded by
 [results_policy.md](results_policy.md), and run-directory files are defined in
 [output_layout.md](output_layout.md).
 

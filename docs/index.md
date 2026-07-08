@@ -48,8 +48,8 @@ document instead of restoring the old file.
 - [design.md](design.md): current architecture and guarded-execution safety
   contract.
 - [workspace_policy.md](workspace_policy.md): canonical workspace root policy.
-- [results_policy.md](results_policy.md): canonical policy for the repository
-  `results/` directory and its allowlist.
+- [results_policy.md](results_policy.md): canonical policy for excluding
+  repository-root `results/` paths.
 - [handoff_index_contract.md](handoff_index_contract.md): contract for
   generated delivery-package `handoff_index.md` files.
 - [schemas.md](schemas.md): TSV and table field dictionary.
