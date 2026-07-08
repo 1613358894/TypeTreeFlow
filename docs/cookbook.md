@@ -23,17 +23,10 @@ and does not contact providers, download genomes, or run external
 bioinformatics analyses.
 
 Use `<run_dir>` for the run output directory, typically
-`<workspace>/runs/<run-name>`, and `<delivery_dir>` for handoff packages,
-typically `<workspace>/deliveries/<delivery-name>`. If `--outdir` is omitted,
-TypeTreeFlow uses the workspace default: `TYPETREEFLOW_WORKSPACE/runs/default`
-when `TYPETREEFLOW_WORKSPACE` is set, otherwise the user-level platform
-workspace (`%LOCALAPPDATA%/TypeTreeFlow/workspace/runs/default` on Windows, or
-`$XDG_DATA_HOME/typetreeflow/workspace/runs/default` with
-`~/.local/share/typetreeflow/workspace/runs/default` as the POSIX fallback).
-An explicit `--outdir` always wins and is used exactly as supplied.
-Do not use repository `results/` for ordinary runs, large downloads, or scratch
-output; it is only for curated, small verification evidence. `typetreeflow_out/`
-is an old default/historical example path and is no longer the current default.
+`<workspace>/runs/<run-name>`, and `<delivery_dir>` for handoff packages. An
+explicit `--outdir` always wins. Workspace defaults and the repository
+`results/` boundary are defined in [workspace_policy.md](workspace_policy.md)
+and [results_policy.md](results_policy.md).
 
 ## Quick Start: Plan-Only Genus Verification
 
@@ -70,12 +63,8 @@ Assembly candidates; use `--discovery-cache` for offline discovery or
 `--smoke-profile plan-only` records profile provenance without enabling
 downloads, auto-accepting selection, or live provider access. Use
 `--limit-selected N` explicitly when you want a bounded plan-only cap.
-If a local `--gtdb-metadata` TSV is provided, plan-only verification reads it
-and records `taxonomy/gtdb_metadata_audit.json`. The audit records the metadata
-path, existence/readability, file size, row count, `--gtdb-release`, load
-status, timestamp, and accession coverage counts only after a successful load.
-If loading fails, the status is `gtdb_metadata_load_failed` and GTDB coverage
-counts are unavailable rather than interpreted as missing coverage.
+Optional `--gtdb-metadata` remains an audit input for legacy/local metadata; it
+is not the LPSN-first authority.
 
 ## Minimal Bounded Real Smoke
 
@@ -96,15 +85,15 @@ typetreeflow verify-genus Fusobacterium \
 The profile expands only to `--limit-selected 4`,
 `--auto-accept-selection`, `--enable-downloads`, and `--enable-phylo`. Query
 genomes, GTDB inputs, FastANI, barrnap extraction, LPSN API, NCBI discovery,
-NCBI Taxonomy, and provider access remain explicit choices. Downloads still
-require the NCBI Datasets CLI executable named `datasets` on `PATH`; it is not
-the Python package named `datasets`. Explicit conflicts fail fast; see
+NCBI Taxonomy, and provider access remain explicit choices. Downloads require
+the NCBI Datasets CLI executable named `datasets` on `PATH`, not the Python
+package named `datasets`. Explicit conflicts fail fast; see
 [output_layout.md](output_layout.md) for the profile contract.
 
 ## Guarded Genome Download Plus barrnap 16S Extraction
 
-`--extract-16s barrnap` runs after guarded downloads and depends on a
-genome-ready manifest. It requires `barrnap` on `PATH` and produces
+Use this only after selection review. `--extract-16s barrnap` runs after
+guarded downloads, requires `barrnap` on `PATH`, and produces
 same-genome/internal 16S evidence when extraction succeeds.
 
 ```bash
@@ -121,7 +110,8 @@ typetreeflow verify-genus Fusobacterium \
 ```
 
 Optional guarded downstream stages can be requested on the same guarded
-download run:
+download run. FastANI is query-vs-reference only, so provide one or more
+`--query-genome` values when enabling it:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
@@ -138,26 +128,13 @@ typetreeflow verify-genus Fusobacterium \
   --enable-phylo
 ```
 
-FastANI is query-vs-reference only. If `--enable-fastani` is provided without
-`--query-genome`, the stage is skipped explicitly as `ani_skipped_no_query`.
-`--query-genome` may be repeated. When query genomes are provided,
-`manifest.tsv` records one local query row per FASTA with `source=local_query`,
-`is_query=true`, `is_type_material=false`, `query_id`, the query FASTA path,
-SHA-256 digest, and `not_type_strain=true` in the provenance notes. These rows
-are audit input for ANI/16S/phylogeny only; they are not type-strain or
-confirmed species evidence. `ani/ani_plan.tsv` has one row per query/reference
-comparison.
-Phylogeny uses `rrna/all_16S.fasta`; the current IQ-TREE bootstrap workflow
-requires at least 4 16S FASTA records and records smaller inputs as
-`phylo_skipped_too_few_sequences`. With a local query genome, query-inclusive
-phylogeny requires query 16S from explicit `--query-16s` or query barrnap. If
-query 16S is absent, the plan records `phylo_skipped_query_no_16s` /
-`skipped_query_no_16s` rather than silently building a reference-only tree.
-Local-query barrnap headers in `rrna/all_16S.fasta` preserve
-`source=local_query` and `query_id`.
-FastANI exit 0 with an empty raw output file is recorded as no hits
-(`fastani_no_hits` and `ani_no_hits`), while absent raw output remains
-`fastani_missing_output`.
+If `--enable-fastani` is provided without `--query-genome`, the stage records
+`ani_skipped_no_query`. Query rows in `manifest.tsv` use `source=local_query`,
+`is_query=true`, and `is_type_material=false`; they are audit input only, not
+type-strain or confirmed species evidence. Phylogeny uses `rrna/all_16S.fasta`
+and records undersized or query-missing inputs as skipped states instead of
+silently changing scope. Full stage contracts live in
+[output_layout.md](output_layout.md).
 
 ## Resume barrnap Or Entrez Fallback
 
@@ -183,8 +160,8 @@ typetreeflow verify-genus Fusobacterium \
   --email user@example.org
 ```
 
-barrnap is same-genome/internal 16S extraction from the selected genome FASTA.
-Entrez fallback is an external 16S rescue path. It is opt-in, requires
+barrnap is same-genome/internal 16S extraction from selected genome FASTA.
+Entrez fallback is an external 16S rescue path, requires
 `--enable-entrez --email`, and should be counted separately from same-genome
 coverage.
 
@@ -229,20 +206,12 @@ resume from a partial cache after a network interruption. See
 `release_verification.md` and `release_notes_v2_2_x.md` for the current
 maintenance scope; the cookbook keeps only the runnable command path here.
 
-Release runs also write auditable gap reports when information is incomplete:
-`completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
-`completion/16s_gaps.tsv`. Gap categories distinguish insufficient type
-evidence, missing external candidates, workflow or network failure before
-selection, and genome-ready rows where 16S was not found. These reports explain
-partial coverage; they do not change the scientific boundary.
-
-In v2.2.3 and later, uncovered species also get an expanded discovery query plan at
-`completion/expanded_discovery_plan.tsv`. When
-`taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level NCBI Taxonomy
-`synonyms`, `equivalent_names`, and `includes` add provenance-marked
-alias-plus-token queries for uncovered species. The default behavior stops at
-the plan. Add `--enable-expanded-discovery` only when you want the second-pass
-Assembly and BioSample queries to run:
+Release runs can write gap and handoff files:
+`completion/gaps.tsv`, `completion/uncovered_species.tsv`,
+`completion/16s_gaps.tsv`, and `completion/expanded_discovery_plan.tsv`.
+These explain partial coverage; they do not promise automatic 100% coverage or
+change strict type-strain boundaries. Add `--enable-expanded-discovery` only
+when you want the optional second-pass Assembly and BioSample audit to run:
 
 ```bash
 typetreeflow verify-genus Enterobacter \
@@ -261,29 +230,7 @@ appends the same round to `completion/expanded_discovery_history.tsv`,
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`. It is audit-only: even a
 `matched_candidate` must be reviewed manually and is not automatically added to
-`manifest.tsv`, `selection/user_selection.tsv`, or any evidence level. The
-manual supplement hints file is the curator task queue. Its
-`recommended_action`, `reason`, and `handoff_path` fields tell the curator
-which table or template to inspect next, but they do not change selection
-behavior.
-
-An Enterobacter-style result can legitimately read as: checklist 28 species,
-representative genome coverage 27/28, uncovered species
-`Enterobacter siamensis`, 16S coverage 26/27, and 16S gap
-`Enterobacter nematophilus E-TC7 GCF_026344075.1`. Treat that as a pressure
-test with auditable gaps, not as strict type-strain completion and not as a
-software scientific failure. For `Enterobacter siamensis`, LPSN type-strain
-tokens `C2361`, `KCTC 23282`, and `NBRC 107138` produce 3 tokens x NCBI
-Assembly/BioSample queries in the plan. If expanded discovery is enabled, those
-results are used only for rejected-candidate audit rows and manual supplement
-hints; TypeTreeFlow does not auto-promote a candidate into the manifest.
-
-A Clostridium limited smoke for v2.2.9 should be read the same way: it is a
-small exploratory cache-based or synthetic run for guarded download planning,
-handoff visibility, status, reports, and packaging. It is not Clostridium genus
-completion, it should not execute real NCBI Datasets downloads, and it does not
-change the representative, expanded discovery, or manual supplement acceptance
-rules.
+`manifest.tsv`, `selection/user_selection.tsv`, or any evidence level.
 
 ## Resume Or Inspect Current State
 
