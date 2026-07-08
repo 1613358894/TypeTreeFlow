@@ -84,9 +84,9 @@ post-2.2.16 remaining-work roadmap.
   install-smoke, and run tests, but they do not tag, push, publish GitHub
   Releases, upload assets, or run live downloads.
 - Docs and workspace hygiene boundary: current docs belong in the maintained
-  docs map, historical material belongs under archive, ordinary run outputs
-  stay outside the repository root, and repository `results/` remains narrowly
-  allowlisted evidence.
+  docs map, obsolete historical run evidence and planning notes stay out of
+  the maintained docs tree, ordinary run outputs stay outside the repository
+  root, and repository `results/` remains narrowly allowlisted evidence.
 
 ## Refactor Readiness Notes
 

@@ -282,7 +282,7 @@ Smoke-profile wording was centralized around the existing `plan-only` and
 would hide query-genome, ANI/16S, reference-readiness, and GTDB legacy/local
 workflow assumptions that should remain explicit.
 
-The pass did not add new documentation files, did not modify archived
+The pass did not add new documentation files, did not modify historical
 documentation, did not change CLI functional code or tests, and did not run
 live providers, downloads, external bioinformatics tools, release publishing,
 tags, pushes, or pull requests.

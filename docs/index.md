@@ -5,7 +5,7 @@ This page is the formal entry point for TypeTreeFlow documentation.
 Use [../README.md](../README.md) as the user entry point, this page as the
 documentation map, and [maintenance.md](maintenance.md) as the maintenance
 rulebook. Prefer the shortest authoritative route below before opening
-feature-specific or historical material.
+feature-specific material.
 
 ## Top-Level Rule
 
@@ -13,8 +13,10 @@ The top level of `docs/` is reserved for current, intentionally maintained
 documentation: implemented contracts, current operator guidance, release
 process material, and narrowly scoped active design or policy documents.
 
-Historical material belongs under `docs/archive/` and is not a current behavior
-contract unless a current contract page links it for a specific fact.
+Historical run evidence, baselines, pilots, stale checklists, and superseded
+planning notes are not retained as documentation inventories. When old material
+contains a still-current rule, extract the rule into the appropriate formal
+document instead of restoring the old file.
 
 ## Shortest Reading Paths
 
@@ -86,20 +88,3 @@ contract unless a current contract page links it for a specific fact.
   verification matrix, and result interpretation.
 - [release_notes_v2_2_x.md](release_notes_v2_2_x.md): consolidated v2.2.x
   release history.
-
-## Archive
-
-The archive is historical support material, not a current user entry point.
-Use the archive README as the single inventory for archived plans, release
-notes, boundary records, and cleanup decisions.
-
-- [archive/README.md](archive/README.md): archive inventory, retention rules,
-  retained evidence groups, and cleanup summaries.
-- [archive/run_evidence/fusobacterium_v0_5_0/](archive/run_evidence/fusobacterium_v0_5_0/):
-  compact archived Fusobacterium v0.5.0 evidence.
-- [archive/run_evidence/phase15_smoke/](archive/run_evidence/phase15_smoke/):
-  compact Phase 15 smoke-run evidence.
-
-Other archive files preserve history behind the archive README. Do not read
-them as current operator instructions unless a current contract page explicitly
-points to them for a specific historical fact.

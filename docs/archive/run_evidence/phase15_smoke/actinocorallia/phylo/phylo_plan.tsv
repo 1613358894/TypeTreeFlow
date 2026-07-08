@@ -1,2 +1,0 @@
-input_fasta_path	aligned_fasta_path	trimmed_fasta_path	iqtree_prefix	treefile_path	status	notes
-phase15b_Actinocorallia/rrna/all_16S.fasta	phase15b_Actinocorallia/phylo/all_16S.aln.fasta	phase15b_Actinocorallia/phylo/all_16S.trimmed.fasta	phase15b_Actinocorallia/phylo/iqtree/all_16S	phase15b_Actinocorallia/phylo/iqtree/all_16S.treefile	phylo_skipped_existing_tree	Existing IQ-TREE treefile found: phase15b_Actinocorallia/phylo/iqtree/all_16S.treefile

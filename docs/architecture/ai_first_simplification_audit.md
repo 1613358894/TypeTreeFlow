@@ -48,11 +48,12 @@ risk without reducing AI context cost.
 - `tests/`: 85 tracked files, including focused CLI, docs, release, workflow,
   taxonomy, genome, rRNA, ANI, phylogeny, provider, and external-tool tests.
   Tests use fake runners and fixtures for external-tool and network boundaries.
-- `docs/`: 69 tracked files. Top-level current docs account for 22 files,
-  architecture audit docs for 13 files, and archived run-evidence material for
-  34 files. The archive is roughly 314 KB of a roughly 797 KB docs tree.
-- `examples/`: 17 tracked files. These include small minimal TSV/YAML/FASTA
-  fixtures plus two Fusobacterium example/template directories.
+- `docs/`: current docs plus architecture audit notes. The historical docs
+  subtree has since been removed, and durable principles now live in formal
+  policy, contract, release, or architecture docs.
+- `tests/fixtures/`: small TSV/YAML/FASTA fixtures, including synthetic
+  external-registration data that is internal test data rather than user-facing
+  examples or scientific evidence.
 - `scripts/`: local maintenance/release scripts for docs hygiene, workspace
   hygiene, release consistency, and release gating.
 - `results/`: intentionally narrow repository evidence area. Current tracked
@@ -124,8 +125,8 @@ Current entry points are well named but heavy:
 - Release docs are extensive and partially overlapping:
   `docs/release_process.md`, `docs/release_checklist.md`,
   `docs/release_verification.md`, and `docs/release_notes_v2_2_x.md`.
-- The archived docs area is indexed and explicitly historical, but its size and
-  discoverability still add search noise.
+- Historical docs were indexed separately at the time of this audit, and their
+  size and discoverability added search noise.
 
 ### Environment and CI shape
 
@@ -190,11 +191,11 @@ tables should stay out of stdout.
   `external_genomes_minimal.tsv`, `provider_request_minimal.tsv`,
   `external_genome_minimal.fna`,
   `fusobacterium_lpsn_child_taxa_minimal.tsv`, and `minimal_config.yml`.
-- Keep `examples/fusobacterium_external_pilot/` only if it remains a compact
-  redistributable workflow fixture with clear synthetic/non-evidence wording.
-- Keep `examples/fusobacterium_real_pilot_template/` only if it is still an
-  active curator handoff template. Otherwise move or archive it in a later
-  docs/examples cleanup PR.
+- Keep synthetic external-registration fixtures under `tests/fixtures/` only
+  when they directly support focused tests and retain clear synthetic,
+  non-evidence wording.
+- Do not restore root examples or old curator-template directories unless a
+  focused examples redesign asks for them.
 
 ### Merge or consolidate
 
@@ -224,14 +225,12 @@ points are pinned.
 
 Candidate later deletion or movement areas:
 
-- Archive stale PR drafts and old roadmap/validation notes can be removed or
-  moved to an external release-evidence archive if project history no longer
-  needs them in git.
-- The archived run-evidence area can stay if small, but should not grow. If it
-  grows, move historical run evidence outside the source repository.
-- Fusobacterium example/template material should be reviewed as a group. Keep
-  synthetic fixtures that test workflow behavior; archive or remove narrative
-  case-study material that duplicates docs.
+- Historical PR drafts, roadmap notes, validation notes, baselines, pilots, and
+  run-evidence tables should stay out of the maintained docs tree unless their
+  durable principles are extracted into current formal docs.
+- External-registration fixture material should be reviewed as test data. Keep
+  synthetic fixtures that test workflow behavior; remove narrative case-study
+  material that duplicates current docs.
 - Local ignored residue (`.pytest_tmp*`, `.tmp_pytest*`, `dist/`,
   `typetreeflow.egg-info/`, `.pytest_cache/`, `__pycache__/`) should be cleaned
   only by explicit local maintainer action, not by a product PR.
@@ -618,8 +617,8 @@ Recommended sections:
 
 ### Index and maintenance
 
-- Keep `docs/index.md` as a map, but shorten historical support listings by
-  linking to the archived-docs README instead of listing every archived file.
+- Keep `docs/index.md` as a map of current documentation only; do not restore
+  historical support listings or inventories.
 - Keep `docs/maintenance.md` concise and focused on where to update contracts.
 - Consider adding a short "AI-first command contract" subsection to
   `docs/contracts.md` instead of creating a new current top-level doc.
@@ -638,12 +637,11 @@ Do consolidate repeated narrative around:
   type-strain evidence;
 - Entrez fallback 16S is not same-genome barrnap evidence.
 
-### Archive
+### Historical notes
 
-Keep the archived-docs README as the only current route into archive material.
-Do not update archived files to look current. In a later cleanup PR, decide
-whether stale PR drafts, roadmap notes, and old validation notes still need to
-live in git.
+Do not restore historical inventories, stale PR drafts, roadmap notes, old
+validation notes, baselines, pilots, or run-evidence tables as maintained docs.
+Retain only durable rules in formal current documents.
 
 ## 8. Proposed PR sequence
 
@@ -674,12 +672,13 @@ live in git.
    - Do not add profiles that imply strict type-strain confirmation from
      representative or likely evidence.
 
-5. Examples and archive cleanup.
+5. Examples and historical-doc cleanup.
    - Inventory examples by test/doc usage.
    - Keep minimal fixtures.
    - Move or delete stale case-study material only after docs links and tests
      are adjusted.
-   - Do not touch archived docs until this specific cleanup PR.
+   - Extract durable historical principles into formal docs instead of keeping
+     historical inventories.
 
 6. Optional internal CLI refactor.
    - After stdout and docs contracts are pinned, consider command handler
@@ -864,10 +863,9 @@ Documentation changes were limited to entry-point convergence:
   `__pycache__/`, build outputs, and egg-info directories are generated
   artifacts that stay ignored and untracked.
 
-The next simplification pass should be a separate archive and examples audit. It
-should inventory which examples are test fixtures, documentation fixtures,
-active curator templates, or historical case-study material before moving or
-deleting anything.
+The next simplification pass should treat examples as a focused test-fixture and
+operator-doc design question. It should not restore root examples or historical
+documentation inventories as a shortcut.
 
 ## 16. Environment and doctor readiness follow-up completion note
 

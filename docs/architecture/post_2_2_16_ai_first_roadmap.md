@@ -33,8 +33,8 @@ be small documentation and routing tasks, not broad source reorganization.
 - Minimal smoke profiles are intentionally limited to `plan-only` and
   `limit4-real`.
 - The historical-docs surface has been reduced in the current documentation
-  map, while retained historical evidence remains behind the approved archive
-  map.
+  map, and retained principles now belong in the formal policy, contract,
+  release, or architecture docs.
 - Python 3.13 is covered by package metadata and CI. The local conda real-smoke
   environment stays pinned to Python 3.12.
 - PR #11 reduced duplicated AI-first CLI documentation without changing the

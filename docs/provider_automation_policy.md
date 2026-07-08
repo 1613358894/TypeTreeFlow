@@ -1,10 +1,9 @@
 # Provider Boundary Policy
 
 This is the current authoritative provider boundary document for
-TypeTreeFlow. It supersedes the archived provider feasibility, ATCC gate
-review, v0.9.0 spike, v2.0.0 framework, and local artifact normalization design
-notes. The deleted provider-era rationale is summarized in
-[`archive/README.md`](archive/README.md).
+TypeTreeFlow. It supersedes historical provider feasibility, ATCC gate review,
+provider-adapter spike, provider-framework, and local artifact normalization
+notes. The current policy below is the retained provider-era rationale.
 
 ## Current Support
 
@@ -29,6 +28,11 @@ Provider proposals are not installed genomes, do not write manifests, and do
 not change completion metrics. A curator must review terms, provenance, local
 FASTA paths, checksums, and type-material status before any provider-sourced
 local file can become an external registered genome.
+
+Provider planning is a review handoff only. It may help a curator decide what
+to request or review outside TypeTreeFlow, but it must not imply login,
+scraping, purchase, terms acceptance, automatic download, FASTA installation,
+manifest mutation, or completion-metric improvement.
 
 ## Default Boundary
 
@@ -110,10 +114,14 @@ later, it may prepare local curator-supplied FASTA evidence and checksums, but
 it must remain local-only and must still hand off to reviewed
 `external_genomes.tsv` registration.
 
-## Archived History
+Any local artifact normalization layer remains outside current behavior until a
+reviewed design and tests prove these boundaries:
 
-Provider-era history is summarized in
-[`archive/README.md`](archive/README.md). The retained
-[`archive/local_artifact_normalization_design.md`](archive/local_artifact_normalization_design.md)
-note is historical design-only support material, not a current behavior
-contract.
+- no provider network access, login, scraping, terms acceptance, purchasing, or
+  credential processing;
+- no direct writes to `manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`,
+  `cache/ncbi/download_plan.tsv`, or installed FASTA directories;
+- no completion-count changes from normalization outputs or provider
+  proposals;
+- local checksums, provenance, review notes, and type-material evidence remain
+  explicit inputs to manual external registration.

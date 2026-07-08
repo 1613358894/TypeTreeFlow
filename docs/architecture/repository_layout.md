@@ -50,11 +50,10 @@ documentation map, `docs/maintenance.md` is the maintenance rulebook, and the
 current contract and policy pages are kept at the top level under an explicit
 allowlist enforced by `scripts/check_docs_hygiene.py`.
 
-The documentation archive subdirectory contains historical plans, archived
-audit records, stale PR drafts, and compact run-evidence summaries. The current
-maintenance text treats archive files as evidence, not current behavior
-contracts. The docs hygiene script requires archived run evidence to use the
-current run-evidence subdirectory and rejects the old archived-runs location.
+Historical plans, old audit records, stale PR drafts, baselines, pilots, and
+compact run-evidence summaries are no longer retained as a maintained
+documentation subtree. The current maintenance text says to extract durable
+principles into formal docs instead of restoring historical inventories.
 
 `docs/architecture/` contains current-implementation architecture audit notes.
 The directory is linked from `docs/index.md` and governed by
@@ -144,7 +143,7 @@ tracked repository evidence.
 
 `docs/workspace_policy.md` and `docs/results_policy.md` are consistent with the
 script boundary. Workspace policy directs generated runs, deliveries, local
-data, manifests, scratch, history, rewrite, and local archive material outside
+data, manifests, scratch, history, rewrite, and local historical material outside
 the repository workspace root. Results policy says repository `results/` is not
 a run output directory and must keep only selected compact evidence. The script
 enforces that policy at the repository root.
@@ -161,7 +160,7 @@ not currently fail on those standard build/test artifacts.
 top-level `docs/*.md` membership, local Markdown link validity, README links to
 docs, release-checklist command coverage, legacy `typetreeflow_out/` wording
 context, inactive `docs/roadmap` and `docs/validation` Markdown content, and
-archive run-evidence placement.
+absence of the removed historical-docs subtree.
 
 The top-level docs allowlist means new current top-level documentation pages
 require an intentional script update and matching test coverage. The script
@@ -213,8 +212,8 @@ Markdown link checks rather than by a per-file architecture allowlist.
 
 - Do not move, delete, or clean local generated artifacts as part of this
   architecture documentation pass.
-- Do not move historical material out of the documentation archive without a
-  separate archive review.
+- Do not restore historical inventories, pilots, baselines, or run-evidence
+  stores without a focused cleanup task.
 - Do not make `results/` a normal run-output location.
 - Do not duplicate README operator instructions inside architecture audit
   notes.
@@ -232,7 +231,7 @@ passes when clean, forbidden root directories are reported, non-allowlisted
 the docs hygiene check, a minimal fixture passes, top-level versioned stage docs
 fail, broken local Markdown links fail, missing release-checklist hygiene
 commands fail, inactive docs directories with Markdown fail, and the old
-archived-runs location fails.
+historical-docs subtree fails.
 
 `tests/test_docs_consistency.py` is included in the requested validation set
 for documentation consistency. It was not opened in this audit pass, but it is

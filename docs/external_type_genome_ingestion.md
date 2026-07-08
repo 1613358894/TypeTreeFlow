@@ -80,6 +80,12 @@ workspace and `results/` boundaries are defined in
 [workspace_policy.md](workspace_policy.md) and
 [results_policy.md](results_policy.md).
 
+Any future local artifact preparation layer must remain a local curator-evidence
+helper. It may normalize file paths, checksums, and provenance for review, but
+it must not contact providers, process credentials, install FASTA files, write
+manifests or NCBI download plans, or change completion metrics before reviewed
+`external_genomes.tsv` registration.
+
 ## Implemented v0.6.0 Manual Registration Workflow
 
 v0.6.0 introduces an offline, curator-driven registration step:
