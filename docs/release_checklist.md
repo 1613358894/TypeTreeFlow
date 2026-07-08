@@ -169,8 +169,8 @@ python typetreeflow.py doctor
 ```bash
 test -f LICENSE
 test -f CITATION.cff
-test -f CONTRIBUTING.md
-test -f SECURITY.md
+test -f .github/CONTRIBUTING.md
+test -f .github/SECURITY.md
 test -f .github/workflows/ci.yml
 ```
 

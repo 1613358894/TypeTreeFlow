@@ -108,10 +108,11 @@ The local `typetreeflow.env` file exists in this checkout and is ignored by
 `.gitignore` through the `*.env` rule; it must remain local-only and should not
 be described as a repository source file.
 
-Governance files at the repository root include `LICENSE`, `NOTICE`,
-`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.gitattributes`, and
-`.gitignore`. Together they define licensing, notices, contribution conduct,
-security reporting, text attributes, and local generated-file boundaries.
+Governance files include repository-root `LICENSE`, `NOTICE`, `.gitattributes`,
+and `.gitignore`, plus `.github/CONTRIBUTING.md`,
+`.github/CODE_OF_CONDUCT.md`, and `.github/SECURITY.md`. Together they define
+licensing, notices, contribution conduct, security reporting, text attributes,
+and local generated-file boundaries.
 
 ## Gitignore And Workspace Hygiene
 

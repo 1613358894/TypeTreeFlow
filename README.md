@@ -932,7 +932,7 @@ python scripts/check_docs_hygiene.py
 
 ## Contributing
 
-Before changing behavior, read [CONTRIBUTING.md](CONTRIBUTING.md) and
+Before changing behavior, read [CONTRIBUTING.md](.github/CONTRIBUTING.md) and
 [docs/maintenance.md](docs/maintenance.md). Keep README as the user entry point;
 put detailed design, path, schema, status, release, and historical evidence
 material in the relevant docs.
