@@ -171,7 +171,13 @@ def _check_top_level_versioned_stage_docs(root: Path) -> DocsHygieneCheckResult:
 
 def _check_inactive_current_doc_dirs(root: Path) -> DocsHygieneCheckResult:
     offenders: list[str] = []
-    for relative_dir in [Path("docs/roadmap"), Path("docs/validation")]:
+    inactive_dirs = [
+        Path("docs/audit"),
+        Path("docs/process"),
+        Path("docs/roadmap"),
+        Path("docs/validation"),
+    ]
+    for relative_dir in inactive_dirs:
         directory = root / relative_dir
         if not directory.exists():
             continue
@@ -188,7 +194,8 @@ def _check_inactive_current_doc_dirs(root: Path) -> DocsHygieneCheckResult:
     return DocsHygieneCheckResult(
         "inactive docs directories",
         False,
-        "docs/roadmap and docs/validation must not contain Markdown file(s): "
+        "docs/audit, docs/process, docs/roadmap, and docs/validation must not "
+        "contain Markdown file(s): "
         + ", ".join(offenders),
     )
 

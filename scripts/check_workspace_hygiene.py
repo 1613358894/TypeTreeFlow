@@ -18,6 +18,7 @@ class HygieneCheckResult:
 def run_checks(root: Path = REPO_ROOT) -> list[HygieneCheckResult]:
     root = root.resolve()
     return [
+        _forbidden_path(root, "examples", expected_kind="directory"),
         _forbidden_path(root, "typetreeflow_out", expected_kind="directory"),
         _forbidden_path(root, "other", expected_kind="directory"),
         _forbidden_path(root, "cache", expected_kind="directory"),

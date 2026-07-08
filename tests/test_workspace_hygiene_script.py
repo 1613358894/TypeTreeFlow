@@ -27,6 +27,16 @@ def test_typetreeflow_out_fails(tmp_path):
     assert "forbidden repository-root directory exists" in completed.stdout
 
 
+def test_root_examples_directory_fails(tmp_path):
+    (tmp_path / "examples").mkdir()
+
+    completed = _run_check(tmp_path)
+
+    assert completed.returncode == 1
+    assert "[FAIL] examples" in completed.stdout
+    assert "forbidden repository-root directory exists" in completed.stdout
+
+
 def test_other_fails(tmp_path):
     (tmp_path / "other").mkdir()
 

@@ -49,8 +49,8 @@ Recommended workspace layout:
 download, release verification, report refresh, and analysis outputs should
 normally live here. Use descriptive run names, and use
 `<workspace>/runs/release/<run-name>` for release validation runs.
-This is distinct from tracked documentation archive evidence summaries, which
-are not generated run-output directories.
+This is distinct from maintained repository documentation, which is not a
+generated run-output location.
 
 `<workspace>/deliveries/` is for reviewed package handoffs produced by
 `package-results --delivery-dir`. Delivery packages are handoff artifacts, not
@@ -69,8 +69,8 @@ directory.
 areas. Use them for disposable experiments, old local outputs, rewrite drafts,
 and operator-maintained local archives. They are not TypeTreeFlow's canonical
 run or delivery outputs, and they should not be treated as repository
-documentation archives unless a separate reviewed archive pass explicitly
-promotes selected material into the maintained documentation archive.
+documentation. Durable rules from local material belong in the nearest current
+contract, policy, architecture, or release document.
 
 ## Local Maintainer Example
 

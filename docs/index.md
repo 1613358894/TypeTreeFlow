@@ -18,6 +18,22 @@ planning notes are not retained as documentation inventories. When old material
 contains a still-current rule, extract the rule into the appropriate formal
 document instead of restoring the old file.
 
+## Current Routes
+
+- Quickstart: [../README.md](../README.md) -> [cookbook.md](cookbook.md).
+- Recipes: [cookbook.md](cookbook.md), with low-level recovery details linked
+  from the relevant contract pages.
+- Contracts: [contracts.md](contracts.md), [stable_contracts.md](stable_contracts.md),
+  and [handoff_index_contract.md](handoff_index_contract.md).
+- Outputs: [output_layout.md](output_layout.md), [schemas.md](schemas.md),
+  [statuses.md](statuses.md), [workspace_policy.md](workspace_policy.md), and
+  [results_policy.md](results_policy.md).
+- Release: [release_process.md](release_process.md),
+  [release_checklist.md](release_checklist.md),
+  [release_verification.md](release_verification.md), and
+  [release_notes_v2_2_x.md](release_notes_v2_2_x.md).
+- Architecture: [architecture/index.md](architecture/index.md).
+
 ## Shortest Reading Paths
 
 - Ordinary users: [../README.md](../README.md) -> [cookbook.md](cookbook.md).

@@ -108,10 +108,11 @@ The local `typetreeflow.env` file exists in this checkout and is ignored by
 `.gitignore` through the `*.env` rule; it must remain local-only and should not
 be described as a repository source file.
 
-Governance files at the repository root include `LICENSE`, `NOTICE`,
-`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `.gitattributes`, and
-`.gitignore`. Together they define licensing, notices, contribution conduct,
-security reporting, text attributes, and local generated-file boundaries.
+Governance files include repository-root `LICENSE`, `NOTICE`, `.gitattributes`,
+and `.gitignore`, plus `.github/CONTRIBUTING.md`,
+`.github/CODE_OF_CONDUCT.md`, and `.github/SECURITY.md`. Together they define
+licensing, notices, contribution conduct, security reporting, text attributes,
+and local generated-file boundaries.
 
 ## Gitignore And Workspace Hygiene
 
@@ -154,8 +155,9 @@ not currently fail on those standard build/test artifacts.
 `scripts/check_docs_hygiene.py` enforces required documentation files,
 top-level `docs/*.md` membership, local Markdown link validity, README links to
 docs, release-checklist command coverage, legacy `typetreeflow_out/` wording
-context, inactive `docs/roadmap` and `docs/validation` Markdown content, and
-absence of the removed historical-docs subtree.
+context, inactive `docs/audit`, `docs/process`, `docs/roadmap`, and
+`docs/validation` Markdown content, and absence of the removed historical-docs
+subtree.
 
 The top-level docs allowlist means new current top-level documentation pages
 require an intentional script update and matching test coverage. The script

@@ -23,11 +23,11 @@ pytest -p no:cacheprovider --basetemp .pytest_tmp
 ## Pull request expectations
 
 - Keep changes focused on one behavior or documentation area.
-- Follow the commit and CI hygiene rules in `docs/maintenance.md`.
+- Follow the commit and CI hygiene rules in `../docs/maintenance.md`.
 - Add or update tests for behavior changes.
-- Update `README.md`, `docs/`, or `CHANGELOG.md` when user-visible behavior
+- Update `../README.md`, `../docs/`, or `../CHANGELOG.md` when user-visible behavior
   changes.
-- Use `docs/maintenance.md` to decide which documentation contract, design, or
+- Use `../docs/maintenance.md` to decide which documentation contract, design, or
   release note needs updating.
 - Do not commit generated run outputs, downloaded GTDB metadata, NCBI ZIPs,
   build artifacts, caches, or local environment directories.
@@ -42,4 +42,4 @@ python typetreeflow.py --help
 python -m pip wheel . --no-deps -w .dist_test
 ```
 
-See `docs/release_checklist.md` for the fuller release validation workflow.
+See `../docs/release_checklist.md` for the fuller release validation workflow.

@@ -99,6 +99,7 @@ def test_archive_documentation_is_not_restored_or_linked():
     ]
 
     assert not (Path("docs") / "archive").exists()
+    assert not Path("examples").exists()
 
     checked_paths = ["README.md"]
     checked_paths.extend(
@@ -150,6 +151,7 @@ def test_high_level_workflow_docs_are_current():
     current_release_verification = _read("docs/release_verification.md")
     release_notes = _read("docs/release_notes_v2_2_x.md")
     release_checklist = _read("docs/release_checklist.md")
+    output_layout = _read("docs/output_layout.md")
 
     for docs in [
         readme,
@@ -182,7 +184,7 @@ def test_high_level_workflow_docs_are_current():
     assert "pip install datasets" not in readme
     assert "pip install datasets" not in cookbook
 
-    for docs in [readme, cookbook, current_release_verification, release_notes]:
+    for docs in [current_release_verification, release_notes]:
         for phrase in [
             "completion/gaps.tsv",
             "completion/uncovered_species.tsv",
@@ -200,6 +202,27 @@ def test_high_level_workflow_docs_are_current():
         ]:
             assert phrase in docs
 
+    for phrase in [
+        "completion/gaps.tsv",
+        "completion/uncovered_species.tsv",
+        "completion/16s_gaps.tsv",
+        "completion/expanded_discovery_plan.tsv",
+        "completion/expanded_discovery_results.tsv",
+        "completion/expanded_discovery_history.tsv",
+        "completion/rejected_candidates.tsv",
+        "completion/manual_supplement_hints.tsv",
+        "--enable-expanded-discovery",
+    ]:
+        assert phrase in output_layout
+
+    for docs in [cookbook, current_release_verification]:
+        for phrase in [
+            "shared acquisition cache",
+            "checkpoint",
+            "resume",
+        ]:
+            assert phrase in docs
+
     for docs in [readme, cookbook, current_release_verification]:
         for phrase in [
             "Same-genome barrnap 16S",
@@ -213,7 +236,7 @@ def test_high_level_workflow_docs_are_current():
         ]:
             assert phrase in docs
 
-    for docs in [readme, cookbook, current_release_verification, release_notes]:
+    for docs in [cookbook, current_release_verification, release_notes]:
         for phrase in [
             "audit-only",
             "manifest",
@@ -230,7 +253,8 @@ def test_high_level_workflow_docs_are_current():
         "--enable-expanded-discovery",
         "manifest.tsv",
     ]:
-        assert phrase in readme
+        assert phrase in current_release_verification
+        assert phrase in output_layout
 
     assert "typetreeflow doctor" in release_checklist
 
@@ -526,6 +550,7 @@ def test_gitattributes_pins_text_fixtures_to_lf():
 
 def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     readme = _read("README.md")
+    normalized_readme = _normalize_whitespace(readme)
     completion_doc = _read("docs/completion_audit.md")
     external_cookbook = _read("docs/external_workflow_cookbook.md")
 
@@ -536,8 +561,8 @@ def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     ]:
         assert path.exists(), f"{path.as_posix()} should exist"
 
-    assert "root `examples/` directory is" in readme
-    assert "intentionally absent during cleanup" in readme
+    assert "Root user examples are intentionally absent after cleanup" in normalized_readme
+    assert "Fixtures under `tests/fixtures/` are internal test data" in normalized_readme
     assert "not a real ATCC genome" in readme
     assert "NCBI Assembly strict completion remains `16/17`" in external_cookbook
     assert "External-inclusive strict completion is `17/17`" in external_cookbook
@@ -559,6 +584,49 @@ def test_provider_boundary_policy_preserves_manual_registration_boundary():
     assert "NCBI Assembly strict completion" in policy
     assert "completion metrics" in policy
     assert "ATCC Genome Portal has no automated downloader" in policy
+
+
+def test_authoritative_docs_own_maintenance_anchors():
+    output_layout = _read("docs/output_layout.md")
+    normalized_output_layout = _normalize_whitespace(output_layout)
+    provider_policy = _read("docs/provider_automation_policy.md")
+    normalized_provider_policy = _normalize_whitespace(provider_policy)
+    results_policy = _read("docs/results_policy.md")
+    normalized_results_policy = _normalize_whitespace(results_policy)
+    workspace_policy = _read("docs/workspace_policy.md")
+    release_process = _read("docs/release_process.md")
+    release_verification = _read("docs/release_verification.md")
+
+    for phrase in [
+        "write compact JSON to stdout by default",
+        "does not require `--json`, `--human`, or `--pretty`",
+        "one compact JSON object to stdout",
+    ]:
+        assert phrase in normalized_output_layout
+
+    for phrase in [
+        "Provider planning is a review handoff only.",
+        "must not imply login, scraping, purchase, terms acceptance",
+        "automatic download",
+        "do not write manifests",
+        "do not change completion metrics",
+    ]:
+        assert phrase in normalized_provider_policy
+
+    for phrase in [
+        "repository-root `results/`",
+        "is not a run output directory",
+        "any repository-root path is reported as forbidden",
+    ]:
+        assert phrase in normalized_results_policy
+
+    assert "`<workspace>/runs/` is for generated run outputs" in workspace_policy
+    assert "Local Maintainer Example" in workspace_policy
+
+    for docs in [release_process, release_verification]:
+        assert "release gate" in docs
+        assert "workspace" in docs.lower()
+        assert "results/" in docs
 
 
 def test_v2_2_x_release_docs_are_discoverable():

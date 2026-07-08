@@ -119,14 +119,13 @@ Common entry points:
   [docs/species_checklist_audit.md](docs/species_checklist_audit.md), and
   [docs/lpsn_first_acquisition.md](docs/lpsn_first_acquisition.md): design,
   contract, handoff, checklist, and deep LPSN-first references.
-Historical plans, old audits, roadmap notes, and run evidence are indexed from
-[docs/index.md](docs/index.md). They are evidence snapshots, not current
-behavior contracts or required release gates. The root `examples/` directory is
-intentionally absent during cleanup; user-facing examples will be rebuilt after
-the workflow is slimmer and real tests are complete. Fixtures under
-`tests/fixtures/` are internal test data, not user examples. The retained
-synthetic external-registration fixture is not a real ATCC genome and not
-biological evidence.
+
+README stays on the quick route. Detailed stdout, output, provider, workspace,
+results, release, and maintenance boundaries live in the linked authoritative
+docs. Root user examples are intentionally absent after cleanup and should not
+be restored from old packages. Fixtures under `tests/fixtures/` are internal
+test data, not user examples. The retained synthetic external-registration
+fixture is not a real ATCC genome and not biological evidence.
 
 ## Taxonomic scope
 
@@ -402,43 +401,14 @@ Fallback warnings
 Strict blocking count
 ```
 
-TypeTreeFlow does not promise automatic 100% coverage for a genus. v2.2.2 writes
-completion gap reports to make partial coverage auditable:
-`completion/gaps.tsv`, `completion/uncovered_species.tsv`, and
-`completion/16s_gaps.tsv`. Gap categories separate insufficient type evidence,
-missing external candidates, workflow or network failure before selection, and
-genome-ready records where 16S was not found. When `package-results` is pointed
-at an unfinished outdir, it reports the failed stage and the next action from
-`run_state.json` instead of silently packaging an ambiguous result.
-
-v2.2.3 adds expanded NCBI token discovery as an audit handoff for uncovered
-species. By default, completion reporting only writes
-`completion/expanded_discovery_plan.tsv`, a query plan built from LPSN
-type-strain tokens. If `taxonomy/ncbi_taxonomy_cache.tsv` exists, species-level
-NCBI Taxonomy `synonyms`, `equivalent_names`, and `includes` add
-taxonomy-derived alias-plus-token queries to that plan with provenance in
-`notes`. Passing `--enable-expanded-discovery` executes that plan against NCBI
-Assembly and BioSample clients or local caches and writes
-`completion/expanded_discovery_results.tsv`,
-`completion/expanded_discovery_history.tsv`,
-`completion/rejected_candidates.tsv`, and
-`completion/manual_supplement_hints.tsv`. These files are audit-only and
-review-only. `manual_supplement_hints.tsv` is a curator handoff queue with
-`reason`, `source`, `recommended_action`, and `handoff_path` fields for
-reviewing matched candidates, checking species identity mismatches, retrying
-failed queries, supplying curator-confirmed accessions, or preparing external
-FASTA rows. `report/summary.md`, `report/run_review.md`, `status`, and
-`next-step` surface those same action/reason/handoff fields as navigation
-guidance only. Matched candidates, supplemental accessions, and external FASTA
-rows are not automatically added to `manifest.tsv`, selection rows, completion
-metrics, or evidence levels; curator review is still required before any manual
-selection or registration change.
-
-The v2.2.9 Clostridium limited smoke is only an exploratory verification of
-those guarded handoff and packaging paths. It should use local cache or minimal
-synthetic inputs, should not run real NCBI Datasets downloads, and is not a
-Clostridium genus-completion effort. It does not relax representative-only,
-expanded discovery, or manual supplement boundaries.
+TypeTreeFlow does not promise automatic 100% coverage for a genus. Completion
+gap outputs, expanded-discovery handoff rows, release evidence, and unfinished
+package behavior are defined in [docs/completion_audit.md](docs/completion_audit.md),
+[docs/release_verification.md](docs/release_verification.md), and
+[docs/output_layout.md](docs/output_layout.md). Matched candidates,
+supplemental accessions, and external FASTA rows are not automatically added to
+`manifest.tsv`, selection rows, completion metrics, or evidence levels; curator
+review is still required before any manual selection or registration change.
 
 For external provider data, keep planning and local FASTA registration
 separate. TypeTreeFlow does not automatically log in to, scrape, purchase from,
@@ -962,7 +932,7 @@ python scripts/check_docs_hygiene.py
 
 ## Contributing
 
-Before changing behavior, read [CONTRIBUTING.md](CONTRIBUTING.md) and
+Before changing behavior, read [CONTRIBUTING.md](.github/CONTRIBUTING.md) and
 [docs/maintenance.md](docs/maintenance.md). Keep README as the user entry point;
 put detailed design, path, schema, status, release, and historical evidence
 material in the relevant docs.
