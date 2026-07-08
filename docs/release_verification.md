@@ -7,14 +7,15 @@ interpret incomplete results. It complements the release workflow in
 [release_checklist.md](release_checklist.md).
 
 Historical v2.2.x release behavior is summarized in
-[release_notes_v2_2_x.md](release_notes_v2_2_x.md). Older matrix runbooks are
-retained only as archived historical evidence.
+[release_notes_v2_2_x.md](release_notes_v2_2_x.md). Older matrix runbooks,
+baselines, and acceptance checklists are not current release gates; retain only
+their durable lessons in current release docs.
 
 ## Output Locations
 
 Release verification outputs should normally be outside the repository.
 Workspace placement is governed by [workspace_policy.md](workspace_policy.md),
-repository `results/` content is limited by
+repository-root `results/` paths are excluded by
 [results_policy.md](results_policy.md), and run-directory files are defined in
 [output_layout.md](output_layout.md).
 
@@ -64,7 +65,9 @@ opt-in `--auto-accept-selection --enable-downloads`.
 
 A verification matrix should record each genus/policy case, the chosen outdir,
 the command or cache inputs, pass/fail status, and any expected limitations.
-The matrix is release evidence, not a replacement for the current checklist.
+The matrix is local release evidence, not a replacement for the current
+checklist, not a retained documentation inventory, and not a reason to commit
+large run products.
 
 ## Evidence To Record
 

@@ -90,20 +90,15 @@ def test_release_version_sources_are_consistent():
     assert f"v{version}" in release_notes
 
 
-def test_archive_references_stay_in_archive_map_and_boundary_docs():
-    archive_dir = "docs" + "/archive"
-    allowed_paths = {
-        "docs/index.md",
-        "docs/maintenance.md",
-        "docs/provider_automation_policy.md",
-        archive_dir + "/README.md",
-    }
+def test_archive_documentation_is_not_restored_or_linked():
     forbidden_patterns = [
-        archive_dir,
+        "docs" + "/archive",
         "archive" + "/",
         "species_checklist" + "_implementation_plan",
         "phase15_real" + "_run_checklist",
     ]
+
+    assert not (Path("docs") / "archive").exists()
 
     checked_paths = ["README.md"]
     checked_paths.extend(
@@ -112,8 +107,6 @@ def test_archive_references_stay_in_archive_map_and_boundary_docs():
     )
 
     for path in checked_paths:
-        if path in allowed_paths:
-            continue
         docs = _read(path)
         for pattern in forbidden_patterns:
             assert pattern not in docs, f"{path} should not reference {pattern}"
@@ -156,19 +149,13 @@ def test_high_level_workflow_docs_are_current():
     design = _read("docs/design.md")
     current_release_verification = _read("docs/release_verification.md")
     release_notes = _read("docs/release_notes_v2_2_x.md")
-    acceptance_checklist = _read(
-        "docs/archive/v2_2_x_acceptance_" + "checklist.md"
-    )
-    release_verification = _read(
-        "docs/archive/v2_2_0_release_" + "verification.md"
-    )
+    release_checklist = _read("docs/release_checklist.md")
 
     for docs in [
         readme,
         cookbook,
         design,
         current_release_verification,
-        release_verification,
     ]:
         for phrase in [
             "verify-genus",
@@ -181,7 +168,7 @@ def test_high_level_workflow_docs_are_current():
         ]:
             assert phrase in docs
 
-    for docs in [readme, cookbook, current_release_verification, release_verification]:
+    for docs in [readme, cookbook, current_release_verification]:
         assert "--auto-accept-selection" in docs
         assert "--enable-downloads" in docs
         assert "exploratory" in docs
@@ -190,7 +177,6 @@ def test_high_level_workflow_docs_are_current():
     assert "verify-release-genus" in readme
     assert "verify-release-genus" in cookbook
     assert "verify-release-genus" in current_release_verification
-    assert "verify-release-genus" in release_verification
     assert "Credentials" in cookbook
     assert "credentials" in readme
     assert "pip install datasets" not in readme
@@ -236,15 +222,22 @@ def test_high_level_workflow_docs_are_current():
 
     for phrase in [
         "python typetreeflow.py --version",
-        "python typetreeflow.py doctor --strict",
-        "pytest tests/test_docs_consistency.py --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex",
-        "pytest --basetemp .pytest_tmp_codex -o cache_dir=.pytest_cache_codex",
-        "--enable-expanded-discovery",
-        "--enable-ncbi-taxonomy",
-        "manifest.tsv",
         "selection/user_selection.tsv",
     ]:
-        assert phrase in acceptance_checklist
+        assert phrase in release_checklist
+
+    for phrase in [
+        "--enable-expanded-discovery",
+        "manifest.tsv",
+    ]:
+        assert phrase in readme
+
+    assert "typetreeflow doctor" in release_checklist
+
+    assert "--enable-ncbi-taxonomy" in readme
+    assert "Older matrix runbooks, baselines, and acceptance checklists" in (
+        _normalize_whitespace(current_release_verification)
+    )
 
     for phrase in [
         "Enterobacter siamensis",
@@ -500,22 +493,22 @@ def test_stable_contracts_preserve_provider_and_completion_boundaries():
         assert phrase in docs
 
 
-def test_example_selection_tsv_headers_match_schemas():
-    assert _header("examples/assembly_candidates_minimal.tsv") == CANDIDATE_FIELDS
-    assert _header("examples/user_selection_minimal.tsv") == SELECTION_FIELDS
-    assert _header("examples/discovery_records_minimal.tsv") == DISCOVERY_RECORD_FIELDS
+def test_fixture_selection_tsv_headers_match_schemas():
+    assert _header("tests/fixtures/minimal/assembly_candidates_minimal.tsv") == CANDIDATE_FIELDS
+    assert _header("tests/fixtures/minimal/user_selection_minimal.tsv") == SELECTION_FIELDS
+    assert _header("tests/fixtures/minimal/discovery_records_minimal.tsv") == DISCOVERY_RECORD_FIELDS
     assert (
-        _header("examples/fusobacterium_lpsn_child_taxa_minimal.tsv")
+        _header("tests/fixtures/minimal/fusobacterium_lpsn_child_taxa_minimal.tsv")
         == LPSN_CHILD_TAXA_FIELDS
     )
 
 
-def test_example_discovery_and_lpsn_tsvs_are_readable():
+def test_fixture_discovery_and_lpsn_tsvs_are_readable():
     discovery_records = read_discovery_records(
-        "examples/discovery_records_minimal.tsv"
+        "tests/fixtures/minimal/discovery_records_minimal.tsv"
     )
     child_taxa = read_lpsn_child_taxa(
-        "examples/fusobacterium_lpsn_child_taxa_minimal.tsv"
+        "tests/fixtures/minimal/fusobacterium_lpsn_child_taxa_minimal.tsv"
     )
 
     assert len(discovery_records) == 3
@@ -524,7 +517,7 @@ def test_example_discovery_and_lpsn_tsvs_are_readable():
     assert child_taxa[-1].exclusion_reason == "taxonomic status is synonym"
 
 
-def test_gitattributes_pins_example_text_fixtures_to_lf():
+def test_gitattributes_pins_text_fixtures_to_lf():
     attributes = set(_read(".gitattributes").splitlines())
 
     for pattern in ["*.tsv", "*.fna", "*.fasta", "*.fa"]:
@@ -533,30 +526,25 @@ def test_gitattributes_pins_example_text_fixtures_to_lf():
 
 def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     readme = _read("README.md")
-    pilot_doc = _read("docs/archive/fusobacterium_external_pilot.md")
     completion_doc = _read("docs/completion_audit.md")
-    example_readme = _read("examples/fusobacterium_external_pilot/README.md")
+    external_cookbook = _read("docs/external_workflow_cookbook.md")
 
     for path in [
-        Path("docs/archive/fusobacterium_external_pilot.md"),
-        Path("examples/fusobacterium_external_pilot/README.md"),
-        Path("examples/fusobacterium_external_pilot/external_genomes.tsv"),
-        Path("examples/fusobacterium_external_pilot/ncbi_strict_manifest.tsv"),
-        Path("examples/fusobacterium_external_pilot/synthetic_mortiferum_atcc25557.fna"),
+        Path("tests/fixtures/fusobacterium_external_pilot/external_genomes.tsv"),
+        Path("tests/fixtures/fusobacterium_external_pilot/ncbi_strict_manifest.tsv"),
+        Path("tests/fixtures/fusobacterium_external_pilot/synthetic_mortiferum_atcc25557.fna"),
     ]:
         assert path.exists(), f"{path.as_posix()} should exist"
 
-    assert "examples/fusobacterium_external_pilot/README.md" in readme
+    assert "root `examples/` directory is" in readme
+    assert "intentionally absent during cleanup" in readme
     assert "not a real ATCC genome" in readme
-    assert "NCBI Assembly strict completion" in pilot_doc
-    assert "external-inclusive strict completion" in pilot_doc
-    assert "not a real ATCC Genome Portal" in pilot_doc
+    assert "NCBI Assembly strict completion remains `16/17`" in external_cookbook
+    assert "External-inclusive strict completion is `17/17`" in external_cookbook
+    assert "does not log in to\nATCC Genome Portal" in external_cookbook
     assert "NCBI Assembly strict completion: 16/17" in completion_doc
     assert "External-inclusive strict completion: 17/17" in completion_doc
     assert "synthetic/local test data" in completion_doc
-    assert "NCBI Assembly strict completion: `16/17`" in example_readme
-    assert "External-inclusive strict completion: `17/17`" in example_readme
-    assert "not real ATCC" in example_readme
 
 
 def test_provider_boundary_policy_preserves_manual_registration_boundary():
@@ -575,20 +563,15 @@ def test_provider_boundary_policy_preserves_manual_registration_boundary():
 
 def test_v2_2_x_release_docs_are_discoverable():
     index = _read("docs/index.md")
-    archive_readme = _read("docs/archive/README.md")
     changelog = _read("CHANGELOG.md")
+    release_verification = _read("docs/release_verification.md")
     release_notes = _read("docs/release_notes_v2_2_x.md")
-    acceptance_checklist = _read(
-        "docs/archive/v2_2_x_acceptance_" + "checklist.md"
-    )
 
-    for path in [
-        "release_notes_v2_2_x.md",
-        "archive/README.md",
-    ]:
-        assert path in index
-    assert "v2_2_x_acceptance_" + "checklist.md" in archive_readme
-    assert "pr_description_" + "v2_2_x.md" in archive_readme
+    assert "release_notes_v2_2_x.md" in index
+    assert "release_verification.md" in index
+    assert "Older matrix runbooks, baselines, and acceptance checklists" in (
+        _normalize_whitespace(release_verification)
+    )
 
     for docs in [changelog, release_notes]:
         for phrase in [
@@ -602,14 +585,20 @@ def test_v2_2_x_release_docs_are_discoverable():
             assert phrase in docs
 
     for phrase in [
+        "shared acquisition cache",
+        "audit-only",
+        "automatic 100% coverage",
+    ]:
+        assert phrase in release_verification
+
+    for phrase in [
         "completion/expanded_discovery_plan.tsv",
         "completion/rejected_candidates.tsv",
         "completion/manual_supplement_hints.tsv",
-        "taxonomy-derived",
         "manifest.tsv",
         "selection/user_selection.tsv",
     ]:
-        assert phrase in acceptance_checklist
+        assert phrase in release_verification
 
 
 def test_handoff_index_contract_is_discoverable_and_preserves_boundaries():
@@ -653,14 +642,11 @@ def test_handoff_index_contract_is_discoverable_and_preserves_boundaries():
 def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
     readme = _read("README.md")
     index = _read("docs/index.md")
-    archive_readme = _read("docs/archive/README.md")
     schemas = _read("docs/schemas.md")
     statuses = _read("docs/statuses.md")
     policy = _read("docs/provider_automation_policy.md")
-    local_artifact_doc = "local_artifact" + "_normalization_design.md"
-    normalization = _read("docs/archive/" + local_artifact_doc)
+    ingestion = _read("docs/external_type_genome_ingestion.md")
 
-    assert local_artifact_doc in archive_readme
     assert "provider_automation_policy.md" in index
     assert "no-default-download" in index
 
@@ -693,18 +679,21 @@ def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
         assert field in schemas
 
     for phrase in [
-        "future offline normalization layer",
-        "does not implement provider network access",
-        "does not log in",
-        "scrape",
-        "process credentials",
-        "does not write `manifest.tsv`, `name_map.tsv`",
-        "`external_genomes.tsv`, or NCBI download plans directly",
-        "No ATCC downloader",
-        "No direct manifest, name-map, cache, or NCBI download-plan writes",
-        "No completion-count changes from normalization outputs or provider proposals",
+        "local artifact normalization layer remains outside current behavior",
+        "no provider network access",
+        "login, scraping, terms acceptance, purchasing, or\n  credential processing",
+        "no direct writes to `manifest.tsv`, `name_map.tsv`, `external_genomes.tsv`",
+        "no completion-count changes from normalization outputs or provider\n  proposals",
     ]:
-        assert phrase in normalization
+        assert phrase in policy
+
+    for phrase in [
+        "future local artifact preparation layer",
+        "must remain a local curator-evidence\nhelper",
+        "must not contact providers, process credentials, install FASTA files",
+        "change completion metrics before reviewed\n`external_genomes.tsv` registration",
+    ]:
+        assert phrase in ingestion
 
 
 def _read(path: str) -> str:

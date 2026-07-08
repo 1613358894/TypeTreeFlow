@@ -63,8 +63,7 @@ anchors. It reports `DocsHygieneCheckResult` rows and does not rewrite docs.
 `scripts/check_workspace_hygiene.py` checks repository-root residue without
 modifying files. It reports forbidden root paths such as `typetreeflow_out`,
 `other`, and `cache`, forbidden `output*` and `phase*` prefixes, and the
-repository `results/` allowlist. For `results/`, the current allowlist is only
-`results/v2_2_0_release_verification/verification_matrix.tsv`.
+forbidden repository-root `results/` path.
 
 `scripts/release_gate.py` is the local release gate orchestrator. It reads the
 target version from `pyproject.toml` unless `--version` is supplied, runs
@@ -102,7 +101,7 @@ Workspace hygiene starts at `scripts/check_workspace_hygiene.py`. The checker
 looks at repository-root paths and `results/` contents. It reports residue and
 does not delete or move anything. `docs/workspace_policy.md` defines where
 ordinary generated runs should live, while `docs/results_policy.md` defines
-the small repository evidence exception that the script enforces.
+that repository-root `results/` paths are excluded.
 
 The release gate runs local stages in order. Pre-artifact stages are release
 consistency, docs hygiene, workspace hygiene, pytest, and `python -m build`.
@@ -135,7 +134,7 @@ The maintenance docs connect the hygiene checks:
   tests alongside docs structure or release-gate command changes.
 - `docs/workspace_policy.md` defines external workspace placement for generated
   runs, deliveries, local data, manifests, and scratch work.
-- `docs/results_policy.md` defines the limited repository `results/` exception
+- `docs/results_policy.md` defines the repository-root `results/` exclusion
   that `scripts/check_workspace_hygiene.py` enforces.
 
 ## External Boundaries
@@ -178,8 +177,8 @@ of complete genus coverage and not a promise of real download validation.
   required release-checklist commands, inactive docs directories, and
   historical run-evidence placement.
 - `tests/test_workspace_hygiene_script.py` covers current-repository workspace
-  hygiene, forbidden root directories, forbidden non-allowlisted `results/`
-  content, and the allowlisted verification matrix.
+  hygiene, forbidden root directories, and forbidden repository-root
+  `results/` content.
 - `tests/test_docs_consistency.py` covers version-source anchors, release docs
   discoverability, CLI/docs consistency, output path docs, schema/status docs,
   provider boundaries, and documentation-map expectations.

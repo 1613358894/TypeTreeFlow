@@ -28,28 +28,26 @@ to maintain the layers:
   planned text read like current behavior.
 - Operational and release docs guide repeatable project work: release policy,
   validation steps, contribution expectations, and documentation hygiene.
-- Architecture audit docs under `docs/architecture/` record current
-  implementation review notes. Keep them evidence-oriented and clearly
-  separated from user tutorials, stable contracts, and future commitments.
+- Architecture docs under `docs/architecture/` record compact current
+  implementation maps. Keep them separated from user tutorials, stable
+  contracts, future commitments, and temporary audit or roadmap material.
 
 For manual external genomes, keep the split narrow:
 `docs/external_type_genome_ingestion.md` is the design/data-contract entry,
 `docs/external_workflow_cookbook.md` is the short operator workflow, and
 `docs/completion_audit.md` explains completion/gap metrics. Fusobacterium
-material stays in `docs/archive/` or `examples/` as case/template context.
+historical pilots are not current operator instructions. The root `examples/`
+directory is intentionally absent during cleanup; internal test fixtures live
+under `tests/fixtures/` and are not user examples.
 
-### Archive And Historical Material
+### Historical Material
 
-`docs/archive/` contains historical plans, stale PR drafts, compact run
-evidence summaries, and audit records. Historical plans, old audits,
-stage-specific roadmap notes, phase-specific release or validation evidence,
-and stale PR drafts should live under `docs/archive/` after an explicit archive
-pass. Use `docs/archive/run_evidence/` for small tracked historical run
-evidence summaries; do not use it for generated run outputs.
-
-Archive content is evidence, not the current behavior contract. Do not update
-archive files to make them look current. If archived evidence reveals a current
-rule, write that rule in `README.md` or the appropriate current docs instead.
+Historical plans, stale PR drafts, compact run evidence, baselines, pilots, and
+old checklists should not be restored as maintained documentation. If old
+material reveals a still-current rule, extract the rule into `README.md` or the
+appropriate current contract, policy, architecture, or release document. Do not
+create replacement historical inventories or new historical-note documents
+during routine maintenance.
 
 ## Change checklist
 
@@ -60,15 +58,15 @@ surfaces:
   user-visible behavior: update `README.md` and, where relevant,
   `docs/design.md`.
 - Output directories or filenames: update `docs/output_layout.md` and any
-  examples that mention the path. If the change affects workspace root
+  current docs that mention the path. If the change affects workspace root
   selection, update `docs/workspace_policy.md`; if it affects repository
-  `results/` hygiene, update `docs/results_policy.md` and
-  `scripts/check_workspace_hygiene.py` together.
-- Documentation structure, top-level docs membership, archive boundaries, or
+  `results/` hygiene, update `docs/results_policy.md`,
+  `scripts/check_workspace_hygiene.py`, and focused tests together.
+- Documentation structure, top-level docs membership, historical-doc handling, or
   release-gate commands: update `scripts/check_docs_hygiene.py` and its tests
   together with the affected docs.
-- TSV schemas, column order, required values, or example rows: update the
-  matching docs and `examples/*.tsv`.
+- TSV schemas, column order, required values, or fixture rows: update the
+  matching docs and `tests/fixtures/`.
 - Emitted `status` values, reason fields, or audit statuses: update
   `docs/statuses.md`.
 - Release steps, version policy, validation commands, or packaging behavior:
@@ -102,7 +100,7 @@ release: vX.Y.Z
 ```
 
 Tests must not depend on ignored or local-only paths such as `data/`,
-`results/` content outside the allowlist in `docs/results_policy.md`,
+repository-root `results/`,
 `.pytest_tmp/`, `build/`, `.dist_test/`,
 `typetreeflow.egg-info/`, `output_*`, or `phase*`. Default tests must not
 require network access or external bioinformatics tools.
@@ -112,8 +110,7 @@ directories such as `.pytest_tmp*` and `.tmp_pytest*`, `.pytest_cache/`,
 `__pycache__/`, build outputs such as `build/` and `dist/`, and
 `*.egg-info/` directories ignored and untracked. Clean them locally during
 maintenance when they add workspace noise, but do not delete tracked
-documentation, examples, archive material, or repository evidence while doing
-routine artifact cleanup.
+documentation or repository evidence while doing routine artifact cleanup.
 
 Before pushing, run at least the focused tests that cover the changed area.
 Before releasing, follow `docs/release_checklist.md`. If `main` CI fails after
@@ -128,12 +125,16 @@ and that its `headSha` matches the intended `main` commit.
   for a reorganization.
 - Avoid duplicating long explanations across README, contract docs, and design
   docs. Link to the canonical contract instead.
-- Do not rewrite archive content, delete old plans, or move historical evidence
-  as part of routine maintenance.
+- Do not recreate historical inventories, root examples, or broad historical
+  evidence stores as part of routine maintenance.
+- Do not add audit, roadmap, refactor-plan, process, pass-completion, or
+  deleted-file inventory notes under `docs/architecture/`; merge durable rules
+  into the nearest current architecture, contract, policy, or release document.
 - Do not describe planned behavior as implemented behavior.
 - When uncertain, state the implementation status instead of smoothing over the
   gap.
-- Keep examples synchronized with parser and schema tests.
+- Keep test fixtures synchronized with parser and schema tests. Do not recreate
+  root user examples unless a focused examples redesign asks for it.
 
 ## Minimal validation
 

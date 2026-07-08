@@ -14,7 +14,7 @@ def test_current_repository_passes_docs_hygiene_check():
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "[PASS] required docs" in completed.stdout
-    assert "[PASS] archive run evidence location" in completed.stdout
+    assert "[PASS] archive docs removed" in completed.stdout
     assert "[PASS] local Markdown links" in completed.stdout
     assert "Docs hygiene check passed" in completed.stdout
 
@@ -42,7 +42,7 @@ def test_top_level_versioned_stage_doc_fails(tmp_path):
     assert "[FAIL] docs top-level allowlist" in completed.stdout
     assert "[FAIL] top-level versioned stage docs" in completed.stdout
     assert "docs/v2_new_stage.md" in completed.stdout
-    assert "docs/archive/" in completed.stdout
+    assert "must not be added to current docs/" in completed.stdout
 
 
 def test_broken_local_markdown_link_fails(tmp_path):
@@ -97,17 +97,18 @@ def test_markdown_in_roadmap_or_validation_fails(tmp_path):
     assert "docs/roadmap/current.md" in completed.stdout
 
 
-def test_archive_runs_directory_fails(tmp_path):
+def test_archive_docs_directory_fails(tmp_path):
     _write_docs_fixture(tmp_path)
-    old_runs = tmp_path / "docs" / "archive" / "runs"
-    old_runs.mkdir()
+    archive = tmp_path / "docs" / "archive"
+    archive.mkdir()
+    (archive / "README.md").write_text("# Archive\n", encoding="utf-8")
 
     completed = _run_check(tmp_path)
 
     assert completed.returncode == 1
-    assert "[FAIL] archive run evidence location" in completed.stdout
-    assert "docs/archive/run_evidence/" in completed.stdout
-    assert "docs/archive/" + "runs/" in completed.stdout
+    assert "[FAIL] archive docs removed" in completed.stdout
+    assert "removed historical documentation directory" in completed.stdout
+    assert "historical run evidence" in completed.stdout
 
 
 def _run_check(repo_root: Path) -> subprocess.CompletedProcess[str]:
@@ -122,9 +123,7 @@ def _run_check(repo_root: Path) -> subprocess.CompletedProcess[str]:
 
 def _write_docs_fixture(repo_root: Path) -> None:
     docs = repo_root / "docs"
-    archive = docs / "archive"
-    archive.mkdir(parents=True)
-    (archive / "run_evidence").mkdir()
+    docs.mkdir(parents=True)
     (repo_root / "README.md").write_text(
         "\n".join(
             [
@@ -141,7 +140,6 @@ def _write_docs_fixture(repo_root: Path) -> None:
         "# Docs\n\nSee [maintenance.md](maintenance.md).\n",
         encoding="utf-8",
     )
-    (archive / "README.md").write_text("# Archive\n", encoding="utf-8")
     (docs / "workspace_policy.md").write_text("# Workspace\n", encoding="utf-8")
     (docs / "results_policy.md").write_text("# Results\n", encoding="utf-8")
     (docs / "maintenance.md").write_text("# Maintenance\n", encoding="utf-8")

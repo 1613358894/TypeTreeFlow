@@ -1,46 +1,33 @@
 # Results Policy
 
-This page is the canonical policy for the repository `results/` directory.
+This page is the canonical policy for repository-root `results/` paths.
 
 ## Rule
 
-`results/` is not a run output directory.
+`results/` is not a run output directory and is not retained in the source
+repository.
 
-The repository `results/` directory is reserved for small, selected,
-trackable verification evidence that is intentionally kept with the source
-tree. It must not be used for ordinary runs, real analyses, guarded downloads,
-delivery packages, scratch output, local caches, or large generated artifacts.
-
-Current allowed repository evidence:
-
-```text
-results/v2_2_0_release_verification/verification_matrix.tsv
-```
-
-That TSV is retained as compact release-verification evidence. The historical
-run directories that originally surrounded it are not part of the current
-allowlist.
+Do not commit repository-root `results/` content. Historical release
+verification matrices and run evidence belong in an external workspace or, when
+only durable rules remain useful, in the current release documentation. The
+source tree should not keep old result files as evidence snapshots.
 
 ## Where Outputs Should Go
 
 Large runs, real analyses, release-validation runs, local downloaded data,
-delivery packages, and operator scratch work should live outside the
-repository under a workspace. See [workspace_policy.md](workspace_policy.md)
-for workspace layout. Compact historical evidence summaries in the
-documentation archive are not run-output locations.
+delivery packages, verification matrices, and operator scratch work should live
+outside the repository under a workspace. See
+[workspace_policy.md](workspace_policy.md) for workspace layout.
 
 ## Hygiene Checker Relationship
 
 `scripts/check_workspace_hygiene.py` enforces the current repository-root
-hygiene boundary. For `results/`, it currently allows only:
-
-```text
-results/v2_2_0_release_verification/verification_matrix.tsv
-```
+hygiene boundary. For `results/`, any repository-root path is reported as
+forbidden.
 
 The script is a reporting check: it does not delete, move, or modify files.
-If a future release needs to keep another small repository evidence file, the
-policy here and the script allowlist must be updated together in the same
-reviewed change.
+If a future release needs durable verification evidence, keep the run output in
+an external workspace and extract only current rules or gate instructions into
+the release docs.
 
 Do not work around the checker by writing new run trees under `results/`.

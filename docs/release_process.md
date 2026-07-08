@@ -10,7 +10,7 @@ checklist when preparing release artifacts or validating a release candidate.
 
 Release validation outputs should live outside the repository by default. See
 [workspace_policy.md](workspace_policy.md) for workspace placement,
-[results_policy.md](results_policy.md) for repository `results/` limits, and
+[results_policy.md](results_policy.md) for repository `results/` exclusion, and
 [output_layout.md](output_layout.md) for run-directory file contracts.
 
 ## Phase 1: Prepare Release Commit
@@ -27,7 +27,8 @@ Prepare one reviewable release readiness commit before tagging or publishing.
   download data, or large artifacts.
 - Do not include `typetreeflow_out/`; it is the old default/historical example
   path and is not the current default output location.
-- Keep repository `results/` within [results_policy.md](results_policy.md).
+- Do not include repository `results/`; keep release evidence in an external
+  workspace per [results_policy.md](results_policy.md).
 - Do not mix unrelated feature work into the release readiness commit.
 
 ## Phase 2: Local Release Gate

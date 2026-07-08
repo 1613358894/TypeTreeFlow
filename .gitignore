@@ -43,10 +43,7 @@ phase11b_*/
 phase11c_*/
 phase15b_*/
 phase15c_*/
-results/*
-!results/v2_2_0_release_verification/
-results/v2_2_0_release_verification/*
-!results/v2_2_0_release_verification/verification_matrix.tsv
+results/
 
 .coverage
 coverage.xml

@@ -1,4 +1,0 @@
-genus	species	status	type_strain	source	notes	lpsn_url	nomenclatural_status	synonyms
-Aliivibrio	fischeri	example_current	ES114	example_only_not_lpsn	Example exact match to tests/fixtures/gtdb_metadata_small.tsv; not an authority export.		example status	
-Aliivibrio	imaginaris	example_review	Example strain	example_only_not_lpsn	Example checklist-only species expected to be missing from the GTDB fixture.		example status	
-Examplevibrio	synonymensis	example_review	Example strain	example_only_not_lpsn	Example synonym row that can map to the fixture through a user-provided synonym; not a nomenclatural claim.		example status	Aliivibrio wodanis

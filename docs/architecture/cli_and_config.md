@@ -2,11 +2,11 @@
 
 ## Scope
 
-This note records the current CLI and configuration implementation for
-architecture audit round 2. It covers entry points, command normalization,
-argument parsing, `AppConfig`, env-file loading, guarded real-action flags, CLI
-validation, dispatch into workflow/stage functions, external compatibility
-surfaces, current risks, and test coverage.
+This note records the current CLI and configuration implementation. It covers
+entry points, command normalization, argument parsing, `AppConfig`, env-file
+loading, guarded real-action flags, CLI validation, dispatch into
+workflow/stage functions, external compatibility surfaces, current risks, and
+test coverage.
 
 This is an implementation map, not a usage guide. The README and cookbook remain
 the operator-facing command references.
@@ -293,6 +293,29 @@ refactors:
   `TYPETREEFLOW_WORKSPACE`.
 - Exit-code convention where validation/runtime CLI failures generally return
   `2` and successful commands return `0`.
+
+## AI-First Command Principles
+
+The primary AI-facing route is intentionally small: `doctor`, `verify-genus`,
+`status`, `next-step`, and `package-results`. `status` is the preferred
+machine-readable state read because it includes stage summaries, blockers,
+warnings, and next actions. `next-step` remains a thin convenience wrapper for
+callers that only want the next recommended action.
+
+Primary command stdout should stay a single bounded JSON object. Detailed
+tables, Markdown reports, FASTA or sequence content, raw external-tool output,
+long logs, and private credential values belong in run files or stderr, not in
+stdout. Field-level stdout and artifact contracts remain in
+[output_layout.md](../output_layout.md).
+
+`verify-genus` remains the high-level LPSN-first workflow entry. Lower-level
+flags and legacy/local audit paths are support and recovery surfaces; they
+should not be documented as the ordinary AI-first route unless a focused
+contract change makes them primary.
+
+Profiles and presets must not hide scientific or execution assumptions. New
+profiles should stay rare, conservative, and explicit about live providers,
+downloads, external tools, query-genome intent, and evidence scope.
 
 ## Tests Covering This Area
 

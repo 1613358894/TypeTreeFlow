@@ -2,11 +2,10 @@
 
 ## Scope
 
-This note records the first architecture audit pass for repository structure,
-documentation structure, examples, tests, maintenance scripts, and local
-generated-artifact governance. It describes the current checkout and current
-repository rules only. It is not a user tutorial and does not define future
-reorganization work.
+This note records the current repository structure, documentation structure,
+tests, maintenance scripts, and local generated-artifact governance. It
+describes the current checkout and current repository rules only. It is not a
+user tutorial and does not define future reorganization work.
 
 ## Source Files To Review
 
@@ -50,31 +49,30 @@ documentation map, `docs/maintenance.md` is the maintenance rulebook, and the
 current contract and policy pages are kept at the top level under an explicit
 allowlist enforced by `scripts/check_docs_hygiene.py`.
 
-The documentation archive subdirectory contains historical plans, archived
-audit records, stale PR drafts, and compact run-evidence summaries. The current
-maintenance text treats archive files as evidence, not current behavior
-contracts. The docs hygiene script requires archived run evidence to use the
-current run-evidence subdirectory and rejects the old archived-runs location.
+Historical plans, old audit records, stale PR drafts, baselines, pilots, and
+compact run-evidence summaries are no longer retained as a maintained
+documentation subtree. The current maintenance text says to extract durable
+principles into formal docs instead of restoring historical inventories.
 
-`docs/architecture/` contains current-implementation architecture audit notes.
-The directory is linked from `docs/index.md` and governed by
-`docs/maintenance.md` as evidence-oriented audit material, separate from user
-tutorials, stable contracts, and future commitments. At the time of this pass,
-the architecture set exists as an untracked directory in the working tree.
+`docs/architecture/` contains compact current-implementation architecture
+notes. The directory is linked from `docs/index.md` and governed by
+`docs/maintenance.md` as implementation orientation, separate from user
+tutorials, stable contracts, future commitments, and temporary process
+material.
 
-`examples/` contains small tracked input examples and focused template
-directories. The tracked examples include minimal TSV/YAML/FASTA fixtures and
-Fusobacterium pilot/template material. These are source examples, not generated
-run directories.
+The root `examples/` directory is intentionally absent after the cleanup pass.
+Minimal TSV/FASTA data required by tests lives under `tests/fixtures/` as
+internal fixtures, not user examples. Future user-facing examples should be
+rebuilt deliberately after workflow slimming and real-test coverage are in
+place.
 
 `scripts/` contains repository maintenance and release helper scripts:
 workspace hygiene, docs hygiene, release consistency, and release gate checks.
 The audited hygiene scripts report failures and do not delete, move, or modify
 files.
 
-`results/` is a narrowly allowlisted repository evidence area, not a run output
-directory. The current tracked allowance is
-`results/v2_2_0_release_verification/verification_matrix.tsv`.
+Repository-root `results/` is intentionally absent. Verification matrices and
+run evidence belong in an external workspace, not in the source checkout.
 
 `.github/` contains repository collaboration and CI configuration:
 pull-request template, issue templates, issue-template config, and the CI
@@ -85,8 +83,7 @@ include `dist/`, `typetreeflow.egg-info/`, `.pytest_tmp/`, and
 `.pytest_cache/`. These are local build/test artifacts and should not be
 treated as files to commit. `.gitignore` also covers common generated paths
 such as `build/`, caches, coverage output, tox/nox state, local environments,
-`output*`, `phase*`, `typetreeflow_out/`, logs, and broad `results/*` content
-outside the explicit results allowlist.
+`output*`, `phase*`, `typetreeflow_out/`, logs, and `results/`.
 
 ## Top-Level File Responsibilities
 
@@ -121,7 +118,7 @@ security reporting, text attributes, and local generated-file boundaries.
 `.gitignore` and `scripts/check_workspace_hygiene.py` cover related but
 different boundaries. `.gitignore` prevents common local artifacts from being
 tracked, including caches, local env files, build artifacts, local output
-prefixes, logs, data files, and almost all repository `results/` content.
+prefixes, logs, data files, and repository `results/` content.
 `scripts/check_workspace_hygiene.py` is stricter for selected repository-root
 paths that should not exist in a clean source checkout.
 
@@ -133,20 +130,18 @@ directories or prefixes:
 - `cache`
 - `output*`
 - `phase*`
-- non-allowlisted content under `results/`
+- repository-root `results/`
 
 The script reports PASS/FAIL messages and exits nonzero on failures. It does
-not remove local artifacts. Its `results/` allowlist matches
-`docs/results_policy.md`: only
-`results/v2_2_0_release_verification/verification_matrix.tsv` is allowed as
-tracked repository evidence.
+not remove local artifacts. Its `results/` boundary matches
+`docs/results_policy.md`: repository-root `results/` is forbidden.
 
 `docs/workspace_policy.md` and `docs/results_policy.md` are consistent with the
 script boundary. Workspace policy directs generated runs, deliveries, local
-data, manifests, scratch, history, rewrite, and local archive material outside
+data, manifests, scratch, history, rewrite, and local historical material outside
 the repository workspace root. Results policy says repository `results/` is not
-a run output directory and must keep only selected compact evidence. The script
-enforces that policy at the repository root.
+a run output directory and should not be retained in the source tree. The
+script enforces that policy at the repository root.
 
 One implementation detail to note: `.gitignore` ignores broad `phase*` paths
 and the script also rejects `phase*` paths at the repository root. `.gitignore`
@@ -160,7 +155,7 @@ not currently fail on those standard build/test artifacts.
 top-level `docs/*.md` membership, local Markdown link validity, README links to
 docs, release-checklist command coverage, legacy `typetreeflow_out/` wording
 context, inactive `docs/roadmap` and `docs/validation` Markdown content, and
-archive run-evidence placement.
+absence of the removed historical-docs subtree.
 
 The top-level docs allowlist means new current top-level documentation pages
 require an intentional script update and matching test coverage. The script
@@ -170,8 +165,8 @@ Markdown link checks rather than by a per-file architecture allowlist.
 
 ## Current Strengths
 
-- The repository has a clear split between package code, tests, docs, examples,
-  maintenance scripts, CI metadata, and compact verification evidence.
+- The repository has a clear split between package code, tests and internal
+  fixtures, docs, maintenance scripts, and CI metadata.
 - Current docs define a useful entry-point split: `README.md` for users,
   `docs/index.md` for the documentation map, and `docs/maintenance.md` for
   documentation maintenance rules.
@@ -182,40 +177,39 @@ Markdown link checks rather than by a per-file architecture allowlist.
   catches broken local links across README and docs.
 - The workspace and docs hygiene scripts are covered by focused tests that use
   temporary fixtures and subprocess execution of the real scripts.
-- Examples are tracked separately from generated outputs, and the repository
-  `results/` directory is narrow enough to audit.
+- Internal fixtures are tracked separately from generated outputs, and
+  repository-root `results/` residue is directly reported.
 
 ## Risks And Improvement Candidates
 
 - The current checkout contains ignored local artifacts (`dist/`,
   `typetreeflow.egg-info/`, `.pytest_tmp/`, `.pytest_cache/`) and a local
   ignored env file. These should remain untracked; any cleanup should be an
-  explicit local maintenance action, not part of this architecture audit.
+  explicit local maintenance action, not part of architecture documentation
+  maintenance.
 - Standard build/test artifacts are ignored but not reported by
   `scripts/check_workspace_hygiene.py`. That is acceptable for the current
   script scope, but a future audit could decide whether the hygiene check
   should explicitly report them as informational local artifacts.
 - `docs/architecture/` is not part of the top-level docs allowlist because it
-  is a subdirectory. This is consistent with the current script, but a future
-  docs-governance pass could decide whether architecture audit files need their
-  own inventory check.
+  is a subdirectory. This is consistent with the current script; keep the
+  directory small through the architecture index and maintenance rules rather
+  than adding temporary process files.
 - The local ignored environment file demonstrates why credential examples must
   stay placeholder-only in tracked files. Do not promote local env content into
-  docs, tests, examples, or release artifacts.
-- `results/` policy is intentionally narrow. Future selected evidence files
-  would require synchronized updates to `docs/results_policy.md`,
-  `.gitignore`, `scripts/check_workspace_hygiene.py`, and the workspace hygiene
-  tests.
+  docs, tests, fixtures, examples, or release artifacts.
+- `results/` policy is intentionally strict. Future durable evidence should
+  stay in an external workspace, with only current rules or gate instructions
+  extracted into release documentation.
 
 ## Content Not Recommended To Change In This Pass
 
-- Do not move, delete, or clean local generated artifacts as part of this
-  architecture documentation pass.
-- Do not move historical material out of the documentation archive without a
-  separate archive review.
+- Do not move, delete, or clean local generated artifacts as part of
+  architecture documentation maintenance.
+- Do not restore historical inventories, pilots, baselines, or run-evidence
+  stores without a focused cleanup task.
 - Do not make `results/` a normal run-output location.
-- Do not duplicate README operator instructions inside architecture audit
-  notes.
+- Do not duplicate README operator instructions inside architecture notes.
 - Do not change `typetreeflow/` product code for repository-layout governance.
 - Do not replace the current docs hygiene allowlist with broad discovery unless
   the documentation governance model is intentionally changed.
@@ -223,14 +217,14 @@ Markdown link checks rather than by a per-file architecture allowlist.
 ## Tests Covering This Area
 
 `tests/test_workspace_hygiene_script.py` verifies that the current repository
-passes when clean, forbidden root directories are reported, non-allowlisted
-`results/` content fails, and the allowlisted verification matrix passes.
+passes when clean, forbidden root directories are reported, and
+repository-root `results/` content fails.
 
 `tests/test_docs_hygiene_script.py` verifies that the current repository passes
 the docs hygiene check, a minimal fixture passes, top-level versioned stage docs
 fail, broken local Markdown links fail, missing release-checklist hygiene
 commands fail, inactive docs directories with Markdown fail, and the old
-archived-runs location fails.
+historical-docs subtree fails.
 
 `tests/test_docs_consistency.py` is included in the requested validation set
 for documentation consistency. It was not opened in this audit pass, but it is
@@ -238,12 +232,11 @@ part of the verification command for this documentation update.
 
 ## Open Questions
 
-- Should `docs/architecture/` eventually have a small inventory check similar
-  to the top-level docs allowlist, or is link validation plus maintenance text
-  sufficient?
+- Is the architecture index plus Markdown link validation sufficient for this
+  compact architecture directory, or would a future inventory check add value?
 - Should workspace hygiene remain focused on forbidden run-output roots, or
   should it add informational reporting for standard ignored build/test
   artifacts visible at the repository root?
 - Should `typetreeflow.env.example` remain at the repository root permanently,
-  or should a later documentation/security pass review whether examples for
-  credentials belong in a dedicated docs or examples location?
+  or should a later documentation/security pass review whether credential
+  placeholder guidance belongs in a dedicated docs location?

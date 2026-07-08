@@ -2,9 +2,9 @@
 
 ## Scope
 
-This note records architecture audit round 3 for workflow path contracts,
-default workspace and outdir selection, run-state serialization, resume
-behavior, status and next-step inspection, and workflow summary helpers.
+This note records current workflow path contracts, default workspace and outdir
+selection, run-state serialization, resume behavior, status and next-step
+inspection, and workflow summary helpers.
 
 It describes the current implementation. It is not an operator tutorial and
 does not define future behavior. Current user-facing contracts remain in
@@ -333,8 +333,7 @@ Compatibility-sensitive path and state contracts include:
 
 Additional tests outside this focused read list exercise status and next-step
 CLI behavior, download workflows, source-audit blocking, release verification,
-report generation, and docs consistency. They are relevant to later tests-map
-or reports/diagnostics audit rounds.
+report generation, and docs consistency.
 
 ## Risks And Refactor Candidates
 
