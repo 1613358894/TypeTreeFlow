@@ -146,12 +146,12 @@ def test_readme_mentions_guarded_cli_flags():
 
 def test_high_level_workflow_docs_are_current():
     readme = _read("README.md")
-    cookbook = _read("docs/cookbook.md")
-    design = _read("docs/design.md")
+    cookbook = _read("docs/guide.md")
+    design = _read("docs/architecture.md")
     current_release_verification = _read("docs/release_verification.md")
     release_notes = _read("docs/release_notes_v2_2_x.md")
-    release_checklist = _read("docs/release_checklist.md")
-    output_layout = _read("docs/output_layout.md")
+    release_checklist = _read("docs/development.md")
+    output_layout = _read("docs/reference.md")
 
     for docs in [
         readme,
@@ -273,7 +273,7 @@ def test_high_level_workflow_docs_are_current():
 
 
 def test_output_layout_mentions_key_output_paths(tmp_path):
-    docs = _read("docs/output_layout.md")
+    docs = _read("docs/reference.md")
     paths = get_output_paths(tmp_path)
 
     key_paths = [
@@ -330,7 +330,7 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
 
 
 def test_schema_docs_mention_key_table_fields():
-    docs = _read("docs/schemas.md")
+    docs = _read("docs/reference.md")
 
     required_mentions = {
         "taxonomy/checklist_comparison.tsv": [
@@ -393,7 +393,7 @@ def test_schema_docs_mention_key_table_fields():
 
 
 def test_schema_docs_cover_public_tsv_field_constants():
-    docs = _read("docs/schemas.md")
+    docs = _read("docs/reference.md")
     public_tables = {
         "manifest.tsv": MANIFEST_FIELDS,
         "name_map.tsv": NAME_MAP_FIELDS,
@@ -469,7 +469,7 @@ def test_schema_docs_cover_public_tsv_field_constants():
 
 
 def test_status_docs_cover_emitted_review_and_contract_statuses():
-    docs = _read("docs/statuses.md")
+    docs = _read("docs/reference.md")
     expected_statuses = {
         *EXTERNAL_GENOME_STATUSES,
         *EXTERNAL_GENOME_INSTALL_PLAN_STATUSES,
@@ -499,7 +499,7 @@ def test_status_docs_cover_emitted_review_and_contract_statuses():
 
 
 def test_stable_contracts_preserve_provider_and_completion_boundaries():
-    docs = _read("docs/stable_contracts.md")
+    docs = _read("docs/reference.md")
 
     required_phrases = [
         "Provider planning rows are review-only.",
@@ -551,8 +551,8 @@ def test_gitattributes_pins_text_fixtures_to_lf():
 def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
     readme = _read("README.md")
     normalized_readme = _normalize_whitespace(readme)
-    completion_doc = _read("docs/completion_audit.md")
-    external_cookbook = _read("docs/external_workflow_cookbook.md")
+    completion_doc = _read("docs/policy.md")
+    external_cookbook = _read("docs/guide.md")
 
     for path in [
         Path("tests/fixtures/fusobacterium_external_pilot/external_genomes.tsv"),
@@ -574,9 +574,9 @@ def test_fusobacterium_external_pilot_docs_preserve_fixture_boundary():
 
 def test_provider_boundary_policy_preserves_manual_registration_boundary():
     index = _read("docs/index.md")
-    policy = _read("docs/provider_automation_policy.md")
+    policy = _read("docs/policy.md")
 
-    assert "provider_automation_policy.md" in index
+    assert "policy.md" in index
     assert "no default provider download" in policy.lower()
     assert "no ATCC Genome Portal automation" in policy
     assert "external_genomes.tsv" in policy
@@ -587,14 +587,14 @@ def test_provider_boundary_policy_preserves_manual_registration_boundary():
 
 
 def test_authoritative_docs_own_maintenance_anchors():
-    output_layout = _read("docs/output_layout.md")
+    output_layout = _read("docs/reference.md")
     normalized_output_layout = _normalize_whitespace(output_layout)
-    provider_policy = _read("docs/provider_automation_policy.md")
+    provider_policy = _read("docs/policy.md")
     normalized_provider_policy = _normalize_whitespace(provider_policy)
-    results_policy = _read("docs/results_policy.md")
+    results_policy = _read("docs/policy.md")
     normalized_results_policy = _normalize_whitespace(results_policy)
-    workspace_policy = _read("docs/workspace_policy.md")
-    release_process = _read("docs/release_process.md")
+    workspace_policy = _read("docs/policy.md")
+    release_process = _read("docs/development.md")
     release_verification = _read("docs/release_verification.md")
 
     for phrase in [
@@ -636,7 +636,7 @@ def test_v2_2_x_release_docs_are_discoverable():
     release_notes = _read("docs/release_notes_v2_2_x.md")
 
     assert "release_notes_v2_2_x.md" in index
-    assert "release_verification.md" in index
+    assert "development.md" in index
     assert "Older matrix runbooks, baselines, and acceptance checklists" in (
         _normalize_whitespace(release_verification)
     )
@@ -670,16 +670,16 @@ def test_v2_2_x_release_docs_are_discoverable():
 
 
 def test_handoff_index_contract_is_discoverable_and_preserves_boundaries():
-    contract = _read("docs/handoff_index_contract.md")
+    contract = _read("docs/reference.md")
     index = _read("docs/index.md")
-    output_layout = _read("docs/output_layout.md")
+    output_layout = _read("docs/reference.md")
     readme = _read("README.md")
     normalized_contract = _normalize_whitespace(contract)
     normalized_output_layout = _normalize_whitespace(output_layout)
 
-    assert "handoff_index_contract.md" in index
-    assert "handoff_index_contract.md" in output_layout
-    assert "handoff_index_contract.md" in readme
+    assert "reference.md" in index
+    assert "handoff contract" in output_layout
+    assert "handoff contract" in readme
 
     for phrase in [
         "delivery-package navigation index and status summary",
@@ -710,10 +710,10 @@ def test_handoff_index_contract_is_discoverable_and_preserves_boundaries():
 def test_v1_5_provider_and_local_artifact_docs_preserve_review_boundaries():
     readme = _read("README.md")
     index = _read("docs/index.md")
-    schemas = _read("docs/schemas.md")
-    statuses = _read("docs/statuses.md")
-    policy = _read("docs/provider_automation_policy.md")
-    ingestion = _read("docs/external_type_genome_ingestion.md")
+    schemas = _read("docs/reference.md")
+    statuses = _read("docs/reference.md")
+    policy = _read("docs/policy.md")
+    ingestion = _read("docs/policy.md")
 
     assert "provider_automation_policy.md" in index
     assert "no-default-download" in index

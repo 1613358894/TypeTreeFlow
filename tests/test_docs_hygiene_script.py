@@ -26,7 +26,7 @@ def test_minimal_fixture_passes(tmp_path):
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "[PASS] docs top-level allowlist" in completed.stdout
-    assert "[PASS] release checklist commands" in completed.stdout
+    assert "[PASS] release gate commands" in completed.stdout
 
 
 def test_top_level_versioned_stage_doc_fails(tmp_path):
@@ -59,13 +59,13 @@ def test_broken_local_markdown_link_fails(tmp_path):
     assert "docs/index.md -> missing.md" in completed.stdout
 
 
-def test_missing_release_checklist_command_fails(tmp_path):
+def test_missing_release_gate_command_fails(tmp_path):
     _write_docs_fixture(tmp_path)
-    checklist = tmp_path / "docs" / "release_checklist.md"
-    checklist.write_text(
+    development = tmp_path / "docs" / "development.md"
+    development.write_text(
         "\n".join(
             [
-                "# Release Checklist",
+                "# Development",
                 "",
                 "```bash",
                 "python scripts/check_workspace_hygiene.py",
@@ -80,7 +80,7 @@ def test_missing_release_checklist_command_fails(tmp_path):
     completed = _run_check(tmp_path)
 
     assert completed.returncode == 1
-    assert "[FAIL] release checklist commands" in completed.stdout
+    assert "[FAIL] release gate commands" in completed.stdout
     assert "python scripts/check_docs_hygiene.py" in completed.stdout
 
 
@@ -146,16 +146,20 @@ def _write_docs_fixture(repo_root: Path) -> None:
         encoding="utf-8",
     )
     (docs / "index.md").write_text(
-        "# Docs\n\nSee [maintenance.md](maintenance.md).\n",
+        "# Docs\n\nSee [development.md](development.md).\n",
         encoding="utf-8",
     )
-    (docs / "workspace_policy.md").write_text("# Workspace\n", encoding="utf-8")
-    (docs / "results_policy.md").write_text("# Results\n", encoding="utf-8")
-    (docs / "maintenance.md").write_text("# Maintenance\n", encoding="utf-8")
-    (docs / "release_checklist.md").write_text(
+    (docs / "guide.md").write_text("# Guide\n", encoding="utf-8")
+    (docs / "reference.md").write_text("# Reference\n", encoding="utf-8")
+    (docs / "policy.md").write_text("# Policy\n", encoding="utf-8")
+    (docs / "architecture.md").write_text("# Architecture\n", encoding="utf-8")
+    (docs / "release_notes_v2_2_x.md").write_text("# Release Notes\n", encoding="utf-8")
+    (docs / "provider_automation_policy.md").write_text("# Provider\n", encoding="utf-8")
+    (docs / "release_verification.md").write_text("# Release Verification\n", encoding="utf-8")
+    (docs / "development.md").write_text(
         "\n".join(
             [
-                "# Release Checklist",
+                "# Development",
                 "",
                 "```bash",
                 "python scripts/check_workspace_hygiene.py",

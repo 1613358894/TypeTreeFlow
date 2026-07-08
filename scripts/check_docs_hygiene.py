@@ -13,33 +13,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_DOCS = [
     Path("docs/index.md"),
-    Path("docs/workspace_policy.md"),
-    Path("docs/results_policy.md"),
+    Path("docs/guide.md"),
+    Path("docs/reference.md"),
+    Path("docs/policy.md"),
+    Path("docs/development.md"),
+    Path("docs/architecture.md"),
+    Path("docs/release_notes_v2_2_x.md"),
+    Path("docs/provider_automation_policy.md"),
+    Path("docs/release_verification.md"),
 ]
 
 TOP_LEVEL_DOCS_ALLOWLIST = {
-    "completion_audit.md",
-    "contracts.md",
-    "cookbook.md",
-    "design.md",
-    "external_type_genome_ingestion.md",
-    "external_workflow_cookbook.md",
-    "handoff_index_contract.md",
+    "architecture.md",
+    "development.md",
+    "guide.md",
     "index.md",
-    "lpsn_first_acquisition.md",
-    "maintenance.md",
-    "output_layout.md",
+    "policy.md",
     "provider_automation_policy.md",
-    "release_checklist.md",
     "release_notes_v2_2_x.md",
-    "release_process.md",
     "release_verification.md",
-    "results_policy.md",
-    "schemas.md",
-    "species_checklist_audit.md",
-    "stable_contracts.md",
-    "statuses.md",
-    "workspace_policy.md",
+    "reference.md",
 }
 
 RELEASE_CHECKLIST_COMMANDS = [
@@ -78,7 +71,7 @@ def run_checks(root: Path = REPO_ROOT) -> list[DocsHygieneCheckResult]:
         _check_markdown_links(root),
         _check_readme_docs_links(root),
         _check_typetreeflow_out_context(root),
-        _check_release_checklist_commands(root),
+        _check_release_gate_commands(root),
     ]
 
 
@@ -173,6 +166,7 @@ def _check_inactive_current_doc_dirs(root: Path) -> DocsHygieneCheckResult:
     offenders: list[str] = []
     inactive_dirs = [
         Path("docs/audit"),
+        Path("docs/architecture"),
         Path("docs/process"),
         Path("docs/roadmap"),
         Path("docs/validation"),
@@ -194,8 +188,8 @@ def _check_inactive_current_doc_dirs(root: Path) -> DocsHygieneCheckResult:
     return DocsHygieneCheckResult(
         "inactive docs directories",
         False,
-        "docs/audit, docs/process, docs/roadmap, and docs/validation must not "
-        "contain Markdown file(s): "
+        "docs/audit, docs/architecture, docs/process, docs/roadmap, and "
+        "docs/validation must not contain Markdown file(s): "
         + ", ".join(offenders),
     )
 
@@ -293,23 +287,23 @@ def _check_typetreeflow_out_context(root: Path) -> DocsHygieneCheckResult:
     )
 
 
-def _check_release_checklist_commands(root: Path) -> DocsHygieneCheckResult:
-    path = root / "docs" / "release_checklist.md"
+def _check_release_gate_commands(root: Path) -> DocsHygieneCheckResult:
+    path = root / "docs" / "development.md"
     if not path.is_file():
         return DocsHygieneCheckResult(
-            "release checklist commands",
+            "release gate commands",
             False,
-            f"release checklist is missing: {path}",
+            f"development docs are missing: {path}",
         )
 
     text = path.read_text(encoding="utf-8")
     missing = [command for command in RELEASE_CHECKLIST_COMMANDS if command not in text]
     if not missing:
-        return DocsHygieneCheckResult("release checklist commands", True, "ok")
+        return DocsHygieneCheckResult("release gate commands", True, "ok")
     return DocsHygieneCheckResult(
-        "release checklist commands",
+        "release gate commands",
         False,
-        "missing release checklist command(s): " + ", ".join(missing),
+        "missing release gate command(s): " + ", ".join(missing),
     )
 
 

@@ -26,23 +26,19 @@ workflow. Keep changes aligned with that scope.
 
 ## Documentation Routes
 
-- User entry point: `README.md`, then `docs/cookbook.md`.
-- Contracts: `docs/contracts.md`, `docs/stable_contracts.md`, and
-  `docs/handoff_index_contract.md`.
-- Schemas, statuses, and outputs: `docs/schemas.md`,
-  `docs/statuses.md`, `docs/output_layout.md`,
-  `docs/workspace_policy.md`, and `docs/results_policy.md`.
-- External registration and provider boundaries:
-  `docs/external_type_genome_ingestion.md`,
-  `docs/external_workflow_cookbook.md`,
-  `docs/completion_audit.md`, and
-  `docs/provider_automation_policy.md`.
-- Release work: `docs/release_process.md`, `docs/release_checklist.md`,
-  `docs/release_verification.md`, and `docs/release_notes_v2_2_x.md`.
-- Architecture and refactor planning: `docs/architecture/index.md` and the
-  linked audit notes.
-- Documentation maintenance: `docs/index.md`, `docs/maintenance.md`, and
-  `scripts/check_docs_hygiene.py`.
+- User entry point: `README.md`, then `docs/index.md`.
+- Operator workflows and recipes: `docs/guide.md`.
+- CLI JSON stdout, output layout, schemas, statuses, stable contracts, and
+  handoff contract: `docs/reference.md`.
+- Scientific, provider, external-genome, workspace, results, completion, and
+  species-checklist boundaries: `docs/policy.md`.
+- Maintenance, testing, release, packaging, and hygiene:
+  `docs/development.md`.
+- Current system design: `docs/architecture.md`.
+- Release history: `docs/release_notes_v2_2_x.md`.
+- Compatibility entries retained only because package tooling references them:
+  `docs/provider_automation_policy.md` and `docs/release_verification.md`.
+- Documentation structure checks: `scripts/check_docs_hygiene.py`.
 
 ## Maintenance Rules
 
