@@ -9,6 +9,11 @@ from urllib.error import HTTPError, URLError
 
 from Bio import Entrez
 
+from typetreeflow.sources.network import (
+    DEFAULT_PROVIDER_TIMEOUT_SECONDS,
+    bounded_socket_timeout,
+)
+
 from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry, read_species_checklist
 
 
@@ -101,6 +106,7 @@ class BiopythonNcbiTaxonomyClient:
         api_key: str | None = None,
         tool: str = "TypeTreeFlow",
         delay_seconds: float | None = None,
+        provider_timeout_seconds: float | None = DEFAULT_PROVIDER_TIMEOUT_SECONDS,
     ) -> None:
         if not email or not email.strip():
             raise ValueError(
@@ -111,6 +117,7 @@ class BiopythonNcbiTaxonomyClient:
         self.api_key = api_key
         self.tool = tool
         self.delay_seconds = delay_seconds
+        self.provider_timeout_seconds = provider_timeout_seconds
 
         Entrez.email = self.email
         Entrez.tool = self.tool
@@ -128,7 +135,7 @@ class BiopythonNcbiTaxonomyClient:
                 retmax=1,
             )
             try:
-                search_result = Entrez.read(search_handle)
+                search_result = self._read(search_handle)
             finally:
                 _close_handle(search_handle)
 
@@ -143,7 +150,7 @@ class BiopythonNcbiTaxonomyClient:
                 retmode="xml",
             )
             try:
-                records = Entrez.read(fetch_handle)
+                records = self._read(fetch_handle)
             finally:
                 _close_handle(fetch_handle)
 
@@ -158,10 +165,15 @@ class BiopythonNcbiTaxonomyClient:
     def _request(self, request_fn, **kwargs):
         if self.delay_seconds is not None:
             time.sleep(self.delay_seconds)
-        handle = request_fn(**kwargs)
+        with bounded_socket_timeout(self.provider_timeout_seconds):
+            handle = request_fn(**kwargs)
         if self.delay_seconds is not None:
             time.sleep(self.delay_seconds)
         return handle
+
+    def _read(self, handle):
+        with bounded_socket_timeout(self.provider_timeout_seconds):
+            return Entrez.read(handle)
 
 
 def build_ncbi_taxonomy_plan(

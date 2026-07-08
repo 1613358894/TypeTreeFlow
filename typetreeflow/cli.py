@@ -1925,6 +1925,7 @@ def _write_ncbi_taxonomy_outputs(
             client = ncbi_taxonomy_client or BiopythonNcbiTaxonomyClient(
                 email=config.email or "",
                 api_key=config.api_key,
+                provider_timeout_seconds=config.provider_timeout_seconds,
             )
             cache_rows = execute_ncbi_taxonomy_lookup(plan_path, cache_path, client)
             LOGGER.info(
@@ -2020,6 +2021,7 @@ def _expanded_discovery_assembly_client(paths, config: AppConfig):
         return NcbiAssemblyDiscoveryClient(
             email=config.email,
             api_key=config.api_key,
+            provider_timeout_seconds=config.provider_timeout_seconds,
         )
     return None
 
@@ -2034,6 +2036,7 @@ def _expanded_discovery_biosample_client(paths, config: AppConfig):
         return NcbiBioSampleClient(
             email=config.email,
             api_key=config.api_key,
+            provider_timeout_seconds=config.provider_timeout_seconds,
         )
     return None
 
@@ -2075,6 +2078,16 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         "succeeded",
         _row_count_summary(paths.assembly_candidates_path, "assembly candidate records"),
     )
+    if (
+        "assembly_discovery" not in stages
+        and error is not None
+        and (config.acquire_genus is not None or config.discover_assembly_candidates)
+    ):
+        stages["assembly_discovery"] = StageState(
+            status="failed",
+            outputs=[],
+            summary=str(_redact_verify_genus_payload(str(error), config)),
+        )
     biosample_cache_path = config.biosample_cache or paths.biosample_records_path
     biosample_failed_with_partial_cache = (
         error is not None
@@ -2198,7 +2211,11 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         "Run summary written.",
     )
 
-    errors = [] if error is None else [str(error)]
+    errors = (
+        []
+        if error is None
+        else [str(_redact_verify_genus_payload(str(error), config))]
+    )
     if error is not None:
         status = _blocked_or_failed_status(error)
         next_action = _next_action_for_error(status, error, paths, config)
@@ -3288,6 +3305,7 @@ def run_candidate_discovery_stage(
         client = assembly_discovery_client or NcbiAssemblyDiscoveryClient(
             email=config.email,
             api_key=config.api_key,
+            provider_timeout_seconds=config.provider_timeout_seconds,
         )
         local_records = _collect_discovery_records(
             checklist_entries,
@@ -3422,7 +3440,11 @@ def _build_biosample_enrichment_client(
                 "--enable-biosample-entrez."
             )
         client = CheckpointingBioSampleCacheClient.from_tsv(
-            NcbiBioSampleClient(email=config.email, api_key=config.api_key),
+            NcbiBioSampleClient(
+                email=config.email,
+                api_key=config.api_key,
+                provider_timeout_seconds=config.provider_timeout_seconds,
+            ),
             cache_path,
         )
         return client, cache_path
@@ -4283,7 +4305,11 @@ def _execute_entrez_fallback(records, paths, config: AppConfig) -> None:
         _assemble_all_16s_if_ready(records, paths, config.query_16s)
         return
 
-    client = BiopythonEntrezClient(email=config.email, api_key=config.api_key)
+    client = BiopythonEntrezClient(
+        email=config.email,
+        api_key=config.api_key,
+        provider_timeout_seconds=config.provider_timeout_seconds,
+    )
     results = execute_entrez_fallback_plan(
         plan_items,
         records,

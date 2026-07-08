@@ -5,6 +5,10 @@ import sys
 
 from typetreeflow.config import AppConfig
 from typetreeflow.env import load_env_files
+from typetreeflow.sources.network import (
+    parse_provider_timeout_seconds,
+    provider_timeout_from_env,
+)
 from typetreeflow.workflow.defaults import default_outdir
 
 
@@ -132,6 +136,14 @@ def build_app_config_from_args(
         limit_selected,
         enable_phylo,
     ) = _smoke_profile_effective_values(args, verify_genus=verify_genus)
+    provider_timeout_seconds = (
+        parse_provider_timeout_seconds(
+            args.provider_timeout_seconds,
+            source="--provider-timeout-seconds",
+        )
+        if args.provider_timeout_seconds is not None
+        else provider_timeout_from_env()
+    )
     return AppConfig(
         doctor=args.doctor,
         doctor_strict=args.doctor_strict,
@@ -158,6 +170,7 @@ def build_app_config_from_args(
         threads=args.threads,
         email=args.email or _env_value("TYPETREEFLOW_EMAIL"),
         api_key=args.api_key or _env_value("TYPETREEFLOW_API_KEY"),
+        provider_timeout_seconds=provider_timeout_seconds,
         gtdb_metadata=args.gtdb_metadata,
         gtdb_release=args.gtdb_release,
         species_checklist=args.species_checklist,

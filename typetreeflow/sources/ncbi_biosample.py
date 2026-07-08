@@ -12,6 +12,10 @@ import xml.etree.ElementTree as ET
 
 from Bio import Entrez
 
+from typetreeflow.sources.network import (
+    DEFAULT_PROVIDER_TIMEOUT_SECONDS,
+    bounded_socket_timeout,
+)
 from typetreeflow.sources.retry import RetryError, retry_transient_network_errors
 
 
@@ -126,6 +130,7 @@ class NcbiBioSampleClient:
         tool: str = "TypeTreeFlow",
         backend=None,
         delay_seconds: float | None = None,
+        provider_timeout_seconds: float | None = DEFAULT_PROVIDER_TIMEOUT_SECONDS,
         retry_sleep=None,
     ) -> None:
         if backend is None:
@@ -140,6 +145,7 @@ class NcbiBioSampleClient:
 
         self.backend = backend if backend is not None else Entrez
         self.delay_seconds = delay_seconds
+        self.provider_timeout_seconds = provider_timeout_seconds
         self.retry_sleep = retry_sleep or time.sleep
 
     def search_biosamples(
@@ -157,6 +163,10 @@ class NcbiBioSampleClient:
             return retry_transient_network_errors(
                 f"NCBI BioSample search for {species!r} token {query_token!r}",
                 lambda: self._search_biosamples_once(species, query_token, retmax),
+                stage="biosample_enrichment",
+                provider="NCBI BioSample",
+                action="entrez_search_fetch",
+                timeout_seconds=self.provider_timeout_seconds,
                 sleep=self.retry_sleep,
                 logger=LOGGER,
             )
@@ -176,6 +186,10 @@ class NcbiBioSampleClient:
             return retry_transient_network_errors(
                 f"NCBI BioSample lookup for {accession!r}",
                 lambda: self._fetch_biosample_once(accession),
+                stage="biosample_enrichment",
+                provider="NCBI BioSample",
+                action="entrez_lookup_fetch",
+                timeout_seconds=self.provider_timeout_seconds,
                 sleep=self.retry_sleep,
                 logger=LOGGER,
             )
@@ -200,7 +214,7 @@ class NcbiBioSampleClient:
             retmax=retmax,
         )
         try:
-            search_result = self.backend.read(search_handle)
+            search_result = self._read(search_handle)
         finally:
             _close_handle(search_handle)
 
@@ -215,7 +229,7 @@ class NcbiBioSampleClient:
             retmode="xml",
         )
         try:
-            fetch_result = _read_fetch_payload(fetch_handle, self.backend)
+            fetch_result = self._read_fetch_payload(fetch_handle)
         finally:
             _close_handle(fetch_handle)
         return parse_biosample_response(fetch_result)
@@ -228,7 +242,7 @@ class NcbiBioSampleClient:
             retmax=1,
         )
         try:
-            search_result = self.backend.read(search_handle)
+            search_result = self._read(search_handle)
         finally:
             _close_handle(search_handle)
 
@@ -243,7 +257,7 @@ class NcbiBioSampleClient:
             retmode="xml",
         )
         try:
-            fetch_result = _read_fetch_payload(fetch_handle, self.backend)
+            fetch_result = self._read_fetch_payload(fetch_handle)
         finally:
             _close_handle(fetch_handle)
 
@@ -253,10 +267,19 @@ class NcbiBioSampleClient:
     def _request(self, request_fn, **kwargs):
         if self.delay_seconds is not None:
             time.sleep(self.delay_seconds)
-        handle = request_fn(**kwargs)
+        with bounded_socket_timeout(self.provider_timeout_seconds):
+            handle = request_fn(**kwargs)
         if self.delay_seconds is not None:
             time.sleep(self.delay_seconds)
         return handle
+
+    def _read(self, handle):
+        with bounded_socket_timeout(self.provider_timeout_seconds):
+            return self.backend.read(handle)
+
+    def _read_fetch_payload(self, handle) -> object:
+        with bounded_socket_timeout(self.provider_timeout_seconds):
+            return _read_fetch_payload(handle, self.backend)
 
 
 def read_biosample_records(path: Path) -> list[BioSampleRecord]:

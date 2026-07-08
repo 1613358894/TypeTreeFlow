@@ -124,6 +124,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--provider-timeout-seconds",
+        type=float,
+        help=(
+            "Per-request timeout for guarded live provider/Entrez lookups. "
+            "Defaults to TYPETREEFLOW_PROVIDER_TIMEOUT_SECONDS or 30 seconds."
+        ),
+    )
+    parser.add_argument(
         "--env-file",
         type=Path,
         help=(

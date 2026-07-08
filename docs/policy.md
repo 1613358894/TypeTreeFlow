@@ -49,6 +49,10 @@ registration route, but proposals themselves remain review-only and do not
 change NCBI Assembly strict completion, external-inclusive completion, or other
 completion metrics.
 
+Live provider or Entrez timeouts are operational failures. They must be
+reported as retryable provider failures and must not be interpreted as missing
+taxa, HTTP 404, confirmed absence of genomes, or type-strain evidence.
+
 The local artifact normalization layer remains outside current behavior. The
 future local artifact preparation layer must remain a local curator-evidence
 helper. It must not contact providers, process credentials, install FASTA files,

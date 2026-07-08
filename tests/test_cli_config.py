@@ -129,6 +129,37 @@ def test_build_app_config_from_args_preserves_env_default_precedence(
     assert config.email == "cli@example.org"
 
 
+def test_provider_timeout_defaults_to_env_and_cli_overrides(tmp_path, monkeypatch):
+    monkeypatch.setenv("TYPETREEFLOW_PROVIDER_TIMEOUT_SECONDS", "45")
+
+    env_config = cli.parse_args(["--outdir", str(tmp_path / "env")])
+
+    assert env_config.provider_timeout_seconds == 45
+
+    cli_config = cli.parse_args(
+        [
+            "--provider-timeout-seconds",
+            "12.5",
+            "--outdir",
+            str(tmp_path / "cli"),
+        ]
+    )
+
+    assert cli_config.provider_timeout_seconds == 12.5
+
+
+def test_provider_timeout_rejects_non_positive_values(tmp_path):
+    with pytest.raises(ValueError, match="--provider-timeout-seconds"):
+        cli.parse_args(
+            [
+                "--provider-timeout-seconds",
+                "0",
+                "--outdir",
+                str(tmp_path / "out"),
+            ]
+        )
+
+
 def test_parse_args_handles_doctor_version_and_common_flags(tmp_path):
     doctor_config = cli.parse_args(["doctor", "--strict", "--outdir", str(tmp_path)])
     assert doctor_config.doctor is True
