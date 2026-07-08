@@ -2,6 +2,8 @@
 
 This cookbook uses the high-level commands as the ordinary user entry point.
 Use lower-level flags only for developer audits or manual recovery.
+Command examples use placeholder operator inputs. `tests/fixtures/` is internal
+test data and is not a user examples package.
 
 ## Environment Readiness
 

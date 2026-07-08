@@ -38,7 +38,8 @@ For manual external genomes, keep the split narrow:
 `docs/completion_audit.md` explains completion/gap metrics. Fusobacterium
 historical pilots are not current operator instructions. The root `examples/`
 directory is intentionally absent during cleanup; internal test fixtures live
-under `tests/fixtures/` and are not user examples.
+under `tests/fixtures/` and are not user examples. Future user examples require
+a focused examples design and should not expose fixtures directly.
 
 ### Historical Material
 
@@ -130,6 +131,8 @@ and that its `headSha` matches the intended `main` commit.
 - Do not add audit, roadmap, refactor-plan, process, pass-completion, or
   deleted-file inventory notes under `docs/architecture/`; merge durable rules
   into the nearest current architecture, contract, policy, or release document.
+- Do not add new audit, roadmap, or process documentation files or directories
+  unless the user explicitly requests that maintenance task.
 - Do not describe planned behavior as implemented behavior.
 - When uncertain, state the implementation status instead of smoothing over the
   gap.

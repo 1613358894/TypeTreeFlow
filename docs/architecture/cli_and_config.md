@@ -47,7 +47,7 @@ script target imports and resolves to `typetreeflow.cli.main`.
 as a script. Current docs and tests still reference this source-checkout entry
 point, so it is an external compatibility surface.
 
-`typetreeflow/__init__.py` exposes `__version__ = "2.2.15"`. `build_parser()`
+`typetreeflow/__init__.py` exposes `__version__ = "2.2.16"`. `build_parser()`
 uses this value for `--version`, and `tests/test_package_metadata.py` verifies it
 matches the project version from `pyproject.toml`.
 
@@ -55,9 +55,9 @@ matches the project version from `pyproject.toml`.
 
 `typetreeflow/cli.py` does not use argparse subparsers. `build_parser()` creates
 a single `argparse.ArgumentParser` named `typetreeflow` and registers all options
-on that parser, including several hidden compatibility flags such as `--doctor`,
-`--status`, `--next-step`, `--package-results`, and
-`--verify-release-genus`.
+on that parser, including compatibility flags such as `--doctor`, `--status`,
+`--next-step`, `--package-results`, and `--verify-release-genus`. The public
+AI-first route is the normalized command form, not direct use of those flags.
 
 `parse_args(argv)` first calls `_normalize_command_argv(argv)`, then parses the
 normalized flags through `build_parser()`, then loads env files, then returns an
@@ -246,7 +246,8 @@ stage-specific source-audit and executable requirements.
 Its early branches handle diagnostics and packaging:
 
 - `doctor` builds and prints a doctor report.
-- `status` and `next-step` read or infer workflow status and print text or JSON.
+- `status` and `next-step` read or infer workflow status and print compact JSON
+  stdout by default for the AI-first route.
 - `package-results` delegates to `typetreeflow.delivery.package_results()`.
 - `verify-release-genus` validates and delegates to
   `run_release_genus_verification()`.

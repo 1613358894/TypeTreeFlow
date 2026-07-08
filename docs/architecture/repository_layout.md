@@ -154,8 +154,9 @@ not currently fail on those standard build/test artifacts.
 `scripts/check_docs_hygiene.py` enforces required documentation files,
 top-level `docs/*.md` membership, local Markdown link validity, README links to
 docs, release-checklist command coverage, legacy `typetreeflow_out/` wording
-context, inactive `docs/roadmap` and `docs/validation` Markdown content, and
-absence of the removed historical-docs subtree.
+context, inactive `docs/audit`, `docs/process`, `docs/roadmap`, and
+`docs/validation` Markdown content, and absence of the removed historical-docs
+subtree.
 
 The top-level docs allowlist means new current top-level documentation pages
 require an intentional script update and matching test coverage. The script

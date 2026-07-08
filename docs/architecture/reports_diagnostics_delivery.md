@@ -79,15 +79,14 @@ Status prefers `run_state.json` when present. Without run state, it infers a
 summary from durable files such as `species_checklist.tsv`,
 `excluded_lpsn_taxa.tsv`, `manifest.tsv`, `selection/user_selection.tsv`,
 `selection/download_preflight_summary.tsv`, `cache/ncbi/download_results.tsv`,
-`report/summary.md`, and `report/run_review.md`. The text format includes
-`Overall:`, known stage lines, and `Next:`. The JSON format is
-`{"overall": ..., "stages": ..., "next": ..., "source": ...}`.
+`report/summary.md`, and `report/run_review.md`. The primary command surface
+prints the compact status JSON envelope defined in `docs/output_layout.md`.
 
-Next-step returns either `{"next_action": ..., "source": ...}` in JSON mode or
-the next-action text in text mode. It prioritizes zero accepted checklist
-diagnostics, failed-run error refinements, guarded-download manual review
-guidance, handoff/manual-supplement guidance, Entrez fallback refinements, and
-finally inferred status guidance.
+Next-step returns the compact next-action JSON envelope defined in
+`docs/output_layout.md`. It prioritizes zero accepted checklist diagnostics,
+failed-run error refinements, guarded-download manual review guidance,
+handoff/manual-supplement guidance, Entrez fallback refinements, and finally
+inferred status guidance.
 
 `typetreeflow/delivery.py` owns delivery packages:
 
@@ -167,10 +166,13 @@ The following files are treated as stable contract surfaces by docs and tests:
   audit scope, but the current implementation reviewed here copies
   `manifest.tsv` into the delivery directory and does not write a separate
   `delivery_manifest.tsv`.
-- Status JSON: `overall`, `stages`, `next`, and `source`.
-- Next-step JSON: `next_action` and `source`.
-- Doctor text: line-oriented `TypeTreeFlow doctor` output with item
-  status/name/detail/hint fields.
+- Status JSON: the compact `status` envelope documented in
+  `docs/output_layout.md`.
+- Next-step JSON: the compact `next-step` envelope documented in
+  `docs/output_layout.md`.
+- Doctor JSON: the compact readiness envelope documented in
+  `docs/output_layout.md`; detailed diagnostic prose belongs in files or stderr
+  only when a compatibility path explicitly owns it.
 
 `docs/handoff_index_contract.md` is the current contract for
 `handoff_index.md`: it is navigation and status guidance, not a scientific

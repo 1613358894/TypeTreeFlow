@@ -49,7 +49,13 @@ workflow. Keep changes aligned with that scope.
 - Make the smallest reviewable change that solves the task.
 - When code behavior changes, update the relevant docs and focused tests in the
   same change.
-- Do not modify `docs/archive/` during routine work.
+- Do not restore root `examples/`, `docs/archive/`, or repository-root
+  `results/`.
+- `tests/fixtures/` contains internal test data, not user examples. Future
+  user examples need a focused design instead of exposing fixtures directly.
+- Keep run output and release evidence outside the repository workspace.
+- Primary command stdout is short AI-first JSON; durable details belong in run
+  files.
 - Do not clean generated or temporary directories unless the user asks.
 - Do not continue deep CLI refactoring unless a separate task requests it and
   includes focused compatibility tests.

@@ -84,7 +84,7 @@ def test_missing_release_checklist_command_fails(tmp_path):
     assert "python scripts/check_docs_hygiene.py" in completed.stdout
 
 
-def test_markdown_in_roadmap_or_validation_fails(tmp_path):
+def test_markdown_in_inactive_docs_directory_fails(tmp_path):
     _write_docs_fixture(tmp_path)
     roadmap = tmp_path / "docs" / "roadmap"
     roadmap.mkdir()
@@ -95,6 +95,15 @@ def test_markdown_in_roadmap_or_validation_fails(tmp_path):
     assert completed.returncode == 1
     assert "[FAIL] inactive docs directories" in completed.stdout
     assert "docs/roadmap/current.md" in completed.stdout
+
+    process = tmp_path / "docs" / "process"
+    process.mkdir()
+    (process / "release.md").write_text("# Release\n", encoding="utf-8")
+
+    completed = _run_check(tmp_path)
+
+    assert completed.returncode == 1
+    assert "docs/process/release.md" in completed.stdout
 
 
 def test_archive_docs_directory_fails(tmp_path):
