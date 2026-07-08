@@ -358,9 +358,15 @@ def test_enable_entrez_without_email_has_stable_rejection(tmp_path, caplog, monk
 
 def test_enable_entrez_success_writes_source_audit(tmp_path, monkeypatch):
     class MockEntrezClient:
-        def __init__(self, email: str, api_key: str | None = None):
+        def __init__(
+            self,
+            email: str,
+            api_key: str | None = None,
+            provider_timeout_seconds: float | None = None,
+        ):
             assert email == "user@example.org"
             assert api_key is None
+            assert provider_timeout_seconds == 30.0
 
         def search_16s(self, query: str, retmax: int = 10):
             return [
@@ -401,8 +407,14 @@ def test_enable_entrez_success_writes_source_audit(tmp_path, monkeypatch):
 
 def test_enable_entrez_strict_source_audit_returns_nonzero_after_audit(tmp_path, monkeypatch):
     class MockEntrezClient:
-        def __init__(self, email: str, api_key: str | None = None):
+        def __init__(
+            self,
+            email: str,
+            api_key: str | None = None,
+            provider_timeout_seconds: float | None = None,
+        ):
             assert email == "user@example.org"
+            assert provider_timeout_seconds == 30.0
 
         def search_16s(self, query: str, retmax: int = 10):
             return [
