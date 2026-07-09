@@ -52,6 +52,11 @@ completion metrics.
 Live provider or Entrez timeouts are operational failures. They must be
 reported as retryable provider failures and must not be interpreted as missing
 taxa, HTTP 404, confirmed absence of genomes, or type-strain evidence.
+BioSample enrichment is best-effort by default after Assembly discovery has
+records. BioSample HTTP failures, including HTTP 400, are auditable enrichment
+query failures such as `provider_http_error`; they must not be recast as
+provider timeouts, taxonomy failures, no-result findings, or strict
+type-strain evidence.
 
 The local artifact normalization layer remains outside current behavior. The
 future local artifact preparation layer must remain a local curator-evidence

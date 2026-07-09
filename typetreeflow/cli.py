@@ -5,6 +5,7 @@ import json
 import logging
 import shutil
 import sys
+from contextlib import redirect_stdout
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
@@ -300,9 +301,10 @@ def _run_diagnostics_dispatch(config: AppConfig, paths) -> int | None:
     return None
 
 
-def _run_package_results_dispatch(config: AppConfig) -> int | None:
+def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
     if not config.package_results:
         return None
+    stdout = stdout or sys.stdout
     try:
         result = package_results(
             config.outdir,
@@ -312,9 +314,9 @@ def _run_package_results_dispatch(config: AppConfig) -> int | None:
         )
     except (FileNotFoundError, ManifestError, ValueError, RuntimeError) as error:
         LOGGER.error("%s", error)
-        print(_format_package_results_error_envelope(config, error))
+        print(_format_package_results_error_envelope(config, error), file=stdout)
         return 2
-    print(_format_package_results_envelope(config, result))
+    print(_format_package_results_envelope(config, result), file=stdout)
     LOGGER.info(
         "Packaged delivery results: %s (%d files copied).",
         result.delivery_dir,
@@ -866,7 +868,15 @@ def main(
     diagnostics_exit = _run_diagnostics_dispatch(config, paths)
     if diagnostics_exit is not None:
         return diagnostics_exit
-    package_exit = _run_package_results_dispatch(config)
+    original_stdout = sys.stdout
+    if config.package_results:
+        with redirect_stdout(sys.stderr):
+            package_exit = _run_package_results_dispatch(
+                config,
+                stdout=original_stdout,
+            )
+    else:
+        package_exit = _run_package_results_dispatch(config)
     if package_exit is not None:
         return package_exit
     release_exit = _run_verify_release_genus_dispatch(
@@ -884,113 +894,116 @@ def main(
         return release_exit
     run_error: Exception | None = None
     exit_code = 0
-    try:
-        validate_cli_argument_combinations(config)
-        if config.strains_per_species < 1:
-            raise ValueError("--strains-per-species must be at least 1")
-        if config.limit_selected is not None and config.limit_selected < 1:
-            raise ValueError("--limit-selected must be at least 1")
-        if config.plan_provider_registration is not None:
-            run_provider_registration_planning_stage(paths, config)
-            return 0
-        if config.register_external_genomes is not None:
-            return run_external_genome_registration_stage(paths, config)
-        if should_reuse_manifest(config.outdir, config.resume, config.force):
-            records = load_existing_manifest(config.outdir)
-            _run_resume_from_manifest(
-                records,
-                paths,
-                config,
-                download_runner=download_runner,
-                barrnap_runner=barrnap_runner,
-                fastani_runner=fastani_runner,
-                phylo_runner=phylo_runner,
-            )
-            return 0
-        if config.acquire_genus is not None:
-            run_genus_acquisition_workflow(
-                paths,
-                config,
-                download_runner=download_runner,
-                barrnap_runner=barrnap_runner,
-                fastani_runner=fastani_runner,
-                phylo_runner=phylo_runner,
-                assembly_discovery_client=assembly_discovery_client,
-                biosample_client=biosample_client,
-                ncbi_taxonomy_client=ncbi_taxonomy_client,
-                lpsn_client=lpsn_client,
-            )
-            return 0
-        if config.audit_culture_collections:
-            run_culture_collection_audit_stage(paths, config)
-            return 0
-        if config.write_completion_audit:
-            run_completion_audit_stage(paths, config)
-            return 0
-        if config.write_manual_review_template:
-            run_manual_review_template_stage(paths, config)
-            return 0
-        if config.apply_curator_evidence is not None:
-            run_curator_evidence_apply_stage(paths, config)
-            return 0
-        if (
-            config.lpsn_child_taxa is not None
-            or config.write_species_checklist is not None
-            or config.lpsn_genus is not None
-            or config.lpsn_cache is not None
-            or config.write_lpsn_cache is not None
-        ):
-            if config.lpsn_child_taxa is not None:
-                run_lpsn_child_taxa_checklist_conversion(config)
-            else:
-                run_lpsn_species_checklist_conversion(config, lpsn_client=lpsn_client)
-            return 0
-        if config.report_only:
-            records = load_existing_manifest(config.outdir)
-            _write_run_summary(records, paths, config)
-            if not _source_audit_policy_allows_stage(paths, config, "report"):
-                exit_code = 2
-                return 2
-            return 0
-        if config.discover_assembly_candidates:
-            run_candidate_discovery_stage(
-                paths,
-                config,
-                assembly_discovery_client=assembly_discovery_client,
-                biosample_client=biosample_client,
-            )
-            return 0
-        if config.prepare_selection:
-            run_selection_prepare_stage(
-                paths,
-                config,
-                biosample_client=biosample_client,
-            )
-            return 0
-        if config.selection_tsv is not None:
-            if config.dry_run:
-                run_selection_dry_run_stage(paths, config)
-            elif config.enable_downloads:
-                run_selection_download_stage(paths, config, runner=download_runner)
-            else:
-                run_selection_read_stage(config)
-            return 0
-    except (ManifestError, ValueError, RuntimeError) as error:
-        run_error = error
-        exit_code = 2
-        LOGGER.error("%s", error)
-        return 2
-    finally:
-        _write_inferred_run_state(paths, config, run_error)
-        if config.verify_genus:
-            print(
-                _format_verify_genus_envelope(
-                    config,
+    workflow_stdout = sys.stderr if config.verify_genus else sys.stdout
+    with redirect_stdout(workflow_stdout):
+        try:
+            validate_cli_argument_combinations(config)
+            if config.strains_per_species < 1:
+                raise ValueError("--strains-per-species must be at least 1")
+            if config.limit_selected is not None and config.limit_selected < 1:
+                raise ValueError("--limit-selected must be at least 1")
+            if config.plan_provider_registration is not None:
+                run_provider_registration_planning_stage(paths, config)
+                return 0
+            if config.register_external_genomes is not None:
+                return run_external_genome_registration_stage(paths, config)
+            if should_reuse_manifest(config.outdir, config.resume, config.force):
+                records = load_existing_manifest(config.outdir)
+                _run_resume_from_manifest(
+                    records,
                     paths,
-                    exit_code=exit_code,
-                    error=run_error,
+                    config,
+                    download_runner=download_runner,
+                    barrnap_runner=barrnap_runner,
+                    fastani_runner=fastani_runner,
+                    phylo_runner=phylo_runner,
                 )
-            )
+                return 0
+            if config.acquire_genus is not None:
+                run_genus_acquisition_workflow(
+                    paths,
+                    config,
+                    download_runner=download_runner,
+                    barrnap_runner=barrnap_runner,
+                    fastani_runner=fastani_runner,
+                    phylo_runner=phylo_runner,
+                    assembly_discovery_client=assembly_discovery_client,
+                    biosample_client=biosample_client,
+                    ncbi_taxonomy_client=ncbi_taxonomy_client,
+                    lpsn_client=lpsn_client,
+                )
+                return 0
+            if config.audit_culture_collections:
+                run_culture_collection_audit_stage(paths, config)
+                return 0
+            if config.write_completion_audit:
+                run_completion_audit_stage(paths, config)
+                return 0
+            if config.write_manual_review_template:
+                run_manual_review_template_stage(paths, config)
+                return 0
+            if config.apply_curator_evidence is not None:
+                run_curator_evidence_apply_stage(paths, config)
+                return 0
+            if (
+                config.lpsn_child_taxa is not None
+                or config.write_species_checklist is not None
+                or config.lpsn_genus is not None
+                or config.lpsn_cache is not None
+                or config.write_lpsn_cache is not None
+            ):
+                if config.lpsn_child_taxa is not None:
+                    run_lpsn_child_taxa_checklist_conversion(config)
+                else:
+                    run_lpsn_species_checklist_conversion(config, lpsn_client=lpsn_client)
+                return 0
+            if config.report_only:
+                records = load_existing_manifest(config.outdir)
+                _write_run_summary(records, paths, config)
+                if not _source_audit_policy_allows_stage(paths, config, "report"):
+                    exit_code = 2
+                    return 2
+                return 0
+            if config.discover_assembly_candidates:
+                run_candidate_discovery_stage(
+                    paths,
+                    config,
+                    assembly_discovery_client=assembly_discovery_client,
+                    biosample_client=biosample_client,
+                )
+                return 0
+            if config.prepare_selection:
+                run_selection_prepare_stage(
+                    paths,
+                    config,
+                    biosample_client=biosample_client,
+                )
+                return 0
+            if config.selection_tsv is not None:
+                if config.dry_run:
+                    run_selection_dry_run_stage(paths, config)
+                elif config.enable_downloads:
+                    run_selection_download_stage(paths, config, runner=download_runner)
+                else:
+                    run_selection_read_stage(config)
+                return 0
+        except (ManifestError, ValueError, RuntimeError) as error:
+            run_error = error
+            exit_code = 2
+            LOGGER.error("%s", error)
+            return 2
+        finally:
+            _write_inferred_run_state(paths, config, run_error)
+            if config.verify_genus:
+                print(
+                    _format_verify_genus_envelope(
+                        config,
+                        paths,
+                        exit_code=exit_code,
+                        error=run_error,
+                    ),
+                    file=original_stdout,
+                )
 
     if config.dry_run and config.genus and config.gtdb_metadata:
         records = [

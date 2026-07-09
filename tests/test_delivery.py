@@ -5,7 +5,7 @@ import json
 import pytest
 
 from typetreeflow.cli import main
-from typetreeflow.delivery import package_results
+from typetreeflow.delivery import DeliveryResult, package_results
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.source_audit import (
@@ -323,6 +323,35 @@ def test_package_results_cli_failed_handoff_stdout_is_valid_json(tmp_path, capsy
     assert not (tmp_path / "failed_handoff" / "manifest.tsv").exists()
 
 
+def test_package_results_stdout_stays_json_when_package_code_prints_banner(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    delivery_dir = tmp_path / "noisy_delivery"
+
+    def noisy_package_results(*args, **kwargs):
+        del args, kwargs
+        print("-- Authentication successful --")
+        delivery_dir.mkdir()
+        return DeliveryResult(
+            delivery_dir=delivery_dir,
+            copied_files=[],
+            missing_optional_files=[],
+        )
+
+    monkeypatch.setattr("typetreeflow.cli.package_results", noisy_package_results)
+
+    assert main(["package-results", "--outdir", str(tmp_path)]) == 0
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["command"] == "package-results"
+    assert captured.out.strip().startswith("{")
+    assert "-- Authentication successful --" not in captured.out
+    assert "-- Authentication successful --" in captured.err
+
+
 def test_package_results_cli_does_not_create_run_state(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)
@@ -461,17 +490,20 @@ def test_package_results_failed_handoff_copies_early_acquisition_artifacts(tmp_p
         result.delivery_dir / "source_audit" / "culture_collection_audit.tsv"
     ).exists()
     assert (result.delivery_dir / "candidates" / "discovery_records.tsv").exists()
-    assert (result.delivery_dir / "cache" / "ncbi" / "biosample_records.tsv").exists()
+    assert not (result.delivery_dir / "cache").exists()
+    assert not (result.delivery_dir / "cache" / "ncbi" / "biosample_records.tsv").exists()
     assert (
         result.delivery_dir
-        / "cache"
-        / "ncbi"
+        / "candidates"
         / "biosample_enrichment_diagnostics.tsv"
     ).exists()
     readme = (result.delivery_dir / "README_failure.md").read_text(
         encoding="utf-8"
     )
-    assert "partial cache, acquisition, selection, and diagnostic artifacts" in readme
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "raw cache contents are left in the source outdir" in readme
+    assert "cache/ (provider caches and raw/generated intermediates" in readme
+    assert "cache/ (provider caches and raw/generated intermediates" in index
 
 
 def test_package_results_failed_handoff_skips_missing_optional_artifacts(tmp_path):

@@ -44,6 +44,12 @@ class _FakeLpsnClient:
         ]
 
 
+class _BannerLpsnClient(_FakeLpsnClient):
+    def fetch_genus_species(self, genus: str):
+        print("-- Authentication successful --")
+        return super().fetch_genus_species(genus)
+
+
 class _FakeAssemblyDiscoveryClient:
     def __init__(self):
         self.calls = []
@@ -2296,6 +2302,35 @@ def test_verify_genus_stdout_omits_secret_and_sequence_content(
     assert ">secret-query" not in output
     assert "ACGTACGTSECRETSEQUENCE" not in output
     assert "species\tassembly_accession" not in output
+
+
+def test_verify_genus_stdout_stays_json_when_provider_prints_banner(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-lpsn-api",
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        lpsn_client=_BannerLpsnClient(),
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert result == 0
+    assert payload["command"] == "verify-genus"
+    assert captured.out.strip().startswith("{")
+    assert "-- Authentication successful --" not in captured.out
+    assert "-- Authentication successful --" in captured.err
 
 
 def test_verify_genus_provider_timeout_stdout_omits_secret(

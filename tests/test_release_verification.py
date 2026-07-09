@@ -264,7 +264,9 @@ def test_verify_release_genus_runs_shared_acquisition_once_for_two_policies(tmp_
     ).exists()
 
 
-def test_verify_release_genus_acquisition_failure_blocks_both_policies_once(tmp_path):
+def test_verify_release_genus_biosample_failure_is_best_effort_for_both_policies(
+    tmp_path,
+):
     lpsn_client = _CountingLpsnClient()
     assembly_client = _CountingAssemblyDiscoveryClient()
     biosample_client = _FailingBioSampleClient()
@@ -289,20 +291,29 @@ def test_verify_release_genus_acquisition_failure_blocks_both_policies_once(tmp_
     )
 
     rows = _read_tsv(tmp_path / "verification_matrix.tsv")
-    assert result == 2
+    diagnostics = _read_tsv(
+        tmp_path / "acquisition" / "candidates" / "assembly_candidate_diagnostics.tsv"
+    )
+    assert result == 0
     assert lpsn_client.calls == ["Fusobacterium"]
     assert assembly_client.calls == [
         "Fusobacterium nucleatum",
         "Fusobacterium necrophorum",
     ]
-    assert biosample_client.calls == ["SAMN00000002"]
+    assert biosample_client.calls == ["SAMN00000002", "SAMN00000003"]
     assert (tmp_path / "acquisition" / "run_state.json").exists()
     assert {row["policy"] for row in rows} == {"balanced", "representative"}
-    assert all("blocked_by_acquisition" in row["blocking_summary"] for row in rows)
-    assert not (
+    assert {row["selected_count"] for row in rows} == {"2"}
+    assert all("blocked_by_acquisition" not in row["blocking_summary"] for row in rows)
+    assert {row["code"] for row in diagnostics} == {"biosample_enrichment_failed"}
+    assert all(
+        "exception_category=provider_network_error" in row["message"]
+        for row in diagnostics
+    )
+    assert (
         tmp_path / "fusobacterium_balanced" / "selection" / "user_selection.tsv"
     ).exists()
-    assert not (
+    assert (
         tmp_path / "fusobacterium_representative" / "selection" / "user_selection.tsv"
     ).exists()
 

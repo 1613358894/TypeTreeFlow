@@ -1,6 +1,8 @@
+import csv
 from http.client import IncompleteRead
 from io import StringIO
 from pathlib import Path
+from urllib.error import HTTPError
 
 import pytest
 
@@ -56,6 +58,22 @@ class _FlakyBioSampleClient:
         return self.records.get(biosample_accession)
 
 
+class _Http400BioSampleClient:
+    def __init__(self):
+        self.calls: list[str] = []
+
+    def fetch_biosample(self, biosample_accession: str):
+        self.calls.append(biosample_accession)
+        error = HTTPError(
+            url="https://example.test/biosample",
+            code=400,
+            msg="Bad Request",
+            hdrs=None,
+            fp=None,
+        )
+        raise RuntimeError(f"NCBI BioSample lookup failed: {error}") from error
+
+
 class _FakeBioSampleEntrezBackend:
     def __init__(self, xml: str):
         self.xml = xml
@@ -86,6 +104,26 @@ class _FlakyBioSampleEntrezBackend(_FakeBioSampleEntrezBackend):
         if self.read_calls <= self.failures:
             raise IncompleteRead(b"partial")
         return super().read(handle)
+
+
+class _Http400BioSampleEntrezBackend:
+    def esearch(self, **kwargs):
+        del kwargs
+        raise HTTPError(
+            url="https://example.test/biosample",
+            code=400,
+            msg="Bad Request",
+            hdrs=None,
+            fp=None,
+        )
+
+    def efetch(self, **kwargs):
+        del kwargs
+        raise AssertionError("HTTP 400 search failure should not fetch")
+
+    def read(self, handle):
+        del handle
+        raise AssertionError("HTTP 400 search failure should not read")
 
 
 def _candidate(**kwargs) -> AssemblyCandidate:
@@ -123,6 +161,11 @@ def _write(path: Path, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def _read_tsv(path: Path) -> list[dict[str, str]]:
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
 
 
 def test_biosample_cache_round_trip(tmp_path):
@@ -563,6 +606,54 @@ def test_biosample_enrichment_keeps_cache_miss_candidate():
     assert "biosample_record_not_found" in result.candidates[0].manual_review_reason
 
 
+def test_biosample_http_400_records_query_failure_and_keeps_candidate():
+    client = _Http400BioSampleClient()
+
+    result = enrich_assembly_candidates_with_biosamples(
+        [_candidate()],
+        [_checklist_entry()],
+        client,
+    )
+
+    assert len(result.candidates) == 1
+    assert client.calls == ["SAMN00000002"]
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.code == "biosample_enrichment_failed"
+    assert "query_failed" in diagnostic.message
+    assert "exception_category=provider_http_error" in diagnostic.message
+    assert "provider_timeout" not in diagnostic.message
+    assert "taxonomy" not in diagnostic.message.lower()
+    assert "biosample_record_not_found" not in diagnostic.message
+    assert "biosample_enrichment_failed" in result.candidates[0].manual_review_reason
+
+
+def test_cli_biosample_http_400_continues_to_selection(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    checklist_path = tmp_path / "species_checklist.tsv"
+    write_species_checklist([_checklist_entry()], checklist_path)
+    write_assembly_candidates([_candidate()], paths.assembly_candidates_path)
+
+    result = main(
+        [
+            "--outdir",
+            str(outdir),
+            "--prepare-selection",
+            "--species-checklist",
+            str(checklist_path),
+            "--enrich-biosample",
+        ],
+        biosample_client=_Http400BioSampleClient(),
+    )
+
+    diagnostics = _read_tsv(paths.assembly_candidate_diagnostics_path)
+    assert result == 0
+    assert paths.user_selection_path.exists()
+    assert diagnostics[0]["code"] == "biosample_enrichment_failed"
+    assert "exception_category=provider_http_error" in diagnostics[0]["message"]
+    assert "provider_timeout" not in diagnostics[0]["message"]
+
+
 def test_local_biosample_cache_client_is_case_insensitive(tmp_path):
     path = tmp_path / "biosample_records.tsv"
     write_biosample_records(
@@ -651,6 +742,20 @@ def test_ncbi_biosample_lookup_incomplete_read_exhaustion_has_clear_error():
         client.fetch_biosample("SAMN00000002")
 
     assert sleeps == [1.0, 2.0]
+
+
+def test_ncbi_biosample_http_400_has_provider_http_error_category():
+    client = NcbiBioSampleClient(backend=_Http400BioSampleEntrezBackend())
+
+    with pytest.raises(RuntimeError) as fetch_error:
+        client.fetch_biosample("SAMN00000002")
+    with pytest.raises(RuntimeError) as search_error:
+        client.search_biosamples("Fusobacterium nucleatum", "ATCC 25586")
+
+    for error in (fetch_error.value, search_error.value):
+        message = str(error)
+        assert "exception_category=provider_http_error" in message
+        assert "provider_timeout" not in message
 
 
 def test_cli_cache_only_dry_run_biosample_enrichment(tmp_path):
