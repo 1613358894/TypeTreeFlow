@@ -172,7 +172,12 @@ class NcbiBioSampleClient:
             )
         except RetryError as error:
             raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
-        except (HTTPError, URLError, OSError, ValueError) as error:
+        except HTTPError as error:
+            raise RuntimeError(
+                "NCBI BioSample search failed: "
+                + _non_transient_http_diagnostic("entrez_search_fetch", error)
+            ) from error
+        except (URLError, OSError, ValueError) as error:
             raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
         except Exception as error:
             raise RuntimeError(f"NCBI BioSample search failed: {error}") from error
@@ -195,7 +200,12 @@ class NcbiBioSampleClient:
             )
         except RetryError as error:
             raise RuntimeError(f"NCBI BioSample lookup failed: {error}") from error
-        except (HTTPError, URLError, OSError, ValueError) as error:
+        except HTTPError as error:
+            raise RuntimeError(
+                "NCBI BioSample lookup failed: "
+                + _non_transient_http_diagnostic("entrez_lookup_fetch", error)
+            ) from error
+        except (URLError, OSError, ValueError) as error:
             raise RuntimeError(f"NCBI BioSample lookup failed: {error}") from error
         except Exception as error:
             raise RuntimeError(f"NCBI BioSample lookup failed: {error}") from error
@@ -280,6 +290,14 @@ class NcbiBioSampleClient:
     def _read_fetch_payload(self, handle) -> object:
         with bounded_socket_timeout(self.provider_timeout_seconds):
             return _read_fetch_payload(handle, self.backend)
+
+
+def _non_transient_http_diagnostic(action: str, error: HTTPError) -> str:
+    return (
+        "provider_diagnostic stage=biosample_enrichment provider=NCBI BioSample "
+        f"action={action} exception_category=provider_http_error; "
+        f"final error: {error}"
+    )
 
 
 def read_biosample_records(path: Path) -> list[BioSampleRecord]:

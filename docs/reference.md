@@ -36,6 +36,15 @@ Primary commands write compact JSON to stdout by default. This does not require
 
 AI-facing stdout must stay short. Long logs, reports, tables, diagnostics, and
 evidence belong in the run directory.
+Provider/authentication banners and third-party library prints are not part of
+the stdout contract. Primary AI-facing command stdout must remain one JSON
+object; banners and logs belong on stderr or in durable log files.
+
+Failed-handoff packages are review bundles, not raw cache exports. By default
+`package-results --failed-handoff` excludes `cache/` and raw/generated
+provider intermediates, while retaining available small review artifacts such
+as run state, selection, source audit, taxonomy, candidate, retry diagnostic,
+report, and handoff files.
 
 `--enable-expanded-discovery` writes audit tables only; it does not mutate
 manifest, selection, evidence levels, or completion counts.

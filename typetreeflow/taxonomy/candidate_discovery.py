@@ -4,6 +4,7 @@ import csv
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable, Protocol
+from urllib.error import HTTPError, URLError
 
 from typetreeflow.sources.ncbi_biosample import BioSampleClient, BioSampleRecord
 from typetreeflow.taxonomy.candidates import AssemblyCandidate
@@ -248,7 +249,27 @@ def enrich_assembly_candidates_with_biosamples(
             )
             continue
 
-        record = client.fetch_biosample(biosample)
+        try:
+            record = client.fetch_biosample(biosample)
+        except Exception as error:
+            enriched_candidates.append(
+                _append_manual_review_reason(
+                    candidate,
+                    "biosample_enrichment_failed",
+                )
+            )
+            diagnostics.append(
+                CandidateDiscoveryDiagnostic(
+                    species=candidate.species,
+                    code="biosample_enrichment_failed",
+                    message=_biosample_enrichment_failure_message(
+                        biosample,
+                        error,
+                    ),
+                    assembly_accession=candidate.assembly_accession,
+                )
+            )
+            continue
         if record is None:
             enriched_candidates.append(
                 _append_manual_review_reason(candidate, "biosample_record_not_found")
@@ -278,6 +299,50 @@ def enrich_assembly_candidates_with_biosamples(
         candidates=enriched_candidates,
         diagnostics=diagnostics,
     )
+
+
+def _biosample_enrichment_failure_message(
+    biosample: str,
+    error: BaseException,
+) -> str:
+    category = _biosample_query_failure_category(error)
+    return (
+        f"BioSample enrichment query_failed for {biosample}; "
+        f"exception_category={category}; "
+        "retry_action=review existing discovery records, BioSample cache, or "
+        f"rerun enrichment; error: {error}"
+    )
+
+
+def _biosample_query_failure_category(error: BaseException) -> str:
+    for cause in _exception_chain(error):
+        if isinstance(cause, HTTPError):
+            return "provider_http_error"
+        if isinstance(cause, (TimeoutError,)):
+            return "provider_timeout"
+        if isinstance(cause, URLError):
+            reason = getattr(cause, "reason", None)
+            if isinstance(reason, TimeoutError) or "timeout" in str(reason).lower():
+                return "provider_timeout"
+            return "provider_network_error"
+
+    text = str(error).lower()
+    if "exception_category=provider_timeout" in text or "timed out" in text:
+        return "provider_timeout"
+    if "http error" in text or "exception_category=http_" in text:
+        return "provider_http_error"
+    if "url_error" in text or "connection" in text or "network" in text:
+        return "provider_network_error"
+    return "provider_error"
+
+
+def _exception_chain(error: BaseException) -> Iterable[BaseException]:
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
 
 
 def annotate_candidate_lpsn_type_strain_match(

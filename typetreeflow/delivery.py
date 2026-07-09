@@ -265,14 +265,14 @@ def package_failed_handoff(
             paths.expanded_discovery_results_path,
             "completion/expanded_discovery_results.tsv",
         ),
-        (paths.biosample_records_path, "cache/ncbi/biosample_records.tsv"),
         (
             paths.ncbi_cache_dir / "biosample_enrichment_diagnostics.tsv",
-            "cache/ncbi/biosample_enrichment_diagnostics.tsv",
+            "candidates/biosample_enrichment_diagnostics.tsv",
         ),
         (paths.run_summary_path, "report/summary.md"),
         (paths.run_review_path, "report/run_review.md"),
     ]
+    skipped_artifacts = _failed_handoff_skipped_artifacts(paths)
 
     for source, relative_path in required_files:
         if source.exists():
@@ -297,6 +297,7 @@ def package_failed_handoff(
             delivery_dir=output_dir,
             copied_files=copied,
             missing_expected_files=missing,
+            skipped_artifacts=skipped_artifacts,
             state=state,
         ),
         encoding="utf-8",
@@ -311,6 +312,7 @@ def package_failed_handoff(
             delivery_dir=output_dir,
             copied_files=copied,
             missing_expected_files=missing,
+            skipped_artifacts=skipped_artifacts,
             state=state,
         ),
         encoding="utf-8",
@@ -567,6 +569,7 @@ def build_failed_handoff_index(
     copied_files: list[Path],
     missing_expected_files: list[str],
     state: WorkflowState | None,
+    skipped_artifacts: list[str] | None = None,
 ) -> str:
     generated_time = _utc_timestamp()
     workflow_status = state.status if state is not None else "unknown"
@@ -631,6 +634,9 @@ def build_failed_handoff_index(
     if missing_expected_files:
         lines.extend(["", "## Missing Expected Files", ""])
         lines.extend(f"- {item}" for item in missing_expected_files)
+    if skipped_artifacts:
+        lines.extend(["", "## Skipped Files", ""])
+        lines.extend(f"- {item}" for item in skipped_artifacts)
     return "\n".join(lines) + "\n"
 
 
@@ -641,6 +647,7 @@ def build_failed_handoff_readme(
     copied_files: list[Path],
     missing_expected_files: list[str],
     state: WorkflowState | None,
+    skipped_artifacts: list[str] | None = None,
 ) -> str:
     source_outdir = _source_outdir_command_arg(paths)
     workflow_status = state.status if state is not None else "unknown"
@@ -697,6 +704,11 @@ def build_failed_handoff_readme(
         lines.extend(f"- {item}" for item in missing_expected_files)
     else:
         lines.append("- none")
+    lines.extend(["", "## Skipped Files", ""])
+    if skipped_artifacts:
+        lines.extend(f"- {item}" for item in skipped_artifacts)
+    else:
+        lines.append("- none")
     lines.extend(
         [
             "",
@@ -707,13 +719,24 @@ def build_failed_handoff_readme(
             "```",
             "",
             (
-                "This package may include partial cache, acquisition, selection, "
-                "and diagnostic artifacts for review or resume planning."
+                "This package includes available acquisition, selection, and "
+                "diagnostic artifacts for review or resume planning; raw cache "
+                "contents are left in the source outdir."
             ),
             "After resolving the failure and generating manifest.tsv, rerun normal package-results.",
         ]
     )
     return "\n".join(lines) + "\n"
+
+
+def _failed_handoff_skipped_artifacts(paths: OutputPaths) -> list[str]:
+    skipped: list[str] = []
+    if paths.cache_dir.exists():
+        skipped.append(
+            "cache/ (provider caches and raw/generated intermediates are excluded "
+            "from failed-handoff packages by default)"
+        )
+    return skipped
 
 
 def _copy_required(source: Path, destination: Path) -> Path:

@@ -138,6 +138,9 @@ typetreeflow package-results \
 `handoff_index.md` is a delivery-package navigation index and status summary.
 It is not a new scientific decision source. The authoritative interpretation
 remains with `manifest.tsv`, source audits, completion tables, and reports.
+Failed-handoff packages do not include `cache/` or raw provider intermediates
+by default. Use the source run directory for cache reuse; the handoff package
+keeps only small review artifacts and diagnostics.
 
 ## Resume And Inspect
 
