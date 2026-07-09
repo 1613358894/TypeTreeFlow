@@ -1,5 +1,41 @@
 # Changelog
 
+## v2.2.17 - 2026-07-09
+
+v2.2.17 is a patch release based on v2.2.16. It records the provider timeout,
+BioSample enrichment best-effort, stdout JSON isolation, and failed-handoff
+cache boundary fixes now merged on `main`.
+
+### Changed
+
+- Added a live provider per-request timeout boundary, defaulting to 30 seconds,
+  so bounded provider checks fail predictably instead of hanging indefinitely.
+- Treat BioSample enrichment HTTP and provider errors as best-effort by default,
+  preserving selection progress while keeping failure evidence auditable.
+- Keep `verify-genus` and `package-results` stdout as a single JSON object; any
+  provider/auth banner output is routed to stderr or durable logs.
+- Default failed-handoff packaging no longer copies `cache/`; it keeps safe
+  review artifacts without bundling provider/cache state.
+
+### Fixed
+
+- Classify HTTP 400 provider responses as `provider_http_error` instead of
+  misclassifying them as `provider_timeout`.
+
+### Verification
+
+- Post-PR18 Fusobacterium limit4 remote smoke passed as a bounded remote smoke
+  check.
+
+### Notes
+
+- The Fusobacterium smoke result is verification evidence only, not a taxonomy
+  conclusion or completed-genus coverage claim.
+- No taxonomy conclusion, provider automation, provider login/scraping/purchase
+  flow, unguarded download behavior, or automatic provider download support is
+  introduced.
+- No type-strain evidence threshold is relaxed.
+
 ## v2.2.16 - 2026-07-07
 
 v2.2.16 is a CLI/UX and maintenance release based on v2.2.15. It prepares the

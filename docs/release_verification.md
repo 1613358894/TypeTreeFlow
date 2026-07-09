@@ -5,12 +5,13 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.16 / 2.2.16 release verification path uses
+The current v2.2.17 / 2.2.17 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
-release gate checks workspace hygiene and ensures repository-root `results/`
-remains absent.
+release gate checks provider timeout/error classification, stdout JSON
+isolation, failed-handoff cache boundaries, workspace hygiene, and ensures
+repository-root `results/` remains absent.
 
 Selection evidence levels remain visible as `strict_confirmed`,
 `likely_type_material`, and `representative_only`. `--auto-accept-selection`

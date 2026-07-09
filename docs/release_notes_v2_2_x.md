@@ -1,9 +1,35 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.16 integration review as
+These notes consolidate the v2.2.2 through v2.2.17 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.17
+
+v2.2.17 is a provider robustness and release-boundary patch based on v2.2.16.
+It records the provider timeout, BioSample enrichment best-effort, stdout JSON
+isolation, and failed-handoff cache boundary work now merged on `main`:
+
+- Live provider requests have a per-request timeout boundary, defaulting to 30
+  seconds, so bounded provider checks fail predictably instead of hanging
+  indefinitely.
+- BioSample enrichment HTTP and provider errors are best-effort by default and
+  do not block selection; errors remain auditable in run evidence.
+- HTTP 400 provider responses are classified as `provider_http_error`, not
+  `provider_timeout`.
+- `verify-genus` and `package-results` keep primary stdout as a single JSON
+  object; provider/auth banner text is routed to stderr or durable logs.
+- `package-results --failed-handoff` does not copy `cache/` by default and keeps
+  only safe review artifacts for failed-run handoff.
+- Post-PR18 Fusobacterium `limit4` remote smoke passed as bounded verification
+  evidence.
+
+v2.2.17 does not make a taxonomy conclusion, claim completed Fusobacterium
+coverage, introduce provider automation, provider login/scraping/purchase
+flows, automatic provider downloads, unguarded download behavior, or relax
+type-strain evidence thresholds. The Fusobacterium smoke is release verification
+evidence only.
 
 ## v2.2.16
 
