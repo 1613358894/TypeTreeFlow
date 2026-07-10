@@ -33,8 +33,10 @@ typetreeflow doctor
 ```
 
 `environment.yml` installs the recommended Python and local tool set. The
-barrnap database initialization is a separate operator step; `doctor` reports
-the DB readiness check and does not download the database automatically.
+barrnap database initialization is a separate operator step; run
+`barrnap --updatedb` under the rehearsal harness with a timeout and limited
+retry count. `doctor` reports the DB readiness check and does not download the
+database automatically.
 
 ## Plan-Only Genus Verification
 

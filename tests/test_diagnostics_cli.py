@@ -305,6 +305,90 @@ def test_doctor_reports_barrnap_database_check_when_missing(
     } in payload["next_actions"]
 
 
+def test_doctor_detects_nested_barrnap_database_layout(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "barrnap").write_text("", encoding="utf-8")
+    db_dir = tmp_path / "share" / "barrnap" / "db"
+    nested_dir = db_dir / "bac"
+    nested_dir.mkdir(parents=True)
+    (nested_dir / "bac.rRNA.cm").write_text("fixture\n", encoding="utf-8")
+
+    def fake_which(name):
+        if name == "iqtree":
+            return None
+        return str(bin_dir / name)
+
+    monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", fake_which)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["barrnap_cm_database"]["status"] == "pass"
+    assert "nested bac/bac.rRNA.cm" in checks["barrnap_cm_database"]["message"]
+    assert str(db_dir) in checks["barrnap_cm_database"]["message"]
+    assert not any(item["id"] == "barrnap_cm_database" for item in payload["blocking"])
+
+
+def test_doctor_detects_top_level_barrnap_cm_database(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "barrnap").write_text("", encoding="utf-8")
+    db_dir = tmp_path / "share" / "barrnap" / "db"
+    db_dir.mkdir(parents=True)
+    (db_dir / "bac.rRNA.cm").write_text("fixture\n", encoding="utf-8")
+
+    def fake_which(name):
+        if name == "iqtree":
+            return None
+        return str(bin_dir / name)
+
+    monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", fake_which)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["barrnap_cm_database"]["status"] == "pass"
+    assert "top-level bac.rRNA.cm" in checks["barrnap_cm_database"]["message"]
+    assert str(db_dir) in checks["barrnap_cm_database"]["message"]
+
+
+def test_doctor_preserves_barrnap_db_dir_override(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    override_dir = tmp_path / "manual_db" / "bac"
+    override_dir.mkdir(parents=True)
+    (override_dir / "bac.rRNA.cm").write_text("fixture\n", encoding="utf-8")
+    monkeypatch.setenv("BARRNAP_DB_DIR", str(override_dir))
+    monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", lambda name: None)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["barrnap_cm_database"]["status"] == "pass"
+    assert "configured barrnap CM/HMM database path is readable" in (
+        checks["barrnap_cm_database"]["message"]
+    )
+    assert "top-level bac.rRNA.cm" in checks["barrnap_cm_database"]["message"]
+    assert str(override_dir) in checks["barrnap_cm_database"]["message"]
+
+
 def test_doctor_iqtree2_missing_iqtree_present_is_explicit(
     monkeypatch,
     tmp_path,
