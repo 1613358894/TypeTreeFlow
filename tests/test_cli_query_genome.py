@@ -5,6 +5,7 @@ from pathlib import Path
 
 from typetreeflow.cli import main
 from typetreeflow.external.runner import CommandResult
+from typetreeflow.external.tools import resolve_iqtree_executable
 from typetreeflow.local_query import build_query_id_map
 from typetreeflow.manifest import read_manifest, write_manifest, write_name_map
 from typetreeflow.models import StrainRecord
@@ -84,13 +85,17 @@ class FakePhyloRunner:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(input_path.read_text(encoding="utf-8"), encoding="utf-8")
             return CommandResult(command=command, returncode=0, stdout="", stderr="")
-        if executable == "iqtree2":
+        if executable in {"iqtree2", "iqtree"}:
             prefix_path = Path(command[command.index("-pre") + 1])
             treefile_path = Path(f"{prefix_path}.treefile")
             treefile_path.parent.mkdir(parents=True, exist_ok=True)
             treefile_path.write_text("(ref1,ref2,ref3,query_TJA_020);\n", encoding="utf-8")
             return CommandResult(command=command, returncode=0, stdout="", stderr="")
         raise AssertionError(f"Unexpected command: {command}")
+
+
+def _expected_phylo_commands() -> list[str]:
+    return ["mafft", "trimal", resolve_iqtree_executable() or "iqtree2"]
 
 
 def _gff(seqid: str = "query_contig") -> str:
@@ -339,7 +344,7 @@ def test_query_phylogeny_includes_query_when_query_16s_available(tmp_path):
 
     assert result == 0
     assert len(barrnap_runner.commands) == 1
-    assert [command[0] for command in phylo_runner.commands] == ["mafft", "trimal", "iqtree2"]
+    assert [command[0] for command in phylo_runner.commands] == _expected_phylo_commands()
     assert ">query_TJA_020|source=local_query" in all_16s
     assert phylo_rows[0]["status"] == "phylo_planned"
     assert phylo_rows[0]["query_16s_status"] == "query_16s_included"
@@ -503,7 +508,7 @@ def test_verify_genus_guarded_query_enters_manifest_rrna_phylo_and_package(
     assert len(download_runner.commands) == 4
     assert len(fastani_runner.commands) == 1
     assert len(barrnap_runner.commands) == 5
-    assert [command[0] for command in phylo_runner.commands] == ["mafft", "trimal", "iqtree2"]
+    assert [command[0] for command in phylo_runner.commands] == _expected_phylo_commands()
     assert len(query_rows) == 1
     query_row = query_rows[0]
     assert query_row["assembly_source"] == "local_query"
@@ -594,11 +599,7 @@ def test_verify_genus_guarded_multi_query_enters_manifest_rrna_ani_phylo_and_pac
     assert len(download_runner.commands) == 4
     assert len(barrnap_runner.commands) == 7
     assert len(fastani_runner.commands) == 3
-    assert [command[0] for command in phylo_runner.commands] == [
-        "mafft",
-        "trimal",
-        "iqtree2",
-    ]
+    assert [command[0] for command in phylo_runner.commands] == _expected_phylo_commands()
     assert len(query_rows) == 3
     assert query_ids == {"TJA_020", "TJ_220", "TJ_226"}
     for query_row in query_rows:

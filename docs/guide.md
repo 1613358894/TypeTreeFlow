@@ -23,6 +23,19 @@ typetreeflow doctor
 version, environment files, workspace/output readiness, and external tool
 availability without running downloads or external bioinformatics tools.
 
+For clean deployment rehearsal, keep the route minimal:
+
+```bash
+conda env create -f environment.yml
+conda activate typetreeflow
+barrnap --updatedb
+typetreeflow doctor
+```
+
+`environment.yml` installs the recommended Python and local tool set. The
+barrnap database initialization is a separate operator step; `doctor` reports
+the DB readiness check and does not download the database automatically.
+
 ## Plan-Only Genus Verification
 
 Plan-only is the default maintenance path. It is suitable for documentation,
@@ -182,7 +195,8 @@ ATCC Genome Portal.
 
 - Missing credentials: pass `--email` or configure local untracked env files.
 - Missing tools: `doctor` reports `datasets`, `barrnap`, `fastANI`, `mafft`,
-  `trimal`, and `iqtree2` readiness without running them.
+  `trimal`, and IQ-TREE readiness without running them. It prefers `iqtree2`
+  and accepts `iqtree` as a fallback executable.
 - Incomplete run: use `status`, `next-step`, and failed handoff packaging.
 - Provider timeout: inspect `status` and package a failed handoff; retry with
   network available, a local cache, or a reviewed timeout override.

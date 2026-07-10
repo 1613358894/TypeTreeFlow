@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from typetreeflow.external.runner import CommandRunner
@@ -123,6 +123,10 @@ def prepare_phylogeny(
         bootstrap=bootstrap,
         model=model,
     )
+    write_phylo_plan(
+        replace(plan, iqtree_executable=iqtree_result.executable),
+        plan_path,
+    )
     if not _step_ready(iqtree_result.status, "iqtree"):
         return _result(
             plan_path,
@@ -141,7 +145,10 @@ def prepare_phylogeny(
         trimal_result=trimal_result,
         iqtree_result=iqtree_result,
         status="phylo_tree_ready",
-        notes=f"Phylogeny treefile is ready: {iqtree_result.treefile_path}",
+        notes=(
+            f"Phylogeny treefile is ready: {iqtree_result.treefile_path}; "
+            f"IQ-TREE executable: {iqtree_result.executable}"
+        ),
     )
 
 

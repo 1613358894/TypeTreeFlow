@@ -11,6 +11,7 @@ PHYLO_PLAN_FIELDS = [
     "aligned_fasta_path",
     "trimmed_fasta_path",
     "iqtree_prefix",
+    "iqtree_executable",
     "treefile_path",
     "query_16s_status",
     "query_sequence_count",
@@ -32,6 +33,7 @@ class PhyloPlan:
     notes: str = ""
     query_16s_status: str = "query_not_requested"
     query_sequence_count: int = 0
+    iqtree_executable: str = ""
 
 
 def build_phylo_plan(
@@ -94,6 +96,7 @@ def build_phylo_plan(
         aligned_fasta_path=aligned_fasta_path,
         trimmed_fasta_path=trimmed_fasta_path,
         iqtree_prefix=iqtree_prefix,
+        iqtree_executable="",
         treefile_path=treefile_path,
         query_16s_status=query_16s_status,
         query_sequence_count=query_sequence_count,

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from typetreeflow.external.runner import CommandRunner
-from typetreeflow.external.tools import IQTREE
+from typetreeflow.external.tools import IQTREE, resolve_iqtree_executable
 from typetreeflow.phylo.plan import PhyloPlan
 
 
@@ -13,6 +13,7 @@ class IqtreeResult:
     command: list[str]
     status: str
     treefile_path: Path
+    executable: str = ""
     returncode: int | None = None
     stdout: str = ""
     stderr: str = ""
@@ -25,9 +26,10 @@ def build_iqtree_command(
     threads: int = 1,
     bootstrap: int = 1000,
     model: str = "MFP",
+    executable: str = IQTREE.executable,
 ) -> list[str]:
     return [
-        IQTREE.executable,
+        executable,
         "-s",
         str(trimmed_fasta_path),
         "-pre",
@@ -53,12 +55,14 @@ def execute_iqtree(
     trimmed_fasta_path = Path(plan.trimmed_fasta_path)
     prefix_path = Path(plan.iqtree_prefix)
     treefile_path = Path(plan.treefile_path)
+    executable = resolve_iqtree_executable() or IQTREE.executable
     command = build_iqtree_command(
         trimmed_fasta_path,
         prefix_path,
         threads=threads,
         bootstrap=bootstrap,
         model=model,
+        executable=executable,
     )
 
     if dry_run:
@@ -66,6 +70,7 @@ def execute_iqtree(
             command=command,
             status="iqtree_planned",
             treefile_path=treefile_path,
+            executable=executable,
             notes="IQ-TREE command planned; not executed.",
         )
 
@@ -74,6 +79,7 @@ def execute_iqtree(
             command=[],
             status=plan.status,
             treefile_path=treefile_path,
+            executable=executable,
             notes=plan.notes,
         )
 
@@ -82,6 +88,7 @@ def execute_iqtree(
             command=command,
             status="iqtree_missing_input",
             treefile_path=treefile_path,
+            executable=executable,
             notes=f"IQ-TREE input alignment does not exist: {trimmed_fasta_path}",
         )
 
@@ -90,6 +97,7 @@ def execute_iqtree(
             command=command,
             status="iqtree_skipped_existing",
             treefile_path=treefile_path,
+            executable=executable,
             notes=f"Existing IQ-TREE treefile found: {treefile_path}",
         )
 
@@ -103,6 +111,7 @@ def execute_iqtree(
             command=command,
             status="iqtree_failed",
             treefile_path=treefile_path,
+            executable=executable,
             returncode=command_result.returncode,
             stdout=command_result.stdout,
             stderr=command_result.stderr,
@@ -115,6 +124,7 @@ def execute_iqtree(
             command=command,
             status="iqtree_missing_output",
             treefile_path=treefile_path,
+            executable=executable,
             returncode=command_result.returncode,
             stdout=command_result.stdout,
             stderr=command_result.stderr,
@@ -125,6 +135,7 @@ def execute_iqtree(
         command=command,
         status="iqtree_succeeded",
         treefile_path=treefile_path,
+        executable=executable,
         returncode=command_result.returncode,
         stdout=command_result.stdout,
         stderr=command_result.stderr,

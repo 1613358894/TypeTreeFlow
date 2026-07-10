@@ -49,6 +49,12 @@ Release and packaging checks are local gates only. They do not create tags,
 push commits or tags, create GitHub Releases, upload assets, or run live
 downloads.
 
+Clean deployment rehearsal is also a local readiness gate. It may create a
+fresh environment from `environment.yml`, initialize the local barrnap DB with
+`barrnap --updatedb`, and run `typetreeflow doctor`; it is not a live provider
+run and does not imply NCBI/LPSN/Entrez lookup, datasets download, barrnap
+analysis, FastANI, MAFFT, trimAl, or IQ-TREE workflow execution.
+
 ## Release Gate
 
 The release gate must include:

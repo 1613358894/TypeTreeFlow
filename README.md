@@ -56,6 +56,9 @@ python typetreeflow.py --version
 typetreeflow doctor
 ```
 
+See [docs/guide.md](docs/guide.md) for the clean deployment route and
+[docs/reference.md](docs/reference.md) for doctor readiness contracts.
+
 Credentials belong in local untracked files or command-line options. Do not
 commit `lpsn.env`, API keys, provider credentials, downloaded archives, run
 outputs, package artifacts, or release evidence.
