@@ -669,12 +669,15 @@ def summarize_phylo_status(
             return {
                 "status": plan_row.get("status", ""),
                 "notes": plan_row.get("notes", ""),
+                **_phylo_iqtree_executable_from_row(plan_row),
                 **_phylo_query_status_from_row(plan_row),
             }
     if paths.iqtree_treefile_path.exists():
+        plan_row = _read_first_tsv_row(paths.phylo_plan_path) if paths.phylo_plan_path.exists() else {}
         return {
             "status": "phylo_tree_ready",
             "notes": f"IQ-TREE treefile exists: {_display_path(paths.iqtree_treefile_path, paths)}",
+            **_phylo_iqtree_executable_from_row(plan_row),
             **plan_query_status,
         }
 
@@ -704,6 +707,7 @@ def summarize_phylo_status(
             return {
                 "status": plan_row.get("status", ""),
                 "notes": plan_row.get("notes", ""),
+                **_phylo_iqtree_executable_from_row(plan_row),
                 **_phylo_query_status_from_row(plan_row),
             }
 
@@ -742,6 +746,13 @@ def _phylo_query_status_from_row(row: dict[str, str]) -> dict[str, str]:
     if count:
         result["query_sequence_count"] = count
     return result
+
+
+def _phylo_iqtree_executable_from_row(row: dict[str, str]) -> dict[str, str]:
+    executable = row.get("iqtree_executable", "").strip()
+    if not executable:
+        return {}
+    return {"iqtree_executable": executable}
 
 
 def summarize_ani_stage_status(paths: OutputPaths) -> dict[str, str] | None:
@@ -1705,6 +1716,10 @@ def build_run_summary_markdown(
             "",
             f"- Status: {phylo_status['status']}",
             f"- Notes: {phylo_status['notes']}",
+            (
+                "- IQ-TREE executable: "
+                f"{phylo_status.get('iqtree_executable', '')}"
+            ),
             (
                 "- Query 16S status: "
                 f"{phylo_status.get('query_16s_status', 'query_not_recorded')}"

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from typetreeflow.cli import main
 from typetreeflow.external.runner import CommandResult
+from typetreeflow.external.tools import resolve_iqtree_executable
 from typetreeflow.manifest import read_manifest
 from typetreeflow.sources.ncbi_biosample import BioSampleRecord, write_biosample_records
 from typetreeflow.taxonomy.candidate_discovery import (
@@ -171,13 +172,17 @@ class _FakePhyloRunner:
                 encoding="utf-8",
             )
             return CommandResult(command=command, returncode=0, stdout="", stderr="")
-        if executable == "iqtree2":
+        if executable in {"iqtree2", "iqtree"}:
             prefix_path = Path(command[command.index("-pre") + 1])
             treefile_path = Path(f"{prefix_path}.treefile")
             treefile_path.parent.mkdir(parents=True, exist_ok=True)
             treefile_path.write_text("(seq1,seq2,seq3,seq4);\n", encoding="utf-8")
             return CommandResult(command=command, returncode=0, stdout="", stderr="")
         raise AssertionError(f"Unexpected command: {command}")
+
+
+def _expected_phylo_commands() -> list[str]:
+    return ["mafft", "trimal", resolve_iqtree_executable() or "iqtree2"]
 
 
 def _fake_barrnap_gff() -> str:
@@ -2117,7 +2122,7 @@ def test_verify_genus_enable_phylo_after_barrnap_four_16s_runs_fake_tools(
     state = read_run_state(paths.run_state_path)
     assert result == 0
     assert len(barrnap_runner.commands) == 4
-    assert [command[0] for command in phylo_runner.commands] == ["mafft", "trimal", "iqtree2"]
+    assert [command[0] for command in phylo_runner.commands] == _expected_phylo_commands()
     assert paths.phylo_plan_path.exists()
     assert paths.iqtree_treefile_path.exists()
     assert state.stages["phylo"].status == "succeeded"

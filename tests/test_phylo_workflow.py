@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from typetreeflow.external.runner import CommandResult
+from typetreeflow.external.tools import resolve_iqtree_executable
 from typetreeflow.phylo.workflow import prepare_phylogeny
 from typetreeflow.workflow.paths import get_output_paths
 
@@ -36,7 +37,7 @@ class FakePhyloRunner:
                 encoding="utf-8",
             )
             return CommandResult(command=command, returncode=0)
-        if executable == "iqtree2":
+        if executable in {"iqtree2", "iqtree"}:
             prefix_path = Path(command[command.index("-pre") + 1])
             treefile_path = Path(f"{prefix_path}.treefile")
             treefile_path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,6 +45,10 @@ class FakePhyloRunner:
             return CommandResult(command=command, returncode=0)
 
         raise AssertionError(f"Unexpected command: {command}")
+
+
+def _expected_commands() -> list[str]:
+    return ["mafft", "trimal", resolve_iqtree_executable() or "iqtree2"]
 
 
 def _write_fasta(path: Path, count: int = 4) -> None:
@@ -126,7 +131,7 @@ def test_fake_all_steps_success_returns_tree_ready(tmp_path):
     )
 
     assert result.status == "phylo_tree_ready"
-    assert [command[0] for command in runner.commands] == ["mafft", "trimal", "iqtree2"]
+    assert [command[0] for command in runner.commands] == _expected_commands()
     assert result.mafft_result is not None
     assert result.trimal_result is not None
     assert result.iqtree_result is not None
@@ -168,7 +173,11 @@ def test_trimal_failure_stops_before_iqtree(tmp_path):
     assert result.iqtree_result is None
 
 
-def test_iqtree_failure_returns_iqtree_failed(tmp_path):
+def test_iqtree_failure_returns_iqtree_failed(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "typetreeflow.phylo.iqtree.resolve_iqtree_executable",
+        lambda: "iqtree2",
+    )
     paths = get_output_paths(tmp_path)
     _write_fasta(paths.all_16s_fasta_path)
     runner = FakePhyloRunner(fail_tool="iqtree2")
@@ -203,7 +212,7 @@ def test_force_true_propagates_to_steps(tmp_path):
     )
 
     assert result.status == "phylo_tree_ready"
-    assert [command[0] for command in runner.commands] == ["mafft", "trimal", "iqtree2"]
+    assert [command[0] for command in runner.commands] == _expected_commands()
     assert paths.aligned_16s_fasta_path.read_text(encoding="utf-8").startswith(">seq1")
     assert paths.trimmed_16s_fasta_path.read_text(encoding="utf-8").startswith(">seq1")
     assert paths.iqtree_treefile_path.read_text(encoding="utf-8") == "(seq1,seq2,seq3);\n"

@@ -49,11 +49,11 @@ from typetreeflow.external.runner import SubprocessRunner
 from typetreeflow.external.tools import (
     BARRNAP,
     FASTANI,
-    IQTREE,
     MAFFT,
     NCBI_DATASETS,
     TRIMAL,
     require_executable,
+    require_iqtree_executable,
 )
 from typetreeflow.external_genomes import (
     build_external_genome_install_plan,
@@ -1664,7 +1664,7 @@ def _run_resume_from_manifest(
         if phylo_runner is None and not run_config.skip_tree:
             require_executable(MAFFT.executable)
             require_executable(TRIMAL.executable)
-            require_executable(IQTREE.executable)
+            require_iqtree_executable()
             phylo_runner = SubprocessRunner()
         run_phylo_stage(records, paths, run_config, runner=phylo_runner)
     elif run_config.enable_barrnap:
@@ -2523,6 +2523,9 @@ def _phylo_stage_state(
     if paths.iqtree_treefile_path.exists():
         query_status = _phylo_plan_query_status(paths)
         summary = "phylo_tree_ready: IQ-TREE treefile is ready."
+        iqtree_executable = _phylo_plan_iqtree_executable(paths)
+        if iqtree_executable:
+            summary = f"{summary} iqtree_executable={iqtree_executable}."
         if query_status:
             summary = f"{summary} {query_status}"
         return StageState(
@@ -2639,6 +2642,15 @@ def _phylo_plan_query_status(paths) -> str:
     if count:
         return f"query_16s_status={status}; query_sequence_count={count}."
     return f"query_16s_status={status}."
+
+
+def _phylo_plan_iqtree_executable(paths) -> str:
+    if not paths.phylo_plan_path.exists():
+        return ""
+    row = _read_first_tsv_row(paths.phylo_plan_path)
+    if not row:
+        return ""
+    return row.get("iqtree_executable", "").strip()
 
 
 def _truthy(value: object) -> bool:
@@ -3231,7 +3243,7 @@ def _run_guarded_downstream_analysis_stages(
         if phylo_plan.status == "phylo_planned":
             require_executable(MAFFT.executable)
             require_executable(TRIMAL.executable)
-            require_executable(IQTREE.executable)
+            require_iqtree_executable()
             phylo_runner = SubprocessRunner()
     run_phylo_stage(records, paths, config, runner=phylo_runner)
 

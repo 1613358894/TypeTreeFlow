@@ -204,7 +204,11 @@ def test_failure_is_failed(tmp_path):
     assert not plan.treefile_path.exists()
 
 
-def test_command_is_not_shell_string(tmp_path):
+def test_command_is_not_shell_string(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "typetreeflow.phylo.iqtree.resolve_iqtree_executable",
+        lambda: "iqtree2",
+    )
     plan = _planned_phylo(tmp_path)
     runner = FakeRunner(returncode=0, treefile_text="(a,b,c);\n")
 
@@ -212,3 +216,17 @@ def test_command_is_not_shell_string(tmp_path):
 
     assert isinstance(runner.commands[0], list)
     assert runner.commands[0][0] == "iqtree2"
+
+
+def test_execute_iqtree_uses_resolved_fallback_executable(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "typetreeflow.phylo.iqtree.resolve_iqtree_executable",
+        lambda: "iqtree",
+    )
+    plan = _planned_phylo(tmp_path)
+    runner = FakeRunner(returncode=0, treefile_text="(a,b,c);\n")
+
+    result = execute_iqtree(plan, runner, dry_run=False)
+
+    assert result.executable == "iqtree"
+    assert runner.commands[0][0] == "iqtree"

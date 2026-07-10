@@ -296,8 +296,13 @@ def test_doctor_reports_barrnap_database_check_when_missing(
 
     payload, _ = _doctor_payload(capsys)
     checks = {item["id"]: item for item in payload["checks"]}
-    assert checks["barrnap_cm_database"]["status"] == "warning"
+    assert checks["barrnap_cm_database"]["status"] == "blocked"
     assert "not detected" in checks["barrnap_cm_database"]["message"]
+    assert any(item["id"] == "barrnap_cm_database" for item in payload["blocking"])
+    assert {
+        "id": "barrnap_cm_database",
+        "action": "barrnap --updatedb",
+    } in payload["next_actions"]
 
 
 def test_doctor_iqtree2_missing_iqtree_present_is_explicit(
@@ -312,10 +317,27 @@ def test_doctor_iqtree2_missing_iqtree_present_is_explicit(
 
     payload, _ = _doctor_payload(capsys)
     checks = {item["id"]: item for item in payload["checks"]}
-    assert checks["iqtree2"]["status"] == "blocked"
-    assert "diagnostic-only fallback" in checks["iqtree2"]["message"]
-    assert "requires iqtree2" in checks["iqtree2"]["message"]
-    assert any(item["id"] == "iqtree2" for item in payload["blocking"])
+    assert checks["iqtree2"]["status"] == "pass"
+    assert checks["iqtree2"]["message"] == (
+        "IQ-TREE executable selected: iqtree (fallback after iqtree2)"
+    )
+    assert not any(item["id"] == "iqtree2" for item in payload["blocking"])
+
+
+def test_doctor_iqtree2_is_preferred_when_both_names_exist(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    _patch_doctor_tools(monkeypatch, tmp_path)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["iqtree2"]["status"] == "pass"
+    assert checks["iqtree2"]["message"] == "IQ-TREE executable selected: iqtree2"
 
 
 def test_doctor_gtdb_metadata_not_configured_is_optional(

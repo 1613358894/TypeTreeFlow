@@ -2,6 +2,7 @@ from pathlib import Path
 
 from typetreeflow.cli import main
 from typetreeflow.external.runner import CommandResult
+from typetreeflow.external.tools import resolve_iqtree_executable
 from typetreeflow.manifest import write_manifest, write_name_map
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.source_audit import (
@@ -9,6 +10,7 @@ from typetreeflow.taxonomy.source_audit import (
     write_sequence_source_audits,
 )
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.state import read_run_state
 
 
 class FakePhyloRunner:
@@ -43,7 +45,7 @@ class FakePhyloRunner:
                 encoding="utf-8",
             )
             return CommandResult(command=command, returncode=0, stdout="", stderr="")
-        if executable == "iqtree2":
+        if executable in {"iqtree2", "iqtree"}:
             prefix_path = Path(command[command.index("-pre") + 1])
             treefile_path = Path(f"{prefix_path}.treefile")
             treefile_path.parent.mkdir(parents=True, exist_ok=True)
@@ -51,6 +53,10 @@ class FakePhyloRunner:
             return CommandResult(command=command, returncode=0, stdout="", stderr="")
 
         raise AssertionError(f"Unexpected command: {command}")
+
+
+def _expected_phylo_commands() -> list[str]:
+    return ["mafft", "trimal", resolve_iqtree_executable() or "iqtree2"]
 
 
 def _write_resume_state(outdir: Path) -> None:
@@ -91,12 +97,22 @@ def test_resume_enable_phylo_fake_success_writes_outputs_and_report(tmp_path):
 
     paths = get_output_paths(outdir)
     assert result == 0
-    assert [command[0] for command in runner.commands] == ["mafft", "trimal", "iqtree2"]
+    expected_commands = _expected_phylo_commands()
+    iqtree_executable = expected_commands[-1]
+    assert [command[0] for command in runner.commands] == expected_commands
     assert paths.phylo_plan_path.exists()
+    phylo_plan = paths.phylo_plan_path.read_text(encoding="utf-8")
+    assert f"\t{iqtree_executable}\t" in phylo_plan
     assert paths.aligned_16s_fasta_path.exists()
     assert paths.trimmed_16s_fasta_path.exists()
     assert paths.iqtree_treefile_path.read_text(encoding="utf-8") == "(seq1,seq2,seq3);\n"
     assert paths.run_summary_path.exists()
+    state = read_run_state(paths.run_state_path)
+    assert f"iqtree_executable={iqtree_executable}" in state.stages["phylo"].summary
+    assert (
+        f"- IQ-TREE executable: {iqtree_executable}"
+        in paths.run_summary_path.read_text(encoding="utf-8")
+    )
 
 
 def test_resume_enable_phylo_without_runner_uses_real_tool_runner(tmp_path, monkeypatch):
@@ -104,15 +120,25 @@ def test_resume_enable_phylo_without_runner_uses_real_tool_runner(tmp_path, monk
     _write_resume_state(outdir)
     required: list[str] = []
     runner = FakePhyloRunner()
+    iqtree_required: list[str] = []
 
     monkeypatch.setattr("typetreeflow.cli.require_executable", required.append)
+    monkeypatch.setattr(
+        "typetreeflow.cli.require_iqtree_executable",
+        lambda: iqtree_required.append("iqtree2") or "iqtree2",
+    )
+    monkeypatch.setattr(
+        "typetreeflow.phylo.iqtree.resolve_iqtree_executable",
+        lambda: "iqtree2",
+    )
     monkeypatch.setattr("typetreeflow.cli.SubprocessRunner", lambda: runner)
 
     result = main(["--outdir", str(outdir), "--resume", "--enable-phylo"])
 
     paths = get_output_paths(outdir)
     assert result == 0
-    assert required == ["mafft", "trimal", "iqtree2"]
+    assert required == ["mafft", "trimal"]
+    assert iqtree_required == ["iqtree2"]
     assert [command[0] for command in runner.commands] == ["mafft", "trimal", "iqtree2"]
     assert paths.iqtree_treefile_path.exists()
 
@@ -154,7 +180,11 @@ def test_resume_enable_phylo_trimal_failure_stops_before_iqtree(tmp_path):
     assert paths.run_summary_path.exists()
 
 
-def test_resume_enable_phylo_iqtree_failure_leaves_tree_missing(tmp_path):
+def test_resume_enable_phylo_iqtree_failure_leaves_tree_missing(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "typetreeflow.phylo.iqtree.resolve_iqtree_executable",
+        lambda: "iqtree2",
+    )
     outdir = tmp_path / "out"
     _write_resume_state(outdir)
     runner = FakePhyloRunner(fail_tool="iqtree2")

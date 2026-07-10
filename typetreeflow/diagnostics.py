@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from typetreeflow import __version__
+from typetreeflow.external.tools import IQTREE_EXECUTABLE_CANDIDATES
 from typetreeflow.manifest import read_manifest
 from typetreeflow.workflow.next_action import (
     can_refine_failed_run_state_next_action as _can_refine_failed_run_state_next_action,
@@ -187,7 +188,8 @@ INSTALL_HINTS = {
     "fastANI": "conda install -c bioconda fastani",
     "mafft": "conda install -c bioconda mafft",
     "trimal": "conda install -c bioconda trimal",
-    "iqtree2": "conda install -c bioconda iqtree",
+    "iqtree2": "conda env create -f environment.yml",
+    "barrnap_cm_database": "barrnap --updatedb",
 }
 
 STAGE_LABELS = {
@@ -687,6 +689,7 @@ def _barrnap_database_item(barrnap_path: str | None) -> DiagnosticItem:
             status="blocked",
             required_for=required_for,
             message="configured barrnap CM/HMM database path is missing or unreadable",
+            hint=INSTALL_HINTS["barrnap_cm_database"],
             blocking=True,
         )
 
@@ -709,9 +712,11 @@ def _barrnap_database_item(barrnap_path: str | None) -> DiagnosticItem:
             )
     return DiagnosticItem(
         id="barrnap_cm_database",
-        status="warning",
+        status="blocked",
         required_for=required_for,
         message="barrnap CM/HMM database was not detected in inspected local paths",
+        hint=INSTALL_HINTS["barrnap_cm_database"],
+        blocking=True,
     )
 
 
@@ -721,26 +726,25 @@ def _iqtree_item() -> DiagnosticItem:
             id="iqtree2",
             status="pass",
             required_for=("phylo",),
-            message="iqtree2 executable is available on PATH",
+            message="IQ-TREE executable selected: iqtree2",
             blocking=True,
         )
     if shutil.which("iqtree"):
         return DiagnosticItem(
             id="iqtree2",
-            status="blocked",
+            status="pass",
             required_for=("phylo",),
-            message=(
-                "iqtree executable is available as a diagnostic-only fallback, "
-                "but TypeTreeFlow phylogeny execution currently requires iqtree2"
-            ),
-            hint=INSTALL_HINTS["iqtree2"],
+            message="IQ-TREE executable selected: iqtree (fallback after iqtree2)",
             blocking=True,
         )
     return DiagnosticItem(
         id="iqtree2",
         status="blocked",
         required_for=("phylo",),
-        message="iqtree2 executable was not found on PATH",
+        message=(
+            "IQ-TREE executable was not found on PATH; checked "
+            + ", ".join(IQTREE_EXECUTABLE_CANDIDATES)
+        ),
         hint=INSTALL_HINTS["iqtree2"],
         blocking=True,
     )

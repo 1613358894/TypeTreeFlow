@@ -16,6 +16,7 @@ FASTANI = ExternalTool("fastani", "fastANI")
 MAFFT = ExternalTool("mafft", "mafft")
 TRIMAL = ExternalTool("trimal", "trimal")
 IQTREE = ExternalTool("iqtree", "iqtree2")
+IQTREE_EXECUTABLE_CANDIDATES = ("iqtree2", "iqtree")
 
 _INSTALL_HINTS = {
     NCBI_DATASETS.executable: (
@@ -31,6 +32,24 @@ _INSTALL_HINTS = {
 
 def check_executable(name: str) -> bool:
     return shutil.which(name) is not None
+
+
+def resolve_iqtree_executable() -> str | None:
+    for executable in IQTREE_EXECUTABLE_CANDIDATES:
+        if shutil.which(executable):
+            return executable
+    return None
+
+
+def require_iqtree_executable() -> str:
+    executable = resolve_iqtree_executable()
+    if executable is not None:
+        return executable
+    raise RuntimeError(
+        "Required executable not found on PATH: iqtree2 or iqtree. "
+        "Install IQ-TREE, for example with the repository environment.yml "
+        "or conda install -c bioconda iqtree."
+    )
 
 
 def require_executable(name: str) -> None:

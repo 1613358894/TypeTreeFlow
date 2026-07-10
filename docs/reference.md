@@ -40,6 +40,18 @@ Provider/authentication banners and third-party library prints are not part of
 the stdout contract. Primary AI-facing command stdout must remain one JSON
 object; banners and logs belong on stderr or in durable log files.
 
+### Doctor Readiness
+
+`doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.
+The `iqtree2` check remains the JSON check id for compatibility, and its
+message records the selected executable. If neither executable is on `PATH`,
+the phylogeny readiness check is blocking.
+
+`doctor` also checks barrnap CM/HMM database readiness. If barrnap is present
+but the DB is not found in configured or inspected local paths, the
+`barrnap_cm_database` check is blocking and `next_actions` includes
+`barrnap --updatedb`. `doctor` does not run that command.
+
 Failed-handoff packages are review bundles, not raw cache exports. By default
 `package-results --failed-handoff` excludes `cache/` and raw/generated
 provider intermediates, while retaining available small review artifacts such
@@ -159,7 +171,7 @@ Recommended layout:
 - `ani/ani_plan.tsv`: `record_id`, `normalized_id`, `query_id`, `reference_genome_path`, `query_genome_path`, `status`, `notes`
 - `ani/ani_query_vs_refs.tsv`: `normalized_id`, `reference_name`, `reference_genome_path`, `ani`, `matching_fragments`, `total_fragments`, `fraction`, `above_species_threshold`
 - `ani/ani_summary.tsv`: `hit_count`, `top_hit_id`, `top_hit_name`, `top_ani`, `top_fraction`, `hits_above_95`, `status`, `notes`
-- `phylo/phylo_plan.tsv`: `input_fasta_path`, `aligned_fasta_path`, `trimmed_fasta_path`, `iqtree_prefix`, `treefile_path`, `query_16s_status`, `query_sequence_count`, `status`, `notes`
+- `phylo/phylo_plan.tsv`: `input_fasta_path`, `aligned_fasta_path`, `trimmed_fasta_path`, `iqtree_prefix`, `iqtree_executable`, `treefile_path`, `query_16s_status`, `query_sequence_count`, `status`, `notes`
 
 ## Status Values
 
