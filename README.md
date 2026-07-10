@@ -1,10 +1,9 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.17 release is a provider robustness and release
-boundary patch with bounded live-provider timeout handling, best-effort
-BioSample enrichment failures, stdout JSON isolation, and safer failed-handoff
-packaging.
+workflow. The current 2.2.18 release is a clean deployment patch with
+server-rehearsed environment readiness checks, IQ-TREE executable fallback
+handling, and barrnap database discovery improvements.
 
 ## AI-First Route
 
@@ -76,7 +75,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.17 workflow
+## Recommended v2.2.18 workflow
 
 Plan first:
 

@@ -1,9 +1,37 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.17 integration review as
+These notes consolidate the v2.2.2 through v2.2.18 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.18
+
+v2.2.18 is a clean deployment readiness patch based on v2.2.17. It records the
+server-rehearsed clean deployment route and the doctor/phylogeny readiness fixes
+now merged on `main`:
+
+- The clean deployment route is documented as environment creation from
+  `environment.yml`, operator-run `barrnap --updatedb`, and `typetreeflow
+  doctor` before any guarded workflow. The clean deployment full rerun passed in
+  server rehearsal.
+- IQ-TREE readiness and execution prefer `iqtree2` and accept `iqtree` as a
+  fallback executable. Doctor output, phylogeny planning, reports, and run state
+  record the actual executable selected.
+- `doctor` detects barrnap nested database layouts such as
+  `db/{bac,arc,fun}/*.cm` and inspects `<sys.prefix>/db` as a default candidate
+  path.
+- Missing barrnap CM/HMM databases remain blocking readiness findings, and the
+  next action remains `barrnap --updatedb`; `doctor` does not run that command.
+- `doctor` may report warning status when the only missing readiness item is
+  `TYPETREEFLOW_EMAIL`, keeping clean deployment dependency checks
+  non-blocking.
+
+v2.2.18 does not make a taxonomy conclusion, claim completed-genus coverage,
+introduce provider automation, provider login/scraping/purchase flows,
+automatic provider downloads, unguarded download behavior, or relax type-strain
+evidence thresholds. The clean deployment rehearsal is release verification
+evidence only.
 
 ## v2.2.17
 

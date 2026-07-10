@@ -1,5 +1,45 @@
 # Changelog
 
+## v2.2.18 - 2026-07-11
+
+v2.2.18 is a clean deployment readiness patch based on v2.2.17. It records the
+server-rehearsed clean deployment route and the doctor/phylogeny readiness fixes
+now merged on `main`.
+
+### Changed
+
+- Documented the clean deployment route as `environment.yml`, operator-run
+  `barrnap --updatedb`, and `typetreeflow doctor` before any guarded workflow.
+- Recorded the actual IQ-TREE executable selected by readiness checks,
+  phylogeny planning, reports, and run state.
+- `doctor` now reports a warning status when the only missing readiness item is
+  `TYPETREEFLOW_EMAIL`, preserving a non-blocking clean deployment signal.
+
+### Fixed
+
+- Prefer `iqtree2` while accepting `iqtree` as the IQ-TREE executable fallback.
+- Detect barrnap 1.10.5 nested database layouts such as
+  `db/{bac,arc,fun}/*.cm`.
+- Inspect `<sys.prefix>/db` as a default barrnap database candidate path.
+- Keep missing barrnap database readiness blocking and preserve
+  `barrnap --updatedb` as the next action.
+
+### Verification
+
+- Clean deployment full rerun passed in server rehearsal.
+- Local release gates cover workspace hygiene, release consistency, docs
+  hygiene, full pytest, package build, diff whitespace, and the CLI version
+  check.
+
+### Notes
+
+- This release adds no taxonomy conclusion and does not claim completed-genus
+  coverage.
+- No provider automation, provider login/scraping/purchase flow, unguarded
+  download behavior, automatic provider download support, or release asset
+  publication is introduced.
+- No type-strain evidence threshold is relaxed.
+
 ## v2.2.17 - 2026-07-09
 
 v2.2.17 is a patch release based on v2.2.16. It records the provider timeout,

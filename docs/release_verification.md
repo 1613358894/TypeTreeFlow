@@ -5,13 +5,16 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.17 / 2.2.17 release verification path uses
+The current v2.2.18 / 2.2.18 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
-release gate checks provider timeout/error classification, stdout JSON
-isolation, failed-handoff cache boundaries, workspace hygiene, and ensures
-repository-root `results/` remains absent.
+release gate checks clean deployment readiness, provider timeout/error
+classification, stdout JSON isolation, failed-handoff cache boundaries,
+workspace hygiene, and ensures repository-root `results/` remains absent. The
+clean deployment path is `environment.yml`, operator-run `barrnap --updatedb`,
+and `typetreeflow doctor`; server rehearsal passed the clean deployment full
+rerun.
 
 Selection evidence levels remain visible as `strict_confirmed`,
 `likely_type_material`, and `representative_only`. `--auto-accept-selection`
@@ -41,6 +44,10 @@ that expanded discovery is audit-only and does not create automatic 100% coverag
 
 Reports preserve `Same-genome barrnap 16S`, `Total 16S including Entrez fallback`, `Fallback warnings`, and `Strict blocking count`. Guarded fallback
 flags include `--enable-entrez`, `--enable-barrnap`, `--enable-ncbi-discovery`,
-and `--discovery-cache`.
+and `--discovery-cache`. Doctor readiness checks prefer `iqtree2`, accept
+`iqtree` as fallback, inspect barrnap nested DB layouts and `<sys.prefix>/db`,
+keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
+action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
+missing.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.
