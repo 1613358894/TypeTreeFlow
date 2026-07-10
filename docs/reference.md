@@ -47,9 +47,13 @@ The `iqtree2` check remains the JSON check id for compatibility, and its
 message records the selected executable. If neither executable is on `PATH`,
 the phylogeny readiness check is blocking.
 
-`doctor` also checks barrnap CM/HMM database readiness. If barrnap is present
-but the DB is not found in configured or inspected local paths, the
-`barrnap_cm_database` check is blocking and `next_actions` includes
+`doctor` also checks barrnap CM/HMM database readiness. It honors explicit
+database overrides such as `BARRNAP_DB_DIR`, accepts top-level `.cm` or `.hmm`
+files, and recognizes the barrnap 1.10.5 nested DB layout with `.cm` files
+under `bac/`, `arc/`, or `fun/` such as `bac/bac.rRNA.cm`. Passing JSON
+messages include a short layout/path summary, not a full file listing. If
+barrnap is present but the DB is not found in configured or inspected local
+paths, the `barrnap_cm_database` check is blocking and `next_actions` includes
 `barrnap --updatedb`. `doctor` does not run that command.
 
 Failed-handoff packages are review bundles, not raw cache exports. By default

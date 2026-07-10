@@ -676,13 +676,21 @@ def _barrnap_database_item(barrnap_path: str | None) -> DiagnosticItem:
         if (value := os.environ.get(name, "").strip())
     ]
     if configured_paths:
-        readable = [path for path in configured_paths if _barrnap_db_readable(path)]
+        readable = [
+            (path, layout)
+            for path in configured_paths
+            if (layout := _barrnap_db_layout(path))
+        ]
         if readable:
+            path, layout = readable[0]
             return DiagnosticItem(
                 id="barrnap_cm_database",
                 status="pass",
                 required_for=required_for,
-                message="configured barrnap CM/HMM database path is readable",
+                message=(
+                    "configured barrnap CM/HMM database path is readable: "
+                    f"{layout} at {path}"
+                ),
             )
         return DiagnosticItem(
             id="barrnap_cm_database",
@@ -703,12 +711,15 @@ def _barrnap_database_item(barrnap_path: str | None) -> DiagnosticItem:
 
     candidates = _barrnap_db_candidates(Path(barrnap_path))
     for candidate in candidates:
-        if _barrnap_db_readable(candidate):
+        if layout := _barrnap_db_layout(candidate):
             return DiagnosticItem(
                 id="barrnap_cm_database",
                 status="pass",
                 required_for=required_for,
-                message="barrnap CM/HMM database is readable in an inspected local path",
+                message=(
+                    "barrnap CM/HMM database is readable in an inspected "
+                    f"local path: {layout} at {candidate}"
+                ),
             )
     return DiagnosticItem(
         id="barrnap_cm_database",
@@ -812,17 +823,42 @@ def _barrnap_db_candidates(executable: Path) -> list[Path]:
     ]
 
 
-def _barrnap_db_readable(path: Path) -> bool:
+def _barrnap_db_layout(path: Path) -> str:
     if not path.exists() or not os.access(path, os.R_OK):
-        return False
+        return ""
     if path.is_file():
-        return path.suffix.lower() in {".cm", ".hmm"}
+        if path.suffix.lower() in {".cm", ".hmm"}:
+            return f"file {path.name}"
+        return ""
     if not path.is_dir():
-        return False
-    for pattern in ("*.cm", "*.hmm"):
-        if any(child.is_file() and os.access(child, os.R_OK) for child in path.glob(pattern)):
-            return True
-    return False
+        return ""
+
+    top_level_hits = _readable_db_files(path, ("*.cm", "*.hmm"))
+    if top_level_hits:
+        return f"top-level {top_level_hits[0].name}"
+
+    nested_hits: list[str] = []
+    for subdir_name in ("bac", "arc", "fun"):
+        subdir = path / subdir_name
+        if not subdir.is_dir() or not os.access(subdir, os.R_OK):
+            continue
+        hits = _readable_db_files(subdir, ("*.cm",))
+        if hits:
+            nested_hits.append(f"{subdir_name}/{hits[0].name}")
+    if nested_hits:
+        return "nested " + ", ".join(nested_hits)
+    return ""
+
+
+def _readable_db_files(path: Path, patterns: tuple[str, ...]) -> list[Path]:
+    hits: list[Path] = []
+    for pattern in patterns:
+        hits.extend(
+            child
+            for child in path.glob(pattern)
+            if child.is_file() and os.access(child, os.R_OK)
+        )
+    return sorted(hits, key=lambda item: item.name.lower())
 
 
 def _doctor_summary(
