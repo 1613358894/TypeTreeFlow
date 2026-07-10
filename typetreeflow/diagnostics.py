@@ -819,6 +819,7 @@ def _barrnap_db_candidates(executable: Path) -> list[Path]:
         prefix / "share" / "barrnap" / "db",
         prefix / "share" / "barrnap",
         prefix / "lib" / "barrnap" / "db",
+        Path(sys.prefix) / "db",
         executable.parent / "db",
     ]
 

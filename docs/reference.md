@@ -50,8 +50,10 @@ the phylogeny readiness check is blocking.
 `doctor` also checks barrnap CM/HMM database readiness. It honors explicit
 database overrides such as `BARRNAP_DB_DIR`, accepts top-level `.cm` or `.hmm`
 files, and recognizes the barrnap 1.10.5 nested DB layout with `.cm` files
-under `bac/`, `arc/`, or `fun/` such as `bac/bac.rRNA.cm`. Passing JSON
-messages include a short layout/path summary, not a full file listing. If
+under `bac/`, `arc/`, or `fun/` such as `bac/bac.rRNA.cm`. Default inspected
+paths include the active Python environment's `db/` directory alongside the
+legacy barrnap `share/`, `lib/`, and `bin/db` locations. Passing JSON messages
+include a short layout/path summary, not a full file listing. If
 barrnap is present but the DB is not found in configured or inspected local
 paths, the `barrnap_cm_database` check is blocking and `next_actions` includes
 `barrnap --updatedb`. `doctor` does not run that command.

@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 
+from typetreeflow import diagnostics
 from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
@@ -280,6 +281,10 @@ def test_doctor_reports_barrnap_database_check_when_missing(
     capsys,
 ):
     _patch_doctor_imports(monkeypatch)
+    monkeypatch.setattr(
+        "typetreeflow.diagnostics.sys.prefix",
+        str(tmp_path / "python_env_without_barrnap_db"),
+    )
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     barrnap = bin_dir / "barrnap"
@@ -303,6 +308,56 @@ def test_doctor_reports_barrnap_database_check_when_missing(
         "id": "barrnap_cm_database",
         "action": "barrnap --updatedb",
     } in payload["next_actions"]
+
+
+def test_doctor_detects_current_env_barrnap_database_layout(
+    monkeypatch,
+    tmp_path,
+    capsys,
+):
+    _patch_doctor_imports(monkeypatch)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "barrnap").write_text("", encoding="utf-8")
+    env_prefix = tmp_path / "python_env"
+    db_dir = env_prefix / "db"
+    nested_dir = db_dir / "bac"
+    nested_dir.mkdir(parents=True)
+    (nested_dir / "bac.rRNA.cm").write_text("fixture\n", encoding="utf-8")
+    monkeypatch.setattr("typetreeflow.diagnostics.sys.prefix", str(env_prefix))
+
+    def fake_which(name):
+        if name == "iqtree":
+            return None
+        return str(bin_dir / name)
+
+    monkeypatch.setattr("typetreeflow.diagnostics.shutil.which", fake_which)
+
+    assert main(["doctor"]) == 0
+
+    payload, _ = _doctor_payload(capsys)
+    checks = {item["id"]: item for item in payload["checks"]}
+    assert checks["barrnap_cm_database"]["status"] == "pass"
+    assert "nested bac/bac.rRNA.cm" in checks["barrnap_cm_database"]["message"]
+    assert str(db_dir) in checks["barrnap_cm_database"]["message"]
+    assert not any(item["id"] == "barrnap_cm_database" for item in payload["blocking"])
+
+
+def test_barrnap_db_candidates_preserve_legacy_paths(monkeypatch, tmp_path):
+    tool_env = tmp_path / "tool_env"
+    python_env = tmp_path / "python_env"
+    executable = tool_env / "bin" / "barrnap"
+    monkeypatch.setattr("typetreeflow.diagnostics.sys.prefix", str(python_env))
+
+    candidates = diagnostics._barrnap_db_candidates(executable)
+
+    assert candidates == [
+        tool_env / "share" / "barrnap" / "db",
+        tool_env / "share" / "barrnap",
+        tool_env / "lib" / "barrnap" / "db",
+        python_env / "db",
+        tool_env / "bin" / "db",
+    ]
 
 
 def test_doctor_detects_nested_barrnap_database_layout(
