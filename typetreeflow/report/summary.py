@@ -29,6 +29,7 @@ from typetreeflow.expanded_discovery import (
     summarize_manual_supplement_hint_reasons,
     summarize_manual_supplement_hints,
 )
+from typetreeflow.evidence_policy import summarize_evidence_policy
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     build_download_preflight_summary,
@@ -922,6 +923,10 @@ def build_run_summary_markdown(
         source_audit = None
         source_audit_error = str(error)
     rrna_coverage = summarize_16s_coverage(record_list, source_audit)
+    policy_summary = summarize_evidence_policy(
+        record_list,
+        getattr(args, "evidence_policy", None) or "strict",
+    )
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -1018,8 +1023,8 @@ def build_run_summary_markdown(
         f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
         f"- Evidence policy: {_config_value(args, 'evidence_policy') or 'strict'}",
         (
-            "- Evidence policy is recorded as a derived-view policy; in this "
-            "plumbing release it does not filter artifact contents."
+            "- Evidence policy controls evaluator-derived summary counts; it "
+            "does not filter artifact contents."
         ),
         f"- Selection acceptance: {_selection_acceptance_value(args)}",
         "",
@@ -1043,6 +1048,32 @@ def build_run_summary_markdown(
         f"- Outgroup records: {manifest_summary['outgroup_count']}",
         f"- Failed records: {manifest_summary['failed_count']}",
         f"- Skipped records: {manifest_summary['skipped_count']}",
+        "",
+        "## Evidence Policy Summary",
+        "",
+        f"- Policy: {policy_summary.policy}",
+        f"- Evaluated manifest records: {policy_summary.evaluated_record_count}",
+        (
+            "- Genome records usable under policy: "
+            f"{policy_summary.genome_usable_count}"
+        ),
+        (
+            "- Genome records strict usable: "
+            f"{policy_summary.genome_strict_usable_count}"
+        ),
+        (
+            "- 16S records usable under policy: "
+            f"{policy_summary.rrna_16s_usable_count}"
+        ),
+        (
+            "- 16S records strict usable: "
+            f"{policy_summary.rrna_16s_strict_usable_count}"
+        ),
+        (
+            "These are evaluator-derived manifest-record counts. They do not "
+            "change selection, downloads, manifests, combined 16S, phylogeny "
+            "inputs, completion status metrics, or package membership."
+        ),
         "",
         "## Status Distribution",
         "",

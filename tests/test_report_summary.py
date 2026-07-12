@@ -618,6 +618,50 @@ def test_report_summary_records_evidence_policy_without_filtering_artifacts(tmp_
     assert "External Registered Genomes" not in markdown
 
 
+def test_report_summary_uses_evaluator_for_additive_policy_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    strict = _record(
+        "strict",
+        has_genome=True,
+        has_16s=True,
+        notes=(
+            "evidence_level=strict_confirmed; "
+            "type_confirmation_status=confirmed_type_strain"
+        ),
+    )
+    strict.genome_path = "genomes/references/strict.fna"
+    strict.rrna_16s_path = "rrna/sequences/strict.16s.fasta"
+    strict.rrna_16s_evidence_level = "same_genome"
+    strict.rrna_16s_strict_usable = True
+    candidate = _record(
+        "candidate",
+        has_genome=True,
+        has_16s=True,
+        notes=(
+            "evidence_level=likely_type_material; "
+            "type_confirmation_status=likely_type_material"
+        ),
+    )
+    candidate.genome_path = "genomes/references/candidate.fna"
+    candidate.rrna_16s_path = "rrna/sequences/candidate.16s.fasta"
+    candidate.rrna_16s_evidence_level = "candidate_fallback"
+
+    markdown = build_run_summary_markdown(
+        [strict, candidate],
+        paths,
+        SimpleNamespace(evidence_policy="candidate"),
+    )
+
+    assert "## Evidence Policy Summary" in markdown
+    assert "- Policy: candidate" in markdown
+    assert "- Evaluated manifest records: 2" in markdown
+    assert "- Genome records usable under policy: 2" in markdown
+    assert "- Genome records strict usable: 1" in markdown
+    assert "- 16S records usable under policy: 2" in markdown
+    assert "- 16S records strict usable: 1" in markdown
+    assert "do not change selection, downloads, manifests, combined 16S" in markdown
+
+
 def test_report_summary_includes_type_confirmation_risk_counts(tmp_path):
     paths = get_output_paths(tmp_path)
 

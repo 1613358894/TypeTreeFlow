@@ -22,19 +22,29 @@ Evidence policy is a run-level derived-view strategy, not a source fact or an
 evidence transformer. The canonical manifest, selection decisions,
 provenance, and audit ledgers retain their original facts under every policy.
 
-- `strict` admits only evidence tied to the species type-strain equivalence
-  set for a future strict derived view; it is the default.
+- `strict` admits genome evidence tied to the species type-strain equivalence
+  set and 16S evidence marked strict usable with `same_genome` or
+  `same_strain_confirmed` provenance; it is the default.
 - `candidate` may additionally admit authoritative type-material candidates
-  in a future explicitly caveated derived view; it does not promote them to
-  strict confirmed type strains.
+  and `candidate_fallback` 16S in an explicitly caveated derived summary; it
+  does not promote them to strict confirmed type strains or strict 16S.
 - `exploratory` may additionally expose representative, reference, or query
-  roles in a future explicitly exploratory view; it does not make them strict
-  or deliverable evidence.
+  roles and practically available 16S in an explicitly exploratory summary;
+  it does not make them strict or deliverable evidence.
 
-In the current plumbing-only implementation these values are recorded and
-displayed but do not filter artifacts or alter completion metrics. Mismatches,
-provider proposals/plans, external request rows, and unreviewed external files
-are never promoted by any evidence policy.
+The pure evidence policy evaluator returns `usable`, `scope`, `reason`,
+`caveats`, and `strict_usable`. Scope is one of `strict`, `candidate`,
+`exploratory`, `blocked`, or `missing`; it describes the evidence itself even
+when the selected policy does not admit it. Candidate and exploratory use must
+retain caveats, while `strict_usable` is independent of the selected policy.
+
+Evaluator-derived counts are additive report/completion summaries only. They
+do not filter or change selection, downloads, manifest writes,
+`rrna/all_16S.fasta`, phylogeny input, completion status metrics, or package
+members. `mismatch_blocked` 16S, provider proposals/plans, external request
+rows, and unreviewed external files remain unusable under every policy. Local
+query genomes are exploratory-only and never strict or candidate scientific
+evidence.
 
 ## 16S Provenance Boundary
 

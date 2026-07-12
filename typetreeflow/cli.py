@@ -3013,7 +3013,11 @@ def run_completion_audit_stage(paths, config: AppConfig) -> tuple[Path, Path]:
     checklist_entries = read_species_checklist(config.species_checklist)
     manifest_records = read_manifest(paths.manifest)
     audit_rows = build_completion_audit(checklist_entries, manifest_records)
-    summary = summarize_completion_audit(audit_rows)
+    summary = summarize_completion_audit(
+        audit_rows,
+        manifest_records=manifest_records,
+        evidence_policy=config.evidence_policy,
+    )
     audit_path = write_completion_audit(audit_rows, paths.completion_audit_path)
     summary_path = write_completion_summary(summary, paths.completion_summary_path)
     LOGGER.info(
@@ -3032,6 +3036,17 @@ def run_completion_audit_stage(paths, config: AppConfig) -> tuple[Path, Path]:
         summary.external_inclusive_complete_count,
         summary.missing_count,
         summary.conflict_count,
+    )
+    LOGGER.info(
+        "Evidence policy counts: policy=%s, evaluated_records=%s, "
+        "genome_usable=%s, genome_strict_usable=%s, rrna_16s_usable=%s, "
+        "rrna_16s_strict_usable=%s.",
+        summary.evidence_policy,
+        summary.policy_evaluated_record_count,
+        summary.genome_policy_usable_count,
+        summary.genome_policy_strict_usable_count,
+        summary.rrna_16s_policy_usable_count,
+        summary.rrna_16s_policy_strict_usable_count,
     )
     return audit_path, summary_path
 

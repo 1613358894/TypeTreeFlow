@@ -40,7 +40,7 @@ Provider/authentication banners and third-party library prints are not part of
 the stdout contract. Primary AI-facing command stdout must remain one JSON
 object; banners and logs belong on stderr or in durable log files.
 
-### Evidence Policy Plumbing
+### Evidence Policy Evaluation
 
 `verify-genus` accepts
 `--evidence-policy {strict,candidate,exploratory}` and defaults to `strict`.
@@ -48,13 +48,30 @@ Unknown values fail during argument parsing. `--smoke-profile limit4-real`
 also defaults to `strict`; an explicit `candidate` or `exploratory` value is
 preserved.
 
-The resolved value is additive metadata in `AppConfig.evidence_policy`,
+The resolved value is metadata in `AppConfig.evidence_policy`,
 `run_state.json` under `config.evidence_policy`, and the single compact
 `verify-genus` stdout JSON object under `config.evidence_policy`. Reports and
-the package handoff index repeat the policy. In this plumbing release the
-value is read-only: it does not filter manifest or selected rows, downloads,
-`rrna/all_16S.fasta`, phylogeny input, or package members, and it does not
-change workflow stage-status semantics.
+the package handoff index repeat the policy.
+
+The pure evaluator contract is `usable` (boolean), `scope`
+(`strict|candidate|exploratory|blocked|missing`), `reason` (stable explanatory
+text), `caveats` (zero or more required qualifications), and `strict_usable`
+(boolean independent of the selected policy). It consumes existing manifest
+record fields and performs no file, network, provider, or environment IO.
+
+`report/summary.md` includes an Evidence Policy Summary with
+`policy`, `evaluated_record_count`, `genome_usable_count`,
+`genome_strict_usable_count`, `rrna_16s_usable_count`, and
+`rrna_16s_strict_usable_count`. The same additive record counts are written to
+`source_audit/completion_summary.tsv` as the metrics `evidence_policy`,
+`policy_evaluated_record_count`, `genome_policy_usable_count`,
+`genome_policy_strict_usable_count`, `rrna_16s_policy_usable_count`, and
+`rrna_16s_policy_strict_usable_count`. Older completion summaries without
+these additive metrics remain readable.
+
+These fields do not filter manifest or selected rows, downloads,
+`rrna/all_16S.fasta`, phylogeny input, or package members, and they do not
+change workflow stage-status or existing completion-status metric semantics.
 
 ### Doctor Readiness
 

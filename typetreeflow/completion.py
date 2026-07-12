@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.evidence_policy import summarize_evidence_policy
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry
 from typetreeflow.taxonomy.names import canonical_species_key, display_species_name
@@ -54,7 +55,15 @@ COMPLETION_SUMMARY_METRICS = [
     "external_inclusive_complete_count",
     "missing_count",
     "conflict_count",
+    "evidence_policy",
+    "policy_evaluated_record_count",
+    "genome_policy_usable_count",
+    "genome_policy_strict_usable_count",
+    "rrna_16s_policy_usable_count",
+    "rrna_16s_policy_strict_usable_count",
 ]
+
+CORE_COMPLETION_SUMMARY_METRICS = COMPLETION_SUMMARY_METRICS[:6]
 
 COMPLETION_SUMMARY_NOTES = {
     "expected_species_count": "Expected checklist species represented in completion audit.",
@@ -65,6 +74,16 @@ COMPLETION_SUMMARY_NOTES = {
     ),
     "missing_count": "Rows with no manifest-backed genome evidence.",
     "conflict_count": "Rows with both NCBI and external registered genome evidence.",
+    "evidence_policy": "Policy used for additive evaluator-derived manifest counts.",
+    "policy_evaluated_record_count": "Manifest records evaluated by evidence policy.",
+    "genome_policy_usable_count": "Manifest genome records usable under evidence policy.",
+    "genome_policy_strict_usable_count": (
+        "Manifest genome records with strict usable evidence, independent of policy."
+    ),
+    "rrna_16s_policy_usable_count": "Manifest 16S records usable under evidence policy.",
+    "rrna_16s_policy_strict_usable_count": (
+        "Manifest 16S records with strict usable evidence, independent of policy."
+    ),
 }
 
 
@@ -125,6 +144,12 @@ class CompletionSummary:
     external_inclusive_complete_count: int | str
     missing_count: int | str
     conflict_count: int | str
+    evidence_policy: str = "strict"
+    policy_evaluated_record_count: int | str = 0
+    genome_policy_usable_count: int | str = 0
+    genome_policy_strict_usable_count: int | str = 0
+    rrna_16s_policy_usable_count: int | str = 0
+    rrna_16s_policy_strict_usable_count: int | str = 0
     metric_notes: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
@@ -173,11 +198,20 @@ def build_completion_audit(
     return rows
 
 
-def summarize_completion_audit(records: Iterable[CompletionAuditRecord]) -> CompletionSummary:
+def summarize_completion_audit(
+    records: Iterable[CompletionAuditRecord],
+    *,
+    manifest_records: Iterable[StrainRecord] | None = None,
+    evidence_policy: str = "strict",
+) -> CompletionSummary:
     rows = list(records)
     ncbi_complete_count = sum(1 for row in rows if row.completion_status == COMPLETE_NCBI)
     external_registered_count = sum(
         1 for row in rows if row.completion_status == COMPLETE_EXTERNAL_REGISTERED
+    )
+    policy_summary = summarize_evidence_policy(
+        manifest_records or (),
+        evidence_policy,
     )
     return CompletionSummary(
         expected_species_count=len(rows),
@@ -188,6 +222,14 @@ def summarize_completion_audit(records: Iterable[CompletionAuditRecord]) -> Comp
         ),
         missing_count=sum(1 for row in rows if row.completion_status == MISSING_GENOME),
         conflict_count=sum(1 for row in rows if row.completion_status == CONFLICT),
+        evidence_policy=policy_summary.policy,
+        policy_evaluated_record_count=policy_summary.evaluated_record_count,
+        genome_policy_usable_count=policy_summary.genome_usable_count,
+        genome_policy_strict_usable_count=policy_summary.genome_strict_usable_count,
+        rrna_16s_policy_usable_count=policy_summary.rrna_16s_usable_count,
+        rrna_16s_policy_strict_usable_count=(
+            policy_summary.rrna_16s_strict_usable_count
+        ),
     )
 
 
@@ -313,7 +355,7 @@ def read_completion_summary(path: str | Path) -> CompletionSummary:
             notes[metric] = row_data["notes"]
 
     missing_metrics = [
-        metric for metric in COMPLETION_SUMMARY_METRICS if metric not in values
+        metric for metric in CORE_COMPLETION_SUMMARY_METRICS if metric not in values
     ]
     if missing_metrics:
         missing = ", ".join(missing_metrics)
@@ -328,6 +370,16 @@ def read_completion_summary(path: str | Path) -> CompletionSummary:
         ],
         missing_count=values["missing_count"],
         conflict_count=values["conflict_count"],
+        evidence_policy=values.get("evidence_policy", "strict"),
+        policy_evaluated_record_count=values.get("policy_evaluated_record_count", "0"),
+        genome_policy_usable_count=values.get("genome_policy_usable_count", "0"),
+        genome_policy_strict_usable_count=values.get(
+            "genome_policy_strict_usable_count", "0"
+        ),
+        rrna_16s_policy_usable_count=values.get("rrna_16s_policy_usable_count", "0"),
+        rrna_16s_policy_strict_usable_count=values.get(
+            "rrna_16s_policy_strict_usable_count", "0"
+        ),
         metric_notes=notes,
     )
 
