@@ -7,6 +7,7 @@ from typing import Iterable
 
 from typetreeflow.completion import (
     CONFLICT,
+    GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
     MISSING_GENOME as COMPLETION_MISSING_GENOME,
     CompletionAuditRecord,
     CompletionSummary,
@@ -15,6 +16,7 @@ from typetreeflow.completion import (
 )
 from typetreeflow.completion_gaps import (
     CompletionGapRecord,
+    INSUFFICIENT_TYPE_EVIDENCE,
     read_completion_gap_records,
     summarize_completion_gap_records,
 )
@@ -27,6 +29,7 @@ from typetreeflow.expanded_discovery import (
     summarize_manual_supplement_hint_reasons,
     summarize_manual_supplement_hints,
 )
+from typetreeflow.evidence_policy import summarize_evidence_policy
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     build_download_preflight_summary,
@@ -34,6 +37,12 @@ from typetreeflow.genomes.preflight import (
 )
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
+from typetreeflow.rrna.provenance import (
+    MISMATCH_BLOCKED,
+    SAME_GENOME,
+    SAME_STRAIN_CONFIRMED,
+    rrna_16s_strict_usable,
+)
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
     PROVIDER_PLAN_STATUSES,
@@ -416,13 +425,79 @@ def summarize_16s_coverage(
     )
     total_records = len(record_list)
 
+    provenance_available = any(
+        record.rrna_16s_source
+        or record.rrna_16s_evidence_level
+        or record.rrna_16s_audit_status
+        for record in record_list
+    )
+    if provenance_available:
+        mismatch_count = sum(
+            1
+            for record in record_list
+            if record.has_16s and record.rrna_16s_evidence_level == MISMATCH_BLOCKED
+        )
+        candidate_count = sum(
+            1
+            for record in record_list
+            if record.has_16s
+            and record.rrna_16s_evidence_level
+            not in {SAME_GENOME, SAME_STRAIN_CONFIRMED, MISMATCH_BLOCKED}
+        )
+        strict_count = sum(rrna_16s_strict_usable(record) for record in record_list)
+        return {
+            "total_records": total_records,
+            "genome_ready_count": genome_ready_count,
+            "source_audit_available": 1,
+            "same_genome_barrnap_16s_count": sum(
+                1
+                for record in record_list
+                if record.has_16s and record.rrna_16s_evidence_level == SAME_GENOME
+            ),
+            "same_strain_confirmed_16s_count": sum(
+                1
+                for record in record_list
+                if record.has_16s
+                and record.rrna_16s_evidence_level == SAME_STRAIN_CONFIRMED
+            ),
+            "strict_usable_16s_count": strict_count,
+            "candidate_fallback_16s_count": candidate_count,
+            "non_strict_available_16s_count": candidate_count + mismatch_count,
+            "total_available_16s_count": sum(
+                1 for record in record_list if record.has_16s
+            ),
+            # Compatibility alias; reports must describe this as availability.
+            "total_usable_16s_count": sum(1 for record in record_list if record.has_16s),
+            "fallback_mismatch_count": mismatch_count,
+            "fallback_strain_text_match_count": sum(
+                1
+                for record in record_list
+                if record.rrna_16s_audit_status == "strain_text_match"
+            ),
+            "fallback_manual_review_required_count": sum(
+                1
+                for record in record_list
+                if record.rrna_16s_audit_status == "manual_review_required"
+            ),
+            "fallback_strict_blocking_count": candidate_count + mismatch_count,
+        }
+
     if source_audit_rows is None:
         return {
             "total_records": total_records,
             "genome_ready_count": genome_ready_count,
             "source_audit_available": 0,
             "same_genome_barrnap_16s_count": 0,
+            "same_strain_confirmed_16s_count": 0,
+            "strict_usable_16s_count": 0,
+            "candidate_fallback_16s_count": 0,
+            "non_strict_available_16s_count": sum(
+                1 for record in record_list if record.has_16s
+            ),
             "total_usable_16s_count": sum(1 for record in record_list if record.has_16s),
+            "total_available_16s_count": sum(
+                1 for record in record_list if record.has_16s
+            ),
             "fallback_mismatch_count": 0,
             "fallback_strain_text_match_count": 0,
             "fallback_manual_review_required_count": 0,
@@ -435,6 +510,7 @@ def summarize_16s_coverage(
     fallback_strain_text_match_count = 0
     fallback_manual_review_required_count = 0
     fallback_strict_blocking_count = 0
+    same_strain_confirmed_16s_count = 0
 
     for row in source_audit_rows:
         status = row.get("audit_status", "").strip()
@@ -447,6 +523,11 @@ def summarize_16s_coverage(
 
         if is_same_genome_internal:
             same_genome_barrnap_16s_count += 1
+        if is_entrez_fallback and status in {
+            "same_biosample",
+            "same_culture_collection_id",
+        }:
+            same_strain_confirmed_16s_count += 1
         if is_same_genome_internal or (
             is_entrez_fallback and status not in {"genome_only", "manual_review_required"}
         ):
@@ -470,7 +551,25 @@ def summarize_16s_coverage(
         "genome_ready_count": genome_ready_count,
         "source_audit_available": 1,
         "same_genome_barrnap_16s_count": same_genome_barrnap_16s_count,
+        "same_strain_confirmed_16s_count": same_strain_confirmed_16s_count,
+        "strict_usable_16s_count": (
+            same_genome_barrnap_16s_count + same_strain_confirmed_16s_count
+        ),
+        "candidate_fallback_16s_count": max(
+            0,
+            total_usable_16s_count
+            - same_genome_barrnap_16s_count
+            - same_strain_confirmed_16s_count
+            - fallback_mismatch_count,
+        ),
+        "non_strict_available_16s_count": max(
+            0,
+            total_usable_16s_count
+            - same_genome_barrnap_16s_count
+            - same_strain_confirmed_16s_count,
+        ),
         "total_usable_16s_count": total_usable_16s_count,
+        "total_available_16s_count": total_usable_16s_count,
         "fallback_mismatch_count": fallback_mismatch_count,
         "fallback_strain_text_match_count": fallback_strain_text_match_count,
         "fallback_manual_review_required_count": fallback_manual_review_required_count,
@@ -824,6 +923,10 @@ def build_run_summary_markdown(
         source_audit = None
         source_audit_error = str(error)
     rrna_coverage = summarize_16s_coverage(record_list, source_audit)
+    policy_summary = summarize_evidence_policy(
+        record_list,
+        getattr(args, "evidence_policy", None) or "strict",
+    )
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -918,6 +1021,11 @@ def build_run_summary_markdown(
         f"- GTDB metadata: {_config_value(args, 'gtdb_metadata')}",
         f"- GTDB release: {_config_value(args, 'gtdb_release')}",
         f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
+        f"- Evidence policy: {_config_value(args, 'evidence_policy') or 'strict'}",
+        (
+            "- Evidence policy controls evaluator-derived summary counts; it "
+            "does not filter artifact contents."
+        ),
         f"- Selection acceptance: {_selection_acceptance_value(args)}",
         "",
         "## Records",
@@ -940,6 +1048,32 @@ def build_run_summary_markdown(
         f"- Outgroup records: {manifest_summary['outgroup_count']}",
         f"- Failed records: {manifest_summary['failed_count']}",
         f"- Skipped records: {manifest_summary['skipped_count']}",
+        "",
+        "## Evidence Policy Summary",
+        "",
+        f"- Policy: {policy_summary.policy}",
+        f"- Evaluated manifest records: {policy_summary.evaluated_record_count}",
+        (
+            "- Genome records usable under policy: "
+            f"{policy_summary.genome_usable_count}"
+        ),
+        (
+            "- Genome records strict usable: "
+            f"{policy_summary.genome_strict_usable_count}"
+        ),
+        (
+            "- 16S records usable under policy: "
+            f"{policy_summary.rrna_16s_usable_count}"
+        ),
+        (
+            "- 16S records strict usable: "
+            f"{policy_summary.rrna_16s_strict_usable_count}"
+        ),
+        (
+            "These are evaluator-derived manifest-record counts. They do not "
+            "change selection, downloads, manifests, combined 16S, phylogeny "
+            "inputs, completion status metrics, or package membership."
+        ),
         "",
         "## Status Distribution",
         "",
@@ -1100,8 +1234,25 @@ def build_run_summary_markdown(
             ),
             _format_same_genome_barrnap_coverage(rrna_coverage),
             (
-                "- Total 16S including Entrez fallback: "
-                f"{rrna_coverage['total_usable_16s_count']}/"
+                "- Strict-usable 16S (same-genome or evidence-confirmed same-strain): "
+                f"{rrna_coverage['strict_usable_16s_count']}/"
+                f"{rrna_coverage['total_records']}"
+            ),
+            (
+                "- Evidence-confirmed same-strain 16S: "
+                f"{rrna_coverage['same_strain_confirmed_16s_count']}"
+            ),
+            (
+                "- Candidate/fallback 16S: "
+                f"{rrna_coverage['candidate_fallback_16s_count']}"
+            ),
+            (
+                "- Mismatch/blocked 16S: "
+                f"{rrna_coverage['fallback_mismatch_count']}"
+            ),
+            (
+                "- Available 16S in candidate-inclusive outputs: "
+                f"{rrna_coverage['total_available_16s_count']}/"
                 f"{rrna_coverage['total_records']}"
             ),
             (
@@ -1113,6 +1264,10 @@ def build_run_summary_markdown(
 
     if paths.all_16s_fasta_path.exists():
         lines.append(f"- Combined 16S FASTA: {_display_path(paths.all_16s_fasta_path, paths)}")
+        lines.append(
+            "- `rrna/all_16S.fasta` is candidate-inclusive and is not a strict "
+            "same-genome-only FASTA; inspect manifest provenance fields before use."
+        )
     else:
         lines.append("- Combined 16S FASTA not available.")
 
@@ -1452,6 +1607,16 @@ def build_run_summary_markdown(
         )
         missing_count = str(completion_summary.missing_count)
         conflict_count = str(completion_summary.conflict_count)
+        insufficient_strict_count = (
+            sum(
+                1
+                for row in completion_audit
+                if row.completion_status
+                == GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE
+            )
+            if completion_audit is not None
+            else 0
+        )
         lines.extend(
             [
                 "",
@@ -1476,6 +1641,10 @@ def build_run_summary_markdown(
                     "completion."
                 ),
                 f"- Missing genome evidence: {missing_count}",
+                (
+                    "- Genome present but insufficient strict type evidence: "
+                    f"{insufficient_strict_count}"
+                ),
                 f"- Conflicts requiring review: {conflict_count}",
             ]
         )
@@ -1489,7 +1658,12 @@ def build_run_summary_markdown(
             review_rows = [
                 row
                 for row in completion_audit
-                if row.completion_status in {COMPLETION_MISSING_GENOME, CONFLICT}
+                if row.completion_status
+                in {
+                    COMPLETION_MISSING_GENOME,
+                    GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+                    CONFLICT,
+                }
             ]
             if review_rows:
                 lines.extend(
@@ -1716,6 +1890,7 @@ def build_run_summary_markdown(
             "",
             f"- Status: {phylo_status['status']}",
             f"- Notes: {phylo_status['notes']}",
+            f"- Evidence scope: {_phylogeny_evidence_scope(rrna_coverage)}",
             (
                 "- IQ-TREE executable: "
                 f"{phylo_status.get('iqtree_executable', '')}"
@@ -1817,6 +1992,13 @@ def build_run_review_markdown(
         uncovered_species = None
         uncovered_error = str(error)
 
+    completion_gaps_error = ""
+    try:
+        completion_gaps = read_optional_completion_gaps(paths.completion_gaps_path)
+    except ValueError as error:
+        completion_gaps = None
+        completion_gaps_error = str(error)
+
     manual_supplement_hints_error = ""
     try:
         manual_supplement_hints = read_optional_manual_supplement_hints(
@@ -1870,13 +2052,39 @@ def build_run_review_markdown(
             + _run_review_same_genome_barrnap_text(rrna_coverage)
         ),
         (
-            "- Total 16S including Entrez fallback: "
-            f"{rrna_coverage['total_usable_16s_count']}/"
+            "- Strict-usable 16S (same-genome or evidence-confirmed same-strain): "
+            f"{rrna_coverage['strict_usable_16s_count']}/"
             f"{rrna_coverage['total_records']}"
         ),
         (
+            "- Evidence-confirmed same-strain 16S: "
+            f"{rrna_coverage['same_strain_confirmed_16s_count']}"
+        ),
+        (
+            "- Candidate/fallback 16S: "
+            f"{rrna_coverage['candidate_fallback_16s_count']}"
+        ),
+        (
+            "- Mismatch/blocked 16S: "
+            f"{rrna_coverage['fallback_mismatch_count']}"
+        ),
+        (
+            "- Available 16S in candidate-inclusive outputs: "
+            f"{rrna_coverage['total_available_16s_count']}/"
+            f"{rrna_coverage['total_records']}"
+        ),
+        (
+            "- Combined FASTA/tree evidence scope: "
+            f"{_phylogeny_evidence_scope(rrna_coverage)}"
+        ),
+        (
+            "`rrna/all_16S.fasta` is candidate-inclusive, not a strict "
+            "same-genome-only FASTA."
+        ),
+        (
             "Use `manifest.tsv`, `source_audit/sequence_source_audit.tsv`, "
-            "and `completion/uncovered_species.tsv` for row-level review."
+            "`completion/uncovered_species.tsv`, and `completion/gaps.tsv` "
+            "for row-level review."
         ),
         "",
         "## 16S Provenance",
@@ -1910,7 +2118,7 @@ def build_run_review_markdown(
                     f"{rrna_coverage['same_genome_barrnap_16s_count']}"
                 ),
                 (
-                    "- Entrez fallback rows counted in total 16S remain "
+                    "- Entrez fallback rows counted as available 16S remain "
                     "fallback evidence, not same-genome evidence."
                 ),
             ]
@@ -1935,7 +2143,7 @@ def build_run_review_markdown(
                 "Entrez fallback records in downstream interpretation."
             ),
             "",
-            "## Uncovered Species",
+            "## Missing Genome Species",
             "",
         ]
     )
@@ -1961,6 +2169,39 @@ def build_run_review_markdown(
             lines.append(
                 f"List truncated to first 20 of {len(uncovered_species)} species."
             )
+
+    lines.extend(["", "## Strict Type-Evidence Caveats", ""])
+    if completion_gaps_error:
+        lines.append(
+            "Strict type-evidence caveats unavailable: "
+            f"completion/gaps.tsv could not be read ({completion_gaps_error})."
+        )
+    elif completion_gaps is None:
+        lines.append(
+            "Strict type-evidence caveats unavailable: "
+            "completion/gaps.tsv is missing."
+        )
+    else:
+        strict_caveats = [
+            row
+            for row in completion_gaps
+            if row.reason_category == INSUFFICIENT_TYPE_EVIDENCE
+        ]
+        lines.append(f"- Count: {len(strict_caveats)}")
+        if strict_caveats:
+            lines.append(
+                "These rows have manifest-backed genomes but are not strict "
+                "LPSN-confirmed type-strain coverage."
+            )
+            for row in strict_caveats[:20]:
+                evidence = row.evidence_level.strip()
+                suffix = f" ({evidence})" if evidence else ""
+                lines.append(f"- {_markdown_cell(row.species)}{suffix}")
+            if len(strict_caveats) > 20:
+                lines.append(
+                    "List truncated to first 20 of "
+                    f"{len(strict_caveats)} strict evidence caveat rows."
+                )
 
     if manual_supplement_hints_error:
         lines.extend(
@@ -2369,6 +2610,17 @@ def _format_entrez_fallback_warnings(summary: dict[str, int]) -> str:
     if strict_blocking_count:
         warnings.append(f"{strict_blocking_count} strict blocking")
     return "; ".join(warnings) if warnings else "none"
+
+
+def _phylogeny_evidence_scope(summary: dict[str, int]) -> str:
+    if summary.get("non_strict_available_16s_count", 0):
+        return (
+            "practical/candidate-inclusive inference; not strict "
+            "same-genome-only inference"
+        )
+    if summary.get("strict_usable_16s_count", 0):
+        return "strict-usable inputs only"
+    return "provenance unavailable; strict scope cannot be claimed"
 
 
 def _run_review_checklist_count(paths: OutputPaths) -> tuple[int | None, str]:

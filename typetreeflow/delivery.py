@@ -364,6 +364,8 @@ def build_delivery_readme(
     policy = _summarize_policy(record_list)
     acceptance = _selection_acceptance_status(paths)
     gtdb_audit = _read_gtdb_audit_if_available(paths)
+    source_audit = _read_source_audit_for_handoff(paths)
+    rrna_coverage = summarize_16s_coverage(record_list, source_audit)
     source_outdir = _portable_source_outdir(paths)
 
     lines = [
@@ -393,6 +395,10 @@ def build_delivery_readme(
             "- Representative-only rows are exploratory and must not be counted "
             "as strict completion."
         ),
+        (
+            "- Likely type-material candidate rows indicate genome availability "
+            "for review, not strict LPSN-confirmed type-strain completion."
+        ),
         "",
         "## GTDB Metadata Audit",
         "",
@@ -417,6 +423,15 @@ def build_delivery_readme(
             "- 16S sequence FASTA files copied: "
             f"{rrna_sequence_count}; all_16S.fasta included: "
             f"{'true' if all_16s_included else 'false'}"
+        ),
+        (
+            "- Strict-usable 16S records: "
+            f"{rrna_coverage['strict_usable_16s_count']}; candidate/fallback or "
+            f"blocked records: {rrna_coverage['non_strict_available_16s_count']}"
+        ),
+        (
+            "- all_16S.fasta is candidate-inclusive, not a strict "
+            "same-genome-only FASTA."
         ),
         "",
         "## Download Status",
@@ -473,6 +488,11 @@ def build_handoff_index(
     run_state = _read_run_state_if_available(paths)
     generated_time = _utc_timestamp()
     status = run_state.status if run_state is not None else "packageable"
+    evidence_policy = (
+        str(run_state.config.get("evidence_policy", "strict"))
+        if run_state is not None
+        else "strict"
+    )
     next_action = _recommended_next_step(paths)
 
     copied_names = _relative_copied_names(delivery_dir, copied_files)
@@ -489,6 +509,8 @@ def build_handoff_index(
         f"- Package generated time: {generated_time}",
         f"- Overall status: {status}",
         "- Package type: successful completion handoff",
+        f"- Evidence policy: {evidence_policy}",
+        "- Evidence policy metadata does not filter package members in this release.",
         "",
         "## Status Checklist",
         "",
@@ -531,8 +553,24 @@ def build_handoff_index(
                 f"{rrna_coverage['same_genome_barrnap_16s_count']}"
             ),
             (
-                "- Total 16S including Entrez fallback: "
-                f"{rrna_coverage['total_usable_16s_count']}"
+                "- Strict-usable 16S: "
+                f"{rrna_coverage['strict_usable_16s_count']}"
+            ),
+            (
+                "- Evidence-confirmed same-strain 16S: "
+                f"{rrna_coverage['same_strain_confirmed_16s_count']}"
+            ),
+            (
+                "- Candidate/fallback 16S: "
+                f"{rrna_coverage['candidate_fallback_16s_count']}"
+            ),
+            (
+                "- Mismatch/blocked 16S: "
+                f"{rrna_coverage['fallback_mismatch_count']}"
+            ),
+            (
+                "- Available 16S in candidate-inclusive outputs: "
+                f"{rrna_coverage['total_available_16s_count']}"
             ),
             f"- Fallback warning summary: {fallback_warning}",
             "",
@@ -551,8 +589,17 @@ def build_handoff_index(
                 "not equivalent to same-genome strict evidence."
             ),
             (
+                "- all_16S.fasta and any tree built from candidate/fallback rows "
+                "are practical/candidate-inclusive outputs, not strict "
+                "same-genome-only inference."
+            ),
+            (
                 "- Representative-only rows are exploratory and are not strict "
                 "type-strain completion."
+            ),
+            (
+                "- Likely type-material candidate rows indicate genome availability "
+                "for review, not strict LPSN-confirmed type-strain completion."
             ),
         ]
     )

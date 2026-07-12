@@ -101,6 +101,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--evidence-policy",
+        choices=("strict", "candidate", "exploratory"),
+        default="strict",
+        help=(
+            "Evidence view policy for verify-genus metadata; this plumbing-only "
+            "option does not filter artifacts (default: strict)."
+        ),
+    )
+    parser.add_argument(
         "--failed-handoff",
         action="store_true",
         help=(

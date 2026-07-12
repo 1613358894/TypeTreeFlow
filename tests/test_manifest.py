@@ -23,6 +23,10 @@ EVIDENCE_MANIFEST_FIELDS = {
     "selection_reason",
     "risk_flags",
     "manual_review_status",
+    "rrna_16s_source",
+    "rrna_16s_evidence_level",
+    "rrna_16s_audit_status",
+    "rrna_16s_strict_usable",
 }
 
 
@@ -154,6 +158,10 @@ def test_manifest_legacy_schema_missing_evidence_fields_still_reads(tmp_path):
     assert records[0].selection_reason == ""
     assert records[0].risk_flags == ""
     assert records[0].manual_review_status == ""
+    assert records[0].rrna_16s_source == ""
+    assert records[0].rrna_16s_evidence_level == ""
+    assert records[0].rrna_16s_audit_status == ""
+    assert records[0].rrna_16s_strict_usable is False
 
 
 def test_manifest_evidence_fields_round_trip(tmp_path):
@@ -172,6 +180,26 @@ def test_manifest_evidence_fields_round_trip(tmp_path):
     text_header = path.read_text(encoding="utf-8").splitlines()[0].split("\t")
     assert all(field in text_header for field in EVIDENCE_MANIFEST_FIELDS)
     assert read_manifest(path) == [record]
+
+
+def test_manifest_rrna_provenance_fields_round_trip(tmp_path):
+    path = tmp_path / "manifest.tsv"
+    record = _record()
+    record.rrna_16s_source = "barrnap"
+    record.rrna_16s_evidence_level = "same_genome"
+    record.rrna_16s_audit_status = "same_genome_internal_16s"
+    record.rrna_16s_strict_usable = True
+
+    write_manifest([record], path)
+
+    assert read_manifest(path) == [record]
+    header = path.read_text(encoding="utf-8").splitlines()[0].split("\t")
+    assert {
+        "rrna_16s_source",
+        "rrna_16s_evidence_level",
+        "rrna_16s_audit_status",
+        "rrna_16s_strict_usable",
+    } <= set(header)
 
 
 def test_name_map_writes_stable_columns(tmp_path):

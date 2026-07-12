@@ -6,6 +6,7 @@ from typing import Iterable
 
 from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.provenance import set_rrna_16s_provenance
 from typetreeflow.sources.entrez import (
     EntrezCandidate,
     EntrezClient,
@@ -134,6 +135,12 @@ def execute_entrez_fallback_plan(
             )
             record.has_16s = True
             record.rrna_16s_path = str(output_path)
+            if not record.rrna_16s_audit_status:
+                set_rrna_16s_provenance(
+                    record,
+                    source="existing_file",
+                    audit_status="manual_review_required",
+                )
             continue
 
         try:
@@ -174,6 +181,11 @@ def execute_entrez_fallback_plan(
         )
         record.has_16s = True
         record.rrna_16s_path = str(output_path)
+        set_rrna_16s_provenance(
+            record,
+            source="entrez",
+            audit_status=audit.audit_status,
+        )
         record.status = "rrna_16s_ready"
         record.source = _append_source(record.source, "entrez")
         record.notes = _entrez_record_notes(candidate.accession, audit.audit_status)

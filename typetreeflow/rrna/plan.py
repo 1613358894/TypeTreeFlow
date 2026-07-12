@@ -7,6 +7,7 @@ from typing import Iterable
 
 from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.provenance import set_rrna_16s_provenance
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
 
 RRNA_PLAN_FIELDS = [
@@ -105,6 +106,12 @@ def mark_rrna_planned_records(
         elif item.status == "skipped_existing_16s":
             record.has_16s = True
             record.rrna_16s_path = item.expected_rrna_fasta_path
+            if not record.rrna_16s_audit_status:
+                set_rrna_16s_provenance(
+                    record,
+                    source="existing_file",
+                    audit_status="manual_review_required",
+                )
 
 
 def _path_exists(path: str, paths: OutputPaths) -> bool:

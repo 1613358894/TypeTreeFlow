@@ -240,6 +240,30 @@ def test_entrez_fallback_mismatch_status_is_written_to_header_notes_and_audit(tm
     assert "audit_status=mismatch" in fasta_text.splitlines()[0]
     assert "accession=OP818089.1" in fasta_text.splitlines()[0]
     assert "Entrez audit status: mismatch" in records[0].notes
+    assert records[0].rrna_16s_source == "entrez"
+    assert records[0].rrna_16s_evidence_level == "mismatch_blocked"
+    assert records[0].rrna_16s_audit_status == "mismatch"
+    assert records[0].rrna_16s_strict_usable is False
+
+
+def test_entrez_same_biosample_is_confirmed_same_strain_not_same_genome(tmp_path):
+    class MockClient:
+        def search_16s(self, query: str, retmax: int = 10):
+            return [_candidate("NR_CONFIRMED", 1300, biosample="SAMN00000001")]
+
+    record = _record()
+    record.source = "BioSample SAMN00000001"
+    execute_entrez_fallback_plan(
+        build_entrez_fallback_plan([record], tmp_path),
+        [record],
+        MockClient(),
+        dry_run=False,
+    )
+
+    assert record.rrna_16s_source == "entrez"
+    assert record.rrna_16s_evidence_level == "same_strain_confirmed"
+    assert record.rrna_16s_audit_status == "same_biosample"
+    assert record.rrna_16s_strict_usable is True
 
 
 def test_entrez_fallback_strain_text_match_status_is_written_to_header_notes_and_audit(

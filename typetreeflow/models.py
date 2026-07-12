@@ -23,6 +23,10 @@ class StrainRecord:
     genome_path: str = ""
     has_16s: bool = False
     rrna_16s_path: str = ""
+    rrna_16s_source: str = ""
+    rrna_16s_evidence_level: str = ""
+    rrna_16s_audit_status: str = ""
+    rrna_16s_strict_usable: bool = False
     normalized_id: str = ""
     source: str = ""
     status: str = "pending"
@@ -51,6 +55,7 @@ class StrainRecord:
             "is_query",
             "has_genome",
             "has_16s",
+            "rrna_16s_strict_usable",
         ):
             values[name] = _coerce_bool(values[name])
         if not values["status"]:

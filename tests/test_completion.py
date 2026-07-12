@@ -5,6 +5,8 @@ from typetreeflow.completion import (
     COMPLETION_SUMMARY_FIELDS,
     CONFLICT,
     EXTERNAL_REGISTERED_GENOME,
+    GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+    MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE,
     MISSING_GENOME,
     NCBI_ASSEMBLY,
     CompletionAuditRecord,
@@ -159,10 +161,15 @@ def test_representative_only_ncbi_record_does_not_increase_strict_completion():
     )
 
     summary = summarize_completion_audit(rows)
-    assert rows[0].completion_status == MISSING_GENOME
+    assert (
+        rows[0].completion_status
+        == GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE
+    )
     assert rows[0].ncbi_assembly_backed is False
+    assert rows[0].genome_evidence_scope == MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE
     assert summary.ncbi_complete_count == 0
     assert summary.external_inclusive_complete_count == 0
+    assert summary.missing_count == 0
 
 
 def test_likely_type_material_is_not_strict_from_type_material_flag_alone():
@@ -181,9 +188,14 @@ def test_likely_type_material_is_not_strict_from_type_material_flag_alone():
     )
 
     summary = summarize_completion_audit(rows)
-    assert rows[0].completion_status == MISSING_GENOME
+    assert (
+        rows[0].completion_status
+        == GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE
+    )
+    assert "strict type-strain evidence is insufficient" in rows[0].notes
     assert summary.ncbi_complete_count == 0
     assert summary.external_inclusive_complete_count == 0
+    assert summary.missing_count == 0
 
 
 def test_strict_confirmed_ncbi_record_counts_for_strict_completion():
@@ -246,10 +258,14 @@ def test_external_inclusive_completion_excludes_representative_only_record():
     )
 
     summary = summarize_completion_audit(rows)
-    assert [row.completion_status for row in rows] == [COMPLETE_NCBI, MISSING_GENOME]
+    assert [row.completion_status for row in rows] == [
+        COMPLETE_NCBI,
+        GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+    ]
     assert summary.ncbi_complete_count == 1
     assert summary.external_registered_count == 0
     assert summary.external_inclusive_complete_count == 1
+    assert summary.missing_count == 0
 
 
 def test_manifest_species_not_in_checklist_ignored():
@@ -352,6 +368,12 @@ def test_completion_summary_round_trip_preserves_field_order_and_notes(tmp_path)
         external_inclusive_complete_count=2,
         missing_count=1,
         conflict_count=1,
+        evidence_policy="candidate",
+        policy_evaluated_record_count=4,
+        genome_policy_usable_count=3,
+        genome_policy_strict_usable_count=2,
+        rrna_16s_policy_usable_count=2,
+        rrna_16s_policy_strict_usable_count=1,
         metric_notes={"missing_count": "missing notes preserved"},
     )
 
@@ -370,4 +392,56 @@ def test_completion_summary_round_trip_preserves_field_order_and_notes(tmp_path)
     assert reloaded.external_inclusive_complete_count == "2"
     assert reloaded.missing_count == "1"
     assert reloaded.conflict_count == "1"
+    assert reloaded.evidence_policy == "candidate"
+    assert reloaded.policy_evaluated_record_count == "4"
+    assert reloaded.genome_policy_usable_count == "3"
+    assert reloaded.genome_policy_strict_usable_count == "2"
+    assert reloaded.rrna_16s_policy_usable_count == "2"
+    assert reloaded.rrna_16s_policy_strict_usable_count == "1"
     assert reloaded.metric_notes["missing_count"] == "missing notes preserved"
+
+
+def test_completion_summary_adds_evaluator_derived_policy_counts():
+    strict_record = _record(record_id="strict")
+    strict_record.evidence_level = "strict_confirmed"
+    strict_record.type_confirmation_status = "confirmed_type_strain"
+    strict_record.has_16s = True
+    strict_record.rrna_16s_path = "rrna/sequences/strict.16s.fasta"
+    strict_record.rrna_16s_evidence_level = "same_genome"
+    strict_record.rrna_16s_strict_usable = True
+    candidate_record = _record(
+        genus="Escherichia",
+        species="coli",
+        record_id="candidate",
+        notes=(
+            "evidence_level=likely_type_material; "
+            "type_confirmation_status=likely_type_material"
+        ),
+    )
+    candidate_record.evidence_level = "likely_type_material"
+    candidate_record.type_confirmation_status = "likely_type_material"
+    candidate_record.has_16s = True
+    candidate_record.rrna_16s_path = "rrna/sequences/candidate.16s.fasta"
+    candidate_record.rrna_16s_evidence_level = "candidate_fallback"
+    rows = build_completion_audit(
+        [
+            _entry(genus="Bacillus", species="subtilis"),
+            _entry(genus="Escherichia", species="coli"),
+        ],
+        [strict_record, candidate_record],
+    )
+
+    summary = summarize_completion_audit(
+        rows,
+        manifest_records=[strict_record, candidate_record],
+        evidence_policy="candidate",
+    )
+
+    assert summary.evidence_policy == "candidate"
+    assert summary.policy_evaluated_record_count == 2
+    assert summary.genome_policy_usable_count == 2
+    assert summary.genome_policy_strict_usable_count == 1
+    assert summary.rrna_16s_policy_usable_count == 2
+    assert summary.rrna_16s_policy_strict_usable_count == 1
+    assert summary.ncbi_complete_count == 1
+    assert summary.external_inclusive_complete_count == 1

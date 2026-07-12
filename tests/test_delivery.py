@@ -64,6 +64,7 @@ def test_package_results_handoff_index_includes_status_files_and_next_step(tmp_p
             status="succeeded",
             outdir=str(tmp_path),
             next_action="Package results for handoff.",
+            config={"evidence_policy": "candidate"},
         ),
     )
 
@@ -71,6 +72,8 @@ def test_package_results_handoff_index_includes_status_files_and_next_step(tmp_p
 
     index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
     assert "Overall status: succeeded" in index
+    assert "Evidence policy: candidate" in index
+    assert "does not filter package members" in index
     assert "Included Files" in index
     assert "manifest.tsv" in index
     assert "reports/summary.md" in index
@@ -102,7 +105,7 @@ def test_package_results_handoff_index_includes_fallback_warning_and_caveat(tmp_
 
     index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
     assert "Same-genome barrnap count: 1" in index
-    assert "Total 16S including Entrez fallback: 2" in index
+    assert "Available 16S in candidate-inclusive outputs: 2" in index
     assert "Fallback warning summary: 1 weak/strain-text-only evidence; 1 strict blocking" in index
     assert "Source Audit Warning Summary" in index
     assert "1 weak/strain-text-only evidence" in index
@@ -114,6 +117,11 @@ def test_package_results_handoff_index_includes_fallback_warning_and_caveat(tmp_
     assert (
         "Representative-only rows are exploratory and are not strict type-strain "
         "completion."
+        in index
+    )
+    assert (
+        "Likely type-material candidate rows indicate genome availability for "
+        "review, not strict LPSN-confirmed type-strain completion."
         in index
     )
 
@@ -174,6 +182,35 @@ def test_package_results_copies_16s_fasta_and_combined_fasta(tmp_path):
     assert result.all_16s_included is True
     assert (result.delivery_dir / "16S" / "all_16S.fasta").exists()
     assert (result.delivery_dir / "16S" / "sequences" / "rec-1.16s.fasta").exists()
+
+
+def test_package_preserves_rrna_provenance_fields_and_candidate_caveat(tmp_path):
+    paths = get_output_paths(tmp_path)
+    rrna = paths.rrna_sequences_dir / "rec-1.16s.fasta"
+    rrna.parent.mkdir(parents=True)
+    rrna.write_text(
+        ">rec-1|source=Entrez|accession=NR_1|audit_status=mismatch\nACGT\n",
+        encoding="utf-8",
+    )
+    record = _record(
+        genome_path="genomes/references/rec-1.fna",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/rec-1.16s.fasta",
+    )
+    record.rrna_16s_source = "entrez"
+    record.rrna_16s_evidence_level = "mismatch_blocked"
+    record.rrna_16s_audit_status = "mismatch"
+    record.rrna_16s_strict_usable = False
+    write_manifest([record], paths.manifest)
+
+    result = package_results(tmp_path, include="16s")
+
+    packaged = (result.delivery_dir / "manifest.tsv").read_text(encoding="utf-8")
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    assert "rrna_16s_evidence_level" in packaged.splitlines()[0]
+    assert "mismatch_blocked" in packaged
+    assert "Strict-usable 16S records: 0; candidate/fallback or blocked records: 1" in readme
+    assert "candidate-inclusive, not a strict same-genome-only FASTA" in readme
 
 
 def test_package_results_succeeds_with_missing_optional_files(tmp_path):

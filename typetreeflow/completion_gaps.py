@@ -5,10 +5,16 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.completion import (
+    GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+    _has_strict_completion_evidence,
+)
 from typetreeflow.expanded_discovery import generate_expanded_discovery_plan
 from typetreeflow.manifest import read_manifest
 from typetreeflow.models import StrainRecord
-from typetreeflow.taxonomy.audit import MISSING_FROM_GTDB, MISSING_GENOME
+from typetreeflow.rrna.provenance import rrna_16s_strict_usable
+from typetreeflow.taxonomy.audit import MISSING_FROM_GTDB
+from typetreeflow.taxonomy.audit import MISSING_GENOME as TAXONOMY_MISSING_GENOME
 from typetreeflow.taxonomy.names import canonical_species_key
 from typetreeflow.taxonomy.selection import read_user_selection
 from typetreeflow.workflow.state import read_run_state
@@ -17,13 +23,16 @@ from typetreeflow.workflow.state import read_run_state
 UNCOVERED_CHECKLIST_SPECIES = "uncovered_checklist_species"
 MISSING_EXTERNAL_CANDIDATE = "missing_external_candidate"
 GENOME_READY_16S_NOT_FOUND = "genome_ready_16s_not_found"
+GENOME_READY_16S_NOT_STRICT_USABLE = "genome_ready_16s_not_strict_usable"
 INSUFFICIENT_TYPE_EVIDENCE = "insufficient_type_evidence"
 WORKFLOW_FAILED_BEFORE_SELECTION = "workflow_failed_before_selection"
 
 GAP_REASON_CATEGORIES = {
     UNCOVERED_CHECKLIST_SPECIES,
+    TAXONOMY_MISSING_GENOME,
     MISSING_EXTERNAL_CANDIDATE,
     GENOME_READY_16S_NOT_FOUND,
+    GENOME_READY_16S_NOT_STRICT_USABLE,
     INSUFFICIENT_TYPE_EVIDENCE,
     WORKFLOW_FAILED_BEFORE_SELECTION,
 }
@@ -73,7 +82,15 @@ def generate_completion_gap_reports(outdir: str | Path) -> tuple[Path, Path, Pat
 
     uncovered_rows = build_uncovered_species_gaps(root)
     rrna_rows = build_16s_gaps(root)
-    other_rows = build_selection_and_workflow_gaps(root, uncovered_rows, rrna_rows)
+    strict_evidence_rows = build_manifest_strict_evidence_gaps(root)
+    other_rows = [
+        *strict_evidence_rows,
+        *build_selection_and_workflow_gaps(
+            root,
+            [*uncovered_rows, *strict_evidence_rows],
+            rrna_rows,
+        ),
+    ]
     all_rows = [*uncovered_rows, *rrna_rows, *other_rows]
 
     write_completion_gap_records(uncovered_rows, uncovered_path)
@@ -86,20 +103,24 @@ def generate_completion_gap_reports(outdir: str | Path) -> tuple[Path, Path, Pat
 def build_uncovered_species_gaps(outdir: str | Path) -> list[CompletionGapRecord]:
     root = Path(outdir)
     rows: list[CompletionGapRecord] = []
+    manifest_records = _manifest_records_by_species(root)
     comparison_path = root / "taxonomy" / "checklist_comparison.tsv"
     if comparison_path.exists():
         for row in _read_tsv_rows(comparison_path):
             status = row.get("comparison_status", "").strip()
-            if status not in {MISSING_FROM_GTDB, MISSING_GENOME}:
+            if status not in {MISSING_FROM_GTDB, TAXONOMY_MISSING_GENOME}:
                 continue
             species = _species_from_row(row)
+            genome_records = _genome_records_for_species(manifest_records, species)
+            if genome_records:
+                continue
             rows.append(
                 CompletionGapRecord(
                     species=species,
                     checklist_name=row.get("checklist_name", "").strip() or species,
                     lpsn_type_strain=row.get("type_strain", "").strip(),
                     lpsn_url=row.get("lpsn_url", "").strip(),
-                    reason_category=UNCOVERED_CHECKLIST_SPECIES,
+                    reason_category=TAXONOMY_MISSING_GENOME,
                     selected="false",
                     record_status=status,
                     suggested_next_action="review checklist species and external candidate discovery",
@@ -112,26 +133,83 @@ def build_uncovered_species_gaps(outdir: str | Path) -> list[CompletionGapRecord
     return _dedupe_gap_rows(rows)
 
 
+def build_manifest_strict_evidence_gaps(outdir: str | Path) -> list[CompletionGapRecord]:
+    root = Path(outdir)
+    manifest_records = _manifest_records_by_species(root)
+    if not manifest_records:
+        return []
+
+    rows: list[CompletionGapRecord] = []
+    comparison_path = root / "taxonomy" / "checklist_comparison.tsv"
+    if comparison_path.exists():
+        for row in _read_tsv_rows(comparison_path):
+            status = row.get("comparison_status", "").strip()
+            if status not in {MISSING_FROM_GTDB, TAXONOMY_MISSING_GENOME}:
+                continue
+            species = _species_from_row(row)
+            genome_records = _genome_records_for_species(manifest_records, species)
+            if not genome_records or any(
+                _has_strict_completion_evidence(record) for record in genome_records
+            ):
+                continue
+            rows.append(
+                _strict_evidence_gap_from_manifest(
+                    row,
+                    species=species,
+                    records=genome_records,
+                    source_path=comparison_path,
+                )
+            )
+
+    checklist_path = root / "species_checklist.tsv"
+    for row in _read_optional_tsv(checklist_path):
+        species = _species_from_row(row)
+        genome_records = _genome_records_for_species(manifest_records, species)
+        if not genome_records or any(
+            _has_strict_completion_evidence(record) for record in genome_records
+        ):
+            continue
+        rows.append(
+            _strict_evidence_gap_from_manifest(
+                row,
+                species=species,
+                records=genome_records,
+                source_path=checklist_path,
+            )
+        )
+    return _dedupe_gap_rows(rows)
+
+
 def build_16s_gaps(outdir: str | Path) -> list[CompletionGapRecord]:
     manifest_path = Path(outdir) / "manifest.tsv"
     if not manifest_path.exists():
         return []
     rows = []
     for record in read_manifest(manifest_path):
-        if not _is_genome_ready_16s_not_found(record):
+        reason_category = _rrna_16s_gap_reason(record)
+        if not reason_category:
             continue
         rows.append(
             CompletionGapRecord(
                 species=_record_species(record),
                 checklist_name=_record_species(record),
-                reason_category=GENOME_READY_16S_NOT_FOUND,
+                reason_category=reason_category,
                 selected="true",
                 selected_assembly=record.assembly_accession.strip(),
                 selected_strain=record.strain.strip(),
                 evidence_level=_record_evidence_level(record),
                 record_status=record.status.strip(),
-                suggested_next_action="review 16S extraction logs or provide a vetted 16S sequence",
-                notes=_join_notes(record.notes, _source_note("manifest", manifest_path)),
+                suggested_next_action=(
+                    "review 16S provenance audit or provide a vetted same-genome/"
+                    "same-strain-confirmed 16S sequence"
+                ),
+                notes=_join_notes(
+                    record.notes,
+                    f"rrna_16s_source={record.rrna_16s_source}",
+                    f"rrna_16s_evidence_level={record.rrna_16s_evidence_level}",
+                    f"rrna_16s_audit_status={record.rrna_16s_audit_status}",
+                    _source_note("manifest", manifest_path),
+                ),
             )
         )
     return _dedupe_gap_rows(rows)
@@ -153,6 +231,7 @@ def build_selection_and_workflow_gaps(
 
     checklist_rows = _read_optional_tsv(root / "species_checklist.tsv")
     selection_rows = _read_optional_selection(root / "selection" / "user_selection.tsv")
+    manifest_records = _manifest_records_by_species(root)
     candidate_species = _species_keys_from_tsv(root / "candidates" / "assembly_candidates.tsv")
     selected_by_species = {
         _species_key(row.species): row
@@ -168,9 +247,25 @@ def build_selection_and_workflow_gaps(
     rows: list[CompletionGapRecord] = []
     for checklist in checklist_rows:
         key = _species_key(_species_from_row(checklist))
-        if not key or key in selected_by_species:
+        if not key:
             continue
         species = _species_from_row(checklist)
+        genome_records = _genome_records_for_species(manifest_records, species)
+        if genome_records:
+            if any(_has_strict_completion_evidence(record) for record in genome_records):
+                continue
+            if (species.lower(), INSUFFICIENT_TYPE_EVIDENCE) not in existing_keys:
+                rows.append(
+                    _strict_evidence_gap_from_manifest(
+                        checklist,
+                        species=species,
+                        records=genome_records,
+                        source_path=root / "manifest.tsv",
+                    )
+                )
+            continue
+        if key in selected_by_species:
+            continue
         if (species.lower(), UNCOVERED_CHECKLIST_SPECIES) in existing_keys:
             continue
         if key not in candidate_species and key not in selection_by_species:
@@ -297,6 +392,70 @@ def _read_optional_selection(path: Path):
     return read_user_selection(path)
 
 
+def _manifest_records_by_species(root: Path) -> dict[str, list[StrainRecord]]:
+    manifest_path = root / "manifest.tsv"
+    if not manifest_path.exists():
+        return {}
+    records_by_species: dict[str, list[StrainRecord]] = {}
+    for record in read_manifest(manifest_path):
+        key = _species_key(_record_species(record))
+        if key:
+            records_by_species.setdefault(key, []).append(record)
+    return records_by_species
+
+
+def _genome_records_for_species(
+    records_by_species: dict[str, list[StrainRecord]],
+    species: str,
+) -> list[StrainRecord]:
+    return [
+        record
+        for record in records_by_species.get(_species_key(species), [])
+        if _has_manifest_genome(record)
+    ]
+
+
+def _has_manifest_genome(record: StrainRecord) -> bool:
+    return bool(record.has_genome or record.genome_path.strip())
+
+
+def _strict_evidence_gap_from_manifest(
+    source_row: dict[str, str],
+    *,
+    species: str,
+    records: list[StrainRecord],
+    source_path: Path,
+) -> CompletionGapRecord:
+    record = sorted(records, key=_record_sort_key)[0]
+    checklist_name = (
+        source_row.get("full_name", "").strip()
+        or source_row.get("checklist_name", "").strip()
+        or species
+    )
+    return CompletionGapRecord(
+        species=species,
+        checklist_name=checklist_name,
+        lpsn_type_strain=source_row.get("type_strain", "").strip()
+        or source_row.get("type_strain_names", "").strip(),
+        lpsn_url=source_row.get("lpsn_url", "").strip(),
+        reason_category=INSUFFICIENT_TYPE_EVIDENCE,
+        selected="true",
+        selected_assembly=record.assembly_accession.strip(),
+        selected_strain=record.strain.strip(),
+        evidence_level=_record_evidence_level(record),
+        record_status=GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+        suggested_next_action=(
+            "review strict type-strain evidence; do not treat candidate genome "
+            "as missing"
+        ),
+        notes=_join_notes(
+            source_row.get("notes", ""),
+            record.notes,
+            _source_note("manifest", source_path),
+        ),
+    )
+
+
 def _species_keys_from_tsv(path: Path) -> set[str]:
     if not path.exists():
         return set()
@@ -337,9 +496,26 @@ def _record_evidence_level(record: StrainRecord) -> str:
     return values.get("evidence_level", "")
 
 
+def _record_sort_key(record: StrainRecord) -> tuple[str, str, str, str]:
+    return (
+        record.normalized_id,
+        record.canonical_name,
+        record.assembly_accession,
+        record.record_id,
+    )
+
+
 def _is_genome_ready_16s_not_found(record: StrainRecord) -> bool:
     status = record.status.strip()
     return record.has_genome and not record.has_16s and status == "rrna_16s_not_found"
+
+
+def _rrna_16s_gap_reason(record: StrainRecord) -> str:
+    if _is_genome_ready_16s_not_found(record):
+        return GENOME_READY_16S_NOT_FOUND
+    if record.has_genome and record.has_16s and not rrna_16s_strict_usable(record):
+        return GENOME_READY_16S_NOT_STRICT_USABLE
+    return ""
 
 
 def _selection_notes(rows) -> str:

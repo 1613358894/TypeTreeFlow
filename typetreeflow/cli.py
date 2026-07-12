@@ -735,6 +735,7 @@ def _verify_genus_counts(paths, config: AppConfig) -> dict[str, object]:
 
 def _verify_genus_config_summary(config: AppConfig) -> dict[str, object]:
     return {
+        "evidence_policy": config.evidence_policy,
         "smoke_profile": config.smoke_profile or "",
         "limit_selected": config.limit_selected,
         "enable_downloads": config.enable_downloads,
@@ -2248,6 +2249,7 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
 
 def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
     return {
+        "evidence_policy": config.evidence_policy,
         "smoke_profile": config.smoke_profile or "",
         "limit_selected": config.limit_selected,
         "enable_downloads": config.enable_downloads,
@@ -2368,11 +2370,16 @@ def _rrna_stage_state(
     if not requested and not outputs:
         return None
     status_counts: dict[str, int] = {}
+    rrna_evidence_counts = {"strict_usable": 0, "candidate_or_blocked": 0}
     if paths.manifest.exists():
         for row in _read_tsv_rows(paths.manifest):
             status = row.get("status", "")
             if status.startswith("rrna_") or status.startswith("barrnap_"):
                 status_counts[status] = status_counts.get(status, 0) + 1
+            if _truthy(row.get("rrna_16s_strict_usable", "")):
+                rrna_evidence_counts["strict_usable"] += 1
+            elif _truthy(row.get("has_16s", "")):
+                rrna_evidence_counts["candidate_or_blocked"] += 1
     if (
         error is not None
         and config.extract_16s == "barrnap"
@@ -2399,6 +2406,13 @@ def _rrna_stage_state(
     query_summary = _local_query_rrna_summary(paths)
     if query_summary:
         summary = f"{summary}; {query_summary}"
+    if sum(rrna_evidence_counts.values()):
+        summary = (
+            f"{summary}; rrna_16s_strict_usable="
+            f"{rrna_evidence_counts['strict_usable']}; "
+            "rrna_16s_candidate_or_blocked="
+            f"{rrna_evidence_counts['candidate_or_blocked']}"
+        )
     return StageState(
         status=status,
         outputs=[_state_output_path(path, paths) for path in outputs],
@@ -2999,7 +3013,11 @@ def run_completion_audit_stage(paths, config: AppConfig) -> tuple[Path, Path]:
     checklist_entries = read_species_checklist(config.species_checklist)
     manifest_records = read_manifest(paths.manifest)
     audit_rows = build_completion_audit(checklist_entries, manifest_records)
-    summary = summarize_completion_audit(audit_rows)
+    summary = summarize_completion_audit(
+        audit_rows,
+        manifest_records=manifest_records,
+        evidence_policy=config.evidence_policy,
+    )
     audit_path = write_completion_audit(audit_rows, paths.completion_audit_path)
     summary_path = write_completion_summary(summary, paths.completion_summary_path)
     LOGGER.info(
@@ -3018,6 +3036,17 @@ def run_completion_audit_stage(paths, config: AppConfig) -> tuple[Path, Path]:
         summary.external_inclusive_complete_count,
         summary.missing_count,
         summary.conflict_count,
+    )
+    LOGGER.info(
+        "Evidence policy counts: policy=%s, evaluated_records=%s, "
+        "genome_usable=%s, genome_strict_usable=%s, rrna_16s_usable=%s, "
+        "rrna_16s_strict_usable=%s.",
+        summary.evidence_policy,
+        summary.policy_evaluated_record_count,
+        summary.genome_policy_usable_count,
+        summary.genome_policy_strict_usable_count,
+        summary.rrna_16s_policy_usable_count,
+        summary.rrna_16s_policy_strict_usable_count,
     )
     return audit_path, summary_path
 

@@ -16,6 +16,56 @@ provider proposals, provider plans, local query rows, or external request rows
 as strict confirmed type strains. Strict type-strain wording requires evidence
 tying the genome record to the species type-strain equivalence set.
 
+## Evidence Policy
+
+Evidence policy is a run-level derived-view strategy, not a source fact or an
+evidence transformer. The canonical manifest, selection decisions,
+provenance, and audit ledgers retain their original facts under every policy.
+
+- `strict` admits genome evidence tied to the species type-strain equivalence
+  set and 16S evidence marked strict usable with `same_genome` or
+  `same_strain_confirmed` provenance; it is the default.
+- `candidate` may additionally admit authoritative type-material candidates
+  and `candidate_fallback` 16S in an explicitly caveated derived summary; it
+  does not promote them to strict confirmed type strains or strict 16S.
+- `exploratory` may additionally expose representative, reference, or query
+  roles and practically available 16S in an explicitly exploratory summary;
+  it does not make them strict or deliverable evidence.
+
+The pure evidence policy evaluator returns `usable`, `scope`, `reason`,
+`caveats`, and `strict_usable`. Scope is one of `strict`, `candidate`,
+`exploratory`, `blocked`, or `missing`; it describes the evidence itself even
+when the selected policy does not admit it. Candidate and exploratory use must
+retain caveats, while `strict_usable` is independent of the selected policy.
+
+Evaluator-derived counts are additive report/completion summaries only. They
+do not filter or change selection, downloads, manifest writes,
+`rrna/all_16S.fasta`, phylogeny input, completion status metrics, or package
+members. `mismatch_blocked` 16S, provider proposals/plans, external request
+rows, and unreviewed external files remain unusable under every policy. Local
+query genomes are exploratory-only and never strict or candidate scientific
+evidence.
+
+## 16S Provenance Boundary
+
+16S availability and 16S evidence are separate claims. A barrnap sequence
+extracted from the registered genome is `same_genome` and may be used as strict
+genome-linked rRNA evidence. A sequence from another record is strict usable
+only when BioSample, culture-collection, or equivalent evidence confirms the
+same strain; matching strain text alone is not confirmation.
+
+Entrez and other search hits without that equivalence evidence are
+`candidate_fallback`. An audited mismatch is `mismatch_blocked`. Both may be
+retained for review or explicitly candidate-inclusive analyses, but neither
+may be described as same-genome 16S or counted as strict 16S completion.
+Missing provenance is also not strict evidence.
+
+`rrna/all_16S.fasta` is a compatibility, fallback-inclusive combined FASTA.
+Trees derived from it are practical/candidate-inclusive if any candidate,
+mismatch, or otherwise non-strict row is present; they are not strict
+same-genome-only inference. Mismatch and manual-review rows must remain visible
+in completion gaps, report caveats, and delivery diagnostics.
+
 ## Real Action Boundary
 
 Default maintenance uses docs checks, dry runs, fake runners, local fixtures,
@@ -90,7 +140,8 @@ synthetic/local test data and does not log in to ATCC Genome Portal.
 
 `source_audit/completion_audit.tsv` is one row per expected checklist species.
 Its statuses include `complete_ncbi`, `complete_external_registered`,
-`missing_genome`, and `conflict`.
+`missing_genome`, `genome_present_insufficient_strict_type_evidence`, and
+`conflict`.
 
 Counting rules:
 
@@ -101,6 +152,10 @@ Counting rules:
 - Provider planning, proposed external genomes, expanded discovery,
   taxonomy-derived rows, manual supplement hints, and representative-only rows
   do not count as complete.
+- `missing_genome` means no manifest-backed genome record is available for the
+  checklist species. A manifest-backed candidate genome with insufficient
+  strict type evidence is not missing genome evidence; it remains a strict
+  evidence caveat.
 - Conflicts and missing records remain visible in completion audit and reports.
 
 ## Species Checklist Audit

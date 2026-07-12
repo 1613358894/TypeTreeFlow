@@ -1,5 +1,6 @@
 import csv
 from pathlib import Path
+from types import SimpleNamespace
 
 from typetreeflow.cli import main
 from typetreeflow.completion import (
@@ -10,7 +11,12 @@ from typetreeflow.completion import (
     write_completion_audit,
     write_completion_summary,
 )
-from typetreeflow.completion_gaps import generate_completion_gap_reports
+from typetreeflow.completion_gaps import (
+    CompletionGapRecord,
+    INSUFFICIENT_TYPE_EVIDENCE,
+    generate_completion_gap_reports,
+    write_completion_gap_records,
+)
 from typetreeflow.expanded_discovery import (
     ExpandedDiscoveryPlanRow,
     ExpandedDiscoveryResultRow,
@@ -596,10 +602,64 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "Combined 16S FASTA not available." in markdown
     assert "Status: phylo_skipped_too_few_sequences" in markdown
     assert "manifest has 0 16S-ready records" in markdown
+
+
+def test_report_summary_records_evidence_policy_without_filtering_artifacts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    markdown = build_run_summary_markdown(
+        [_record("ref1")], paths, SimpleNamespace(evidence_policy="exploratory")
+    )
+
+    assert "Evidence policy: exploratory" in markdown
+    assert "does not filter artifact contents" in markdown
     assert "No failed, skipped, missing, ambiguous, or not-found records." in markdown
     assert "Taxonomic Audit Summary" not in markdown
     assert "Source Audit Summary" not in markdown
     assert "External Registered Genomes" not in markdown
+
+
+def test_report_summary_uses_evaluator_for_additive_policy_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    strict = _record(
+        "strict",
+        has_genome=True,
+        has_16s=True,
+        notes=(
+            "evidence_level=strict_confirmed; "
+            "type_confirmation_status=confirmed_type_strain"
+        ),
+    )
+    strict.genome_path = "genomes/references/strict.fna"
+    strict.rrna_16s_path = "rrna/sequences/strict.16s.fasta"
+    strict.rrna_16s_evidence_level = "same_genome"
+    strict.rrna_16s_strict_usable = True
+    candidate = _record(
+        "candidate",
+        has_genome=True,
+        has_16s=True,
+        notes=(
+            "evidence_level=likely_type_material; "
+            "type_confirmation_status=likely_type_material"
+        ),
+    )
+    candidate.genome_path = "genomes/references/candidate.fna"
+    candidate.rrna_16s_path = "rrna/sequences/candidate.16s.fasta"
+    candidate.rrna_16s_evidence_level = "candidate_fallback"
+
+    markdown = build_run_summary_markdown(
+        [strict, candidate],
+        paths,
+        SimpleNamespace(evidence_policy="candidate"),
+    )
+
+    assert "## Evidence Policy Summary" in markdown
+    assert "- Policy: candidate" in markdown
+    assert "- Evaluated manifest records: 2" in markdown
+    assert "- Genome records usable under policy: 2" in markdown
+    assert "- Genome records strict usable: 1" in markdown
+    assert "- 16S records usable under policy: 2" in markdown
+    assert "- 16S records strict usable: 1" in markdown
+    assert "do not change selection, downloads, manifests, combined 16S" in markdown
 
 
 def test_report_summary_includes_type_confirmation_risk_counts(tmp_path):
@@ -945,7 +1005,7 @@ def test_report_16s_coverage_counts_all_barrnap_same_genome_internal(tmp_path):
     assert coverage["total_usable_16s_count"] == 3
     assert "- Genome coverage: 3/3" in markdown
     assert "- Same-genome barrnap 16S: 3/3" in markdown
-    assert "- Total 16S including Entrez fallback: 3/3" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 3/3" in markdown
     assert "- Entrez fallback warnings: none" in markdown
 
 
@@ -970,10 +1030,32 @@ def test_report_16s_coverage_splits_barrnap_from_entrez_mismatch_fallback(tmp_pa
 
     assert "- Genome coverage: 44/44" in markdown
     assert "- Same-genome barrnap 16S: 43/44" in markdown
-    assert "- Total 16S including Entrez fallback: 44/44" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 44/44" in markdown
     assert "- Entrez fallback warnings: 1 mismatch; 1 strict blocking" in markdown
     assert "- Mismatch count: 1" in markdown
     assert "- Strict blocking count: 1" in markdown
+
+
+def test_report_marks_fallback_phylogeny_candidate_inclusive_not_strict(tmp_path):
+    paths = get_output_paths(tmp_path)
+    record = _record("fallback", status="rrna_16s_ready", has_genome=True, has_16s=True)
+    record.rrna_16s_path = "rrna/sequences/fallback.16s.fasta"
+    record.rrna_16s_source = "entrez"
+    record.rrna_16s_evidence_level = "mismatch_blocked"
+    record.rrna_16s_audit_status = "mismatch"
+    record.rrna_16s_strict_usable = False
+    paths.all_16s_fasta_path.parent.mkdir(parents=True)
+    paths.all_16s_fasta_path.write_text(
+        ">fallback|source=Entrez|accession=NR_1|audit_status=mismatch\nACGT\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([record], paths)
+
+    assert "Strict-usable 16S (same-genome or evidence-confirmed same-strain): 0/1" in markdown
+    assert "Available 16S in candidate-inclusive outputs: 1/1" in markdown
+    assert "not a strict same-genome-only FASTA" in markdown
+    assert "practical/candidate-inclusive inference; not strict same-genome-only inference" in markdown
 
 
 def test_report_16s_coverage_marks_entrez_strain_text_fallback_as_weak(tmp_path):
@@ -996,7 +1078,7 @@ def test_report_16s_coverage_marks_entrez_strain_text_fallback_as_weak(tmp_path)
     markdown = build_run_summary_markdown(records, paths)
 
     assert "- Same-genome barrnap 16S: 26/27" in markdown
-    assert "- Total 16S including Entrez fallback: 27/27" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 27/27" in markdown
     assert (
         "- Entrez fallback warnings: 1 weak/strain-text-only evidence; "
         "1 strict blocking"
@@ -1017,7 +1099,7 @@ def test_report_16s_coverage_without_source_audit_uses_manifest_and_keeps_summar
     assert "## Source Audit Summary" not in markdown
     assert "- Genome coverage: 2/2" in markdown
     assert "- Same-genome barrnap 16S: not available (source audit missing)" in markdown
-    assert "- Total 16S including Entrez fallback: 1/2" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 1/2" in markdown
     assert "- Entrez fallback warnings: none" in markdown
 
 
@@ -1038,7 +1120,7 @@ def test_report_16s_coverage_keeps_strict_blocking_visible(tmp_path):
     markdown = build_run_summary_markdown(records, paths)
 
     assert "- Same-genome barrnap 16S: 1/2" in markdown
-    assert "- Total 16S including Entrez fallback: 1/2" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 1/2" in markdown
     assert (
         "- Entrez fallback warnings: 1 manual review required; "
         "1 strict blocking"
@@ -1557,7 +1639,7 @@ def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
     assert "- Selected/manifest records count: 3" in markdown
     assert "- Genome coverage: 2/3" in markdown
     assert "- Same-genome barrnap 16S coverage: 1/3" in markdown
-    assert "- Total 16S including Entrez fallback: 3/3" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 3/3" in markdown
     assert "- Mismatch fallback warnings: 1" in markdown
     assert "- Weak/strain-text-only fallback warnings: 1" in markdown
     assert "Enterobacter siamensis" in markdown
@@ -1567,6 +1649,39 @@ def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
     assert "not a strict-ready count" in markdown
     assert "`source_audit/sequence_source_audit.tsv`" in markdown
     assert "`completion/uncovered_species.tsv`" in markdown
+
+
+def test_run_review_separates_missing_genome_from_strict_evidence_caveats(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    missing = CompletionGapRecord(
+        species="Clostridium absens",
+        checklist_name="Clostridium absens",
+        reason_category="missing_genome",
+        selected="false",
+        record_status="missing_from_gtdb",
+    )
+    insufficient = CompletionGapRecord(
+        species="Clostridium cochlearium",
+        checklist_name="Clostridium cochlearium",
+        reason_category=INSUFFICIENT_TYPE_EVIDENCE,
+        selected="true",
+        selected_assembly="GCF_900187165.1",
+        evidence_level="likely_type_material",
+        record_status="genome_present_insufficient_strict_type_evidence",
+    )
+    write_completion_gap_records([missing], paths.uncovered_species_path)
+    write_completion_gap_records([missing, insufficient], paths.completion_gaps_path)
+
+    markdown = build_run_review_markdown([_record("candidate", has_genome=True)], paths)
+
+    assert "## Missing Genome Species" in markdown
+    assert "- Count: 1" in markdown
+    assert "- Clostridium absens" in markdown
+    assert "## Strict Type-Evidence Caveats" in markdown
+    assert "These rows have manifest-backed genomes" in markdown
+    assert "- Clostridium cochlearium (likely_type_material)" in markdown
 
 
 def test_run_review_plan_only_downloads_not_executed_does_not_report_zero_coverage(

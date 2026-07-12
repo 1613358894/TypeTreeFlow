@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from typetreeflow.evidence_policy import summarize_evidence_policy
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry
 from typetreeflow.taxonomy.names import canonical_species_key, display_species_name
@@ -14,10 +15,16 @@ NCBI_ASSEMBLY = "ncbi_assembly"
 EXTERNAL_REGISTERED_GENOME = "external_registered_genome"
 MISSING = "missing"
 MIXED_CONFLICT = "mixed_conflict"
+MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE = (
+    "manifest_genome_insufficient_strict_type_evidence"
+)
 
 COMPLETE_NCBI = "complete_ncbi"
 COMPLETE_EXTERNAL_REGISTERED = "complete_external_registered"
 MISSING_GENOME = "missing_genome"
+GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE = (
+    "genome_present_insufficient_strict_type_evidence"
+)
 CONFLICT = "conflict"
 
 COMPLETION_AUDIT_FIELDS = [
@@ -48,7 +55,15 @@ COMPLETION_SUMMARY_METRICS = [
     "external_inclusive_complete_count",
     "missing_count",
     "conflict_count",
+    "evidence_policy",
+    "policy_evaluated_record_count",
+    "genome_policy_usable_count",
+    "genome_policy_strict_usable_count",
+    "rrna_16s_policy_usable_count",
+    "rrna_16s_policy_strict_usable_count",
 ]
+
+CORE_COMPLETION_SUMMARY_METRICS = COMPLETION_SUMMARY_METRICS[:6]
 
 COMPLETION_SUMMARY_NOTES = {
     "expected_species_count": "Expected checklist species represented in completion audit.",
@@ -57,8 +72,18 @@ COMPLETION_SUMMARY_NOTES = {
     "external_inclusive_complete_count": (
         "NCBI strict complete rows plus external registered genome complete rows."
     ),
-    "missing_count": "Rows with no accepted genome evidence.",
+    "missing_count": "Rows with no manifest-backed genome evidence.",
     "conflict_count": "Rows with both NCBI and external registered genome evidence.",
+    "evidence_policy": "Policy used for additive evaluator-derived manifest counts.",
+    "policy_evaluated_record_count": "Manifest records evaluated by evidence policy.",
+    "genome_policy_usable_count": "Manifest genome records usable under evidence policy.",
+    "genome_policy_strict_usable_count": (
+        "Manifest genome records with strict usable evidence, independent of policy."
+    ),
+    "rrna_16s_policy_usable_count": "Manifest 16S records usable under evidence policy.",
+    "rrna_16s_policy_strict_usable_count": (
+        "Manifest 16S records with strict usable evidence, independent of policy."
+    ),
 }
 
 
@@ -119,6 +144,12 @@ class CompletionSummary:
     external_inclusive_complete_count: int | str
     missing_count: int | str
     conflict_count: int | str
+    evidence_policy: str = "strict"
+    policy_evaluated_record_count: int | str = 0
+    genome_policy_usable_count: int | str = 0
+    genome_policy_strict_usable_count: int | str = 0
+    rrna_16s_policy_usable_count: int | str = 0
+    rrna_16s_policy_strict_usable_count: int | str = 0
     metric_notes: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
@@ -143,6 +174,9 @@ def build_completion_audit(
             if _is_external_registered_genome(record)
             and _has_strict_completion_evidence(record)
         ]
+        genome_present_records = [
+            record for record in matching_records if _has_manifest_genome(record)
+        ]
 
         if ncbi_records and external_records:
             rows.append(_conflict_record(entry, species_name, ncbi_records, external_records))
@@ -150,17 +184,34 @@ def build_completion_audit(
             rows.append(_ncbi_record(entry, species_name, ncbi_records))
         elif external_records:
             rows.append(_external_record(entry, species_name, external_records))
+        elif genome_present_records:
+            rows.append(
+                _insufficient_strict_type_evidence_record(
+                    entry,
+                    species_name,
+                    genome_present_records,
+                )
+            )
         else:
             rows.append(_missing_record(entry, species_name))
 
     return rows
 
 
-def summarize_completion_audit(records: Iterable[CompletionAuditRecord]) -> CompletionSummary:
+def summarize_completion_audit(
+    records: Iterable[CompletionAuditRecord],
+    *,
+    manifest_records: Iterable[StrainRecord] | None = None,
+    evidence_policy: str = "strict",
+) -> CompletionSummary:
     rows = list(records)
     ncbi_complete_count = sum(1 for row in rows if row.completion_status == COMPLETE_NCBI)
     external_registered_count = sum(
         1 for row in rows if row.completion_status == COMPLETE_EXTERNAL_REGISTERED
+    )
+    policy_summary = summarize_evidence_policy(
+        manifest_records or (),
+        evidence_policy,
     )
     return CompletionSummary(
         expected_species_count=len(rows),
@@ -171,6 +222,14 @@ def summarize_completion_audit(records: Iterable[CompletionAuditRecord]) -> Comp
         ),
         missing_count=sum(1 for row in rows if row.completion_status == MISSING_GENOME),
         conflict_count=sum(1 for row in rows if row.completion_status == CONFLICT),
+        evidence_policy=policy_summary.policy,
+        policy_evaluated_record_count=policy_summary.evaluated_record_count,
+        genome_policy_usable_count=policy_summary.genome_usable_count,
+        genome_policy_strict_usable_count=policy_summary.genome_strict_usable_count,
+        rrna_16s_policy_usable_count=policy_summary.rrna_16s_usable_count,
+        rrna_16s_policy_strict_usable_count=(
+            policy_summary.rrna_16s_strict_usable_count
+        ),
     )
 
 
@@ -296,7 +355,7 @@ def read_completion_summary(path: str | Path) -> CompletionSummary:
             notes[metric] = row_data["notes"]
 
     missing_metrics = [
-        metric for metric in COMPLETION_SUMMARY_METRICS if metric not in values
+        metric for metric in CORE_COMPLETION_SUMMARY_METRICS if metric not in values
     ]
     if missing_metrics:
         missing = ", ".join(missing_metrics)
@@ -311,6 +370,16 @@ def read_completion_summary(path: str | Path) -> CompletionSummary:
         ],
         missing_count=values["missing_count"],
         conflict_count=values["conflict_count"],
+        evidence_policy=values.get("evidence_policy", "strict"),
+        policy_evaluated_record_count=values.get("policy_evaluated_record_count", "0"),
+        genome_policy_usable_count=values.get("genome_policy_usable_count", "0"),
+        genome_policy_strict_usable_count=values.get(
+            "genome_policy_strict_usable_count", "0"
+        ),
+        rrna_16s_policy_usable_count=values.get("rrna_16s_policy_usable_count", "0"),
+        rrna_16s_policy_strict_usable_count=values.get(
+            "rrna_16s_policy_strict_usable_count", "0"
+        ),
         metric_notes=notes,
     )
 
@@ -391,6 +460,38 @@ def _missing_record(
     )
 
 
+def _insufficient_strict_type_evidence_record(
+    entry: SpeciesChecklistEntry,
+    species_name: str,
+    records: list[StrainRecord],
+) -> CompletionAuditRecord:
+    record = sorted(records, key=_record_sort_key)[0]
+    external = _is_external_registered_genome(record)
+    note_values = _parse_notes(record.notes)
+    return CompletionAuditRecord(
+        species=species_name,
+        canonical_name=_canonical_name(entry, species_name),
+        type_strain=entry.type_strain,
+        ncbi_assembly_accession=record.assembly_accession.strip()
+        if not external
+        else "",
+        ncbi_assembly_backed=False,
+        external_registered_genome_backed=False,
+        external_genome_id=note_values.get("external_genome_id", "") if external else "",
+        external_source=note_values.get("external_source", "") if external else "",
+        external_source_url=note_values.get("external_source_url", "")
+        if external
+        else "",
+        genome_evidence_scope=MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE,
+        completion_status=GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+        notes=_join_notes(
+            _multiple_records_note(records),
+            _record_note(record),
+            "manifest genome present but strict type-strain evidence is insufficient",
+        ),
+    )
+
+
 def _conflict_record(
     entry: SpeciesChecklistEntry,
     species_name: str,
@@ -429,6 +530,10 @@ def _is_ncbi_backed(record: StrainRecord) -> bool:
         and not _is_external_registered_genome(record)
         and _has_strict_completion_evidence(record)
     )
+
+
+def _has_manifest_genome(record: StrainRecord) -> bool:
+    return bool(record.has_genome or record.genome_path.strip())
 
 
 def _is_external_registered_genome(record: StrainRecord) -> bool:

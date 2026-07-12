@@ -225,8 +225,8 @@ def test_high_level_workflow_docs_are_current():
 
     for docs in [readme, cookbook, current_release_verification]:
         for phrase in [
-            "Same-genome barrnap 16S",
-            "Total 16S including Entrez fallback",
+                "Same-genome barrnap 16S",
+                "Available 16S in candidate-inclusive outputs",
             "Fallback warnings",
             "Strict blocking count",
             "--enable-entrez",
@@ -479,6 +479,7 @@ def test_status_docs_cover_emitted_review_and_contract_statuses():
         "complete_ncbi",
         "complete_external_registered",
         "missing_genome",
+        "genome_present_insufficient_strict_type_evidence",
         "conflict",
         "auto_selected_lpsn_type_strain_match",
         "auto_selected_curator_lpsn_type_strain_match",

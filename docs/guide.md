@@ -49,6 +49,11 @@ typetreeflow verify-genus Fusobacterium \
   --dry-run
 ```
 
+Evidence policy defaults to `strict`. To record a broader derived-view intent,
+pass `--evidence-policy candidate` or `--evidence-policy exploratory`. This
+release only records that metadata in stdout, run state, reports, and package
+handoff metadata; it does not change selected rows or artifact contents.
+
 Review `status`, `next-step`, `report/summary.md`, `report/run_review.md`,
 `selection/strain_candidates.tsv`, and `selection/user_selection.tsv`.
 Selection evidence levels remain distinct: `strict_confirmed`,
@@ -93,9 +98,14 @@ typetreeflow verify-genus Fusobacterium \
   --query-16s <query.16s.fasta>
 ```
 
-Reports distinguish `Same-genome barrnap 16S`, `Total 16S including Entrez fallback`, `Fallback warnings`, and `Strict blocking count`. Entrez fallback is
-provenance-bearing sequence evidence, not proof that the genome and 16S came
-from the same deposited material.
+Reports distinguish `Same-genome barrnap 16S`, `Strict-usable 16S`,
+`Available 16S in candidate-inclusive outputs`, `Fallback warnings`, and
+`Strict blocking count`. Entrez fallback is provenance-bearing sequence
+evidence, not proof that the genome and 16S came from the same deposited
+material. Before interpreting `rrna/all_16S.fasta` or its tree, review
+`rrna_16s_source`, `rrna_16s_evidence_level`, `rrna_16s_audit_status`, and
+`rrna_16s_strict_usable` in `manifest.tsv`; the combined FASTA is not a strict
+same-genome-only dataset.
 
 ## Selection Review
 
