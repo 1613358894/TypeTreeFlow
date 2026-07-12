@@ -116,6 +116,11 @@ def test_package_results_handoff_index_includes_fallback_warning_and_caveat(tmp_
         "completion."
         in index
     )
+    assert (
+        "Likely type-material candidate rows indicate genome availability for "
+        "review, not strict LPSN-confirmed type-strain completion."
+        in index
+    )
 
 
 def test_package_results_reads_large_download_result_fields(tmp_path):

@@ -479,6 +479,7 @@ def test_status_docs_cover_emitted_review_and_contract_statuses():
         "complete_ncbi",
         "complete_external_registered",
         "missing_genome",
+        "genome_present_insufficient_strict_type_evidence",
         "conflict",
         "auto_selected_lpsn_type_strain_match",
         "auto_selected_curator_lpsn_type_strain_match",

@@ -194,7 +194,8 @@ External genome statuses: `external_genome_checksum_mismatch`,
 `external_genome_missing_file`, `external_genome_registered`.
 
 Selection, audit, and workflow statuses include `complete_ncbi`,
-`complete_external_registered`, `missing_genome`, `conflict`,
+`complete_external_registered`, `missing_genome`,
+`genome_present_insufficient_strict_type_evidence`, `conflict`,
 `auto_selected_lpsn_type_strain_match`,
 `auto_selected_curator_lpsn_type_strain_match`,
 `auto_selected_likely_type_material`, `auto_selected_top_ranked`,
@@ -206,6 +207,16 @@ Selection, audit, and workflow statuses include `complete_ncbi`,
 Expanded discovery decisions: `rejected_species_mismatch`,
 `matched_candidate`, `rejected_missing_accession`, `no_result`,
 `query_failed`, `rejected_no_type_token_evidence`.
+
+Completion gap semantics separate genome availability from strict type evidence.
+`completion/uncovered_species.tsv` is for checklist species without a
+manifest-backed genome record and uses `missing_genome` as the gap reason.
+Manifest-backed genomes with `likely_type_material`, `representative_only`, or
+other non-strict evidence stay out of `uncovered_species.tsv`; they appear in
+`completion/gaps.tsv` as `insufficient_type_evidence` with record status
+`genome_present_insufficient_strict_type_evidence`. These candidate-backed rows
+are review caveats and must not be described as strict LPSN-confirmed type
+strains or as missing genomes.
 
 Manual supplement actions: `review_matched_candidates`,
 `review_species_identity_mismatch`, `manual_search_required`,

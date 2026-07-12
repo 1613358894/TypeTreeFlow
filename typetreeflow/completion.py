@@ -14,10 +14,16 @@ NCBI_ASSEMBLY = "ncbi_assembly"
 EXTERNAL_REGISTERED_GENOME = "external_registered_genome"
 MISSING = "missing"
 MIXED_CONFLICT = "mixed_conflict"
+MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE = (
+    "manifest_genome_insufficient_strict_type_evidence"
+)
 
 COMPLETE_NCBI = "complete_ncbi"
 COMPLETE_EXTERNAL_REGISTERED = "complete_external_registered"
 MISSING_GENOME = "missing_genome"
+GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE = (
+    "genome_present_insufficient_strict_type_evidence"
+)
 CONFLICT = "conflict"
 
 COMPLETION_AUDIT_FIELDS = [
@@ -57,7 +63,7 @@ COMPLETION_SUMMARY_NOTES = {
     "external_inclusive_complete_count": (
         "NCBI strict complete rows plus external registered genome complete rows."
     ),
-    "missing_count": "Rows with no accepted genome evidence.",
+    "missing_count": "Rows with no manifest-backed genome evidence.",
     "conflict_count": "Rows with both NCBI and external registered genome evidence.",
 }
 
@@ -143,6 +149,9 @@ def build_completion_audit(
             if _is_external_registered_genome(record)
             and _has_strict_completion_evidence(record)
         ]
+        genome_present_records = [
+            record for record in matching_records if _has_manifest_genome(record)
+        ]
 
         if ncbi_records and external_records:
             rows.append(_conflict_record(entry, species_name, ncbi_records, external_records))
@@ -150,6 +159,14 @@ def build_completion_audit(
             rows.append(_ncbi_record(entry, species_name, ncbi_records))
         elif external_records:
             rows.append(_external_record(entry, species_name, external_records))
+        elif genome_present_records:
+            rows.append(
+                _insufficient_strict_type_evidence_record(
+                    entry,
+                    species_name,
+                    genome_present_records,
+                )
+            )
         else:
             rows.append(_missing_record(entry, species_name))
 
@@ -391,6 +408,38 @@ def _missing_record(
     )
 
 
+def _insufficient_strict_type_evidence_record(
+    entry: SpeciesChecklistEntry,
+    species_name: str,
+    records: list[StrainRecord],
+) -> CompletionAuditRecord:
+    record = sorted(records, key=_record_sort_key)[0]
+    external = _is_external_registered_genome(record)
+    note_values = _parse_notes(record.notes)
+    return CompletionAuditRecord(
+        species=species_name,
+        canonical_name=_canonical_name(entry, species_name),
+        type_strain=entry.type_strain,
+        ncbi_assembly_accession=record.assembly_accession.strip()
+        if not external
+        else "",
+        ncbi_assembly_backed=False,
+        external_registered_genome_backed=False,
+        external_genome_id=note_values.get("external_genome_id", "") if external else "",
+        external_source=note_values.get("external_source", "") if external else "",
+        external_source_url=note_values.get("external_source_url", "")
+        if external
+        else "",
+        genome_evidence_scope=MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE,
+        completion_status=GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+        notes=_join_notes(
+            _multiple_records_note(records),
+            _record_note(record),
+            "manifest genome present but strict type-strain evidence is insufficient",
+        ),
+    )
+
+
 def _conflict_record(
     entry: SpeciesChecklistEntry,
     species_name: str,
@@ -429,6 +478,10 @@ def _is_ncbi_backed(record: StrainRecord) -> bool:
         and not _is_external_registered_genome(record)
         and _has_strict_completion_evidence(record)
     )
+
+
+def _has_manifest_genome(record: StrainRecord) -> bool:
+    return bool(record.has_genome or record.genome_path.strip())
 
 
 def _is_external_registered_genome(record: StrainRecord) -> bool:

@@ -10,7 +10,12 @@ from typetreeflow.completion import (
     write_completion_audit,
     write_completion_summary,
 )
-from typetreeflow.completion_gaps import generate_completion_gap_reports
+from typetreeflow.completion_gaps import (
+    CompletionGapRecord,
+    INSUFFICIENT_TYPE_EVIDENCE,
+    generate_completion_gap_reports,
+    write_completion_gap_records,
+)
 from typetreeflow.expanded_discovery import (
     ExpandedDiscoveryPlanRow,
     ExpandedDiscoveryResultRow,
@@ -1567,6 +1572,39 @@ def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
     assert "not a strict-ready count" in markdown
     assert "`source_audit/sequence_source_audit.tsv`" in markdown
     assert "`completion/uncovered_species.tsv`" in markdown
+
+
+def test_run_review_separates_missing_genome_from_strict_evidence_caveats(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    missing = CompletionGapRecord(
+        species="Clostridium absens",
+        checklist_name="Clostridium absens",
+        reason_category="missing_genome",
+        selected="false",
+        record_status="missing_from_gtdb",
+    )
+    insufficient = CompletionGapRecord(
+        species="Clostridium cochlearium",
+        checklist_name="Clostridium cochlearium",
+        reason_category=INSUFFICIENT_TYPE_EVIDENCE,
+        selected="true",
+        selected_assembly="GCF_900187165.1",
+        evidence_level="likely_type_material",
+        record_status="genome_present_insufficient_strict_type_evidence",
+    )
+    write_completion_gap_records([missing], paths.uncovered_species_path)
+    write_completion_gap_records([missing, insufficient], paths.completion_gaps_path)
+
+    markdown = build_run_review_markdown([_record("candidate", has_genome=True)], paths)
+
+    assert "## Missing Genome Species" in markdown
+    assert "- Count: 1" in markdown
+    assert "- Clostridium absens" in markdown
+    assert "## Strict Type-Evidence Caveats" in markdown
+    assert "These rows have manifest-backed genomes" in markdown
+    assert "- Clostridium cochlearium (likely_type_material)" in markdown
 
 
 def test_run_review_plan_only_downloads_not_executed_does_not_report_zero_coverage(

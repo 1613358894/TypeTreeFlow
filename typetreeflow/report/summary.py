@@ -7,6 +7,7 @@ from typing import Iterable
 
 from typetreeflow.completion import (
     CONFLICT,
+    GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
     MISSING_GENOME as COMPLETION_MISSING_GENOME,
     CompletionAuditRecord,
     CompletionSummary,
@@ -15,6 +16,7 @@ from typetreeflow.completion import (
 )
 from typetreeflow.completion_gaps import (
     CompletionGapRecord,
+    INSUFFICIENT_TYPE_EVIDENCE,
     read_completion_gap_records,
     summarize_completion_gap_records,
 )
@@ -1452,6 +1454,16 @@ def build_run_summary_markdown(
         )
         missing_count = str(completion_summary.missing_count)
         conflict_count = str(completion_summary.conflict_count)
+        insufficient_strict_count = (
+            sum(
+                1
+                for row in completion_audit
+                if row.completion_status
+                == GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE
+            )
+            if completion_audit is not None
+            else 0
+        )
         lines.extend(
             [
                 "",
@@ -1476,6 +1488,10 @@ def build_run_summary_markdown(
                     "completion."
                 ),
                 f"- Missing genome evidence: {missing_count}",
+                (
+                    "- Genome present but insufficient strict type evidence: "
+                    f"{insufficient_strict_count}"
+                ),
                 f"- Conflicts requiring review: {conflict_count}",
             ]
         )
@@ -1489,7 +1505,12 @@ def build_run_summary_markdown(
             review_rows = [
                 row
                 for row in completion_audit
-                if row.completion_status in {COMPLETION_MISSING_GENOME, CONFLICT}
+                if row.completion_status
+                in {
+                    COMPLETION_MISSING_GENOME,
+                    GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+                    CONFLICT,
+                }
             ]
             if review_rows:
                 lines.extend(
@@ -1817,6 +1838,13 @@ def build_run_review_markdown(
         uncovered_species = None
         uncovered_error = str(error)
 
+    completion_gaps_error = ""
+    try:
+        completion_gaps = read_optional_completion_gaps(paths.completion_gaps_path)
+    except ValueError as error:
+        completion_gaps = None
+        completion_gaps_error = str(error)
+
     manual_supplement_hints_error = ""
     try:
         manual_supplement_hints = read_optional_manual_supplement_hints(
@@ -1876,7 +1904,8 @@ def build_run_review_markdown(
         ),
         (
             "Use `manifest.tsv`, `source_audit/sequence_source_audit.tsv`, "
-            "and `completion/uncovered_species.tsv` for row-level review."
+            "`completion/uncovered_species.tsv`, and `completion/gaps.tsv` "
+            "for row-level review."
         ),
         "",
         "## 16S Provenance",
@@ -1935,7 +1964,7 @@ def build_run_review_markdown(
                 "Entrez fallback records in downstream interpretation."
             ),
             "",
-            "## Uncovered Species",
+            "## Missing Genome Species",
             "",
         ]
     )
@@ -1961,6 +1990,39 @@ def build_run_review_markdown(
             lines.append(
                 f"List truncated to first 20 of {len(uncovered_species)} species."
             )
+
+    lines.extend(["", "## Strict Type-Evidence Caveats", ""])
+    if completion_gaps_error:
+        lines.append(
+            "Strict type-evidence caveats unavailable: "
+            f"completion/gaps.tsv could not be read ({completion_gaps_error})."
+        )
+    elif completion_gaps is None:
+        lines.append(
+            "Strict type-evidence caveats unavailable: "
+            "completion/gaps.tsv is missing."
+        )
+    else:
+        strict_caveats = [
+            row
+            for row in completion_gaps
+            if row.reason_category == INSUFFICIENT_TYPE_EVIDENCE
+        ]
+        lines.append(f"- Count: {len(strict_caveats)}")
+        if strict_caveats:
+            lines.append(
+                "These rows have manifest-backed genomes but are not strict "
+                "LPSN-confirmed type-strain coverage."
+            )
+            for row in strict_caveats[:20]:
+                evidence = row.evidence_level.strip()
+                suffix = f" ({evidence})" if evidence else ""
+                lines.append(f"- {_markdown_cell(row.species)}{suffix}")
+            if len(strict_caveats) > 20:
+                lines.append(
+                    "List truncated to first 20 of "
+                    f"{len(strict_caveats)} strict evidence caveat rows."
+                )
 
     if manual_supplement_hints_error:
         lines.extend(

@@ -90,7 +90,8 @@ synthetic/local test data and does not log in to ATCC Genome Portal.
 
 `source_audit/completion_audit.tsv` is one row per expected checklist species.
 Its statuses include `complete_ncbi`, `complete_external_registered`,
-`missing_genome`, and `conflict`.
+`missing_genome`, `genome_present_insufficient_strict_type_evidence`, and
+`conflict`.
 
 Counting rules:
 
@@ -101,6 +102,10 @@ Counting rules:
 - Provider planning, proposed external genomes, expanded discovery,
   taxonomy-derived rows, manual supplement hints, and representative-only rows
   do not count as complete.
+- `missing_genome` means no manifest-backed genome record is available for the
+  checklist species. A manifest-backed candidate genome with insufficient
+  strict type evidence is not missing genome evidence; it remains a strict
+  evidence caveat.
 - Conflicts and missing records remain visible in completion audit and reports.
 
 ## Species Checklist Audit

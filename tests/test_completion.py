@@ -5,6 +5,8 @@ from typetreeflow.completion import (
     COMPLETION_SUMMARY_FIELDS,
     CONFLICT,
     EXTERNAL_REGISTERED_GENOME,
+    GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+    MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE,
     MISSING_GENOME,
     NCBI_ASSEMBLY,
     CompletionAuditRecord,
@@ -159,10 +161,15 @@ def test_representative_only_ncbi_record_does_not_increase_strict_completion():
     )
 
     summary = summarize_completion_audit(rows)
-    assert rows[0].completion_status == MISSING_GENOME
+    assert (
+        rows[0].completion_status
+        == GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE
+    )
     assert rows[0].ncbi_assembly_backed is False
+    assert rows[0].genome_evidence_scope == MANIFEST_GENOME_INSUFFICIENT_STRICT_EVIDENCE
     assert summary.ncbi_complete_count == 0
     assert summary.external_inclusive_complete_count == 0
+    assert summary.missing_count == 0
 
 
 def test_likely_type_material_is_not_strict_from_type_material_flag_alone():
@@ -181,9 +188,14 @@ def test_likely_type_material_is_not_strict_from_type_material_flag_alone():
     )
 
     summary = summarize_completion_audit(rows)
-    assert rows[0].completion_status == MISSING_GENOME
+    assert (
+        rows[0].completion_status
+        == GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE
+    )
+    assert "strict type-strain evidence is insufficient" in rows[0].notes
     assert summary.ncbi_complete_count == 0
     assert summary.external_inclusive_complete_count == 0
+    assert summary.missing_count == 0
 
 
 def test_strict_confirmed_ncbi_record_counts_for_strict_completion():
@@ -246,10 +258,14 @@ def test_external_inclusive_completion_excludes_representative_only_record():
     )
 
     summary = summarize_completion_audit(rows)
-    assert [row.completion_status for row in rows] == [COMPLETE_NCBI, MISSING_GENOME]
+    assert [row.completion_status for row in rows] == [
+        COMPLETE_NCBI,
+        GENOME_PRESENT_INSUFFICIENT_STRICT_TYPE_EVIDENCE,
+    ]
     assert summary.ncbi_complete_count == 1
     assert summary.external_registered_count == 0
     assert summary.external_inclusive_complete_count == 1
+    assert summary.missing_count == 0
 
 
 def test_manifest_species_not_in_checklist_ignored():

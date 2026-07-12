@@ -393,6 +393,10 @@ def build_delivery_readme(
             "- Representative-only rows are exploratory and must not be counted "
             "as strict completion."
         ),
+        (
+            "- Likely type-material candidate rows indicate genome availability "
+            "for review, not strict LPSN-confirmed type-strain completion."
+        ),
         "",
         "## GTDB Metadata Audit",
         "",
@@ -553,6 +557,10 @@ def build_handoff_index(
             (
                 "- Representative-only rows are exploratory and are not strict "
                 "type-strain completion."
+            ),
+            (
+                "- Likely type-material candidate rows indicate genome availability "
+                "for review, not strict LPSN-confirmed type-strain completion."
             ),
         ]
     )
