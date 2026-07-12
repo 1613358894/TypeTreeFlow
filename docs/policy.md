@@ -16,6 +16,26 @@ provider proposals, provider plans, local query rows, or external request rows
 as strict confirmed type strains. Strict type-strain wording requires evidence
 tying the genome record to the species type-strain equivalence set.
 
+## 16S Provenance Boundary
+
+16S availability and 16S evidence are separate claims. A barrnap sequence
+extracted from the registered genome is `same_genome` and may be used as strict
+genome-linked rRNA evidence. A sequence from another record is strict usable
+only when BioSample, culture-collection, or equivalent evidence confirms the
+same strain; matching strain text alone is not confirmation.
+
+Entrez and other search hits without that equivalence evidence are
+`candidate_fallback`. An audited mismatch is `mismatch_blocked`. Both may be
+retained for review or explicitly candidate-inclusive analyses, but neither
+may be described as same-genome 16S or counted as strict 16S completion.
+Missing provenance is also not strict evidence.
+
+`rrna/all_16S.fasta` is a compatibility, fallback-inclusive combined FASTA.
+Trees derived from it are practical/candidate-inclusive if any candidate,
+mismatch, or otherwise non-strict row is present; they are not strict
+same-genome-only inference. Mismatch and manual-review rows must remain visible
+in completion gaps, report caveats, and delivery diagnostics.
+
 ## Real Action Boundary
 
 Default maintenance uses docs checks, dry runs, fake runners, local fixtures,

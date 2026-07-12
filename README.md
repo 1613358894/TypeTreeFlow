@@ -209,7 +209,10 @@ typetreeflow verify-genus Fusobacterium \
   --query-16s <query.16s.fasta>
 ```
 
-Reports distinguish `Same-genome barrnap 16S`, `Total 16S including Entrez fallback`, `Fallback warnings`, and `Strict blocking count`.
+Reports distinguish `Same-genome barrnap 16S`, `Strict-usable 16S`,
+`Available 16S in candidate-inclusive outputs`, `Fallback warnings`, and
+`Strict blocking count`. `rrna/all_16S.fasta` remains candidate-inclusive and
+is not a strict same-genome-only FASTA.
 
 ## Safety Model
 

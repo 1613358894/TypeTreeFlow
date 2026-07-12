@@ -2368,11 +2368,16 @@ def _rrna_stage_state(
     if not requested and not outputs:
         return None
     status_counts: dict[str, int] = {}
+    rrna_evidence_counts = {"strict_usable": 0, "candidate_or_blocked": 0}
     if paths.manifest.exists():
         for row in _read_tsv_rows(paths.manifest):
             status = row.get("status", "")
             if status.startswith("rrna_") or status.startswith("barrnap_"):
                 status_counts[status] = status_counts.get(status, 0) + 1
+            if _truthy(row.get("rrna_16s_strict_usable", "")):
+                rrna_evidence_counts["strict_usable"] += 1
+            elif _truthy(row.get("has_16s", "")):
+                rrna_evidence_counts["candidate_or_blocked"] += 1
     if (
         error is not None
         and config.extract_16s == "barrnap"
@@ -2399,6 +2404,13 @@ def _rrna_stage_state(
     query_summary = _local_query_rrna_summary(paths)
     if query_summary:
         summary = f"{summary}; {query_summary}"
+    if sum(rrna_evidence_counts.values()):
+        summary = (
+            f"{summary}; rrna_16s_strict_usable="
+            f"{rrna_evidence_counts['strict_usable']}; "
+            "rrna_16s_candidate_or_blocked="
+            f"{rrna_evidence_counts['candidate_or_blocked']}"
+        )
     return StageState(
         status=status,
         outputs=[_state_output_path(path, paths) for path in outputs],

@@ -156,6 +156,10 @@ def test_successful_extract_updates_manifest(tmp_path):
     assert results[0].status == "rrna_16s_ready"
     assert record.has_16s is True
     assert record.status == "rrna_16s_ready"
+    assert record.rrna_16s_source == "barrnap"
+    assert record.rrna_16s_evidence_level == "same_genome"
+    assert record.rrna_16s_audit_status == "same_genome_internal_16s"
+    assert record.rrna_16s_strict_usable is True
     assert Path(record.rrna_16s_path).read_text(encoding="utf-8").endswith("ACCGG\n")
 
 
@@ -175,6 +179,8 @@ def test_no_16s_feature_records_not_found(tmp_path):
     assert results[0].status == "rrna_16s_not_found"
     assert record.has_16s is False
     assert record.status == "rrna_16s_not_found"
+    assert record.rrna_16s_evidence_level == "missing"
+    assert record.rrna_16s_strict_usable is False
 
 
 def test_existing_16s_is_skipped_without_force(tmp_path):

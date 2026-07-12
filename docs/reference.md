@@ -135,7 +135,7 @@ Recommended layout:
 
 ## Schema Field Dictionary
 
-- `manifest.tsv`: `record_id`, `canonical_name`, `display_name`, `genus`, `species`, `strain`, `taxid`, `family`, `order`, `assembly_accession`, `assembly_source`, `is_type_material`, `is_outgroup`, `is_query`, `has_genome`, `genome_path`, `has_16s`, `rrna_16s_path`, `normalized_id`, `source`, `status`, `evidence_level`, `type_confirmation_status`, `selection_policy`, `selection_role`, `selection_reason`, `risk_flags`, `manual_review_status`, `notes`
+- `manifest.tsv`: `record_id`, `canonical_name`, `display_name`, `genus`, `species`, `strain`, `taxid`, `family`, `order`, `assembly_accession`, `assembly_source`, `is_type_material`, `is_outgroup`, `is_query`, `has_genome`, `genome_path`, `has_16s`, `rrna_16s_path`, `rrna_16s_source`, `rrna_16s_evidence_level`, `rrna_16s_audit_status`, `rrna_16s_strict_usable`, `normalized_id`, `source`, `status`, `evidence_level`, `type_confirmation_status`, `selection_policy`, `selection_role`, `selection_reason`, `risk_flags`, `manual_review_status`, `notes`
 - `name_map.tsv`: `record_id`, `normalized_id`, `canonical_name`, `display_name`, `assembly_accession`
 - `species_checklist.tsv`: `genus`, `species`, `full_name`, `status`, `type_strain_names`, `type_strain`, `source`, `notes`, `nomenclatural_status`, `taxonomic_status`, `lpsn_record_number`, `lpsn_url`, `synonyms`
 - `excluded_lpsn_taxa.tsv`: `original_name`, `genus`, `species`, `full_name`, `nomenclatural_status`, `taxonomic_status`, `type_strain_names`, `type_strain`, `lpsn_record_number`, `lpsn_url`, `source`, `notes`, `exclusion_reason`
@@ -166,6 +166,7 @@ Recommended layout:
 - `completion/gaps.tsv`: `species`, `checklist_name`, `lpsn_type_strain`, `lpsn_url`, `reason_category`, `selected`, `selected_assembly`, `selected_strain`, `evidence_level`, `record_status`, `suggested_next_action`, `notes`
 - `completion/uncovered_species.tsv`: `species`, `checklist_name`, `lpsn_type_strain`, `lpsn_url`, `reason_category`, `selected`, `selected_assembly`, `selected_strain`, `evidence_level`, `record_status`, `suggested_next_action`, `notes`
 - `completion/16s_gaps.tsv`: `species`, `checklist_name`, `lpsn_type_strain`, `lpsn_url`, `reason_category`, `selected`, `selected_assembly`, `selected_strain`, `evidence_level`, `record_status`, `suggested_next_action`, `notes`
+
 - `completion/expanded_discovery_plan.tsv`: `species`, `checklist_name`, `lpsn_type_strain`, `token`, `token_kind`, `query_database`, `query`, `reason`, `suggested_next_action`, `notes`
 - `completion/expanded_discovery_results.tsv`: `species`, `token`, `token_kind`, `query_database`, `query`, `candidate_accession`, `candidate_biosample`, `candidate_organism`, `candidate_strain`, `candidate_assembly_level`, `decision`, `decision_reason`, `suggested_next_action`, `notes`
 - `completion/expanded_discovery_history.tsv`: `run_id`, `timestamp`, `operation`, `attempt`, `species`, `token`, `token_kind`, `query_database`, `query`, `candidate_accession`, `candidate_biosample`, `candidate_organism`, `candidate_strain`, `candidate_assembly_level`, `decision`, `decision_reason`, `suggested_next_action`, `notes`
@@ -178,6 +179,44 @@ Recommended layout:
 - `ani/ani_query_vs_refs.tsv`: `normalized_id`, `reference_name`, `reference_genome_path`, `ani`, `matching_fragments`, `total_fragments`, `fraction`, `above_species_threshold`
 - `ani/ani_summary.tsv`: `hit_count`, `top_hit_id`, `top_hit_name`, `top_ani`, `top_fraction`, `hits_above_95`, `status`, `notes`
 - `phylo/phylo_plan.tsv`: `input_fasta_path`, `aligned_fasta_path`, `trimmed_fasta_path`, `iqtree_prefix`, `iqtree_executable`, `treefile_path`, `query_16s_status`, `query_sequence_count`, `status`, `notes`
+
+## 16S Provenance Contract
+
+`has_16s` means that a sequence is available; it does not claim strict
+same-genome or same-strain evidence. The four manifest provenance fields are
+the stable row-level contract:
+
+- `rrna_16s_source`: acquisition source such as `barrnap`, `entrez`, or
+  `existing_file`.
+- `rrna_16s_evidence_level`: `same_genome`, `same_strain_confirmed`,
+  `candidate_fallback`, `mismatch_blocked`, or `missing`.
+- `rrna_16s_audit_status`: the detailed source-audit result, including
+  `same_genome_internal_16s`, `same_biosample`,
+  `same_culture_collection_id`, `strain_text_match`, `mismatch`,
+  `manual_review_required`, or an extraction failure/not-found status.
+- `rrna_16s_strict_usable`: true only when an available sequence is
+  same-genome or is supported by BioSample/culture-collection equivalence.
+  Strain-text-only, candidate, mismatch, manual-review, and missing rows are
+  false.
+
+These fields are optional when reading legacy manifests. Missing provenance
+must not be inferred as strict usable. The `rrna_barrnap` run-state summary
+records `rrna_16s_strict_usable` and `rrna_16s_candidate_or_blocked` counts
+when provenance-bearing rows exist.
+
+`rrna/all_16S.fasta` remains the compatibility combined FASTA and may contain
+same-genome, confirmed same-strain, candidate/fallback, mismatch/blocked, and
+query sequences. It is candidate-inclusive, not a strict same-genome-only
+FASTA. Entrez entries retain `source=Entrez`, accession, and `audit_status` in
+their FASTA headers. Consult `manifest.tsv` and
+`source_audit/sequence_source_audit.tsv` for the complete evidence contract.
+The alignment, trimmed alignment, and tree derived from this file inherit the
+same scope. Reports label a tree practical/candidate-inclusive whenever a
+candidate or blocked row is present.
+
+`completion/16s_gaps.tsv` includes `genome_ready_16s_not_found` for missing
+sequences and `genome_ready_16s_not_strict_usable` when a sequence exists but
+its provenance does not support strict use.
 
 ## Status Values
 

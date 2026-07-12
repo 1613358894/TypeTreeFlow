@@ -10,6 +10,10 @@ from Bio.Seq import Seq
 
 from typetreeflow.manifest import resolve_manifest_path
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.provenance import (
+    clear_rrna_16s_provenance,
+    set_rrna_16s_provenance,
+)
 
 
 @dataclass(frozen=True)
@@ -155,8 +159,15 @@ def mark_16s_extraction_result(
         if status in {"rrna_16s_ready", "rrna_16s_skipped_existing"} and rrna_path:
             record.has_16s = True
             record.rrna_16s_path = str(rrna_path)
+            set_rrna_16s_provenance(
+                record,
+                source="barrnap",
+                audit_status="same_genome_internal_16s",
+            )
         elif status in {"rrna_16s_not_found", "rrna_16s_extract_failed"}:
             record.has_16s = False
+            record.rrna_16s_path = ""
+            clear_rrna_16s_provenance(record, audit_status=status)
         return
     raise ValueError(f"Record not found in manifest: {record_id}")
 

@@ -93,9 +93,14 @@ typetreeflow verify-genus Fusobacterium \
   --query-16s <query.16s.fasta>
 ```
 
-Reports distinguish `Same-genome barrnap 16S`, `Total 16S including Entrez fallback`, `Fallback warnings`, and `Strict blocking count`. Entrez fallback is
-provenance-bearing sequence evidence, not proof that the genome and 16S came
-from the same deposited material.
+Reports distinguish `Same-genome barrnap 16S`, `Strict-usable 16S`,
+`Available 16S in candidate-inclusive outputs`, `Fallback warnings`, and
+`Strict blocking count`. Entrez fallback is provenance-bearing sequence
+evidence, not proof that the genome and 16S came from the same deposited
+material. Before interpreting `rrna/all_16S.fasta` or its tree, review
+`rrna_16s_source`, `rrna_16s_evidence_level`, `rrna_16s_audit_status`, and
+`rrna_16s_strict_usable` in `manifest.tsv`; the combined FASTA is not a strict
+same-genome-only dataset.
 
 ## Selection Review
 

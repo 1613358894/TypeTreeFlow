@@ -36,6 +36,12 @@ from typetreeflow.genomes.preflight import (
 )
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
+from typetreeflow.rrna.provenance import (
+    MISMATCH_BLOCKED,
+    SAME_GENOME,
+    SAME_STRAIN_CONFIRMED,
+    rrna_16s_strict_usable,
+)
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
     PROVIDER_PLAN_STATUSES,
@@ -418,13 +424,79 @@ def summarize_16s_coverage(
     )
     total_records = len(record_list)
 
+    provenance_available = any(
+        record.rrna_16s_source
+        or record.rrna_16s_evidence_level
+        or record.rrna_16s_audit_status
+        for record in record_list
+    )
+    if provenance_available:
+        mismatch_count = sum(
+            1
+            for record in record_list
+            if record.has_16s and record.rrna_16s_evidence_level == MISMATCH_BLOCKED
+        )
+        candidate_count = sum(
+            1
+            for record in record_list
+            if record.has_16s
+            and record.rrna_16s_evidence_level
+            not in {SAME_GENOME, SAME_STRAIN_CONFIRMED, MISMATCH_BLOCKED}
+        )
+        strict_count = sum(rrna_16s_strict_usable(record) for record in record_list)
+        return {
+            "total_records": total_records,
+            "genome_ready_count": genome_ready_count,
+            "source_audit_available": 1,
+            "same_genome_barrnap_16s_count": sum(
+                1
+                for record in record_list
+                if record.has_16s and record.rrna_16s_evidence_level == SAME_GENOME
+            ),
+            "same_strain_confirmed_16s_count": sum(
+                1
+                for record in record_list
+                if record.has_16s
+                and record.rrna_16s_evidence_level == SAME_STRAIN_CONFIRMED
+            ),
+            "strict_usable_16s_count": strict_count,
+            "candidate_fallback_16s_count": candidate_count,
+            "non_strict_available_16s_count": candidate_count + mismatch_count,
+            "total_available_16s_count": sum(
+                1 for record in record_list if record.has_16s
+            ),
+            # Compatibility alias; reports must describe this as availability.
+            "total_usable_16s_count": sum(1 for record in record_list if record.has_16s),
+            "fallback_mismatch_count": mismatch_count,
+            "fallback_strain_text_match_count": sum(
+                1
+                for record in record_list
+                if record.rrna_16s_audit_status == "strain_text_match"
+            ),
+            "fallback_manual_review_required_count": sum(
+                1
+                for record in record_list
+                if record.rrna_16s_audit_status == "manual_review_required"
+            ),
+            "fallback_strict_blocking_count": candidate_count + mismatch_count,
+        }
+
     if source_audit_rows is None:
         return {
             "total_records": total_records,
             "genome_ready_count": genome_ready_count,
             "source_audit_available": 0,
             "same_genome_barrnap_16s_count": 0,
+            "same_strain_confirmed_16s_count": 0,
+            "strict_usable_16s_count": 0,
+            "candidate_fallback_16s_count": 0,
+            "non_strict_available_16s_count": sum(
+                1 for record in record_list if record.has_16s
+            ),
             "total_usable_16s_count": sum(1 for record in record_list if record.has_16s),
+            "total_available_16s_count": sum(
+                1 for record in record_list if record.has_16s
+            ),
             "fallback_mismatch_count": 0,
             "fallback_strain_text_match_count": 0,
             "fallback_manual_review_required_count": 0,
@@ -437,6 +509,7 @@ def summarize_16s_coverage(
     fallback_strain_text_match_count = 0
     fallback_manual_review_required_count = 0
     fallback_strict_blocking_count = 0
+    same_strain_confirmed_16s_count = 0
 
     for row in source_audit_rows:
         status = row.get("audit_status", "").strip()
@@ -449,6 +522,11 @@ def summarize_16s_coverage(
 
         if is_same_genome_internal:
             same_genome_barrnap_16s_count += 1
+        if is_entrez_fallback and status in {
+            "same_biosample",
+            "same_culture_collection_id",
+        }:
+            same_strain_confirmed_16s_count += 1
         if is_same_genome_internal or (
             is_entrez_fallback and status not in {"genome_only", "manual_review_required"}
         ):
@@ -472,7 +550,25 @@ def summarize_16s_coverage(
         "genome_ready_count": genome_ready_count,
         "source_audit_available": 1,
         "same_genome_barrnap_16s_count": same_genome_barrnap_16s_count,
+        "same_strain_confirmed_16s_count": same_strain_confirmed_16s_count,
+        "strict_usable_16s_count": (
+            same_genome_barrnap_16s_count + same_strain_confirmed_16s_count
+        ),
+        "candidate_fallback_16s_count": max(
+            0,
+            total_usable_16s_count
+            - same_genome_barrnap_16s_count
+            - same_strain_confirmed_16s_count
+            - fallback_mismatch_count,
+        ),
+        "non_strict_available_16s_count": max(
+            0,
+            total_usable_16s_count
+            - same_genome_barrnap_16s_count
+            - same_strain_confirmed_16s_count,
+        ),
         "total_usable_16s_count": total_usable_16s_count,
+        "total_available_16s_count": total_usable_16s_count,
         "fallback_mismatch_count": fallback_mismatch_count,
         "fallback_strain_text_match_count": fallback_strain_text_match_count,
         "fallback_manual_review_required_count": fallback_manual_review_required_count,
@@ -1102,8 +1198,25 @@ def build_run_summary_markdown(
             ),
             _format_same_genome_barrnap_coverage(rrna_coverage),
             (
-                "- Total 16S including Entrez fallback: "
-                f"{rrna_coverage['total_usable_16s_count']}/"
+                "- Strict-usable 16S (same-genome or evidence-confirmed same-strain): "
+                f"{rrna_coverage['strict_usable_16s_count']}/"
+                f"{rrna_coverage['total_records']}"
+            ),
+            (
+                "- Evidence-confirmed same-strain 16S: "
+                f"{rrna_coverage['same_strain_confirmed_16s_count']}"
+            ),
+            (
+                "- Candidate/fallback 16S: "
+                f"{rrna_coverage['candidate_fallback_16s_count']}"
+            ),
+            (
+                "- Mismatch/blocked 16S: "
+                f"{rrna_coverage['fallback_mismatch_count']}"
+            ),
+            (
+                "- Available 16S in candidate-inclusive outputs: "
+                f"{rrna_coverage['total_available_16s_count']}/"
                 f"{rrna_coverage['total_records']}"
             ),
             (
@@ -1115,6 +1228,10 @@ def build_run_summary_markdown(
 
     if paths.all_16s_fasta_path.exists():
         lines.append(f"- Combined 16S FASTA: {_display_path(paths.all_16s_fasta_path, paths)}")
+        lines.append(
+            "- `rrna/all_16S.fasta` is candidate-inclusive and is not a strict "
+            "same-genome-only FASTA; inspect manifest provenance fields before use."
+        )
     else:
         lines.append("- Combined 16S FASTA not available.")
 
@@ -1737,6 +1854,7 @@ def build_run_summary_markdown(
             "",
             f"- Status: {phylo_status['status']}",
             f"- Notes: {phylo_status['notes']}",
+            f"- Evidence scope: {_phylogeny_evidence_scope(rrna_coverage)}",
             (
                 "- IQ-TREE executable: "
                 f"{phylo_status.get('iqtree_executable', '')}"
@@ -1898,9 +2016,34 @@ def build_run_review_markdown(
             + _run_review_same_genome_barrnap_text(rrna_coverage)
         ),
         (
-            "- Total 16S including Entrez fallback: "
-            f"{rrna_coverage['total_usable_16s_count']}/"
+            "- Strict-usable 16S (same-genome or evidence-confirmed same-strain): "
+            f"{rrna_coverage['strict_usable_16s_count']}/"
             f"{rrna_coverage['total_records']}"
+        ),
+        (
+            "- Evidence-confirmed same-strain 16S: "
+            f"{rrna_coverage['same_strain_confirmed_16s_count']}"
+        ),
+        (
+            "- Candidate/fallback 16S: "
+            f"{rrna_coverage['candidate_fallback_16s_count']}"
+        ),
+        (
+            "- Mismatch/blocked 16S: "
+            f"{rrna_coverage['fallback_mismatch_count']}"
+        ),
+        (
+            "- Available 16S in candidate-inclusive outputs: "
+            f"{rrna_coverage['total_available_16s_count']}/"
+            f"{rrna_coverage['total_records']}"
+        ),
+        (
+            "- Combined FASTA/tree evidence scope: "
+            f"{_phylogeny_evidence_scope(rrna_coverage)}"
+        ),
+        (
+            "`rrna/all_16S.fasta` is candidate-inclusive, not a strict "
+            "same-genome-only FASTA."
         ),
         (
             "Use `manifest.tsv`, `source_audit/sequence_source_audit.tsv`, "
@@ -1939,7 +2082,7 @@ def build_run_review_markdown(
                     f"{rrna_coverage['same_genome_barrnap_16s_count']}"
                 ),
                 (
-                    "- Entrez fallback rows counted in total 16S remain "
+                    "- Entrez fallback rows counted as available 16S remain "
                     "fallback evidence, not same-genome evidence."
                 ),
             ]
@@ -2431,6 +2574,17 @@ def _format_entrez_fallback_warnings(summary: dict[str, int]) -> str:
     if strict_blocking_count:
         warnings.append(f"{strict_blocking_count} strict blocking")
     return "; ".join(warnings) if warnings else "none"
+
+
+def _phylogeny_evidence_scope(summary: dict[str, int]) -> str:
+    if summary.get("non_strict_available_16s_count", 0):
+        return (
+            "practical/candidate-inclusive inference; not strict "
+            "same-genome-only inference"
+        )
+    if summary.get("strict_usable_16s_count", 0):
+        return "strict-usable inputs only"
+    return "provenance unavailable; strict scope cannot be claimed"
 
 
 def _run_review_checklist_count(paths: OutputPaths) -> tuple[int | None, str]:

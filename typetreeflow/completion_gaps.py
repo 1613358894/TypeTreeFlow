@@ -12,6 +12,7 @@ from typetreeflow.completion import (
 from typetreeflow.expanded_discovery import generate_expanded_discovery_plan
 from typetreeflow.manifest import read_manifest
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.provenance import rrna_16s_strict_usable
 from typetreeflow.taxonomy.audit import MISSING_FROM_GTDB
 from typetreeflow.taxonomy.audit import MISSING_GENOME as TAXONOMY_MISSING_GENOME
 from typetreeflow.taxonomy.names import canonical_species_key
@@ -22,6 +23,7 @@ from typetreeflow.workflow.state import read_run_state
 UNCOVERED_CHECKLIST_SPECIES = "uncovered_checklist_species"
 MISSING_EXTERNAL_CANDIDATE = "missing_external_candidate"
 GENOME_READY_16S_NOT_FOUND = "genome_ready_16s_not_found"
+GENOME_READY_16S_NOT_STRICT_USABLE = "genome_ready_16s_not_strict_usable"
 INSUFFICIENT_TYPE_EVIDENCE = "insufficient_type_evidence"
 WORKFLOW_FAILED_BEFORE_SELECTION = "workflow_failed_before_selection"
 
@@ -30,6 +32,7 @@ GAP_REASON_CATEGORIES = {
     TAXONOMY_MISSING_GENOME,
     MISSING_EXTERNAL_CANDIDATE,
     GENOME_READY_16S_NOT_FOUND,
+    GENOME_READY_16S_NOT_STRICT_USABLE,
     INSUFFICIENT_TYPE_EVIDENCE,
     WORKFLOW_FAILED_BEFORE_SELECTION,
 }
@@ -183,20 +186,30 @@ def build_16s_gaps(outdir: str | Path) -> list[CompletionGapRecord]:
         return []
     rows = []
     for record in read_manifest(manifest_path):
-        if not _is_genome_ready_16s_not_found(record):
+        reason_category = _rrna_16s_gap_reason(record)
+        if not reason_category:
             continue
         rows.append(
             CompletionGapRecord(
                 species=_record_species(record),
                 checklist_name=_record_species(record),
-                reason_category=GENOME_READY_16S_NOT_FOUND,
+                reason_category=reason_category,
                 selected="true",
                 selected_assembly=record.assembly_accession.strip(),
                 selected_strain=record.strain.strip(),
                 evidence_level=_record_evidence_level(record),
                 record_status=record.status.strip(),
-                suggested_next_action="review 16S extraction logs or provide a vetted 16S sequence",
-                notes=_join_notes(record.notes, _source_note("manifest", manifest_path)),
+                suggested_next_action=(
+                    "review 16S provenance audit or provide a vetted same-genome/"
+                    "same-strain-confirmed 16S sequence"
+                ),
+                notes=_join_notes(
+                    record.notes,
+                    f"rrna_16s_source={record.rrna_16s_source}",
+                    f"rrna_16s_evidence_level={record.rrna_16s_evidence_level}",
+                    f"rrna_16s_audit_status={record.rrna_16s_audit_status}",
+                    _source_note("manifest", manifest_path),
+                ),
             )
         )
     return _dedupe_gap_rows(rows)
@@ -495,6 +508,14 @@ def _record_sort_key(record: StrainRecord) -> tuple[str, str, str, str]:
 def _is_genome_ready_16s_not_found(record: StrainRecord) -> bool:
     status = record.status.strip()
     return record.has_genome and not record.has_16s and status == "rrna_16s_not_found"
+
+
+def _rrna_16s_gap_reason(record: StrainRecord) -> str:
+    if _is_genome_ready_16s_not_found(record):
+        return GENOME_READY_16S_NOT_FOUND
+    if record.has_genome and record.has_16s and not rrna_16s_strict_usable(record):
+        return GENOME_READY_16S_NOT_STRICT_USABLE
+    return ""
 
 
 def _selection_notes(rows) -> str:

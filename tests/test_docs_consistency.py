@@ -225,8 +225,8 @@ def test_high_level_workflow_docs_are_current():
 
     for docs in [readme, cookbook, current_release_verification]:
         for phrase in [
-            "Same-genome barrnap 16S",
-            "Total 16S including Entrez fallback",
+                "Same-genome barrnap 16S",
+                "Available 16S in candidate-inclusive outputs",
             "Fallback warnings",
             "Strict blocking count",
             "--enable-entrez",

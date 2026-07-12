@@ -42,7 +42,9 @@ Verification confirms shared acquisition cache reuse, checkpoint and resume
 behavior, NCBI Taxonomy audit outputs, package-results handoff, and the boundary
 that expanded discovery is audit-only and does not create automatic 100% coverage.
 
-Reports preserve `Same-genome barrnap 16S`, `Total 16S including Entrez fallback`, `Fallback warnings`, and `Strict blocking count`. Guarded fallback
+Reports preserve `Same-genome barrnap 16S`, `Strict-usable 16S`,
+`Available 16S in candidate-inclusive outputs`, `Fallback warnings`, and
+`Strict blocking count`. Guarded fallback
 flags include `--enable-entrez`, `--enable-barrnap`, `--enable-ncbi-discovery`,
 and `--discovery-cache`. Doctor readiness checks prefer `iqtree2`, accept
 `iqtree` as fallback, inspect barrnap nested DB layouts and `<sys.prefix>/db`,

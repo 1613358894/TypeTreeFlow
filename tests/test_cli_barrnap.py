@@ -102,6 +102,8 @@ def test_resume_enable_barrnap_fake_success_updates_manifest_and_report(
     state = read_run_state(paths.run_state_path)
     assert state.stages["rrna_barrnap"].status == "succeeded"
     assert "rrna_16s_ready=1" in state.stages["rrna_barrnap"].summary
+    assert "rrna_16s_strict_usable=1" in state.stages["rrna_barrnap"].summary
+    assert "rrna_16s_candidate_or_blocked=0" in state.stages["rrna_barrnap"].summary
     assert "- 16S-ready records: 1" in summary
     assert "| rrna_16s_ready | 1 |" in summary
 

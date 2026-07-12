@@ -950,7 +950,7 @@ def test_report_16s_coverage_counts_all_barrnap_same_genome_internal(tmp_path):
     assert coverage["total_usable_16s_count"] == 3
     assert "- Genome coverage: 3/3" in markdown
     assert "- Same-genome barrnap 16S: 3/3" in markdown
-    assert "- Total 16S including Entrez fallback: 3/3" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 3/3" in markdown
     assert "- Entrez fallback warnings: none" in markdown
 
 
@@ -975,10 +975,32 @@ def test_report_16s_coverage_splits_barrnap_from_entrez_mismatch_fallback(tmp_pa
 
     assert "- Genome coverage: 44/44" in markdown
     assert "- Same-genome barrnap 16S: 43/44" in markdown
-    assert "- Total 16S including Entrez fallback: 44/44" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 44/44" in markdown
     assert "- Entrez fallback warnings: 1 mismatch; 1 strict blocking" in markdown
     assert "- Mismatch count: 1" in markdown
     assert "- Strict blocking count: 1" in markdown
+
+
+def test_report_marks_fallback_phylogeny_candidate_inclusive_not_strict(tmp_path):
+    paths = get_output_paths(tmp_path)
+    record = _record("fallback", status="rrna_16s_ready", has_genome=True, has_16s=True)
+    record.rrna_16s_path = "rrna/sequences/fallback.16s.fasta"
+    record.rrna_16s_source = "entrez"
+    record.rrna_16s_evidence_level = "mismatch_blocked"
+    record.rrna_16s_audit_status = "mismatch"
+    record.rrna_16s_strict_usable = False
+    paths.all_16s_fasta_path.parent.mkdir(parents=True)
+    paths.all_16s_fasta_path.write_text(
+        ">fallback|source=Entrez|accession=NR_1|audit_status=mismatch\nACGT\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([record], paths)
+
+    assert "Strict-usable 16S (same-genome or evidence-confirmed same-strain): 0/1" in markdown
+    assert "Available 16S in candidate-inclusive outputs: 1/1" in markdown
+    assert "not a strict same-genome-only FASTA" in markdown
+    assert "practical/candidate-inclusive inference; not strict same-genome-only inference" in markdown
 
 
 def test_report_16s_coverage_marks_entrez_strain_text_fallback_as_weak(tmp_path):
@@ -1001,7 +1023,7 @@ def test_report_16s_coverage_marks_entrez_strain_text_fallback_as_weak(tmp_path)
     markdown = build_run_summary_markdown(records, paths)
 
     assert "- Same-genome barrnap 16S: 26/27" in markdown
-    assert "- Total 16S including Entrez fallback: 27/27" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 27/27" in markdown
     assert (
         "- Entrez fallback warnings: 1 weak/strain-text-only evidence; "
         "1 strict blocking"
@@ -1022,7 +1044,7 @@ def test_report_16s_coverage_without_source_audit_uses_manifest_and_keeps_summar
     assert "## Source Audit Summary" not in markdown
     assert "- Genome coverage: 2/2" in markdown
     assert "- Same-genome barrnap 16S: not available (source audit missing)" in markdown
-    assert "- Total 16S including Entrez fallback: 1/2" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 1/2" in markdown
     assert "- Entrez fallback warnings: none" in markdown
 
 
@@ -1043,7 +1065,7 @@ def test_report_16s_coverage_keeps_strict_blocking_visible(tmp_path):
     markdown = build_run_summary_markdown(records, paths)
 
     assert "- Same-genome barrnap 16S: 1/2" in markdown
-    assert "- Total 16S including Entrez fallback: 1/2" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 1/2" in markdown
     assert (
         "- Entrez fallback warnings: 1 manual review required; "
         "1 strict blocking"
@@ -1562,7 +1584,7 @@ def test_run_review_reports_coverage_warnings_uncovered_and_caveats(tmp_path):
     assert "- Selected/manifest records count: 3" in markdown
     assert "- Genome coverage: 2/3" in markdown
     assert "- Same-genome barrnap 16S coverage: 1/3" in markdown
-    assert "- Total 16S including Entrez fallback: 3/3" in markdown
+    assert "- Available 16S in candidate-inclusive outputs: 3/3" in markdown
     assert "- Mismatch fallback warnings: 1" in markdown
     assert "- Weak/strain-text-only fallback warnings: 1" in markdown
     assert "Enterobacter siamensis" in markdown

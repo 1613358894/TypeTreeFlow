@@ -5,6 +5,7 @@ from pathlib import Path
 
 from typetreeflow.completion_gaps import (
     GENOME_READY_16S_NOT_FOUND,
+    GENOME_READY_16S_NOT_STRICT_USABLE,
     INSUFFICIENT_TYPE_EVIDENCE,
     UNCOVERED_CHECKLIST_SPECIES,
     WORKFLOW_FAILED_BEFORE_SELECTION,
@@ -240,6 +241,37 @@ def test_manifest_rrna_not_found_writes_16s_gaps(tmp_path):
     assert rrna[0]["selected_assembly"] == "GCF_026344075.1"
     assert rrna[0]["reason_category"] == GENOME_READY_16S_NOT_FOUND
     assert _read_tsv(gaps_path)[0]["reason_category"] == GENOME_READY_16S_NOT_FOUND
+
+
+def test_entrez_mismatch_sequence_remains_a_strict_16s_gap(tmp_path):
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="fallback",
+                canonical_name="Enterobacter fallbackensis",
+                display_name="Enterobacter fallbackensis DSM 1",
+                genus="Enterobacter",
+                species="fallbackensis",
+                strain="DSM 1",
+                has_genome=True,
+                genome_path="genomes/references/fallback.fna",
+                has_16s=True,
+                rrna_16s_path="rrna/sequences/fallback.16s.fasta",
+                rrna_16s_source="entrez",
+                rrna_16s_evidence_level="mismatch_blocked",
+                rrna_16s_audit_status="mismatch",
+                rrna_16s_strict_usable=False,
+                status="rrna_16s_ready",
+            )
+        ],
+        tmp_path / "manifest.tsv",
+    )
+
+    _, _, rrna_path = generate_completion_gap_reports(tmp_path)
+
+    row = _read_tsv(rrna_path)[0]
+    assert row["reason_category"] == GENOME_READY_16S_NOT_STRICT_USABLE
+    assert "rrna_16s_audit_status=mismatch" in row["notes"]
 
 
 def test_failed_run_state_before_selection_writes_workflow_gap(tmp_path):

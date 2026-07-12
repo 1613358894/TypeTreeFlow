@@ -11,6 +11,10 @@ from typetreeflow.naming import make_unique_identifier
 
 MANIFEST_FIELDS = StrainRecord.field_names()
 OPTIONAL_MANIFEST_FIELDS = {
+    "rrna_16s_source",
+    "rrna_16s_evidence_level",
+    "rrna_16s_audit_status",
+    "rrna_16s_strict_usable",
     "evidence_level",
     "type_confirmation_status",
     "selection_policy",
