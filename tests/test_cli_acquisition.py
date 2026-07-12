@@ -1220,6 +1220,7 @@ def test_verify_genus_plan_only_profile_records_profile_without_downloads(
     assert result == 0
     assert payload["counts"]["smoke_profile"] == "plan-only"
     assert payload["config"] == {
+        "evidence_policy": "strict",
         "smoke_profile": "plan-only",
         "limit_selected": None,
         "enable_downloads": False,
@@ -1835,6 +1836,7 @@ def test_verify_genus_limit4_real_profile_expands_guarded_config(
     assert len(runner.commands) == 4
     assert payload["counts"]["smoke_profile"] == "limit4-real"
     assert payload["config"] == {
+        "evidence_policy": "strict",
         "smoke_profile": "limit4-real",
         "limit_selected": 4,
         "enable_downloads": True,

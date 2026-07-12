@@ -40,6 +40,22 @@ Provider/authentication banners and third-party library prints are not part of
 the stdout contract. Primary AI-facing command stdout must remain one JSON
 object; banners and logs belong on stderr or in durable log files.
 
+### Evidence Policy Plumbing
+
+`verify-genus` accepts
+`--evidence-policy {strict,candidate,exploratory}` and defaults to `strict`.
+Unknown values fail during argument parsing. `--smoke-profile limit4-real`
+also defaults to `strict`; an explicit `candidate` or `exploratory` value is
+preserved.
+
+The resolved value is additive metadata in `AppConfig.evidence_policy`,
+`run_state.json` under `config.evidence_policy`, and the single compact
+`verify-genus` stdout JSON object under `config.evidence_policy`. Reports and
+the package handoff index repeat the policy. In this plumbing release the
+value is read-only: it does not filter manifest or selected rows, downloads,
+`rrna/all_16S.fasta`, phylogeny input, or package members, and it does not
+change workflow stage-status semantics.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.

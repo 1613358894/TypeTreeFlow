@@ -735,6 +735,7 @@ def _verify_genus_counts(paths, config: AppConfig) -> dict[str, object]:
 
 def _verify_genus_config_summary(config: AppConfig) -> dict[str, object]:
     return {
+        "evidence_policy": config.evidence_policy,
         "smoke_profile": config.smoke_profile or "",
         "limit_selected": config.limit_selected,
         "enable_downloads": config.enable_downloads,
@@ -2248,6 +2249,7 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
 
 def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
     return {
+        "evidence_policy": config.evidence_policy,
         "smoke_profile": config.smoke_profile or "",
         "limit_selected": config.limit_selected,
         "enable_downloads": config.enable_downloads,

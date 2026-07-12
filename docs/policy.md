@@ -16,6 +16,26 @@ provider proposals, provider plans, local query rows, or external request rows
 as strict confirmed type strains. Strict type-strain wording requires evidence
 tying the genome record to the species type-strain equivalence set.
 
+## Evidence Policy
+
+Evidence policy is a run-level derived-view strategy, not a source fact or an
+evidence transformer. The canonical manifest, selection decisions,
+provenance, and audit ledgers retain their original facts under every policy.
+
+- `strict` admits only evidence tied to the species type-strain equivalence
+  set for a future strict derived view; it is the default.
+- `candidate` may additionally admit authoritative type-material candidates
+  in a future explicitly caveated derived view; it does not promote them to
+  strict confirmed type strains.
+- `exploratory` may additionally expose representative, reference, or query
+  roles in a future explicitly exploratory view; it does not make them strict
+  or deliverable evidence.
+
+In the current plumbing-only implementation these values are recorded and
+displayed but do not filter artifacts or alter completion metrics. Mismatches,
+provider proposals/plans, external request rows, and unreviewed external files
+are never promoted by any evidence policy.
+
 ## 16S Provenance Boundary
 
 16S availability and 16S evidence are separate claims. A barrnap sequence

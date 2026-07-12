@@ -64,6 +64,7 @@ def test_package_results_handoff_index_includes_status_files_and_next_step(tmp_p
             status="succeeded",
             outdir=str(tmp_path),
             next_action="Package results for handoff.",
+            config={"evidence_policy": "candidate"},
         ),
     )
 
@@ -71,6 +72,8 @@ def test_package_results_handoff_index_includes_status_files_and_next_step(tmp_p
 
     index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
     assert "Overall status: succeeded" in index
+    assert "Evidence policy: candidate" in index
+    assert "does not filter package members" in index
     assert "Included Files" in index
     assert "manifest.tsv" in index
     assert "reports/summary.md" in index

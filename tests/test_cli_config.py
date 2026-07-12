@@ -224,6 +224,37 @@ def test_parse_args_verify_genus_preserves_limit_selected(tmp_path):
     assert config.acquire_genus == "Fusobacterium"
     assert config.limit_selected == 3
     assert config.smoke_profile is None
+    assert config.evidence_policy == "strict"
+
+
+@pytest.mark.parametrize("policy", ["strict", "candidate", "exploratory"])
+def test_parse_args_verify_genus_accepts_evidence_policy(tmp_path, policy):
+    config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--evidence-policy",
+            policy,
+            "--outdir",
+            str(tmp_path / policy),
+        ]
+    )
+
+    assert config.evidence_policy == policy
+
+
+def test_parse_args_verify_genus_unknown_evidence_policy_fails(tmp_path):
+    with pytest.raises(SystemExit):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--evidence-policy",
+                "unknown",
+                "--outdir",
+                str(tmp_path / "verify"),
+            ]
+        )
 
 
 def test_parse_args_verify_genus_accepts_smoke_profiles(tmp_path):
@@ -260,6 +291,21 @@ def test_parse_args_verify_genus_accepts_smoke_profiles(tmp_path):
     assert real_config.auto_accept_selection is True
     assert real_config.enable_downloads is True
     assert real_config.enable_phylo is True
+    assert real_config.evidence_policy == "strict"
+
+    overridden_config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--smoke-profile",
+            "limit4-real",
+            "--evidence-policy",
+            "candidate",
+            "--outdir",
+            str(tmp_path / "real-candidate"),
+        ]
+    )
+    assert overridden_config.evidence_policy == "candidate"
 
 
 def test_parse_args_verify_genus_unknown_smoke_profile_fails(tmp_path):

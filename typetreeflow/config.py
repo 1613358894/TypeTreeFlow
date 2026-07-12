@@ -91,6 +91,7 @@ class AppConfig:
     keep_temp: bool
     report_only: bool
     log_level: str
+    evidence_policy: str = "strict"
 
 
 def ensure_real_action_allowed(

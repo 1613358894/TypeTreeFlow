@@ -219,4 +219,5 @@ def build_app_config_from_args(
         keep_temp=args.keep_temp,
         report_only=args.report_only,
         log_level=args.log_level,
+        evidence_policy=args.evidence_policy,
     )

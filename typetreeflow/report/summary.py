@@ -1016,6 +1016,11 @@ def build_run_summary_markdown(
         f"- GTDB metadata: {_config_value(args, 'gtdb_metadata')}",
         f"- GTDB release: {_config_value(args, 'gtdb_release')}",
         f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
+        f"- Evidence policy: {_config_value(args, 'evidence_policy') or 'strict'}",
+        (
+            "- Evidence policy is recorded as a derived-view policy; in this "
+            "plumbing release it does not filter artifact contents."
+        ),
         f"- Selection acceptance: {_selection_acceptance_value(args)}",
         "",
         "## Records",

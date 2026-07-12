@@ -488,6 +488,11 @@ def build_handoff_index(
     run_state = _read_run_state_if_available(paths)
     generated_time = _utc_timestamp()
     status = run_state.status if run_state is not None else "packageable"
+    evidence_policy = (
+        str(run_state.config.get("evidence_policy", "strict"))
+        if run_state is not None
+        else "strict"
+    )
     next_action = _recommended_next_step(paths)
 
     copied_names = _relative_copied_names(delivery_dir, copied_files)
@@ -504,6 +509,8 @@ def build_handoff_index(
         f"- Package generated time: {generated_time}",
         f"- Overall status: {status}",
         "- Package type: successful completion handoff",
+        f"- Evidence policy: {evidence_policy}",
+        "- Evidence policy metadata does not filter package members in this release.",
         "",
         "## Status Checklist",
         "",

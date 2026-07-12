@@ -1,5 +1,6 @@
 import csv
 from pathlib import Path
+from types import SimpleNamespace
 
 from typetreeflow.cli import main
 from typetreeflow.completion import (
@@ -601,6 +602,16 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "Combined 16S FASTA not available." in markdown
     assert "Status: phylo_skipped_too_few_sequences" in markdown
     assert "manifest has 0 16S-ready records" in markdown
+
+
+def test_report_summary_records_evidence_policy_without_filtering_artifacts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    markdown = build_run_summary_markdown(
+        [_record("ref1")], paths, SimpleNamespace(evidence_policy="exploratory")
+    )
+
+    assert "Evidence policy: exploratory" in markdown
+    assert "does not filter artifact contents" in markdown
     assert "No failed, skipped, missing, ambiguous, or not-found records." in markdown
     assert "Taxonomic Audit Summary" not in markdown
     assert "Source Audit Summary" not in markdown
