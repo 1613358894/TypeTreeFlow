@@ -22,6 +22,8 @@ class OutputPaths:
     rrna_sequences_dir: Path
     rrna_plan_path: Path
     all_16s_fasta_path: Path
+    strict_16s_fasta_path: Path
+    policy_16s_fasta_path: Path
     ani_dir: Path
     ani_plan_path: Path
     fastani_reference_list_path: Path
@@ -44,6 +46,7 @@ class OutputPaths:
     report_dir: Path
     run_summary_path: Path
     run_review_path: Path
+    artifact_scope_path: Path
     candidates_dir: Path
     assembly_candidates_path: Path
     assembly_candidate_diagnostics_path: Path
@@ -99,6 +102,8 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         rrna_sequences_dir=root / "rrna" / "sequences",
         rrna_plan_path=root / "rrna" / "rrna_plan.tsv",
         all_16s_fasta_path=root / "rrna" / "all_16S.fasta",
+        strict_16s_fasta_path=root / "rrna" / "strict_16S.fasta",
+        policy_16s_fasta_path=root / "rrna" / "policy_16S.fasta",
         ani_dir=root / "ani",
         ani_plan_path=root / "ani" / "ani_plan.tsv",
         fastani_reference_list_path=root / "ani" / "references.txt",
@@ -121,6 +126,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         report_dir=root / "report",
         run_summary_path=root / "report" / "summary.md",
         run_review_path=root / "report" / "run_review.md",
+        artifact_scope_path=root / "report" / "artifact_scope.tsv",
         candidates_dir=root / "candidates",
         assembly_candidates_path=root / "candidates" / "assembly_candidates.tsv",
         assembly_candidate_diagnostics_path=root

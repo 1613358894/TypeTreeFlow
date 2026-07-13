@@ -38,13 +38,13 @@ The pure evidence policy evaluator returns `usable`, `scope`, `reason`,
 when the selected policy does not admit it. Candidate and exploratory use must
 retain caveats, while `strict_usable` is independent of the selected policy.
 
-Evaluator-derived counts are additive report/completion summaries only. They
-do not filter or change selection, downloads, manifest writes,
-`rrna/all_16S.fasta`, phylogeny input, completion status metrics, or package
-members. `mismatch_blocked` 16S, provider proposals/plans, external request
-rows, and unreviewed external files remain unusable under every policy. Local
-query genomes are exploratory-only and never strict or candidate scientific
-evidence.
+Evaluator-derived counts and scoped 16S FASTA artifacts are derived views only.
+They do not filter or change selection, downloads, manifest writes,
+`rrna/all_16S.fasta`, phylogeny input, completion status metrics, or legacy
+package members. `mismatch_blocked` 16S, provider proposals/plans, external
+request rows, and unreviewed external files remain unusable under every policy.
+Local query genomes are exploratory-only and never strict or candidate
+scientific evidence.
 
 ## 16S Provenance Boundary
 
@@ -65,6 +65,15 @@ Trees derived from it are practical/candidate-inclusive if any candidate,
 mismatch, or otherwise non-strict row is present; they are not strict
 same-genome-only inference. Mismatch and manual-review rows must remain visible
 in completion gaps, report caveats, and delivery diagnostics.
+
+`rrna/strict_16S.fasta` is the strict scientific 16S artifact. It contains only
+non-query records with strict-usable same-genome or evidence-confirmed
+same-strain 16S. `rrna/policy_16S.fasta` follows the selected evidence policy:
+strict equals the strict FASTA, candidate adds caveated candidate fallback 16S,
+and exploratory may add admitted practical 16S. Neither scoped FASTA promotes
+candidate, exploratory, or representative evidence to confirmed type-strain
+status. The artifact scope manifest records these meanings and counts for
+review.
 
 ## Real Action Boundary
 

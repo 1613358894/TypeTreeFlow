@@ -43,6 +43,7 @@ from typetreeflow.rrna.provenance import (
     SAME_STRAIN_CONFIRMED,
     rrna_16s_strict_usable,
 )
+from typetreeflow.rrna.artifacts import read_artifact_scope
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
     PROVIDER_PLAN_STATUSES,
@@ -219,6 +220,8 @@ def summarize_output_files(
         ("manifest.tsv", paths.manifest),
         ("name_map.tsv", paths.name_map),
         ("rrna/all_16S.fasta", paths.all_16s_fasta_path),
+        ("rrna/strict_16S.fasta", paths.strict_16s_fasta_path),
+        ("rrna/policy_16S.fasta", paths.policy_16s_fasta_path),
         ("ani/ani_query_vs_refs.tsv", paths.ani_query_vs_refs_path),
         ("ani/ani_summary.tsv", paths.ani_summary_path),
         ("ani/ani_query_vs_refs.png", paths.ani_heatmap_path),
@@ -251,6 +254,7 @@ def summarize_output_files(
         ("taxonomy/ncbi_taxonomy_cache.tsv", paths.ncbi_taxonomy_cache_path),
         ("report/summary.md", paths.run_summary_path),
         ("report/run_review.md", paths.run_review_path),
+        ("report/artifact_scope.tsv", paths.artifact_scope_path),
     ]
     return [
         {
@@ -1023,8 +1027,9 @@ def build_run_summary_markdown(
         f"- Source audit policy: {_config_value(args, 'source_audit_policy')}",
         f"- Evidence policy: {_config_value(args, 'evidence_policy') or 'strict'}",
         (
-            "- Evidence policy controls evaluator-derived summary counts; it "
-            "does not filter artifact contents."
+            "- Evidence policy controls evaluator-derived summary counts and "
+            "the scoped policy 16S FASTA; it does not filter legacy all_16S, "
+            "phylogeny, manifest, downloads, or package membership."
         ),
         f"- Selection acceptance: {_selection_acceptance_value(args)}",
         "",
@@ -1270,6 +1275,31 @@ def build_run_summary_markdown(
         )
     else:
         lines.append("- Combined 16S FASTA not available.")
+
+    artifact_scope_rows = read_artifact_scope(paths.artifact_scope_path)
+    if artifact_scope_rows:
+        lines.extend(
+            [
+                "",
+                "## 16S Artifact Scope",
+                "",
+                "- Artifact scope manifest: report/artifact_scope.tsv",
+            ]
+        )
+        for row in artifact_scope_rows:
+            if row.get("artifact_path") not in {
+                "rrna/strict_16S.fasta",
+                "rrna/policy_16S.fasta",
+                "rrna/all_16S.fasta",
+            }:
+                continue
+            lines.append(
+                "- "
+                f"{row.get('artifact_path', '')}: "
+                f"scope={row.get('scope', '')}; "
+                f"evidence_policy={row.get('evidence_policy', '')}; "
+                f"record_count={row.get('record_count', '0')}"
+            )
 
     if external_registered_genomes:
         lines.extend(

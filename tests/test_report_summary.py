@@ -32,6 +32,7 @@ from typetreeflow.genomes.preflight import (
 )
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.artifacts import write_artifact_scope
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
     PROVIDER_REGISTRATION_PLAN_FIELDS,
@@ -611,11 +612,65 @@ def test_report_summary_records_evidence_policy_without_filtering_artifacts(tmp_
     )
 
     assert "Evidence policy: exploratory" in markdown
-    assert "does not filter artifact contents" in markdown
+    assert "does not filter legacy all_16S" in markdown
     assert "No failed, skipped, missing, ambiguous, or not-found records." in markdown
     assert "Taxonomic Audit Summary" not in markdown
     assert "Source Audit Summary" not in markdown
     assert "External Registered Genomes" not in markdown
+
+
+def test_report_summary_lists_policy_aware_16s_artifact_scope(tmp_path):
+    paths = get_output_paths(tmp_path)
+    write_artifact_scope(
+        [
+            {
+                "artifact_path": "rrna/all_16S.fasta",
+                "artifact_kind": "16s_fasta",
+                "scope": "all",
+                "evidence_policy": "compatibility_candidate_inclusive",
+                "record_count": "3",
+                "strict_usable_count": "1",
+                "candidate_count": "1",
+                "excluded_mismatch_count": "0",
+                "notes": "compatibility",
+            },
+            {
+                "artifact_path": "rrna/strict_16S.fasta",
+                "artifact_kind": "16s_fasta",
+                "scope": "strict",
+                "evidence_policy": "strict_usable",
+                "record_count": "1",
+                "strict_usable_count": "1",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "1",
+                "notes": "strict",
+            },
+            {
+                "artifact_path": "rrna/policy_16S.fasta",
+                "artifact_kind": "16s_fasta",
+                "scope": "candidate",
+                "evidence_policy": "candidate",
+                "record_count": "2",
+                "strict_usable_count": "1",
+                "candidate_count": "1",
+                "excluded_mismatch_count": "1",
+                "notes": "policy",
+            },
+        ],
+        paths.artifact_scope_path,
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        paths,
+        SimpleNamespace(evidence_policy="candidate"),
+    )
+
+    assert "## 16S Artifact Scope" in markdown
+    assert "Artifact scope manifest: report/artifact_scope.tsv" in markdown
+    assert "rrna/all_16S.fasta: scope=all" in markdown
+    assert "rrna/strict_16S.fasta: scope=strict" in markdown
+    assert "rrna/policy_16S.fasta: scope=candidate" in markdown
 
 
 def test_report_summary_uses_evaluator_for_additive_policy_counts(tmp_path):

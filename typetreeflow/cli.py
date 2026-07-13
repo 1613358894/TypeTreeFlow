@@ -114,6 +114,7 @@ from typetreeflow.report.summary import (
     write_run_summary,
 )
 from typetreeflow.rrna.assemble import assemble_all_16s, collect_reference_16s
+from typetreeflow.rrna.artifacts import write_policy_aware_16s_artifacts
 from typetreeflow.rrna.entrez_fallback import (
     build_entrez_fallback_plan,
     execute_entrez_fallback_plan,
@@ -432,6 +433,33 @@ def _package_results_artifacts(
             {
                 "id": "readme",
                 "path": str(readme_path),
+                "kind": "file",
+            }
+        )
+    artifact_scope = result.delivery_dir / "artifact_scope.tsv"
+    if artifact_scope.exists():
+        artifacts.append(
+            {
+                "id": "artifact_scope",
+                "path": str(artifact_scope),
+                "kind": "file",
+            }
+        )
+    strict_16s = result.delivery_dir / "16S" / "strict_16S.fasta"
+    if strict_16s.exists():
+        artifacts.append(
+            {
+                "id": "strict_16S",
+                "path": str(strict_16s),
+                "kind": "file",
+            }
+        )
+    policy_16s = result.delivery_dir / "16S" / "policy_16S.fasta"
+    if policy_16s.exists():
+        artifacts.append(
+            {
+                "id": "policy_16S",
+                "path": str(policy_16s),
                 "kind": "file",
             }
         )
@@ -1658,7 +1686,12 @@ def _run_resume_from_manifest(
             run_config,
             barrnap_runner=barrnap_runner,
         )
-        _assemble_all_16s_if_ready(records, paths, run_config.query_16s)
+        _assemble_all_16s_if_ready(
+            records,
+            paths,
+            run_config.query_16s,
+            evidence_policy=run_config.evidence_policy,
+        )
         if not _source_audit_policy_allows_stage(paths, run_config, "phylo"):
             _write_run_summary(records, paths, run_config)
             raise ValueError("Sequence source audit policy blocked phylo stage.")
@@ -2363,6 +2396,9 @@ def _rrna_stage_state(
             paths.rrna_plan_path,
             paths.sequence_source_audit_path,
             paths.all_16s_fasta_path,
+            paths.strict_16s_fasta_path,
+            paths.policy_16s_fasta_path,
+            paths.artifact_scope_path,
         )
         if path.exists()
     ]
@@ -3256,7 +3292,12 @@ def _run_guarded_downstream_analysis_stages(
         config,
         barrnap_runner=barrnap_runner,
     )
-    _assemble_all_16s_if_ready(records, paths, config.query_16s)
+    _assemble_all_16s_if_ready(
+        records,
+        paths,
+        config.query_16s,
+        evidence_policy=config.evidence_policy,
+    )
     if not _source_audit_policy_allows_stage(paths, config, "phylo"):
         _write_run_summary(records, paths, config)
         raise ValueError("Sequence source audit policy blocked phylo stage.")
@@ -4176,9 +4217,16 @@ def _write_rrna_extraction_plan_if_ready(records, paths, force: bool) -> None:
     )
 
 
-def _assemble_all_16s_if_ready(records, paths, query_16s_path: Path | None) -> None:
+def _assemble_all_16s_if_ready(
+    records,
+    paths,
+    query_16s_path: Path | None,
+    *,
+    evidence_policy: str = "strict",
+) -> None:
     reference_entries = collect_reference_16s(records, base_dir=paths.manifest.parent)
     if not reference_entries:
+        write_policy_aware_16s_artifacts(records, paths, evidence_policy=evidence_policy)
         LOGGER.info("No reference 16S records ready; skipping all_16S assembly.")
         return
     assemble_all_16s(
@@ -4187,6 +4235,7 @@ def _assemble_all_16s_if_ready(records, paths, query_16s_path: Path | None) -> N
         paths.all_16s_fasta_path,
         base_dir=paths.manifest.parent,
     )
+    write_policy_aware_16s_artifacts(records, paths, evidence_policy=evidence_policy)
     LOGGER.info("Wrote combined 16S FASTA: %s.", paths.all_16s_fasta_path)
 
 
@@ -4356,7 +4405,12 @@ def _execute_entrez_fallback(records, paths, config: AppConfig) -> None:
     plan_items = build_entrez_fallback_plan(records, paths, force=config.force)
     if not plan_items:
         LOGGER.info("No records require Entrez 16S fallback.")
-        _assemble_all_16s_if_ready(records, paths, config.query_16s)
+        _assemble_all_16s_if_ready(
+            records,
+            paths,
+            config.query_16s,
+            evidence_policy=config.evidence_policy,
+        )
         return
 
     client = BiopythonEntrezClient(
@@ -4379,7 +4433,12 @@ def _execute_entrez_fallback(records, paths, config: AppConfig) -> None:
         "Executed Entrez 16S fallback: %s.",
         ", ".join(f"{status}={count}" for status, count in sorted(summary.items())),
     )
-    _assemble_all_16s_if_ready(records, paths, config.query_16s)
+    _assemble_all_16s_if_ready(
+        records,
+        paths,
+        config.query_16s,
+        evidence_policy=config.evidence_policy,
+    )
 
 
 def run_downloads_stage(records, paths, config: AppConfig, runner=None) -> None:

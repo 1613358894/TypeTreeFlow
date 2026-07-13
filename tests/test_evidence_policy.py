@@ -7,6 +7,12 @@ from typetreeflow.evidence_policy import (
     summarize_evidence_policy,
 )
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.artifacts import (
+    read_artifact_scope,
+    write_policy_aware_16s_artifacts,
+)
+from typetreeflow.rrna.assemble import assemble_all_16s
+from typetreeflow.workflow.paths import get_output_paths
 
 
 def _record(**overrides) -> StrainRecord:
@@ -202,3 +208,150 @@ def test_policy_summary_uses_same_evaluators_for_genome_and_16s():
 def test_unknown_policy_fails_without_io():
     with pytest.raises(ValueError, match="Unknown evidence policy"):
         evaluate_genome_evidence(_record(), "permissive")
+
+
+def test_policy_aware_16s_artifacts_write_strict_and_candidate_scopes(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = _artifact_records(paths)
+    assemble_all_16s(records, None, paths.all_16s_fasta_path, base_dir=tmp_path)
+
+    write_policy_aware_16s_artifacts(records, paths, evidence_policy="candidate")
+
+    strict_text = paths.strict_16s_fasta_path.read_text(encoding="utf-8")
+    policy_text = paths.policy_16s_fasta_path.read_text(encoding="utf-8")
+    all_text = paths.all_16s_fasta_path.read_text(encoding="utf-8")
+    assert _fasta_headers(strict_text) == ["strict", "same-strain"]
+    assert _fasta_headers(policy_text) == ["strict", "same-strain", "candidate"]
+    assert "mismatch" not in policy_text
+    assert "practical" not in policy_text
+    assert "query" not in policy_text
+    assert _fasta_headers(all_text) == [
+        "strict",
+        "same-strain",
+        "candidate",
+        "mismatch",
+        "practical",
+        "query|source=local_query|query_id=Type",
+    ]
+
+    rows = {row["artifact_path"]: row for row in read_artifact_scope(paths.artifact_scope_path)}
+    assert rows["rrna/all_16S.fasta"]["scope"] == "all"
+    assert rows["rrna/all_16S.fasta"]["evidence_policy"] == (
+        "compatibility_candidate_inclusive"
+    )
+    assert rows["rrna/all_16S.fasta"]["record_count"] == "6"
+    assert rows["rrna/strict_16S.fasta"]["record_count"] == "2"
+    assert rows["rrna/strict_16S.fasta"]["strict_usable_count"] == "2"
+    assert rows["rrna/strict_16S.fasta"]["candidate_count"] == "0"
+    assert rows["rrna/strict_16S.fasta"]["excluded_mismatch_count"] == "1"
+    assert rows["rrna/policy_16S.fasta"]["scope"] == "candidate"
+    assert rows["rrna/policy_16S.fasta"]["record_count"] == "3"
+    assert rows["rrna/policy_16S.fasta"]["candidate_count"] == "1"
+    assert rows["rrna/policy_16S.fasta"]["excluded_mismatch_count"] == "1"
+
+
+def test_policy_strict_fasta_equals_strict_artifact(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = _artifact_records(paths)
+
+    write_policy_aware_16s_artifacts(records, paths, evidence_policy="strict")
+
+    assert paths.policy_16s_fasta_path.read_text(encoding="utf-8") == (
+        paths.strict_16s_fasta_path.read_text(encoding="utf-8")
+    )
+
+
+def test_policy_exploratory_includes_practical_but_not_mismatch_or_query(tmp_path):
+    paths = get_output_paths(tmp_path)
+    records = _artifact_records(paths)
+
+    write_policy_aware_16s_artifacts(records, paths, evidence_policy="exploratory")
+
+    headers = _fasta_headers(paths.policy_16s_fasta_path.read_text(encoding="utf-8"))
+    assert headers == ["strict", "same-strain", "candidate", "practical"]
+    assert "mismatch" not in headers
+    assert "query" not in headers
+
+
+def test_policy_artifacts_write_empty_fasta_and_zero_scope_when_no_eligible_records(tmp_path):
+    paths = get_output_paths(tmp_path)
+    mismatch = _record(
+        record_id="mismatch",
+        normalized_id="mismatch",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/mismatch.16s.fasta",
+        rrna_16s_evidence_level="mismatch_blocked",
+    )
+    _write_rrna(paths, mismatch, "ACGT")
+
+    write_policy_aware_16s_artifacts([mismatch], paths, evidence_policy="strict")
+
+    assert paths.strict_16s_fasta_path.read_text(encoding="utf-8") == ""
+    assert paths.policy_16s_fasta_path.read_text(encoding="utf-8") == ""
+    rows = {row["artifact_path"]: row for row in read_artifact_scope(paths.artifact_scope_path)}
+    assert rows["rrna/strict_16S.fasta"]["record_count"] == "0"
+    assert rows["rrna/policy_16S.fasta"]["record_count"] == "0"
+    assert "No records were eligible" in rows["rrna/policy_16S.fasta"]["notes"]
+
+
+def _artifact_records(paths):
+    strict = _record(
+        record_id="strict",
+        normalized_id="strict",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/strict.16s.fasta",
+        rrna_16s_evidence_level="same_genome",
+        rrna_16s_strict_usable=True,
+    )
+    same_strain = _record(
+        record_id="same-strain",
+        normalized_id="same-strain",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/same-strain.16s.fasta",
+        rrna_16s_evidence_level="same_strain_confirmed",
+        rrna_16s_strict_usable=True,
+    )
+    candidate = _record(
+        record_id="candidate",
+        normalized_id="candidate",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/candidate.16s.fasta",
+        rrna_16s_evidence_level="candidate_fallback",
+    )
+    mismatch = _record(
+        record_id="mismatch",
+        normalized_id="mismatch",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/mismatch.16s.fasta",
+        rrna_16s_evidence_level="mismatch_blocked",
+    )
+    practical = _record(
+        record_id="practical",
+        normalized_id="practical",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/practical.16s.fasta",
+    )
+    query = _record(
+        record_id="query",
+        normalized_id="query",
+        is_query=True,
+        source="local_query",
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/query.16s.fasta",
+        rrna_16s_evidence_level="same_genome",
+        rrna_16s_strict_usable=True,
+    )
+    records = [strict, same_strain, candidate, mismatch, practical, query]
+    for index, record in enumerate(records):
+        _write_rrna(paths, record, f"ACGT{index}")
+    return records
+
+
+def _write_rrna(paths, record, sequence: str) -> None:
+    path = paths.manifest.parent / record.rrna_16s_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f">{record.normalized_id}\n{sequence}\n", encoding="utf-8")
+
+
+def _fasta_headers(text: str) -> list[str]:
+    return [line[1:] for line in text.splitlines() if line.startswith(">")]
