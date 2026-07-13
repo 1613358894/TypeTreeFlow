@@ -82,6 +82,8 @@ def package_results(
         copied,
         missing,
     )
+    if paths.artifact_scope_path.exists():
+        copied.append(_copy_required(paths.artifact_scope_path, output_dir / "artifact_scope.tsv"))
 
     if "reports" in requested:
         _copy_optional(
@@ -132,6 +134,13 @@ def package_results(
             copied,
             missing,
         )
+        if paths.artifact_scope_path.exists():
+            copied.append(
+                _copy_required(
+                    paths.artifact_scope_path,
+                    output_dir / "reports" / "artifact_scope.tsv",
+                )
+            )
 
     genome_count = 0
     if "genomes" in requested:
@@ -153,6 +162,20 @@ def package_results(
             copied,
             missing,
         )
+        if paths.strict_16s_fasta_path.exists():
+            copied.append(
+                _copy_required(
+                    paths.strict_16s_fasta_path,
+                    output_dir / "16S" / "strict_16S.fasta",
+                )
+            )
+        if paths.policy_16s_fasta_path.exists():
+            copied.append(
+                _copy_required(
+                    paths.policy_16s_fasta_path,
+                    output_dir / "16S" / "policy_16S.fasta",
+                )
+            )
         all_16s_included = (output_dir / "16S" / "all_16S.fasta") in copied
         rrna_sequence_count = _copy_manifest_paths(
             records,
@@ -412,6 +435,7 @@ def build_delivery_readme(
         "- Download results: download_results.tsv when available",
         "- Run state: run_state.json when available",
         "- Reports: reports/summary.md and reports/run_review.md when requested and available",
+        "- Artifact scope manifest: artifact_scope.tsv and reports/artifact_scope.tsv when available",
         (
             "- Query audit tables: reports/rrna_plan.tsv, "
             "reports/sequence_source_audit.tsv, reports/ani_query_vs_refs.tsv, "
@@ -423,6 +447,10 @@ def build_delivery_readme(
             "- 16S sequence FASTA files copied: "
             f"{rrna_sequence_count}; all_16S.fasta included: "
             f"{'true' if all_16s_included else 'false'}"
+        ),
+        (
+            "- Scoped 16S FASTA files: 16S/strict_16S.fasta and "
+            "16S/policy_16S.fasta when available"
         ),
         (
             "- Strict-usable 16S records: "
@@ -511,6 +539,7 @@ def build_handoff_index(
         "- Package type: successful completion handoff",
         f"- Evidence policy: {evidence_policy}",
         "- Evidence policy metadata does not filter package members in this release.",
+        "- Artifact scope manifest: artifact_scope.tsv when available.",
         "",
         "## Status Checklist",
         "",
@@ -525,6 +554,10 @@ def build_handoff_index(
             "- 16S: "
             f"{rrna_sequence_count} sequence file(s) copied; all_16S.fasta included: "
             f"{'true' if all_16s_included else 'false'}"
+        ),
+        (
+            "- Scoped 16S FASTA files are additive package artifacts; "
+            "all_16S.fasta remains the compatibility combined FASTA."
         ),
         f"- Report: {report_status}",
         "",

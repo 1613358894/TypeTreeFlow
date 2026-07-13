@@ -8,6 +8,7 @@ from typetreeflow.cli import main
 from typetreeflow.delivery import DeliveryResult, package_results
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
+from typetreeflow.rrna.artifacts import write_policy_aware_16s_artifacts
 from typetreeflow.taxonomy.source_audit import (
     SequenceSourceAudit,
     write_sequence_source_audits,
@@ -182,6 +183,34 @@ def test_package_results_copies_16s_fasta_and_combined_fasta(tmp_path):
     assert result.all_16s_included is True
     assert (result.delivery_dir / "16S" / "all_16S.fasta").exists()
     assert (result.delivery_dir / "16S" / "sequences" / "rec-1.16s.fasta").exists()
+
+
+def test_package_results_adds_policy_aware_16s_artifacts_and_scope_manifest(tmp_path):
+    paths = get_output_paths(tmp_path)
+    rrna = paths.rrna_sequences_dir / "rec-1.16s.fasta"
+    rrna.parent.mkdir(parents=True)
+    rrna.write_text(">rec-1\nACGT\n", encoding="utf-8")
+    paths.all_16s_fasta_path.parent.mkdir(parents=True, exist_ok=True)
+    paths.all_16s_fasta_path.write_text(">rec-1\nACGT\n", encoding="utf-8")
+    record = _record(
+        has_16s=True,
+        rrna_16s_path="rrna/sequences/rec-1.16s.fasta",
+    )
+    record.rrna_16s_evidence_level = "same_genome"
+    record.rrna_16s_strict_usable = True
+    write_manifest([record], paths.manifest)
+    write_policy_aware_16s_artifacts([record], paths, evidence_policy="strict")
+
+    result = package_results(tmp_path, include="all")
+
+    assert (result.delivery_dir / "16S" / "all_16S.fasta").exists()
+    assert (result.delivery_dir / "16S" / "strict_16S.fasta").exists()
+    assert (result.delivery_dir / "16S" / "policy_16S.fasta").exists()
+    assert (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert (result.delivery_dir / "reports" / "artifact_scope.tsv").exists()
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Artifact scope manifest: artifact_scope.tsv" in index
+    assert "all_16S.fasta remains the compatibility combined FASTA" in index
 
 
 def test_package_preserves_rrna_provenance_fields_and_candidate_caveat(tmp_path):

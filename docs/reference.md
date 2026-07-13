@@ -130,6 +130,8 @@ Recommended layout:
 - `rrna/barrnap/<normalized_id>.gff`
 - `rrna/sequences/<normalized_id>.16s.fasta`
 - `rrna/all_16S.fasta`
+- `rrna/strict_16S.fasta`
+- `rrna/policy_16S.fasta`
 - `ani/ani_plan.tsv`
 - `ani/references.txt`
 - `ani/fastani_raw.tsv`
@@ -165,6 +167,7 @@ Recommended layout:
 - `taxonomy/ncbi_taxonomy_cache.tsv`
 - `report/summary.md`
 - `report/run_review.md`
+- `report/artifact_scope.tsv`
 
 ## Schema Field Dictionary
 
@@ -208,6 +211,7 @@ Recommended layout:
 - `cache/ncbi/download_plan.tsv`: `record_id`, `normalized_id`, `assembly_accession`, `expected_genome_path`, `datasets_zip_path`, `download_dir`, `status`, `notes`
 - `cache/ncbi/download_results.tsv`: `record_id`, `normalized_id`, `assembly_accession`, `status`, `zip_path`, `returncode`, `stderr`, `notes`
 - `rrna/rrna_plan.tsv`: `record_id`, `normalized_id`, `genome_path`, `expected_gff_path`, `expected_rrna_fasta_path`, `status`, `notes`
+- `report/artifact_scope.tsv`: `artifact_path`, `artifact_kind`, `scope`, `evidence_policy`, `record_count`, `strict_usable_count`, `candidate_count`, `excluded_mismatch_count`, `notes`
 - `ani/ani_plan.tsv`: `record_id`, `normalized_id`, `query_id`, `reference_genome_path`, `query_genome_path`, `status`, `notes`
 - `ani/ani_query_vs_refs.tsv`: `normalized_id`, `reference_name`, `reference_genome_path`, `ani`, `matching_fragments`, `total_fragments`, `fraction`, `above_species_threshold`
 - `ani/ani_summary.tsv`: `hit_count`, `top_hit_id`, `top_hit_name`, `top_ani`, `top_fraction`, `hits_above_95`, `status`, `notes`
@@ -246,6 +250,24 @@ their FASTA headers. Consult `manifest.tsv` and
 The alignment, trimmed alignment, and tree derived from this file inherit the
 same scope. Reports label a tree practical/candidate-inclusive whenever a
 candidate or blocked row is present.
+
+`rrna/strict_16S.fasta` is the policy-independent strict FASTA. It contains
+only non-query records where `rrna_16s_strict_usable=true` and
+`rrna_16s_evidence_level` is `same_genome` or `same_strain_confirmed`.
+
+`rrna/policy_16S.fasta` is the resolved evidence-policy FASTA. Under `strict`
+it equals `rrna/strict_16S.fasta`; under `candidate` it adds evaluator-admitted
+`candidate_fallback` records; under `exploratory` it may add admitted practical
+16S records. `mismatch_blocked` records remain excluded under every policy.
+Local query rows are excluded unless a future evaluator explicitly admits
+exploratory query 16S.
+
+`report/artifact_scope.tsv` records the machine-readable scope for
+`rrna/all_16S.fasta`, `rrna/strict_16S.fasta`, and `rrna/policy_16S.fasta`.
+When no records are eligible for a scoped FASTA, the file is still written as
+an empty FASTA and the scope manifest records `record_count=0` with the reason
+in `notes`. Delivery packages copy the manifest to
+`reports/artifact_scope.tsv` and, when present, package root `artifact_scope.tsv`.
 
 `completion/16s_gaps.tsv` includes `genome_ready_16s_not_found` for missing
 sequences and `genome_ready_16s_not_strict_usable` when a sequence exists but

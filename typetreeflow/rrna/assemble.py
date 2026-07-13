@@ -46,19 +46,10 @@ def collect_reference_16s(
             continue
         if not record.has_16s or not record.rrna_16s_path:
             continue
-        rrna_path = resolve_manifest_path(record.rrna_16s_path, base_dir)
-        if not rrna_path.exists():
+        entry = build_reference_16s_entry(record, base_dir=base_dir)
+        if entry is None:
             continue
-        source_header, sequence = read_single_fasta(rrna_path)
-        header = _reference_header(record.normalized_id, source_header)
-        entries.append(
-            FastaEntry(
-                header=header,
-                sequence=sequence,
-                source="reference",
-                path=str(rrna_path),
-            )
-        )
+        entries.append(entry)
     return entries
 
 
@@ -98,6 +89,22 @@ def build_query_16s_entry(query_16s_path: Path, query_name: str = "Query") -> Fa
         sequence=sequence,
         source="query",
         path=str(query_16s_path),
+    )
+
+
+def build_reference_16s_entry(
+    record: StrainRecord,
+    base_dir: str | Path | None = None,
+) -> FastaEntry | None:
+    rrna_path = resolve_manifest_path(record.rrna_16s_path, base_dir)
+    if not rrna_path.exists():
+        return None
+    source_header, sequence = read_single_fasta(rrna_path)
+    return FastaEntry(
+        header=_reference_header(record.normalized_id, source_header),
+        sequence=sequence,
+        source="reference",
+        path=str(rrna_path),
     )
 
 

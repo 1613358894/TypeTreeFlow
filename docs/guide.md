@@ -106,6 +106,8 @@ material. Before interpreting `rrna/all_16S.fasta` or its tree, review
 `rrna_16s_source`, `rrna_16s_evidence_level`, `rrna_16s_audit_status`, and
 `rrna_16s_strict_usable` in `manifest.tsv`; the combined FASTA is not a strict
 same-genome-only dataset.
+Prefer `rrna/strict_16S.fasta`, `rrna/policy_16S.fasta`, and
+`report/artifact_scope.tsv` when evidence scope matters.
 
 ## Selection Review
 
