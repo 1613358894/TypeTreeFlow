@@ -53,6 +53,49 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     assert "Credentials are not included." in readme
 
 
+def test_package_results_does_not_expect_gtdb_audit_when_absent(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    paths.run_summary_path.parent.mkdir(parents=True)
+    paths.run_summary_path.write_text("# Summary\n", encoding="utf-8")
+
+    result = package_results(tmp_path, include="reports")
+
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    handoff_index = (result.delivery_dir / "handoff_index.md").read_text(
+        encoding="utf-8"
+    )
+    assert not (result.delivery_dir / "reports" / "gtdb_metadata_audit.json").exists()
+    assert "reports/gtdb_metadata_audit.json" not in result.missing_optional_files
+    assert "reports/gtdb_metadata_audit.json" not in readme
+    assert "GTDB Metadata Audit" not in readme
+    assert "GTDB metadata audit" not in handoff_index
+
+
+def test_package_results_ignores_stale_gtdb_audit_when_run_state_disabled(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    paths.gtdb_metadata_audit_path.parent.mkdir(parents=True)
+    paths.gtdb_metadata_audit_path.write_text(
+        '{"load_status": "gtdb_metadata_not_loaded"}\n',
+        encoding="utf-8",
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="succeeded",
+            outdir=str(tmp_path),
+            config={"gtdb_audit_enabled": False},
+        ),
+    )
+
+    result = package_results(tmp_path, include="reports")
+
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    assert not (result.delivery_dir / "reports" / "gtdb_metadata_audit.json").exists()
+    assert "gtdb_metadata_not_loaded" not in readme
+
+
 def test_package_results_handoff_index_includes_status_files_and_next_step(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)

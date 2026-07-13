@@ -128,12 +128,16 @@ def package_results(
             copied,
             missing,
         )
-        _copy_optional(
-            paths.gtdb_metadata_audit_path,
-            output_dir / "reports" / "gtdb_metadata_audit.json",
-            copied,
-            missing,
-        )
+        if (
+            _gtdb_audit_enabled_for_delivery(paths)
+            and paths.gtdb_metadata_audit_path.exists()
+        ):
+            copied.append(
+                _copy_required(
+                    paths.gtdb_metadata_audit_path,
+                    output_dir / "reports" / "gtdb_metadata_audit.json",
+                )
+            )
         if paths.artifact_scope_path.exists():
             copied.append(
                 _copy_required(
@@ -263,7 +267,6 @@ def package_failed_handoff(
             "taxonomy/lpsn_species_cache.tsv",
         ),
         (paths.checklist_comparison_path, "taxonomy/checklist_comparison.tsv"),
-        (paths.gtdb_metadata_audit_path, "taxonomy/gtdb_metadata_audit.json"),
         (paths.ncbi_taxonomy_plan_path, "taxonomy/ncbi_taxonomy_plan.tsv"),
         (paths.ncbi_taxonomy_cache_path, "taxonomy/ncbi_taxonomy_cache.tsv"),
         (
@@ -307,6 +310,16 @@ def package_failed_handoff(
             copied.append(_copy_required(source, output_dir / relative_path))
         else:
             missing.append(relative_path)
+    if (
+        _gtdb_audit_enabled_for_delivery(paths)
+        and paths.gtdb_metadata_audit_path.exists()
+    ):
+        copied.append(
+            _copy_required(
+                paths.gtdb_metadata_audit_path,
+                output_dir / "taxonomy" / "gtdb_metadata_audit.json",
+            )
+        )
 
     state = (
         read_run_state(paths.run_state_path)
@@ -422,54 +435,62 @@ def build_delivery_readme(
             "- Likely type-material candidate rows indicate genome availability "
             "for review, not strict LPSN-confirmed type-strain completion."
         ),
-        "",
-        "## GTDB Metadata Audit",
-        "",
-        f"- {_gtdb_audit_package_summary(gtdb_audit)}",
-        "",
-        "## Delivery Contents",
-        "",
-        "- Core manifest: manifest.tsv",
-        "- Selected accessions: selected_accessions.tsv when available",
-        "- Evidence summary: evidence_summary.tsv when available",
-        "- Download results: download_results.tsv when available",
-        "- Run state: run_state.json when available",
-        "- Reports: reports/summary.md and reports/run_review.md when requested and available",
-        "- Artifact scope manifest: artifact_scope.tsv and reports/artifact_scope.tsv when available",
-        (
-            "- Query audit tables: reports/rrna_plan.tsv, "
-            "reports/sequence_source_audit.tsv, reports/ani_query_vs_refs.tsv, "
-            "reports/ani_summary.tsv, and reports/phylo_plan.tsv when available"
-        ),
-        "- GTDB metadata audit: reports/gtdb_metadata_audit.json when requested and available",
-        f"- Genome FASTA files copied: {genome_count}",
-        (
-            "- 16S sequence FASTA files copied: "
-            f"{rrna_sequence_count}; all_16S.fasta included: "
-            f"{'true' if all_16s_included else 'false'}"
-        ),
-        (
-            "- Scoped 16S FASTA files: 16S/strict_16S.fasta and "
-            "16S/policy_16S.fasta when available"
-        ),
-        (
-            "- Strict-usable 16S records: "
-            f"{rrna_coverage['strict_usable_16s_count']}; candidate/fallback or "
-            f"blocked records: {rrna_coverage['non_strict_available_16s_count']}"
-        ),
-        (
-            "- all_16S.fasta is candidate-inclusive, not a strict "
-            "same-genome-only FASTA."
-        ),
-        "",
-        "## Download Status",
-        "",
-        f"- Download succeeded: {download_counts.get('succeeded', 0)}",
-        f"- Download failed: {download_counts.get('failed', 0)}",
-        "",
-        "## Missing Optional Files",
-        "",
     ]
+    if gtdb_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## GTDB Metadata Audit",
+                "",
+                f"- {_gtdb_audit_package_summary(gtdb_audit)}",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Delivery Contents",
+            "",
+            "- Core manifest: manifest.tsv",
+            "- Selected accessions: selected_accessions.tsv when available",
+            "- Evidence summary: evidence_summary.tsv when available",
+            "- Download results: download_results.tsv when available",
+            "- Run state: run_state.json when available",
+            "- Reports: reports/summary.md and reports/run_review.md when requested and available",
+            "- Artifact scope manifest: artifact_scope.tsv and reports/artifact_scope.tsv when available",
+            (
+                "- Query audit tables: reports/rrna_plan.tsv, "
+                "reports/sequence_source_audit.tsv, reports/ani_query_vs_refs.tsv, "
+                "reports/ani_summary.tsv, and reports/phylo_plan.tsv when available"
+            ),
+            f"- Genome FASTA files copied: {genome_count}",
+            (
+                "- 16S sequence FASTA files copied: "
+                f"{rrna_sequence_count}; all_16S.fasta included: "
+                f"{'true' if all_16s_included else 'false'}"
+            ),
+            (
+                "- Scoped 16S FASTA files: 16S/strict_16S.fasta and "
+                "16S/policy_16S.fasta when available"
+            ),
+            (
+                "- Strict-usable 16S records: "
+                f"{rrna_coverage['strict_usable_16s_count']}; candidate/fallback or "
+                f"blocked records: {rrna_coverage['non_strict_available_16s_count']}"
+            ),
+            (
+                "- all_16S.fasta is candidate-inclusive, not a strict "
+                "same-genome-only FASTA."
+            ),
+            "",
+            "## Download Status",
+            "",
+            f"- Download succeeded: {download_counts.get('succeeded', 0)}",
+            f"- Download failed: {download_counts.get('failed', 0)}",
+            "",
+            "## Missing Optional Files",
+            "",
+        ]
+    )
     if missing_optional_files:
         lines.extend(f"- {item}" for item in missing_optional_files)
     else:
@@ -566,11 +587,10 @@ def build_handoff_index(
         f"- Strict type-strain confirmed: {type_counts[STRICT_CONFIRMED_COUNT]}",
         f"- Likely type-material candidate: {type_counts[LIKELY_TYPE_MATERIAL_COUNT]}",
         f"- Representative only: {type_counts[REPRESENTATIVE_ONLY_COUNT]}",
-        f"- GTDB metadata audit: {_gtdb_audit_package_summary(gtdb_audit)}",
-        "",
-        "## Included Files",
-        "",
     ]
+    if gtdb_audit is not None:
+        lines.append(f"- GTDB metadata audit: {_gtdb_audit_package_summary(gtdb_audit)}")
+    lines.extend(["", "## Included Files", ""])
     if copied_names:
         lines.extend(f"- {item}" for item in copied_names)
     else:
@@ -1009,10 +1029,22 @@ def _read_run_state_if_available(paths: OutputPaths) -> WorkflowState | None:
 
 
 def _read_gtdb_audit_if_available(paths: OutputPaths):
+    if not _gtdb_audit_enabled_for_delivery(paths):
+        return None
     try:
         return read_optional_gtdb_metadata_audit(paths.gtdb_metadata_audit_path)
     except (OSError, ValueError):
         return None
+
+
+def _gtdb_audit_enabled_for_delivery(paths: OutputPaths) -> bool:
+    state = _read_run_state_if_available(paths)
+    if state is None:
+        return paths.gtdb_metadata_audit_path.exists()
+    configured = state.config.get("gtdb_audit_enabled")
+    if configured is None:
+        return paths.gtdb_metadata_audit_path.exists()
+    return bool(configured)
 
 
 def _gtdb_audit_package_summary(audit) -> str:
