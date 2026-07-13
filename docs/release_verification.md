@@ -5,21 +5,30 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.18 / 2.2.18 release verification path uses
+The current v2.2.19 / 2.2.19 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
-release gate checks clean deployment readiness, provider timeout/error
-classification, stdout JSON isolation, failed-handoff cache boundaries,
-workspace hygiene, and ensures repository-root `results/` remains absent. The
-clean deployment path is `environment.yml`, operator-run `barrnap --updatedb`,
-and `typetreeflow doctor`; server rehearsal passed the clean deployment full
-rerun.
+release gate checks evidence-first report/completion/package wording, evidence
+policy plumbing, centralized evidence policy evaluation, clean deployment
+readiness, provider timeout/error classification, stdout JSON isolation,
+failed-handoff cache boundaries, workspace hygiene, and ensures
+repository-root `results/` remains absent. The clean deployment path is
+`environment.yml`, operator-run `barrnap --updatedb`, and `typetreeflow
+doctor`; server rehearsal passed the clean deployment full rerun.
 
 Selection evidence levels remain visible as `strict_confirmed`,
 `likely_type_material`, and `representative_only`. `--auto-accept-selection`
 and `--enable-downloads` are guarded release-smoke choices; exploratory
 representative rows are not strict confirmations.
+
+Completion coverage and strict type evidence gaps are separate review claims.
+The `--evidence-policy strict|candidate|exploratory` setting controls derived
+report/completion views only. Candidate or exploratory policy output does not
+promote representative, likely type material, fallback 16S, provider proposal,
+provider plan, external request, or local query rows to strict confirmed type
+strains, and it does not change selection, downloads, manifests,
+`rrna/all_16S.fasta`, phylogeny input, or package members.
 
 ```bash
 typetreeflow verify-release-genus Fusobacterium \
@@ -51,5 +60,11 @@ and `--discovery-cache`. Doctor readiness checks prefer `iqtree2`, accept
 keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
+
+The v2.2.19 release record includes bounded smokes for offline contract,
+Fusobacterium plan-only, Fusobacterium `limit4-real`, Clostridium plan-only,
+and Clostridium `limit10-real`. These smokes are verification evidence only:
+they do not claim full Clostridium strict completion or full-download
+validation.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.

@@ -73,9 +73,11 @@ Use `python typetreeflow.py --version` to confirm the installed source version,
 and inspect `selection/user_selection.tsv`, `manifest.tsv`, completion gap
 tables, report summaries, and package handoff output during release review.
 
-The current 2.2.16 release gate covers AI-first JSON stdout, bounded smoke
-profiles, release consistency, workspace hygiene, docs hygiene, and package
-metadata. The release gate must mention workspace and `results/` hygiene.
+The current 2.2.19 release gate covers evidence-first completion/report/package
+wording, evidence policy plumbing, centralized evidence policy evaluation,
+bounded smoke profiles, release consistency, workspace hygiene, docs hygiene,
+and package metadata. The release gate must mention workspace and `results/`
+hygiene.
 
 ## Release Verification
 

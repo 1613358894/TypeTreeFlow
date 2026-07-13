@@ -1,5 +1,48 @@
 # Changelog
 
+## v2.2.19 - 2026-07-13
+
+v2.2.19 is an evidence-first release based on v2.2.18. It records the
+completion/evidence gap split, 16S provenance evidence levels, and evidence
+policy plumbing now merged on `main`.
+
+### Changed
+
+- Separated completion coverage from strict type evidence gaps, so missing
+  genome evidence and insufficient strict type-strain evidence remain distinct
+  review findings.
+- Added 16S provenance evidence levels that distinguish same-genome and
+  evidence-confirmed same-strain 16S from candidate or fallback 16S evidence.
+- Added `--evidence-policy strict|candidate|exploratory` plumbing for derived
+  completion/report views without changing selection, downloads, manifests,
+  combined 16S FASTA, phylogeny inputs, or package membership.
+- Centralized evidence policy evaluation for consistent genome and 16S
+  usability decisions across reports, completion summaries, and package
+  wording.
+- Updated report, completion, and package wording to keep evidence policy
+  results explicit and evidence-first.
+
+### Verification
+
+- Bounded smokes passed: offline contract smoke, Fusobacterium plan-only,
+  Fusobacterium `limit4-real`, Clostridium plan-only, and Clostridium
+  `limit10-real`.
+- Local release gates cover workspace hygiene, release consistency, docs
+  hygiene, full pytest, package build, diff whitespace, and the CLI version
+  check.
+
+### Notes
+
+- This release does not claim full Clostridium strict completion or
+  full-download validation.
+- Derived `candidate` and `exploratory` evidence policies do not promote
+  representative, likely type material, fallback 16S, provider proposal,
+  provider plan, external request, or local query rows to strict confirmed type
+  strains.
+- No provider automation, provider login/scraping/purchase flow, unguarded
+  download behavior, automatic provider download support, release asset
+  publication, or relaxed strict type-strain threshold is introduced.
+
 ## v2.2.18 - 2026-07-11
 
 v2.2.18 is a clean deployment readiness patch based on v2.2.17. It records the

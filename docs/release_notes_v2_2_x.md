@@ -1,9 +1,39 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.18 integration review as
+These notes consolidate the v2.2.2 through v2.2.19 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.19
+
+v2.2.19 is an evidence-first release based on v2.2.18. It records the
+completion/evidence gap split, 16S provenance evidence levels, evidence policy
+plumbing, and centralized evidence policy evaluator now merged on `main`:
+
+- Completion coverage and strict type evidence gaps are separate review
+  findings. Missing genome evidence, insufficient strict type-strain evidence,
+  and 16S evidence gaps remain distinct in completion/report wording.
+- 16S provenance evidence levels distinguish same-genome and
+  evidence-confirmed same-strain 16S from candidate/fallback 16S records.
+- `--evidence-policy strict|candidate|exploratory` is wired as a derived-view
+  setting. It does not change selection, downloads, manifests,
+  `rrna/all_16S.fasta`, phylogeny inputs, or package members.
+- A centralized evidence policy evaluator now keeps genome and 16S usability
+  decisions consistent across completion summaries, reports, and package
+  wording.
+- Reports, completion outputs, and package handoff text are evidence-first and
+  keep strict completion claims separate from candidate/exploratory summaries.
+- Bounded smokes passed: offline contract smoke, Fusobacterium plan-only,
+  Fusobacterium `limit4-real`, Clostridium plan-only, and Clostridium
+  `limit10-real`.
+
+v2.2.19 does not claim full Clostridium strict completion, full-download
+validation, taxonomy conclusions, provider automation,
+provider login/scraping/purchase flows, automatic provider downloads,
+unguarded download behavior, release asset publication, or relaxed strict
+type-strain evidence thresholds. The bounded smokes are release verification
+evidence only.
 
 ## v2.2.18
 

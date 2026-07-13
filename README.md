@@ -1,9 +1,10 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.18 release is a clean deployment patch with
-server-rehearsed environment readiness checks, IQ-TREE executable fallback
-handling, and barrnap database discovery improvements.
+workflow. The current 2.2.19 release is an evidence-first patch that separates
+completion coverage from strict type evidence gaps, records 16S provenance
+evidence levels, and exposes `--evidence-policy strict|candidate|exploratory`
+for derived report views.
 
 ## AI-First Route
 
@@ -38,6 +39,13 @@ Evidence levels such as `strict_confirmed`, `likely_type_material`, and
 reference genomes, local query rows, or external request rows as strict
 confirmed type strains. Strict type-strain wording requires evidence tying the
 genome record to the species type-strain equivalence set.
+
+Completion coverage and strict type evidence gaps are separate review claims.
+Evidence policy is a derived-view setting: `strict` is the default, while
+`candidate` and `exploratory` broaden report/completion wording without
+promoting weak evidence to strict confirmed type-strain status or changing
+selection, downloads, manifests, combined 16S FASTA, phylogeny inputs, or
+package membership.
 
 It does not automate provider login, scraping, purchase, terms acceptance,
 credential processing, ATCC Genome Portal downloads, or unguarded NCBI
@@ -75,7 +83,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.18 workflow
+## Recommended v2.2.19 workflow
 
 Plan first:
 
@@ -106,6 +114,10 @@ Use `selection/user_selection.tsv` as the reviewed handoff file. Use
 `--auto-accept-selection` only for bounded exploratory smoke or deliberately
 accepted policy output; exploratory representative rows are not strict
 type-strain confirmations.
+
+Use `--evidence-policy strict` unless a broader derived report view is
+explicitly intended. `candidate` and `exploratory` policy output remains
+evidence-first and does not claim strict completion.
 
 Run bounded guarded real work only when explicitly intended:
 
@@ -144,9 +156,10 @@ typetreeflow package-results \
 
 Useful flags include `--dry-run`, `--version`, `--resume`, `--force`,
 `--gtdb-metadata`, `--species-checklist`, `--prepare-selection`,
-`--selection-tsv`, `--selection-policy`, `--plan-provider-registration`,
-`--strains-per-species`, `--limit-selected`, `--query-genome`, `--query-16s`,
-`--email`, `--api-key`, `--skip-ani`, and `--skip-tree`.
+`--selection-tsv`, `--selection-policy`, `--evidence-policy`,
+`--plan-provider-registration`, `--strains-per-species`, `--limit-selected`,
+`--query-genome`, `--query-16s`, `--email`, `--api-key`, `--skip-ani`, and
+`--skip-tree`.
 
 ## Release Verification
 
@@ -167,6 +180,12 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/expanded_discovery_history.tsv`,
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
+
+The v2.2.19 release record includes bounded smokes for offline contract,
+Fusobacterium plan-only, Fusobacterium `limit4-real`, Clostridium plan-only,
+and Clostridium `limit10-real`. These are release verification evidence only;
+they do not claim full Clostridium strict completion or full-download
+validation.
 
 ## External And Provider Workflows
 
