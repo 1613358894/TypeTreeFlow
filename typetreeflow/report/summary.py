@@ -899,13 +899,16 @@ def build_run_summary_markdown(
         checklist_comparison = None
         checklist_comparison_error = str(error)
     gtdb_metadata_audit_error = ""
-    try:
-        gtdb_metadata_audit = read_optional_gtdb_metadata_audit(
-            paths.gtdb_metadata_audit_path
-        )
-    except (OSError, ValueError) as error:
+    if _gtdb_metadata_audit_configured(args):
+        try:
+            gtdb_metadata_audit = read_optional_gtdb_metadata_audit(
+                paths.gtdb_metadata_audit_path
+            )
+        except (OSError, ValueError) as error:
+            gtdb_metadata_audit = None
+            gtdb_metadata_audit_error = str(error)
+    else:
         gtdb_metadata_audit = None
-        gtdb_metadata_audit_error = str(error)
     ncbi_taxonomy_error = ""
     try:
         ncbi_taxonomy_plan = read_optional_ncbi_taxonomy_plan(
@@ -2416,6 +2419,15 @@ def _config_value(args: object | None, name: str) -> str:
     if value is None or value == "":
         return "not provided"
     return str(value)
+
+
+def _gtdb_metadata_audit_configured(args: object | None) -> bool:
+    if args is None:
+        return False
+    return (
+        getattr(args, "gtdb_metadata", None) is not None
+        or getattr(args, "gtdb_release", None) not in {None, ""}
+    )
 
 
 def _config_query_genomes_value(args: object | None) -> str:

@@ -1226,10 +1226,109 @@ def test_verify_genus_plan_only_profile_records_profile_without_downloads(
         "enable_downloads": False,
         "auto_accept_selection": False,
         "enable_phylo": False,
+        "gtdb_audit_enabled": False,
     }
     assert state.config == payload["config"]
     assert state.stages["download"].status == "blocked_by_manual_review"
     assert not paths.ncbi_download_results_path.exists()
+
+
+def test_verify_genus_without_gtdb_config_does_not_write_or_report_audit(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    delivery_dir = tmp_path / "delivery"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    package_result = main(
+        [
+            "package-results",
+            "--outdir",
+            str(outdir),
+            "--delivery-dir",
+            str(delivery_dir),
+            "--include",
+            "reports",
+        ]
+    )
+    package_readme = (delivery_dir / "README.md").read_text(encoding="utf-8")
+    handoff_index = (delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+
+    assert result == 0
+    assert not paths.gtdb_metadata_audit_path.exists()
+    assert "gtdb_audit" not in state.stages
+    assert state.config["gtdb_audit_enabled"] is False
+    assert "gtdb_metadata_not_loaded" not in summary
+    assert "## GTDB Metadata Audit" not in summary
+    assert package_result == 0
+    assert not (delivery_dir / "reports" / "gtdb_metadata_audit.json").exists()
+    assert "reports/gtdb_metadata_audit.json" not in package_readme
+    assert "GTDB Metadata Audit" not in package_readme
+    assert "gtdb_metadata_not_loaded" not in package_readme
+    assert "GTDB metadata audit" not in handoff_index
+
+
+def test_verify_genus_gtdb_release_only_records_not_loaded_audit(
+    tmp_path,
+    monkeypatch,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--gtdb-release",
+            "r220",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    audit = json.loads(paths.gtdb_metadata_audit_path.read_text(encoding="utf-8"))
+    state = read_run_state(paths.run_state_path)
+
+    assert result == 0
+    assert audit["load_status"] == "gtdb_metadata_not_loaded"
+    assert audit["release"] == "r220"
+    assert audit["counts"] is None
+    assert state.config["gtdb_audit_enabled"] is True
+    assert state.stages["gtdb_audit"].status == "gtdb_metadata_not_loaded"
 
 
 def test_verify_genus_plan_only_records_gtdb_metadata_provenance_and_package(
@@ -1294,6 +1393,7 @@ def test_verify_genus_plan_only_records_gtdb_metadata_provenance_and_package(
     assert audit["release"] == "r220"
     assert audit["load_status"] == "gtdb_metadata_loaded"
     assert audit["counts"]["matched"] == 2
+    assert state.config["gtdb_audit_enabled"] is True
     assert state.stages["gtdb_audit"].status == "gtdb_metadata_loaded"
     assert "release=r220" in state.stages["gtdb_audit"].summary
     assert "row_count=3" in state.stages["gtdb_audit"].summary
@@ -1842,6 +1942,7 @@ def test_verify_genus_limit4_real_profile_expands_guarded_config(
         "enable_downloads": True,
         "auto_accept_selection": True,
         "enable_phylo": True,
+        "gtdb_audit_enabled": False,
     }
     assert state.config == payload["config"]
     assert state.stages["download"].status == "succeeded"

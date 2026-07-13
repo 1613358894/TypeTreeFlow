@@ -11,6 +11,12 @@ type-strain equivalence tokens come from LPSN-derived checklist inputs. NCBI,
 GTDB, BioSample, Entrez, provider records, local query files, and user TSVs are
 supporting evidence sources, not nomenclatural authorities.
 
+GTDB metadata audit is configured-only. It is invoked when a user provides
+local GTDB metadata or a GTDB release label for audit provenance. An
+unconfigured run must not write `taxonomy/gtdb_metadata_audit.json`, report
+`gtdb_metadata_not_loaded`, or treat the absence of GTDB audit as a warning,
+failure, or coverage conclusion.
+
 Do not describe `representative`, `likely_type_material`, `reference genome`,
 provider proposals, provider plans, local query rows, or external request rows
 as strict confirmed type strains. Strict type-strain wording requires evidence

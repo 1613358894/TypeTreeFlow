@@ -605,6 +605,24 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "manifest has 0 16S-ready records" in markdown
 
 
+def test_report_summary_omits_gtdb_audit_when_not_configured(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.gtdb_metadata_audit_path.parent.mkdir(parents=True)
+    paths.gtdb_metadata_audit_path.write_text(
+        '{"load_status": "gtdb_metadata_not_loaded"}\n',
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        paths,
+        SimpleNamespace(gtdb_metadata=None, gtdb_release=None),
+    )
+
+    assert "## GTDB Metadata Audit" not in markdown
+    assert "gtdb_metadata_not_loaded" not in markdown
+
+
 def test_report_summary_records_evidence_policy_without_filtering_artifacts(tmp_path):
     paths = get_output_paths(tmp_path)
     markdown = build_run_summary_markdown(

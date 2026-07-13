@@ -769,6 +769,7 @@ def _verify_genus_config_summary(config: AppConfig) -> dict[str, object]:
         "enable_downloads": config.enable_downloads,
         "auto_accept_selection": config.auto_accept_selection,
         "enable_phylo": config.enable_phylo,
+        "gtdb_audit_enabled": _gtdb_metadata_audit_configured(config),
     }
 
 
@@ -2288,6 +2289,7 @@ def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
         "enable_downloads": config.enable_downloads,
         "auto_accept_selection": config.auto_accept_selection,
         "enable_phylo": config.enable_phylo,
+        "gtdb_audit_enabled": _gtdb_metadata_audit_configured(config),
     }
 
 
@@ -2362,9 +2364,9 @@ def _download_stage_state(
 
 
 def _gtdb_audit_stage_state(paths, config: AppConfig) -> StageState | None:
+    if not _gtdb_metadata_audit_configured(config):
+        return None
     if not paths.gtdb_metadata_audit_path.exists():
-        if config.gtdb_metadata is None and config.gtdb_release is None:
-            return None
         return StageState(
             status="gtdb_metadata_not_loaded",
             outputs=[],
@@ -2875,6 +2877,10 @@ def _gtdb_not_loaded_summary(config: AppConfig) -> str:
         f"metadata_path={metadata}; release={release}; "
         "GTDB coverage counts were not computed."
     )
+
+
+def _gtdb_metadata_audit_configured(config: AppConfig) -> bool:
+    return config.gtdb_metadata is not None or config.gtdb_release is not None
 
 
 def _gtdb_audit_summary(audit) -> str:
@@ -4112,7 +4118,7 @@ def run_selection_dry_run_stage(
     write_name_map(records, paths.name_map)
     if config.species_checklist is not None:
         run_taxonomy_audit_stage(records, paths, config.species_checklist)
-    if config.verify_genus or config.gtdb_metadata is not None or config.gtdb_release is not None:
+    if _gtdb_metadata_audit_configured(config):
         run_gtdb_metadata_audit_stage(records, paths, config)
     _write_run_summary(
         records,
