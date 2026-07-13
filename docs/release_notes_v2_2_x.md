@@ -1,9 +1,42 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.19 integration review as
+These notes consolidate the v2.2.2 through v2.2.20 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.20
+
+v2.2.20 is a policy-aware artifact scope release based on v2.2.19. It records
+the scoped 16S FASTA outputs, package handoff metadata, and configured-only GTDB
+audit boundary now merged on `main`:
+
+- `rrna/strict_16S.fasta` is the policy-independent strict 16S FASTA for
+  same-genome and evidence-confirmed same-strain 16S records.
+- `rrna/policy_16S.fasta` is the resolved evidence-policy 16S FASTA. Under
+  `strict` it matches strict scope; under broader policies it may include
+  evaluator-admitted candidate or exploratory 16S records without promoting
+  them to strict confirmed type-strain evidence.
+- `report/artifact_scope.tsv` records machine-readable scope metadata for
+  `rrna/all_16S.fasta`, `rrna/strict_16S.fasta`, and
+  `rrna/policy_16S.fasta`. Package handoff includes package root
+  `artifact_scope.tsv` and `reports/artifact_scope.tsv` when available.
+- Legacy `rrna/all_16S.fasta` and the default phylogeny input remain unchanged
+  as candidate-inclusive compatibility outputs.
+- GTDB audit output is configured-only. It is written and reported only when
+  `--gtdb-metadata` or `--gtdb-release` is provided; unconfigured runs do not
+  generate or report `gtdb_metadata_not_loaded`.
+- Verification evidence includes PR #23 CI PASS, PR #24 CI PASS, offline
+  policy-aware artifacts contract smoke PASS, server Fusobacterium
+  `limit4-real` rerun PASS at `eac463988e590d5fb3b8a77c3d1dde9e1a8a1e58`, and
+  the still-valid v2.2.19 evidence-first closure.
+
+v2.2.20 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, provider automation,
+provider login/scraping/purchase flows, automatic provider downloads,
+unguarded download behavior, release asset publication, or relaxed strict
+type-strain evidence thresholds. The bounded smokes are release verification
+evidence only.
 
 ## v2.2.19
 

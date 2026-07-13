@@ -1,5 +1,55 @@
 # Changelog
 
+## v2.2.20 - 2026-07-13
+
+v2.2.20 is a policy-aware artifact scope release based on v2.2.19. It records
+the scoped 16S FASTA outputs, package handoff metadata, and configured-only GTDB
+audit boundary now merged on `main`.
+
+### Added
+
+- Added `rrna/strict_16S.fasta` as the policy-independent strict 16S FASTA for
+  same-genome and evidence-confirmed same-strain 16S records.
+- Added `rrna/policy_16S.fasta` as the resolved evidence-policy 16S FASTA for
+  strict, candidate, or exploratory derived views.
+- Added `report/artifact_scope.tsv`, with package root `artifact_scope.tsv`
+  and `reports/artifact_scope.tsv` handoff copies when available, to record
+  artifact scope metadata for 16S FASTA outputs.
+
+### Changed
+
+- Kept legacy `rrna/all_16S.fasta` and the default phylogeny input unchanged as
+  candidate-inclusive compatibility outputs.
+- Package and handoff output now include artifact scope metadata when present.
+- GTDB audit output is configured-only: it is written and reported only when
+  `--gtdb-metadata` or `--gtdb-release` is provided.
+
+### Fixed
+
+- Fixed unconfigured GTDB audit handling so runs no longer generate or report
+  `gtdb_metadata_not_loaded` when no GTDB audit was requested.
+
+### Verification
+
+- PR #23 CI PASS.
+- PR #24 CI PASS.
+- Offline policy-aware artifacts contract smoke PASS.
+- Server Fusobacterium `limit4-real` rerun PASS at
+  `eac463988e590d5fb3b8a77c3d1dde9e1a8a1e58`.
+- v2.2.19 evidence-first closure remains valid.
+
+### Notes
+
+- This release does not claim full-download validation or full Clostridium
+  strict completion.
+- Scoped 16S artifacts and artifact scope metadata clarify evidence boundaries;
+  they do not promote representative, likely type material, fallback 16S,
+  provider proposal, provider plan, external request, or local query rows to
+  strict confirmed type strains.
+- No provider automation, provider login/scraping/purchase flow, unguarded
+  download behavior, automatic provider download support, release asset
+  publication, or relaxed strict type-strain threshold is introduced.
+
 ## v2.2.19 - 2026-07-13
 
 v2.2.19 is an evidence-first release based on v2.2.18. It records the

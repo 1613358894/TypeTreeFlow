@@ -5,15 +5,16 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.19 / 2.2.19 release verification path uses
+The current v2.2.20 / 2.2.20 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
-release gate checks evidence-first report/completion/package wording, evidence
-policy plumbing, centralized evidence policy evaluation, clean deployment
-readiness, provider timeout/error classification, stdout JSON isolation,
-failed-handoff cache boundaries, workspace hygiene, and ensures
-repository-root `results/` remains absent. The clean deployment path is
+release gate checks evidence-first report/completion/package wording, scoped
+16S FASTA artifacts, artifact scope package handoff metadata, evidence policy
+plumbing, configured-only GTDB audit reporting, centralized evidence policy
+evaluation, clean deployment readiness, provider timeout/error classification,
+stdout JSON isolation, failed-handoff cache boundaries, workspace hygiene, and
+ensures repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`, operator-run `barrnap --updatedb`, and `typetreeflow
 doctor`; server rehearsal passed the clean deployment full rerun.
 
@@ -29,6 +30,14 @@ promote representative, likely type material, fallback 16S, provider proposal,
 provider plan, external request, or local query rows to strict confirmed type
 strains, and it does not change selection, downloads, manifests,
 `rrna/all_16S.fasta`, phylogeny input, or package members.
+`rrna/strict_16S.fasta` and `rrna/policy_16S.fasta` are scoped companion
+artifacts. `report/artifact_scope.tsv` and package handoff copies document
+their scope metadata when available.
+
+GTDB audit output is configured-only. `taxonomy/gtdb_metadata_audit.json`,
+run-state GTDB audit status, report wording, and package wording appear only
+when `--gtdb-metadata` or `--gtdb-release` is provided. Unconfigured runs must
+not generate or report `gtdb_metadata_not_loaded`.
 
 ```bash
 typetreeflow verify-release-genus Fusobacterium \
@@ -61,9 +70,10 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.19 release record includes bounded smokes for offline contract,
-Fusobacterium plan-only, Fusobacterium `limit4-real`, Clostridium plan-only,
-and Clostridium `limit10-real`. These smokes are verification evidence only:
+The v2.2.20 release record includes PR #23 CI PASS, PR #24 CI PASS, offline
+policy-aware artifacts contract smoke PASS, server Fusobacterium `limit4-real`
+rerun PASS at `eac463988e590d5fb3b8a77c3d1dde9e1a8a1e58`, and the still-valid
+v2.2.19 evidence-first closure. These smokes are verification evidence only:
 they do not claim full Clostridium strict completion or full-download
 validation.
 

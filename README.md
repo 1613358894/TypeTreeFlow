@@ -1,10 +1,9 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.19 release is an evidence-first patch that separates
-completion coverage from strict type evidence gaps, records 16S provenance
-evidence levels, and exposes `--evidence-policy strict|candidate|exploratory`
-for derived report views.
+workflow. The current 2.2.20 release is a policy-aware artifact scope patch
+that adds scoped 16S FASTA outputs, package handoff scope metadata, and a
+configured-only GTDB audit boundary while preserving legacy phylogeny inputs.
 
 ## AI-First Route
 
@@ -83,7 +82,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.19 workflow
+## Recommended v2.2.20 workflow
 
 Plan first:
 
@@ -117,7 +116,9 @@ type-strain confirmations.
 
 Use `--evidence-policy strict` unless a broader derived report view is
 explicitly intended. `candidate` and `exploratory` policy output remains
-evidence-first and does not claim strict completion.
+evidence-first and does not claim strict completion. Review
+`rrna/strict_16S.fasta`, `rrna/policy_16S.fasta`, and
+`report/artifact_scope.tsv` when 16S artifact scope matters.
 
 Run bounded guarded real work only when explicitly intended:
 
@@ -181,11 +182,12 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.19 release record includes bounded smokes for offline contract,
-Fusobacterium plan-only, Fusobacterium `limit4-real`, Clostridium plan-only,
-and Clostridium `limit10-real`. These are release verification evidence only;
-they do not claim full Clostridium strict completion or full-download
-validation.
+The v2.2.20 release record includes PR #23 CI PASS, PR #24 CI PASS, an offline
+policy-aware artifacts contract smoke PASS, a server Fusobacterium
+`limit4-real` rerun PASS at `eac463988e590d5fb3b8a77c3d1dde9e1a8a1e58`, and
+the still-valid v2.2.19 evidence-first closure. These are release verification
+evidence only; they do not claim full Clostridium strict completion or
+full-download validation.
 
 ## External And Provider Workflows
 
@@ -231,7 +233,9 @@ typetreeflow verify-genus Fusobacterium \
 Reports distinguish `Same-genome barrnap 16S`, `Strict-usable 16S`,
 `Available 16S in candidate-inclusive outputs`, `Fallback warnings`, and
 `Strict blocking count`. `rrna/all_16S.fasta` remains candidate-inclusive and
-is not a strict same-genome-only FASTA.
+is not a strict same-genome-only FASTA. `rrna/strict_16S.fasta` is the strict
+scientific 16S artifact, `rrna/policy_16S.fasta` follows the resolved evidence
+policy, and `report/artifact_scope.tsv` records their machine-readable scope.
 
 ## Safety Model
 
