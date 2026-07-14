@@ -108,6 +108,8 @@ material. Before interpreting `rrna/all_16S.fasta` or its tree, review
 same-genome-only dataset.
 Prefer `rrna/strict_16S.fasta`, `rrna/policy_16S.fasta`, and
 `report/artifact_scope.tsv` when evidence scope matters.
+Treat only `artifact_scope.tsv` rows with `strict_scientific_deliverable=true`
+as strict scientific deliverables.
 
 ## Selection Review
 

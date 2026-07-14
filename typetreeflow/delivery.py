@@ -19,6 +19,7 @@ from typetreeflow.report.summary import (
     summarize_sequence_source_audit,
     summarize_type_confirmation_counts,
 )
+from typetreeflow.rrna.artifacts import read_artifact_scope
 from typetreeflow.selection.evidence import (
     LIKELY_TYPE_MATERIAL_COUNT,
     REPRESENTATIVE_ONLY_COUNT,
@@ -458,6 +459,14 @@ def build_delivery_readme(
             "- Reports: reports/summary.md and reports/run_review.md when requested and available",
             "- Artifact scope manifest: artifact_scope.tsv and reports/artifact_scope.tsv when available",
             (
+                "- Read artifact_scope.tsv before selecting any packaged 16S "
+                "FASTA or phylogeny output."
+            ),
+            (
+                "- Strict scientific deliverables are indicated by "
+                "`strict_scientific_deliverable=true` in `artifact_scope.tsv`."
+            ),
+            (
                 "- Query audit tables: reports/rrna_plan.tsv, "
                 "reports/sequence_source_audit.tsv, reports/ani_query_vs_refs.tsv, "
                 "reports/ani_summary.tsv, and reports/phylo_plan.tsv when available"
@@ -481,6 +490,11 @@ def build_delivery_readme(
                 "- all_16S.fasta is candidate-inclusive, not a strict "
                 "same-genome-only FASTA."
             ),
+        ]
+    )
+    lines.extend(_artifact_scope_handoff_lines(paths))
+    lines.extend(
+        [
             "",
             "## Download Status",
             "",
@@ -561,6 +575,14 @@ def build_handoff_index(
         f"- Evidence policy: {evidence_policy}",
         "- Evidence policy metadata does not filter package members in this release.",
         "- Artifact scope manifest: artifact_scope.tsv when available.",
+        (
+            "- Read artifact_scope.tsv before selecting any packaged 16S FASTA "
+            "or phylogeny output."
+        ),
+        (
+            "- Strict scientific deliverables are indicated by "
+            "`strict_scientific_deliverable=true` in `artifact_scope.tsv`."
+        ),
         "",
         "## Status Checklist",
         "",
@@ -595,6 +617,7 @@ def build_handoff_index(
         lines.extend(f"- {item}" for item in copied_names)
     else:
         lines.append("- none")
+    lines.extend(_artifact_scope_handoff_lines(paths))
 
     lines.extend(
         [
@@ -1157,3 +1180,70 @@ def _source_audit_warning_summary(summary: dict[str, int] | None) -> str:
         if count:
             warnings.append(f"{count} {label}")
     return "; ".join(warnings) if warnings else "none"
+
+
+def _artifact_scope_handoff_lines(paths: OutputPaths) -> list[str]:
+    rows = _sorted_16s_artifact_scope_rows(read_artifact_scope(paths.artifact_scope_path))
+    if not rows:
+        return []
+    lines = [
+        "",
+        "## Artifact Scope",
+        "",
+        (
+            "Use this table as a short reader index; artifact_scope.tsv remains "
+            "the machine-readable contract."
+        ),
+        "",
+        "| Artifact Label | Artifact Path | Scope | Strict Scientific Deliverable | Recommended Use | Not For |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        lines.append(
+            "| "
+            f"{_markdown_cell(_artifact_scope_label(row))} | "
+            f"{_markdown_cell(row.get('artifact_path', ''))} | "
+            f"{_markdown_cell(row.get('scope', ''))} | "
+            f"{_markdown_cell(row.get('strict_scientific_deliverable', ''))} | "
+            f"{_markdown_cell(row.get('recommended_use', ''))} | "
+            f"{_markdown_cell(row.get('not_for', ''))} |"
+        )
+    return lines
+
+
+def _sorted_16s_artifact_scope_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
+    allowed = {
+        "rrna/strict_16S.fasta",
+        "rrna/policy_16S.fasta",
+        "rrna/all_16S.fasta",
+    }
+    return sorted(
+        [row for row in rows if row.get("artifact_path") in allowed],
+        key=_artifact_scope_sort_key,
+    )
+
+
+def _artifact_scope_sort_key(row: dict[str, str]) -> tuple[int, str]:
+    priority = row.get("consumer_priority", "").strip()
+    if priority:
+        try:
+            return int(priority), row.get("artifact_path", "")
+        except ValueError:
+            pass
+    fallback_priority = {
+        "rrna/strict_16S.fasta": 10,
+        "rrna/policy_16S.fasta": 20,
+        "rrna/all_16S.fasta": 30,
+    }
+    return fallback_priority.get(row.get("artifact_path", ""), 100), row.get(
+        "artifact_path",
+        "",
+    )
+
+
+def _artifact_scope_label(row: dict[str, str]) -> str:
+    return row.get("artifact_label", "").strip() or row.get("artifact_path", "")
+
+
+def _markdown_cell(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
