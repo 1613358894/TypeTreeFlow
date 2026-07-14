@@ -5,13 +5,14 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.20 / 2.2.20 release verification path uses
+The current v2.2.21 / 2.2.21 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
 release gate checks evidence-first report/completion/package wording, scoped
 16S FASTA artifacts, artifact scope package handoff metadata, evidence policy
-plumbing, configured-only GTDB audit reporting, centralized evidence policy
+plumbing, Artifact Scope report tables, AI-readable `artifact_scope.tsv`
+fields, configured-only GTDB audit reporting, centralized evidence policy
 evaluation, clean deployment readiness, provider timeout/error classification,
 stdout JSON isolation, failed-handoff cache boundaries, workspace hygiene, and
 ensures repository-root `results/` remains absent. The clean deployment path is
@@ -32,7 +33,14 @@ strains, and it does not change selection, downloads, manifests,
 `rrna/all_16S.fasta`, phylogeny input, or package members.
 `rrna/strict_16S.fasta` and `rrna/policy_16S.fasta` are scoped companion
 artifacts. `report/artifact_scope.tsv` and package handoff copies document
-their scope metadata when available.
+their scope metadata when available. AI consumers should read package-root
+`artifact_scope.tsv` first when present. The scope table fields include
+`artifact_label`, `recommended_use`, `not_for`, `source_artifact`,
+`consumer_priority`, and `strict_scientific_deliverable`.
+`rrna/all_16S.fasta` and default phylogeny tree/alignment outputs are
+compatibility artifacts, not strict scientific deliverables.
+`rrna/strict_16S.fasta` and strict-policy `rrna/policy_16S.fasta` may carry
+`strict_scientific_deliverable=true`.
 
 GTDB audit output is configured-only. `taxonomy/gtdb_metadata_audit.json`,
 run-state GTDB audit status, report wording, and package wording appear only
@@ -70,11 +78,13 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.20 release record includes PR #23 CI PASS, PR #24 CI PASS, offline
-policy-aware artifacts contract smoke PASS, server Fusobacterium `limit4-real`
-rerun PASS at `eac463988e590d5fb3b8a77c3d1dde9e1a8a1e58`, and the still-valid
-v2.2.19 evidence-first closure. These smokes are verification evidence only:
-they do not claim full Clostridium strict completion or full-download
-validation.
+The v2.2.21 release record includes PR #25 CI PASS, offline artifact scope
+readability contract smoke PASS at
+`9d2ed5d8a17399631f8fbee23814e259da55b971`, and the still-valid v2.2.20
+policy-aware artifacts and GTDB gating validations. These smokes are
+verification evidence only: they do not claim full Clostridium strict
+completion or full-download validation. The release does not change artifact
+membership, FASTA content, default phylogeny input, live provider/download
+behavior, or strict evidence thresholds.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.

@@ -1,9 +1,10 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.20 release is a policy-aware artifact scope patch
-that adds scoped 16S FASTA outputs, package handoff scope metadata, and a
-configured-only GTDB audit boundary while preserving legacy phylogeny inputs.
+workflow. The current 2.2.21 release is an AI-readable artifact scope patch
+that adds explicit scope fields to `artifact_scope.tsv`, surfaces the Artifact
+Scope table in reports, and tells package consumers to read `artifact_scope.tsv`
+before selecting packaged 16S artifacts.
 
 ## AI-First Route
 
@@ -82,7 +83,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.20 workflow
+## Recommended v2.2.21 workflow
 
 Plan first:
 
@@ -118,7 +119,9 @@ Use `--evidence-policy strict` unless a broader derived report view is
 explicitly intended. `candidate` and `exploratory` policy output remains
 evidence-first and does not claim strict completion. Review
 `rrna/strict_16S.fasta`, `rrna/policy_16S.fasta`, and
-`report/artifact_scope.tsv` when 16S artifact scope matters.
+`report/artifact_scope.tsv` when 16S artifact scope matters. AI consumers of a
+results package should read package-root `artifact_scope.tsv` first when that
+handoff copy is present.
 
 Run bounded guarded real work only when explicitly intended:
 
@@ -182,12 +185,12 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.20 release record includes PR #23 CI PASS, PR #24 CI PASS, an offline
-policy-aware artifacts contract smoke PASS, a server Fusobacterium
-`limit4-real` rerun PASS at `eac463988e590d5fb3b8a77c3d1dde9e1a8a1e58`, and
-the still-valid v2.2.19 evidence-first closure. These are release verification
-evidence only; they do not claim full Clostridium strict completion or
-full-download validation.
+The v2.2.21 release record includes PR #25 CI PASS, an offline artifact scope
+readability contract smoke PASS at
+`9d2ed5d8a17399631f8fbee23814e259da55b971`, and the still-valid v2.2.20
+policy-aware artifacts and GTDB gating validations. These are release
+verification evidence only; they do not claim full Clostridium strict
+completion or full-download validation.
 
 ## External And Provider Workflows
 
@@ -233,9 +236,14 @@ typetreeflow verify-genus Fusobacterium \
 Reports distinguish `Same-genome barrnap 16S`, `Strict-usable 16S`,
 `Available 16S in candidate-inclusive outputs`, `Fallback warnings`, and
 `Strict blocking count`. `rrna/all_16S.fasta` remains candidate-inclusive and
-is not a strict same-genome-only FASTA. `rrna/strict_16S.fasta` is the strict
-scientific 16S artifact, `rrna/policy_16S.fasta` follows the resolved evidence
-policy, and `report/artifact_scope.tsv` records their machine-readable scope.
+is not a strict same-genome-only FASTA. Default phylogeny tree/alignment inputs
+remain compatibility outputs, not strict scientific deliverables.
+`rrna/strict_16S.fasta` is marked with
+`strict_scientific_deliverable=true`; strict-policy `rrna/policy_16S.fasta`
+may also carry that marker. `report/artifact_scope.tsv` records each artifact's
+machine-readable scope, including `artifact_label`, `recommended_use`,
+`not_for`, `source_artifact`, `consumer_priority`, and
+`strict_scientific_deliverable`.
 
 ## Safety Model
 

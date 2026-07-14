@@ -81,9 +81,9 @@ def test_release_version_sources_are_consistent():
     release_notes = _read("docs/release_notes_v2_2_x.md")
 
     version = typetreeflow.__version__
-    assert version == "2.2.20"
+    assert version == "2.2.21"
     assert f'version = "{version}"' in pyproject
-    assert f"## v{version} - 2026-07-13" in changelog
+    assert f"## v{version} - 2026-07-14" in changelog
     assert f"current {version} release" in readme
     assert f"Recommended v{version} workflow" in readme
     assert f"v{version}" in release_verification

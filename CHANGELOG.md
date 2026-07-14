@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.2.21 - 2026-07-14
+
+v2.2.21 is an AI-readable artifact scope release based on v2.2.20. It records
+the artifact scope readability fields, report summary table, and package
+handoff guidance now merged on `main`.
+
+### Added
+
+- Added AI-readable fields to `artifact_scope.tsv`: `artifact_label`,
+  `recommended_use`, `not_for`, `source_artifact`, `consumer_priority`, and
+  `strict_scientific_deliverable`.
+- Added the Artifact Scope table to report summaries so readers can review
+  each scoped 16S artifact before selecting a FASTA for interpretation.
+- Added package README and `handoff_index.md` guidance that AI consumers should
+  read package-root `artifact_scope.tsv` first when present.
+
+### Changed
+
+- Clarified that `rrna/all_16S.fasta` and default phylogeny tree/alignment
+  outputs are compatibility artifacts, not strict scientific deliverables.
+- Clarified that `rrna/strict_16S.fasta` and strict-policy
+  `rrna/policy_16S.fasta` may be marked
+  `strict_scientific_deliverable=true`.
+
+### Verification
+
+- PR #25 CI PASS.
+- Offline artifact scope readability contract smoke PASS at
+  `9d2ed5d8a17399631f8fbee23814e259da55b971`.
+- v2.2.20 policy-aware artifacts and GTDB gating validations remain valid.
+
+### Notes
+
+- No artifact membership, FASTA content, default phylogeny input, live
+  provider/download behavior, or evidence threshold changed.
+- This release does not claim full-download validation or full Clostridium
+  strict completion.
+- No provider automation, provider login/scraping/purchase flow, unguarded
+  download behavior, automatic provider download support, release asset
+  publication, or relaxed strict type-strain threshold is introduced.
+
 ## v2.2.20 - 2026-07-13
 
 v2.2.20 is a policy-aware artifact scope release based on v2.2.19. It records

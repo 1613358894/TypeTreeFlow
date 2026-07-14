@@ -1,9 +1,39 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.20 integration review as
+These notes consolidate the v2.2.2 through v2.2.21 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.21
+
+v2.2.21 is an AI-readable artifact scope release based on v2.2.20. It records
+the artifact scope readability contract now merged on `main`:
+
+- `artifact_scope.tsv` now includes AI-readable fields for each scoped 16S
+  artifact: `artifact_label`, `recommended_use`, `not_for`, `source_artifact`,
+  `consumer_priority`, and `strict_scientific_deliverable`.
+- Report summaries include an Artifact Scope table so readers can compare
+  scoped 16S artifacts before selecting an interpretation surface.
+- Package README and `handoff_index.md` output tell AI consumers to read
+  package-root `artifact_scope.tsv` first when that handoff copy is present.
+- `rrna/all_16S.fasta` and default phylogeny tree/alignment outputs remain
+  compatibility artifacts, not strict scientific deliverables.
+- `rrna/strict_16S.fasta` and strict-policy `rrna/policy_16S.fasta` can be
+  identified by `strict_scientific_deliverable=true`.
+- Artifact membership, FASTA content, default phylogeny input, live provider
+  and download behavior, and strict evidence thresholds are unchanged.
+- Verification evidence includes PR #25 CI PASS, offline artifact scope
+  readability contract smoke PASS at
+  `9d2ed5d8a17399631f8fbee23814e259da55b971`, and the still-valid v2.2.20
+  policy-aware artifacts and GTDB gating validations.
+
+v2.2.21 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, provider automation,
+provider login/scraping/purchase flows, automatic provider downloads,
+unguarded download behavior, release asset publication, or relaxed strict
+type-strain evidence thresholds. The bounded smokes are release verification
+evidence only.
 
 ## v2.2.20
 
