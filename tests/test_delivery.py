@@ -251,9 +251,43 @@ def test_package_results_adds_policy_aware_16s_artifacts_and_scope_manifest(tmp_
     assert (result.delivery_dir / "16S" / "policy_16S.fasta").exists()
     assert (result.delivery_dir / "artifact_scope.tsv").exists()
     assert (result.delivery_dir / "reports" / "artifact_scope.tsv").exists()
+    root_scope = (result.delivery_dir / "artifact_scope.tsv").read_text(encoding="utf-8")
+    reports_scope = (result.delivery_dir / "reports" / "artifact_scope.tsv").read_text(
+        encoding="utf-8"
+    )
+    assert root_scope == reports_scope
+    header = root_scope.splitlines()[0].split("\t")
+    assert "artifact_label" in header
+    assert "recommended_use" in header
+    assert "not_for" in header
+    assert "source_artifact" in header
+    assert "consumer_priority" in header
+    assert "strict_scientific_deliverable" in header
+    assert (
+        "rrna/all_16S.fasta\t16s_fasta\tall\t"
+        "compatibility_candidate_inclusive\t1\t1\t0\t0\t"
+        "Compatibility all-available 16S FASTA"
+    ) in root_scope
+    assert "\tStrict scientific 16S deliverable;" in root_scope
+    assert "\tfalse\t" in root_scope
     index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
     assert "Artifact scope manifest: artifact_scope.tsv" in index
+    assert "Read artifact_scope.tsv before selecting any packaged 16S FASTA" in index
+    assert "strict_scientific_deliverable=true" in index
+    assert "## Artifact Scope" in index
+    assert "| Strict 16S FASTA | rrna/strict_16S.fasta | strict | true |" in index
+    assert (
+        "| Compatibility all-available 16S FASTA | rrna/all_16S.fasta | all | false |"
+        in index
+    )
     assert "all_16S.fasta remains the compatibility combined FASTA" in index
+    assert "Read artifact_scope.tsv before selecting any packaged 16S FASTA" in readme
+    assert "strict_scientific_deliverable=true" in readme
+    assert (
+        "| Compatibility all-available 16S FASTA | rrna/all_16S.fasta | all | false |"
+        in readme
+    )
 
 
 def test_package_preserves_rrna_provenance_fields_and_candidate_caveat(tmp_path):

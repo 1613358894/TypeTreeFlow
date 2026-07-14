@@ -1276,6 +1276,11 @@ def build_run_summary_markdown(
             "- `rrna/all_16S.fasta` is candidate-inclusive and is not a strict "
             "same-genome-only FASTA; inspect manifest provenance fields before use."
         )
+        lines.append(
+            "- Default phylogeny input remains `rrna/all_16S.fasta`; alignment, "
+            "trimmed alignment, and tree outputs inherit compatibility/all scope "
+            "unless a future strict phylogeny artifact says otherwise."
+        )
     else:
         lines.append("- Combined 16S FASTA not available.")
 
@@ -1287,9 +1292,36 @@ def build_run_summary_markdown(
                 "## 16S Artifact Scope",
                 "",
                 "- Artifact scope manifest: report/artifact_scope.tsv",
+                (
+                    "- AI readers should read `report/artifact_scope.tsv` before "
+                    "selecting any 16S FASTA or phylogeny output."
+                ),
+                (
+                    "- Strict scientific deliverables are rows with "
+                    "`strict_scientific_deliverable=true`."
+                ),
+                "",
+                "| Artifact Label | Artifact Path | Scope | Strict Scientific Deliverable | Recommended Use |",
+                "| --- | --- | --- | --- | --- |",
             ]
         )
-        for row in artifact_scope_rows:
+        for row in _sorted_16s_artifact_scope_rows(artifact_scope_rows):
+            if row.get("artifact_path") not in {
+                "rrna/strict_16S.fasta",
+                "rrna/policy_16S.fasta",
+                "rrna/all_16S.fasta",
+            }:
+                continue
+            lines.append(
+                "| "
+                f"{_markdown_cell(_artifact_scope_label(row))} | "
+                f"{_markdown_cell(row.get('artifact_path', ''))} | "
+                f"{_markdown_cell(row.get('scope', ''))} | "
+                f"{_markdown_cell(row.get('strict_scientific_deliverable', ''))} | "
+                f"{_markdown_cell(row.get('recommended_use', ''))} |"
+            )
+        lines.append("")
+        for row in _sorted_16s_artifact_scope_rows(artifact_scope_rows):
             if row.get("artifact_path") not in {
                 "rrna/strict_16S.fasta",
                 "rrna/policy_16S.fasta",
@@ -2559,6 +2591,40 @@ def _checklist_species_summary_key(row: dict[str, str]) -> str:
 
 def _markdown_cell(value: str) -> str:
     return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _sorted_16s_artifact_scope_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
+    allowed = {
+        "rrna/strict_16S.fasta",
+        "rrna/policy_16S.fasta",
+        "rrna/all_16S.fasta",
+    }
+    return sorted(
+        [row for row in rows if row.get("artifact_path") in allowed],
+        key=_artifact_scope_sort_key,
+    )
+
+
+def _artifact_scope_sort_key(row: dict[str, str]) -> tuple[int, str]:
+    priority = row.get("consumer_priority", "").strip()
+    if priority:
+        try:
+            return int(priority), row.get("artifact_path", "")
+        except ValueError:
+            pass
+    fallback_priority = {
+        "rrna/strict_16S.fasta": 10,
+        "rrna/policy_16S.fasta": 20,
+        "rrna/all_16S.fasta": 30,
+    }
+    return fallback_priority.get(row.get("artifact_path", ""), 100), row.get(
+        "artifact_path",
+        "",
+    )
+
+
+def _artifact_scope_label(row: dict[str, str]) -> str:
+    return row.get("artifact_label", "").strip() or row.get("artifact_path", "")
 
 
 def _selection_guard_reason_tokens(row: StrainSelectionRow) -> set[str]:

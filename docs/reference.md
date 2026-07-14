@@ -213,7 +213,7 @@ Recommended layout:
 - `cache/ncbi/download_plan.tsv`: `record_id`, `normalized_id`, `assembly_accession`, `expected_genome_path`, `datasets_zip_path`, `download_dir`, `status`, `notes`
 - `cache/ncbi/download_results.tsv`: `record_id`, `normalized_id`, `assembly_accession`, `status`, `zip_path`, `returncode`, `stderr`, `notes`
 - `rrna/rrna_plan.tsv`: `record_id`, `normalized_id`, `genome_path`, `expected_gff_path`, `expected_rrna_fasta_path`, `status`, `notes`
-- `report/artifact_scope.tsv`: `artifact_path`, `artifact_kind`, `scope`, `evidence_policy`, `record_count`, `strict_usable_count`, `candidate_count`, `excluded_mismatch_count`, `notes`
+- `report/artifact_scope.tsv`: `artifact_path`, `artifact_kind`, `scope`, `evidence_policy`, `record_count`, `strict_usable_count`, `candidate_count`, `excluded_mismatch_count`, `artifact_label`, `recommended_use`, `not_for`, `source_artifact`, `consumer_priority`, `strict_scientific_deliverable`, `notes`
 - `ani/ani_plan.tsv`: `record_id`, `normalized_id`, `query_id`, `reference_genome_path`, `query_genome_path`, `status`, `notes`
 - `ani/ani_query_vs_refs.tsv`: `normalized_id`, `reference_name`, `reference_genome_path`, `ani`, `matching_fragments`, `total_fragments`, `fraction`, `above_species_threshold`
 - `ani/ani_summary.tsv`: `hit_count`, `top_hit_id`, `top_hit_name`, `top_ani`, `top_fraction`, `hits_above_95`, `status`, `notes`
@@ -266,6 +266,17 @@ exploratory query 16S.
 
 `report/artifact_scope.tsv` records the machine-readable scope for
 `rrna/all_16S.fasta`, `rrna/strict_16S.fasta`, and `rrna/policy_16S.fasta`.
+Read this file before choosing any 16S FASTA or phylogeny output. Only rows
+with `strict_scientific_deliverable=true` are strict scientific deliverables.
+`artifact_label` is the short reader-facing label, `recommended_use` is the
+positive use case, `not_for` records misuse boundaries, `source_artifact`
+records upstream evidence inputs, and `consumer_priority` is a stable sort key
+where lower values are preferred first. `rrna/all_16S.fasta` is always
+`strict_scientific_deliverable=false`; default alignment, trimmed alignment,
+and tree outputs derived from it inherit compatibility/all scope. Under
+`strict` policy, `rrna/policy_16S.fasta` may be a strict scientific deliverable;
+under candidate or exploratory policy it must not be treated as strict unless
+the scope row explicitly says `strict_scientific_deliverable=true`.
 When no records are eligible for a scoped FASTA, the file is still written as
 an empty FASTA and the scope manifest records `record_count=0` with the reason
 in `notes`. Delivery packages copy the manifest to

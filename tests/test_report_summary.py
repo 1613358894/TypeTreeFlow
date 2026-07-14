@@ -650,6 +650,12 @@ def test_report_summary_lists_policy_aware_16s_artifact_scope(tmp_path):
                 "strict_usable_count": "1",
                 "candidate_count": "1",
                 "excluded_mismatch_count": "0",
+                "artifact_label": "Compatibility all-available 16S FASTA",
+                "recommended_use": "Compatibility review and legacy all_16S phylogeny input",
+                "not_for": "Strict scientific 16S deliverable",
+                "source_artifact": "manifest.tsv;source_audit/sequence_source_audit.tsv",
+                "consumer_priority": "30",
+                "strict_scientific_deliverable": "false",
                 "notes": "compatibility",
             },
             {
@@ -661,6 +667,12 @@ def test_report_summary_lists_policy_aware_16s_artifact_scope(tmp_path):
                 "strict_usable_count": "1",
                 "candidate_count": "0",
                 "excluded_mismatch_count": "1",
+                "artifact_label": "Strict 16S FASTA",
+                "recommended_use": "Strict 16S scientific interpretation",
+                "not_for": "Candidate-inclusive legacy compatibility",
+                "source_artifact": "manifest.tsv;source_audit/sequence_source_audit.tsv",
+                "consumer_priority": "10",
+                "strict_scientific_deliverable": "true",
                 "notes": "strict",
             },
             {
@@ -672,6 +684,12 @@ def test_report_summary_lists_policy_aware_16s_artifact_scope(tmp_path):
                 "strict_usable_count": "1",
                 "candidate_count": "1",
                 "excluded_mismatch_count": "1",
+                "artifact_label": "Policy 16S FASTA",
+                "recommended_use": "Resolved evidence-policy 16S view",
+                "not_for": "Strict scientific 16S deliverable unless strict_scientific_deliverable=true",
+                "source_artifact": "manifest.tsv;source_audit/sequence_source_audit.tsv",
+                "consumer_priority": "20",
+                "strict_scientific_deliverable": "false",
                 "notes": "policy",
             },
         ],
@@ -686,6 +704,11 @@ def test_report_summary_lists_policy_aware_16s_artifact_scope(tmp_path):
 
     assert "## 16S Artifact Scope" in markdown
     assert "Artifact scope manifest: report/artifact_scope.tsv" in markdown
+    assert "AI readers should read `report/artifact_scope.tsv`" in markdown
+    assert "| Artifact Label | Artifact Path | Scope | Strict Scientific Deliverable | Recommended Use |" in markdown
+    assert "| Strict 16S FASTA | rrna/strict_16S.fasta | strict | true | Strict 16S scientific interpretation |" in markdown
+    assert "| Policy 16S FASTA | rrna/policy_16S.fasta | candidate | false | Resolved evidence-policy 16S view |" in markdown
+    assert "| Compatibility all-available 16S FASTA | rrna/all_16S.fasta | all | false | Compatibility review and legacy all_16S phylogeny input |" in markdown
     assert "rrna/all_16S.fasta: scope=all" in markdown
     assert "rrna/strict_16S.fasta: scope=strict" in markdown
     assert "rrna/policy_16S.fasta: scope=candidate" in markdown
@@ -1128,6 +1151,7 @@ def test_report_marks_fallback_phylogeny_candidate_inclusive_not_strict(tmp_path
     assert "Strict-usable 16S (same-genome or evidence-confirmed same-strain): 0/1" in markdown
     assert "Available 16S in candidate-inclusive outputs: 1/1" in markdown
     assert "not a strict same-genome-only FASTA" in markdown
+    assert "Default phylogeny input remains `rrna/all_16S.fasta`" in markdown
     assert "practical/candidate-inclusive inference; not strict same-genome-only inference" in markdown
 
 

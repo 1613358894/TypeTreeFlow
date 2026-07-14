@@ -81,6 +81,14 @@ candidate, exploratory, or representative evidence to confirmed type-strain
 status. The artifact scope manifest records these meanings and counts for
 review.
 
+Strict scientific deliverables are indicated by
+`strict_scientific_deliverable=true` in `report/artifact_scope.tsv` or the
+package root `artifact_scope.tsv`. `rrna/all_16S.fasta` and default tree outputs
+derived from it are compatibility/all-scoped and are not strict deliverables.
+`rrna/policy_16S.fasta` may be a strict deliverable under strict policy, but
+candidate or exploratory policy rows must not be treated as strict unless the
+scope manifest explicitly marks them strict.
+
 ## Real Action Boundary
 
 Default maintenance uses docs checks, dry runs, fake runners, local fixtures,

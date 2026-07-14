@@ -25,6 +25,12 @@ ARTIFACT_SCOPE_FIELDS = [
     "strict_usable_count",
     "candidate_count",
     "excluded_mismatch_count",
+    "artifact_label",
+    "recommended_use",
+    "not_for",
+    "source_artifact",
+    "consumer_priority",
+    "strict_scientific_deliverable",
     "notes",
 ]
 
@@ -148,6 +154,15 @@ def build_artifact_scope_rows(
             strict_usable_count=strict_count,
             candidate_count=candidate_count,
             excluded_mismatch_count=0,
+            artifact_label="Compatibility all-available 16S FASTA",
+            recommended_use="Compatibility review and legacy all_16S phylogeny input",
+            not_for=(
+                "Strict scientific 16S deliverable; strict same-genome-only "
+                "inference; strict type-strain genome completion"
+            ),
+            source_artifact="manifest.tsv;source_audit/sequence_source_audit.tsv",
+            consumer_priority=30,
+            strict_scientific_deliverable=False,
             notes=(
                 "Compatibility all-available 16S FASTA; membership is unchanged "
                 "and may include candidate, mismatch-blocked, unclassified, or "
@@ -163,6 +178,15 @@ def build_artifact_scope_rows(
             strict_usable_count=strict_count,
             candidate_count=0,
             excluded_mismatch_count=mismatch_count,
+            artifact_label="Strict 16S FASTA",
+            recommended_use="Strict 16S scientific interpretation",
+            not_for=(
+                "Candidate-inclusive legacy compatibility; package membership "
+                "inference; genome completion claims without manifest evidence"
+            ),
+            source_artifact="manifest.tsv;source_audit/sequence_source_audit.tsv",
+            consumer_priority=10,
+            strict_scientific_deliverable=True,
             notes=(
                 "Strict-only 16S FASTA; empty when no same-genome or "
                 "same-strain-confirmed strict-usable records are available."
@@ -177,6 +201,15 @@ def build_artifact_scope_rows(
             strict_usable_count=strict_count,
             candidate_count=policy_candidate_count,
             excluded_mismatch_count=mismatch_count,
+            artifact_label="Policy 16S FASTA",
+            recommended_use="Resolved evidence-policy 16S view",
+            not_for=_policy_not_for(selected_policy),
+            source_artifact="manifest.tsv;source_audit/sequence_source_audit.tsv",
+            consumer_priority=20,
+            strict_scientific_deliverable=_policy_strict_deliverable(
+                selected_policy,
+                policy_candidate_count,
+            ),
             notes=_policy_notes(selected_policy, policy_count),
         ),
     ]
@@ -233,6 +266,12 @@ def _scope_row(
     strict_usable_count: int,
     candidate_count: int,
     excluded_mismatch_count: int,
+    artifact_label: str,
+    recommended_use: str,
+    not_for: str,
+    source_artifact: str,
+    consumer_priority: int,
+    strict_scientific_deliverable: bool,
     notes: str,
 ) -> dict[str, str]:
     return {
@@ -244,6 +283,14 @@ def _scope_row(
         "strict_usable_count": str(strict_usable_count),
         "candidate_count": str(candidate_count),
         "excluded_mismatch_count": str(excluded_mismatch_count),
+        "artifact_label": artifact_label,
+        "recommended_use": recommended_use,
+        "not_for": not_for,
+        "source_artifact": source_artifact,
+        "consumer_priority": str(consumer_priority),
+        "strict_scientific_deliverable": (
+            "true" if strict_scientific_deliverable else "false"
+        ),
         "notes": notes,
     }
 
@@ -311,3 +358,19 @@ def _policy_notes(policy: str, record_count: int) -> str:
         "exploratory practical 16S; mismatch-blocked rows remain excluded and "
         "local query rows remain excluded in this release."
     )
+
+
+def _policy_not_for(policy: str) -> str:
+    if policy == "strict":
+        return (
+            "Default compatibility phylogeny input; package membership inference; "
+            "genome completion claims without manifest evidence"
+        )
+    return (
+        "Strict scientific 16S deliverable unless strict_scientific_deliverable=true; "
+        "strict same-genome-only inference; strict type-strain genome completion"
+    )
+
+
+def _policy_strict_deliverable(policy: str, candidate_count: int) -> bool:
+    return policy == "strict" and candidate_count == 0

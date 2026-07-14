@@ -8,6 +8,7 @@ from typetreeflow.evidence_policy import (
 )
 from typetreeflow.models import StrainRecord
 from typetreeflow.rrna.artifacts import (
+    ARTIFACT_SCOPE_FIELDS,
     read_artifact_scope,
     write_policy_aware_16s_artifacts,
 )
@@ -235,19 +236,36 @@ def test_policy_aware_16s_artifacts_write_strict_and_candidate_scopes(tmp_path):
     ]
 
     rows = {row["artifact_path"]: row for row in read_artifact_scope(paths.artifact_scope_path)}
+    header = paths.artifact_scope_path.read_text(encoding="utf-8").splitlines()[0].split("\t")
+    assert header == ARTIFACT_SCOPE_FIELDS
     assert rows["rrna/all_16S.fasta"]["scope"] == "all"
     assert rows["rrna/all_16S.fasta"]["evidence_policy"] == (
         "compatibility_candidate_inclusive"
     )
     assert rows["rrna/all_16S.fasta"]["record_count"] == "6"
+    assert rows["rrna/all_16S.fasta"]["artifact_label"] == (
+        "Compatibility all-available 16S FASTA"
+    )
+    assert rows["rrna/all_16S.fasta"]["strict_scientific_deliverable"] == "false"
+    assert "Strict scientific 16S deliverable" in rows["rrna/all_16S.fasta"]["not_for"]
     assert rows["rrna/strict_16S.fasta"]["record_count"] == "2"
     assert rows["rrna/strict_16S.fasta"]["strict_usable_count"] == "2"
     assert rows["rrna/strict_16S.fasta"]["candidate_count"] == "0"
     assert rows["rrna/strict_16S.fasta"]["excluded_mismatch_count"] == "1"
+    assert rows["rrna/strict_16S.fasta"]["artifact_label"] == "Strict 16S FASTA"
+    assert rows["rrna/strict_16S.fasta"]["recommended_use"] == (
+        "Strict 16S scientific interpretation"
+    )
+    assert rows["rrna/strict_16S.fasta"]["strict_scientific_deliverable"] == "true"
     assert rows["rrna/policy_16S.fasta"]["scope"] == "candidate"
     assert rows["rrna/policy_16S.fasta"]["record_count"] == "3"
     assert rows["rrna/policy_16S.fasta"]["candidate_count"] == "1"
     assert rows["rrna/policy_16S.fasta"]["excluded_mismatch_count"] == "1"
+    assert rows["rrna/policy_16S.fasta"]["recommended_use"] == (
+        "Resolved evidence-policy 16S view"
+    )
+    assert rows["rrna/policy_16S.fasta"]["consumer_priority"] == "20"
+    assert rows["rrna/policy_16S.fasta"]["strict_scientific_deliverable"] == "false"
 
 
 def test_policy_strict_fasta_equals_strict_artifact(tmp_path):
@@ -259,6 +277,10 @@ def test_policy_strict_fasta_equals_strict_artifact(tmp_path):
     assert paths.policy_16s_fasta_path.read_text(encoding="utf-8") == (
         paths.strict_16s_fasta_path.read_text(encoding="utf-8")
     )
+    rows = {row["artifact_path"]: row for row in read_artifact_scope(paths.artifact_scope_path)}
+    assert rows["rrna/policy_16S.fasta"]["scope"] == "strict"
+    assert rows["rrna/policy_16S.fasta"]["candidate_count"] == "0"
+    assert rows["rrna/policy_16S.fasta"]["strict_scientific_deliverable"] == "true"
 
 
 def test_policy_exploratory_includes_practical_but_not_mismatch_or_query(tmp_path):
@@ -271,6 +293,10 @@ def test_policy_exploratory_includes_practical_but_not_mismatch_or_query(tmp_pat
     assert headers == ["strict", "same-strain", "candidate", "practical"]
     assert "mismatch" not in headers
     assert "query" not in headers
+    rows = {row["artifact_path"]: row for row in read_artifact_scope(paths.artifact_scope_path)}
+    assert rows["rrna/policy_16S.fasta"]["scope"] == "exploratory"
+    assert rows["rrna/policy_16S.fasta"]["candidate_count"] == "1"
+    assert rows["rrna/policy_16S.fasta"]["strict_scientific_deliverable"] == "false"
 
 
 def test_policy_artifacts_write_empty_fasta_and_zero_scope_when_no_eligible_records(tmp_path):
