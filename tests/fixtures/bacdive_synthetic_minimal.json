@@ -1,0 +1,61 @@
+{
+  "fixture_note": "Synthetic minimal BacDive/DSMZ-style records for offline TypeTreeFlow tests only. This is not a BacDive dump and contains no real BacDive data.",
+  "records": [
+    {
+      "fixture_id": "type_overlap",
+      "source_platform": "BacDive/DSMZ synthetic fixture",
+      "species_name": "Examplegenus alpha",
+      "strain_designation": "Alpha Type",
+      "culture_collection_numbers": ["DSM 1001", "ATCC-1001"],
+      "is_type_strain": true,
+      "bacdive_id": "SYN-BD-1",
+      "source_url": "https://example.invalid/synthetic-bacdive/type-overlap",
+      "source_release_or_accessed": "synthetic fixture 2026-07-15",
+      "evidence_notes": ["synthetic minimal type-strain candidate with LPSN token overlap"]
+    },
+    {
+      "fixture_id": "type_no_overlap",
+      "species_name": "Examplegenus beta",
+      "strain_designation": "Beta Type",
+      "culture_collection_numbers": ["DSM 2002"],
+      "is_type_strain": true,
+      "bacdive_id": "SYN-BD-2",
+      "source_url": "https://example.invalid/synthetic-bacdive/type-no-overlap",
+      "source_release_or_accessed": "synthetic fixture 2026-07-15",
+      "evidence_notes": ["synthetic minimal type-strain candidate without LPSN token overlap"]
+    },
+    {
+      "fixture_id": "non_type",
+      "species_name": "Examplegenus gamma",
+      "strain_designation": "Gamma isolate",
+      "culture_collection_numbers": ["DSM 3003"],
+      "is_type_strain": false,
+      "bacdive_id": "SYN-BD-3",
+      "source_url": "https://example.invalid/synthetic-bacdive/non-type",
+      "source_release_or_accessed": "synthetic fixture 2026-07-15",
+      "evidence_notes": ["synthetic non-type strain row"]
+    },
+    {
+      "fixture_id": "species_conflict",
+      "species_name": "Examplegenus delta",
+      "strain_designation": "Gamma Type",
+      "culture_collection_numbers": ["DSM 4004"],
+      "is_type_strain": true,
+      "bacdive_id": "SYN-BD-4",
+      "source_url": "https://example.invalid/synthetic-bacdive/species-conflict",
+      "source_release_or_accessed": "synthetic fixture 2026-07-15",
+      "evidence_notes": ["synthetic species mismatch fixture"]
+    },
+    {
+      "fixture_id": "multiple_accessions",
+      "species_name": "Examplegenus epsilon",
+      "strain_designation": "Epsilon-5",
+      "culture_collection_numbers": "DSM: 5005; ATCC-5005; JCM 5005",
+      "is_type_strain": true,
+      "bacdive_id": "SYN-BD-5",
+      "source_url": "https://example.invalid/synthetic-bacdive/multiple-accessions",
+      "source_release_or_accessed": "synthetic fixture 2026-07-15",
+      "evidence_notes": ["synthetic multiple accession fixture"]
+    }
+  ]
+}

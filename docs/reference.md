@@ -73,6 +73,30 @@ These fields do not filter manifest or selected rows, downloads,
 `rrna/all_16S.fasta`, phylogeny input, or package members, and they do not
 change workflow stage-status or existing completion-status metric semantics.
 
+### Offline BacDive/DSMZ Evidence Model
+
+`typetreeflow.evidence.bacdive` is an offline, fixture-testable enrichment
+model. It is not wired into `verify-genus`, provider planning, downloads,
+manifest writes, reports, packages, or completion metrics.
+
+The normalized `BacDiveEvidenceRecord` fields are `species_name`,
+`strain_designation`, `culture_collection_numbers`, `is_type_strain`,
+`bacdive_id`, `dsmz_accession`, `source_url`,
+`source_release_or_accessed`, `evidence_tier`, `evidence_notes`, and
+`source_platform`. The parser accepts missing optional fields because source
+records may omit empty BacDive fields.
+
+Evidence tier mapping is intentionally conservative. BacDive/DSMZ
+`is_type_strain=true` maps to `authoritative_type_material_candidate`.
+Rows without that signal map to `bacdive_insufficient_type_signal`. The model
+does not emit `strict_lpsn_confirmed` or `curated_strict_confirmed`.
+
+The offline reconciliation status is one of `bacdive_candidate_match`,
+`bacdive_lpsn_token_overlap`, `bacdive_conflict`, or
+`bacdive_insufficient_linkage`. LPSN token overlap remains candidate evidence;
+strict use requires a later proof chain tying the selected genome or BioSample
+to the LPSN type-strain equivalence set.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.

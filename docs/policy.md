@@ -22,6 +22,15 @@ provider proposals, provider plans, local query rows, or external request rows
 as strict confirmed type strains. Strict type-strain wording requires evidence
 tying the genome record to the species type-strain equivalence set.
 
+BacDive/DSMZ enrichment is candidate-only unless a later reconciler proves the
+full chain from BacDive/DSMZ source facts to LPSN type-strain equivalence and
+selected-genome or BioSample linkage. A BacDive/DSMZ `is_type_strain` signal or
+DSMZ catalogue accession alone maps only to
+`authoritative_type_material_candidate`; it must not be described as
+`strict_lpsn_confirmed`, `curated_strict_confirmed`, or completed strict
+coverage. BacDive/DSMZ sequence or genome accession links are source metadata
+for review, not automatic download authorization or manifest mutation.
+
 ## Evidence Policy
 
 Evidence policy is a run-level derived-view strategy, not a source fact or an
