@@ -73,13 +73,14 @@ Use `python typetreeflow.py --version` to confirm the installed source version,
 and inspect `selection/user_selection.tsv`, `manifest.tsv`, completion gap
 tables, report summaries, and package handoff output during release review.
 
-The current 2.2.21 release gate covers evidence-first
+The current 2.2.22 release gate covers evidence-first
 completion/report/package wording, scoped 16S FASTA artifacts, artifact scope
 package handoff metadata, Artifact Scope report tables, AI-readable
 `artifact_scope.tsv` fields, evidence policy plumbing, configured-only GTDB
-audit reporting, centralized evidence policy evaluation, bounded smoke
-profiles, release consistency, workspace hygiene, docs hygiene, and package
-metadata. The release gate must mention workspace and `results/` hygiene.
+audit reporting, centralized evidence policy evaluation, offline BacDive/DSMZ
+candidate-evidence boundaries, bounded smoke profiles, release consistency,
+workspace hygiene, docs hygiene, and package metadata. The release gate must
+mention workspace and `results/` hygiene.
 
 ## Release Verification
 

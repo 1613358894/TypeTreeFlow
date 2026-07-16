@@ -1,9 +1,40 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.21 integration review as
+These notes consolidate the v2.2.2 through v2.2.22 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.22
+
+v2.2.22 is an offline BacDive/DSMZ evidence model release based on v2.2.21. It
+records the conservative candidate-evidence model and synthetic fixture-only
+tests now merged on `main`, while preserving the v2.2.21 artifact scope
+readability semantics:
+
+- `typetreeflow.evidence.bacdive` normalizes offline BacDive/DSMZ source facts
+  into `BacDiveEvidenceRecord` rows and conservative reconciliation statuses.
+- BacDive/DSMZ `is_type_strain=true` maps only to
+  `authoritative_type_material_candidate`; rows without that signal map to
+  `bacdive_insufficient_type_signal`.
+- LPSN token overlap remains candidate evidence. It does not mark
+  `strict_lpsn_confirmed`, `curated_strict_confirmed`, or strict completion.
+- Synthetic fixture-only tests cover type-signal mapping, LPSN token overlap,
+  insufficient linkage, species conflicts, optional-field parsing, and guards
+  that reject strict BacDive/DSMZ tiers or strict reconciliation.
+- The model is not wired into live BacDive API calls, CLI commands, workflow
+  stages, downloads, manifest writes, reports, packages, or completion metrics.
+- No API key, network access, provider behavior, provider login, scraping,
+  purchase flow, terms acceptance, automatic download, FASTA installation, or
+  manifest mutation is introduced.
+- Verification evidence includes PR #26 CI PASS and post-merge quick gates
+  PASS. This change did not require live workflow or server smoke validation.
+
+v2.2.22 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, provider automation, live provider behavior, release asset
+publication, or relaxed strict type-strain evidence thresholds. The v2.2.21
+artifact scope readability semantics remain valid.
 
 ## v2.2.21
 

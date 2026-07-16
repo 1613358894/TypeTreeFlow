@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.2.22 - 2026-07-16
+
+v2.2.22 is an offline BacDive/DSMZ evidence model release based on v2.2.21.
+It records the conservative candidate-evidence model and synthetic
+fixture-only tests now merged on `main`, while preserving the v2.2.21 artifact
+scope readability semantics.
+
+### Added
+
+- Added `typetreeflow.evidence.bacdive` as an offline BacDive/DSMZ source-fact
+  model for normalized candidate evidence records and reconciliation status.
+- Added synthetic fixture-only BacDive/DSMZ tests covering type-strain signal
+  mapping, LPSN token overlap, insufficient linkage, species conflicts,
+  optional-field parsing, and strict-confirmation guards.
+
+### Changed
+
+- BacDive/DSMZ `is_type_strain` signals now map only to
+  `authoritative_type_material_candidate` evidence in the offline model.
+- BacDive/DSMZ LPSN token overlap remains candidate evidence and does not
+  upgrade records to strict confirmed type strains.
+
+### Verification
+
+- PR #26 CI PASS.
+- Post-merge quick gates PASS.
+- This change did not require live workflow or server smoke validation.
+- v2.2.21 artifact scope readability semantics remain valid.
+
+### Notes
+
+- No live BacDive API, CLI, workflow, download, manifest, report, package, or
+  completion-metric integration is introduced.
+- No API key, network access, provider behavior, provider login, scraping,
+  purchase flow, terms acceptance, automatic download, FASTA installation,
+  manifest mutation, completion-metric change, or release asset publication is
+  introduced.
+- This release does not claim full-download validation, full Clostridium
+  strict completion, or strict type-strain confirmation from BacDive/DSMZ
+  source facts.
+
 ## v2.2.21 - 2026-07-14
 
 v2.2.21 is an AI-readable artifact scope release based on v2.2.20. It records

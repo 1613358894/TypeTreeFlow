@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.21 / 2.2.21 release verification path uses
+The current v2.2.22 / 2.2.22 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -13,7 +13,8 @@ release gate checks evidence-first report/completion/package wording, scoped
 16S FASTA artifacts, artifact scope package handoff metadata, evidence policy
 plumbing, Artifact Scope report tables, AI-readable `artifact_scope.tsv`
 fields, configured-only GTDB audit reporting, centralized evidence policy
-evaluation, clean deployment readiness, provider timeout/error classification,
+evaluation, offline BacDive/DSMZ candidate-evidence boundaries, clean
+deployment readiness, provider timeout/error classification,
 stdout JSON isolation, failed-handoff cache boundaries, workspace hygiene, and
 ensures repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`, operator-run `barrnap --updatedb`, and `typetreeflow
@@ -41,6 +42,15 @@ their scope metadata when available. AI consumers should read package-root
 compatibility artifacts, not strict scientific deliverables.
 `rrna/strict_16S.fasta` and strict-policy `rrna/policy_16S.fasta` may carry
 `strict_scientific_deliverable=true`.
+
+BacDive/DSMZ enrichment is an offline candidate-evidence model only.
+BacDive/DSMZ `is_type_strain` signals map to
+`authoritative_type_material_candidate`, and LPSN token overlap remains
+candidate evidence until a later proof chain ties the selected genome or
+BioSample to the LPSN type-strain equivalence set. The model is not wired into
+live BacDive API calls, CLI commands, workflow stages, downloads, manifest
+writes, reports, packages, or completion metrics, and it does not require API
+keys or network access.
 
 GTDB audit output is configured-only. `taxonomy/gtdb_metadata_audit.json`,
 run-state GTDB audit status, report wording, and package wording appear only
@@ -78,13 +88,13 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.21 release record includes PR #25 CI PASS, offline artifact scope
-readability contract smoke PASS at
-`9d2ed5d8a17399631f8fbee23814e259da55b971`, and the still-valid v2.2.20
-policy-aware artifacts and GTDB gating validations. These smokes are
-verification evidence only: they do not claim full Clostridium strict
-completion or full-download validation. The release does not change artifact
-membership, FASTA content, default phylogeny input, live provider/download
-behavior, or strict evidence thresholds.
+The v2.2.22 release record includes PR #26 CI PASS and post-merge quick gates
+PASS. It did not require live workflow or server smoke validation. The
+still-valid v2.2.21 artifact scope readability semantics and v2.2.20
+policy-aware artifacts and GTDB gating validations remain verification evidence
+only: they do not claim full Clostridium strict completion or full-download
+validation. The release does not change artifact membership, FASTA content,
+default phylogeny input, live provider/download behavior, provider behavior,
+completion metrics, or strict evidence thresholds.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.
