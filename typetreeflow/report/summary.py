@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import csv
+import json
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -123,6 +125,22 @@ class ReportInput:
     records: list[StrainRecord]
     paths: OutputPaths
     args: object | None = None
+
+
+@dataclass(frozen=True)
+class BacDiveCandidateReviewSummary:
+    enabled: bool
+    client_kind: str
+    planned_queries: int
+    completed_queries: int
+    record_count: int
+    diagnostic_count: int
+    conflict_count: int
+    no_result_count: int
+    candidate_count: int
+    enrichment_row_count: int
+    diagnostic_row_count: int
+    top_diagnostics: list[tuple[str, int]]
 
 
 def summarize_manifest(records: Iterable[StrainRecord]) -> dict[str, int]:
@@ -256,6 +274,14 @@ def summarize_output_files(
         ("report/run_review.md", paths.run_review_path),
         ("report/artifact_scope.tsv", paths.artifact_scope_path),
     ]
+    if bacdive_normalized_outputs_available(paths):
+        output_files.extend(
+            [
+                ("evidence/bacdive_enrichment.tsv", paths.bacdive_enrichment_path),
+                ("evidence/bacdive_diagnostics.tsv", paths.bacdive_diagnostics_path),
+                ("evidence/bacdive_source_audit.json", paths.bacdive_source_audit_path),
+            ]
+        )
     return [
         {
             "label": label,
@@ -293,6 +319,64 @@ def read_optional_ani_summary(path: str | Path) -> dict[str, str] | None:
         for row in reader:
             return dict(row)
     return {}
+
+
+def bacdive_normalized_outputs_available(paths: OutputPaths) -> bool:
+    return (
+        paths.bacdive_enrichment_path.exists()
+        and paths.bacdive_diagnostics_path.exists()
+        and paths.bacdive_source_audit_path.exists()
+    )
+
+
+def read_optional_bacdive_candidate_review(
+    paths: OutputPaths,
+) -> BacDiveCandidateReviewSummary | None:
+    if not bacdive_normalized_outputs_available(paths):
+        return None
+
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    if not bool(audit.get("enabled", False)):
+        return None
+
+    enrichment_rows = _read_tsv_rows(paths.bacdive_enrichment_path)
+    diagnostic_rows = _read_tsv_rows(paths.bacdive_diagnostics_path)
+    diagnostic_codes = Counter(
+        row.get("diagnostic_code", "").strip()
+        for row in diagnostic_rows
+        if row.get("diagnostic_code", "").strip()
+    )
+    result_status_counts = audit.get("result_status_counts", {})
+    if not isinstance(result_status_counts, dict):
+        result_status_counts = {}
+
+    return BacDiveCandidateReviewSummary(
+        enabled=True,
+        client_kind=str(audit.get("client_kind", "")),
+        planned_queries=_int_value(audit.get("planned_query_count")),
+        completed_queries=_int_value(
+            audit.get("completed_query_count", audit.get("executed_query_count"))
+        ),
+        record_count=_int_value(audit.get("record_count"), default=len(enrichment_rows)),
+        diagnostic_count=_int_value(
+            audit.get("diagnostic_count"), default=len(diagnostic_rows)
+        ),
+        conflict_count=_bacdive_conflict_count(enrichment_rows, diagnostic_rows),
+        no_result_count=_bacdive_no_result_count(
+            diagnostic_rows,
+            result_status_counts=result_status_counts,
+        ),
+        candidate_count=sum(
+            1
+            for row in enrichment_rows
+            if row.get("strict_confirmed", "").strip().lower() != "true"
+        ),
+        enrichment_row_count=len(enrichment_rows),
+        diagnostic_row_count=len(diagnostic_rows),
+        top_diagnostics=sorted(
+            diagnostic_codes.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+    )
 
 
 def read_optional_checklist_comparison(path: str | Path) -> list[dict[str, str]] | None:
@@ -934,6 +1018,12 @@ def build_run_summary_markdown(
         record_list,
         getattr(args, "evidence_policy", None) or "strict",
     )
+    bacdive_review_error = ""
+    try:
+        bacdive_review = read_optional_bacdive_candidate_review(paths)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        bacdive_review = None
+        bacdive_review_error = str(error)
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -1082,44 +1172,109 @@ def build_run_summary_markdown(
             "change selection, downloads, manifests, combined 16S, phylogeny "
             "inputs, completion status metrics, or package membership."
         ),
-        "",
-        "## Status Distribution",
-        "",
-        "| Status | Count |",
-        "| --- | ---: |",
-        *[
-            f"| {_markdown_cell(status)} | {count} |"
-            for status, count in sorted(status_counts.items())
-        ],
-        "",
-        "## Genome Status",
-        "",
-        f"- Genome-ready records: {manifest_summary['genome_ready_count']}",
-        f"- Genome references directory: {_display_path(paths.genomes_references_dir, paths)}",
-        "",
-        "## Provenance Summary",
-        "",
-        f"- NCBI Assembly-backed records: {provenance_counts['ncbi_assembly_backed_count']}",
-        (
-            "- External registered genome records: "
-            f"{provenance_counts['external_registered_genome_count']}"
-        ),
-        f"- Local query genome records: {provenance_counts['local_query_genome_count']}",
-        f"- Genome-ready records: {provenance_counts['genome_ready_count']}",
-        f"- Records missing genome: {provenance_counts['missing_genome_count']}",
-        (
-            "NCBI Assembly-backed records require recorded NCBI accessions; "
-            "external registered genome records are local FASTA registrations "
-            "and are not counted as NCBI Assembly-backed records. Registered "
-            "external genomes with installed local FASTA paths can participate "
-            "in downstream planning as mixed-provenance references."
-        ),
-        (
-            "Local query genome records use `source=local_query`, are marked "
-            "`is_query=true`, and are not type-strain or confirmed-species "
-            "evidence."
-        ),
     ]
+
+    if bacdive_review_error:
+        lines.extend(
+            [
+                "",
+                "## BacDive Candidate Review",
+                "",
+                (
+                    "BacDive normalized review outputs were present but could "
+                    f"not be summarized: {bacdive_review_error}"
+                ),
+                (
+                    "BacDive rows are candidate-only audit evidence; they do "
+                    "not change strict completion or selected genome evidence."
+                ),
+            ]
+        )
+    elif bacdive_review is not None:
+        lines.extend(
+            [
+                "",
+                "## BacDive Candidate Review",
+                "",
+                f"- Enabled: {'true' if bacdive_review.enabled else 'false'}",
+                f"- Client kind: {_markdown_cell(bacdive_review.client_kind)}",
+                f"- Planned queries: {bacdive_review.planned_queries}",
+                f"- Completed queries: {bacdive_review.completed_queries}",
+                f"- Record count: {bacdive_review.record_count}",
+                f"- Diagnostic count: {bacdive_review.diagnostic_count}",
+                f"- Conflict count: {bacdive_review.conflict_count}",
+                f"- No-result count: {bacdive_review.no_result_count}",
+                f"- Candidate count: {bacdive_review.candidate_count}",
+                (
+                    "- Normalized outputs: evidence/bacdive_enrichment.tsv; "
+                    "evidence/bacdive_diagnostics.tsv; "
+                    "evidence/bacdive_source_audit.json"
+                ),
+                (
+                    "BacDive rows are candidate-only audit evidence; they do "
+                    "not change strict completion or selected genome evidence."
+                ),
+                (
+                    "They do not change selection, manifest, strict "
+                    "type-strain confirmation, evidence-policy strict results, "
+                    "or completion metrics."
+                ),
+            ]
+        )
+        if bacdive_review.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in bacdive_review.top_diagnostics
+                    ],
+                ]
+            )
+
+    lines.extend(
+        [
+            "",
+            "## Status Distribution",
+            "",
+            "| Status | Count |",
+            "| --- | ---: |",
+            *[
+                f"| {_markdown_cell(status)} | {count} |"
+                for status, count in sorted(status_counts.items())
+            ],
+            "",
+            "## Genome Status",
+            "",
+            f"- Genome-ready records: {manifest_summary['genome_ready_count']}",
+            f"- Genome references directory: {_display_path(paths.genomes_references_dir, paths)}",
+            "",
+            "## Provenance Summary",
+            "",
+            f"- NCBI Assembly-backed records: {provenance_counts['ncbi_assembly_backed_count']}",
+            (
+                "- External registered genome records: "
+                f"{provenance_counts['external_registered_genome_count']}"
+            ),
+            f"- Local query genome records: {provenance_counts['local_query_genome_count']}",
+            f"- Genome-ready records: {provenance_counts['genome_ready_count']}",
+            f"- Records missing genome: {provenance_counts['missing_genome_count']}",
+            (
+                "NCBI Assembly-backed records require recorded NCBI accessions; "
+                "external registered genome records are local FASTA registrations "
+                "and are not counted as NCBI Assembly-backed records. Registered "
+                "external genomes with installed local FASTA paths can participate "
+                "in downstream planning as mixed-provenance references."
+            ),
+            (
+                "Local query genome records use `source=local_query`, are marked "
+                "`is_query=true`, and are not type-strain or confirmed-species "
+                "evidence."
+            ),
+        ]
+    )
 
     if download_preflight_error:
         lines.extend(
@@ -2524,6 +2679,59 @@ def _read_first_tsv_row(path: str | Path) -> dict[str, str]:
         for row in reader:
             return dict(row)
     return {}
+
+
+def _read_tsv_rows(path: str | Path) -> list[dict[str, str]]:
+    with Path(path).open("r", newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _int_value(value: object, *, default: int = 0) -> int:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+
+
+def _bacdive_conflict_count(
+    enrichment_rows: list[dict[str, str]],
+    diagnostic_rows: list[dict[str, str]],
+) -> int:
+    conflict_keys: set[str] = set()
+    fallback = 0
+    for row in enrichment_rows:
+        if row.get("reconciliation_status", "").strip() != "bacdive_conflict":
+            continue
+        key = row.get("query_index", "").strip()
+        if key:
+            conflict_keys.add(key)
+        else:
+            fallback += 1
+    for row in diagnostic_rows:
+        if row.get("diagnostic_code", "").strip() != "bacdive_conflict":
+            continue
+        key = row.get("query_index", "").strip()
+        if key:
+            conflict_keys.add(key)
+        else:
+            fallback += 1
+    return len(conflict_keys) + fallback
+
+
+def _bacdive_no_result_count(
+    diagnostic_rows: list[dict[str, str]],
+    *,
+    result_status_counts: dict[object, object],
+) -> int:
+    audit_count = _int_value(result_status_counts.get("no_result"), default=-1)
+    if audit_count >= 0:
+        return audit_count
+    return sum(
+        1
+        for row in diagnostic_rows
+        if row.get("diagnostic_code", "").strip() == "bacdive_no_result"
+        or row.get("status", "").strip() == "no_result"
+    )
 
 
 def _read_required_tsv_rows(

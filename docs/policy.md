@@ -41,9 +41,16 @@ semantics. The opt-in `verify-genus` BacDive workflow skeleton may write
 `evidence/bacdive_source_audit.json` only from LPSN checklist context and an
 injected fake or fixture-backed client. It must not construct a live client,
 read environment/API keys/cookies, call the live BacDive API, mutate
-manifest/selection/download/provider outputs, enter report/package outputs, or
-change completion-count semantics. If no injected client is supplied, it writes
+manifest/selection/download/provider outputs, or change completion-count
+semantics. If no injected client is supplied, it writes
 `bacdive_live_client_not_enabled` as a non-failing diagnostic.
+
+When all three normalized BacDive outputs are present, reports and delivery
+packages may surface them only as candidate-only audit evidence for review.
+They must not be described as strict confirmation, strict LPSN evidence,
+selected genome evidence, completion credit, provider/download completion, or
+species absence evidence. Package artifact-scope rows for BacDive outputs must
+use `scope=audit` and `strict_scientific_deliverable=false`.
 
 ## Evidence Policy
 

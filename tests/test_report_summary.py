@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -155,6 +156,72 @@ def _write_ani_summary(path: Path) -> None:
                 "notes": "advisory only",
             }
         )
+
+
+def _write_bacdive_normalized_outputs(paths) -> None:
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.bacdive_enrichment_path.write_text(
+        (
+            "schema_version\trun_id\tspecies\tchecklist_source\t"
+            "lpsn_type_strain_text\tlpsn_type_strain_identifiers\tquery_index\t"
+            "query_kind\tquery\tendpoint\tlookup_status\tbacdive_id\t"
+            "bacdive_species\tstrain_designation\tculture_collection_numbers\t"
+            "dsmz_accession\tis_type_strain\tevidence_tier\t"
+            "reconciliation_status\toverlapping_identifiers\t"
+            "selected_genome_linkage\tstrict_confirmed\tsource_platform\t"
+            "source_url\taccessed_at\tdiagnostic_codes\tnotes\n"
+            "1\trun\tFusobacterium example\tfixture\tATCC 1\tATCC 1\t1\t"
+            "culture_collection\tATCC 1\tfake://bacdive/culture_collection\t"
+            "success\t1\tFusobacterium example\tA\tATCC 1\tDSM 1\ttrue\t"
+            "type_strain_signal\tbacdive_lpsn_token_overlap\tATCC 1\t"
+            "not_evaluated\tfalse\tbacdive\thttps://example.invalid/1\t"
+            "2026-07-17T00:00:00Z\t\tcandidate only\n"
+            "1\trun\tFusobacterium conflict\tfixture\tDSM 2\tDSM 2\t2\t"
+            "culture_collection\tDSM 2\tfake://bacdive/culture_collection\t"
+            "success\t2\tOther species\tB\tDSM 2\tDSM 2\ttrue\t"
+            "type_strain_signal\tbacdive_conflict\tDSM 2\t"
+            "not_evaluated\tfalse\tbacdive\thttps://example.invalid/2\t"
+            "2026-07-17T00:00:00Z\tbacdive_conflict\tcandidate only\n"
+        ),
+        encoding="utf-8",
+    )
+    paths.bacdive_diagnostics_path.write_text(
+        (
+            "schema_version\trun_id\tquery_index\tspecies\tquery_kind\tquery\t"
+            "endpoint\tstatus\tseverity\tdiagnostic_code\tevidence_effect\t"
+            "message\thttp_status\tretry_count\taccessed_at\tnotes\n"
+            "1\trun\t2\tFusobacterium conflict\tculture_collection\tDSM 2\t"
+            "fake://bacdive/culture_collection\tconflict\twarning\t"
+            "bacdive_conflict\tnone\tconflict\t\t\t2026-07-17T00:00:00Z\t\n"
+            "1\trun\t3\tFusobacterium missing\tculture_collection\tDSM 3\t"
+            "fake://bacdive/culture_collection\tno_result\twarning\t"
+            "bacdive_no_result\tnone\tno result\t\t\t2026-07-17T00:00:00Z\t\n"
+        ),
+        encoding="utf-8",
+    )
+    paths.bacdive_source_audit_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "enabled": True,
+                "client_kind": "fake",
+                "live_api_called": False,
+                "planned_query_count": 3,
+                "executed_query_count": 3,
+                "completed_query_count": 3,
+                "result_status_counts": {"success": 2, "no_result": 1},
+                "record_count": 2,
+                "diagnostic_count": 2,
+                "candidate_only": True,
+                "strict_confirmed": False,
+                "strict_or_completion_effect": "none",
+                "raw_payload_policy": "not_written",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def _write_checklist_comparison(path: Path, rows: list[dict[str, str]]) -> None:
@@ -603,6 +670,39 @@ def test_report_notes_missing_ani_summary_and_combined_16s(tmp_path):
     assert "Combined 16S FASTA not available." in markdown
     assert "Status: phylo_skipped_too_few_sequences" in markdown
     assert "manifest has 0 16S-ready records" in markdown
+
+
+def test_report_summary_includes_bacdive_candidate_review_when_outputs_exist(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_bacdive_normalized_outputs(paths)
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## BacDive Candidate Review" in markdown
+    assert "- Enabled: true" in markdown
+    assert "- Client kind: fake" in markdown
+    assert "- Planned queries: 3" in markdown
+    assert "- Completed queries: 3" in markdown
+    assert "- Record count: 2" in markdown
+    assert "- Diagnostic count: 2" in markdown
+    assert "- Conflict count: 1" in markdown
+    assert "- No-result count: 1" in markdown
+    assert "- Candidate count: 2" in markdown
+    assert "| bacdive_conflict | 1 |" in markdown
+    assert "| bacdive_no_result | 1 |" in markdown
+    assert (
+        "BacDive rows are candidate-only audit evidence; they do not change "
+        "strict completion or selected genome evidence."
+        in markdown
+    )
+    assert "evidence-policy strict results" in markdown
+    assert "strict confirmed by BacDive" not in markdown
+
+
+def test_report_summary_omits_bacdive_candidate_review_when_outputs_absent(tmp_path):
+    markdown = build_run_summary_markdown([_record("ref1")], get_output_paths(tmp_path))
+
+    assert "BacDive Candidate Review" not in markdown
 
 
 def test_report_summary_omits_gtdb_audit_when_not_configured(tmp_path):
