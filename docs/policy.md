@@ -31,6 +31,14 @@ DSMZ catalogue accession alone maps only to
 coverage. BacDive/DSMZ sequence or genome accession links are source metadata
 for review, not automatic download authorization or manifest mutation.
 
+The BacDive adapter contract is currently an offline interface and fake-client
+test surface only. Its statuses (`success`, `no_result`, `api_unavailable`,
+`timeout`, `rate_limited`, `schema_drift`, `conflict`, and
+`terms_not_confirmed`) are adapter diagnostics, not workflow completion
+semantics. No live BacDive API call, environment/API-key read, CLI flag,
+workflow output, manifest/selection mutation, report/package integration, or
+completion-count change is enabled by this contract.
+
 ## Evidence Policy
 
 Evidence policy is a run-level derived-view strategy, not a source fact or an

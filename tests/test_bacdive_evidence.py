@@ -1,8 +1,24 @@
 import json
+import os
+import socket
 from pathlib import Path
 
 import pytest
 
+from typetreeflow.evidence.bacdive_adapter import (
+    NO_RESULT,
+    RATE_LIMITED,
+    SCHEMA_DRIFT,
+    SUCCESS,
+    TERMS_NOT_CONFIRMED,
+    TIMEOUT,
+    BacDiveClientResponse,
+    BacDiveLiveClient,
+    BacDiveLookupRequest,
+    FakeBacDiveClient,
+    build_bacdive_lookup_request,
+    lookup_bacdive_evidence,
+)
 from typetreeflow.evidence.bacdive import (
     AUTHORITATIVE_TYPE_MATERIAL_CANDIDATE,
     BACDIVE_CANDIDATE_MATCH,
@@ -166,9 +182,218 @@ def test_model_rejects_strict_tier_or_strict_reconciliation():
         )
 
 
+def test_fake_adapter_success_normalizes_records_to_candidate_evidence():
+    request = BacDiveLookupRequest(
+        query_kind="culture_collection",
+        query="DSM 1001",
+        species_name="Examplegenus alpha",
+        source_context="unit fixture",
+    )
+    fake = FakeBacDiveClient(
+        {("culture_collection", "DSM 1001"): _raw_record("type_overlap")}
+    )
+
+    result = lookup_bacdive_evidence(
+        request,
+        fake,
+        lpsn_type_strain_tokens=["DSM 1001"],
+    )
+
+    assert result.status == SUCCESS
+    assert result.records[0].species_name == "Examplegenus alpha"
+    assert result.records[0].evidence_tier == AUTHORITATIVE_TYPE_MATERIAL_CANDIDATE
+    assert result.source_url == "https://example.invalid/synthetic-bacdive/type-overlap"
+    assert result.accessed_at == "synthetic fixture 2026-07-15"
+    assert "strict" not in result.records[0].evidence_tier
+    assert fake.requests == [request]
+
+
+def test_fake_adapter_no_result_is_structured_diagnostic():
+    request = BacDiveLookupRequest(
+        query_kind="species_name",
+        query="Examplegenus missing",
+        species_name="Examplegenus missing",
+    )
+    fake = FakeBacDiveClient({})
+
+    result = lookup_bacdive_evidence(request, fake)
+
+    assert result.status == NO_RESULT
+    assert result.records == ()
+    assert result.diagnostics[0].code == "bacdive_no_result"
+
+
+def test_fake_adapter_timeout_is_not_no_result_or_exception():
+    request = BacDiveLookupRequest(
+        query_kind="culture_collection",
+        query="DSM 9999",
+        species_name="Examplegenus timeout",
+    )
+    fake = FakeBacDiveClient(
+        {("culture_collection", "DSM 9999"): BacDiveClientResponse(status=TIMEOUT)}
+    )
+
+    result = lookup_bacdive_evidence(request, fake)
+
+    assert result.status == TIMEOUT
+    assert result.records == ()
+    assert result.diagnostics[0].code == "bacdive_timeout"
+
+
+def test_fake_adapter_rate_limited_is_structured_diagnostic():
+    request = BacDiveLookupRequest(
+        query_kind="species_name",
+        query="Examplegenus rate",
+        species_name="Examplegenus rate",
+    )
+    fake = FakeBacDiveClient(
+        {("species_name", "Examplegenus rate"): BacDiveClientResponse(status=RATE_LIMITED)}
+    )
+
+    result = lookup_bacdive_evidence(request, fake)
+
+    assert result.status == RATE_LIMITED
+    assert result.diagnostics[0].code == "bacdive_rate_limited"
+
+
+def test_fake_adapter_schema_drift_is_structured_diagnostic():
+    request = BacDiveLookupRequest(
+        query_kind="culture_collection",
+        query="DSM 7777",
+        species_name="Examplegenus drift",
+    )
+    fake = FakeBacDiveClient(
+        {("culture_collection", "DSM 7777"): {"unexpected": {"shape": "changed"}}}
+    )
+
+    result = lookup_bacdive_evidence(request, fake)
+
+    assert result.status == SCHEMA_DRIFT
+    assert result.records == ()
+    assert result.diagnostics[0].code == "bacdive_schema_drift"
+
+
+def test_fake_adapter_species_conflict_preserves_record_and_diagnostic():
+    request = BacDiveLookupRequest(
+        query_kind="culture_collection",
+        query="DSM 4004",
+        species_name="Examplegenus gamma",
+    )
+    fake = FakeBacDiveClient(
+        {("culture_collection", "DSM 4004"): _raw_record("species_conflict")}
+    )
+
+    result = lookup_bacdive_evidence(
+        request,
+        fake,
+        lpsn_type_strain_tokens=["DSM 4004"],
+    )
+
+    assert result.status == "conflict"
+    assert result.records[0].species_name == "Examplegenus delta"
+    assert any(item.code == "bacdive_conflict" for item in result.diagnostics)
+    assert result.records[0].evidence_tier == AUTHORITATIVE_TYPE_MATERIAL_CANDIDATE
+
+
+def test_fake_adapter_terms_not_confirmed_does_not_call_client():
+    request = BacDiveLookupRequest(
+        query_kind="culture_collection",
+        query="DSM 1001",
+        species_name="Examplegenus alpha",
+    )
+    fake = FakeBacDiveClient(
+        {("culture_collection", "DSM 1001"): _raw_record("type_overlap")}
+    )
+
+    result = lookup_bacdive_evidence(request, fake, terms_confirmed=False)
+
+    assert result.status == TERMS_NOT_CONFIRMED
+    assert result.records == ()
+    assert result.diagnostics[0].code == "bacdive_terms_not_confirmed"
+    assert fake.requests == []
+
+
+def test_live_client_skeleton_requires_terms_and_citation_confirmation():
+    with pytest.raises(ValueError, match="terms and citation"):
+        BacDiveLiveClient(terms_confirmed=False, citation_confirmed=True)
+
+
+def test_request_builder_prefers_culture_collection_query_over_species_query():
+    request = build_bacdive_lookup_request(
+        species_name="Examplegenus alpha",
+        culture_collection_numbers=["DSM: 1001", "ATCC 1001"],
+        strain_designation="Alpha Type",
+        source_context="lpsn tokens",
+    )
+
+    assert request.query_kind == "culture_collection"
+    assert request.query == "DSM 1001"
+    assert request.species_name == "Examplegenus alpha"
+    assert request.source_context == "lpsn tokens"
+
+
+def test_adapter_fake_client_does_not_use_network_or_environment(monkeypatch):
+    def fail_getenv(*args, **kwargs):
+        raise AssertionError("adapter must not read environment")
+
+    def fail_network(*args, **kwargs):
+        raise AssertionError("adapter must not open network sockets")
+
+    monkeypatch.setattr(os, "getenv", fail_getenv)
+    monkeypatch.setattr(socket, "create_connection", fail_network)
+    request = build_bacdive_lookup_request(
+        species_name="Examplegenus beta",
+        culture_collection_numbers=["DSM 2002"],
+    )
+    fake = FakeBacDiveClient(
+        {("culture_collection", "DSM 2002"): _raw_record("type_no_overlap")}
+    )
+
+    result = lookup_bacdive_evidence(
+        request,
+        fake,
+        lpsn_type_strain_tokens=["DSM 9999"],
+    )
+
+    assert result.status == SUCCESS
+    assert any(
+        item.code == "bacdive_no_lpsn_token_overlap"
+        for item in result.diagnostics
+    )
+
+
+def test_adapter_preserves_multiple_accession_diagnostics():
+    request = BacDiveLookupRequest(
+        query_kind="culture_collection",
+        query="DSM 5005",
+        species_name="Examplegenus epsilon",
+    )
+    fake = FakeBacDiveClient(
+        {("culture_collection", "DSM 5005"): _raw_record("multiple_accessions")}
+    )
+
+    result = lookup_bacdive_evidence(
+        request,
+        fake,
+        lpsn_type_strain_tokens=["ATCC 5005"],
+    )
+
+    assert result.status == SUCCESS
+    assert result.records[0].culture_collection_numbers == (
+        "DSM 5005",
+        "ATCC 5005",
+        "JCM 5005",
+    )
+    assert any(item.code == "bacdive_multiple_accessions" for item in result.diagnostics)
+
+
 def _record(fixture_id):
+    return parse_bacdive_evidence_record(_raw_record(fixture_id))
+
+
+def _raw_record(fixture_id):
     data = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
     for item in data["records"]:
         if item["fixture_id"] == fixture_id:
-            return parse_bacdive_evidence_record(item)
+            return item
     raise AssertionError(f"missing fixture: {fixture_id}")

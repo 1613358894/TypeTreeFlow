@@ -97,6 +97,27 @@ The offline reconciliation status is one of `bacdive_candidate_match`,
 strict use requires a later proof chain tying the selected genome or BioSample
 to the LPSN type-strain equivalence set.
 
+`typetreeflow.evidence.bacdive_adapter` defines an offline adapter contract for
+future optional live BacDive enrichment. The P3b-a contract includes
+`BacDiveLookupRequest`, `BacDiveLookupResult`, `BacDiveDiagnostic`,
+`BacDiveClientProtocol`, `FakeBacDiveClient`, and a non-wired
+`BacDiveLiveClient` skeleton. Requests are bounded to `culture_collection`,
+`strain_designation`, or `species_name`, with culture-collection tokens
+preferred by the request builder.
+
+Adapter lookup statuses are `success`, `no_result`, `api_unavailable`,
+`timeout`, `rate_limited`, `schema_drift`, `conflict`, and
+`terms_not_confirmed`. These statuses are structured diagnostics for the
+adapter layer; they are not workflow-stage failures, completion statuses, or
+missing-genome findings. The fake client normalizes fixture dictionaries into
+`BacDiveEvidenceRecord` rows and preserves diagnostics for multiple
+accessions, missing LPSN token overlap, species conflicts, and schema drift.
+
+The adapter contract is not a user-visible feature. It is not wired into CLI
+arguments, `verify-genus`, provider planning, live HTTP calls, environment/API
+key reads, output files, manifest writes, selection, reports, packages, or
+completion metrics.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.
