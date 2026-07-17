@@ -32,8 +32,9 @@ only to
 coverage. BacDive/DSMZ sequence or genome accession links are source metadata
 for review, not automatic download authorization or manifest mutation.
 
-The BacDive adapter contract is currently an offline interface and fake-client
-test surface only. Its statuses (`success`, `no_result`, `api_unavailable`,
+The BacDive adapter contract includes an offline interface, fake-client test
+surface, and injectable live-client implementation tested only with simulated
+HTTP transports. Its statuses (`success`, `no_result`, `api_unavailable`,
 `timeout`, `rate_limited`, `schema_drift`, `conflict`, and
 `terms_not_confirmed`) are adapter diagnostics, not workflow completion
 semantics. The opt-in `verify-genus` BacDive workflow skeleton may write

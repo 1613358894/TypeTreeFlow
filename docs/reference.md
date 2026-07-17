@@ -100,8 +100,10 @@ to the LPSN type-strain equivalence set.
 `typetreeflow.evidence.bacdive_adapter` defines an offline adapter contract for
 future optional live BacDive enrichment. The P3b-a contract includes
 `BacDiveLookupRequest`, `BacDiveLookupResult`, `BacDiveDiagnostic`,
-`BacDiveClientProtocol`, `FakeBacDiveClient`, and a non-wired
-`BacDiveLiveClient` skeleton. Requests are bounded to `culture_collection`,
+`BacDiveClientProtocol`, `FakeBacDiveClient`, and an injectable
+`BacDiveLiveClient`. The live client is implemented behind an explicit
+transport abstraction and is covered by simulated HTTP tests only; it is not
+constructed by the public workflow. Requests are bounded to `culture_collection`,
 `strain_designation`, or `species_name`, with culture-collection tokens
 preferred by the request builder.
 
@@ -132,6 +134,18 @@ BacDive credentials, and does not contact BacDive. If enrichment is enabled
 without an injected client, `verify-genus` writes a safe diagnostic with
 `bacdive_live_client_not_enabled`, keeps the core workflow non-failing, and
 records `client_kind=none` and `live_api_called=false`.
+
+`BacDiveLiveClient` supports BacDive v2 path construction for
+`/v2/culturecollectionno/{culturecollectionno}`,
+`/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`. It
+requires explicit terms and citation confirmation at construction, uses no
+environment variables, credentials, authentication headers, or cookies, and
+accepts an injected `get_json(url, timeout)` transport for tests. Its HTTP call
+cap covers both lookup and detail-fetch requests. Simulated transport tests
+cover endpoint construction, nested response parsing, no result, schema drift,
+malformed JSON, timeout, HTTP 429 rate limiting, HTTP 5xx unavailability, and
+candidate-only source audit metadata. These tests do not call the live BacDive
+API or run a live TypeTreeFlow workflow.
 
 The query planner is pure and IO-free. In `tokens` mode it plans only LPSN
 type-strain token lookups (`culture_collection` for recognized collection
