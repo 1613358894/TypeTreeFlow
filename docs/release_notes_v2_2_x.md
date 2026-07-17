@@ -1,9 +1,48 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.22 integration review as
+These notes consolidate the v2.2.2 through v2.2.23 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.23
+
+v2.2.23 is an offline BacDive adapter contract release based on v2.2.22. It
+records the structured lookup contract and fake-client tests now merged on
+`main`, while preserving the v2.2.22 offline BacDive/DSMZ candidate-evidence
+model and the v2.2.21 artifact scope readability semantics:
+
+- `typetreeflow.evidence.bacdive_adapter` defines the offline BacDive adapter
+  contract for `BacDiveLookupRequest`, `BacDiveLookupResult`,
+  `BacDiveDiagnostic`, `BacDiveClientProtocol`, `FakeBacDiveClient`, and the
+  non-wired `BacDiveLiveClient` skeleton.
+- Lookup requests are bounded to structured request kinds such as
+  `culture_collection`, `species_name`, and `bacdive_id`; results preserve
+  normalized `BacDiveEvidenceRecord` rows, source URLs, diagnostics, and
+  adapter-level status.
+- Structured diagnostics cover no result, timeout, rate-limit, schema drift,
+  species conflict, multiple accessions, missing LPSN-token overlap, and
+  unconfirmed terms/citation review.
+- The fake BacDive client is fixture-only. It does not require an API key, read
+  environment variables, open network sockets, call the live BacDive API, or
+  imply provider login, scraping, purchase, terms acceptance, download, FASTA
+  installation, or manifest mutation.
+- The adapter contract is not wired into CLI commands, workflow stages,
+  provider planning, downloads, manifest writes, completion/report/package
+  behavior, or completion metrics.
+- BacDive type-strain signals remain candidate evidence only. They do not mark
+  `strict_lpsn_confirmed`, `curated_strict_confirmed`, strict completion, or
+  any strict confirmed type-strain status without a later proof chain tying the
+  genome or BioSample record to the LPSN type-strain equivalence set.
+- Verification evidence includes PR #27 CI PASS and post-merge quick gates
+  PASS. This change did not require live workflow or server smoke validation.
+
+v2.2.23 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live BacDive API behavior, provider automation, live provider
+behavior, release asset publication, or relaxed strict type-strain evidence
+thresholds. The v2.2.22 offline BacDive model and v2.2.21 artifact scope
+readability semantics remain valid.
 
 ## v2.2.22
 

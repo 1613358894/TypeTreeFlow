@@ -1,5 +1,53 @@
 # Changelog
 
+## v2.2.23 - 2026-07-17
+
+v2.2.23 is an offline BacDive adapter contract release based on v2.2.22. It
+records the adapter request/result surface and fake-client tests now merged on
+`main`, while preserving the v2.2.22 offline BacDive/DSMZ candidate-evidence
+model and the v2.2.21 artifact scope readability semantics.
+
+### Added
+
+- Added `typetreeflow.evidence.bacdive_adapter` as an offline BacDive adapter
+  contract for bounded lookup requests, lookup results, diagnostics, and
+  failure statuses.
+- Added `FakeBacDiveClient` for fixture-only BacDive adapter tests without
+  environment reads, API keys, network sockets, or live BacDive API calls.
+- Added structured BacDive lookup diagnostics for no result, timeout,
+  rate-limit, schema drift, species conflict, multiple accessions, missing
+  LPSN-token overlap, and unconfirmed terms/citation review.
+
+### Changed
+
+- BacDive adapter results remain candidate evidence only. BacDive type-strain
+  signals and LPSN token overlap still do not upgrade records to strict
+  confirmed type strains or strict completion.
+- The adapter contract remains review-only and offline; it is not a
+  user-visible CLI, workflow, provider, download, manifest, completion, report,
+  or package integration.
+
+### Verification
+
+- PR #27 CI PASS.
+- Post-merge quick gates PASS.
+- This change did not require live workflow or server smoke validation.
+- v2.2.22 offline BacDive model and v2.2.21 artifact scope readability
+  semantics remain valid.
+
+### Notes
+
+- No live BacDive API, environment/API-key read, CLI flag, workflow stage,
+  provider behavior, download, manifest write, completion/report/package
+  behavior, release asset publication, or external network access is
+  introduced.
+- BacDive adapter failure statuses are structured adapter diagnostics only;
+  they are not workflow-stage failures, provider completion statuses, or
+  missing-genome findings.
+- This release does not claim full-download validation, full Clostridium
+  strict completion, or strict type-strain confirmation from BacDive/DSMZ
+  source facts.
+
 ## v2.2.22 - 2026-07-16
 
 v2.2.22 is an offline BacDive/DSMZ evidence model release based on v2.2.21.

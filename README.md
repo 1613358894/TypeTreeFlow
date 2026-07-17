@@ -1,11 +1,12 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.22 release adds an offline BacDive/DSMZ
-candidate-evidence model and synthetic fixture-only tests. It does not wire
-BacDive/DSMZ into live APIs, CLI workflows, downloads, manifests, reports, or
-completion metrics, and the v2.2.21 artifact scope readability semantics remain
-valid.
+workflow. The current 2.2.23 release records the offline BacDive adapter
+contract, fake BacDive client, and structured lookup request/result,
+diagnostic, and failure-status surface. It does not wire BacDive/DSMZ into live
+APIs, CLI workflows, providers, downloads, manifests, reports, packages, or
+completion metrics, and the v2.2.22 offline BacDive model and v2.2.21 artifact
+scope readability semantics remain valid.
 
 ## AI-First Route
 
@@ -84,7 +85,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.22 workflow
+## Recommended v2.2.23 workflow
 
 Plan first:
 
@@ -186,12 +187,12 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.22 release record includes PR #26 CI PASS and post-merge quick gates
+The v2.2.23 release record includes PR #27 CI PASS and post-merge quick gates
 PASS. It did not require live workflow or server smoke validation. The
-still-valid v2.2.21 artifact scope readability semantics and v2.2.20
-policy-aware artifacts and GTDB gating validations remain release verification
-evidence only; they do not claim full Clostridium strict completion or
-full-download validation.
+still-valid v2.2.22 offline BacDive model, v2.2.21 artifact scope readability
+semantics, and v2.2.20 policy-aware artifacts and GTDB gating validations remain
+release verification evidence only; they do not claim full Clostridium strict
+completion or full-download validation.
 
 ## External And Provider Workflows
 
