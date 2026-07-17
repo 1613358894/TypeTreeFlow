@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.25 / 2.2.25 release verification path uses
+The current v2.2.26 / 2.2.26 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -15,13 +15,13 @@ plumbing, Artifact Scope report tables, AI-readable `artifact_scope.tsv`
 fields, configured-only GTDB audit reporting, centralized evidence policy
 evaluation, offline BacDive/DSMZ candidate-evidence boundaries, offline BacDive
 adapter contract diagnostics, BacDive enrichment workflow skeleton behavior,
-clean
-deployment readiness, provider
-timeout/error classification,
-stdout JSON isolation, failed-handoff cache boundaries, workspace hygiene, and
-ensures repository-root `results/` remains absent. The clean deployment path is
-`environment.yml`, operator-run `barrnap --updatedb`, and `typetreeflow
-doctor`; server rehearsal passed the clean deployment full rerun.
+BacDive candidate review report/package handoff behavior, clean deployment
+readiness, provider timeout/error classification, stdout JSON isolation,
+failed-handoff cache boundaries, workspace hygiene, and ensures
+repository-root `results/` remains absent. The clean deployment path is
+`environment.yml`, operator-run `barrnap --updatedb`, and
+`typetreeflow doctor`; server rehearsal passed the clean deployment full
+rerun.
 
 Selection evidence levels remain visible as `strict_confirmed`,
 `likely_type_material`, and `representative_only`. `--auto-accept-selection`
@@ -85,6 +85,18 @@ manifests, change selection/download behavior, change report/package behavior,
 or change completion metrics. BacDive rows remain `strict_confirmed=false`
 with `selected_genome_linkage=not_evaluated`.
 
+BacDive report and package handoff behavior remains candidate-only and
+audit-only. When opt-in BacDive outputs exist, `report/summary.md` may include
+a `BacDive Candidate Review` audit summary, and
+`package-results --include reports` includes
+`evidence/bacdive_enrichment.tsv`,
+`evidence/bacdive_diagnostics.tsv`, and
+`evidence/bacdive_source_audit.json`. Package `artifact_scope.tsv` and
+`reports/artifact_scope.tsv` include BacDive audit rows with `scope=audit` and
+`strict_scientific_deliverable=false`. These rows do not change strict
+completion, selected genome evidence, manifests, completion metrics, or
+evidence-policy strict results.
+
 GTDB audit output is configured-only. `taxonomy/gtdb_metadata_audit.json`,
 run-state GTDB audit status, report wording, and package wording appear only
 when `--gtdb-metadata` or `--gtdb-release` is provided. Unconfigured runs must
@@ -121,17 +133,18 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.25 release record includes PR #29 CI PASS, post-merge quick gates
-PASS, and offline BacDive fake workflow contract smoke PASS at
-`9d74ce63349cd1043b17b031517d45986eb8a896`. It did not require live workflow
-or server smoke validation. The still-valid v2.2.24 configuration plumbing,
-v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive model,
-v2.2.21 artifact scope readability semantics, and v2.2.20 policy-aware
-artifacts and GTDB gating validations remain verification evidence only: they
-do not claim full Clostridium strict completion or full-download validation.
-The release does not change artifact membership, FASTA content, default
-phylogeny input, live BacDive API behavior, live provider/download behavior,
-provider behavior, selection, completion metrics, report/package integration,
-or strict evidence thresholds.
+The v2.2.26 release record includes PR #30 CI PASS, post-merge quick gates
+PASS, and BacDive report/package offline contract smoke PASS at
+`807d4caffd0acef0b4aefc99fcb3ab5aee2fa2d5`. It did not require live workflow
+or server smoke validation. The still-valid v2.2.25 skeleton, v2.2.24
+configuration plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22
+offline BacDive model, v2.2.21 artifact scope readability semantics, and
+v2.2.20 policy-aware artifacts and GTDB gating validations remain verification
+evidence only: they do not claim full Clostridium strict completion or
+full-download validation. The release does not change artifact membership,
+FASTA content, default phylogeny input, live BacDive API behavior, API-key
+handling, environment reads, network access, live provider/download behavior,
+provider behavior, selection, completion metrics, or strict evidence
+thresholds.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.

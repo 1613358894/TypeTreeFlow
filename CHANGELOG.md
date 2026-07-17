@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.2.26 - 2026-07-17
+
+v2.2.26 is a BacDive candidate review reporting and package handoff release
+based on v2.2.25. It records the report/package integration now merged on
+`main`, while preserving the v2.2.25 opt-in workflow skeleton, the v2.2.24
+configuration plumbing, the v2.2.23 offline BacDive adapter contract, the
+v2.2.22 offline BacDive/DSMZ candidate-evidence model, and the v2.2.21
+artifact scope readability semantics.
+
+### Added
+
+- Added a `BacDive Candidate Review` audit summary to `report/summary.md`
+  when opt-in BacDive evidence outputs are present.
+- Added `package-results --include reports` handoff for the normalized BacDive
+  evidence triplet: `evidence/bacdive_enrichment.tsv`,
+  `evidence/bacdive_diagnostics.tsv`, and
+  `evidence/bacdive_source_audit.json`.
+- Added BacDive audit rows to package `artifact_scope.tsv` and
+  `reports/artifact_scope.tsv` handoff copies when BacDive outputs are
+  included.
+
+### Changed
+
+- BacDive rows remain candidate-only and audit-only. The package scope rows use
+  `scope=audit` and `strict_scientific_deliverable=false`.
+- BacDive report/package handoff does not change strict completion, selected
+  genome evidence, manifests, completion metrics, or evidence-policy strict
+  results.
+
+### Verification
+
+- PR #30 CI PASS.
+- Post-merge quick gates PASS.
+- BacDive report/package offline contract smoke PASS at
+  `807d4caffd0acef0b4aefc99fcb3ab5aee2fa2d5`.
+
+### Notes
+
+- No live BacDive API integration, API-key requirement, environment read,
+  network access, provider behavior, download, manifest write, completion
+  metric change, strict evidence-policy change, release asset publication, or
+  external network access is introduced.
+- This release does not claim full-download validation, full Clostridium
+  strict completion, or strict type-strain confirmation from BacDive/DSMZ
+  source facts.
+
 ## v2.2.25 - 2026-07-17
 
 v2.2.25 is a BacDive enrichment workflow skeleton release based on v2.2.24.

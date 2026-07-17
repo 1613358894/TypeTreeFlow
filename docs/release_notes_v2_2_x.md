@@ -1,9 +1,46 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.25 integration review as
+These notes consolidate the v2.2.2 through v2.2.26 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.26
+
+v2.2.26 is a BacDive candidate review reporting and package handoff release
+based on v2.2.25. It records the report/package integration now merged on
+`main`, while preserving the v2.2.25 opt-in BacDive enrichment workflow
+skeleton, the v2.2.24 configuration plumbing, the v2.2.23 offline BacDive
+adapter contract, the v2.2.22 offline BacDive/DSMZ candidate-evidence model,
+and the v2.2.21 artifact scope readability semantics:
+
+- `report/summary.md` can include a `BacDive Candidate Review` audit summary
+  when opt-in BacDive evidence outputs are present.
+- `package-results --include reports` includes the normalized BacDive evidence
+  triplet when present: `evidence/bacdive_enrichment.tsv`,
+  `evidence/bacdive_diagnostics.tsv`, and
+  `evidence/bacdive_source_audit.json`.
+- Package `artifact_scope.tsv` and `reports/artifact_scope.tsv` include
+  BacDive audit rows for those handoff artifacts.
+- BacDive rows remain candidate-only and audit-only. Scope rows use
+  `scope=audit` and `strict_scientific_deliverable=false`.
+- BacDive report/package integration does not change strict completion,
+  selected genome evidence, manifests, completion metrics, evidence-policy
+  strict results, downloads, FASTA installation, or provider behavior.
+- The public CLI still does not construct or call a live BacDive client,
+  require an API key, read environment variables, use live APIs, or contact the
+  network.
+- Verification evidence includes PR #30 CI PASS, post-merge quick gates PASS,
+  and BacDive report/package offline contract smoke PASS at
+  `807d4caffd0acef0b4aefc99fcb3ab5aee2fa2d5`.
+
+v2.2.26 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live BacDive API behavior, provider automation, live provider
+behavior, release asset publication, or relaxed strict type-strain evidence
+thresholds. The v2.2.25 skeleton, v2.2.24 configuration plumbing, v2.2.23
+offline adapter contract, v2.2.22 offline BacDive model, and v2.2.21 artifact
+scope readability semantics remain valid.
 
 ## v2.2.25
 
