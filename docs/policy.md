@@ -36,10 +36,14 @@ The BacDive adapter contract is currently an offline interface and fake-client
 test surface only. Its statuses (`success`, `no_result`, `api_unavailable`,
 `timeout`, `rate_limited`, `schema_drift`, `conflict`, and
 `terms_not_confirmed`) are adapter diagnostics, not workflow completion
-semantics. Current CLI parameters only record BacDive configuration metadata;
-they do not enable live BacDive API calls, environment/API-key reads, workflow
-outputs, manifest/selection mutation, report/package integration, or
-completion-count changes.
+semantics. The opt-in `verify-genus` BacDive workflow skeleton may write
+`evidence/bacdive_enrichment.tsv`, `evidence/bacdive_diagnostics.tsv`, and
+`evidence/bacdive_source_audit.json` only from LPSN checklist context and an
+injected fake or fixture-backed client. It must not construct a live client,
+read environment/API keys/cookies, call the live BacDive API, mutate
+manifest/selection/download/provider outputs, enter report/package outputs, or
+change completion-count semantics. If no injected client is supplied, it writes
+`bacdive_live_client_not_enabled` as a non-failing diagnostic.
 
 ## Evidence Policy
 

@@ -66,3 +66,27 @@ def test_run_state_accepts_gtdb_metadata_stage_statuses():
     )
 
     assert state.stages["gtdb_audit"].status == "gtdb_metadata_load_failed"
+
+
+def test_run_state_accepts_bacdive_enrichment_warning_stage():
+    state = WorkflowState(
+        status="succeeded",
+        outdir="out",
+        stages={
+            "bacdive_enrichment": StageState(
+                status="warning",
+                outputs=[
+                    "evidence/bacdive_enrichment.tsv",
+                    "evidence/bacdive_diagnostics.tsv",
+                    "evidence/bacdive_source_audit.json",
+                ],
+                summary=(
+                    "BacDive enrichment: planned_queries=0, "
+                    "completed_queries=0, record_count=0, diagnostic_count=1, "
+                    "client_kind=none"
+                ),
+            )
+        },
+    )
+
+    assert state.stages["bacdive_enrichment"].status == "warning"

@@ -15,7 +15,7 @@ def overall_status(stages: dict[str, StageState]) -> str:
         return "failed"
     if "partial" in statuses:
         return "partial"
-    if statuses and statuses <= {"succeeded", "skipped"}:
+    if statuses and statuses <= {"succeeded", "skipped", "warning"}:
         return "succeeded"
     if statuses:
         return "partial"

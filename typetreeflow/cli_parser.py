@@ -312,8 +312,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--enable-bacdive-enrichment",
         action="store_true",
         help=(
-            "For verify-genus, record opt-in BacDive enrichment configuration. "
-            "The BacDive adapter is not wired in this release."
+            "For verify-genus, enable the BacDive fake/injected-client "
+            "candidate enrichment skeleton. The live BacDive API is not wired."
         ),
     )
     parser.add_argument(
@@ -321,8 +321,8 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["tokens", "species", "both"],
         default="tokens",
         help=(
-            "For future verify-genus BacDive enrichment, choose bounded query "
-            "mode: tokens, species, or both; default: tokens."
+            "For verify-genus BacDive fake/injected-client enrichment, choose "
+            "bounded query mode: tokens, species, or both; default: tokens."
         ),
     )
     parser.add_argument(
@@ -330,7 +330,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_float,
         default=20.0,
         help=(
-            "For future verify-genus BacDive enrichment, positive per-query "
+            "For verify-genus BacDive enrichment metadata, positive per-query "
             "timeout in seconds; default: 20."
         ),
     )
@@ -339,7 +339,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=50,
         help=(
-            "For future verify-genus BacDive enrichment, positive maximum query "
+            "For verify-genus BacDive fake/injected-client enrichment, positive maximum query "
             "count; default: 50."
         ),
     )
