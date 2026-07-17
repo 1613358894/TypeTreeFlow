@@ -500,8 +500,8 @@ def _lookup_diagnostic_row(
         "diagnostic_code": diagnostic.code,
         "evidence_effect": diagnostic.evidence_effect,
         "message": diagnostic.message,
-        "http_status": "",
-        "retry_count": "",
+        "http_status": diagnostic.http_status or "",
+        "retry_count": diagnostic.retry_count or "",
         "accessed_at": result.accessed_at,
         "notes": "; ".join(diagnostic.notes),
     }

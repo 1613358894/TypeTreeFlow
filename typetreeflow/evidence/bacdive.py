@@ -100,6 +100,8 @@ def parse_bacdive_evidence_record(data: Mapping[str, Any]) -> BacDiveEvidenceRec
             ("full_scientific_name",),
             ("taxonomy", "species"),
             ("taxonomy", "full_scientific_name"),
+            ("taxonomy_name", "strains", "species"),
+            ("taxonomy_name", "strains", "full_scientific_name"),
             ("Name and taxonomic classification", "species"),
             ("Name and taxonomic classification", "full scientific name"),
         ),
@@ -110,6 +112,7 @@ def parse_bacdive_evidence_record(data: Mapping[str, Any]) -> BacDiveEvidenceRec
             ("strain_designation",),
             ("designation",),
             ("strains", "designation"),
+            ("taxonomy_name", "strains", "designation"),
             ("Name and taxonomic classification", "strain designation"),
         ),
     ) or _text(strain.get("designation"))
@@ -121,6 +124,7 @@ def parse_bacdive_evidence_record(data: Mapping[str, Any]) -> BacDiveEvidenceRec
             ("strain_number",),
             ("strains", "strain_number"),
             ("strains", "culture_collection_numbers"),
+            ("literature", "strains", "strain_number"),
         ),
     )
     if raw_collection_numbers is None:
@@ -138,6 +142,7 @@ def parse_bacdive_evidence_record(data: Mapping[str, Any]) -> BacDiveEvidenceRec
             ("is_type_strain",),
             ("type_strain",),
             ("strains", "is_type_strain"),
+            ("taxonomy_name", "strains", "is_type_strain"),
         ),
     )
     if type_signal is None:
