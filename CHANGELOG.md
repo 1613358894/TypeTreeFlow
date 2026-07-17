@@ -1,5 +1,56 @@
 # Changelog
 
+## v2.2.25 - 2026-07-17
+
+v2.2.25 is a BacDive enrichment workflow skeleton release based on v2.2.24.
+It records the explicitly enabled offline/fake-client workflow contract now
+merged on `main`, while preserving the v2.2.24 configuration plumbing, the
+v2.2.23 offline BacDive adapter contract, the v2.2.22 offline BacDive/DSMZ
+candidate-evidence model, and the v2.2.21 artifact scope readability
+semantics.
+
+### Added
+
+- Added the BacDive enrichment workflow skeleton for `verify-genus`, gated by
+  `--enable-bacdive-enrichment`.
+- Added opt-in BacDive evidence outputs when an injected/fake client is
+  supplied: `evidence/bacdive_enrichment.tsv`,
+  `evidence/bacdive_diagnostics.tsv`, and
+  `evidence/bacdive_source_audit.json`.
+- Added the `bacdive_enrichment` run-state stage for enabled skeleton runs.
+- Added a safe diagnostic path for enabled runs without an injected client:
+  `bacdive_live_client_not_enabled`.
+
+### Changed
+
+- The public CLI does not construct a live BacDive client, read API keys, read
+  environment variables, contact BacDive, or fail the core workflow when no
+  client is injected.
+- BacDive enrichment remains candidate-only. Output rows keep
+  `strict_confirmed=false` and
+  `selected_genome_linkage=not_evaluated`.
+- BacDive enrichment does not change selection, manifest writes, completion
+  metrics, download behavior, or report/package integration.
+
+### Verification
+
+- PR #29 CI PASS.
+- Post-merge quick gates PASS.
+- Offline BacDive fake workflow contract smoke PASS at
+  `9d74ce63349cd1043b17b031517d45986eb8a896`.
+- v2.2.24 configuration plumbing, v2.2.23 offline BacDive adapter contract,
+  v2.2.22 offline BacDive model, and v2.2.21 artifact scope readability
+  semantics remain valid.
+
+### Notes
+
+- No live BacDive API integration, environment/API-key read, provider
+  behavior, download, manifest write, completion/report/package behavior,
+  release asset publication, or external network access is introduced.
+- This release does not claim full-download validation, full Clostridium
+  strict completion, or strict type-strain confirmation from BacDive/DSMZ
+  source facts.
+
 ## v2.2.24 - 2026-07-17
 
 v2.2.24 is a BacDive enrichment configuration plumbing release based on

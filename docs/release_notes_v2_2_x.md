@@ -1,9 +1,52 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.24 integration review as
+These notes consolidate the v2.2.2 through v2.2.25 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.25
+
+v2.2.25 is a BacDive enrichment workflow skeleton release based on v2.2.24. It
+records the opt-in offline/fake-client workflow contract now merged on `main`,
+while preserving the v2.2.24 BacDive configuration plumbing, the v2.2.23
+offline BacDive adapter contract, the v2.2.22 offline BacDive/DSMZ
+candidate-evidence model, and the v2.2.21 artifact scope readability
+semantics:
+
+- `verify-genus` can run the BacDive enrichment workflow skeleton when
+  `--enable-bacdive-enrichment` is explicitly supplied. BacDive enrichment
+  remains disabled by default.
+- With an injected/fake client, enabled runs may write
+  `evidence/bacdive_enrichment.tsv`,
+  `evidence/bacdive_diagnostics.tsv`, and
+  `evidence/bacdive_source_audit.json`.
+- Enabled runs may record a `bacdive_enrichment` stage in `run_state.json`.
+- When no client is injected, the public CLI does not construct a live client,
+  does not fail the core workflow, and writes a safe
+  `bacdive_live_client_not_enabled` diagnostic.
+- The skeleton does not require an API key, read environment variables, use
+  network access, call the live BacDive API, automate provider behavior,
+  download files, mutate manifests, change reports/packages, or change
+  completion metrics.
+- BacDive enrichment remains candidate-only. Output rows keep
+  `strict_confirmed=false` and
+  `selected_genome_linkage=not_evaluated`; BacDive type-strain signals and
+  LPSN token overlap do not mark `strict_lpsn_confirmed`,
+  `curated_strict_confirmed`, strict completion, or any strict confirmed
+  type-strain status without a later proof chain tying the genome or BioSample
+  record to the LPSN type-strain equivalence set.
+- Verification evidence includes PR #29 CI PASS, post-merge quick gates PASS,
+  and offline BacDive fake workflow contract smoke PASS at
+  `9d74ce63349cd1043b17b031517d45986eb8a896`.
+
+v2.2.25 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live BacDive API behavior, provider automation, live provider
+behavior, release asset publication, or relaxed strict type-strain evidence
+thresholds. The v2.2.24 configuration plumbing, v2.2.23 offline adapter
+contract, v2.2.22 offline BacDive model, and v2.2.21 artifact scope
+readability semantics remain valid.
 
 ## v2.2.24
 
