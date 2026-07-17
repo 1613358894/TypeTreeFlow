@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 
 import pytest
@@ -288,6 +289,80 @@ def test_package_results_adds_policy_aware_16s_artifacts_and_scope_manifest(tmp_
         "| Compatibility all-available 16S FASTA | rrna/all_16S.fasta | all | false |"
         in readme
     )
+
+
+def test_package_results_includes_bacdive_normalized_outputs_and_scope_rows(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    _write_bacdive_normalized_outputs(paths)
+    raw_cache = paths.cache_dir / "bacdive" / "raw_response.json"
+    raw_cache.parent.mkdir(parents=True, exist_ok=True)
+    raw_cache.write_text('{"raw": true}\n', encoding="utf-8")
+
+    result = package_results(tmp_path, include="reports")
+
+    delivered_names = {
+        path.relative_to(result.delivery_dir).as_posix()
+        for path in result.delivery_dir.rglob("*")
+        if path.is_file()
+    }
+    assert "evidence/bacdive_enrichment.tsv" in delivered_names
+    assert "evidence/bacdive_diagnostics.tsv" in delivered_names
+    assert "evidence/bacdive_source_audit.json" in delivered_names
+    assert "cache/bacdive/raw_response.json" not in delivered_names
+
+    root_scope = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    reports_scope = _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv")
+    assert root_scope == reports_scope
+    bacdive_rows = [
+        row for row in root_scope if row["artifact_path"].startswith("evidence/bacdive_")
+    ]
+    assert {row["artifact_path"] for row in bacdive_rows} == {
+        "evidence/bacdive_enrichment.tsv",
+        "evidence/bacdive_diagnostics.tsv",
+        "evidence/bacdive_source_audit.json",
+    }
+    assert {row["scope"] for row in bacdive_rows} == {"audit"}
+    assert {row["strict_scientific_deliverable"] for row in bacdive_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in bacdive_rows} == {
+        "candidate enrichment review"
+    }
+    assert {row["not_for"] for row in bacdive_rows} == {
+        "strict type-strain confirmation"
+    }
+    enrichment_row = next(
+        row
+        for row in bacdive_rows
+        if row["artifact_path"] == "evidence/bacdive_enrichment.tsv"
+    )
+    assert enrichment_row["artifact_label"] == "BacDive normalized candidate enrichment"
+    assert enrichment_row["record_count"] == "2"
+    assert enrichment_row["candidate_count"] == "2"
+
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    package_text = readme + "\n" + index + "\n" + (
+        result.delivery_dir / "artifact_scope.tsv"
+    ).read_text(encoding="utf-8")
+    assert "## BacDive Candidate Review" in readme
+    assert "candidate-only and audit-only" in readme
+    assert "Raw BacDive cache files and source snapshots are not included." in readme
+    assert "BacDive candidate review: candidate_count=2, conflict_count=1, no_result_count=1" in index
+    assert "not strict type-strain confirmation" in index
+    assert "strict confirmed by BacDive" not in package_text
+
+
+def test_package_results_omits_bacdive_outputs_when_absent(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    result = package_results(tmp_path, include="reports")
+
+    assert not (result.delivery_dir / "evidence" / "bacdive_enrichment.tsv").exists()
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    assert "BacDive Candidate Review" not in readme
 
 
 def test_package_preserves_rrna_provenance_fields_and_candidate_caveat(tmp_path):
@@ -798,6 +873,77 @@ def _write_manifest_with_files(paths):
         ],
         paths.manifest,
     )
+
+
+def _write_bacdive_normalized_outputs(paths):
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.bacdive_enrichment_path.write_text(
+        (
+            "schema_version\trun_id\tspecies\tchecklist_source\t"
+            "lpsn_type_strain_text\tlpsn_type_strain_identifiers\tquery_index\t"
+            "query_kind\tquery\tendpoint\tlookup_status\tbacdive_id\t"
+            "bacdive_species\tstrain_designation\tculture_collection_numbers\t"
+            "dsmz_accession\tis_type_strain\tevidence_tier\t"
+            "reconciliation_status\toverlapping_identifiers\t"
+            "selected_genome_linkage\tstrict_confirmed\tsource_platform\t"
+            "source_url\taccessed_at\tdiagnostic_codes\tnotes\n"
+            "1\trun\tFusobacterium example\tfixture\tATCC 1\tATCC 1\t1\t"
+            "culture_collection\tATCC 1\tfake://bacdive/culture_collection\t"
+            "success\t1\tFusobacterium example\tA\tATCC 1\tDSM 1\ttrue\t"
+            "type_strain_signal\tbacdive_lpsn_token_overlap\tATCC 1\t"
+            "not_evaluated\tfalse\tbacdive\thttps://example.invalid/1\t"
+            "2026-07-17T00:00:00Z\t\tcandidate only\n"
+            "1\trun\tFusobacterium conflict\tfixture\tDSM 2\tDSM 2\t2\t"
+            "culture_collection\tDSM 2\tfake://bacdive/culture_collection\t"
+            "success\t2\tOther species\tB\tDSM 2\tDSM 2\ttrue\t"
+            "type_strain_signal\tbacdive_conflict\tDSM 2\t"
+            "not_evaluated\tfalse\tbacdive\thttps://example.invalid/2\t"
+            "2026-07-17T00:00:00Z\tbacdive_conflict\tcandidate only\n"
+        ),
+        encoding="utf-8",
+    )
+    paths.bacdive_diagnostics_path.write_text(
+        (
+            "schema_version\trun_id\tquery_index\tspecies\tquery_kind\tquery\t"
+            "endpoint\tstatus\tseverity\tdiagnostic_code\tevidence_effect\t"
+            "message\thttp_status\tretry_count\taccessed_at\tnotes\n"
+            "1\trun\t2\tFusobacterium conflict\tculture_collection\tDSM 2\t"
+            "fake://bacdive/culture_collection\tconflict\twarning\t"
+            "bacdive_conflict\tnone\tconflict\t\t\t2026-07-17T00:00:00Z\t\n"
+            "1\trun\t3\tFusobacterium missing\tculture_collection\tDSM 3\t"
+            "fake://bacdive/culture_collection\tno_result\twarning\t"
+            "bacdive_no_result\tnone\tno result\t\t\t2026-07-17T00:00:00Z\t\n"
+        ),
+        encoding="utf-8",
+    )
+    paths.bacdive_source_audit_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "enabled": True,
+                "client_kind": "fake",
+                "live_api_called": False,
+                "planned_query_count": 3,
+                "executed_query_count": 3,
+                "completed_query_count": 3,
+                "result_status_counts": {"success": 2, "no_result": 1},
+                "record_count": 2,
+                "diagnostic_count": 2,
+                "candidate_only": True,
+                "strict_confirmed": False,
+                "strict_or_completion_effect": "none",
+                "raw_payload_policy": "not_written",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _read_tsv(path):
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
 
 
 def _record(

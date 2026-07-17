@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -13,13 +14,16 @@ from typetreeflow.diagnostics import next_step_summary
 from typetreeflow.manifest import read_manifest, resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
+    BacDiveCandidateReviewSummary,
+    bacdive_normalized_outputs_available,
+    read_optional_bacdive_candidate_review,
     read_optional_gtdb_metadata_audit,
     read_optional_sequence_source_audit,
     summarize_16s_coverage,
     summarize_sequence_source_audit,
     summarize_type_confirmation_counts,
 )
-from typetreeflow.rrna.artifacts import read_artifact_scope
+from typetreeflow.rrna.artifacts import read_artifact_scope, write_artifact_scope
 from typetreeflow.selection.evidence import (
     LIKELY_TYPE_MATERIAL_COUNT,
     REPRESENTATIVE_ONLY_COUNT,
@@ -83,9 +87,8 @@ def package_results(
         copied,
         missing,
     )
-    if paths.artifact_scope_path.exists():
-        copied.append(_copy_required(paths.artifact_scope_path, output_dir / "artifact_scope.tsv"))
 
+    bacdive_outputs_copied = False
     if "reports" in requested:
         _copy_optional(
             paths.run_summary_path,
@@ -139,13 +142,20 @@ def package_results(
                     output_dir / "reports" / "gtdb_metadata_audit.json",
                 )
             )
-        if paths.artifact_scope_path.exists():
-            copied.append(
-                _copy_required(
-                    paths.artifact_scope_path,
-                    output_dir / "reports" / "artifact_scope.tsv",
-                )
-            )
+        if bacdive_normalized_outputs_available(paths):
+            for source, destination in _bacdive_normalized_package_paths(
+                paths, output_dir
+            ):
+                copied.append(_copy_required(source, destination))
+            bacdive_outputs_copied = True
+
+    _write_package_artifact_scope(
+        paths,
+        output_dir,
+        copied,
+        include_reports="reports" in requested,
+        include_bacdive=bacdive_outputs_copied,
+    )
 
     genome_count = 0
     if "genomes" in requested:
@@ -401,6 +411,7 @@ def build_delivery_readme(
     policy = _summarize_policy(record_list)
     acceptance = _selection_acceptance_status(paths)
     gtdb_audit = _read_gtdb_audit_if_available(paths)
+    bacdive_review = _read_bacdive_review_for_handoff(paths, include)
     source_audit = _read_source_audit_for_handoff(paths)
     rrna_coverage = summarize_16s_coverage(record_list, source_audit)
     source_outdir = _portable_source_outdir(paths)
@@ -446,6 +457,8 @@ def build_delivery_readme(
                 f"- {_gtdb_audit_package_summary(gtdb_audit)}",
             ]
         )
+    if bacdive_review is not None:
+        lines.extend(_bacdive_readme_lines(bacdive_review))
     lines.extend(
         [
             "",
@@ -548,6 +561,7 @@ def build_handoff_index(
         summarize_sequence_source_audit(source_audit) if source_audit is not None else None
     )
     gtdb_audit = _read_gtdb_audit_if_available(paths)
+    bacdive_review = _read_bacdive_review_for_handoff(paths, include)
     run_state = _read_run_state_if_available(paths)
     generated_time = _utc_timestamp()
     status = run_state.status if run_state is not None else "packageable"
@@ -603,15 +617,29 @@ def build_handoff_index(
             "all_16S.fasta remains the compatibility combined FASTA."
         ),
         f"- Report: {report_status}",
-        "",
-        "## Selection And Evidence",
-        "",
-        f"- Strict type-strain confirmed: {type_counts[STRICT_CONFIRMED_COUNT]}",
-        f"- Likely type-material candidate: {type_counts[LIKELY_TYPE_MATERIAL_COUNT]}",
-        f"- Representative only: {type_counts[REPRESENTATIVE_ONLY_COUNT]}",
     ]
+    if bacdive_review is not None:
+        lines.append(
+            "- BacDive candidate review: "
+            f"candidate_count={bacdive_review.candidate_count}, "
+            f"conflict_count={bacdive_review.conflict_count}, "
+            f"no_result_count={bacdive_review.no_result_count} "
+            "(candidate-only audit evidence)"
+        )
+    lines.extend(
+        [
+            "",
+            "## Selection And Evidence",
+            "",
+            f"- Strict type-strain confirmed: {type_counts[STRICT_CONFIRMED_COUNT]}",
+            f"- Likely type-material candidate: {type_counts[LIKELY_TYPE_MATERIAL_COUNT]}",
+            f"- Representative only: {type_counts[REPRESENTATIVE_ONLY_COUNT]}",
+        ]
+    )
     if gtdb_audit is not None:
         lines.append(f"- GTDB metadata audit: {_gtdb_audit_package_summary(gtdb_audit)}")
+    if bacdive_review is not None:
+        lines.extend(_bacdive_handoff_lines(bacdive_review))
     lines.extend(["", "## Included Files", ""])
     if copied_names:
         lines.extend(f"- {item}" for item in copied_names)
@@ -880,6 +908,141 @@ def _copy_optional(
         missing.append(_display_optional_path(source))
 
 
+def _bacdive_normalized_package_paths(
+    paths: OutputPaths,
+    delivery_dir: Path,
+) -> list[tuple[Path, Path]]:
+    return [
+        (
+            paths.bacdive_enrichment_path,
+            delivery_dir / "evidence" / "bacdive_enrichment.tsv",
+        ),
+        (
+            paths.bacdive_diagnostics_path,
+            delivery_dir / "evidence" / "bacdive_diagnostics.tsv",
+        ),
+        (
+            paths.bacdive_source_audit_path,
+            delivery_dir / "evidence" / "bacdive_source_audit.json",
+        ),
+    ]
+
+
+def _write_package_artifact_scope(
+    paths: OutputPaths,
+    delivery_dir: Path,
+    copied: list[Path],
+    *,
+    include_reports: bool,
+    include_bacdive: bool,
+) -> None:
+    source_rows = read_artifact_scope(paths.artifact_scope_path)
+    rows = list(source_rows)
+    if include_bacdive:
+        rows.extend(_bacdive_artifact_scope_rows(paths))
+    if not rows:
+        return
+
+    root_scope = delivery_dir / "artifact_scope.tsv"
+    if include_bacdive or not paths.artifact_scope_path.exists():
+        write_artifact_scope(rows, root_scope)
+        copied.append(root_scope)
+    else:
+        copied.append(_copy_required(paths.artifact_scope_path, root_scope))
+
+    if include_reports:
+        reports_scope = delivery_dir / "reports" / "artifact_scope.tsv"
+        if include_bacdive or not paths.artifact_scope_path.exists():
+            write_artifact_scope(rows, reports_scope)
+            copied.append(reports_scope)
+        elif paths.artifact_scope_path.exists():
+            copied.append(_copy_required(paths.artifact_scope_path, reports_scope))
+
+
+def _bacdive_artifact_scope_rows(paths: OutputPaths) -> list[dict[str, str]]:
+    review = _read_bacdive_review_for_handoff(paths, {"reports"})
+    enrichment_count = review.enrichment_row_count if review is not None else 0
+    diagnostic_count = review.diagnostic_row_count if review is not None else 0
+    candidate_count = review.candidate_count if review is not None else 0
+    return [
+        _scope_row(
+            artifact_path="evidence/bacdive_enrichment.tsv",
+            artifact_kind="bacdive_candidate_evidence",
+            record_count=enrichment_count,
+            candidate_count=candidate_count,
+            artifact_label="BacDive normalized candidate enrichment",
+            source_artifact=(
+                "evidence/bacdive_source_audit.json;"
+                "evidence/bacdive_diagnostics.tsv"
+            ),
+            consumer_priority=60,
+            notes=(
+                "Normalized BacDive candidate rows are audit-only and do not "
+                "change strict completion, selected genome evidence, or manifest rows."
+            ),
+        ),
+        _scope_row(
+            artifact_path="evidence/bacdive_diagnostics.tsv",
+            artifact_kind="bacdive_diagnostics",
+            record_count=diagnostic_count,
+            candidate_count=0,
+            artifact_label="BacDive normalized diagnostics",
+            source_artifact="evidence/bacdive_source_audit.json",
+            consumer_priority=61,
+            notes=(
+                "BacDive diagnostics describe lookup/reconciliation review "
+                "status only; they are not strict evidence upgrades or downgrades."
+            ),
+        ),
+        _scope_row(
+            artifact_path="evidence/bacdive_source_audit.json",
+            artifact_kind="bacdive_source_audit",
+            record_count=1,
+            candidate_count=0,
+            artifact_label="BacDive source audit",
+            source_artifact=(
+                "evidence/bacdive_enrichment.tsv;"
+                "evidence/bacdive_diagnostics.tsv"
+            ),
+            consumer_priority=62,
+            notes=(
+                "BacDive source audit records candidate_only=true, "
+                "strict_or_completion_effect=none, and raw_payload_policy=not_written."
+            ),
+        ),
+    ]
+
+
+def _scope_row(
+    *,
+    artifact_path: str,
+    artifact_kind: str,
+    record_count: int,
+    candidate_count: int,
+    artifact_label: str,
+    source_artifact: str,
+    consumer_priority: int,
+    notes: str,
+) -> dict[str, str]:
+    return {
+        "artifact_path": artifact_path,
+        "artifact_kind": artifact_kind,
+        "scope": "audit",
+        "evidence_policy": "candidate_review_from_bacdive",
+        "record_count": str(record_count),
+        "strict_usable_count": "0",
+        "candidate_count": str(candidate_count),
+        "excluded_mismatch_count": "0",
+        "artifact_label": artifact_label,
+        "recommended_use": "candidate enrichment review",
+        "not_for": "strict type-strain confirmation",
+        "source_artifact": source_artifact,
+        "consumer_priority": str(consumer_priority),
+        "strict_scientific_deliverable": "false",
+        "notes": notes,
+    }
+
+
 def _copy_manifest_paths(
     records: Iterable[StrainRecord],
     *,
@@ -1060,6 +1223,18 @@ def _read_gtdb_audit_if_available(paths: OutputPaths):
         return None
 
 
+def _read_bacdive_review_for_handoff(
+    paths: OutputPaths,
+    include: set[str],
+) -> BacDiveCandidateReviewSummary | None:
+    if "reports" not in include:
+        return None
+    try:
+        return read_optional_bacdive_candidate_review(paths)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+
+
 def _gtdb_audit_enabled_for_delivery(paths: OutputPaths) -> bool:
     state = _read_run_state_if_available(paths)
     if state is None:
@@ -1087,6 +1262,53 @@ def _gtdb_audit_package_summary(audit) -> str:
             for key in ("matched", "missing_from_gtdb", "mismatch", "extra_in_gtdb")
         )
     return "; ".join(parts)
+
+
+def _bacdive_readme_lines(review: BacDiveCandidateReviewSummary) -> list[str]:
+    return [
+        "",
+        "## BacDive Candidate Review",
+        "",
+        (
+            "- Normalized audit files: evidence/bacdive_enrichment.tsv, "
+            "evidence/bacdive_diagnostics.tsv, and "
+            "evidence/bacdive_source_audit.json"
+        ),
+        (
+            "- Counts: "
+            f"candidate_count={review.candidate_count}, "
+            f"conflict_count={review.conflict_count}, "
+            f"no_result_count={review.no_result_count}, "
+            f"diagnostic_count={review.diagnostic_count}"
+        ),
+        (
+            "- BacDive rows are candidate-only and audit-only; they do not "
+            "change selection, manifest, strict type-strain confirmation, "
+            "selected genome evidence, evidence-policy strict results, or "
+            "completion metrics."
+        ),
+        "- Raw BacDive cache files and source snapshots are not included.",
+    ]
+
+
+def _bacdive_handoff_lines(review: BacDiveCandidateReviewSummary) -> list[str]:
+    return [
+        "- BacDive normalized outputs are packaged as candidate-only audit evidence.",
+        (
+            "- BacDive review counts: "
+            f"planned_queries={review.planned_queries}, "
+            f"completed_queries={review.completed_queries}, "
+            f"record_count={review.record_count}, "
+            f"diagnostic_count={review.diagnostic_count}, "
+            f"candidate_count={review.candidate_count}, "
+            f"conflict_count={review.conflict_count}, "
+            f"no_result_count={review.no_result_count}"
+        ),
+        (
+            "- BacDive review rows are not strict type-strain confirmation and "
+            "do not alter selected genome evidence or completion metrics."
+        ),
+    ]
 
 
 def _read_source_audit_for_handoff(paths: OutputPaths) -> list[dict[str, str]] | None:

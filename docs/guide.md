@@ -55,7 +55,9 @@ release only records that metadata in stdout, run state, reports, and package
 handoff metadata; it does not change selected rows or artifact contents.
 BacDive enrichment is still a candidate-only skeleton. It is opt-in and writes
 `evidence/bacdive_*` review outputs only with an injected fake/fixture client;
-the public CLI does not call the live BacDive API.
+the public CLI does not call the live BacDive API. When those normalized
+outputs exist, report packages may include them as candidate-only audit files;
+they do not change strict completion or selected genome evidence.
 
 Review `status`, `next-step`, `report/summary.md`, `report/run_review.md`,
 `selection/strain_candidates.tsv`, and `selection/user_selection.tsv`.

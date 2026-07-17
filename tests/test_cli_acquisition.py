@@ -1442,7 +1442,9 @@ def test_verify_genus_bacdive_fake_client_writes_candidate_outputs_and_state(
     assert "diagnostic_count=" in state.stages["bacdive_enrichment"].summary
     assert paths.completion_summary_path.exists() is False
     assert package_result == 0
-    assert not (delivery_dir / "evidence" / "bacdive_enrichment.tsv").exists()
+    assert (delivery_dir / "evidence" / "bacdive_enrichment.tsv").exists()
+    assert (delivery_dir / "evidence" / "bacdive_diagnostics.tsv").exists()
+    assert (delivery_dir / "evidence" / "bacdive_source_audit.json").exists()
     assert not (delivery_dir / "reports" / "bacdive_enrichment.tsv").exists()
 
 

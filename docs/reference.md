@@ -145,15 +145,21 @@ The normalized outputs are review-only:
 `evidence/bacdive_enrichment.tsv`,
 `evidence/bacdive_diagnostics.tsv`, and
 `evidence/bacdive_source_audit.json`. They are not placed under `cache/`, are
-not included in reports or packages yet, and do not alter provider planning,
-download plans, selected rows, manifest rows, completion metrics, or stdout
-counts. `run_state.json` may include a `bacdive_enrichment` stage when these
-outputs exist. Its summary records planned queries, completed queries, record
-count, diagnostic count, and client kind.
+included in `report/summary.md` and `package-results --include reports` only
+as candidate-only audit outputs when all three normalized files are present,
+and do not alter provider planning, download plans, selected rows, manifest
+rows, completion metrics, evidence-policy strict results, or stdout counts.
+Packages copy only these normalized files to `evidence/`; raw BacDive cache
+files and source snapshots are not package members. `run_state.json` may
+include a `bacdive_enrichment` stage when these outputs exist. Its summary
+records planned queries, completed queries, record count, diagnostic count, and
+client kind.
 
 Every enrichment row is candidate-only. It writes
 `selected_genome_linkage=not_evaluated`, `strict_confirmed=false`, and
 `source_platform=bacdive`; BacDive candidates never upgrade strict evidence.
+Package README and handoff index repeat this candidate-only, audit-only
+boundary.
 
 ### Doctor Readiness
 
@@ -372,6 +378,14 @@ When no records are eligible for a scoped FASTA, the file is still written as
 an empty FASTA and the scope manifest records `record_count=0` with the reason
 in `notes`. Delivery packages copy the manifest to
 `reports/artifact_scope.tsv` and, when present, package root `artifact_scope.tsv`.
+When normalized BacDive review outputs are packaged, both package scope
+manifests also include `evidence/bacdive_enrichment.tsv`,
+`evidence/bacdive_diagnostics.tsv`, and
+`evidence/bacdive_source_audit.json` rows with `scope=audit`,
+`recommended_use=candidate enrichment review`,
+`not_for=strict type-strain confirmation`, and
+`strict_scientific_deliverable=false`. These rows are package handoff metadata
+only and are not strict type-strain confirmation.
 
 `completion/16s_gaps.tsv` includes `genome_ready_16s_not_found` for missing
 sequences and `genome_ready_16s_not_strict_usable` when a sequence exists but
