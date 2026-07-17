@@ -19,6 +19,9 @@ from typetreeflow.evidence.bacdive_adapter import (
     build_bacdive_lookup_request,
     lookup_bacdive_evidence,
 )
+from typetreeflow.evidence.bacdive_workflow import (
+    plan_bacdive_lookup_requests,
+)
 from typetreeflow.evidence.bacdive import (
     AUTHORITATIVE_TYPE_MATERIAL_CANDIDATE,
     BACDIVE_CANDIDATE_MATCH,
@@ -34,6 +37,7 @@ from typetreeflow.evidence.bacdive import (
     parse_bacdive_evidence_record,
     reconcile_bacdive_record,
 )
+from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry
 
 
 FIXTURE_PATH = Path("tests/fixtures/bacdive_synthetic_minimal.json")
@@ -385,6 +389,94 @@ def test_adapter_preserves_multiple_accession_diagnostics():
         "JCM 5005",
     )
     assert any(item.code == "bacdive_multiple_accessions" for item in result.diagnostics)
+
+
+def test_bacdive_planner_tokens_mode_uses_only_lpsn_type_strain_tokens():
+    entries = [
+        SpeciesChecklistEntry(
+            genus="Examplegenus",
+            species="alpha",
+            full_name="Examplegenus alpha",
+            status="accepted",
+            type_strain="DSM 1001; Alpha Type",
+            source="fixture",
+        ),
+        SpeciesChecklistEntry(
+            genus="Examplegenus",
+            species="missing",
+            full_name="Examplegenus missing",
+            status="accepted",
+            type_strain="",
+            source="fixture",
+        ),
+    ]
+
+    requests, diagnostics = plan_bacdive_lookup_requests(
+        entries,
+        query_mode="tokens",
+    )
+
+    assert [(item.request.query_kind, item.request.query) for item in requests] == [
+        ("culture_collection", "DSM 1001"),
+        ("strain_designation", "ALPHA TYPE"),
+    ]
+    assert [item.code for item in diagnostics] == [
+        "bacdive_no_lpsn_type_strain_identifier"
+    ]
+
+
+def test_bacdive_planner_species_mode_uses_species_names():
+    entries = [
+        SpeciesChecklistEntry(
+            genus="Examplegenus",
+            species="alpha",
+            full_name="Examplegenus alpha",
+            status="accepted",
+            type_strain="DSM 1001",
+            source="fixture",
+        )
+    ]
+
+    requests, diagnostics = plan_bacdive_lookup_requests(
+        entries,
+        query_mode="species",
+    )
+
+    assert diagnostics == []
+    assert requests[0].request.query_kind == "species_name"
+    assert requests[0].request.query == "Examplegenus alpha"
+
+
+def test_bacdive_planner_both_mode_is_token_first_with_species_no_token_fallback():
+    entries = [
+        SpeciesChecklistEntry(
+            genus="Examplegenus",
+            species="alpha",
+            full_name="Examplegenus alpha",
+            status="accepted",
+            type_strain="DSM 1001",
+            source="fixture",
+        ),
+        SpeciesChecklistEntry(
+            genus="Examplegenus",
+            species="missing",
+            full_name="Examplegenus missing",
+            status="accepted",
+            type_strain="",
+            source="fixture",
+        ),
+    ]
+
+    requests, diagnostics = plan_bacdive_lookup_requests(
+        entries,
+        query_mode="both",
+    )
+
+    assert [(item.request.query_kind, item.request.query) for item in requests] == [
+        ("culture_collection", "DSM 1001"),
+        ("species_name", "Examplegenus missing"),
+    ]
+    assert diagnostics[0].code == "bacdive_no_lpsn_type_strain_identifier"
 
 
 def _record(fixture_id):

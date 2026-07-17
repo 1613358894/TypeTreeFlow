@@ -113,7 +113,7 @@ missing-genome findings. The fake client normalizes fixture dictionaries into
 `BacDiveEvidenceRecord` rows and preserves diagnostics for multiple
 accessions, missing LPSN token overlap, species conflicts, and schema drift.
 
-`verify-genus` exposes BacDive enrichment configuration metadata only:
+`verify-genus` exposes BacDive enrichment configuration:
 `--enable-bacdive-enrichment`,
 `--bacdive-query-mode {tokens,species,both}`,
 `--bacdive-timeout-seconds N`, and `--bacdive-max-queries N`. Defaults are
@@ -124,15 +124,36 @@ The resolved values are stored in `AppConfig`, `run_state.json` under
 `config.enable_bacdive_enrichment`, `config.bacdive_query_mode`,
 `config.bacdive_timeout_seconds`, and `config.bacdive_max_queries`, and the
 single compact `verify-genus` stdout JSON object under the same `config` keys.
-This is plumbing only: the BacDive adapter is not called, no `bacdive`
-workflow stage exists, and no `evidence/bacdive_enrichment.tsv`,
-`evidence/bacdive_diagnostics.tsv`, or
-`evidence/bacdive_source_audit.json` files are written by `verify-genus`.
+When explicitly enabled, P3b-b2a writes a minimal BacDive enrichment workflow
+skeleton only. The skeleton runs from LPSN checklist rows and type-strain text,
+and it only performs lookups against a caller-injected fake or fixture-backed
+client. The public CLI does not construct `BacDiveLiveClient`, does not read
+BacDive credentials, and does not contact BacDive. If enrichment is enabled
+without an injected client, `verify-genus` writes a safe diagnostic with
+`bacdive_live_client_not_enabled`, keeps the core workflow non-failing, and
+records `client_kind=none` and `live_api_called=false`.
 
-The adapter contract is not a completed user-visible live feature. It is not
-wired into provider planning, live HTTP calls, environment/API key reads,
-output files, manifest writes, selection, reports, packages, or completion
-metrics.
+The query planner is pure and IO-free. In `tokens` mode it plans only LPSN
+type-strain token lookups (`culture_collection` for recognized collection
+identifiers, otherwise `strain_designation`). In `species` mode it plans one
+`species_name` lookup per checklist species. In `both` mode it plans token
+lookups first and uses species fallback for no-token rows or token `no_result`
+responses while respecting `bacdive_max_queries`. No-token species and max-cap
+skips are diagnostics, not workflow failures.
+
+The normalized outputs are review-only:
+`evidence/bacdive_enrichment.tsv`,
+`evidence/bacdive_diagnostics.tsv`, and
+`evidence/bacdive_source_audit.json`. They are not placed under `cache/`, are
+not included in reports or packages yet, and do not alter provider planning,
+download plans, selected rows, manifest rows, completion metrics, or stdout
+counts. `run_state.json` may include a `bacdive_enrichment` stage when these
+outputs exist. Its summary records planned queries, completed queries, record
+count, diagnostic count, and client kind.
+
+Every enrichment row is candidate-only. It writes
+`selected_genome_linkage=not_evaluated`, `strict_confirmed=false`, and
+`source_platform=bacdive`; BacDive candidates never upgrade strict evidence.
 
 ### Doctor Readiness
 
@@ -227,6 +248,12 @@ Recommended layout:
 - `taxonomy/gtdb_metadata_audit.json` when GTDB metadata audit is configured
 - `taxonomy/ncbi_taxonomy_plan.tsv`
 - `taxonomy/ncbi_taxonomy_cache.tsv`
+- `evidence/bacdive_enrichment.tsv` when BacDive enrichment is explicitly
+  enabled
+- `evidence/bacdive_diagnostics.tsv` when BacDive enrichment is explicitly
+  enabled
+- `evidence/bacdive_source_audit.json` when BacDive enrichment is explicitly
+  enabled
 - `report/summary.md`
 - `report/run_review.md`
 - `report/artifact_scope.tsv`
@@ -250,6 +277,9 @@ Recommended layout:
 - `taxonomy/gtdb_metadata_audit.json`: configured-only JSON audit written when `--gtdb-metadata` or `--gtdb-release` is provided. It records `metadata_path`, file status, release, `load_status`, timestamp, and coverage counts when local metadata loads successfully. When GTDB metadata audit is not configured, this artifact is not written and run-state/report/package output must not report `gtdb_metadata_not_loaded`.
 - `taxonomy/ncbi_taxonomy_plan.tsv`: `species`, `scientific_name`, `query`, `query_reason`, `status`, `notes`
 - `taxonomy/ncbi_taxonomy_cache.tsv`: `species`, `taxid`, `scientific_name`, `rank`, `synonyms`, `equivalent_names`, `includes`, `authority`, `source`, `notes`
+- `evidence/bacdive_enrichment.tsv`: `schema_version`, `run_id`, `species`, `checklist_source`, `lpsn_type_strain_text`, `lpsn_type_strain_identifiers`, `query_index`, `query_kind`, `query`, `endpoint`, `lookup_status`, `bacdive_id`, `bacdive_species`, `strain_designation`, `culture_collection_numbers`, `dsmz_accession`, `is_type_strain`, `evidence_tier`, `reconciliation_status`, `overlapping_identifiers`, `selected_genome_linkage`, `strict_confirmed`, `source_platform`, `source_url`, `accessed_at`, `diagnostic_codes`, `notes`
+- `evidence/bacdive_diagnostics.tsv`: `schema_version`, `run_id`, `query_index`, `species`, `query_kind`, `query`, `endpoint`, `status`, `severity`, `diagnostic_code`, `evidence_effect`, `message`, `http_status`, `retry_count`, `accessed_at`, `notes`
+- `evidence/bacdive_source_audit.json`: JSON audit written only for opt-in BacDive enrichment skeleton runs. It records `enabled`, `query_mode`, `max_queries`, `timeout_seconds`, `client_kind`, `live_api_called`, `generated_at`, `citation_url`, `terms_url`, `planned_query_count`, `executed_query_count`, `completed_query_count`, `skipped_query_count`, `result_status_counts`, `record_count`, `diagnostic_count`, output paths, `candidate_only`, `strict_confirmed=false`, `strict_or_completion_effect=none`, `raw_payload_policy=not_written`, and the redaction policy.
 - `candidates/assembly_candidates.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `bioproject`, `assembly_level`, `refseq_category`, `is_type_material`, `culture_collection_ids`, `has_recognized_deposit_id`, `lpsn_type_strain_ids`, `ncbi_culture_collection_ids`, `curator_culture_collection_ids`, `matched_lpsn_type_strain_ids`, `has_lpsn_type_strain_match`, `match_evidence`, `curator_evidence_source`, `curator_notes`, `curator_evidence_applied`, `discovery_name`, `discovery_name_type`, `matched_correct_name`, `synonym_used`, `synonym_evidence`, `requires_manual_review`, `manual_review_reason`, `source`, `notes`
 - `candidates/assembly_candidate_diagnostics.tsv`: `species`, `code`, `message`, `assembly_accession`
 - `candidates/discovery_records.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `bioproject`, `assembly_level`, `refseq_category`, `is_type_material`, `source`, `notes`

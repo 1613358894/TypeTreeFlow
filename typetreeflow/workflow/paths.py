@@ -12,6 +12,10 @@ class OutputPaths:
     logs_dir: Path
     cache_dir: Path
     ncbi_cache_dir: Path
+    evidence_dir: Path
+    bacdive_enrichment_path: Path
+    bacdive_diagnostics_path: Path
+    bacdive_source_audit_path: Path
     biosample_records_path: Path
     ncbi_download_results_path: Path
     ncbi_extracted_dir: Path
@@ -85,6 +89,7 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
     root = Path(outdir)
     cache_dir = root / "cache"
     ncbi_cache_dir = cache_dir / "ncbi"
+    evidence_dir = root / "evidence"
     return OutputPaths(
         run_state_path=root / "run_state.json",
         manifest=root / "manifest.tsv",
@@ -92,6 +97,10 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         logs_dir=root / "logs",
         cache_dir=cache_dir,
         ncbi_cache_dir=ncbi_cache_dir,
+        evidence_dir=evidence_dir,
+        bacdive_enrichment_path=evidence_dir / "bacdive_enrichment.tsv",
+        bacdive_diagnostics_path=evidence_dir / "bacdive_diagnostics.tsv",
+        bacdive_source_audit_path=evidence_dir / "bacdive_source_audit.json",
         biosample_records_path=ncbi_cache_dir / "biosample_records.tsv",
         ncbi_download_results_path=ncbi_cache_dir / "download_results.tsv",
         ncbi_extracted_dir=ncbi_cache_dir / "extracted",

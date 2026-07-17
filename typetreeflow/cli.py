@@ -39,6 +39,11 @@ from typetreeflow.diagnostics import (
     plan_only_guarded_download_next_action,
     zero_accepted_checklist_next_action,
 )
+from typetreeflow.evidence.bacdive_adapter import BacDiveClientProtocol
+from typetreeflow.evidence.bacdive_workflow import (
+    bacdive_stage_state_from_outputs,
+    run_bacdive_enrichment_stage,
+)
 from typetreeflow.exceptions import ManifestError
 from typetreeflow.expanded_discovery import (
     execute_expanded_discovery_plan,
@@ -894,6 +899,7 @@ def main(
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+    bacdive_client: BacDiveClientProtocol | None = None,
     lpsn_client=None,
 ) -> int:
     config = parse_args(argv)
@@ -964,6 +970,7 @@ def main(
                     assembly_discovery_client=assembly_discovery_client,
                     biosample_client=biosample_client,
                     ncbi_taxonomy_client=ncbi_taxonomy_client,
+                    bacdive_client=bacdive_client,
                     lpsn_client=lpsn_client,
                 )
                 return 0
@@ -2122,6 +2129,9 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         "succeeded",
         _row_count_summary(config.outdir / "species_checklist.tsv", "checklist species"),
     )
+    bacdive_stage = bacdive_stage_state_from_outputs(paths)
+    if bacdive_stage is not None:
+        stages["bacdive_enrichment"] = bacdive_stage
     _add_file_stage(
         stages,
         "assembly_discovery",
@@ -3111,6 +3121,7 @@ def run_genus_acquisition_workflow(
     assembly_discovery_client: AssemblyDiscoveryClient | None = None,
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+    bacdive_client: BacDiveClientProtocol | None = None,
     lpsn_client=None,
 ) -> Path:
     genus = str(config.acquire_genus or "").strip()
@@ -3181,6 +3192,11 @@ def run_genus_acquisition_workflow(
     run_lpsn_species_checklist_conversion(
         acquisition_config,
         lpsn_client=lpsn_client,
+    )
+    run_bacdive_enrichment_stage(
+        paths,
+        acquisition_config,
+        bacdive_client=bacdive_client,
     )
     run_culture_collection_audit_stage(paths, acquisition_config)
     run_candidate_discovery_stage(

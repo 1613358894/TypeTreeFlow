@@ -4,6 +4,7 @@ import zipfile
 from pathlib import Path
 
 from typetreeflow.cli import main
+from typetreeflow.evidence.bacdive_adapter import FakeBacDiveClient
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.external.tools import resolve_iqtree_executable
 from typetreeflow.manifest import read_manifest
@@ -1237,7 +1238,7 @@ def test_verify_genus_plan_only_profile_records_profile_without_downloads(
     assert not paths.ncbi_download_results_path.exists()
 
 
-def test_verify_genus_records_bacdive_config_without_wiring_outputs(
+def test_verify_genus_bacdive_flag_without_injected_client_writes_safe_diagnostic(
     tmp_path,
     monkeypatch,
     capsys,
@@ -1287,10 +1288,16 @@ def test_verify_genus_records_bacdive_config_without_wiring_outputs(
     assert {
         key: state.config[key] for key in expected_bacdive_config
     } == expected_bacdive_config
-    assert "bacdive" not in state.stages
-    assert not (outdir / "evidence" / "bacdive_enrichment.tsv").exists()
-    assert not (outdir / "evidence" / "bacdive_diagnostics.tsv").exists()
-    assert not (outdir / "evidence" / "bacdive_source_audit.json").exists()
+    assert state.stages["bacdive_enrichment"].status == "warning"
+    assert paths.bacdive_enrichment_path.exists()
+    assert paths.bacdive_diagnostics_path.exists()
+    assert paths.bacdive_source_audit_path.exists()
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    assert diagnostics[0]["diagnostic_code"] == "bacdive_live_client_not_enabled"
+    assert audit["client_kind"] == "none"
+    assert audit["live_api_called"] is False
+    assert audit["record_count"] == 0
 
 
 def test_verify_genus_default_bacdive_config_creates_no_stage_outputs_or_client_call(
@@ -1332,10 +1339,216 @@ def test_verify_genus_default_bacdive_config_creates_no_stage_outputs_or_client_
     assert result == 0
     assert payload["config"]["enable_bacdive_enrichment"] is False
     assert state.config["enable_bacdive_enrichment"] is False
-    assert "bacdive" not in state.stages
-    assert not (outdir / "evidence" / "bacdive_enrichment.tsv").exists()
-    assert not (outdir / "evidence" / "bacdive_diagnostics.tsv").exists()
-    assert not (outdir / "evidence" / "bacdive_source_audit.json").exists()
+    assert "bacdive_enrichment" not in state.stages
+    assert not paths.bacdive_enrichment_path.exists()
+    assert not paths.bacdive_diagnostics_path.exists()
+    assert not paths.bacdive_source_audit_path.exists()
+
+
+def test_verify_genus_bacdive_fake_client_writes_candidate_outputs_and_state(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    delivery_dir = tmp_path / "delivery"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    fake = FakeBacDiveClient(
+        {
+            ("culture_collection", "ATCC 25586"): {
+                "species_name": "Fusobacterium nucleatum",
+                "strain_designation": "ATCC 25586",
+                "culture_collection_numbers": ["ATCC 25586"],
+                "is_type_strain": True,
+                "bacdive_id": "SYN-FUSO-1",
+                "source_url": "https://example.invalid/bacdive/fuso-1",
+                "source_release_or_accessed": "synthetic fixture 2026-07-17",
+            },
+            ("culture_collection", "NCTC 10575"): {
+                "species_name": "Fusobacterium necrophorum",
+                "strain_designation": "NCTC 10575",
+                "culture_collection_numbers": ["NCTC 10575"],
+                "is_type_strain": True,
+                "bacdive_id": "SYN-FUSO-2",
+                "source_url": "https://example.invalid/bacdive/fuso-2",
+                "source_release_or_accessed": "synthetic fixture 2026-07-17",
+            },
+        }
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_client=fake,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    rows = _read_tsv(paths.bacdive_enrichment_path)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    package_result = main(
+        [
+            "package-results",
+            "--outdir",
+            str(outdir),
+            "--delivery-dir",
+            str(delivery_dir),
+            "--include",
+            "reports",
+        ]
+    )
+
+    assert result == 0
+    assert payload["counts"]["manifest_rows"] == 2
+    assert payload["counts"]["selected_rows"] == 2
+    assert [request.query for request in fake.requests] == [
+        "ATCC 25586",
+        "DSM 15643",
+        "NCTC 10575",
+    ]
+    assert {row["bacdive_id"] for row in rows} == {"SYN-FUSO-1", "SYN-FUSO-2"}
+    assert {row["strict_confirmed"] for row in rows} == {"false"}
+    assert {row["selected_genome_linkage"] for row in rows} == {"not_evaluated"}
+    assert {row["source_platform"] for row in rows} == {"bacdive"}
+    assert all("strict" not in row["evidence_tier"] for row in rows)
+    assert any(row["diagnostic_code"] == "bacdive_no_result" for row in diagnostics)
+    assert audit["client_kind"] == "fake"
+    assert audit["live_api_called"] is False
+    assert audit["planned_query_count"] == 3
+    assert audit["executed_query_count"] == 3
+    assert audit["record_count"] == 2
+    assert audit["strict_confirmed"] is False
+    assert state.stages["bacdive_enrichment"].status == "succeeded"
+    assert "planned_queries=3" in state.stages["bacdive_enrichment"].summary
+    assert "completed_queries=3" in state.stages["bacdive_enrichment"].summary
+    assert "record_count=2" in state.stages["bacdive_enrichment"].summary
+    assert "diagnostic_count=" in state.stages["bacdive_enrichment"].summary
+    assert paths.completion_summary_path.exists() is False
+    assert package_result == 0
+    assert not (delivery_dir / "evidence" / "bacdive_enrichment.tsv").exists()
+    assert not (delivery_dir / "reports" / "bacdive_enrichment.tsv").exists()
+
+
+def test_verify_genus_bacdive_max_query_cap_limits_fake_requests(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    fake = FakeBacDiveClient(
+        {
+            ("culture_collection", "ATCC 25586"): {
+                "species_name": "Fusobacterium nucleatum",
+                "culture_collection_numbers": ["ATCC 25586"],
+                "is_type_strain": True,
+            }
+        }
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-max-queries",
+            "1",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_client=fake,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    _verify_genus_stdout_payload(capsys)
+
+    assert result == 0
+    assert len(fake.requests) == 1
+    assert audit["executed_query_count"] == 1
+    assert audit["max_queries"] == 1
+    assert any(
+        row["diagnostic_code"] == "bacdive_max_query_cap_exceeded"
+        for row in diagnostics
+    )
+    assert "completed_queries=1" in state.stages["bacdive_enrichment"].summary
+
+
+def test_verify_genus_bacdive_no_token_species_writes_diagnostic(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = tmp_path / "lpsn_cache.tsv"
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    write_lpsn_species_cache(
+        [_lpsn_record("nucleatum", type_strain="")],
+        lpsn_cache,
+    )
+    fake = FakeBacDiveClient({})
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_client=fake,
+    )
+
+    paths = get_output_paths(outdir)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    _verify_genus_stdout_payload(capsys)
+
+    assert result == 0
+    assert fake.requests == []
+    assert [row["diagnostic_code"] for row in diagnostics] == [
+        "bacdive_no_lpsn_type_strain_identifier"
+    ]
+    assert audit["record_count"] == 0
+    assert audit["diagnostic_count"] == 1
 
 
 def test_verify_genus_without_gtdb_config_does_not_write_or_report_audit(

@@ -13,6 +13,7 @@ WORKFLOW_STATUSES = {
     "partial",
     "failed",
     "skipped",
+    "warning",
     "blocked_by_dependency",
     "blocked_by_manual_review",
     "blocked_by_argument_conflict",
@@ -23,6 +24,7 @@ WORKFLOW_STATUSES = {
 
 WORKFLOW_STAGES = (
     "lpsn_checklist",
+    "bacdive_enrichment",
     "assembly_discovery",
     "biosample_enrichment",
     "selection",

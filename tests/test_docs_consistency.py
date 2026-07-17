@@ -11,6 +11,10 @@ from typetreeflow.completion import (
 )
 from typetreeflow.completion_gaps import COMPLETION_GAP_FIELDS
 from typetreeflow.config import REAL_ACTION_FLAGS
+from typetreeflow.evidence.bacdive_workflow import (
+    BACDIVE_DIAGNOSTIC_FIELDS,
+    BACDIVE_ENRICHMENT_FIELDS,
+)
 from typetreeflow.expanded_discovery import (
     EXPANDED_DISCOVERY_PLAN_FIELDS,
     EXPANDED_DISCOVERY_RESULT_FIELDS,
@@ -415,6 +419,8 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "taxonomy/checklist_comparison.tsv": CHECKLIST_COMPARISON_FIELDS,
         "taxonomy/ncbi_taxonomy_plan.tsv": NCBI_TAXONOMY_PLAN_FIELDS,
         "taxonomy/ncbi_taxonomy_cache.tsv": NCBI_TAXONOMY_CACHE_FIELDS,
+        "evidence/bacdive_enrichment.tsv": BACDIVE_ENRICHMENT_FIELDS,
+        "evidence/bacdive_diagnostics.tsv": BACDIVE_DIAGNOSTIC_FIELDS,
         "candidates/assembly_candidates.tsv": CANDIDATE_FIELDS,
         "candidates/assembly_candidate_diagnostics.tsv": DISCOVERY_DIAGNOSTIC_FIELDS,
         "candidates/discovery_records.tsv": DISCOVERY_RECORD_FIELDS,
