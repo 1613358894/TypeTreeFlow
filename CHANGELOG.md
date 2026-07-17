@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.2.24 - 2026-07-17
+
+v2.2.24 is a BacDive enrichment configuration plumbing release based on
+v2.2.23. It records opt-in `verify-genus` CLI configuration metadata now merged
+on `main`, while preserving the v2.2.23 offline BacDive adapter contract, the
+v2.2.22 offline BacDive/DSMZ candidate-evidence model, and the v2.2.21 artifact
+scope readability semantics.
+
+### Added
+
+- Added `--enable-bacdive-enrichment` for opt-in BacDive enrichment
+  configuration metadata.
+- Added `--bacdive-query-mode {tokens,species,both}` for future bounded
+  BacDive query planning.
+- Added `--bacdive-timeout-seconds` and `--bacdive-max-queries` for future
+  bounded BacDive lookup limits.
+- Added stdout and run-state config metadata for the BacDive enrichment
+  settings.
+
+### Changed
+
+- BacDive enrichment remains disabled by default.
+- The new BacDive CLI settings are plumbing only. They do not call the BacDive
+  client, create a BacDive workflow stage, write BacDive evidence outputs, use
+  network access, mutate manifests, change reports/packages, or alter
+  completion metrics.
+- BacDive/DSMZ evidence remains candidate-only and does not upgrade records to
+  strict confirmed type strains or strict completion.
+
+### Verification
+
+- PR #28 CI PASS.
+- Post-merge quick gates PASS.
+- This change did not require live workflow or server smoke validation.
+- v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive model, and
+  v2.2.21 artifact scope readability semantics remain valid.
+
+### Notes
+
+- No live BacDive API, environment/API-key read, provider behavior, download,
+  manifest write, BacDive output file, completion/report/package behavior,
+  release asset publication, or external network access is introduced.
+- This release does not claim full-download validation, full Clostridium
+  strict completion, or strict type-strain confirmation from BacDive/DSMZ
+  source facts.
+
 ## v2.2.23 - 2026-07-17
 
 v2.2.23 is an offline BacDive adapter contract release based on v2.2.22. It

@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.23 / 2.2.23 release verification path uses
+The current v2.2.24 / 2.2.24 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -14,7 +14,8 @@ release gate checks evidence-first report/completion/package wording, scoped
 plumbing, Artifact Scope report tables, AI-readable `artifact_scope.tsv`
 fields, configured-only GTDB audit reporting, centralized evidence policy
 evaluation, offline BacDive/DSMZ candidate-evidence boundaries, offline BacDive
-adapter contract diagnostics, clean deployment readiness, provider
+adapter contract diagnostics, BacDive enrichment configuration plumbing, clean
+deployment readiness, provider
 timeout/error classification,
 stdout JSON isolation, failed-handoff cache boundaries, workspace hygiene, and
 ensures repository-root `results/` remains absent. The clean deployment path is
@@ -67,6 +68,17 @@ the live BacDive API, or imply provider login, scraping, purchase, terms
 acceptance, download, FASTA installation, manifest mutation, completion/report
 behavior, or package behavior.
 
+BacDive enrichment configuration plumbing is opt-in and disabled by default.
+`--enable-bacdive-enrichment`,
+`--bacdive-query-mode {tokens,species,both}`,
+`--bacdive-timeout-seconds`, and `--bacdive-max-queries` currently record only
+stdout and run-state config metadata for `verify-genus`. They do not call the
+BacDive client, create a workflow stage, write
+`evidence/bacdive_enrichment.tsv`, `evidence/bacdive_diagnostics.tsv`, or
+`evidence/bacdive_source_audit.json`, use live APIs or network access, read
+environment/API-key state, mutate manifests, change report/package behavior, or
+change completion metrics.
+
 GTDB audit output is configured-only. `taxonomy/gtdb_metadata_audit.json`,
 run-state GTDB audit status, report wording, and package wording appear only
 when `--gtdb-metadata` or `--gtdb-release` is provided. Unconfigured runs must
@@ -103,13 +115,14 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.23 release record includes PR #27 CI PASS and post-merge quick gates
+The v2.2.24 release record includes PR #28 CI PASS and post-merge quick gates
 PASS. It did not require live workflow or server smoke validation. The
-still-valid v2.2.22 offline BacDive model, v2.2.21 artifact scope readability
-semantics, and v2.2.20 policy-aware artifacts and GTDB gating validations
-remain verification evidence only: they do not claim full Clostridium strict
-completion or full-download validation. The release does not change artifact
-membership, FASTA content, default phylogeny input, live provider/download
-behavior, provider behavior, completion metrics, or strict evidence thresholds.
+still-valid v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive
+model, v2.2.21 artifact scope readability semantics, and v2.2.20 policy-aware
+artifacts and GTDB gating validations remain verification evidence only: they
+do not claim full Clostridium strict completion or full-download validation.
+The release does not change artifact membership, FASTA content, default
+phylogeny input, live provider/download behavior, provider behavior,
+completion metrics, or strict evidence thresholds.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.

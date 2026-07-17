@@ -1,9 +1,48 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.23 integration review as
+These notes consolidate the v2.2.2 through v2.2.24 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.24
+
+v2.2.24 is a BacDive enrichment configuration plumbing release based on
+v2.2.23. It records opt-in `verify-genus` CLI configuration metadata now merged
+on `main`, while preserving the v2.2.23 offline BacDive adapter contract, the
+v2.2.22 offline BacDive/DSMZ candidate-evidence model, and the v2.2.21 artifact
+scope readability semantics:
+
+- `verify-genus` exposes `--enable-bacdive-enrichment` for opt-in BacDive
+  enrichment configuration metadata. BacDive enrichment remains disabled by
+  default.
+- `verify-genus` exposes `--bacdive-query-mode {tokens,species,both}` for
+  future bounded BacDive query planning.
+- `verify-genus` exposes `--bacdive-timeout-seconds` and
+  `--bacdive-max-queries` for future bounded BacDive lookup limits.
+- The settings are currently written only to stdout config metadata and
+  run-state config metadata.
+- The BacDive client is not called, no BacDive workflow stage is wired, and no
+  `evidence/bacdive_enrichment.tsv`, `evidence/bacdive_diagnostics.tsv`, or
+  `evidence/bacdive_source_audit.json` outputs are written.
+- The plumbing does not read API keys or environment variables, use network
+  access, perform live BacDive API calls, automate provider behavior, download
+  files, mutate manifests, change reports/packages, or change completion
+  metrics.
+- BacDive/DSMZ evidence remains candidate-only. BacDive type-strain signals and
+  LPSN token overlap do not mark `strict_lpsn_confirmed`,
+  `curated_strict_confirmed`, strict completion, or any strict confirmed
+  type-strain status without a later proof chain tying the genome or BioSample
+  record to the LPSN type-strain equivalence set.
+- Verification evidence includes PR #28 CI PASS and post-merge quick gates
+  PASS. This change did not require live workflow or server smoke validation.
+
+v2.2.24 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live BacDive API behavior, provider automation, live provider
+behavior, release asset publication, or relaxed strict type-strain evidence
+thresholds. The v2.2.23 offline adapter contract, v2.2.22 offline BacDive
+model, and v2.2.21 artifact scope readability semantics remain valid.
 
 ## v2.2.23
 

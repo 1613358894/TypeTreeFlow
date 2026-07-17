@@ -1,12 +1,15 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.23 release records the offline BacDive adapter
-contract, fake BacDive client, and structured lookup request/result,
-diagnostic, and failure-status surface. It does not wire BacDive/DSMZ into live
-APIs, CLI workflows, providers, downloads, manifests, reports, packages, or
-completion metrics, and the v2.2.22 offline BacDive model and v2.2.21 artifact
-scope readability semantics remain valid.
+workflow. The current 2.2.24 release records BacDive enrichment configuration
+plumbing for `verify-genus`: `--enable-bacdive-enrichment`,
+`--bacdive-query-mode {tokens,species,both}`,
+`--bacdive-timeout-seconds`, and `--bacdive-max-queries`. BacDive remains
+disabled by default. The flags currently write only stdout and run-state config
+metadata; they do not call a BacDive client, wire a workflow stage, write
+BacDive outputs, use live APIs, or change candidate-only scientific boundaries.
+The v2.2.23 offline adapter contract, v2.2.22 offline BacDive model, and
+v2.2.21 artifact scope readability semantics remain valid.
 
 ## AI-First Route
 
@@ -85,7 +88,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.23 workflow
+## Recommended v2.2.24 workflow
 
 Plan first:
 
@@ -143,6 +146,14 @@ Optional guarded actions include `--enable-biosample-entrez`,
 Expanded discovery and NCBI Taxonomy outputs are audit-only and do not create
 automatic 100% coverage.
 
+BacDive enrichment configuration is opt-in and metadata-only in this release:
+`--enable-bacdive-enrichment`, `--bacdive-query-mode {tokens,species,both}`,
+`--bacdive-timeout-seconds`, and `--bacdive-max-queries` record configuration
+in stdout/run-state metadata. They do not call the BacDive adapter, create a
+workflow stage, write BacDive evidence outputs, use network access, change
+completion metrics, or promote BacDive candidates to strict confirmed type
+strains.
+
 ## Common Commands
 
 ```bash
@@ -187,12 +198,13 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.23 release record includes PR #27 CI PASS and post-merge quick gates
+The v2.2.24 release record includes PR #28 CI PASS and post-merge quick gates
 PASS. It did not require live workflow or server smoke validation. The
-still-valid v2.2.22 offline BacDive model, v2.2.21 artifact scope readability
-semantics, and v2.2.20 policy-aware artifacts and GTDB gating validations remain
-release verification evidence only; they do not claim full Clostridium strict
-completion or full-download validation.
+still-valid v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive
+model, v2.2.21 artifact scope readability semantics, and v2.2.20 policy-aware
+artifacts and GTDB gating validations remain release verification evidence
+only; they do not claim full Clostridium strict completion or full-download
+validation.
 
 ## External And Provider Workflows
 
