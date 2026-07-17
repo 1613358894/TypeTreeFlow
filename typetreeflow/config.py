@@ -92,6 +92,10 @@ class AppConfig:
     report_only: bool
     log_level: str
     evidence_policy: str = "strict"
+    enable_bacdive_enrichment: bool = False
+    bacdive_query_mode: str = "tokens"
+    bacdive_timeout_seconds: float = 20.0
+    bacdive_max_queries: int = 50
 
 
 def ensure_real_action_allowed(

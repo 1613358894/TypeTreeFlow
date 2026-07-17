@@ -769,6 +769,10 @@ def _verify_genus_config_summary(config: AppConfig) -> dict[str, object]:
         "enable_downloads": config.enable_downloads,
         "auto_accept_selection": config.auto_accept_selection,
         "enable_phylo": config.enable_phylo,
+        "enable_bacdive_enrichment": config.enable_bacdive_enrichment,
+        "bacdive_query_mode": config.bacdive_query_mode,
+        "bacdive_timeout_seconds": config.bacdive_timeout_seconds,
+        "bacdive_max_queries": config.bacdive_max_queries,
         "gtdb_audit_enabled": _gtdb_metadata_audit_configured(config),
     }
 
@@ -2289,6 +2293,10 @@ def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
         "enable_downloads": config.enable_downloads,
         "auto_accept_selection": config.auto_accept_selection,
         "enable_phylo": config.enable_phylo,
+        "enable_bacdive_enrichment": config.enable_bacdive_enrichment,
+        "bacdive_query_mode": config.bacdive_query_mode,
+        "bacdive_timeout_seconds": config.bacdive_timeout_seconds,
+        "bacdive_max_queries": config.bacdive_max_queries,
         "gtdb_audit_enabled": _gtdb_metadata_audit_configured(config),
     }
 
