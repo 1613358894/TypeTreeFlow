@@ -113,10 +113,26 @@ missing-genome findings. The fake client normalizes fixture dictionaries into
 `BacDiveEvidenceRecord` rows and preserves diagnostics for multiple
 accessions, missing LPSN token overlap, species conflicts, and schema drift.
 
-The adapter contract is not a user-visible feature. It is not wired into CLI
-arguments, `verify-genus`, provider planning, live HTTP calls, environment/API
-key reads, output files, manifest writes, selection, reports, packages, or
-completion metrics.
+`verify-genus` exposes BacDive enrichment configuration metadata only:
+`--enable-bacdive-enrichment`,
+`--bacdive-query-mode {tokens,species,both}`,
+`--bacdive-timeout-seconds N`, and `--bacdive-max-queries N`. Defaults are
+disabled, `tokens`, `20`, and `50`. Timeout and max-query values must be
+positive, and unknown query modes fail during argument parsing.
+
+The resolved values are stored in `AppConfig`, `run_state.json` under
+`config.enable_bacdive_enrichment`, `config.bacdive_query_mode`,
+`config.bacdive_timeout_seconds`, and `config.bacdive_max_queries`, and the
+single compact `verify-genus` stdout JSON object under the same `config` keys.
+This is plumbing only: the BacDive adapter is not called, no `bacdive`
+workflow stage exists, and no `evidence/bacdive_enrichment.tsv`,
+`evidence/bacdive_diagnostics.tsv`, or
+`evidence/bacdive_source_audit.json` files are written by `verify-genus`.
+
+The adapter contract is not a completed user-visible live feature. It is not
+wired into provider planning, live HTTP calls, environment/API key reads,
+output files, manifest writes, selection, reports, packages, or completion
+metrics.
 
 ### Doctor Readiness
 

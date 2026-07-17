@@ -121,6 +121,25 @@ def _smoke_profile_effective_values(args, *, verify_genus: bool):
     )
 
 
+def _validate_bacdive_args(args, *, verify_genus: bool) -> None:
+    if args.enable_bacdive_enrichment and not verify_genus:
+        raise ValueError("--enable-bacdive-enrichment is only supported by verify-genus.")
+    if not args.enable_bacdive_enrichment and args.bacdive_query_mode != "tokens":
+        raise ValueError(
+            "--bacdive-query-mode is accepted only with "
+            "--enable-bacdive-enrichment."
+        )
+    if not verify_genus:
+        if args.bacdive_query_mode != "tokens":
+            raise ValueError("--bacdive-query-mode is only supported by verify-genus.")
+        if args.bacdive_timeout_seconds != 20.0:
+            raise ValueError(
+                "--bacdive-timeout-seconds is only supported by verify-genus."
+            )
+        if args.bacdive_max_queries != 50:
+            raise ValueError("--bacdive-max-queries is only supported by verify-genus.")
+
+
 def build_app_config_from_args(
     args,
     *,
@@ -128,6 +147,7 @@ def build_app_config_from_args(
     package_results_command: bool,
 ) -> AppConfig:
     load_env_files(args.env_file)
+    _validate_bacdive_args(args, verify_genus=verify_genus)
     query_genomes = tuple(args.query_genome or ())
     (
         smoke_profile,
@@ -220,4 +240,8 @@ def build_app_config_from_args(
         report_only=args.report_only,
         log_level=args.log_level,
         evidence_policy=args.evidence_policy,
+        enable_bacdive_enrichment=args.enable_bacdive_enrichment,
+        bacdive_query_mode=args.bacdive_query_mode,
+        bacdive_timeout_seconds=args.bacdive_timeout_seconds,
+        bacdive_max_queries=args.bacdive_max_queries,
     )

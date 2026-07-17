@@ -1,9 +1,30 @@
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 from typetreeflow import __version__
+
+
+def _positive_float(value: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive number") from error
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive number")
+    return parsed
+
+
+def _positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive integer") from error
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -285,6 +306,41 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Explicitly allow real NCBI Entrez BioSample lookups for "
             "--enrich-biosample. Requires --email."
+        ),
+    )
+    parser.add_argument(
+        "--enable-bacdive-enrichment",
+        action="store_true",
+        help=(
+            "For verify-genus, record opt-in BacDive enrichment configuration. "
+            "The BacDive adapter is not wired in this release."
+        ),
+    )
+    parser.add_argument(
+        "--bacdive-query-mode",
+        choices=["tokens", "species", "both"],
+        default="tokens",
+        help=(
+            "For future verify-genus BacDive enrichment, choose bounded query "
+            "mode: tokens, species, or both; default: tokens."
+        ),
+    )
+    parser.add_argument(
+        "--bacdive-timeout-seconds",
+        type=_positive_float,
+        default=20.0,
+        help=(
+            "For future verify-genus BacDive enrichment, positive per-query "
+            "timeout in seconds; default: 20."
+        ),
+    )
+    parser.add_argument(
+        "--bacdive-max-queries",
+        type=_positive_int,
+        default=50,
+        help=(
+            "For future verify-genus BacDive enrichment, positive maximum query "
+            "count; default: 50."
         ),
     )
     parser.add_argument(

@@ -225,6 +225,121 @@ def test_parse_args_verify_genus_preserves_limit_selected(tmp_path):
     assert config.limit_selected == 3
     assert config.smoke_profile is None
     assert config.evidence_policy == "strict"
+    assert config.enable_bacdive_enrichment is False
+    assert config.bacdive_query_mode == "tokens"
+    assert config.bacdive_timeout_seconds == 20.0
+    assert config.bacdive_max_queries == 50
+
+
+def test_parse_args_verify_genus_accepts_bacdive_enrichment_config(tmp_path):
+    config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-query-mode",
+            "both",
+            "--bacdive-timeout-seconds",
+            "12.5",
+            "--bacdive-max-queries",
+            "7",
+            "--outdir",
+            str(tmp_path / "verify"),
+        ]
+    )
+
+    assert config.enable_bacdive_enrichment is True
+    assert config.bacdive_query_mode == "both"
+    assert config.bacdive_timeout_seconds == 12.5
+    assert config.bacdive_max_queries == 7
+
+
+@pytest.mark.parametrize("query_mode", ["tokens", "species", "both"])
+def test_parse_args_verify_genus_accepts_bacdive_query_modes(tmp_path, query_mode):
+    config = cli.parse_args(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-query-mode",
+            query_mode,
+            "--outdir",
+            str(tmp_path / query_mode),
+        ]
+    )
+
+    assert config.enable_bacdive_enrichment is True
+    assert config.bacdive_query_mode == query_mode
+
+
+def test_parse_args_verify_genus_rejects_unknown_bacdive_query_mode(tmp_path):
+    with pytest.raises(SystemExit):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--enable-bacdive-enrichment",
+                "--bacdive-query-mode",
+                "genus",
+                "--outdir",
+                str(tmp_path / "verify"),
+            ]
+        )
+
+
+def test_parse_args_verify_genus_rejects_bacdive_query_mode_without_enable(tmp_path):
+    with pytest.raises(ValueError, match="accepted only"):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--bacdive-query-mode",
+                "species",
+                "--outdir",
+                str(tmp_path / "verify"),
+            ]
+        )
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf"])
+def test_parse_args_verify_genus_rejects_invalid_bacdive_timeout(tmp_path, value):
+    with pytest.raises(SystemExit):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--bacdive-timeout-seconds",
+                value,
+                "--outdir",
+                str(tmp_path / "verify"),
+            ]
+        )
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "1.5"])
+def test_parse_args_verify_genus_rejects_invalid_bacdive_max_queries(tmp_path, value):
+    with pytest.raises(SystemExit):
+        cli.parse_args(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--bacdive-max-queries",
+                value,
+                "--outdir",
+                str(tmp_path / "verify"),
+            ]
+        )
+
+
+def test_parse_args_rejects_bacdive_config_outside_verify_genus(tmp_path):
+    with pytest.raises(ValueError, match="only supported by verify-genus"):
+        cli.parse_args(
+            [
+                "--enable-bacdive-enrichment",
+                "--outdir",
+                str(tmp_path / "out"),
+            ]
+        )
 
 
 @pytest.mark.parametrize("policy", ["strict", "candidate", "exploratory"])

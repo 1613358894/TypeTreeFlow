@@ -22,10 +22,11 @@ provider proposals, provider plans, local query rows, or external request rows
 as strict confirmed type strains. Strict type-strain wording requires evidence
 tying the genome record to the species type-strain equivalence set.
 
-BacDive/DSMZ enrichment is candidate-only unless a later reconciler proves the
-full chain from BacDive/DSMZ source facts to LPSN type-strain equivalence and
-selected-genome or BioSample linkage. A BacDive/DSMZ `is_type_strain` signal or
-DSMZ catalogue accession alone maps only to
+BacDive/DSMZ enrichment is opt-in, disabled by default, and candidate-only
+unless a later reconciler proves the full chain from BacDive/DSMZ source facts
+to LPSN type-strain equivalence and selected-genome or BioSample linkage. A
+BacDive/DSMZ `is_type_strain` signal or DSMZ catalogue accession alone maps
+only to
 `authoritative_type_material_candidate`; it must not be described as
 `strict_lpsn_confirmed`, `curated_strict_confirmed`, or completed strict
 coverage. BacDive/DSMZ sequence or genome accession links are source metadata
@@ -35,9 +36,10 @@ The BacDive adapter contract is currently an offline interface and fake-client
 test surface only. Its statuses (`success`, `no_result`, `api_unavailable`,
 `timeout`, `rate_limited`, `schema_drift`, `conflict`, and
 `terms_not_confirmed`) are adapter diagnostics, not workflow completion
-semantics. No live BacDive API call, environment/API-key read, CLI flag,
-workflow output, manifest/selection mutation, report/package integration, or
-completion-count change is enabled by this contract.
+semantics. Current CLI parameters only record BacDive configuration metadata;
+they do not enable live BacDive API calls, environment/API-key reads, workflow
+outputs, manifest/selection mutation, report/package integration, or
+completion-count changes.
 
 ## Evidence Policy
 

@@ -53,6 +53,8 @@ Evidence policy defaults to `strict`. To record a broader derived-view intent,
 pass `--evidence-policy candidate` or `--evidence-policy exploratory`. This
 release only records that metadata in stdout, run state, reports, and package
 handoff metadata; it does not change selected rows or artifact contents.
+BacDive enrichment flags currently record opt-in candidate-only configuration
+metadata only; no live BacDive adapter or evidence outputs are wired yet.
 
 Review `status`, `next-step`, `report/summary.md`, `report/run_review.md`,
 `selection/strain_candidates.tsv`, and `selection/user_selection.tsv`.

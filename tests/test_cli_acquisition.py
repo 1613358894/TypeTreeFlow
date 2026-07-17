@@ -1226,11 +1226,116 @@ def test_verify_genus_plan_only_profile_records_profile_without_downloads(
         "enable_downloads": False,
         "auto_accept_selection": False,
         "enable_phylo": False,
+        "enable_bacdive_enrichment": False,
+        "bacdive_query_mode": "tokens",
+        "bacdive_timeout_seconds": 20.0,
+        "bacdive_max_queries": 50,
         "gtdb_audit_enabled": False,
     }
     assert state.config == payload["config"]
     assert state.stages["download"].status == "blocked_by_manual_review"
     assert not paths.ncbi_download_results_path.exists()
+
+
+def test_verify_genus_records_bacdive_config_without_wiring_outputs(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-query-mode",
+            "species",
+            "--bacdive-timeout-seconds",
+            "9",
+            "--bacdive-max-queries",
+            "3",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    expected_bacdive_config = {
+        "enable_bacdive_enrichment": True,
+        "bacdive_query_mode": "species",
+        "bacdive_timeout_seconds": 9.0,
+        "bacdive_max_queries": 3,
+    }
+    assert result == 0
+    assert {
+        key: payload["config"][key] for key in expected_bacdive_config
+    } == expected_bacdive_config
+    assert {
+        key: state.config[key] for key in expected_bacdive_config
+    } == expected_bacdive_config
+    assert "bacdive" not in state.stages
+    assert not (outdir / "evidence" / "bacdive_enrichment.tsv").exists()
+    assert not (outdir / "evidence" / "bacdive_diagnostics.tsv").exists()
+    assert not (outdir / "evidence" / "bacdive_source_audit.json").exists()
+
+
+def test_verify_genus_default_bacdive_config_creates_no_stage_outputs_or_client_call(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    import typetreeflow.evidence.bacdive_adapter as bacdive_adapter
+
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    def fail_live_client(*args, **kwargs):
+        raise AssertionError("BacDive client must not be constructed by default")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+    monkeypatch.setattr(bacdive_adapter, "BacDiveLiveClient", fail_live_client)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert payload["config"]["enable_bacdive_enrichment"] is False
+    assert state.config["enable_bacdive_enrichment"] is False
+    assert "bacdive" not in state.stages
+    assert not (outdir / "evidence" / "bacdive_enrichment.tsv").exists()
+    assert not (outdir / "evidence" / "bacdive_diagnostics.tsv").exists()
+    assert not (outdir / "evidence" / "bacdive_source_audit.json").exists()
 
 
 def test_verify_genus_without_gtdb_config_does_not_write_or_report_audit(
@@ -1942,6 +2047,10 @@ def test_verify_genus_limit4_real_profile_expands_guarded_config(
         "enable_downloads": True,
         "auto_accept_selection": True,
         "enable_phylo": True,
+        "enable_bacdive_enrichment": False,
+        "bacdive_query_mode": "tokens",
+        "bacdive_timeout_seconds": 20.0,
+        "bacdive_max_queries": 50,
         "gtdb_audit_enabled": False,
     }
     assert state.config == payload["config"]
