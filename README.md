@@ -1,10 +1,16 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.26 release records BacDive candidate review
-reporting and package handoff for the opt-in BacDive enrichment workflow.
-When explicitly enabled with `--enable-bacdive-enrichment`, the skeleton can
-write
+workflow. The current 2.2.27 release records a non-wired BacDive v2 HTTP client
+skeleton for future review use, with injectable transport and simulated tests
+for timeout, rate-limit, schema drift, no-result, and 5xx handling. Endpoint
+construction covers `/v2/culturecollectionno/{culturecollectionno}`,
+`/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`. Explicit
+terms and citation confirmation are required to construct the live client; the
+client does not read environment variables, API keys, or cookies. The public
+CLI and workflow still do not construct or call the live BacDive client, and
+tests do not call the live BacDive API. When explicitly enabled with
+`--enable-bacdive-enrichment`, the skeleton can write
 `evidence/bacdive_enrichment.tsv`, `evidence/bacdive_diagnostics.tsv`, and
 `evidence/bacdive_source_audit.json` through an injected/fake client. Without
 an injected client it writes a safe diagnostic, never constructs a live client,
@@ -98,7 +104,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.26 workflow
+## Recommended v2.2.27 workflow
 
 Plan first:
 
@@ -177,6 +183,14 @@ Report summaries may include a BacDive Candidate Review section, and
 `artifact_scope.tsv` rows for BacDive outputs remain `scope=audit` and
 `strict_scientific_deliverable=false`.
 
+The non-wired `BacDiveLiveClient` skeleton supports explicit future BacDive v2
+HTTP review through an injectable transport. It constructs
+`/v2/culturecollectionno/{culturecollectionno}`,
+`/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}` requests,
+but it is not constructed by the CLI or workflow. It requires explicit terms
+and citation confirmation and does not read environment variables, API keys, or
+cookies.
+
 ## Common Commands
 
 ```bash
@@ -221,16 +235,16 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.26 release record includes PR #30 CI PASS, post-merge quick gates
-PASS, and BacDive report/package offline contract smoke PASS at
-`807d4caffd0acef0b4aefc99fcb3ab5aee2fa2d5`. It still has no live BacDive API
-integration, does not require an API key, does not read environment variables,
-and does not contact the network. The still-valid v2.2.25 skeleton, v2.2.24
-configuration plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22
-offline BacDive model, v2.2.21 artifact scope readability semantics, and
-v2.2.20 policy-aware artifacts and GTDB gating validations remain release
-verification evidence only; they do not claim full Clostridium strict
-completion or full-download validation.
+The v2.2.27 release record includes PR #31 CI PASS and post-merge quick gates
+PASS. It did not require live workflow or server smoke validation. It still has
+no live BacDive API workflow integration, does not require an API key, does not
+read environment variables or cookies, and does not contact the network through
+the public workflow or tests. The still-valid v2.2.26 BacDive report/package
+handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing, v2.2.23 offline
+BacDive adapter contract, v2.2.22 offline BacDive model, v2.2.21 artifact scope
+readability semantics, and v2.2.20 policy-aware artifacts and GTDB gating
+validations remain release verification evidence only; they do not claim full
+Clostridium strict completion or full-download validation.
 
 ## External And Provider Workflows
 

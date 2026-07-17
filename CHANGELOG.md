@@ -1,5 +1,52 @@
 # Changelog
 
+## v2.2.27 - 2026-07-17
+
+v2.2.27 is a BacDive live-client HTTP skeleton release based on v2.2.26. It
+records the injectable HTTP transport and simulated endpoint/error handling now
+merged on `main`, while preserving the v2.2.26 BacDive candidate review
+report/package handoff, the v2.2.25 opt-in workflow skeleton, and the
+candidate-only BacDive evidence boundary.
+
+### Added
+
+- Added a non-wired `BacDiveLiveClient` HTTP skeleton for explicit future
+  BacDive v2 review use.
+- Added an injectable HTTP transport protocol so tests can simulate BacDive
+  responses without network access.
+- Added supported endpoint construction for
+  `/v2/culturecollectionno/{culturecollectionno}`,
+  `/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`.
+- Added simulated HTTP tests for timeout, rate-limit, schema drift, no-result,
+  and 5xx handling.
+
+### Changed
+
+- Constructing `BacDiveLiveClient` requires explicit terms and citation
+  confirmation.
+- The live-client skeleton does not read environment variables, API keys, or
+  cookies, and fake-transport tests do not open network sockets.
+- The public CLI and workflow still do not construct or call the live BacDive
+  client. No live BacDive API calls, provider behavior, downloads, manifest
+  writes, completion changes, or strict evidence-policy changes are introduced.
+- BacDive evidence remains candidate-only and audit-only.
+
+### Verification
+
+- PR #31 CI PASS.
+- Post-merge quick gates PASS.
+- This change did not require live workflow or server smoke validation.
+
+### Notes
+
+- No live BacDive API call, environment/API-key/cookie usage, provider
+  behavior, download, manifest write, completion metric change, strict
+  evidence-policy change, release asset publication, or external network access
+  is introduced.
+- This release does not claim full-download validation, full Clostridium strict
+  completion, or strict type-strain confirmation from BacDive/DSMZ source
+  facts.
+
 ## v2.2.26 - 2026-07-17
 
 v2.2.26 is a BacDive candidate review reporting and package handoff release

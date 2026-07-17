@@ -1,9 +1,49 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.26 integration review as
+These notes consolidate the v2.2.2 through v2.2.27 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.27
+
+v2.2.27 is a BacDive live-client HTTP skeleton release based on v2.2.26. It
+records the injectable HTTP transport and simulated BacDive v2 endpoint/error
+handling now merged on `main`, while preserving the v2.2.26 BacDive candidate
+review report/package handoff, the v2.2.25 opt-in workflow skeleton, the
+v2.2.24 configuration plumbing, the v2.2.23 offline BacDive adapter contract,
+the v2.2.22 offline BacDive/DSMZ candidate-evidence model, and the v2.2.21
+artifact scope readability semantics:
+
+- `BacDiveLiveClient` is present as an explicit, non-wired BacDive v2 HTTP
+  client skeleton for future review use.
+- The client accepts an injectable HTTP transport, so tests can simulate
+  responses without live API calls, environment reads, credentials, cookies, or
+  sockets.
+- Endpoint construction covers
+  `/v2/culturecollectionno/{culturecollectionno}`,
+  `/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`.
+- Simulated HTTP tests cover timeout, rate-limit, schema drift, no-result, and
+  5xx behavior.
+- Constructing the live client requires explicit terms and citation
+  confirmation. No environment variable, API key, or cookie path is used.
+- The public CLI and workflow still do not construct or call the live BacDive
+  client, and tests do not call the live BacDive API.
+- BacDive evidence remains candidate-only and audit-only. BacDive/DSMZ source
+  facts do not mark strict confirmed type strains or strict completion without
+  a later proof chain tying the genome or BioSample record to the LPSN
+  type-strain equivalence set.
+- Verification evidence includes PR #31 CI PASS and post-merge quick gates
+  PASS. This change did not require live workflow or server smoke validation.
+
+v2.2.27 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live BacDive API workflow behavior, provider automation, live
+provider behavior, release asset publication, or relaxed strict type-strain
+evidence thresholds. The v2.2.26 report/package handoff, v2.2.25 skeleton,
+v2.2.24 configuration plumbing, v2.2.23 offline adapter contract, v2.2.22
+offline BacDive model, and v2.2.21 artifact scope readability semantics remain
+valid.
 
 ## v2.2.26
 
