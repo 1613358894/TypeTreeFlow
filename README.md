@@ -1,21 +1,22 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.27 release records a non-wired BacDive v2 HTTP client
-skeleton for future review use, with injectable transport and simulated tests
+workflow. The current 2.2.27 release records the BacDive v2 HTTP client; the
+current BacDive workflow contract has an injectable client with simulated tests
 for timeout, rate-limit, schema drift, no-result, and 5xx handling. Endpoint
-construction covers `/v2/culturecollectionno/{culturecollectionno}`,
+construction covers
+`/v2/culturecollectionno/{culturecollectionno}`,
 `/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`. Explicit
 terms and citation confirmation are required to construct the live client; the
-client does not read environment variables, API keys, or cookies. The public
-CLI and workflow still do not construct or call the live BacDive client, and
-tests do not call the live BacDive API. When explicitly enabled with
-`--enable-bacdive-enrichment`, the skeleton can write
+client does not read environment variables, API keys, or cookies. When
+explicitly enabled with `--enable-bacdive-enrichment`, the workflow can write
 `evidence/bacdive_enrichment.tsv`, `evidence/bacdive_diagnostics.tsv`, and
-`evidence/bacdive_source_audit.json` through an injected/fake client. Without
-an injected client it writes a safe diagnostic, never constructs a live client,
-does not fail the core workflow, and does not read API keys, read environment
-variables, use live APIs, or contact the network. BacDive enrichment remains
+`evidence/bacdive_source_audit.json` through an injected/fake client, or
+through the public bounded live path when no client is injected. Public live
+mode is tokens-only, executes culture-collection token lookups only, caps total
+HTTP calls with `--bacdive-max-queries`, uses one detail ID per fetch, and
+writes no raw payloads. `species` and `both` public live modes are blocked
+before HTTP. Tests do not call the live BacDive API. BacDive enrichment remains
 candidate-only and audit-only. `report/summary.md` can include a BacDive
 Candidate Review summary, `package-results --include reports` includes the
 normalized BacDive evidence triplet, and package `artifact_scope.tsv` adds
@@ -165,13 +166,14 @@ automatic 100% coverage.
 BacDive enrichment is opt-in and candidate-only. With
 `--enable-bacdive-enrichment`, `--bacdive-query-mode {tokens,species,both}`,
 `--bacdive-timeout-seconds`, and `--bacdive-max-queries`, an injected/fake
-client can write `evidence/bacdive_enrichment.tsv`,
+client or the public bounded live tokens path can write
+`evidence/bacdive_enrichment.tsv`,
 `evidence/bacdive_diagnostics.tsv`, and
 `evidence/bacdive_source_audit.json`, plus a `bacdive_enrichment` run-state
-stage. Without an injected client, the public CLI writes
-`bacdive_live_client_not_enabled` as a safe diagnostic, does not construct a
-live client, does not fail the core workflow, and does not require an API key,
-read environment variables, or contact BacDive. BacDive rows remain
+stage. Without an injected client, public live mode is allowed only for
+`--bacdive-query-mode tokens`; `species` and `both` write
+`bacdive_live_query_mode_not_allowed` before any HTTP call. The live client does
+not require an API key, read environment variables, or use cookies. BacDive rows remain
 `strict_confirmed=false` with
 `selected_genome_linkage=not_evaluated`, and they do not change selection,
 manifests, completion metrics, downloads, or strict evidence policy results.
@@ -183,13 +185,14 @@ Report summaries may include a BacDive Candidate Review section, and
 `artifact_scope.tsv` rows for BacDive outputs remain `scope=audit` and
 `strict_scientific_deliverable=false`.
 
-The non-wired `BacDiveLiveClient` skeleton supports explicit future BacDive v2
-HTTP review through an injectable transport. It constructs
+`BacDiveLiveClient` supports explicit BacDive v2 HTTP review through an
+injectable transport. It constructs
 `/v2/culturecollectionno/{culturecollectionno}`,
 `/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}` requests,
-but it is not constructed by the CLI or workflow. It requires explicit terms
-and citation confirmation and does not read environment variables, API keys, or
-cookies.
+and is constructed by the public workflow only behind
+`--enable-bacdive-enrichment` in tokens mode when no client is injected. It
+requires explicit terms and citation confirmation and does not read environment
+variables, API keys, or cookies.
 
 ## Common Commands
 
@@ -236,15 +239,14 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/manual_supplement_hints.tsv`.
 
 The v2.2.27 release record includes PR #31 CI PASS and post-merge quick gates
-PASS. It did not require live workflow or server smoke validation. It still has
-no live BacDive API workflow integration, does not require an API key, does not
-read environment variables or cookies, and does not contact the network through
-the public workflow or tests. The still-valid v2.2.26 BacDive report/package
-handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing, v2.2.23 offline
-BacDive adapter contract, v2.2.22 offline BacDive model, v2.2.21 artifact scope
-readability semantics, and v2.2.20 policy-aware artifacts and GTDB gating
-validations remain release verification evidence only; they do not claim full
-Clostridium strict completion or full-download validation.
+PASS. That release did not require live workflow or server smoke validation and
+did not include public live BacDive workflow integration. The still-valid
+v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24 configuration
+plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive
+model, v2.2.21 artifact scope readability semantics, and v2.2.20 policy-aware
+artifacts and GTDB gating validations remain release verification evidence
+only; they do not claim full Clostridium strict completion or full-download
+validation.
 
 ## External And Provider Workflows
 

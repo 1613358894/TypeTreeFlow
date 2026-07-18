@@ -40,11 +40,23 @@ HTTP transports. Its statuses (`success`, `no_result`, `api_unavailable`,
 semantics. The opt-in `verify-genus` BacDive workflow skeleton may write
 `evidence/bacdive_enrichment.tsv`, `evidence/bacdive_diagnostics.tsv`, and
 `evidence/bacdive_source_audit.json` only from LPSN checklist context and an
-injected fake or fixture-backed client. It must not construct a live client,
-read environment/API keys/cookies, call the live BacDive API, mutate
+injected fake/fixture-backed client or the explicit public live path. The
+public live path is allowed only when BacDive enrichment is enabled and no
+client is injected, only for `bacdive_query_mode=tokens`, and only for bounded
+culture-collection token lookups. BacDive live-client construction must not
+read environment files, API keys, credentials, cookies, or login state. The
+stage must not write raw BacDive payloads, mutate
 manifest/selection/download/provider outputs, or change completion-count
-semantics. If no injected client is supplied, it writes
-`bacdive_live_client_not_enabled` as a non-failing diagnostic.
+semantics. Public live `species` and `both` modes are blocked before HTTP with
+`bacdive_live_query_mode_not_allowed`.
+
+Public live BacDive calls are candidate-review calls only. `bacdive_max_queries`
+caps total HTTP calls, including lookup and detail fetch calls, and the workflow
+uses `max_detail_ids=1`. BacDive no-result, timeout, rate-limit,
+unavailability, schema drift, max-cap, unsupported-token, and conflict statuses
+are warning diagnostics for the optional BacDive stage; they are not strict
+type-strain absence evidence and must not fail or upgrade the core workflow
+when normalized outputs can be written.
 
 When all three normalized BacDive outputs are present, reports and delivery
 packages may surface them only as candidate-only audit evidence for review.
