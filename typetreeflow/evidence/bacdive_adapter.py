@@ -147,7 +147,7 @@ class BacDiveClientProtocol(Protocol):
 
 
 class BacDiveHTTPTransportProtocol(Protocol):
-    def get_json(self, url: str, timeout: float) -> Any:
+    def get_json(self, url: str, timeout: float, max_response_bytes: int) -> Any:
         """Return decoded JSON for one BacDive URL."""
 
 
@@ -161,6 +161,10 @@ class BacDiveTimeoutError(BacDiveTransportError):
 
 class BacDiveMalformedJSONError(BacDiveTransportError):
     """Raised by transports when a response body is not valid JSON."""
+
+
+class BacDiveResponseTooLargeError(BacDiveTransportError):
+    """Raised by transports when a response exceeds the configured byte guard."""
 
 
 class BacDiveHTTPError(BacDiveTransportError):
@@ -216,6 +220,8 @@ class BacDiveLiveClient:
         base_url: str = DEFAULT_BACDIVE_API_BASE_URL,
         timeout_seconds: float = 20.0,
         max_http_calls: int = 50,
+        max_detail_ids: int = 100,
+        max_response_bytes: int = 5_000_000,
         transport: BacDiveHTTPTransportProtocol | None = None,
     ) -> None:
         if not terms_confirmed or not citation_confirmed:
@@ -226,9 +232,15 @@ class BacDiveLiveClient:
             raise ValueError("BacDive live timeout must be positive")
         if max_http_calls <= 0:
             raise ValueError("BacDive live max_http_calls must be positive")
+        if max_detail_ids <= 0:
+            raise ValueError("BacDive live max_detail_ids must be positive")
+        if max_response_bytes <= 0:
+            raise ValueError("BacDive live max_response_bytes must be positive")
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = float(timeout_seconds)
         self.max_http_calls = int(max_http_calls)
+        self.max_detail_ids = int(max_detail_ids)
+        self.max_response_bytes = int(max_response_bytes)
         self.transport = transport or _StdlibBacDiveJsonTransport()
         self.http_calls_made = 0
         self._rate_limited = False
@@ -267,6 +279,15 @@ class BacDiveLiveClient:
 
         bacdive_ids = _extract_bacdive_ids(lookup_payload)
         if bacdive_ids:
+            if len(bacdive_ids) > self.max_detail_ids:
+                return self._status_response(
+                    API_UNAVAILABLE,
+                    "BacDive detail ID cap skipped this fetch request",
+                    accessed_at=accessed_at,
+                    query=request.query,
+                    endpoint=endpoint,
+                    code="bacdive_max_detail_id_cap_exceeded",
+                )
             fetch_endpoint = self.fetch_endpoint(bacdive_ids)
             fetch_url = self._url(fetch_endpoint)
             detail_payload, detail_error = self._get_json(
@@ -376,7 +397,14 @@ class BacDiveLiveClient:
             )
         self.http_calls_made += 1
         try:
-            return self.transport.get_json(url, self.timeout_seconds), None
+            return (
+                self.transport.get_json(
+                    url,
+                    self.timeout_seconds,
+                    self.max_response_bytes,
+                ),
+                None,
+            )
         except (BacDiveTimeoutError, TimeoutError, socket.timeout):
             return None, self._status_response(
                 TIMEOUT,
@@ -430,6 +458,15 @@ class BacDiveLiveClient:
                 query=query,
                 endpoint=endpoint,
                 code="bacdive_malformed_json",
+            )
+        except BacDiveResponseTooLargeError:
+            return None, self._status_response(
+                API_UNAVAILABLE,
+                "BacDive response exceeded max_response_bytes before JSON parsing",
+                accessed_at=accessed_at,
+                query=query,
+                endpoint=endpoint,
+                code="bacdive_response_too_large",
             )
         except BacDiveTransportError:
             return None, self._status_response(
@@ -519,6 +556,8 @@ class BacDiveLiveClient:
             "http_call_count": self.http_calls_made,
             "http_status": http_status or "",
             "timeout_seconds": self.timeout_seconds,
+            "max_detail_ids": self.max_detail_ids,
+            "max_response_bytes": self.max_response_bytes,
             "raw_payload_policy": "not_written",
             "candidate_only": True,
             "strict_confirmed": False,
@@ -531,7 +570,7 @@ class _StdlibBacDiveJsonTransport:
     def __init__(self) -> None:
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
-    def get_json(self, url: str, timeout: float) -> Any:
+    def get_json(self, url: str, timeout: float, max_response_bytes: int) -> Any:
         request = urllib.request.Request(
             url,
             headers={
@@ -542,7 +581,21 @@ class _StdlibBacDiveJsonTransport:
         )
         try:
             with self._opener.open(request, timeout=timeout) as response:
-                body = response.read().decode("utf-8")
+                content_length = response.headers.get("Content-Length")
+                if (
+                    content_length
+                    and content_length.isdigit()
+                    and int(content_length) > max_response_bytes
+                ):
+                    raise BacDiveResponseTooLargeError(
+                        f"response Content-Length {content_length} exceeds guard"
+                    )
+                body_bytes = response.read(max_response_bytes + 1)
+                if len(body_bytes) > max_response_bytes:
+                    raise BacDiveResponseTooLargeError(
+                        f"response exceeded {max_response_bytes} bytes"
+                    )
+                body = body_bytes.decode("utf-8")
         except urllib.error.HTTPError as error:
             raise BacDiveHTTPError(error.code) from error
         except TimeoutError as error:
@@ -855,6 +908,7 @@ def _candidate_record_mappings(payload: Any) -> list[Mapping[str, Any]]:
                 records.extend(_candidate_record_mappings(value))
             elif isinstance(value, list):
                 records.extend(item for item in value if isinstance(item, Mapping))
+        records.extend(_keyed_detail_records(payload))
         return records
     if isinstance(payload, list):
         return [item for item in payload if isinstance(item, Mapping)]
@@ -877,6 +931,21 @@ def _looks_like_detail_record(record: Mapping[str, Any]) -> bool:
             ),
         )
     )
+
+
+def _keyed_detail_records(payload: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    records: list[Mapping[str, Any]] = []
+    for key, value in payload.items():
+        if not _looks_like_bacdive_id_key(key) or not isinstance(value, Mapping):
+            continue
+        record = dict(value)
+        record.setdefault("bacdive_id", str(key).strip())
+        records.append(record)
+    return records
+
+
+def _looks_like_bacdive_id_key(value: Any) -> bool:
+    return str(value).strip().isdigit()
 
 
 def _first_mapping_text(record: Mapping[str, Any], keys: Sequence[str]) -> str:

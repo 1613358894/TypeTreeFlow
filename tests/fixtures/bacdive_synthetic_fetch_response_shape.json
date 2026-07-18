@@ -1,0 +1,56 @@
+{
+  "fixture_note": "Synthetic minimal BacDive v2 fetch response shape for offline TypeTreeFlow tests only. It models documented section/subsection keys and a BacDive-ID-keyed top-level dict, but contains no raw live BacDive payload.",
+  "source_context": {
+    "api_documentation_url": "https://api.bacdive.dsmz.de/",
+    "field_information_url": "https://api.bacdive.dsmz.de/strain_fields_information",
+    "live_smoke_summary": "P3b-live-smoke-0 observed /v2/fetch/24493 as HTTP 200 top-level dict; raw payload was not saved."
+  },
+  "fetch_response": {
+    "24493": {
+      "taxonomy_name": {
+        "strains": [
+          {
+            "species": "Syntheticus minimalis",
+            "full_scientific_name": "Syntheticus minimalis",
+            "designation": "Min Type",
+            "is_type_strain": "yes"
+          }
+        ]
+      },
+      "literature": {
+        "strains": [
+          {
+            "strain_number": "DSM 26640; ATCC T-26640",
+            "ID_reference": ["synthetic-reference"]
+          }
+        ]
+      },
+      "sequence_information": {
+        "sequence_genomes": [
+          {
+            "insdc_acc": "GCA_999999999.1"
+          }
+        ]
+      },
+      "source_platform": "BacDive/DSMZ synthetic fetch fixture",
+      "source_url": "https://example.invalid/synthetic-bacdive/fetch/24493",
+      "source_release_or_accessed": "synthetic fixture 2026-07-18",
+      "evidence_notes": [
+        "synthetic minimal keyed fetch response shape",
+        "candidate-only type-strain signal; no strict genome linkage"
+      ]
+    }
+  },
+  "missing_nested_fields_fetch_response": {
+    "24493": {
+      "taxonomy_name": {},
+      "literature": {
+        "strains": [
+          {
+            "strain_number": "DSM 26640"
+          }
+        ]
+      }
+    }
+  }
+}
