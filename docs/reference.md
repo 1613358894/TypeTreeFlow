@@ -140,12 +140,19 @@ records `client_kind=none` and `live_api_called=false`.
 `/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`. It
 requires explicit terms and citation confirmation at construction, uses no
 environment variables, credentials, authentication headers, or cookies, and
-accepts an injected `get_json(url, timeout)` transport for tests. Its HTTP call
-cap covers both lookup and detail-fetch requests. Simulated transport tests
-cover endpoint construction, nested response parsing, no result, schema drift,
-malformed JSON, timeout, HTTP 429 rate limiting, HTTP 5xx unavailability, and
-candidate-only source audit metadata. These tests do not call the live BacDive
-API or run a live TypeTreeFlow workflow.
+accepts an injected `get_json(url, timeout, max_response_bytes)` transport for
+tests. Its HTTP call cap covers both lookup and detail-fetch requests, its
+detail-ID cap prevents oversized `/v2/fetch/{bacdive_id}` requests, and its
+response-size guard blocks oversized response bodies before JSON parsing. The
+normalizer accepts BacDive v2 detail records returned directly, under common
+result wrappers, or as `/v2/fetch/{bacdive_id}` top-level dictionaries keyed by
+BacDive ID, while still requiring enough nested section/subsection fields to
+form a minimal candidate record. Simulated transport tests cover endpoint
+construction, nested and ID-keyed fetch response parsing, no result, schema
+drift, malformed JSON, oversized response blocking, timeout, HTTP 429 rate
+limiting, HTTP 5xx unavailability, and candidate-only source audit metadata.
+These tests do not call the live BacDive API, save raw BacDive payloads, or run
+a live TypeTreeFlow workflow.
 
 The query planner is pure and IO-free. In `tokens` mode it plans only LPSN
 type-strain token lookups (`culture_collection` for recognized collection

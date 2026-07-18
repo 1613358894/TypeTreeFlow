@@ -20,6 +20,7 @@ from typetreeflow.evidence.bacdive_adapter import (
     BacDiveLiveClient,
     BacDiveLookupRequest,
     BacDiveMalformedJSONError,
+    BacDiveResponseTooLargeError,
     BacDiveTimeoutError,
     FakeBacDiveClient,
     build_bacdive_lookup_request,
@@ -47,6 +48,9 @@ from typetreeflow.taxonomy.checklist import SpeciesChecklistEntry
 
 
 FIXTURE_PATH = Path("tests/fixtures/bacdive_synthetic_minimal.json")
+FETCH_SHAPE_FIXTURE_PATH = Path(
+    "tests/fixtures/bacdive_synthetic_fetch_response_shape.json"
+)
 
 
 def test_parse_type_strain_fixture_maps_to_candidate_not_strict():
@@ -451,6 +455,81 @@ def test_live_client_nested_v2_response_parses_candidate_record():
     assert result.records[0].evidence_tier == AUTHORITATIVE_TYPE_MATERIAL_CANDIDATE
 
 
+def test_live_client_keyed_fetch_response_shape_normalizes_candidate_record():
+    fetch_payload = _fetch_shape_fixture()["fetch_response"]
+    transport = _FakeHttpTransport(
+        {
+            "https://fake.bacdive.invalid/v2/culturecollectionno/DSM%2026640": {
+                "results": [{"bacdive_id": "24493"}]
+            },
+            "https://fake.bacdive.invalid/v2/fetch/24493": fetch_payload,
+        }
+    )
+    client = BacDiveLiveClient(
+        terms_confirmed=True,
+        citation_confirmed=True,
+        base_url="https://fake.bacdive.invalid",
+        transport=transport,
+    )
+
+    result = lookup_bacdive_evidence(
+        BacDiveLookupRequest(
+            query_kind="culture_collection",
+            query="DSM 26640",
+            species_name="Syntheticus minimalis",
+        ),
+        client,
+        lpsn_type_strain_tokens=["DSM 26640"],
+    )
+
+    assert result.status == SUCCESS
+    assert len(result.records) == 1
+    record = result.records[0]
+    assert record.bacdive_id == "24493"
+    assert record.species_name == "Syntheticus minimalis"
+    assert record.strain_designation == "Min Type"
+    assert record.culture_collection_numbers == ("DSM 26640", "ATCC T-26640")
+    assert record.dsmz_accession == "DSM 26640"
+    assert record.is_type_strain is True
+    assert record.evidence_tier == AUTHORITATIVE_TYPE_MATERIAL_CANDIDATE
+    assert "strict" not in record.evidence_tier
+    assert transport.urls == [
+        "https://fake.bacdive.invalid/v2/culturecollectionno/DSM%2026640",
+        "https://fake.bacdive.invalid/v2/fetch/24493",
+    ]
+
+
+def test_live_client_keyed_fetch_missing_nested_fields_schema_drift():
+    fetch_payload = _fetch_shape_fixture()["missing_nested_fields_fetch_response"]
+    transport = _FakeHttpTransport(
+        {
+            "https://fake.bacdive.invalid/v2/culturecollectionno/DSM%2026640": {
+                "results": [{"bacdive_id": "24493"}]
+            },
+            "https://fake.bacdive.invalid/v2/fetch/24493": fetch_payload,
+        }
+    )
+    client = BacDiveLiveClient(
+        terms_confirmed=True,
+        citation_confirmed=True,
+        base_url="https://fake.bacdive.invalid",
+        transport=transport,
+    )
+
+    result = lookup_bacdive_evidence(
+        BacDiveLookupRequest(
+            query_kind="culture_collection",
+            query="DSM 26640",
+            species_name="Syntheticus minimalis",
+        ),
+        client,
+    )
+
+    assert result.status == SCHEMA_DRIFT
+    assert result.records == ()
+    assert result.diagnostics[0].code == "bacdive_schema_drift"
+
+
 def test_live_client_no_result_is_structured_diagnostic():
     transport = _FakeHttpTransport(
         {"https://fake.bacdive.invalid/v2/taxon/Examplegenus/missing": {"results": []}}
@@ -541,6 +620,71 @@ def test_live_client_query_cap_includes_detail_fetch():
     assert response.status == API_UNAVAILABLE
     assert response.diagnostics[0].code == "bacdive_max_query_cap_exceeded"
     assert response.source_audit["endpoint"] == "/v2/fetch/1001"
+
+
+def test_live_client_detail_id_cap_blocks_fetch_before_detail_call():
+    transport = _FakeHttpTransport(
+        {
+            "https://fake.bacdive.invalid/v2/culturecollectionno/DSM%201001": {
+                "results": [
+                    {"bacdive_id": "1001"},
+                    {"bacdive_id": "1002"},
+                ]
+            },
+            "https://fake.bacdive.invalid/v2/fetch/1001;1002": _v2_record(),
+        }
+    )
+    client = BacDiveLiveClient(
+        terms_confirmed=True,
+        citation_confirmed=True,
+        base_url="https://fake.bacdive.invalid",
+        max_detail_ids=1,
+        transport=transport,
+    )
+
+    response = client.lookup(
+        BacDiveLookupRequest(
+            query_kind="culture_collection",
+            query="DSM 1001",
+            species_name="Examplegenus alpha",
+        )
+    )
+
+    assert transport.urls == [
+        "https://fake.bacdive.invalid/v2/culturecollectionno/DSM%201001"
+    ]
+    assert response.status == API_UNAVAILABLE
+    assert response.diagnostics[0].code == "bacdive_max_detail_id_cap_exceeded"
+
+
+def test_live_client_response_size_guard_blocks_before_parse():
+    transport = _FakeHttpTransport(
+        {
+            "https://fake.bacdive.invalid/v2/taxon/Examplegenus/alpha": BacDiveResponseTooLargeError(
+                "response exceeded guard before json parse"
+            )
+        }
+    )
+    client = BacDiveLiveClient(
+        terms_confirmed=True,
+        citation_confirmed=True,
+        base_url="https://fake.bacdive.invalid",
+        max_response_bytes=128,
+        transport=transport,
+    )
+
+    response = client.lookup(
+        BacDiveLookupRequest(
+            query_kind="species_name",
+            query="Examplegenus alpha",
+            species_name="Examplegenus alpha",
+        )
+    )
+
+    assert response.status == API_UNAVAILABLE
+    assert response.diagnostics[0].code == "bacdive_response_too_large"
+    assert response.raw_records == ()
+    assert transport.max_response_bytes == [128]
 
 
 def test_live_client_rate_limit_stops_detail_fetch_and_next_lookup():
@@ -885,15 +1029,21 @@ def _raw_record(fixture_id):
     raise AssertionError(f"missing fixture: {fixture_id}")
 
 
+def _fetch_shape_fixture():
+    return json.loads(FETCH_SHAPE_FIXTURE_PATH.read_text(encoding="utf-8"))
+
+
 class _FakeHttpTransport:
     def __init__(self, responses):
         self.responses = responses
         self.urls = []
         self.timeouts = []
+        self.max_response_bytes = []
 
-    def get_json(self, url, timeout):
+    def get_json(self, url, timeout, max_response_bytes):
         self.urls.append(url)
         self.timeouts.append(timeout)
+        self.max_response_bytes.append(max_response_bytes)
         response = self.responses.get(url)
         if isinstance(response, Exception):
             raise response
