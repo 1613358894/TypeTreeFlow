@@ -1,9 +1,50 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.27 integration review as
+These notes consolidate the v2.2.2 through v2.2.28 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.28
+
+v2.2.28 is a bounded public BacDive live-workflow release based on v2.2.27. It
+records the explicit opt-in BacDive enrichment path now available through the
+public workflow, while preserving the v2.2.27 live-client HTTP skeleton, the
+v2.2.26 BacDive candidate review report/package handoff, the v2.2.25 opt-in
+workflow skeleton, the v2.2.24 configuration plumbing, the v2.2.23 offline
+BacDive adapter contract, the v2.2.22 offline BacDive/DSMZ candidate-evidence
+model, and the v2.2.21 artifact scope readability semantics:
+
+- BacDive live enrichment is available only behind
+  `--enable-bacdive-enrichment`.
+- The public live path is tokens-only and executes only culture-collection
+  token lookups derived from LPSN checklist context.
+- Public live `species` and `both` query modes are blocked before HTTP with
+  `bacdive_live_query_mode_not_allowed`.
+- `--bacdive-max-queries` caps total HTTP calls across lookup and detail fetch
+  requests.
+- The workflow live path enforces `max_detail_ids=1`, so lookups requiring
+  multiple detail fetches are blocked before detail calls.
+- `evidence/bacdive_source_audit.json` records live, fake, and blocked paths
+  truthfully, including live HTTP-call status, client kind, query mode, HTTP
+  cap, detail-ID cap, terms/citation confirmation, and raw-payload policy.
+- Public live BacDive calls write normalized enrichment, diagnostics, and source
+  audit outputs only; raw response payloads are not persisted.
+- BacDive enrichment remains candidate-only and audit-only. It does not change
+  selection, manifests, completion metrics, downloads, evidence-policy strict
+  results, or strict type-strain evidence semantics.
+- Verification evidence includes local release gates PASS and a tiny live
+  BacDive tokens-path smoke PASS. The smoke is bounded release evidence only,
+  not production, broad live-provider, full-download, or full Clostridium
+  strict validation.
+
+v2.2.28 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live provider automation, release asset publication, or relaxed
+strict type-strain evidence thresholds. The v2.2.27 live-client HTTP skeleton,
+v2.2.26 report/package handoff, v2.2.25 skeleton, v2.2.24 configuration
+plumbing, v2.2.23 offline adapter contract, v2.2.22 offline BacDive model, and
+v2.2.21 artifact scope readability semantics remain valid.
 
 ## v2.2.27
 

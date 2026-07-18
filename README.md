@@ -1,7 +1,7 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.27 release records the BacDive v2 HTTP client; the
+workflow. The current 2.2.28 release records the BacDive v2 HTTP client; the
 current BacDive workflow contract has an injectable client with simulated tests
 for timeout, rate-limit, schema drift, no-result, and 5xx handling. Endpoint
 construction covers
@@ -105,7 +105,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.27 workflow
+## Recommended v2.2.28 workflow
 
 Plan first:
 
@@ -238,15 +238,16 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.27 release record includes PR #31 CI PASS and post-merge quick gates
-PASS. That release did not require live workflow or server smoke validation and
-did not include public live BacDive workflow integration. The still-valid
-v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24 configuration
-plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive
-model, v2.2.21 artifact scope readability semantics, and v2.2.20 policy-aware
-artifacts and GTDB gating validations remain release verification evidence
-only; they do not claim full Clostridium strict completion or full-download
-validation.
+The v2.2.28 release record includes local release gates PASS and a tiny live
+BacDive tokens-path smoke PASS. The live smoke is bounded release evidence
+only; it is not production, broad live-provider, full-download, or full
+Clostridium strict validation. The still-valid v2.2.27 BacDive live-client HTTP
+skeleton, v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24
+configuration plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22
+offline BacDive model, v2.2.21 artifact scope readability semantics, and
+v2.2.20 policy-aware artifacts and GTDB gating validations remain release
+verification evidence only; they do not claim full Clostridium strict
+completion or full-download validation.
 
 ## External And Provider Workflows
 

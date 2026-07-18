@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.27 / 2.2.27 release verification path uses
+The current v2.2.28 / 2.2.28 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -14,9 +14,11 @@ release gate checks evidence-first report/completion/package wording, scoped
 plumbing, Artifact Scope report tables, AI-readable `artifact_scope.tsv`
 fields, configured-only GTDB audit reporting, centralized evidence policy
 evaluation, offline BacDive/DSMZ candidate-evidence boundaries, offline BacDive
-adapter contract diagnostics, BacDive enrichment workflow skeleton behavior,
-BacDive candidate review report/package handoff behavior, non-wired
-BacDiveLiveClient HTTP skeleton behavior, injectable HTTP transport diagnostics,
+adapter contract diagnostics, BacDive enrichment workflow behavior, BacDive
+candidate review report/package handoff behavior, bounded public live BacDive
+tokens-path workflow behavior, public live `species`/`both` pre-call blocking,
+BacDiveLiveClient HTTP skeleton behavior, injectable HTTP transport
+diagnostics, source-audit live/fake/blocked path provenance, raw-payload policy,
 clean deployment readiness, provider timeout/error classification, stdout JSON
 isolation, failed-handoff cache boundaries, workspace hygiene, and ensures
 repository-root `results/` remains absent. The clean deployment path is
@@ -46,20 +48,21 @@ compatibility artifacts, not strict scientific deliverables.
 `rrna/strict_16S.fasta` and strict-policy `rrna/policy_16S.fasta` may carry
 `strict_scientific_deliverable=true`.
 
-BacDive/DSMZ enrichment is an offline candidate-evidence model only.
+BacDive/DSMZ enrichment is a candidate-evidence model only.
 BacDive/DSMZ `is_type_strain` signals map to
 `authoritative_type_material_candidate`, and LPSN token overlap remains
 candidate evidence until a later proof chain ties the selected genome or
-BioSample to the LPSN type-strain equivalence set. The model is not wired into
-live BacDive API calls, CLI commands, workflow stages, downloads, manifest
-writes, reports, packages, or completion metrics, and it does not require API
-keys or network access.
+BioSample to the LPSN type-strain equivalence set. The public live workflow
+path is explicit opt-in, tokens-only, bounded, and audit-only. It does not wire
+BacDive evidence into downloads, manifest writes, reports as strict evidence,
+packages as strict deliverables, or completion metrics, and it does not require
+API keys, environment variables, or cookies.
 
-The BacDive adapter contract remains an offline interface and fake-client test
-surface only. `BacDiveLookupRequest`, `BacDiveLookupResult`,
-`BacDiveDiagnostic`, `BacDiveClientProtocol`, `FakeBacDiveClient`, and the
-non-wired `BacDiveLiveClient` skeleton define structured lookup
-request/result/diagnostic behavior for future review. `BacDiveLiveClient`
+The BacDive adapter contract remains a bounded interface and fake-client test
+surface. `BacDiveLookupRequest`, `BacDiveLookupResult`,
+`BacDiveDiagnostic`, `BacDiveClientProtocol`, `FakeBacDiveClient`, and
+`BacDiveLiveClient` define structured lookup request/result/diagnostic behavior
+for review. `BacDiveLiveClient`
 supports injectable HTTP transports and endpoint construction for
 `/v2/culturecollectionno/{culturecollectionno}`,
 `/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`. Simulated
@@ -76,21 +79,24 @@ live BacDive API, or imply provider login, scraping, purchase, terms
 acceptance, download, FASTA installation, manifest mutation, completion/report
 behavior, or package behavior.
 
-BacDive enrichment workflow skeleton behavior is opt-in and disabled by default.
+BacDive enrichment workflow behavior is opt-in and disabled by default.
 `--enable-bacdive-enrichment`,
 `--bacdive-query-mode {tokens,species,both}`,
 `--bacdive-timeout-seconds`, and `--bacdive-max-queries` configure enabled
-`verify-genus` skeleton runs. With an injected/fake client, the workflow may
+`verify-genus` runs. With an injected/fake client, the workflow may
 write `evidence/bacdive_enrichment.tsv`,
 `evidence/bacdive_diagnostics.tsv`, and
 `evidence/bacdive_source_audit.json`, and record a `bacdive_enrichment`
-run-state stage. Without an injected client, the public CLI does not construct
-a live client, writes `bacdive_live_client_not_enabled` as a safe diagnostic,
-and keeps the core workflow non-failing. Enabled BacDive enrichment does not
-use live APIs or network access, read environment/API-key state, mutate
-manifests, change selection/download behavior, change report/package behavior,
-or change completion metrics. BacDive rows remain `strict_confirmed=false`
-with `selected_genome_linkage=not_evaluated`.
+run-state stage. Without an injected client, the public workflow constructs a
+bounded live client only for `bacdive_query_mode=tokens`; `species` and `both`
+public live modes write `bacdive_live_query_mode_not_allowed` before any HTTP
+call. Public live tokens mode executes only culture-collection token lookups,
+counts lookup and detail fetches against `--bacdive-max-queries`, enforces
+`max_detail_ids=1`, and writes no raw payloads. Enabled BacDive enrichment does
+not read environment/API-key state, mutate manifests, change
+selection/download behavior, change strict report/package behavior, or change
+completion metrics. BacDive rows remain `strict_confirmed=false` with
+`selected_genome_linkage=not_evaluated`.
 
 BacDive report and package handoff behavior remains candidate-only and
 audit-only. When opt-in BacDive outputs exist, `report/summary.md` may include
@@ -140,17 +146,17 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.27 release record includes PR #31 CI PASS and post-merge quick gates
-PASS. It did not require live workflow or server smoke validation. The
-still-valid v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24
+The v2.2.28 release record includes local release gates PASS and a tiny live
+BacDive tokens-path smoke PASS. The smoke is bounded release evidence only: it
+does not claim production, broad live-provider, full-download, or full
+Clostridium strict validation. The still-valid v2.2.27 BacDive live-client HTTP
+skeleton, v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24
 configuration plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22
 offline BacDive model, v2.2.21 artifact scope readability semantics, and
 v2.2.20 policy-aware artifacts and GTDB gating validations remain verification
 evidence only: they do not claim full Clostridium strict completion or
 full-download validation. The release does not change artifact membership,
-FASTA content, default phylogeny input, CLI/workflow live BacDive API behavior,
-API-key handling, environment reads, cookie usage, network access, live
-provider/download behavior, provider behavior, selection, completion metrics,
-or strict evidence thresholds.
+FASTA content, default phylogeny input, provider/download behavior, provider
+automation, selection, completion metrics, or strict evidence thresholds.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.

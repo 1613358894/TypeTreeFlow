@@ -1,5 +1,55 @@
 # Changelog
 
+## v2.2.28 - 2026-07-18
+
+v2.2.28 is a bounded public BacDive live-workflow release based on v2.2.27. It
+records the explicit opt-in live enrichment path now available through
+`--enable-bacdive-enrichment`, while preserving the v2.2.27 live-client HTTP
+skeleton, the v2.2.26 BacDive candidate review report/package handoff, and the
+candidate-only BacDive evidence boundary.
+
+### Added
+
+- Added the public BacDive live workflow path behind explicit opt-in.
+- Added source-audit metadata that truthfully records live, fake, and blocked
+  BacDive workflow paths, live HTTP-call status, query mode, HTTP cap,
+  detail-ID cap, terms/citation confirmation, and raw-payload policy.
+- Added public live diagnostics for pre-call blocking of `species` and `both`
+  BacDive query modes.
+
+### Changed
+
+- Public live BacDive enrichment is tokens-only: it executes only
+  culture-collection token lookups derived from LPSN checklist context.
+- `--bacdive-max-queries` caps total HTTP calls across lookup and detail fetch
+  requests.
+- The workflow live path constructs `BacDiveLiveClient` with
+  `max_detail_ids=1`, so a lookup that would require multiple detail fetches is
+  blocked before detail calls.
+- Public live BacDive calls write normalized enrichment, diagnostics, and source
+  audit outputs only; raw response payloads are not persisted.
+- BacDive enrichment remains candidate-only and audit-only. It does not change
+  selection, manifest writes, completion metrics, downloads, evidence-policy
+  strict results, or strict type-strain evidence semantics.
+
+### Verification
+
+- Local release gates PASS.
+- Tiny live BacDive tokens-path smoke PASS. This is bounded release evidence
+  only and is not production, broad live-provider, full-download, or full
+  Clostridium strict validation.
+
+### Notes
+
+- No API-key, environment-variable, cookie, provider-login, scraping, purchase,
+  automatic download, FASTA installation, manifest mutation, completion-metric
+  change, strict evidence-policy change, release asset publication, or
+  unguarded external network behavior is introduced.
+- This release does not claim full-download validation, full Clostridium strict
+  completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+  confirmation, live provider automation, or relaxed strict type-strain evidence
+  thresholds.
+
 ## v2.2.27 - 2026-07-17
 
 v2.2.27 is a BacDive live-client HTTP skeleton release based on v2.2.26. It
