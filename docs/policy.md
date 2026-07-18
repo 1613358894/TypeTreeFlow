@@ -48,7 +48,9 @@ read environment files, API keys, credentials, cookies, or login state. The
 stage must not write raw BacDive payloads, mutate
 manifest/selection/download/provider outputs, or change completion-count
 semantics. Public live `species` and `both` modes are blocked before HTTP with
-`bacdive_live_query_mode_not_allowed`.
+`bacdive_live_query_mode_not_allowed`. The source audit may summarize timing,
+endpoint, HTTP-status, and stopped-reason metadata for review, but those audit
+fields do not make BacDive evidence strict or change completion semantics.
 
 Public live BacDive calls are candidate-review calls only. `bacdive_max_queries`
 caps total HTTP calls, including lookup and detail fetch calls, and the workflow

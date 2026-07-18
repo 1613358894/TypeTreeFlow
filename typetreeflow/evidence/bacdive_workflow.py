@@ -89,6 +89,25 @@ BACDIVE_DIAGNOSTIC_FIELDS = [
 
 WORKFLOW_LIVE_MAX_DETAIL_IDS = 1
 
+BACDIVE_STOPPED_REASON_CODES = {
+    "bacdive_live_query_mode_not_allowed",
+    "bacdive_live_client_not_enabled",
+    "bacdive_live_query_kind_not_supported",
+    "bacdive_max_query_cap_exceeded",
+    "bacdive_max_detail_id_cap_exceeded",
+    "bacdive_rate_limited",
+    "bacdive_timeout",
+    "bacdive_api_unavailable",
+    "bacdive_response_too_large",
+    "bacdive_schema_drift",
+    "bacdive_malformed_json",
+    "bacdive_no_result",
+}
+
+BACDIVE_FAKE_STOPPED_REASON_CODES = {
+    "bacdive_max_query_cap_exceeded",
+}
+
 
 @dataclass(frozen=True)
 class BacDivePlanDiagnostic:
@@ -561,6 +580,7 @@ def _source_audit(
     adapter_audits = _adapter_source_audits(executed)
     http_calls = _merged_http_calls(adapter_audits)
     live_api_called = any(bool(call.get("called")) for call in http_calls)
+    accessed_at_start, accessed_at_end = _http_access_window(http_calls)
     max_http_calls = _first_audit_value(
         adapter_audits,
         "max_http_calls",
@@ -597,6 +617,17 @@ def _source_audit(
         "license_url": BACDIVE_LICENSE_URL,
         "terms_confirmed": client_kind == "live",
         "citation_confirmed": client_kind == "live",
+        "docs_url": BACDIVE_API_DOCUMENTATION_URL,
+        "accessed_at_start": accessed_at_start,
+        "accessed_at_end": accessed_at_end,
+        "endpoint_count": _endpoint_count(http_calls),
+        "lookup_call_count": _called_lookup_count(http_calls),
+        "fetch_call_count": _called_fetch_count(http_calls),
+        "last_http_status": _last_called_http_status(http_calls),
+        "stopped_reason": _stopped_reason(
+            diagnostic_rows,
+            client_kind=client_kind,
+        ),
         "planned_query_count": len(planned),
         "executed_query_count": len(executed),
         "http_call_count": sum(1 for call in http_calls if call.get("called")),
@@ -763,6 +794,80 @@ def _merged_http_calls(audits: list[dict[str, object]]) -> list[dict[str, object
         calls_by_index[index]
         for index in sorted(calls_by_index)
     ] + calls_without_index
+
+
+def _http_access_window(http_calls: list[dict[str, object]]) -> tuple[str, str]:
+    accessed = [
+        str(call.get("accessed_at", "")).strip()
+        for call in http_calls
+        if call.get("called") and str(call.get("accessed_at", "")).strip()
+    ]
+    if not accessed:
+        return "", ""
+    return accessed[0], accessed[-1]
+
+
+def _endpoint_count(http_calls: list[dict[str, object]]) -> int:
+    return len(
+        {
+            str(call.get("endpoint", "")).strip()
+            for call in http_calls
+            if str(call.get("endpoint", "")).strip()
+        }
+    )
+
+
+def _called_lookup_count(http_calls: list[dict[str, object]]) -> int:
+    return sum(
+        1
+        for call in http_calls
+        if call.get("called") and not _is_fetch_endpoint(call.get("endpoint", ""))
+    )
+
+
+def _called_fetch_count(http_calls: list[dict[str, object]]) -> int:
+    return sum(
+        1
+        for call in http_calls
+        if call.get("called") and _is_fetch_endpoint(call.get("endpoint", ""))
+    )
+
+
+def _last_called_http_status(http_calls: list[dict[str, object]]) -> object:
+    for call in reversed(http_calls):
+        if not call.get("called"):
+            continue
+        status = call.get("http_status", "")
+        if status not in (None, ""):
+            return status
+    return ""
+
+
+def _stopped_reason(
+    diagnostic_rows: list[dict[str, object]],
+    *,
+    client_kind: str,
+) -> str:
+    codes = [
+        str(row.get("diagnostic_code", "")).strip()
+        for row in diagnostic_rows
+        if str(row.get("diagnostic_code", "")).strip()
+    ]
+    if client_kind == "none":
+        return codes[0] if codes else "bacdive_live_client_not_enabled"
+    if client_kind in {"fake", "injected"}:
+        for code in codes:
+            if code in BACDIVE_FAKE_STOPPED_REASON_CODES:
+                return code
+        return "not_applicable"
+    for code in codes:
+        if code in BACDIVE_STOPPED_REASON_CODES:
+            return code
+    return "completed"
+
+
+def _is_fetch_endpoint(endpoint: object) -> bool:
+    return str(endpoint or "").strip().startswith("/v2/fetch/")
 
 
 def _first_audit_value(

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from typetreeflow.cli import main
 from typetreeflow.config import AppConfig
-from typetreeflow.evidence.bacdive_adapter import FakeBacDiveClient
+from typetreeflow.evidence.bacdive_adapter import BacDiveHTTPError, FakeBacDiveClient
 from typetreeflow.evidence.bacdive_workflow import build_public_bacdive_live_client
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.external.tools import resolve_iqtree_executable
@@ -1435,6 +1435,14 @@ def test_verify_genus_bacdive_flag_without_injected_client_writes_safe_diagnosti
     assert diagnostics[0]["diagnostic_code"] == "bacdive_live_query_mode_not_allowed"
     assert audit["client_kind"] == "none"
     assert audit["live_api_called"] is False
+    assert audit["accessed_at_start"] == ""
+    assert audit["accessed_at_end"] == ""
+    assert audit["endpoint_count"] == 0
+    assert audit["lookup_call_count"] == 0
+    assert audit["fetch_call_count"] == 0
+    assert audit["last_http_status"] == ""
+    assert audit["stopped_reason"] == "bacdive_live_query_mode_not_allowed"
+    assert audit["docs_url"] == audit["api_documentation_url"]
     assert audit["record_count"] == 0
 
 
@@ -1531,6 +1539,14 @@ def test_verify_genus_public_bacdive_live_tokens_uses_fake_transport_and_writes_
     assert audit["max_http_calls"] == 2
     assert audit["max_detail_ids"] == 1
     assert audit["http_call_count"] == 2
+    assert audit["endpoint_count"] == 2
+    assert audit["lookup_call_count"] == 1
+    assert audit["fetch_call_count"] == 1
+    assert audit["last_http_status"] == 200
+    assert audit["accessed_at_start"]
+    assert audit["accessed_at_end"]
+    assert audit["stopped_reason"] == "completed"
+    assert audit["docs_url"] == audit["api_documentation_url"]
     assert [call["endpoint"] for call in audit["http_calls"]] == [
         "/v2/culturecollectionno/ATCC%2025586",
         "/v2/fetch/24493",
@@ -1585,6 +1601,13 @@ def test_verify_genus_public_bacdive_live_species_and_both_block_before_http(
     assert audit["client_kind"] == "none"
     assert audit["live_api_called"] is False
     assert audit["http_call_count"] == 0
+    assert audit["endpoint_count"] == 0
+    assert audit["lookup_call_count"] == 0
+    assert audit["fetch_call_count"] == 0
+    assert audit["last_http_status"] == ""
+    assert audit["accessed_at_start"] == ""
+    assert audit["accessed_at_end"] == ""
+    assert audit["stopped_reason"] == "bacdive_live_query_mode_not_allowed"
     assert state.stages["bacdive_enrichment"].status == "warning"
 
 
@@ -1645,8 +1668,77 @@ def test_verify_genus_public_bacdive_live_http_cap_includes_fetch(
     assert audit["client_kind"] == "live"
     assert audit["live_api_called"] is True
     assert audit["http_call_count"] == 1
+    assert audit["endpoint_count"] == 2
+    assert audit["lookup_call_count"] == 1
+    assert audit["fetch_call_count"] == 0
+    assert audit["last_http_status"] == 200
+    assert audit["stopped_reason"] == "bacdive_max_query_cap_exceeded"
     assert audit["http_calls"][1]["called"] is False
     assert audit["http_calls"][1]["endpoint"] == "/v2/fetch/24493"
+
+
+def test_verify_genus_public_bacdive_live_rate_limit_records_stopped_reason(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = tmp_path / "lpsn_cache.tsv"
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    write_lpsn_species_cache(
+        [_lpsn_record("nucleatum", type_strain="ATCC 25586")],
+        lpsn_cache,
+    )
+    transport = _FakeBacDiveHttpTransport(
+        {
+            "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586": BacDiveHTTPError(
+                429
+            )
+        }
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-max-queries",
+            "2",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_transport=transport,
+    )
+
+    paths = get_output_paths(outdir)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    _verify_genus_stdout_payload(capsys)
+
+    assert result == 0
+    assert transport.urls == [
+        "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586"
+    ]
+    assert diagnostics[0]["diagnostic_code"] == "bacdive_rate_limited"
+    assert diagnostics[0]["http_status"] == "429"
+    assert audit["client_kind"] == "live"
+    assert audit["live_api_called"] is True
+    assert audit["http_call_count"] == 1
+    assert audit["endpoint_count"] == 1
+    assert audit["lookup_call_count"] == 1
+    assert audit["fetch_call_count"] == 0
+    assert audit["last_http_status"] == 429
+    assert audit["stopped_reason"] == "bacdive_rate_limited"
+    assert audit["raw_payload_saved"] is False
 
 
 def test_verify_genus_public_bacdive_live_enforces_one_detail_id(
@@ -1837,10 +1929,29 @@ def test_verify_genus_bacdive_fake_client_writes_candidate_outputs_and_state(
     assert any(row["diagnostic_code"] == "bacdive_no_result" for row in diagnostics)
     assert audit["client_kind"] == "fake"
     assert audit["live_api_called"] is False
+    assert audit["accessed_at_start"] == ""
+    assert audit["accessed_at_end"] == ""
+    assert audit["endpoint_count"] == 0
+    assert audit["lookup_call_count"] == 0
+    assert audit["fetch_call_count"] == 0
+    assert audit["last_http_status"] == ""
+    assert audit["stopped_reason"] == "not_applicable"
+    assert audit["docs_url"] == audit["api_documentation_url"]
     assert audit["planned_query_count"] == 3
     assert audit["executed_query_count"] == 3
     assert audit["record_count"] == 2
     assert audit["strict_confirmed"] is False
+    for existing_field in [
+        "http_call_count",
+        "raw_payload_saved",
+        "raw_payload_policy",
+        "terms_url",
+        "citation_url",
+        "license_url",
+        "api_documentation_url",
+        "field_information_url",
+    ]:
+        assert existing_field in audit
     assert state.stages["bacdive_enrichment"].status == "succeeded"
     assert "planned_queries=3" in state.stages["bacdive_enrichment"].summary
     assert "completed_queries=3" in state.stages["bacdive_enrichment"].summary
@@ -1904,6 +2015,7 @@ def test_verify_genus_bacdive_max_query_cap_limits_fake_requests(
     assert len(fake.requests) == 1
     assert audit["executed_query_count"] == 1
     assert audit["max_queries"] == 1
+    assert audit["stopped_reason"] == "bacdive_max_query_cap_exceeded"
     assert any(
         row["diagnostic_code"] == "bacdive_max_query_cap_exceeded"
         for row in diagnostics
