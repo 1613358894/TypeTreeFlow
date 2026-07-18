@@ -1,9 +1,46 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.28 integration review as
+These notes consolidate the v2.2.2 through v2.2.29 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.29
+
+v2.2.29 is a BacDive source-audit summary polish release based on v2.2.28. It
+records clearer top-level `evidence/bacdive_source_audit.json` fields for
+BacDive review while preserving the v2.2.28 bounded public live tokens path,
+the v2.2.27 live-client HTTP skeleton, the v2.2.26 BacDive candidate review
+report/package handoff, the v2.2.25 opt-in workflow skeleton, the v2.2.24
+configuration plumbing, the v2.2.23 offline BacDive adapter contract, the
+v2.2.22 offline BacDive/DSMZ candidate-evidence model, and the v2.2.21 artifact
+scope readability semantics:
+
+- `evidence/bacdive_source_audit.json` includes top-level source-access and
+  call-summary fields: `accessed_at_start`, `accessed_at_end`,
+  `endpoint_count`, `lookup_call_count`, `fetch_call_count`,
+  `last_http_status`, `stopped_reason`, and `docs_url`.
+- The audit keeps backward-compatible fields: `http_call_count`,
+  `raw_payload_saved`, `raw_payload_policy`, `terms_url`, `citation_url`,
+  `license_url`, `api_documentation_url`, and `field_information_url`.
+- Live, fake, and blocked BacDive paths report source-access and stopping state
+  without promoting BacDive rows beyond candidate-only, audit-only evidence.
+- BacDive enrichment remains candidate-only and audit-only. It does not change
+  selection, manifests, completion metrics, downloads, evidence-policy strict
+  results, strict type-strain evidence semantics, or live query scope.
+- Verification evidence includes local release gates PASS and offline
+  audit-polish smoke PASS. The smoke is bounded release evidence only, not
+  production, broad live-provider, full-download, broad live validation, or full
+  Clostridium strict validation.
+
+v2.2.29 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live provider automation, broad live validation, release asset
+publication, or relaxed strict type-strain evidence thresholds. The v2.2.28
+bounded public live tokens path, v2.2.27 live-client HTTP skeleton, v2.2.26
+report/package handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing,
+v2.2.23 offline adapter contract, v2.2.22 offline BacDive model, and v2.2.21
+artifact scope readability semantics remain valid.
 
 ## v2.2.28
 

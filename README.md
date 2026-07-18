@@ -1,10 +1,11 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.28 release records the BacDive v2 HTTP client; the
-current BacDive workflow contract has an injectable client with simulated tests
-for timeout, rate-limit, schema drift, no-result, and 5xx handling. Endpoint
-construction covers
+workflow. The current 2.2.29 release records BacDive source-audit top-level
+summary field polish while preserving the bounded BacDive v2 HTTP client and
+public tokens-only workflow from v2.2.28. The current BacDive workflow contract
+has an injectable client with simulated tests for timeout, rate-limit, schema
+drift, no-result, and 5xx handling. Endpoint construction covers
 `/v2/culturecollectionno/{culturecollectionno}`,
 `/v2/taxon/{genus}/{species_epithet}`, and `/v2/fetch/{bacdive_id}`. Explicit
 terms and citation confirmation are required to construct the live client; the
@@ -16,11 +17,16 @@ through the public bounded live path when no client is injected. Public live
 mode is tokens-only, executes culture-collection token lookups only, caps total
 HTTP calls with `--bacdive-max-queries`, uses one detail ID per fetch, and
 writes no raw payloads. `species` and `both` public live modes are blocked
-before HTTP. Tests do not call the live BacDive API. BacDive enrichment remains
-candidate-only and audit-only. `report/summary.md` can include a BacDive
-Candidate Review summary, `package-results --include reports` includes the
-normalized BacDive evidence triplet, and package `artifact_scope.tsv` adds
-BacDive audit rows with `scope=audit` and
+before HTTP. The BacDive source audit now exposes top-level
+`accessed_at_start`, `accessed_at_end`, `endpoint_count`,
+`lookup_call_count`, `fetch_call_count`, `last_http_status`,
+`stopped_reason`, and `docs_url`, while retaining backward-compatible
+`http_call_count`, raw-payload policy, and official URL fields. Tests do not
+call the live BacDive API. BacDive enrichment remains candidate-only and
+audit-only. `report/summary.md` can include a BacDive Candidate Review summary,
+`package-results --include reports` includes the normalized BacDive evidence
+triplet, and package `artifact_scope.tsv` adds BacDive audit rows with
+`scope=audit` and
 `strict_scientific_deliverable=false`. These rows do not change strict
 completion, selected genome evidence, manifests, completion metrics, or
 evidence-policy strict results. The v2.2.25 skeleton, v2.2.24 configuration
@@ -105,7 +111,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.28 workflow
+## Recommended v2.2.29 workflow
 
 Plan first:
 
@@ -173,10 +179,17 @@ client or the public bounded live tokens path can write
 stage. Without an injected client, public live mode is allowed only for
 `--bacdive-query-mode tokens`; `species` and `both` write
 `bacdive_live_query_mode_not_allowed` before any HTTP call. The live client does
-not require an API key, read environment variables, or use cookies. BacDive rows remain
+not require an API key, read environment variables, or use cookies. BacDive
+rows remain
 `strict_confirmed=false` with
 `selected_genome_linkage=not_evaluated`, and they do not change selection,
 manifests, completion metrics, downloads, or strict evidence policy results.
+The BacDive source audit reports top-level `accessed_at_start`,
+`accessed_at_end`, `endpoint_count`, `lookup_call_count`, `fetch_call_count`,
+`last_http_status`, `stopped_reason`, and `docs_url`, while retaining
+`http_call_count`, `raw_payload_saved`, `raw_payload_policy`, `terms_url`,
+`citation_url`, `license_url`, `api_documentation_url`, and
+`field_information_url` for backward-compatible consumers.
 Report summaries may include a BacDive Candidate Review section, and
 `package-results --include reports` includes
 `evidence/bacdive_enrichment.tsv`,
@@ -238,16 +251,17 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.28 release record includes local release gates PASS and a tiny live
-BacDive tokens-path smoke PASS. The live smoke is bounded release evidence
-only; it is not production, broad live-provider, full-download, or full
-Clostridium strict validation. The still-valid v2.2.27 BacDive live-client HTTP
-skeleton, v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24
-configuration plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22
-offline BacDive model, v2.2.21 artifact scope readability semantics, and
-v2.2.20 policy-aware artifacts and GTDB gating validations remain release
-verification evidence only; they do not claim full Clostridium strict
-completion or full-download validation.
+The v2.2.29 release record includes local release gates PASS and offline
+audit-polish smoke PASS. The smoke is bounded release evidence only; it is not
+production, broad live-provider, full-download, broad live validation, or full
+Clostridium strict validation. The still-valid v2.2.28 bounded public live
+tokens path, v2.2.27 BacDive live-client HTTP skeleton, v2.2.26 BacDive
+report/package handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing,
+v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive model,
+v2.2.21 artifact scope readability semantics, and v2.2.20 policy-aware
+artifacts and GTDB gating validations remain release verification evidence
+only; they do not claim full Clostridium strict completion or full-download
+validation.
 
 ## External And Provider Workflows
 

@@ -1,5 +1,50 @@
 # Changelog
 
+## v2.2.29 - 2026-07-19
+
+v2.2.29 is a BacDive source-audit summary polish release based on v2.2.28. It
+records clearer top-level `evidence/bacdive_source_audit.json` summary fields
+for BacDive review while preserving the v2.2.28 bounded public live tokens path,
+the v2.2.27 live-client HTTP skeleton, the v2.2.26 BacDive candidate review
+report/package handoff, and the candidate-only BacDive evidence boundary.
+
+### Added
+
+- Added or clarified top-level BacDive source-audit fields:
+  `accessed_at_start`, `accessed_at_end`, `endpoint_count`,
+  `lookup_call_count`, `fetch_call_count`, `last_http_status`,
+  `stopped_reason`, and `docs_url`.
+- Kept backward-compatible top-level audit fields:
+  `http_call_count`, `raw_payload_saved`, `raw_payload_policy`, `terms_url`,
+  `citation_url`, `license_url`, `api_documentation_url`, and
+  `field_information_url`.
+
+### Changed
+
+- Polished the BacDive audit summary contract so live, fake, and blocked paths
+  report their source-access and stopping state without implying completion.
+- BacDive enrichment remains candidate-only and audit-only. It does not change
+  selection, manifest writes, completion metrics, downloads, evidence-policy
+  strict results, strict type-strain evidence semantics, or live query scope.
+
+### Verification
+
+- Local release gates PASS.
+- Offline audit-polish smoke PASS. This is bounded release evidence only and is
+  not production, broad live-provider, full-download, broad live validation, or
+  full Clostridium strict validation.
+
+### Notes
+
+- No API-key, environment-variable, cookie, provider-login, scraping, purchase,
+  automatic download, FASTA installation, manifest mutation, completion-metric
+  change, strict evidence-policy change, release asset publication, live query
+  scope change, or unguarded external network behavior is introduced.
+- This release does not claim full-download validation, full Clostridium strict
+  completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+  confirmation, live provider automation, broad live validation, or relaxed
+  strict type-strain evidence thresholds.
+
 ## v2.2.28 - 2026-07-18
 
 v2.2.28 is a bounded public BacDive live-workflow release based on v2.2.27. It
