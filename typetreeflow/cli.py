@@ -39,7 +39,10 @@ from typetreeflow.diagnostics import (
     plan_only_guarded_download_next_action,
     zero_accepted_checklist_next_action,
 )
-from typetreeflow.evidence.bacdive_adapter import BacDiveClientProtocol
+from typetreeflow.evidence.bacdive_adapter import (
+    BacDiveClientProtocol,
+    BacDiveHTTPTransportProtocol,
+)
 from typetreeflow.evidence.bacdive_workflow import (
     bacdive_stage_state_from_outputs,
     run_bacdive_enrichment_stage,
@@ -900,6 +903,7 @@ def main(
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     bacdive_client: BacDiveClientProtocol | None = None,
+    bacdive_transport: BacDiveHTTPTransportProtocol | None = None,
     lpsn_client=None,
 ) -> int:
     config = parse_args(argv)
@@ -971,6 +975,7 @@ def main(
                     biosample_client=biosample_client,
                     ncbi_taxonomy_client=ncbi_taxonomy_client,
                     bacdive_client=bacdive_client,
+                    bacdive_transport=bacdive_transport,
                     lpsn_client=lpsn_client,
                 )
                 return 0
@@ -3122,6 +3127,7 @@ def run_genus_acquisition_workflow(
     biosample_client: BioSampleClient | None = None,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
     bacdive_client: BacDiveClientProtocol | None = None,
+    bacdive_transport: BacDiveHTTPTransportProtocol | None = None,
     lpsn_client=None,
 ) -> Path:
     genus = str(config.acquire_genus or "").strip()
@@ -3197,6 +3203,7 @@ def run_genus_acquisition_workflow(
         paths,
         acquisition_config,
         bacdive_client=bacdive_client,
+        bacdive_transport=bacdive_transport,
     )
     run_culture_collection_audit_stage(paths, acquisition_config)
     run_candidate_discovery_stage(

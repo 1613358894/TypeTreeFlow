@@ -102,10 +102,11 @@ future optional live BacDive enrichment. The P3b-a contract includes
 `BacDiveLookupRequest`, `BacDiveLookupResult`, `BacDiveDiagnostic`,
 `BacDiveClientProtocol`, `FakeBacDiveClient`, and an injectable
 `BacDiveLiveClient`. The live client is implemented behind an explicit
-transport abstraction and is covered by simulated HTTP tests only; it is not
-constructed by the public workflow. Requests are bounded to `culture_collection`,
-`strain_designation`, or `species_name`, with culture-collection tokens
-preferred by the request builder.
+transport abstraction and is covered by simulated HTTP tests. The public
+workflow constructs it only when `--enable-bacdive-enrichment` is explicit and
+no caller-injected BacDive client is supplied. Requests are bounded to
+`culture_collection`, `strain_designation`, or `species_name`, with
+culture-collection tokens preferred by the request builder.
 
 Adapter lookup statuses are `success`, `no_result`, `api_unavailable`,
 `timeout`, `rate_limited`, `schema_drift`, `conflict`, and
@@ -126,14 +127,24 @@ The resolved values are stored in `AppConfig`, `run_state.json` under
 `config.enable_bacdive_enrichment`, `config.bacdive_query_mode`,
 `config.bacdive_timeout_seconds`, and `config.bacdive_max_queries`, and the
 single compact `verify-genus` stdout JSON object under the same `config` keys.
-When explicitly enabled, P3b-b2a writes a minimal BacDive enrichment workflow
-skeleton only. The skeleton runs from LPSN checklist rows and type-strain text,
-and it only performs lookups against a caller-injected fake or fixture-backed
-client. The public CLI does not construct `BacDiveLiveClient`, does not read
-BacDive credentials, and does not contact BacDive. If enrichment is enabled
-without an injected client, `verify-genus` writes a safe diagnostic with
-`bacdive_live_client_not_enabled`, keeps the core workflow non-failing, and
-records `client_kind=none` and `live_api_called=false`.
+When explicitly enabled, the BacDive enrichment stage runs from LPSN checklist
+rows and type-strain text. Caller-injected fake or fixture-backed clients keep
+the existing offline behavior, including `species` and `both` query-mode tests.
+When no client is injected, the public workflow constructs `BacDiveLiveClient`;
+that BacDive live-client construction does not read environment files, API
+keys, credentials, cookies, or login state. Public live workflow mode is
+bounded to `bacdive_query_mode=tokens`;
+`species` and `both` are blocked before any HTTP call with
+`bacdive_live_query_mode_not_allowed`, `client_kind=none`, and
+`live_api_called=false`.
+
+In public live `tokens` mode, only culture-collection token requests are
+executed. Other token kinds are skipped with
+`bacdive_live_query_kind_not_supported`. The workflow passes
+`bacdive_timeout_seconds` to the live client, maps `bacdive_max_queries` to the
+total HTTP call cap including lookup and `/v2/fetch/{bacdive_id}` calls, and
+uses an internal `max_detail_ids=1` guard for detail fetches. No raw BacDive
+payloads are written.
 
 `BacDiveLiveClient` supports BacDive v2 path construction for
 `/v2/culturecollectionno/{culturecollectionno}`,
@@ -152,7 +163,8 @@ construction, nested and ID-keyed fetch response parsing, no result, schema
 drift, malformed JSON, oversized response blocking, timeout, HTTP 429 rate
 limiting, HTTP 5xx unavailability, and candidate-only source audit metadata.
 These tests do not call the live BacDive API, save raw BacDive payloads, or run
-a live TypeTreeFlow workflow.
+a live TypeTreeFlow workflow. Workflow live wiring tests use fake HTTP
+transports or injected clients only.
 
 The query planner is pure and IO-free. In `tokens` mode it plans only LPSN
 type-strain token lookups (`culture_collection` for recognized collection
@@ -175,6 +187,16 @@ files and source snapshots are not package members. `run_state.json` may
 include a `bacdive_enrichment` stage when these outputs exist. Its summary
 records planned queries, completed queries, record count, diagnostic count, and
 client kind.
+
+The source audit records truthful client provenance. Fake-client runs write
+`client_kind=fake` and `live_api_called=false`; pre-call skipped public live
+runs write `client_kind=none` and `live_api_called=false`; public live runs
+with an HTTP transport write `client_kind=live` and set `live_api_called=true`
+only after at least one HTTP call is actually performed. Live audits include
+bounded `http_calls`, actual endpoints and endpoint URLs from the adapter,
+`http_call_count`, `max_http_calls`, `max_detail_ids`, `max_response_bytes`,
+official documentation/field/terms/citation/license URLs,
+`raw_payload_policy=not_written`, and `raw_payload_saved=false`.
 
 Every enrichment row is candidate-only. It writes
 `selected_genome_linkage=not_evaluated`, `strict_confirmed=false`, and
@@ -306,7 +328,7 @@ Recommended layout:
 - `taxonomy/ncbi_taxonomy_cache.tsv`: `species`, `taxid`, `scientific_name`, `rank`, `synonyms`, `equivalent_names`, `includes`, `authority`, `source`, `notes`
 - `evidence/bacdive_enrichment.tsv`: `schema_version`, `run_id`, `species`, `checklist_source`, `lpsn_type_strain_text`, `lpsn_type_strain_identifiers`, `query_index`, `query_kind`, `query`, `endpoint`, `lookup_status`, `bacdive_id`, `bacdive_species`, `strain_designation`, `culture_collection_numbers`, `dsmz_accession`, `is_type_strain`, `evidence_tier`, `reconciliation_status`, `overlapping_identifiers`, `selected_genome_linkage`, `strict_confirmed`, `source_platform`, `source_url`, `accessed_at`, `diagnostic_codes`, `notes`
 - `evidence/bacdive_diagnostics.tsv`: `schema_version`, `run_id`, `query_index`, `species`, `query_kind`, `query`, `endpoint`, `status`, `severity`, `diagnostic_code`, `evidence_effect`, `message`, `http_status`, `retry_count`, `accessed_at`, `notes`
-- `evidence/bacdive_source_audit.json`: JSON audit written only for opt-in BacDive enrichment skeleton runs. It records `enabled`, `query_mode`, `max_queries`, `timeout_seconds`, `client_kind`, `live_api_called`, `generated_at`, `citation_url`, `terms_url`, `planned_query_count`, `executed_query_count`, `completed_query_count`, `skipped_query_count`, `result_status_counts`, `record_count`, `diagnostic_count`, output paths, `candidate_only`, `strict_confirmed=false`, `strict_or_completion_effect=none`, `raw_payload_policy=not_written`, and the redaction policy.
+- `evidence/bacdive_source_audit.json`: JSON audit written only for opt-in BacDive enrichment runs. It records `enabled`, `query_mode`, `max_queries`, `timeout_seconds`, `client_kind`, `stage_status`, `live_api_called`, `generated_at`, official documentation/field/terms/citation/license URLs, `planned_query_count`, `executed_query_count`, `http_call_count`, `http_calls`, `completed_query_count`, `skipped_query_count`, `result_status_counts`, `record_count`, `diagnostic_count`, output paths, `candidate_only`, `strict_confirmed=false`, `strict_or_completion_effect=none`, `raw_payload_policy=not_written`, `raw_payload_saved=false`, and the redaction policy.
 - `candidates/assembly_candidates.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `bioproject`, `assembly_level`, `refseq_category`, `is_type_material`, `culture_collection_ids`, `has_recognized_deposit_id`, `lpsn_type_strain_ids`, `ncbi_culture_collection_ids`, `curator_culture_collection_ids`, `matched_lpsn_type_strain_ids`, `has_lpsn_type_strain_match`, `match_evidence`, `curator_evidence_source`, `curator_notes`, `curator_evidence_applied`, `discovery_name`, `discovery_name_type`, `matched_correct_name`, `synonym_used`, `synonym_evidence`, `requires_manual_review`, `manual_review_reason`, `source`, `notes`
 - `candidates/assembly_candidate_diagnostics.tsv`: `species`, `code`, `message`, `assembly_accession`
 - `candidates/discovery_records.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `bioproject`, `assembly_level`, `refseq_category`, `is_type_material`, `source`, `notes`

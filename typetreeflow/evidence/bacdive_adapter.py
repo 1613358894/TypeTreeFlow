@@ -135,6 +135,7 @@ class BacDiveLookupResult:
     diagnostics: tuple[BacDiveDiagnostic, ...] = ()
     source_url: str = ""
     accessed_at: str = ""
+    source_audit: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.status not in _VALID_LOOKUP_STATUSES:
@@ -243,6 +244,7 @@ class BacDiveLiveClient:
         self.max_response_bytes = int(max_response_bytes)
         self.transport = transport or _StdlibBacDiveJsonTransport()
         self.http_calls_made = 0
+        self.http_call_audits: list[dict[str, object]] = []
         self._rate_limited = False
 
     def lookup(self, request: BacDiveLookupRequest) -> BacDiveClientResponse:
@@ -378,6 +380,14 @@ class BacDiveLiveClient:
         endpoint: str,
     ) -> tuple[Any | None, BacDiveClientResponse | None]:
         if self._rate_limited:
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=False,
+                status=RATE_LIMITED,
+                http_status=429,
+            )
             return None, self._status_response(
                 RATE_LIMITED,
                 "BacDive rate limit already reached; no further call attempted",
@@ -387,6 +397,14 @@ class BacDiveLiveClient:
                 http_status=429,
             )
         if self.http_calls_made >= self.max_http_calls:
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=False,
+                status=API_UNAVAILABLE,
+                code="bacdive_max_query_cap_exceeded",
+            )
             return None, self._status_response(
                 API_UNAVAILABLE,
                 "BacDive max HTTP call cap skipped this request",
@@ -397,15 +415,28 @@ class BacDiveLiveClient:
             )
         self.http_calls_made += 1
         try:
-            return (
-                self.transport.get_json(
-                    url,
-                    self.timeout_seconds,
-                    self.max_response_bytes,
-                ),
-                None,
+            payload = self.transport.get_json(
+                url,
+                self.timeout_seconds,
+                self.max_response_bytes,
             )
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=True,
+                status=SUCCESS,
+                http_status=200,
+            )
+            return payload, None
         except (BacDiveTimeoutError, TimeoutError, socket.timeout):
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=True,
+                status=TIMEOUT,
+            )
             return None, self._status_response(
                 TIMEOUT,
                 "BacDive lookup timed out",
@@ -416,6 +447,14 @@ class BacDiveLiveClient:
         except BacDiveHTTPError as error:
             if error.status_code == 429:
                 self._rate_limited = True
+                self._record_http_call(
+                    query=query,
+                    endpoint=endpoint,
+                    accessed_at=accessed_at,
+                    called=True,
+                    status=RATE_LIMITED,
+                    http_status=429,
+                )
                 return None, self._status_response(
                     RATE_LIMITED,
                     "BacDive lookup was rate limited",
@@ -425,6 +464,14 @@ class BacDiveLiveClient:
                     http_status=429,
                 )
             if 500 <= error.status_code <= 599:
+                self._record_http_call(
+                    query=query,
+                    endpoint=endpoint,
+                    accessed_at=accessed_at,
+                    called=True,
+                    status=API_UNAVAILABLE,
+                    http_status=error.status_code,
+                )
                 return None, self._status_response(
                     API_UNAVAILABLE,
                     "BacDive API returned a server error",
@@ -434,6 +481,14 @@ class BacDiveLiveClient:
                     http_status=error.status_code,
                 )
             if error.status_code == 404:
+                self._record_http_call(
+                    query=query,
+                    endpoint=endpoint,
+                    accessed_at=accessed_at,
+                    called=True,
+                    status=NO_RESULT,
+                    http_status=404,
+                )
                 return None, self._status_response(
                     NO_RESULT,
                     "BacDive lookup returned HTTP 404",
@@ -442,6 +497,14 @@ class BacDiveLiveClient:
                     endpoint=endpoint,
                     http_status=404,
                 )
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=True,
+                status=API_UNAVAILABLE,
+                http_status=error.status_code,
+            )
             return None, self._status_response(
                 API_UNAVAILABLE,
                 "BacDive API returned an unsupported HTTP error",
@@ -451,6 +514,14 @@ class BacDiveLiveClient:
                 http_status=error.status_code,
             )
         except (BacDiveMalformedJSONError, json.JSONDecodeError):
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=True,
+                status=SCHEMA_DRIFT,
+                code="bacdive_malformed_json",
+            )
             return None, self._status_response(
                 SCHEMA_DRIFT,
                 "BacDive response was not valid JSON",
@@ -460,6 +531,14 @@ class BacDiveLiveClient:
                 code="bacdive_malformed_json",
             )
         except BacDiveResponseTooLargeError:
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=True,
+                status=API_UNAVAILABLE,
+                code="bacdive_response_too_large",
+            )
             return None, self._status_response(
                 API_UNAVAILABLE,
                 "BacDive response exceeded max_response_bytes before JSON parsing",
@@ -469,6 +548,13 @@ class BacDiveLiveClient:
                 code="bacdive_response_too_large",
             )
         except BacDiveTransportError:
+            self._record_http_call(
+                query=query,
+                endpoint=endpoint,
+                accessed_at=accessed_at,
+                called=True,
+                status=API_UNAVAILABLE,
+            )
             return None, self._status_response(
                 API_UNAVAILABLE,
                 "BacDive transport failed",
@@ -554,6 +640,8 @@ class BacDiveLiveClient:
             "license_url": BACDIVE_LICENSE_URL,
             "live_api_called": self.http_calls_made > 0,
             "http_call_count": self.http_calls_made,
+            "http_calls": list(self.http_call_audits),
+            "max_http_calls": self.max_http_calls,
             "http_status": http_status or "",
             "timeout_seconds": self.timeout_seconds,
             "max_detail_ids": self.max_detail_ids,
@@ -562,6 +650,31 @@ class BacDiveLiveClient:
             "candidate_only": True,
             "strict_confirmed": False,
         }
+
+    def _record_http_call(
+        self,
+        *,
+        query: str,
+        endpoint: str,
+        accessed_at: str,
+        called: bool,
+        status: str,
+        http_status: int | None = None,
+        code: str = "",
+    ) -> None:
+        self.http_call_audits.append(
+            {
+                "call_index": len(self.http_call_audits) + 1,
+                "query": query,
+                "endpoint": endpoint,
+                "endpoint_url": self._url(endpoint) if endpoint else "",
+                "called": bool(called),
+                "status": status,
+                "diagnostic_code": code,
+                "http_status": http_status or "",
+                "accessed_at": accessed_at,
+            }
+        )
 
 
 class _StdlibBacDiveJsonTransport:
@@ -676,6 +789,7 @@ def lookup_bacdive_evidence(
             diagnostics=tuple(diagnostics),
             source_url=response.source_url,
             accessed_at=response.accessed_at,
+            source_audit=response.source_audit,
         )
     if not response.raw_records:
         diagnostics.append(
@@ -688,6 +802,7 @@ def lookup_bacdive_evidence(
             diagnostics=tuple(diagnostics),
             source_url=response.source_url,
             accessed_at=response.accessed_at,
+            source_audit=response.source_audit,
         )
 
     records: list[BacDiveEvidenceRecord] = []
@@ -726,6 +841,7 @@ def lookup_bacdive_evidence(
             diagnostics=tuple(diagnostics),
             source_url=source_url,
             accessed_at=accessed_at,
+            source_audit=response.source_audit,
         )
 
     final_status = SCHEMA_DRIFT if schema_drift_count else NO_RESULT
@@ -736,6 +852,7 @@ def lookup_bacdive_evidence(
         diagnostics=tuple(diagnostics),
         source_url=response.source_url,
         accessed_at=response.accessed_at,
+        source_audit=response.source_audit,
     )
 
 

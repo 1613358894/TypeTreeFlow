@@ -1,10 +1,13 @@
 import csv
 import json
+import os
 import zipfile
 from pathlib import Path
 
 from typetreeflow.cli import main
+from typetreeflow.config import AppConfig
 from typetreeflow.evidence.bacdive_adapter import FakeBacDiveClient
+from typetreeflow.evidence.bacdive_workflow import build_public_bacdive_live_client
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.external.tools import resolve_iqtree_executable
 from typetreeflow.manifest import read_manifest
@@ -84,6 +87,25 @@ class _FakeAssemblyDiscoveryClient:
             ],
         }
         return records.get(species_name, [])
+
+
+class _FakeBacDiveHttpTransport:
+    def __init__(self, responses):
+        self.responses = responses
+        self.urls = []
+        self.timeouts = []
+        self.max_response_bytes = []
+
+    def get_json(self, url, timeout, max_response_bytes):
+        self.urls.append(url)
+        self.timeouts.append(timeout)
+        self.max_response_bytes.append(max_response_bytes)
+        response = self.responses.get(url)
+        if isinstance(response, Exception):
+            raise response
+        if response is None:
+            raise AssertionError(f"unexpected BacDive fake HTTP URL: {url}")
+        return response
 
 
 class _TimeoutAssemblyDiscoveryClient:
@@ -197,6 +219,122 @@ def _fake_barrnap_gff() -> str:
 def _read_tsv(path: Path) -> list[dict[str, str]]:
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _bacdive_v2_record(
+    *,
+    bacdive_id="24493",
+    species="Fusobacterium nucleatum",
+    strain_number="ATCC 25586; DSM 15643",
+    designation="ATCC 25586",
+):
+    return {
+        "General": {"BacDive-ID": bacdive_id},
+        "taxonomy_name": {
+            "strains": [
+                {
+                    "species": species,
+                    "full_scientific_name": species,
+                    "designation": designation,
+                    "is_type_strain": "yes",
+                }
+            ]
+        },
+        "literature": {
+            "strains": [
+                {
+                    "strain_number": strain_number,
+                    "ID_reference": ["synthetic-reference"],
+                }
+            ]
+        },
+    }
+
+
+def _minimal_bacdive_config(**overrides) -> AppConfig:
+    values = {
+        "doctor": False,
+        "doctor_strict": False,
+        "status": False,
+        "next_step": False,
+        "json_output": False,
+        "package_results": False,
+        "failed_handoff": False,
+        "delivery_dir": None,
+        "include": "reports",
+        "verify_release_genus": None,
+        "release_policies": "default",
+        "verify_genus": True,
+        "smoke_profile": None,
+        "auto_accept_selection": False,
+        "review_required": False,
+        "acquire_genus": "Fusobacterium",
+        "genus": None,
+        "query_genome": None,
+        "query_genomes": (),
+        "query_16s": None,
+        "outgroup": None,
+        "outdir": Path("unused-outdir"),
+        "threads": 1,
+        "email": None,
+        "api_key": None,
+        "provider_timeout_seconds": 30.0,
+        "gtdb_metadata": None,
+        "gtdb_release": None,
+        "species_checklist": None,
+        "lpsn_child_taxa": None,
+        "lpsn_genus": None,
+        "lpsn_cache": None,
+        "write_lpsn_cache": None,
+        "write_species_checklist": None,
+        "write_excluded_lpsn_taxa": None,
+        "enable_lpsn_api": False,
+        "audit_culture_collections": False,
+        "write_completion_audit": False,
+        "discover_assembly_candidates": False,
+        "write_manual_review_template": False,
+        "apply_curator_evidence": None,
+        "candidate_tsv": None,
+        "discovery_cache": None,
+        "enable_ncbi_discovery": False,
+        "enable_ncbi_taxonomy": False,
+        "enable_expanded_discovery": False,
+        "enable_synonym_discovery": False,
+        "enrich_biosample": False,
+        "biosample_cache": None,
+        "enable_biosample_entrez": False,
+        "prepare_selection": False,
+        "selection_tsv": None,
+        "selection_policy": "strict",
+        "source_audit_policy": "strict",
+        "strains_per_species": 1,
+        "limit_selected": None,
+        "register_external_genomes": None,
+        "plan_provider_registration": None,
+        "merge_manifest": False,
+        "resume": False,
+        "force": False,
+        "allow_genus_change": False,
+        "dry_run": True,
+        "enable_downloads": False,
+        "enable_barrnap": False,
+        "extract_16s": "none",
+        "enable_entrez": False,
+        "enable_fastani": False,
+        "enable_phylo": False,
+        "skip_ani": False,
+        "skip_tree": False,
+        "keep_temp": False,
+        "report_only": False,
+        "log_level": "INFO",
+        "evidence_policy": "strict",
+        "enable_bacdive_enrichment": False,
+        "bacdive_query_mode": "tokens",
+        "bacdive_timeout_seconds": 20.0,
+        "bacdive_max_queries": 50,
+    }
+    values.update(overrides)
+    return AppConfig(**values)
 
 
 def _verify_genus_stdout_payload(capsys) -> tuple[dict, str]:
@@ -1294,9 +1432,277 @@ def test_verify_genus_bacdive_flag_without_injected_client_writes_safe_diagnosti
     assert paths.bacdive_source_audit_path.exists()
     diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
     audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
-    assert diagnostics[0]["diagnostic_code"] == "bacdive_live_client_not_enabled"
+    assert diagnostics[0]["diagnostic_code"] == "bacdive_live_query_mode_not_allowed"
     assert audit["client_kind"] == "none"
     assert audit["live_api_called"] is False
+    assert audit["record_count"] == 0
+
+
+def test_public_bacdive_live_helper_does_not_read_env_or_credentials(monkeypatch):
+    def fail_getenv(*args, **kwargs):
+        raise AssertionError("BacDive live helper must not read environment")
+
+    monkeypatch.setenv("BACDIVE_API_KEY", "must-not-be-read")
+    monkeypatch.setattr(os, "getenv", fail_getenv)
+    transport = _FakeBacDiveHttpTransport({})
+    config = _minimal_bacdive_config(
+        enable_bacdive_enrichment=True,
+        bacdive_timeout_seconds=7.0,
+        bacdive_max_queries=2,
+    )
+
+    client = build_public_bacdive_live_client(config, transport=transport)
+
+    assert client.timeout_seconds == 7.0
+    assert client.max_http_calls == 2
+    assert client.max_detail_ids == 1
+    assert transport.urls == []
+
+
+def test_verify_genus_public_bacdive_live_tokens_uses_fake_transport_and_writes_outputs(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = tmp_path / "lpsn_cache.tsv"
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    write_lpsn_species_cache(
+        [_lpsn_record("nucleatum", type_strain="ATCC 25586")],
+        lpsn_cache,
+    )
+    transport = _FakeBacDiveHttpTransport(
+        {
+            "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586": {
+                "results": [{"bacdive_id": "24493"}]
+            },
+            "https://api.bacdive.dsmz.de/v2/fetch/24493": _bacdive_v2_record(),
+        }
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-max-queries",
+            "2",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_transport=transport,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    rows = _read_tsv(paths.bacdive_enrichment_path)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+
+    assert result == 0
+    assert transport.urls == [
+        "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586",
+        "https://api.bacdive.dsmz.de/v2/fetch/24493",
+    ]
+    assert payload["counts"]["manifest_rows"] == 1
+    assert payload["counts"]["selected_rows"] == 1
+    assert rows[0]["endpoint"] == "/v2/fetch/24493"
+    assert rows[0]["strict_confirmed"] == "false"
+    assert rows[0]["selected_genome_linkage"] == "not_evaluated"
+    assert rows[0]["source_url"] == "https://api.bacdive.dsmz.de/v2/fetch/24493"
+    assert {row["diagnostic_code"] for row in diagnostics} == {
+        "bacdive_multiple_accessions"
+    }
+    assert {row["evidence_effect"] for row in diagnostics} == {"candidate_review"}
+    assert audit["client_kind"] == "live"
+    assert audit["live_api_called"] is True
+    assert audit["raw_payload_saved"] is False
+    assert audit["raw_payload_policy"] == "not_written"
+    assert audit["max_http_calls"] == 2
+    assert audit["max_detail_ids"] == 1
+    assert audit["http_call_count"] == 2
+    assert [call["endpoint"] for call in audit["http_calls"]] == [
+        "/v2/culturecollectionno/ATCC%2025586",
+        "/v2/fetch/24493",
+    ]
+    assert audit["strict_or_completion_effect"] == "none"
+    assert state.stages["bacdive_enrichment"].status == "succeeded"
+    assert paths.completion_summary_path.exists() is False
+    assert not (paths.cache_dir / "bacdive").exists()
+
+
+def test_verify_genus_public_bacdive_live_species_and_both_block_before_http(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    transport = _FakeBacDiveHttpTransport({})
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-query-mode",
+            "both",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_transport=transport,
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    _verify_genus_stdout_payload(capsys)
+
+    assert result == 0
+    assert transport.urls == []
+    assert diagnostics[0]["diagnostic_code"] == "bacdive_live_query_mode_not_allowed"
+    assert audit["client_kind"] == "none"
+    assert audit["live_api_called"] is False
+    assert audit["http_call_count"] == 0
+    assert state.stages["bacdive_enrichment"].status == "warning"
+
+
+def test_verify_genus_public_bacdive_live_http_cap_includes_fetch(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = tmp_path / "lpsn_cache.tsv"
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    write_lpsn_species_cache(
+        [_lpsn_record("nucleatum", type_strain="ATCC 25586")],
+        lpsn_cache,
+    )
+    transport = _FakeBacDiveHttpTransport(
+        {
+            "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586": {
+                "results": [{"bacdive_id": "24493"}]
+            },
+            "https://api.bacdive.dsmz.de/v2/fetch/24493": _bacdive_v2_record(),
+        }
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-max-queries",
+            "1",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_transport=transport,
+    )
+
+    paths = get_output_paths(outdir)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    _verify_genus_stdout_payload(capsys)
+
+    assert result == 0
+    assert transport.urls == [
+        "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586"
+    ]
+    assert diagnostics[0]["diagnostic_code"] == "bacdive_max_query_cap_exceeded"
+    assert diagnostics[0]["endpoint"] == "/v2/fetch/24493"
+    assert audit["client_kind"] == "live"
+    assert audit["live_api_called"] is True
+    assert audit["http_call_count"] == 1
+    assert audit["http_calls"][1]["called"] is False
+    assert audit["http_calls"][1]["endpoint"] == "/v2/fetch/24493"
+
+
+def test_verify_genus_public_bacdive_live_enforces_one_detail_id(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = tmp_path / "lpsn_cache.tsv"
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    write_lpsn_species_cache(
+        [_lpsn_record("nucleatum", type_strain="ATCC 25586")],
+        lpsn_cache,
+    )
+    transport = _FakeBacDiveHttpTransport(
+        {
+            "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586": {
+                "results": [{"bacdive_id": "24493"}, {"bacdive_id": "24494"}]
+            }
+        }
+    )
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--bacdive-max-queries",
+            "5",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ],
+        bacdive_transport=transport,
+    )
+
+    paths = get_output_paths(outdir)
+    diagnostics = _read_tsv(paths.bacdive_diagnostics_path)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    _verify_genus_stdout_payload(capsys)
+
+    assert result == 0
+    assert transport.urls == [
+        "https://api.bacdive.dsmz.de/v2/culturecollectionno/ATCC%2025586"
+    ]
+    assert diagnostics[0]["diagnostic_code"] == "bacdive_max_detail_id_cap_exceeded"
+    assert audit["max_detail_ids"] == 1
+    assert audit["http_call_count"] == 1
     assert audit["record_count"] == 0
 
 
