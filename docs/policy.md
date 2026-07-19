@@ -74,6 +74,32 @@ manifest rows, completion metrics, or package membership. BacDive package
 inclusion means audit availability, not a strict scientific deliverable; raw
 BacDive payloads are not included.
 
+The offline strict evidence reconciler is an audit model only until a separate
+integration task deliberately wires it into workflow behavior. It may mark
+`strict_lpsn_confirmed` only when LPSN type-strain tokens overlap selected
+genome strain, culture-collection, or BioSample linkage and no explicit
+conflict is visible. It may mark `curated_strict_confirmed` only when that same
+LPSN plus selected-genome chain is present and corroborating BacDive/DSMZ,
+archive, or curated evidence agrees. BacDive/DSMZ alone, NCBI Assembly or
+BioSample type-material fields alone, representative/reference labels,
+species-name-only matches, and strain-text-only matches must never be described
+as strict confirmed type strains.
+
+Reconciler candidate tiers are review evidence, not completion credit.
+`authoritative_type_material_candidate`, `ncbi_type_material_candidate`, and
+`likely_type_material_candidate` must retain manual-review caveats and must
+not mutate manifests, selection, downloads, provider plans, reports, packages,
+or completion metrics. `representative_non_type` remains exploratory
+non-type evidence. `missing_public_genome` means no public selected genome is
+available to reconcile; it is distinct from a genome that is present but lacks
+strict type linkage.
+
+Any explicit species conflict, strain conflict, culture-collection token
+conflict, BioSample conflict, or negative type-material evidence blocks
+automatic strict use with `conflict_blocked` and
+`requires_manual_review=true`. A conflicting row must not be rescued by another
+source's type-material claim until a curator records resolved equivalence.
+
 ## Evidence Policy
 
 Evidence policy is a run-level derived-view strategy, not a source fact or an
