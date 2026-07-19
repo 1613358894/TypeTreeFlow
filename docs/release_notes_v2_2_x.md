@@ -1,9 +1,50 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.29 integration review as
+These notes consolidate the v2.2.2 through v2.2.30 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.30
+
+v2.2.30 is a BacDive compact report/package wording release based on v2.2.29.
+It records reader-facing BacDive Candidate Review and package handoff wording
+while preserving the v2.2.29 source-audit summary fields, the v2.2.28 bounded
+public live tokens path, the v2.2.27 live-client HTTP skeleton, the v2.2.26
+BacDive candidate review report/package handoff, the v2.2.25 opt-in workflow
+skeleton, the v2.2.24 configuration plumbing, the v2.2.23 offline BacDive
+adapter contract, the v2.2.22 offline BacDive/DSMZ candidate-evidence model,
+and the v2.2.21 artifact scope readability semantics:
+
+- `report/summary.md` can include a `BacDive Candidate Review` audit section
+  with compact Counts and Source audit reader summaries.
+- `package-results --include reports` includes the normalized BacDive evidence
+  triplet when present: `evidence/bacdive_enrichment.tsv`,
+  `evidence/bacdive_diagnostics.tsv`, and
+  `evidence/bacdive_source_audit.json`.
+- Package `README.md`, `README_failure.md`, `handoff_index.md`, and
+  `artifact_scope.tsv` state that BacDive package inclusion means audit
+  availability, not a strict scientific deliverable.
+- Raw BacDive payloads, cache files, and source snapshots are not included in
+  the package handoff.
+- BacDive enrichment remains candidate-only and audit-only. It does not change
+  selection, manifests, completion metrics, downloads, evidence-policy strict
+  results, strict type-strain evidence semantics, live query scope, or package
+  membership.
+- Verification evidence includes local release gates PASS and offline compact
+  wording smoke PASS. The smoke is bounded release evidence only, not
+  production, broad live-provider, full-download, broad live validation, or
+  full Clostridium strict validation.
+
+v2.2.30 does not claim full-download validation, full Clostridium strict
+completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+confirmation, live provider automation, broad live validation, release asset
+publication, package membership changes, or relaxed strict type-strain
+evidence thresholds. The v2.2.29 BacDive source-audit polish, v2.2.28 bounded
+public live tokens path, v2.2.27 live-client HTTP skeleton, v2.2.26
+report/package handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing,
+v2.2.23 offline adapter contract, v2.2.22 offline BacDive model, and v2.2.21
+artifact scope readability semantics remain valid.
 
 ## v2.2.29
 

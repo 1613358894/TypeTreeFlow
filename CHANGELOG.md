@@ -1,5 +1,47 @@
 # Changelog
 
+## v2.2.30 - 2026-07-19
+
+v2.2.30 is a BacDive compact report/package wording release based on v2.2.29.
+It records clearer reader-facing BacDive Candidate Review and package handoff
+wording while preserving the v2.2.29 source-audit summary fields, the v2.2.28
+bounded public live tokens path, the v2.2.27 live-client HTTP skeleton, the
+v2.2.26 BacDive candidate review report/package handoff, and the
+candidate-only BacDive evidence boundary.
+
+### Changed
+
+- BacDive Candidate Review summaries use compact Counts and Source audit
+  reader lines for normalized BacDive evidence and source-audit availability.
+- Package `README.md`, `README_failure.md`, and `handoff_index.md` make clear
+  that BacDive package inclusion means audit availability, not a strict
+  scientific deliverable.
+- Package and handoff wording states that raw BacDive payloads are not
+  included.
+- BacDive enrichment remains candidate-only and audit-only. It does not change
+  selection, manifests, completion metrics, downloads, evidence-policy strict
+  results, strict type-strain evidence semantics, live query scope, or package
+  membership.
+
+### Verification
+
+- Local release gates PASS.
+- Offline compact wording smoke PASS. This is bounded release evidence only and
+  is not production, broad live-provider, full-download, broad live validation,
+  or full Clostridium strict validation.
+
+### Notes
+
+- No API-key, environment-variable, cookie, provider-login, scraping, purchase,
+  automatic download, FASTA installation, manifest mutation, completion-metric
+  change, strict evidence-policy change, release asset publication, live query
+  scope change, package membership change, or unguarded external network
+  behavior is introduced.
+- This release does not claim full-download validation, full Clostridium strict
+  completion, taxonomy conclusions, BacDive/DSMZ strict type-strain
+  confirmation, live provider automation, broad live validation, or relaxed
+  strict type-strain evidence thresholds.
+
 ## v2.2.29 - 2026-07-19
 
 v2.2.29 is a BacDive source-audit summary polish release based on v2.2.28. It
