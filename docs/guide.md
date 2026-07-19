@@ -61,7 +61,12 @@ Live token mode executes only culture-collection token lookups, caps total HTTP
 calls with `--bacdive-max-queries`, uses one detail ID per fetch, and writes no
 raw payloads. When normalized outputs exist, report packages may include them
 as candidate-only audit files; they do not change strict completion or selected
-genome evidence.
+genome evidence. First-reader BacDive report and package summaries may include
+a compact source-audit row for client kind, live-call status, call counts,
+stopped reason, HTTP status, and raw-payload policy. Treat that row as audit
+provenance only. Package inclusion means audit availability, not a strict
+scientific deliverable; determine strict deliverables from `artifact_scope.tsv`
+and strict evidence fields.
 
 Review `status`, `next-step`, `report/summary.md`, `report/run_review.md`,
 `selection/strain_candidates.tsv`, and `selection/user_selection.tsv`.

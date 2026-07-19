@@ -66,6 +66,13 @@ They must not be described as strict confirmation, strict LPSN evidence,
 selected genome evidence, completion credit, provider/download completion, or
 species absence evidence. Package artifact-scope rows for BacDive outputs must
 use `scope=audit` and `strict_scientific_deliverable=false`.
+Compact BacDive report or handoff source-audit summaries are first-reader
+provenance only. They may summarize client kind, live-call status, bounded HTTP
+call counts, endpoint counts, stopped reason, last HTTP status, and raw-payload
+policy, but they must not change strict evidence semantics, selection,
+manifest rows, completion metrics, or package membership. BacDive package
+inclusion means audit availability, not a strict scientific deliverable; raw
+BacDive payloads are not included.
 
 ## Evidence Policy
 

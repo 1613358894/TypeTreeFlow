@@ -15,6 +15,8 @@ from typetreeflow.manifest import read_manifest, resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
     BacDiveCandidateReviewSummary,
+    bacdive_compact_counts_summary,
+    bacdive_compact_source_audit_summary,
     bacdive_normalized_outputs_available,
     read_optional_bacdive_candidate_review,
     read_optional_gtdb_metadata_audit,
@@ -426,28 +428,54 @@ def build_delivery_readme(
         f"- Included sections: {', '.join(sorted(include)) if include else 'core only'}",
         "- Credentials are not included.",
         "",
-        "## Selection And Evidence",
+        "## First Reader Note",
         "",
-        f"- Policy: {policy}",
-        f"- Selection acceptance: {acceptance}",
         (
-            "- Strict type-strain confirmed: "
-            f"{type_counts[STRICT_CONFIRMED_COUNT]}"
-        ),
-        (
-            "- Likely type-material candidate: "
-            f"{type_counts[LIKELY_TYPE_MATERIAL_COUNT]}"
-        ),
-        f"- Representative only: {type_counts[REPRESENTATIVE_ONLY_COUNT]}",
-        (
-            "- Representative-only rows are exploratory and must not be counted "
-            "as strict completion."
-        ),
-        (
-            "- Likely type-material candidate rows indicate genome availability "
-            "for review, not strict LPSN-confirmed type-strain completion."
+            "This package may include candidate-inclusive and audit-only "
+            "artifacts. Package inclusion means audit availability, not strict "
+            "scientific confirmation. Strict scientific deliverables must be "
+            "determined from `artifact_scope.tsv` and strict evidence fields."
         ),
     ]
+    if bacdive_review is not None:
+        lines.extend(
+            [
+                "",
+                (
+                    "BacDive files are candidate-only and audit-only artifacts for "
+                    "review. They do not confirm strict type-strain genomes "
+                    "and do not change selection, manifest rows, selected "
+                    "genome evidence, strict evidence-policy results, or "
+                    "completion metrics. Raw BacDive payloads are not included."
+                ),
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## Selection And Evidence",
+            "",
+            f"- Policy: {policy}",
+            f"- Selection acceptance: {acceptance}",
+            (
+                "- Strict type-strain confirmed: "
+                f"{type_counts[STRICT_CONFIRMED_COUNT]}"
+            ),
+            (
+                "- Likely type-material candidate: "
+                f"{type_counts[LIKELY_TYPE_MATERIAL_COUNT]}"
+            ),
+            f"- Representative only: {type_counts[REPRESENTATIVE_ONLY_COUNT]}",
+            (
+                "- Representative-only rows are exploratory and must not be counted "
+                "as strict completion."
+            ),
+            (
+                "- Likely type-material candidate rows indicate genome availability "
+                "for review, not strict LPSN-confirmed type-strain completion."
+            ),
+        ]
+    )
     if gtdb_audit is not None:
         lines.extend(
             [
@@ -623,8 +651,14 @@ def build_handoff_index(
             "- BacDive candidate review: "
             f"candidate_count={bacdive_review.candidate_count}, "
             f"conflict_count={bacdive_review.conflict_count}, "
-            f"no_result_count={bacdive_review.no_result_count} "
-            "(candidate-only audit evidence)"
+            f"no_result_count={bacdive_review.no_result_count}; "
+            "source_audit=("
+            f"client_kind={bacdive_review.client_kind}, "
+            f"live_api_called={bacdive_review.live_api_called}, "
+            f"http_calls={bacdive_review.http_call_count}, "
+            f"stopped_reason={bacdive_review.stopped_reason}, "
+            f"raw_payload_policy={bacdive_review.raw_payload_policy}"
+            "); candidate-only audit evidence, not strict confirmation"
         )
     lines.extend(
         [
@@ -780,6 +814,12 @@ def build_failed_handoff_index(
                 "- Representative-only rows are exploratory and are not strict "
                 "type-strain completion."
             ),
+            (
+                "- BacDive references in copied reports are candidate-only audit "
+                "context, not strict scientific deliverables; strict deliverables "
+                "must be determined from artifact_scope.tsv and strict evidence "
+                "fields. Raw BacDive payload is not included."
+            ),
         ]
     )
     if missing_expected_files:
@@ -829,6 +869,23 @@ def build_failed_handoff_readme(
         "- This is a review artifact, not a normal delivery package.",
         f"- TypeTreeFlow version: {__version__}",
         f"- Source outdir: {source_outdir}",
+        "",
+        "## First Reader Note",
+        "",
+        (
+            "This package may include candidate-inclusive and audit-only "
+            "artifacts. Package inclusion means audit availability, not strict "
+            "scientific confirmation. Strict scientific deliverables must be "
+            "determined from `artifact_scope.tsv` when present and strict "
+            "evidence fields."
+        ),
+        (
+            "BacDive references in copied reports are candidate-only audit "
+            "context. They do not confirm strict type-strain genomes and do not "
+            "change selection, manifest rows, selected genome evidence, strict "
+            "evidence-policy results, or completion metrics. Raw BacDive "
+            "payloads are not included."
+        ),
         "",
         "## Failure Summary",
         "",
@@ -1270,44 +1327,54 @@ def _bacdive_readme_lines(review: BacDiveCandidateReviewSummary) -> list[str]:
         "## BacDive Candidate Review",
         "",
         (
+            "- BacDive files are candidate-only and audit-only artifacts for review; "
+            "package inclusion means audit availability, not a strict "
+            "scientific deliverable."
+        ),
+        (
+            "- BacDive does not confirm strict type-strain genomes and does "
+            "not change selection, manifest rows, selected genome evidence, "
+            "strict evidence-policy results, or completion metrics."
+        ),
+        (
+            "- Strict deliverables must be determined from artifact_scope.tsv "
+            "and strict evidence fields."
+        ),
+        (
             "- Normalized audit files: evidence/bacdive_enrichment.tsv, "
             "evidence/bacdive_diagnostics.tsv, and "
             "evidence/bacdive_source_audit.json"
         ),
-        (
-            "- Counts: "
-            f"candidate_count={review.candidate_count}, "
-            f"conflict_count={review.conflict_count}, "
-            f"no_result_count={review.no_result_count}, "
-            f"diagnostic_count={review.diagnostic_count}"
-        ),
-        (
-            "- BacDive rows are candidate-only and audit-only; they do not "
-            "change selection, manifest, strict type-strain confirmation, "
-            "selected genome evidence, evidence-policy strict results, or "
-            "completion metrics."
-        ),
-        "- Raw BacDive cache files and source snapshots are not included.",
+        f"- Counts: {bacdive_compact_counts_summary(review)}",
+        f"- Source audit: {bacdive_compact_source_audit_summary(review)}",
+        "- Raw BacDive payloads, cache files, and source snapshots are not included.",
     ]
 
 
 def _bacdive_handoff_lines(review: BacDiveCandidateReviewSummary) -> list[str]:
     return [
-        "- BacDive normalized outputs are packaged as candidate-only audit evidence.",
+        (
+            "- BacDive normalized outputs are packaged as candidate-only audit "
+            "evidence, not strict scientific deliverables."
+        ),
+        (
+            "- Package inclusion means audit availability; strict deliverables "
+            "must be determined from artifact_scope.tsv and strict evidence fields."
+        ),
         (
             "- BacDive review counts: "
-            f"planned_queries={review.planned_queries}, "
-            f"completed_queries={review.completed_queries}, "
-            f"record_count={review.record_count}, "
-            f"diagnostic_count={review.diagnostic_count}, "
-            f"candidate_count={review.candidate_count}, "
-            f"conflict_count={review.conflict_count}, "
-            f"no_result_count={review.no_result_count}"
+            f"{bacdive_compact_counts_summary(review)}"
         ),
         (
-            "- BacDive review rows are not strict type-strain confirmation and "
-            "do not alter selected genome evidence or completion metrics."
+            "- BacDive source audit: "
+            f"{bacdive_compact_source_audit_summary(review)}"
         ),
+        (
+            "- BacDive review rows do not confirm strict type-strain genomes "
+            "and do not alter selection, manifest rows, selected genome "
+            "evidence, strict evidence-policy results, or completion metrics."
+        ),
+        "- Raw BacDive payload is not included.",
     ]
 
 

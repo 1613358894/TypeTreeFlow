@@ -131,6 +131,15 @@ class ReportInput:
 class BacDiveCandidateReviewSummary:
     enabled: bool
     client_kind: str
+    live_api_called: str
+    http_call_count: str
+    endpoint_count: str
+    lookup_call_count: str
+    fetch_call_count: str
+    last_http_status: str
+    stopped_reason: str
+    raw_payload_saved: str
+    raw_payload_policy: str
     planned_queries: int
     completed_queries: int
     record_count: int
@@ -352,7 +361,16 @@ def read_optional_bacdive_candidate_review(
 
     return BacDiveCandidateReviewSummary(
         enabled=True,
-        client_kind=str(audit.get("client_kind", "")),
+        client_kind=_bacdive_string_field(audit, "client_kind"),
+        live_api_called=_bacdive_bool_field(audit, "live_api_called"),
+        http_call_count=_bacdive_count_field(audit, "http_call_count"),
+        endpoint_count=_bacdive_count_field(audit, "endpoint_count"),
+        lookup_call_count=_bacdive_count_field(audit, "lookup_call_count"),
+        fetch_call_count=_bacdive_count_field(audit, "fetch_call_count"),
+        last_http_status=_bacdive_last_http_status(audit),
+        stopped_reason=_bacdive_string_field(audit, "stopped_reason"),
+        raw_payload_saved=_bacdive_bool_field(audit, "raw_payload_saved"),
+        raw_payload_policy=_bacdive_string_field(audit, "raw_payload_policy"),
         planned_queries=_int_value(audit.get("planned_query_count")),
         completed_queries=_int_value(
             audit.get("completed_query_count", audit.get("executed_query_count"))
@@ -376,6 +394,35 @@ def read_optional_bacdive_candidate_review(
         top_diagnostics=sorted(
             diagnostic_codes.items(), key=lambda item: (-item[1], item[0])
         )[:5],
+    )
+
+
+def bacdive_compact_counts_summary(review: BacDiveCandidateReviewSummary) -> str:
+    return (
+        f"planned_queries={review.planned_queries}; "
+        f"completed_queries={review.completed_queries}; "
+        f"records={review.record_count}; "
+        f"diagnostics={review.diagnostic_count}; "
+        f"candidates={review.candidate_count}; "
+        f"conflicts={review.conflict_count}; "
+        f"no_results={review.no_result_count}"
+    )
+
+
+def bacdive_compact_source_audit_summary(
+    review: BacDiveCandidateReviewSummary,
+) -> str:
+    return (
+        f"client_kind={review.client_kind}; "
+        f"live_api_called={review.live_api_called}; "
+        f"http_calls={review.http_call_count}; "
+        f"endpoints={review.endpoint_count}; "
+        f"lookup_calls={review.lookup_call_count}; "
+        f"fetch_calls={review.fetch_call_count}; "
+        f"last_http_status={review.last_http_status}; "
+        f"stopped_reason={review.stopped_reason}; "
+        f"raw_payload_saved={review.raw_payload_saved}; "
+        f"raw_payload_policy={review.raw_payload_policy}"
     )
 
 
@@ -1185,8 +1232,11 @@ def build_run_summary_markdown(
                     f"not be summarized: {bacdive_review_error}"
                 ),
                 (
-                    "BacDive rows are candidate-only audit evidence; they do "
-                    "not change strict completion or selected genome evidence."
+                    "BacDive outputs are candidate-only, audit-only review "
+                    "artifacts. They do not confirm strict type-strain genomes "
+                    "and do not change selection, manifest rows, strict "
+                    "evidence-policy results, selected genome evidence, or "
+                    "completion metrics."
                 ),
             ]
         )
@@ -1196,28 +1246,22 @@ def build_run_summary_markdown(
                 "",
                 "## BacDive Candidate Review",
                 "",
-                f"- Enabled: {'true' if bacdive_review.enabled else 'false'}",
-                f"- Client kind: {_markdown_cell(bacdive_review.client_kind)}",
-                f"- Planned queries: {bacdive_review.planned_queries}",
-                f"- Completed queries: {bacdive_review.completed_queries}",
-                f"- Record count: {bacdive_review.record_count}",
-                f"- Diagnostic count: {bacdive_review.diagnostic_count}",
-                f"- Conflict count: {bacdive_review.conflict_count}",
-                f"- No-result count: {bacdive_review.no_result_count}",
-                f"- Candidate count: {bacdive_review.candidate_count}",
                 (
-                    "- Normalized outputs: evidence/bacdive_enrichment.tsv; "
+                    "BacDive outputs are candidate-only, audit-only review "
+                    "artifacts. They do not confirm strict type-strain genomes "
+                    "and do not change selection, manifest rows, strict "
+                    "evidence-policy results, selected genome evidence, or "
+                    "completion metrics."
+                ),
+                f"- Counts: {bacdive_compact_counts_summary(bacdive_review)}",
+                (
+                    "- Source audit: "
+                    f"{bacdive_compact_source_audit_summary(bacdive_review)}"
+                ),
+                (
+                    "- Normalized audit files: evidence/bacdive_enrichment.tsv; "
                     "evidence/bacdive_diagnostics.tsv; "
                     "evidence/bacdive_source_audit.json"
-                ),
-                (
-                    "BacDive rows are candidate-only audit evidence; they do "
-                    "not change strict completion or selected genome evidence."
-                ),
-                (
-                    "They do not change selection, manifest, strict "
-                    "type-strain confirmation, evidence-policy strict results, "
-                    "or completion metrics."
                 ),
             ]
         )
@@ -2691,6 +2735,48 @@ def _int_value(value: object, *, default: int = 0) -> int:
         return int(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return default
+
+
+def _bacdive_string_field(
+    audit: dict[str, object],
+    key: str,
+    *,
+    missing: str = "unknown",
+) -> str:
+    value = audit.get(key)
+    if value is None:
+        return missing
+    text = str(value).strip()
+    return text if text else missing
+
+
+def _bacdive_bool_field(audit: dict[str, object], key: str) -> str:
+    value = audit.get(key)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "unknown"
+    text = str(value).strip().lower()
+    if text in {"true", "false"}:
+        return text
+    return "unknown"
+
+
+def _bacdive_count_field(audit: dict[str, object], key: str) -> str:
+    value = audit.get(key)
+    if value is None or str(value).strip() == "":
+        return "not_recorded"
+    try:
+        return str(int(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return "not_recorded"
+
+
+def _bacdive_last_http_status(audit: dict[str, object]) -> str:
+    value = audit.get("last_http_status")
+    if value is None or str(value).strip() == "":
+        return "none"
+    return str(value).strip()
 
 
 def _bacdive_conflict_count(

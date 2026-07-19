@@ -187,6 +187,16 @@ files and source snapshots are not package members. `run_state.json` may
 include a `bacdive_enrichment` stage when these outputs exist. Its summary
 records planned queries, completed queries, record count, diagnostic count, and
 client kind.
+`report/summary.md`, package README files, and `handoff_index.md` may render a
+compact BacDive source-audit row from the normalized JSON fields:
+`client_kind`, `live_api_called`, `http_call_count`, `endpoint_count`,
+`lookup_call_count`, `fetch_call_count`, `last_http_status`, `stopped_reason`,
+`raw_payload_saved`, and `raw_payload_policy`. That row is operational
+provenance for first readers; it does not confirm strict type-strain genomes or
+change selection, manifest rows, selected genome evidence, strict
+evidence-policy results, completion metrics, TSV schemas, or package
+membership. Older source audits missing additive fields render stable
+not-recorded values rather than failing report or package generation.
 
 The source audit records truthful client provenance. Fake-client runs write
 `client_kind=fake` and `live_api_called=false`; pre-call skipped public live
@@ -428,7 +438,10 @@ manifests also include `evidence/bacdive_enrichment.tsv`,
 `recommended_use=candidate enrichment review`,
 `not_for=strict type-strain confirmation`, and
 `strict_scientific_deliverable=false`. These rows are package handoff metadata
-only and are not strict type-strain confirmation.
+only and are not strict type-strain confirmation. BacDive package inclusion
+means audit availability, not a strict scientific deliverable; strict
+deliverables must be determined from `artifact_scope.tsv` and strict evidence
+fields. Raw BacDive payloads are not included.
 
 `completion/16s_gaps.tsv` includes `genome_ready_16s_not_found` for missing
 sequences and `genome_ready_16s_not_strict_usable` when a sequence exists but
