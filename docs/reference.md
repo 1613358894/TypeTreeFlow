@@ -214,6 +214,60 @@ Every enrichment row is candidate-only. It writes
 Package README and handoff index repeat this candidate-only, audit-only
 boundary.
 
+### Offline Strict Evidence Reconciler Model
+
+`typetreeflow.evidence.reconciler` is a pure offline model for reconciling
+LPSN, NCBI Assembly/BioSample, BacDive/DSMZ, archive, curated, and selected
+genome linkage facts into an audit tier. It is not wired into `verify-genus`,
+provider planning, downloads, selection, manifest writes, reports, packages, or
+completion metrics.
+
+The model contract is built from frozen dataclass records:
+`ReconcilerInput`, `SourceEvidence`, `SelectedGenomeEvidence`,
+`ReconciliationConflict`, and `ReconciledEvidence`. `parse_reconciler_input`
+accepts JSON-like offline fixture dictionaries, and
+`reconcile_type_strain_evidence(input)` returns a `ReconciledEvidence` record.
+The implementation performs no file, network, provider, environment,
+credential, cookie, API-key, or external-tool IO.
+
+The reconciled tier is one of:
+`strict_lpsn_confirmed`, `curated_strict_confirmed`,
+`authoritative_type_material_candidate`, `ncbi_type_material_candidate`,
+`likely_type_material_candidate`, `representative_non_type`,
+`conflict_blocked`, `insufficient_linkage`, or `missing_public_genome`.
+
+Each `ReconciledEvidence.to_dict()` exposes the stable fields
+`reconciled_evidence_tier`, `strict_usable`, `requires_manual_review`,
+`strict_upgrade_basis`, `authority_sources`, `matched_lpsn_type_tokens`,
+`matched_bacdive_accessions`, `matched_biosample_accessions`,
+`selected_genome_linkage`, `conflict_status`, and `reconciliation_notes`.
+Tuple-valued fields serialize as JSON lists.
+
+Strict usable tiers require an LPSN accepted or curated-accepted species, LPSN
+or curated type-strain equivalence tokens, selected genome strain/culture
+collection/BioSample linkage that overlaps the LPSN token set, and no explicit
+conflict. `strict_lpsn_confirmed` records the minimum LPSN plus selected-genome
+token chain. `curated_strict_confirmed` requires that same chain plus
+corroborating BacDive/DSMZ, archive, or curated source evidence that does not
+contradict the selected genome linkage.
+
+BacDive/DSMZ type-strain rows alone return
+`authoritative_type_material_candidate`, not strict. NCBI Assembly or BioSample
+`type_material` signals alone return `ncbi_type_material_candidate`, not
+strict. Existing likely type-material signals return
+`likely_type_material_candidate` unless the full strict chain is present.
+Representative or reference labels without type-material linkage return
+`representative_non_type`. Species-name-only or strain-text-only selected
+matches return `insufficient_linkage` and require manual review before any
+strict use.
+
+Explicit species conflicts, selected strain or culture-collection token
+conflicts, BioSample conflicts, and negative type-material evidence return
+`conflict_blocked`, set `strict_usable=false`, and set
+`requires_manual_review=true`, even when one source claims type material.
+Checklist rows with `public_genome_available=false` return
+`missing_public_genome`.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.

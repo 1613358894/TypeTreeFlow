@@ -1,0 +1,199 @@
+{
+  "fixture_note": "Synthetic minimal offline reconciler evidence for TypeTreeFlow tests only. This contains no real provider, LPSN, NCBI, BioSample, or BacDive data.",
+  "scenarios": [
+    {
+      "fixture_id": "lpsn_strict_confirmed",
+      "expected_species_name": "Examplegenus alpha",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 1001", "ATCC 1001"],
+      "selected_genome": {
+        "assembly_accession": "GCA_000000001.1",
+        "organism_name": "Examplegenus alpha",
+        "strain_designation": "DSM 1001",
+        "biosample_accession": "SAMN000001",
+        "biosample_culture_collection_tokens": ["DSM 1001"]
+      },
+      "source_evidence": [
+        {
+          "source": "lpsn",
+          "species_name": "Examplegenus alpha",
+          "type_strain_tokens": ["DSM 1001", "ATCC 1001"]
+        }
+      ]
+    },
+    {
+      "fixture_id": "curated_strict_confirmed",
+      "expected_species_name": "Examplegenus beta",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 2002", "ATCC 2002"],
+      "selected_genome": {
+        "assembly_accession": "GCA_000000002.1",
+        "organism_name": "Examplegenus beta",
+        "strain_designation": "DSM 2002",
+        "biosample_accession": "SAMN000002",
+        "biosample_strain": "DSM 2002",
+        "biosample_culture_collection_tokens": ["DSM 2002"],
+        "biosample_type_material": true
+      },
+      "source_evidence": [
+        {
+          "source": "bacdive",
+          "species_name": "Examplegenus beta",
+          "source_accession": "SYN-BD-2002",
+          "type_strain_tokens": ["DSM 2002"],
+          "culture_collection_tokens": ["ATCC 2002"],
+          "is_type_material": true
+        },
+        {
+          "source": "ncbi_biosample",
+          "species_name": "Examplegenus beta",
+          "biosample_accessions": ["SAMN000002"],
+          "type_strain_tokens": ["DSM 2002"],
+          "is_type_material": true
+        }
+      ]
+    },
+    {
+      "fixture_id": "bacdive_only_candidate",
+      "expected_species_name": "Examplegenus gamma",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 3003"],
+      "source_evidence": [
+        {
+          "source": "bacdive",
+          "species_name": "Examplegenus gamma",
+          "source_accession": "SYN-BD-3003",
+          "type_strain_tokens": ["DSM 3003"],
+          "is_type_material": true
+        }
+      ]
+    },
+    {
+      "fixture_id": "ncbi_only_candidate",
+      "expected_species_name": "Examplegenus delta",
+      "lpsn_status": "accepted",
+      "selected_genome": {
+        "assembly_accession": "GCA_000000004.1",
+        "organism_name": "Examplegenus delta",
+        "strain_designation": "Delta Type",
+        "biosample_accession": "SAMN000004",
+        "assembly_type_material": true,
+        "biosample_type_material": true
+      },
+      "source_evidence": [
+        {
+          "source": "ncbi_biosample",
+          "species_name": "Examplegenus delta",
+          "biosample_accessions": ["SAMN000004"],
+          "is_type_material": true
+        }
+      ]
+    },
+    {
+      "fixture_id": "likely_type_material_candidate",
+      "expected_species_name": "Examplegenus epsilon",
+      "lpsn_status": "accepted",
+      "selected_genome": {
+        "assembly_accession": "GCA_000000005.1",
+        "organism_name": "Examplegenus epsilon",
+        "strain_designation": "Epsilon candidate",
+        "biosample_accession": "SAMN000005",
+        "evidence_level": "likely_type_material"
+      }
+    },
+    {
+      "fixture_id": "representative_non_type",
+      "expected_species_name": "Examplegenus zeta",
+      "lpsn_status": "accepted",
+      "selected_genome": {
+        "assembly_accession": "GCA_000000006.1",
+        "organism_name": "Examplegenus zeta",
+        "strain_designation": "Zeta isolate",
+        "biosample_accession": "SAMN000006",
+        "refseq_category": "representative genome",
+        "evidence_level": "representative_only",
+        "selection_role": "representative_only"
+      }
+    },
+    {
+      "fixture_id": "missing_public_genome",
+      "expected_species_name": "Examplegenus eta",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 7007"],
+      "public_genome_available": false
+    },
+    {
+      "fixture_id": "species_conflict",
+      "expected_species_name": "Examplegenus theta",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 8008"],
+      "selected_genome": {
+        "assembly_accession": "GCA_000000008.1",
+        "organism_name": "Examplegenus other",
+        "strain_designation": "DSM 8008",
+        "biosample_accession": "SAMN000008",
+        "biosample_type_material": true
+      }
+    },
+    {
+      "fixture_id": "collection_token_conflict",
+      "expected_species_name": "Examplegenus iota",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 9009"],
+      "selected_genome": {
+        "assembly_accession": "GCA_000000009.1",
+        "organism_name": "Examplegenus iota",
+        "strain_designation": "DSM 9999",
+        "biosample_accession": "SAMN000009",
+        "assembly_type_material": true
+      }
+    },
+    {
+      "fixture_id": "biosample_conflict",
+      "expected_species_name": "Examplegenus kappa",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["KCTC 1010"],
+      "selected_genome": {
+        "assembly_accession": "GCA_000000010.1",
+        "organism_name": "Examplegenus kappa",
+        "strain_designation": "KCTC 1010",
+        "biosample_accession": "SAMN000010A",
+        "biosample_type_material": true
+      },
+      "source_evidence": [
+        {
+          "source": "ncbi_biosample",
+          "species_name": "Examplegenus kappa",
+          "biosample_accessions": ["SAMN000010B"],
+          "type_strain_tokens": ["KCTC 1010"],
+          "is_type_material": true
+        }
+      ]
+    },
+    {
+      "fixture_id": "species_name_only_insufficient",
+      "expected_species_name": "Examplegenus lambda",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 1111"],
+      "selected_genome": {
+        "assembly_accession": "GCA_000000011.1",
+        "organism_name": "Examplegenus lambda",
+        "biosample_accession": "SAMN000011",
+        "species_name_only_match": true
+      }
+    },
+    {
+      "fixture_id": "strain_text_only_insufficient",
+      "expected_species_name": "Examplegenus mu",
+      "lpsn_status": "accepted",
+      "lpsn_type_strain_tokens": ["DSM 1212"],
+      "selected_genome": {
+        "assembly_accession": "GCA_000000012.1",
+        "organism_name": "Examplegenus mu",
+        "strain_designation": "Mu Type",
+        "biosample_accession": "SAMN000012",
+        "strain_text_only_match": true
+      }
+    }
+  ]
+}
