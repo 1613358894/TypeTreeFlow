@@ -209,6 +209,12 @@ def _write_bacdive_normalized_outputs(paths) -> None:
                 "planned_query_count": 3,
                 "executed_query_count": 3,
                 "completed_query_count": 3,
+                "http_call_count": 4,
+                "endpoint_count": 2,
+                "lookup_call_count": 3,
+                "fetch_call_count": 1,
+                "last_http_status": 200,
+                "stopped_reason": "completed",
                 "result_status_counts": {"success": 2, "no_result": 1},
                 "record_count": 2,
                 "diagnostic_count": 2,
@@ -216,6 +222,7 @@ def _write_bacdive_normalized_outputs(paths) -> None:
                 "strict_confirmed": False,
                 "strict_or_completion_effect": "none",
                 "raw_payload_policy": "not_written",
+                "raw_payload_saved": False,
             },
             indent=2,
         )
@@ -679,23 +686,63 @@ def test_report_summary_includes_bacdive_candidate_review_when_outputs_exist(tmp
     markdown = build_run_summary_markdown([_record("ref1")], paths)
 
     assert "## BacDive Candidate Review" in markdown
-    assert "- Enabled: true" in markdown
-    assert "- Client kind: fake" in markdown
-    assert "- Planned queries: 3" in markdown
-    assert "- Completed queries: 3" in markdown
-    assert "- Record count: 2" in markdown
-    assert "- Diagnostic count: 2" in markdown
-    assert "- Conflict count: 1" in markdown
-    assert "- No-result count: 1" in markdown
-    assert "- Candidate count: 2" in markdown
-    assert "| bacdive_conflict | 1 |" in markdown
-    assert "| bacdive_no_result | 1 |" in markdown
+    assert "BacDive outputs are candidate-only, audit-only review artifacts." in markdown
+    assert "They do not confirm strict type-strain genomes" in markdown
     assert (
-        "BacDive rows are candidate-only audit evidence; they do not change "
-        "strict completion or selected genome evidence."
+        "- Counts: planned_queries=3; completed_queries=3; records=2; "
+        "diagnostics=2; candidates=2; conflicts=1; no_results=1"
         in markdown
     )
-    assert "evidence-policy strict results" in markdown
+    assert (
+        "- Source audit: client_kind=fake; live_api_called=false; "
+        "http_calls=4; endpoints=2; lookup_calls=3; fetch_calls=1; "
+        "last_http_status=200; stopped_reason=completed; "
+        "raw_payload_saved=false; raw_payload_policy=not_written"
+        in markdown
+    )
+    assert "Normalized audit files: evidence/bacdive_enrichment.tsv" in markdown
+    assert "| bacdive_conflict | 1 |" in markdown
+    assert "| bacdive_no_result | 1 |" in markdown
+    assert "strict evidence-policy results" in markdown
+    assert "strict confirmed by BacDive" not in markdown
+
+
+def test_report_summary_handles_legacy_bacdive_source_audit_missing_compact_fields(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_bacdive_normalized_outputs(paths)
+    audit = json.loads(paths.bacdive_source_audit_path.read_text(encoding="utf-8"))
+    for key in (
+        "client_kind",
+        "live_api_called",
+        "http_call_count",
+        "endpoint_count",
+        "lookup_call_count",
+        "fetch_call_count",
+        "last_http_status",
+        "stopped_reason",
+        "raw_payload_saved",
+        "raw_payload_policy",
+    ):
+        audit.pop(key, None)
+    paths.bacdive_source_audit_path.write_text(
+        json.dumps(audit, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## BacDive Candidate Review" in markdown
+    assert "BacDive outputs are candidate-only, audit-only review artifacts." in markdown
+    assert (
+        "- Source audit: client_kind=unknown; live_api_called=unknown; "
+        "http_calls=not_recorded; endpoints=not_recorded; "
+        "lookup_calls=not_recorded; fetch_calls=not_recorded; "
+        "last_http_status=none; stopped_reason=unknown; "
+        "raw_payload_saved=unknown; raw_payload_policy=unknown"
+        in markdown
+    )
     assert "strict confirmed by BacDive" not in markdown
 
 

@@ -348,10 +348,37 @@ def test_package_results_includes_bacdive_normalized_outputs_and_scope_rows(tmp_
     ).read_text(encoding="utf-8")
     assert "## BacDive Candidate Review" in readme
     assert "candidate-only and audit-only" in readme
-    assert "Raw BacDive cache files and source snapshots are not included." in readme
+    assert "Package inclusion means audit availability, not strict scientific confirmation." in readme
+    assert "BacDive files are candidate-only and audit-only artifacts for review." in readme
+    assert "They do not confirm strict type-strain genomes" in readme
+    assert (
+        "do not change selection, manifest rows, selected genome evidence, "
+        "strict evidence-policy results, or completion metrics"
+        in readme
+    )
+    assert (
+        "- Source audit: client_kind=fake; live_api_called=false; "
+        "http_calls=4; endpoints=2; lookup_calls=3; fetch_calls=1; "
+        "last_http_status=200; stopped_reason=completed; "
+        "raw_payload_saved=false; raw_payload_policy=not_written"
+        in readme
+    )
+    assert "Raw BacDive payloads, cache files, and source snapshots are not included." in readme
     assert "BacDive candidate review: candidate_count=2, conflict_count=1, no_result_count=1" in index
-    assert "not strict type-strain confirmation" in index
-    assert "strict confirmed by BacDive" not in package_text
+    assert "candidate-only audit evidence, not strict confirmation" in index
+    assert "BacDive source audit: client_kind=fake; live_api_called=false" in index
+    assert "Raw BacDive payload is not included." in index
+    forbidden_phrases = [
+        "strict confirmed by BacDive",
+        "BacDive-confirmed type strain",
+        "BacDive confirmed type-strain genome",
+        "completed by BacDive",
+        "BacDive strict deliverable",
+    ]
+    for phrase in forbidden_phrases:
+        assert phrase not in package_text
+    assert not any("raw_response" in name for name in delivered_names)
+    assert not any(name.startswith("cache/bacdive/") for name in delivered_names)
 
 
 def test_package_results_omits_bacdive_outputs_when_absent(tmp_path):
@@ -771,6 +798,9 @@ def test_package_results_failed_handoff_readme_contains_error_and_next_step(tmp_
     assert "selection/user_selection.tsv" in readme
     assert "Suggested Next-Step Command" in readme
     assert "python typetreeflow.py next-step --outdir" in readme
+    assert "Package inclusion means audit availability, not strict scientific confirmation." in readme
+    assert "BacDive references in copied reports are candidate-only audit context." in readme
+    assert "Raw BacDive payloads are not included." in readme
 
 
 def test_package_results_failed_handoff_index_is_not_success_completion(tmp_path):
@@ -789,6 +819,8 @@ def test_package_results_failed_handoff_index_is_not_success_completion(tmp_path
     assert "Recommended Next Step" in index
     assert "Fix the selection and rerun guarded download." in index
     assert "Package type: successful completion handoff" not in index
+    assert "BacDive references in copied reports are candidate-only audit context" in index
+    assert "Raw BacDive payload is not included." in index
 
 
 def test_package_results_does_not_copy_zip_or_env_files(tmp_path):
@@ -926,6 +958,12 @@ def _write_bacdive_normalized_outputs(paths):
                 "planned_query_count": 3,
                 "executed_query_count": 3,
                 "completed_query_count": 3,
+                "http_call_count": 4,
+                "endpoint_count": 2,
+                "lookup_call_count": 3,
+                "fetch_call_count": 1,
+                "last_http_status": 200,
+                "stopped_reason": "completed",
                 "result_status_counts": {"success": 2, "no_result": 1},
                 "record_count": 2,
                 "diagnostic_count": 2,
@@ -933,6 +971,7 @@ def _write_bacdive_normalized_outputs(paths):
                 "strict_confirmed": False,
                 "strict_or_completion_effect": "none",
                 "raw_payload_policy": "not_written",
+                "raw_payload_saved": False,
             },
             indent=2,
         )
