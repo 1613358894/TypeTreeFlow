@@ -1,5 +1,53 @@
 # Changelog
 
+## v2.2.33 - 2026-07-20
+
+v2.2.33 is a strict reconciliation workflow stage surface release based on
+v2.2.32. It reserves the `strict_reconciliation` run-state stage and future
+reconciler output paths while preserving all existing workflow behavior.
+
+### Added
+
+- Reserved the `strict_reconciliation` workflow stage surface for future
+  reconciliation audit handoff.
+- Reserved future output paths:
+  `evidence/reconciler_audit.tsv`,
+  `evidence/reconciler_summary.json`, and
+  `evidence/reconciler_diagnostics.tsv`.
+- Confirmed `WorkflowState` accepts and serializes the
+  `strict_reconciliation` stage with the reserved reconciler outputs.
+- Added strict reconciliation summary formatting for reserved counts,
+  including additive `diagnostic_count`.
+- Confirmed `reconciler_summary.json` accepts additive `diagnostic_count`
+  for future summaries.
+
+### Scientific Boundary
+
+- The reserved stage surface and future output paths are review-only. They do
+  not describe representative labels, likely type-material rows, provider
+  proposals, provider plans, or external request rows as strict confirmed type
+  strains.
+- Strict type-strain wording still requires evidence tying the genome record
+  to the species type-strain equivalence set.
+- Strict tiers continue to come only from the reconciler model.
+
+### Verification
+
+- Local release gates PASS.
+- Offline strict reconciliation stage surface smoke PASS. This is bounded
+  release evidence only and is not production, broad live-provider,
+  full-download, broad live validation, or full Clostridium strict validation.
+
+### Notes
+
+- The reserved `strict_reconciliation` stage is accepted by run-state
+  serialization, but no workflow hook writes it automatically yet.
+- This release does not mean the workflow automatically generates
+  `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, or
+  `evidence/reconciler_diagnostics.tsv`.
+- No manifest, selection, download, provider, completion, report, package, or
+  evidence-policy behavior changes are included.
+
 ## v2.2.32 - 2026-07-20
 
 v2.2.32 is an offline reconciler audit mapper and writers release based on

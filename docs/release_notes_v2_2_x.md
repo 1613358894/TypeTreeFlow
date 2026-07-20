@@ -1,9 +1,45 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.32 integration review as
+These notes consolidate the v2.2.2 through v2.2.33 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.33
+
+v2.2.33 is a strict reconciliation workflow stage surface release based on
+v2.2.32. It reserves run-state and output-path surfaces for future strict
+reconciliation audit handoff while preserving the v2.2.32 offline audit
+mapper/writers, the v2.2.31 strict reconciler model, and earlier BacDive
+audit/workflow boundaries:
+
+- `WorkflowState` accepts and serializes the `strict_reconciliation` stage.
+- The reserved future outputs are `evidence/reconciler_audit.tsv`,
+  `evidence/reconciler_summary.json`, and
+  `evidence/reconciler_diagnostics.tsv`.
+- Strict reconciliation summary formatting supports reserved count fields,
+  including additive `diagnostic_count` from `reconciler_summary.json`.
+- The stage surface remains offline and review-only. It is not connected to a
+  workflow hook and does not automatically write reconciler outputs.
+- Strict tiers continue to come only from the reconciler model. BacDive-only
+  and NCBI/BioSample-only evidence remains candidate evidence unless the
+  reconciler model has the strict LPSN selected-genome linkage chain.
+- Verification evidence includes local release gates PASS and offline
+  strict reconciliation stage surface smoke PASS. The smoke is bounded release
+  evidence only, not production, broad live-provider, full-download, broad
+  live validation, or full Clostridium strict validation.
+
+v2.2.33 does not change manifests, selection, downloads, providers, completion
+metrics, reports, packages, FASTA content, default phylogeny inputs, live query
+scope, evidence-policy behavior, release asset publication, or strict evidence
+thresholds. It does not call live BacDive, run live LPSN/NCBI/Entrez lookups,
+run datasets downloads, or run external bioinformatics tools. The v2.2.32 audit
+mapper/writers, v2.2.31 strict evidence reconciler model, v2.2.30 BacDive
+compact wording, v2.2.29 BacDive source-audit polish, v2.2.28 bounded public
+live tokens path, v2.2.27 live-client HTTP skeleton, v2.2.26 report/package
+handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing, v2.2.23 offline
+adapter contract, v2.2.22 offline BacDive model, and v2.2.21 artifact scope
+readability semantics remain valid.
 
 ## v2.2.32
 
