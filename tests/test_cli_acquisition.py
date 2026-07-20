@@ -4,7 +4,7 @@ import os
 import zipfile
 from pathlib import Path
 
-from typetreeflow.cli import main
+from typetreeflow.cli import main, run_reconciler_audit_stage
 from typetreeflow.config import AppConfig
 from typetreeflow.evidence.bacdive_adapter import BacDiveHTTPError, FakeBacDiveClient
 from typetreeflow.evidence.bacdive_workflow import build_public_bacdive_live_client
@@ -219,6 +219,17 @@ def _fake_barrnap_gff() -> str:
 def _read_tsv(path: Path) -> list[dict[str, str]]:
     with path.open("r", newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _assert_reconciler_outputs(paths, *, expected_records: int) -> dict:
+    assert paths.reconciler_audit_path.exists()
+    assert paths.reconciler_summary_path.exists()
+    assert paths.reconciler_diagnostics_path.exists()
+    summary = json.loads(paths.reconciler_summary_path.read_text(encoding="utf-8"))
+    assert summary["audit_only"] is True
+    assert summary["record_count"] == expected_records
+    assert "diagnostic_count" in summary
+    return summary
 
 
 def _bacdive_v2_record(
@@ -1320,12 +1331,51 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert paths.run_summary_path.exists()
     assert paths.run_state_path.exists()
     assert paths.manifest.exists()
+    summary = _assert_reconciler_outputs(paths, expected_records=2)
+    assert summary["strict_count"] == 2
+    assert summary["candidate_count"] == 0
+    assert summary["manual_review_count"] == 0
     assert state.status == "partial"
+    assert state.stages["strict_reconciliation"].status == "warning"
+    assert "record_count=2" in state.stages["strict_reconciliation"].summary
+    assert "strict_count=2" in state.stages["strict_reconciliation"].summary
+    assert "audit_only=true" in state.stages["strict_reconciliation"].summary
     assert state.stages["download"].status == "blocked_by_manual_review"
     assert "Review selection/user_selection.tsv" in state.next_action
     assert not paths.ncbi_download_results_path.exists()
     policies = {row.selection_policy for row in read_user_selection(paths.user_selection_path)}
     assert policies == {"balanced"}
+    manifest_before = paths.manifest.read_text(encoding="utf-8")
+    selection_before = paths.user_selection_path.read_text(encoding="utf-8")
+    run_reconciler_audit_stage(
+        paths,
+        _minimal_bacdive_config(
+            outdir=outdir,
+            species_checklist=outdir / "species_checklist.tsv",
+            biosample_cache=paths.biosample_records_path,
+        ),
+    )
+    assert paths.manifest.read_text(encoding="utf-8") == manifest_before
+    assert paths.user_selection_path.read_text(encoding="utf-8") == selection_before
+    assert paths.completion_summary_path.exists() is False
+    assert "reconciler" not in paths.run_summary_path.read_text(encoding="utf-8").lower()
+    delivery_dir = tmp_path / "delivery_reconciler_boundary"
+    assert (
+        main(
+            [
+                "package-results",
+                "--outdir",
+                str(outdir),
+                "--include",
+                "reports",
+                "--delivery-dir",
+                str(delivery_dir),
+            ]
+        )
+        == 0
+    )
+    assert not (delivery_dir / "evidence" / "reconciler_audit.tsv").exists()
+    assert not (delivery_dir / "reports" / "reconciler_audit.tsv").exists()
 
 
 def test_verify_genus_plan_only_profile_records_profile_without_downloads(
@@ -1842,13 +1892,116 @@ def test_verify_genus_default_bacdive_config_creates_no_stage_outputs_or_client_
     assert payload["config"]["enable_bacdive_enrichment"] is False
     assert state.config["enable_bacdive_enrichment"] is False
     assert "bacdive_enrichment" not in state.stages
-    assert "strict_reconciliation" not in state.stages
+    assert state.stages["strict_reconciliation"].status == "warning"
     assert not paths.bacdive_enrichment_path.exists()
     assert not paths.bacdive_diagnostics_path.exists()
     assert not paths.bacdive_source_audit_path.exists()
-    assert not paths.reconciler_audit_path.exists()
-    assert not paths.reconciler_summary_path.exists()
-    assert not paths.reconciler_diagnostics_path.exists()
+    summary = _assert_reconciler_outputs(paths, expected_records=2)
+    assert summary["audit_only"] is True
+    diagnostics = _read_tsv(paths.reconciler_diagnostics_path)
+    assert {
+        "missing_optional_bacdive_input",
+        "missing_optional_biosample_input",
+    } <= {row["diagnostic_code"] for row in diagnostics}
+
+
+def test_verify_genus_reconciler_hook_reports_malformed_optional_inputs(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    biosample_cache = tmp_path / "malformed_biosample.tsv"
+    biosample_cache.write_text("biosample\torganism\nSAMN00000002\n", encoding="utf-8")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    def write_malformed_bacdive(paths, config, **kwargs):
+        del config, kwargs
+        paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+        paths.bacdive_enrichment_path.write_text(
+            "species\tbacdive_id\nFusobacterium nucleatum\tSYN-BD-1\textra\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_bacdive_enrichment_stage",
+        write_malformed_bacdive,
+    )
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-bacdive-enrichment",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--biosample-cache",
+            str(biosample_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    diagnostics = _read_tsv(paths.reconciler_diagnostics_path)
+    assert result == 0
+    assert payload["command"] == "verify-genus"
+    assert state.stages["strict_reconciliation"].status == "warning"
+    assert {
+        "malformed_optional_bacdive_row",
+        "malformed_optional_biosample_input",
+    } <= {row["diagnostic_code"] for row in diagnostics}
+
+
+def test_verify_genus_reconciler_hook_writes_gap_rows_without_selected_genomes(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = tmp_path / "empty_discovery_records.tsv"
+    write_discovery_records([], discovery_cache)
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("verify-genus plan-only must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    paths = get_output_paths(outdir)
+    state = read_run_state(paths.run_state_path)
+    payload, _ = _verify_genus_stdout_payload(capsys)
+    summary = _assert_reconciler_outputs(paths, expected_records=2)
+    diagnostics = _read_tsv(paths.reconciler_diagnostics_path)
+    assert result == 0
+    assert payload["counts"]["selected_rows"] == 0
+    assert summary["gap_count"] == 2
+    assert summary["strict_count"] == 0
+    assert state.stages["strict_reconciliation"].status == "warning"
+    assert "gap_count=2" in state.stages["strict_reconciliation"].summary
+    assert "no_selected_genome" in {row["diagnostic_code"] for row in diagnostics}
 
 
 def test_verify_genus_bacdive_fake_client_writes_candidate_outputs_and_state(
@@ -2697,6 +2850,18 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
     runner = _FakeDatasetsRunner()
     monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    hook_manifest_statuses: list[set[str]] = []
+
+    def tracked_reconciler_hook(paths, config):
+        hook_manifest_statuses.append(
+            {record.status for record in read_manifest(paths.manifest)}
+        )
+        return run_reconciler_audit_stage(paths, config)
+
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_reconciler_audit_stage",
+        tracked_reconciler_hook,
+    )
 
     result = main(
         [
@@ -2737,7 +2902,11 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     assert paths.name_map.exists()
     assert paths.run_summary_path.exists()
     assert paths.run_state_path.exists()
+    summary_json = _assert_reconciler_outputs(paths, expected_records=2)
+    assert summary_json["strict_count"] == 2
+    assert hook_manifest_statuses == [{"genome_download_planned"}, {"genome_ready"}]
     assert state.stages["download"].status == "succeeded"
+    assert state.stages["strict_reconciliation"].status == "warning"
     assert "auto_accepted_selection" in state.stages["selection"].summary
     assert "genome_download_succeeded=2" in state.stages["download"].summary
     assert "rrna_barrnap" not in state.stages

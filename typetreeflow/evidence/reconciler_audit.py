@@ -677,7 +677,7 @@ def _global_source_diagnostics(
             ReconcilerDiagnosticRow(
                 source="bacdive",
                 status="missing_optional",
-                severity="info",
+                severity="warning",
                 diagnostic_code="missing_optional_bacdive_input",
                 message="optional BacDive input is not available; BacDive facts were omitted",
                 source_input_status="missing_optional_bacdive_input",
@@ -688,7 +688,7 @@ def _global_source_diagnostics(
             ReconcilerDiagnosticRow(
                 source="biosample",
                 status="missing_optional",
-                severity="info",
+                severity="warning",
                 diagnostic_code="missing_optional_biosample_input",
                 message="optional BioSample input is not available; BioSample facts were omitted",
                 source_input_status="missing_optional_biosample_input",
@@ -1058,11 +1058,31 @@ def _matching_biosample_row(
 ) -> BiosampleEvidenceRow | None:
     selected_biosample = _accession_key(selection.biosample_accession)
     selected_assembly = _accession_key(selection.assembly_accession)
+    selected_species = _species_key(selection.species_name)
+    selected_tokens = set(
+        normalize_type_strain_tokens(
+            [selection.strain_designation, *selection.culture_collection_tokens]
+        )
+    )
     for row in rows:
         if selected_biosample and _accession_key(row.biosample_accession) == selected_biosample:
             return row
     for row in rows:
         if selected_assembly and _accession_key(row.assembly_accession) == selected_assembly:
+            return row
+    for row in rows:
+        row_tokens = set(
+            normalize_type_strain_tokens(
+                [row.strain_designation, *row.culture_collection_tokens]
+            )
+        )
+        if (
+            selected_species
+            and _species_key(row.species_name) == selected_species
+            and selected_tokens
+            and row_tokens
+            and selected_tokens & row_tokens
+        ):
             return row
     return None
 

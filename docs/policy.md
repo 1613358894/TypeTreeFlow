@@ -74,8 +74,7 @@ manifest rows, completion metrics, or package membership. BacDive package
 inclusion means audit availability, not a strict scientific deliverable; raw
 BacDive payloads are not included.
 
-The offline strict evidence reconciler is an audit model only until a separate
-integration task deliberately wires it into workflow behavior. It may mark
+The offline strict evidence reconciler is an audit model. It may mark
 `strict_lpsn_confirmed` only when LPSN type-strain tokens overlap selected
 genome strain, culture-collection, or BioSample linkage and no explicit
 conflict is visible. It may mark `curated_strict_confirmed` only when that same
@@ -94,16 +93,15 @@ non-type evidence. `missing_public_genome` means no public selected genome is
 available to reconcile; it is distinct from a genome that is present but lacks
 strict type linkage.
 
-The P3c-b2a reconciler path and run-state surface remains offline and
-audit-only. It reserves the `strict_reconciliation` run-state stage id and the
-future target paths `evidence/reconciler_audit.tsv`,
+The P3c-b2b reconciler workflow hook remains offline and audit-only.
+`verify-genus` writes `evidence/reconciler_audit.tsv`,
 `evidence/reconciler_summary.json`, and
-`evidence/reconciler_diagnostics.tsv`, but this does not wire the reconciler
-audit writers into workflow execution, reports, packages, completion
-accounting, manifest or selection mutation, download/provider behavior, or
-`--evidence-policy`. Normal commands must not create these files or add a
-`strict_reconciliation` stage unless a focused test/helper explicitly sets
-that run-state surface. Actual workflow writing is reserved for P3c-b2b.
+`evidence/reconciler_diagnostics.tsv` from existing local workflow files after
+selection dry-run outputs are stable, and refreshes them after final manifest
+write in guarded auto-accepted download runs. The hook may add a
+`strict_reconciliation` run-state stage, but it must not change reports,
+packages, completion accounting, manifest or selection mutation,
+download/provider behavior, or `--evidence-policy`.
 Missing optional BacDive or BioSample inputs, malformed optional rows, legacy
 manifest fields, no selected genome gap rows, and conflicts are diagnostics
 for review, not live lookup triggers or completion semantics.

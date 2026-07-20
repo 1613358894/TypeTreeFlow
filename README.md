@@ -1,21 +1,20 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.33 release reserves the `strict_reconciliation`
-workflow stage surface and future reconciler output paths while preserving the
-v2.2.32 offline reconciler audit mapper/writers, the v2.2.31 strict evidence
-reconciler model, the v2.2.30 BacDive compact report/package wording, the
-v2.2.29 BacDive source-audit top-level summary fields, the bounded BacDive v2
-HTTP client, and the public tokens-only workflow from v2.2.28. The reserved
-future outputs are `evidence/reconciler_audit.tsv`,
-`evidence/reconciler_summary.json`, and
+workflow. The current 2.2.33 release source writes audit-only
+`strict_reconciliation`
+workflow outputs for `verify-genus` while preserving the v2.2.32 offline
+reconciler audit mapper/writers, the v2.2.31 strict evidence reconciler model,
+the v2.2.30 BacDive compact report/package wording, the v2.2.29 BacDive
+source-audit top-level summary fields, the bounded BacDive v2 HTTP client, and
+the public tokens-only workflow from v2.2.28. The audit outputs are
+`evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv`. `WorkflowState` accepts and serializes
 `strict_reconciliation`, and summary formatting supports strict reconciliation
 counts including additive `diagnostic_count` from
-`reconciler_summary.json`. This stage surface is not connected to a workflow
-hook and the workflow does not automatically write reconciler outputs. It does
-not change CLI workflow execution, reports, packages, manifests, selection,
-downloads, providers, completion metrics, or `--evidence-policy`. The pure
+`reconciler_summary.json`. This stage surface is audit-only. It does not change
+reports, packages, manifests, selection, downloads, providers, completion
+metrics, or `--evidence-policy`. The pure
 reconciler records and `reconcile_type_strain_evidence()` function combine
 LPSN, NCBI/BioSample, BacDive, curated/archive, and selected-genome linkage
 evidence into
@@ -266,14 +265,12 @@ gap reports, package handoff, and audit-only expanded discovery:
 The v2.2.33 release record includes local release gates PASS and offline
 strict reconciliation stage surface smoke PASS. The smoke is bounded release
 evidence only; it is not production, broad live-provider, full-download, broad
-live validation, or full Clostridium strict validation. The v2.2.33 reserved
-stage surface allows `WorkflowState` to accept and serialize
-`strict_reconciliation` with future outputs
+live validation, or full Clostridium strict validation. The current source
+writes audit-only `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
-`evidence/reconciler_diagnostics.tsv`; strict reconciliation summary
-formatting supports counts including additive `diagnostic_count`. The stage is
-not connected to a workflow hook and the workflow does not automatically write
-reconciler outputs. It does not change manifests, selection, downloads,
+`evidence/reconciler_diagnostics.tsv` from local `verify-genus` artifacts;
+strict reconciliation summary formatting supports counts including additive
+`diagnostic_count`. The stage does not change manifests, selection, downloads,
 provider behavior, completion metrics, reports, packages, FASTA content,
 default phylogeny inputs, live query scope, or evidence-policy behavior.
 Strict tiers continue to come only from the reconciler model. The still-valid
