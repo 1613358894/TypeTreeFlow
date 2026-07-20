@@ -1,0 +1,204 @@
+{
+  "fixture_note": "Synthetic minimal offline reconciler audit evidence for TypeTreeFlow tests only. This contains no real provider, LPSN, NCBI, BioSample, or BacDive data.",
+  "lpsn_rows": [
+    {
+      "species_name": "Examplegenus alpha",
+      "status": "accepted",
+      "type_strain_names": ["DSM 1001", "ATCC 1001"]
+    },
+    {
+      "species_name": "Examplegenus beta",
+      "status": "accepted",
+      "type_strain_names": ["DSM 2002"]
+    },
+    {
+      "species_name": "Examplegenus gamma",
+      "status": "accepted"
+    },
+    {
+      "species_name": "Examplegenus delta",
+      "status": "accepted",
+      "type_strain_names": ["DSM 4004"]
+    },
+    {
+      "species_name": "Examplegenus epsilon",
+      "status": "accepted",
+      "type_strain_names": ["DSM 5005"]
+    },
+    {
+      "species_name": "Examplegenus zeta",
+      "status": "accepted",
+      "type_strain_names": ["DSM 6006"]
+    }
+  ],
+  "selection_rows": [
+    {
+      "species": "Examplegenus alpha",
+      "assembly_accession": "GCA_000000001.1",
+      "organism_name": "Examplegenus alpha",
+      "strain": "DSM 1001",
+      "biosample": "SAMN000001",
+      "culture_collection_ids": "DSM 1001",
+      "is_type_material": false,
+      "selected": true,
+      "selection_policy": "strict",
+      "evidence_level": "strict_confirmed"
+    },
+    {
+      "species": "Examplegenus beta",
+      "assembly_accession": "GCA_000000002.1",
+      "organism_name": "Examplegenus beta",
+      "biosample": "SAMN000002",
+      "selected": true,
+      "selection_policy": "balanced",
+      "evidence_level": "likely_type_material"
+    },
+    {
+      "species": "Examplegenus gamma",
+      "assembly_accession": "GCA_000000003.1",
+      "organism_name": "Examplegenus gamma",
+      "strain": "Gamma isolate",
+      "biosample": "SAMN000003",
+      "is_type_material": true,
+      "selected": true,
+      "selection_policy": "balanced",
+      "evidence_level": "strict_confirmed"
+    },
+    {
+      "species": "Examplegenus delta",
+      "assembly_accession": "GCA_000000004.1",
+      "organism_name": "Examplegenus delta",
+      "strain": "DSM 9999",
+      "biosample": "SAMN000004",
+      "is_type_material": true,
+      "selected": true,
+      "selection_policy": "balanced",
+      "evidence_level": "strict_confirmed"
+    },
+    {
+      "species": "Examplegenus zeta",
+      "assembly_accession": "GCA_000000006.1",
+      "organism_name": "Examplegenus zeta",
+      "strain": "DSM 6006",
+      "biosample": "SAMN000006",
+      "selected": true,
+      "selection_policy": "strict",
+      "evidence_level": "strict_confirmed"
+    }
+  ],
+  "manifest_rows": [
+    {
+      "canonical_name": "Examplegenus alpha",
+      "display_name": "Examplegenus alpha",
+      "assembly_accession": "GCA_000000001.1",
+      "strain": "DSM 1001",
+      "biosample": "SAMN000001",
+      "is_type_material": false,
+      "has_genome": true,
+      "evidence_level": "strict_confirmed",
+      "type_confirmation_status": "confirmed_type_strain",
+      "selection_policy": "strict",
+      "selection_role": "selected_type_material",
+      "selection_reason": "synthetic strict fixture",
+      "risk_flags": "",
+      "manual_review_status": ""
+    },
+    {
+      "canonical_name": "Examplegenus beta",
+      "display_name": "Examplegenus beta",
+      "assembly_accession": "GCA_000000002.1",
+      "strain": "",
+      "biosample": "SAMN000002",
+      "is_type_material": false,
+      "has_genome": true,
+      "evidence_level": "likely_type_material",
+      "type_confirmation_status": "",
+      "selection_policy": "balanced",
+      "selection_role": "selected_candidate",
+      "selection_reason": "synthetic BacDive candidate fixture",
+      "risk_flags": "",
+      "manual_review_status": ""
+    },
+    {
+      "canonical_name": "Examplegenus gamma",
+      "display_name": "Examplegenus gamma",
+      "assembly_accession": "GCA_000000003.1",
+      "strain": "Gamma isolate",
+      "biosample": "SAMN000003",
+      "is_type_material": true,
+      "has_genome": true,
+      "evidence_level": "strict_confirmed",
+      "type_confirmation_status": "ncbi_type_material_candidate",
+      "selection_policy": "balanced",
+      "selection_role": "selected_candidate",
+      "selection_reason": "synthetic NCBI candidate fixture",
+      "risk_flags": "",
+      "manual_review_status": ""
+    },
+    {
+      "canonical_name": "Examplegenus delta",
+      "display_name": "Examplegenus delta",
+      "assembly_accession": "GCA_000000004.1",
+      "strain": "DSM 9999",
+      "biosample": "SAMN000004",
+      "is_type_material": true,
+      "has_genome": true,
+      "evidence_level": "strict_confirmed",
+      "type_confirmation_status": "legacy_strict_candidate",
+      "selection_policy": "balanced",
+      "selection_role": "selected_candidate",
+      "selection_reason": "synthetic conflict fixture",
+      "risk_flags": "",
+      "manual_review_status": ""
+    },
+    {
+      "canonical_name": "Examplegenus zeta",
+      "display_name": "Examplegenus zeta",
+      "assembly_accession": "GCA_000000006.1",
+      "strain": "DSM 6006",
+      "biosample": "SAMN000006",
+      "is_type_material": false,
+      "has_genome": true
+    }
+  ],
+  "bacdive_rows": [
+    {
+      "species_name": "Examplegenus beta",
+      "strain_designation": "DSM 2002",
+      "culture_collection_numbers": "DSM 2002",
+      "is_type_strain": true,
+      "bacdive_id": "SYN-BD-2002",
+      "dsmz_accession": "DSM 2002"
+    },
+    {
+      "species_name": "",
+      "bacdive_id": "",
+      "notes": "malformed synthetic row"
+    }
+  ],
+  "biosample_rows": [
+    {
+      "biosample": "SAMN000001",
+      "organism": "Examplegenus alpha",
+      "strain": "DSM 1001",
+      "culture_collection": "DSM 1001",
+      "type_material": ""
+    },
+    {
+      "biosample": "SAMN000003",
+      "organism": "Examplegenus gamma",
+      "strain": "Gamma isolate",
+      "type_material": "type material"
+    },
+    {
+      "biosample": "SAMN000004",
+      "organism": "Examplegenus delta",
+      "strain": "DSM 9999",
+      "type_material": "type material"
+    },
+    {
+      "organism": "Examplegenus malformed",
+      "strain": "bad optional row"
+    }
+  ]
+}
