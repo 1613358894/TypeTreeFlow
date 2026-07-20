@@ -323,6 +323,7 @@ def summarize_reconciler_audit_rows(
     rows: Iterable[ReconcilerAuditRow | Mapping[str, Any]],
     *,
     generated_at: str | None = None,
+    diagnostic_count: int = 0,
 ) -> dict[str, object]:
     audit_rows = [_coerce_audit_row(row) for row in rows]
     tier_counts = Counter(row.reconciled_evidence_tier for row in audit_rows)
@@ -357,6 +358,7 @@ def summarize_reconciler_audit_rows(
         "conflict_count": conflict_count,
         "gap_count": gap_count,
         "manual_review_count": manual_review_count,
+        "diagnostic_count": diagnostic_count,
         "tier_counts": {
             tier: tier_counts[tier] for tier in sorted(tier_counts) if tier
         },
@@ -382,10 +384,15 @@ def write_reconciler_summary_json(
     path: str | Path,
     *,
     generated_at: str | None = None,
+    diagnostic_count: int = 0,
 ) -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    summary = summarize_reconciler_audit_rows(rows, generated_at=generated_at)
+    summary = summarize_reconciler_audit_rows(
+        rows,
+        generated_at=generated_at,
+        diagnostic_count=diagnostic_count,
+    )
     output_path.write_text(
         json.dumps(summary, indent=2, sort_keys=False) + "\n",
         encoding="utf-8",

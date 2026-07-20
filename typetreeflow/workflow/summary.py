@@ -1,10 +1,22 @@
 from __future__ import annotations
 
 import csv
+import json
 import sys
 from pathlib import Path
+from typing import Any, Mapping
 
 from typetreeflow.workflow.state import StageState
+
+STRICT_RECONCILIATION_COUNT_FIELDS = (
+    "record_count",
+    "strict_count",
+    "candidate_count",
+    "conflict_count",
+    "gap_count",
+    "manual_review_count",
+    "diagnostic_count",
+)
 
 
 def overall_status(stages: dict[str, StageState]) -> str:
@@ -58,6 +70,24 @@ def status_counts(path: Path) -> dict[str, int]:
     return counts
 
 
+def strict_reconciliation_count_summary(path: Path) -> str:
+    if not path.exists():
+        return ""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return ""
+    return format_strict_reconciliation_counts(data)
+
+
+def format_strict_reconciliation_counts(summary: Mapping[str, Any]) -> str:
+    parts = [
+        f"{field}={_summary_count(summary[field])}"
+        for field in STRICT_RECONCILIATION_COUNT_FIELDS
+        if field in summary
+    ]
+    return ", ".join(parts)
+
+
 def _read_tsv_rows(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -74,3 +104,10 @@ def _allow_large_csv_fields() -> None:
             return
         except OverflowError:
             limit = int(limit / 10)
+
+
+def _summary_count(value: Any) -> str:
+    try:
+        return str(int(value))
+    except (TypeError, ValueError):
+        return str(value)

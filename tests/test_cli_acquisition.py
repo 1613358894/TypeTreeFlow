@@ -782,7 +782,11 @@ def test_offline_acquire_genus_dry_run_writes_key_files(tmp_path, monkeypatch):
     assert state.stages["download_preflight"].status == "succeeded"
     assert state.stages["download"].status == "blocked_by_manual_review"
     assert state.stages["report"].status == "succeeded"
+    assert "strict_reconciliation" not in state.stages
     assert not paths.ncbi_download_results_path.exists()
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
     assert len(read_species_checklist(outdir / "species_checklist.tsv")) == 2
     assert [row["species"] for row in _read_tsv(outdir / "excluded_lpsn_taxa.tsv")] == [
         "russii"
@@ -1838,9 +1842,13 @@ def test_verify_genus_default_bacdive_config_creates_no_stage_outputs_or_client_
     assert payload["config"]["enable_bacdive_enrichment"] is False
     assert state.config["enable_bacdive_enrichment"] is False
     assert "bacdive_enrichment" not in state.stages
+    assert "strict_reconciliation" not in state.stages
     assert not paths.bacdive_enrichment_path.exists()
     assert not paths.bacdive_diagnostics_path.exists()
     assert not paths.bacdive_source_audit_path.exists()
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
 
 
 def test_verify_genus_bacdive_fake_client_writes_candidate_outputs_and_state(

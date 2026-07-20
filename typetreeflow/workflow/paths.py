@@ -16,6 +16,9 @@ class OutputPaths:
     bacdive_enrichment_path: Path
     bacdive_diagnostics_path: Path
     bacdive_source_audit_path: Path
+    reconciler_audit_path: Path
+    reconciler_summary_path: Path
+    reconciler_diagnostics_path: Path
     biosample_records_path: Path
     ncbi_download_results_path: Path
     ncbi_extracted_dir: Path
@@ -101,6 +104,9 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         bacdive_enrichment_path=evidence_dir / "bacdive_enrichment.tsv",
         bacdive_diagnostics_path=evidence_dir / "bacdive_diagnostics.tsv",
         bacdive_source_audit_path=evidence_dir / "bacdive_source_audit.json",
+        reconciler_audit_path=evidence_dir / "reconciler_audit.tsv",
+        reconciler_summary_path=evidence_dir / "reconciler_summary.json",
+        reconciler_diagnostics_path=evidence_dir / "reconciler_diagnostics.tsv",
         biosample_records_path=ncbi_cache_dir / "biosample_records.tsv",
         ncbi_download_results_path=ncbi_cache_dir / "download_results.tsv",
         ncbi_extracted_dir=ncbi_cache_dir / "extracted",
