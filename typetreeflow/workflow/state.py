@@ -28,6 +28,7 @@ WORKFLOW_STAGES = (
     "assembly_discovery",
     "biosample_enrichment",
     "selection",
+    "strict_reconciliation",
     "gtdb_audit",
     "download_preflight",
     "download",

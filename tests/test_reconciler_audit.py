@@ -38,14 +38,15 @@ def test_fixture_only_mapper_and_writers_happy_path(tmp_path):
         build.audit_rows,
         tmp_path / "evidence" / "reconciler_audit.tsv",
     )
+    diagnostics_path = write_reconciler_diagnostics_tsv(
+        build.diagnostics,
+        tmp_path / "evidence" / "reconciler_diagnostics.tsv",
+    )
     summary_path = write_reconciler_summary_json(
         build.audit_rows,
         tmp_path / "evidence" / "reconciler_summary.json",
         generated_at=GENERATED_AT,
-    )
-    diagnostics_path = write_reconciler_diagnostics_tsv(
-        build.diagnostics,
-        tmp_path / "evidence" / "reconciler_diagnostics.tsv",
+        diagnostic_count=len(build.diagnostics),
     )
 
     rows = _read_tsv(audit_path)
@@ -67,6 +68,7 @@ def test_fixture_only_mapper_and_writers_happy_path(tmp_path):
     assert rows[0]["source_input_status"] == "all_available"
     assert "audit_only_status" in {row["diagnostic_code"] for row in diagnostics}
     assert summary["audit_only"] is True
+    assert summary["diagnostic_count"] == len(diagnostics)
 
 
 def test_no_bacdive_output_compatibility():
@@ -182,6 +184,7 @@ def test_summary_counts_are_stable_and_json_serializable():
     summary = summarize_reconciler_audit_rows(
         build.audit_rows,
         generated_at=GENERATED_AT,
+        diagnostic_count=len(build.diagnostics),
     )
 
     assert summary == {
@@ -194,6 +197,7 @@ def test_summary_counts_are_stable_and_json_serializable():
         "conflict_count": 1,
         "gap_count": 1,
         "manual_review_count": 3,
+        "diagnostic_count": len(build.diagnostics),
         "tier_counts": {
             "authoritative_type_material_candidate": 1,
             "conflict_blocked": 1,
@@ -221,12 +225,12 @@ def test_tsv_headers_are_stable(tmp_path):
     )
 
 
-def test_import_only_does_not_add_workflow_stage():
+def test_import_only_exposes_reserved_workflow_stage_without_writer_hook():
     import typetreeflow.completion  # noqa: F401
     import typetreeflow.delivery  # noqa: F401
     import typetreeflow.report.summary  # noqa: F401
 
-    assert "strict_reconciliation" not in WORKFLOW_STAGES
+    assert "strict_reconciliation" in WORKFLOW_STAGES
     assert "reconciler_audit" not in WORKFLOW_STAGES
 
 

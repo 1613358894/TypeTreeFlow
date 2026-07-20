@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from typetreeflow.workflow.state import StageState
 from typetreeflow.workflow.summary import (
     blocked_or_failed_status,
+    format_strict_reconciliation_counts,
     overall_status,
     row_count_summary,
+    strict_reconciliation_count_summary,
     status_count_summary,
     status_counts,
 )
@@ -87,3 +91,33 @@ def test_row_count_summary_counts_tsv_rows_and_missing_files(tmp_path):
 
     assert row_count_summary(path, "manifest records") == "2 manifest records"
     assert row_count_summary(tmp_path / "missing.tsv", "manifest records") == ""
+
+
+def test_strict_reconciliation_count_summary_formats_reserved_counts(tmp_path):
+    path = tmp_path / "reconciler_summary.json"
+    path.write_text(
+        json.dumps(
+            {
+                "record_count": 6,
+                "strict_count": 2,
+                "candidate_count": 2,
+                "conflict_count": 1,
+                "gap_count": 1,
+                "manual_review_count": 3,
+                "diagnostic_count": 7,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert strict_reconciliation_count_summary(path) == (
+        "record_count=6, strict_count=2, candidate_count=2, "
+        "conflict_count=1, gap_count=1, manual_review_count=3, diagnostic_count=7"
+    )
+    assert strict_reconciliation_count_summary(tmp_path / "missing.json") == ""
+
+
+def test_strict_reconciliation_count_formatter_allows_partial_future_summaries():
+    assert format_strict_reconciliation_counts(
+        {"record_count": "0", "diagnostic_count": "input_unavailable"}
+    ) == "record_count=0, diagnostic_count=input_unavailable"

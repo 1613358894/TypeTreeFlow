@@ -15,6 +15,10 @@ from typetreeflow.evidence.bacdive_workflow import (
     BACDIVE_DIAGNOSTIC_FIELDS,
     BACDIVE_ENRICHMENT_FIELDS,
 )
+from typetreeflow.evidence.reconciler_audit import (
+    RECONCILER_AUDIT_FIELDS,
+    RECONCILER_DIAGNOSTIC_FIELDS,
+)
 from typetreeflow.expanded_discovery import (
     EXPANDED_DISCOVERY_PLAN_FIELDS,
     EXPANDED_DISCOVERY_RESULT_FIELDS,
@@ -307,6 +311,9 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.assembly_candidates_path,
         paths.assembly_candidate_diagnostics_path,
         paths.discovery_records_path,
+        paths.reconciler_audit_path,
+        paths.reconciler_summary_path,
+        paths.reconciler_diagnostics_path,
         paths.sequence_source_audit_path,
         paths.completion_gaps_path,
         paths.uncovered_species_path,
@@ -421,6 +428,8 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "taxonomy/ncbi_taxonomy_cache.tsv": NCBI_TAXONOMY_CACHE_FIELDS,
         "evidence/bacdive_enrichment.tsv": BACDIVE_ENRICHMENT_FIELDS,
         "evidence/bacdive_diagnostics.tsv": BACDIVE_DIAGNOSTIC_FIELDS,
+        "evidence/reconciler_audit.tsv": RECONCILER_AUDIT_FIELDS,
+        "evidence/reconciler_diagnostics.tsv": RECONCILER_DIAGNOSTIC_FIELDS,
         "candidates/assembly_candidates.tsv": CANDIDATE_FIELDS,
         "candidates/assembly_candidate_diagnostics.tsv": DISCOVERY_DIAGNOSTIC_FIELDS,
         "candidates/discovery_records.tsv": DISCOVERY_RECORD_FIELDS,
