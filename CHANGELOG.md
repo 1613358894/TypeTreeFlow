@@ -1,5 +1,58 @@
 # Changelog
 
+## v2.2.31 - 2026-07-20
+
+v2.2.31 is an offline strict evidence reconciler model release based on
+v2.2.30. It records pure reconciler records and a pure reconciliation function
+for combining LPSN, NCBI/BioSample, BacDive, and selected-genome linkage
+evidence into conservative reconciled tiers while preserving all existing
+workflow behavior.
+
+### Added
+
+- Added offline reconciler records and `reconcile_type_strain_evidence()` for
+  review-only synthesis of LPSN type-strain equivalence, selected genome
+  linkage, NCBI Assembly/BioSample type-material signals, BacDive/DSMZ
+  signals, curated/archive corroboration, representative labels, missing public
+  genomes, and explicit conflicts.
+- Added reconciled tiers:
+  `strict_lpsn_confirmed`, `curated_strict_confirmed`,
+  `authoritative_type_material_candidate`, `ncbi_type_material_candidate`,
+  `likely_type_material_candidate`, `representative_non_type`,
+  `conflict_blocked`, `insufficient_linkage`, and `missing_public_genome`.
+- Added synthetic offline fixtures and focused tests covering strict
+  LPSN-linked upgrades, curated corroboration, BacDive-only candidates,
+  NCBI/BioSample-only candidates, representative non-type labels, missing
+  public genomes, insufficient linkage, conflict blocking, output field
+  stability, JSON serialization, and purity from environment/network access.
+
+### Scientific Boundary
+
+- Strict upgrade requires LPSN type-strain equivalence, selected genome linkage
+  to that equivalence set, and no conflict.
+- BacDive alone and NCBI/BioSample alone never become strict; they remain
+  candidate evidence unless the strict LPSN selected-genome linkage chain is
+  present.
+- Species, collection-token, BioSample, strain, or negative type-material
+  conflicts block strict upgrade and route the record to `conflict_blocked`.
+
+### Verification
+
+- Local release gates PASS.
+- Offline strict reconciler smoke PASS. This is bounded release evidence only
+  and is not production, broad live-provider, full-download, broad live
+  validation, or full Clostridium strict validation.
+
+### Notes
+
+- The reconciler is offline and pure. It does not read environment variables,
+  open sockets, call live BacDive, run live LPSN/NCBI/Entrez lookups, run
+  datasets downloads, or run external bioinformatics tools.
+- This release does not connect the reconciler to CLI/workflow execution and
+  does not change manifests, selection, downloads, completion metrics, reports,
+  package membership, FASTA content, default phylogeny inputs, live query
+  scope, provider automation, or release asset publication.
+
 ## v2.2.30 - 2026-07-19
 
 v2.2.30 is a BacDive compact report/package wording release based on v2.2.29.

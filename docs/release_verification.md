@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.30 / 2.2.30 release verification path uses
+The current v2.2.31 / 2.2.31 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -21,16 +21,34 @@ field polish, bounded public live BacDive tokens-path workflow behavior,
 public live `species`/`both` pre-call blocking,
 BacDiveLiveClient HTTP skeleton behavior, injectable HTTP transport
 diagnostics, source-audit live/fake/blocked path provenance, raw-payload
-policy, clean deployment readiness, provider timeout/error classification,
-stdout JSON isolation, failed-handoff cache boundaries, workspace hygiene, and
-ensures repository-root `results/` remains absent. The clean deployment path is
-`environment.yml`, operator-run `barrnap --updatedb`, and
-`typetreeflow doctor`; server rehearsal passed the clean deployment full rerun.
+policy, the offline strict evidence reconciler model, clean deployment
+readiness, provider timeout/error classification, stdout JSON isolation,
+failed-handoff cache boundaries, workspace hygiene, and ensures repository-root
+`results/` remains absent. The clean deployment path is `environment.yml`,
+operator-run `barrnap --updatedb`, and `typetreeflow doctor`; server rehearsal
+passed the clean deployment full rerun.
 
 Selection evidence levels remain visible as `strict_confirmed`,
 `likely_type_material`, and `representative_only`. `--auto-accept-selection`
 and `--enable-downloads` are guarded release-smoke choices; exploratory
 representative rows are not strict confirmations.
+
+The offline strict evidence reconciler model is review-only. Pure records and
+`reconcile_type_strain_evidence()` combine LPSN, NCBI/BioSample, BacDive,
+curated/archive, and selected-genome linkage evidence into
+`strict_lpsn_confirmed`, `curated_strict_confirmed`,
+`authoritative_type_material_candidate`, `ncbi_type_material_candidate`,
+`likely_type_material_candidate`, `representative_non_type`,
+`conflict_blocked`, `insufficient_linkage`, and `missing_public_genome`.
+Strict upgrade requires LPSN type-strain equivalence, selected genome linkage
+to that equivalence set, and no conflict. BacDive alone and NCBI/BioSample
+alone never become strict, and conflicts block strict upgrade. The reconciler
+does not read environment variables, open sockets, call live BacDive, run live
+LPSN/NCBI/Entrez lookups, run datasets downloads, or run external
+bioinformatics tools. It is not connected to CLI/workflow execution and does
+not change manifests, selection, downloads, completion metrics, reports,
+package membership, FASTA content, default phylogeny inputs, live query scope,
+or provider automation.
 
 Completion coverage and strict type evidence gaps are separate review claims.
 The `--evidence-policy strict|candidate|exploratory` setting controls derived
@@ -159,19 +177,20 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.30 release record includes local release gates PASS and offline
-compact wording smoke PASS. The smoke is bounded release evidence only: it does
-not claim production, broad live-provider, full-download, broad live
-validation, or full Clostridium strict validation. The still-valid v2.2.29
-BacDive source-audit polish, v2.2.28 bounded public live tokens path, v2.2.27
-BacDive live-client HTTP skeleton, v2.2.26 BacDive report/package handoff,
-v2.2.25 skeleton, v2.2.24 configuration plumbing, v2.2.23 offline BacDive
-adapter contract, v2.2.22 offline BacDive model, v2.2.21 artifact scope
-readability semantics, and v2.2.20 policy-aware artifacts and GTDB gating
-validations remain verification evidence only: they do not claim full
-Clostridium strict completion or full-download validation. The release does not
-change artifact membership, FASTA content, default phylogeny input,
-provider/download behavior, provider automation, selection, completion
-metrics, live query scope, package membership, or strict evidence thresholds.
+The v2.2.31 release record includes local release gates PASS and offline
+strict reconciler smoke PASS. The smoke is bounded release evidence only: it
+does not claim production, broad live-provider, full-download, broad live
+validation, or full Clostridium strict validation. The still-valid v2.2.30
+BacDive compact wording, v2.2.29 BacDive source-audit polish, v2.2.28 bounded
+public live tokens path, v2.2.27 BacDive live-client HTTP skeleton, v2.2.26
+BacDive report/package handoff, v2.2.25 skeleton, v2.2.24 configuration
+plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive
+model, v2.2.21 artifact scope readability semantics, and v2.2.20
+policy-aware artifacts and GTDB gating validations remain verification
+evidence only: they do not claim full Clostridium strict completion or
+full-download validation. The release does not change artifact membership,
+FASTA content, default phylogeny input, provider/download behavior, provider
+automation, selection, completion metrics, live query scope, package
+membership, or strict evidence thresholds.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.
