@@ -1,5 +1,51 @@
 # Changelog
 
+## v2.2.32 - 2026-07-20
+
+v2.2.32 is an offline reconciler audit mapper and writers release based on
+v2.2.31. It records future-target normalized audit outputs for reconciled
+evidence review while preserving the strict reconciler model and all existing
+workflow behavior.
+
+### Added
+
+- Added the offline reconciler audit mapper for synthetic or
+  already-normalized local evidence rows.
+- Added offline writers for future target outputs:
+  `evidence/reconciler_audit.tsv`,
+  `evidence/reconciler_summary.json`, and
+  `evidence/reconciler_diagnostics.tsv`.
+- Added focused fixture-only coverage for mapper compatibility, stable TSV
+  headers, summary JSON serialization, no-selected-genome gap rows, conflict
+  diagnostics, and offline purity from environment/network access.
+
+### Scientific Boundary
+
+- Strict tiers continue to come only from the reconciler model.
+- The audit mapper and writers are review-only helpers. They do not describe
+  representative labels, likely type-material rows, provider proposals,
+  provider plans, or external request rows as strict confirmed type strains.
+- BacDive-only and NCBI/BioSample-only rows remain candidate evidence unless
+  the reconciler model has the strict LPSN selected-genome linkage chain.
+
+### Verification
+
+- Local release gates PASS.
+- Offline reconciler audit writers smoke PASS. This is bounded release
+  evidence only and is not production, broad live-provider, full-download,
+  broad live validation, or full Clostridium strict validation.
+
+### Notes
+
+- The mapper and writers are offline-only and are not wired into CLI/workflow
+  execution, run-state stages, reports, packages, manifests, selection,
+  downloads, providers, completion metrics, or `--evidence-policy`.
+- This release does not mean the workflow automatically generates
+  `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, or
+  `evidence/reconciler_diagnostics.tsv`.
+- No manifest, selection, download, provider, completion, report, package, or
+  evidence-policy behavior changes are included.
+
 ## v2.2.31 - 2026-07-20
 
 v2.2.31 is an offline strict evidence reconciler model release based on

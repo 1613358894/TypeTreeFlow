@@ -1,9 +1,51 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.31 integration review as
+These notes consolidate the v2.2.2 through v2.2.32 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.32
+
+v2.2.32 is an offline reconciler audit mapper and writers release based on
+v2.2.31. It records review-only helper functions that map synthetic or
+already-normalized local evidence rows into reconciler inputs and write
+future-target normalized audit outputs while preserving the v2.2.31 strict
+reconciler model and earlier BacDive audit/workflow boundaries:
+
+- The future target outputs are `evidence/reconciler_audit.tsv`,
+  `evidence/reconciler_summary.json`, and
+  `evidence/reconciler_diagnostics.tsv`.
+- The mapper and writers are offline-only and remain importable helper
+  functions.
+- They are not wired into CLI/workflow execution, run-state stages, reports,
+  packages, manifests, selection, downloads, providers, completion metrics, or
+  `--evidence-policy`.
+- Strict tiers continue to come only from the reconciler model. BacDive-only
+  and NCBI/BioSample-only evidence remains candidate evidence unless the
+  reconciler model has the strict LPSN selected-genome linkage chain.
+- Fixture-only tests cover mapper compatibility, stable TSV headers, summary
+  JSON serialization, no-selected-genome gap rows, conflict diagnostics, and
+  offline purity from environment/network access.
+- Verification evidence includes local release gates PASS and offline
+  reconciler audit writers smoke PASS. The smoke is bounded release evidence
+  only, not production, broad live-provider, full-download, broad live
+  validation, or full Clostridium strict validation.
+
+v2.2.32 does not mean the workflow automatically generates
+`evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, or
+`evidence/reconciler_diagnostics.tsv`. It does not change manifests,
+selection, downloads, providers, completion metrics, reports, packages,
+FASTA content, default phylogeny inputs, live query scope, run-state stages,
+evidence-policy behavior, release asset publication, or strict evidence
+thresholds. It does not call live BacDive, run live LPSN/NCBI/Entrez lookups,
+run datasets downloads, or run external bioinformatics tools. The v2.2.31
+strict evidence reconciler model, v2.2.30 BacDive compact wording, v2.2.29
+BacDive source-audit polish, v2.2.28 bounded public live tokens path, v2.2.27
+live-client HTTP skeleton, v2.2.26 report/package handoff, v2.2.25 skeleton,
+v2.2.24 configuration plumbing, v2.2.23 offline adapter contract, v2.2.22
+offline BacDive model, and v2.2.21 artifact scope readability semantics remain
+valid.
 
 ## v2.2.31
 

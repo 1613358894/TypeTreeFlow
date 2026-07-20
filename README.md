@@ -1,13 +1,19 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.31 release records an offline strict evidence
-reconciler model while preserving the v2.2.30 BacDive compact report/package
-wording, the v2.2.29 BacDive source-audit top-level summary fields, the
-bounded BacDive v2 HTTP client, and the public tokens-only workflow from
-v2.2.28. The new pure reconciler records and
-`reconcile_type_strain_evidence()` function combine LPSN, NCBI/BioSample,
-BacDive, curated/archive, and selected-genome linkage evidence into
+workflow. The current 2.2.32 release records the offline reconciler audit
+mapper and writers while preserving the v2.2.31 strict evidence reconciler
+model, the v2.2.30 BacDive compact report/package wording, the v2.2.29
+BacDive source-audit top-level summary fields, the bounded BacDive v2 HTTP
+client, and the public tokens-only workflow from v2.2.28. The audit mapper and
+writers are offline-only helpers for future target outputs:
+`evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
+`evidence/reconciler_diagnostics.tsv`. They are not wired into CLI/workflow
+execution, run-state stages, reports, packages, manifests, selection,
+downloads, providers, completion metrics, or `--evidence-policy`. The pure
+reconciler records and `reconcile_type_strain_evidence()` function combine
+LPSN, NCBI/BioSample, BacDive, curated/archive, and selected-genome linkage
+evidence into
 `strict_lpsn_confirmed`, `curated_strict_confirmed`,
 `authoritative_type_material_candidate`, `ncbi_type_material_candidate`,
 `likely_type_material_candidate`, `representative_non_type`,
@@ -16,10 +22,9 @@ Strict upgrade requires LPSN type-strain equivalence, selected genome linkage
 to that equivalence set, and no conflict. BacDive alone and NCBI/BioSample
 alone never become strict, and conflicts block strict upgrade. The reconciler
 is offline and pure: tests confirm it does not read environment variables or
-open sockets. It is not connected to CLI/workflow execution and does not change
-manifests, selection, downloads, completion metrics, reports, package
-membership, FASTA content, default phylogeny inputs, live query scope, or
-provider automation. The current BacDive workflow contract remains an
+open sockets. Strict tiers continue to come only from the reconciler model. The
+audit mapper/writers do not mean the workflow automatically generates
+reconciler audit outputs. The current BacDive workflow contract remains an
 injectable client with simulated tests for timeout, rate-limit, schema drift,
 no-result, and 5xx handling. Endpoint construction covers
 `/v2/culturecollectionno/{culturecollectionno}`,
@@ -109,7 +114,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.31 workflow
+## Recommended v2.2.32 workflow
 
 Plan first:
 
@@ -253,19 +258,24 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.31 release record includes local release gates PASS and offline
-strict reconciler smoke PASS. The smoke is bounded release evidence only; it is
-not production, broad live-provider, full-download, broad live validation, or
-full Clostridium strict validation. The v2.2.31 reconciler is offline and pure,
-is not connected to CLI/workflow execution, and does not change manifests,
-selection, downloads, completion metrics, reports, package membership, FASTA
-content, default phylogeny inputs, live query scope, or provider automation.
-The still-valid v2.2.30 BacDive compact wording, v2.2.29 BacDive source-audit
-polish, v2.2.28 bounded public live tokens path, v2.2.27 BacDive live-client
-HTTP skeleton, v2.2.26 BacDive report/package handoff, v2.2.25 skeleton,
-v2.2.24 configuration plumbing, v2.2.23 offline BacDive adapter contract,
-v2.2.22 offline BacDive model, v2.2.21 artifact scope readability semantics,
-and v2.2.20 policy-aware artifacts and GTDB gating validations remain release
+The v2.2.32 release record includes local release gates PASS and offline
+reconciler audit writers smoke PASS. The smoke is bounded release evidence
+only; it is not production, broad live-provider, full-download, broad live
+validation, or full Clostridium strict validation. The v2.2.32 audit
+mapper/writers are offline-only and are not connected to CLI/workflow
+execution, run-state stages, manifests, selection, downloads, provider
+behavior, completion metrics, reports, packages, FASTA content, default
+phylogeny inputs, live query scope, or evidence-policy behavior. They do not
+mean the workflow automatically generates `evidence/reconciler_audit.tsv`,
+`evidence/reconciler_summary.json`, or
+`evidence/reconciler_diagnostics.tsv`. Strict tiers continue to come only from
+the reconciler model. The still-valid v2.2.31 strict evidence reconciler model,
+v2.2.30 BacDive compact wording, v2.2.29 BacDive source-audit polish, v2.2.28
+bounded public live tokens path, v2.2.27 BacDive live-client HTTP skeleton,
+v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24
+configuration plumbing, v2.2.23 offline BacDive adapter contract, v2.2.22
+offline BacDive model, v2.2.21 artifact scope readability semantics, and
+v2.2.20 policy-aware artifacts and GTDB gating validations remain release
 verification evidence only; they do not claim full Clostridium strict
 completion or full-download validation.
 
