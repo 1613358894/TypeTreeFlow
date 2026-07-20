@@ -268,6 +268,47 @@ conflicts, BioSample conflicts, and negative type-material evidence return
 Checklist rows with `public_genome_available=false` return
 `missing_public_genome`.
 
+`typetreeflow.evidence.reconciler_audit` is the planned offline mapper and
+writer layer for future normalized audit outputs. It accepts synthetic or
+already-normalized local evidence rows and maps them to `ReconcilerInput`
+records before calling `reconcile_type_strain_evidence()`. The mapper and
+writers are importable helper functions only; they are not wired into
+`verify-genus`, run-state stages, reports, packages, completion metrics,
+manifest mutation, selection behavior, downloads, providers, or
+`--evidence-policy`.
+
+The future primary audit output path is
+`evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
+expected species. When no selected genome exists, the mapper may write a
+synthetic gap row with blank genome fields and
+`source_input_status=no_selected_genome`. The stable field order is:
+`schema_version`, `species_name`, `assembly_accession`,
+`strain_designation`, `biosample_accession`, `selection_policy`,
+`selection_evidence_level`, `manifest_evidence_level`,
+`manifest_type_confirmation_status`, `reconciled_evidence_tier`,
+`strict_usable`, `requires_manual_review`, `strict_upgrade_basis`,
+`authority_sources`, `matched_lpsn_type_tokens`,
+`matched_bacdive_accessions`, `matched_biosample_accessions`,
+`selected_genome_linkage`, `conflict_status`, `reconciliation_notes`,
+`source_input_status`, `bacdive_row_count`, and `diagnostic_codes`.
+List-valued TSV fields use a stable semicolon-space delimiter.
+
+The future summary output path is
+`evidence/reconciler_summary.json`. Its JSON contract includes
+`schema_version`, `audit_only=true`, `generated_at`, `record_count`,
+`strict_count`, `candidate_count`, `conflict_count`, `gap_count`,
+`manual_review_count`, and `tier_counts`.
+
+The future diagnostics output path is
+`evidence/reconciler_diagnostics.tsv`. Its field order is:
+`schema_version`, `species_name`, `assembly_accession`, `source`, `status`,
+`severity`, `diagnostic_code`, `message`, `source_input_status`, and `notes`.
+Diagnostics cover missing optional BacDive input, missing optional BioSample
+input, legacy manifest rows missing newer optional fields, malformed optional
+BacDive or BioSample rows, no selected genome gap rows, conflicts detected by
+the reconciler, and the audit-only status. Diagnostics are review evidence;
+they do not create workflow failures or completion changes by themselves.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.

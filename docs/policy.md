@@ -94,6 +94,17 @@ non-type evidence. `missing_public_genome` means no public selected genome is
 available to reconcile; it is distinct from a genome that is present but lacks
 strict type linkage.
 
+The P3c-b1 reconciler audit mapper and writer layer remains offline and
+audit-only. It may produce planned normalized schemas for
+`evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
+`evidence/reconciler_diagnostics.tsv` from synthetic or already-normalized
+local inputs, but this does not wire the outputs into workflow execution,
+run-state stages, reports, packages, completion accounting, manifest or
+selection mutation, download/provider behavior, or `--evidence-policy`.
+Missing optional BacDive or BioSample inputs, malformed optional rows, legacy
+manifest fields, no selected genome gap rows, and conflicts are diagnostics
+for review, not live lookup triggers or completion semantics.
+
 Any explicit species conflict, strain conflict, culture-collection token
 conflict, BioSample conflict, or negative type-material evidence blocks
 automatic strict use with `conflict_blocked` and
