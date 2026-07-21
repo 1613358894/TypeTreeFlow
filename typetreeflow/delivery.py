@@ -48,6 +48,24 @@ class DeliveryResult:
     all_16s_included: bool = False
 
 
+@dataclass(frozen=True)
+class ReconcilerAuditPackageSummary:
+    copied_paths: list[str]
+    counts: dict[str, str]
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def is_partial(self) -> bool:
+        return len(self.copied_paths) < len(_RECONCILER_AUDIT_PACKAGE_MEMBERS)
+
+
+_RECONCILER_AUDIT_PACKAGE_MEMBERS = (
+    "evidence/reconciler_audit.tsv",
+    "evidence/reconciler_summary.json",
+    "evidence/reconciler_diagnostics.tsv",
+)
+
+
 def package_results(
     outdir: str | Path,
     *,
@@ -91,6 +109,7 @@ def package_results(
     )
 
     bacdive_outputs_copied = False
+    reconciler_outputs_copied: list[Path] = []
     if "reports" in requested:
         _copy_optional(
             paths.run_summary_path,
@@ -150,6 +169,11 @@ def package_results(
             ):
                 copied.append(_copy_required(source, destination))
             bacdive_outputs_copied = True
+        reconciler_outputs_copied = _copy_reconciler_audit_outputs(
+            paths,
+            output_dir,
+            copied,
+        )
 
     _write_package_artifact_scope(
         paths,
@@ -157,6 +181,7 @@ def package_results(
         copied,
         include_reports="reports" in requested,
         include_bacdive=bacdive_outputs_copied,
+        reconciler_outputs_copied=reconciler_outputs_copied,
     )
 
     genome_count = 0
@@ -414,6 +439,7 @@ def build_delivery_readme(
     acceptance = _selection_acceptance_status(paths)
     gtdb_audit = _read_gtdb_audit_if_available(paths)
     bacdive_review = _read_bacdive_review_for_handoff(paths, include)
+    reconciler_review = _read_reconciler_review_for_handoff(paths, include)
     source_audit = _read_source_audit_for_handoff(paths)
     rrna_coverage = summarize_16s_coverage(record_list, source_audit)
     source_outdir = _portable_source_outdir(paths)
@@ -487,6 +513,8 @@ def build_delivery_readme(
         )
     if bacdive_review is not None:
         lines.extend(_bacdive_readme_lines(bacdive_review))
+    if reconciler_review is not None:
+        lines.extend(_reconciler_readme_lines(reconciler_review))
     lines.extend(
         [
             "",
@@ -590,6 +618,7 @@ def build_handoff_index(
     )
     gtdb_audit = _read_gtdb_audit_if_available(paths)
     bacdive_review = _read_bacdive_review_for_handoff(paths, include)
+    reconciler_review = _read_reconciler_review_for_handoff(paths, include)
     run_state = _read_run_state_if_available(paths)
     generated_time = _utc_timestamp()
     status = run_state.status if run_state is not None else "packageable"
@@ -674,6 +703,8 @@ def build_handoff_index(
         lines.append(f"- GTDB metadata audit: {_gtdb_audit_package_summary(gtdb_audit)}")
     if bacdive_review is not None:
         lines.extend(_bacdive_handoff_lines(bacdive_review))
+    if reconciler_review is not None:
+        lines.extend(_reconciler_handoff_lines(reconciler_review))
     lines.extend(["", "## Included Files", ""])
     if copied_names:
         lines.extend(f"- {item}" for item in copied_names)
@@ -985,6 +1016,40 @@ def _bacdive_normalized_package_paths(
     ]
 
 
+def _reconciler_audit_package_paths(
+    paths: OutputPaths,
+    delivery_dir: Path,
+) -> list[tuple[Path, Path]]:
+    return [
+        (
+            paths.reconciler_audit_path,
+            delivery_dir / "evidence" / "reconciler_audit.tsv",
+        ),
+        (
+            paths.reconciler_summary_path,
+            delivery_dir / "evidence" / "reconciler_summary.json",
+        ),
+        (
+            paths.reconciler_diagnostics_path,
+            delivery_dir / "evidence" / "reconciler_diagnostics.tsv",
+        ),
+    ]
+
+
+def _copy_reconciler_audit_outputs(
+    paths: OutputPaths,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    copied_reconciler: list[Path] = []
+    for source, destination in _reconciler_audit_package_paths(paths, delivery_dir):
+        if source.exists():
+            copied_path = _copy_required(source, destination)
+            copied.append(copied_path)
+            copied_reconciler.append(copied_path)
+    return copied_reconciler
+
+
 def _write_package_artifact_scope(
     paths: OutputPaths,
     delivery_dir: Path,
@@ -992,16 +1057,24 @@ def _write_package_artifact_scope(
     *,
     include_reports: bool,
     include_bacdive: bool,
+    reconciler_outputs_copied: list[Path],
 ) -> None:
     source_rows = read_artifact_scope(paths.artifact_scope_path)
     rows = list(source_rows)
     if include_bacdive:
         rows.extend(_bacdive_artifact_scope_rows(paths))
+    rows.extend(
+        _reconciler_artifact_scope_rows(delivery_dir, reconciler_outputs_copied)
+    )
     if not rows:
         return
 
     root_scope = delivery_dir / "artifact_scope.tsv"
-    if include_bacdive or not paths.artifact_scope_path.exists():
+    if (
+        include_bacdive
+        or reconciler_outputs_copied
+        or not paths.artifact_scope_path.exists()
+    ):
         write_artifact_scope(rows, root_scope)
         copied.append(root_scope)
     else:
@@ -1009,7 +1082,11 @@ def _write_package_artifact_scope(
 
     if include_reports:
         reports_scope = delivery_dir / "reports" / "artifact_scope.tsv"
-        if include_bacdive or not paths.artifact_scope_path.exists():
+        if (
+            include_bacdive
+            or reconciler_outputs_copied
+            or not paths.artifact_scope_path.exists()
+        ):
             write_artifact_scope(rows, reports_scope)
             copied.append(reports_scope)
         elif paths.artifact_scope_path.exists():
@@ -1068,6 +1145,130 @@ def _bacdive_artifact_scope_rows(paths: OutputPaths) -> list[dict[str, str]]:
             ),
         ),
     ]
+
+
+def _reconciler_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    rows: list[dict[str, str]] = []
+    if "evidence/reconciler_audit.tsv" in copied_paths:
+        rows.append(
+            _reconciler_scope_row(
+                artifact_path="evidence/reconciler_audit.tsv",
+                artifact_kind="strict_reconciliation_audit",
+                record_count=_safe_tsv_row_count(
+                    path=delivery_dir / "evidence" / "reconciler_audit.tsv"
+                ),
+                candidate_count=0,
+                artifact_label="Strict reconciliation row audit ledger",
+                recommended_use="strict reconciliation audit review",
+                not_for=(
+                    "strict type-strain confirmation; completion gating; "
+                    "manifest mutation; evidence-policy decisions"
+                ),
+                source_artifact=(
+                    "evidence/reconciler_summary.json;"
+                    "evidence/reconciler_diagnostics.tsv"
+                ),
+                consumer_priority=70,
+                notes=(
+                    "Rows may contain strict_usable=true, but this file is an "
+                    "audit ledger and not a strict scientific deliverable."
+                ),
+            )
+        )
+    if "evidence/reconciler_summary.json" in copied_paths:
+        rows.append(
+            _reconciler_scope_row(
+                artifact_path="evidence/reconciler_summary.json",
+                artifact_kind="strict_reconciliation_summary",
+                record_count=1,
+                candidate_count=0,
+                artifact_label="Strict reconciliation audit summary",
+                recommended_use="first-reader compact audit counts",
+                not_for=(
+                    "completion metrics; strict gating; strict type-strain "
+                    "confirmation; evidence-policy metrics"
+                ),
+                source_artifact=(
+                    "evidence/reconciler_audit.tsv;"
+                    "evidence/reconciler_diagnostics.tsv"
+                ),
+                consumer_priority=71,
+                notes=(
+                    "JSON counts summarize audit rows only and must not replace "
+                    "source_audit/completion summaries."
+                ),
+            )
+        )
+    if "evidence/reconciler_diagnostics.tsv" in copied_paths:
+        rows.append(
+            _reconciler_scope_row(
+                artifact_path="evidence/reconciler_diagnostics.tsv",
+                artifact_kind="strict_reconciliation_diagnostics",
+                record_count=_safe_tsv_row_count(
+                    path=delivery_dir / "evidence" / "reconciler_diagnostics.tsv"
+                ),
+                candidate_count=0,
+                artifact_label="Strict reconciliation diagnostics",
+                recommended_use=(
+                    "diagnostic review of optional inputs, gaps, conflicts, "
+                    "and audit-only status"
+                ),
+                not_for=(
+                    "workflow failure gating; strict absence claims; "
+                    "completion gating"
+                ),
+                source_artifact=(
+                    "evidence/reconciler_audit.tsv;"
+                    "evidence/reconciler_summary.json"
+                ),
+                consumer_priority=72,
+                notes=(
+                    "Diagnostics are review evidence; malformed optional inputs "
+                    "remain warnings, not live lookup triggers."
+                ),
+            )
+        )
+    return rows
+
+
+def _reconciler_scope_row(
+    *,
+    artifact_path: str,
+    artifact_kind: str,
+    record_count: int,
+    candidate_count: int,
+    artifact_label: str,
+    recommended_use: str,
+    not_for: str,
+    source_artifact: str,
+    consumer_priority: int,
+    notes: str,
+) -> dict[str, str]:
+    return {
+        "artifact_path": artifact_path,
+        "artifact_kind": artifact_kind,
+        "scope": "audit",
+        "evidence_policy": "strict_reconciliation_audit",
+        "record_count": str(record_count),
+        "strict_usable_count": "0",
+        "candidate_count": str(candidate_count),
+        "excluded_mismatch_count": "0",
+        "artifact_label": artifact_label,
+        "recommended_use": recommended_use,
+        "not_for": not_for,
+        "source_artifact": source_artifact,
+        "consumer_priority": str(consumer_priority),
+        "strict_scientific_deliverable": "false",
+        "notes": notes,
+    }
 
 
 def _scope_row(
@@ -1292,6 +1493,91 @@ def _read_bacdive_review_for_handoff(
         return None
 
 
+def _read_reconciler_review_for_handoff(
+    paths: OutputPaths,
+    include: set[str],
+) -> ReconcilerAuditPackageSummary | None:
+    if "reports" not in include:
+        return None
+    copied_paths = [
+        relative_path
+        for source, relative_path in _reconciler_audit_source_paths(paths)
+        if source.exists()
+    ]
+    if not copied_paths:
+        return None
+
+    counts = {
+        "record_count": "not_recorded",
+        "strict_count": "not_recorded",
+        "candidate_count": "not_recorded",
+        "conflict_count": "not_recorded",
+        "gap_count": "not_recorded",
+        "manual_review_count": "not_recorded",
+        "diagnostic_count": "not_recorded",
+    }
+    warnings: list[str] = []
+    if paths.reconciler_summary_path.exists():
+        try:
+            summary = json.loads(
+                paths.reconciler_summary_path.read_text(encoding="utf-8")
+            )
+        except (OSError, json.JSONDecodeError):
+            warnings.append(
+                "reconciler_summary.json counts unavailable; inspect copied audit files"
+            )
+        else:
+            for key in counts:
+                counts[key] = _compact_count(summary.get(key))
+    else:
+        warnings.append("reconciler_summary.json not copied; partial audit availability")
+
+    if (
+        counts["record_count"] == "not_recorded"
+        and paths.reconciler_audit_path.exists()
+    ):
+        counts["record_count"] = str(_safe_tsv_row_count(paths.reconciler_audit_path))
+    if (
+        counts["diagnostic_count"] == "not_recorded"
+        and paths.reconciler_diagnostics_path.exists()
+    ):
+        counts["diagnostic_count"] = str(
+            _safe_tsv_row_count(paths.reconciler_diagnostics_path)
+        )
+    if len(copied_paths) < len(_RECONCILER_AUDIT_PACKAGE_MEMBERS):
+        warnings.append("partial reconciler audit availability")
+    return ReconcilerAuditPackageSummary(
+        copied_paths=copied_paths,
+        counts=counts,
+        warnings=warnings,
+    )
+
+
+def _reconciler_audit_source_paths(paths: OutputPaths) -> list[tuple[Path, str]]:
+    return [
+        (paths.reconciler_audit_path, "evidence/reconciler_audit.tsv"),
+        (paths.reconciler_summary_path, "evidence/reconciler_summary.json"),
+        (paths.reconciler_diagnostics_path, "evidence/reconciler_diagnostics.tsv"),
+    ]
+
+
+def _compact_count(value) -> str:
+    if isinstance(value, bool):
+        return "not_recorded"
+    if isinstance(value, int) and value >= 0:
+        return str(value)
+    return "not_recorded"
+
+
+def _safe_tsv_row_count(path: Path) -> int:
+    try:
+        _allow_large_csv_fields()
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            return sum(1 for _ in csv.DictReader(handle, delimiter="\t"))
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return 0
+
+
 def _gtdb_audit_enabled_for_delivery(paths: OutputPaths) -> bool:
     state = _read_run_state_if_available(paths)
     if state is None:
@@ -1376,6 +1662,101 @@ def _bacdive_handoff_lines(review: BacDiveCandidateReviewSummary) -> list[str]:
         ),
         "- Raw BacDive payload is not included.",
     ]
+
+
+def _reconciler_readme_lines(
+    review: ReconcilerAuditPackageSummary,
+) -> list[str]:
+    lines = [
+        "",
+        "## Strict Reconciliation Audit",
+        "",
+        (
+            "- Reconciler audit files are included under `evidence/` for audit "
+            "availability only."
+        ),
+        (
+            "- Package inclusion does not make these files strict scientific "
+            "deliverables or strict scientific delivery gates."
+        ),
+        (
+            "- Reconciler audit counts, including `strict_count` and "
+            "`strict_usable=true` row values, are not completion metrics and "
+            "do not change selection, manifest rows, selected genome evidence, "
+            "evidence-policy behavior, provider behavior, download behavior, "
+            "or strict gating."
+        ),
+        (
+            "- Strict deliverables are still determined from strict evidence "
+            "fields and rows marked `strict_scientific_deliverable=true` in "
+            "`artifact_scope.tsv`."
+        ),
+        "- Future policy/package gating is separate work.",
+        f"- Audit files copied: {', '.join(review.copied_paths)}",
+    ]
+    if review.is_partial:
+        lines.append(
+            "- Partial audit availability: one or more reconciler audit files "
+            "were unavailable; package generation still succeeds."
+        )
+    lines.append(f"- Counts: {_reconciler_compact_counts_summary(review)}")
+    if review.warnings:
+        lines.append(
+            "- Count warnings: "
+            + "; ".join(dict.fromkeys(review.warnings))
+            + "; warnings do not affect package generation or completion metrics."
+        )
+    return lines
+
+
+def _reconciler_handoff_lines(
+    review: ReconcilerAuditPackageSummary,
+) -> list[str]:
+    lines = [
+        (
+            "- Strict reconciliation audit: copied to evidence/ for audit "
+            "availability only; counts are audit row counts, not completion "
+            "metrics or strict gating."
+        ),
+        (
+            "- Reconciler rows in artifact_scope.tsv use `scope=audit` and "
+            "`strict_scientific_deliverable=false`; package inclusion means "
+            "audit availability, not strict scientific delivery."
+        ),
+        f"- Reconciler audit files copied: {', '.join(review.copied_paths)}",
+    ]
+    if review.is_partial:
+        lines.append(
+            "- Partial reconciler audit availability: inspect copied files; "
+            "missing optional audit files do not fail package generation."
+        )
+    lines.append(
+        "- Reconciler audit counts: "
+        f"{_reconciler_compact_counts_summary(review)}"
+    )
+    if review.warnings:
+        lines.append(
+            "- Reconciler count warnings: "
+            + "; ".join(dict.fromkeys(review.warnings))
+            + "; warnings do not alter completion metrics."
+        )
+    return lines
+
+
+def _reconciler_compact_counts_summary(
+    review: ReconcilerAuditPackageSummary,
+) -> str:
+    counts = review.counts
+    return (
+        f"record_count={counts['record_count']}; "
+        f"strict_count={counts['strict_count']}; "
+        f"candidate_count={counts['candidate_count']}; "
+        f"conflict_count={counts['conflict_count']}; "
+        f"gap_count={counts['gap_count']}; "
+        f"manual_review_count={counts['manual_review_count']}; "
+        f"diagnostic_count={counts['diagnostic_count']}; "
+        "audit_only=true"
+    )
 
 
 def _read_source_audit_for_handoff(paths: OutputPaths) -> list[dict[str, str]] | None:
