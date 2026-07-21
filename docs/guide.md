@@ -191,6 +191,12 @@ typetreeflow package-results \
 `handoff_index.md` is a delivery-package navigation index and status summary.
 It is not a new scientific decision source. The authoritative interpretation
 remains with `manifest.tsv`, source audits, completion tables, and reports.
+When local strict-reconciliation audit files exist, `--include reports` and
+`--include all` copy them under `evidence/` for audit availability only.
+`strict_count` and `strict_usable=true` values in those files are audit row
+properties, not completion metrics, strict deliverable gates, or policy/package
+gating. Missing or partial reconciler audit files do not fail package
+generation. Future policy/package gating is separate work.
 Failed-handoff packages do not include `cache/` or raw provider intermediates
 by default. Use the source run directory for cache reuse; the handoff package
 keeps only small review artifacts and diagnostics.

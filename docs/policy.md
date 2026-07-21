@@ -87,13 +87,14 @@ as strict confirmed type strains.
 Reconciler candidate tiers are review evidence, not completion credit.
 `authoritative_type_material_candidate`, `ncbi_type_material_candidate`, and
 `likely_type_material_candidate` must retain manual-review caveats and must
-not mutate manifests, selection, downloads, provider plans, packages, or
-completion metrics. `report/summary.md` may surface compact audit counts when
-local reconciler outputs exist, but that display does not make artifacts strict
-scientific deliverables or add strict gating. `representative_non_type` remains
-exploratory non-type evidence. `missing_public_genome` means no public selected
-genome is available to reconcile; it is distinct from a genome that is present
-but lacks strict type linkage.
+not mutate manifests, selection, downloads, provider plans, or completion
+metrics. `report/summary.md` and `package-results --include reports` /
+`--include all` may surface existing local reconciler audit files for audit
+availability, but that display and package membership do not make artifacts
+strict scientific deliverables or add strict gating. `representative_non_type`
+remains exploratory non-type evidence. `missing_public_genome` means no public
+selected genome is available to reconcile; it is distinct from a genome that is
+present but lacks strict type linkage.
 
 The P3c-b2b reconciler workflow hook remains offline and audit-only.
 `verify-genus` writes `evidence/reconciler_audit.tsv`,
@@ -101,11 +102,11 @@ The P3c-b2b reconciler workflow hook remains offline and audit-only.
 `evidence/reconciler_diagnostics.tsv` from existing local workflow files after
 selection dry-run outputs are stable, and refreshes them after final manifest
 write in guarded auto-accepted download runs. The hook may add a
-`strict_reconciliation` run-state stage, but it must not change packages,
-completion accounting, manifest or selection mutation, download/provider
-behavior, or `--evidence-policy`. Report summary display is audit-only and
-does not change completion metrics, package tiering, or strict scientific
-deliverable status.
+`strict_reconciliation` run-state stage, but it must not change completion
+accounting, manifest or selection mutation, download/provider behavior, or
+`--evidence-policy`. Report summary display and reports/all package inclusion
+are audit-only and do not change completion metrics, package tiering, or strict
+scientific deliverable status.
 Missing optional BacDive or BioSample inputs, malformed optional rows, legacy
 manifest fields, no selected genome gap rows, and conflicts are diagnostics
 for review, not live lookup triggers or completion semantics.

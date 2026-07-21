@@ -381,6 +381,163 @@ def test_package_results_includes_bacdive_normalized_outputs_and_scope_rows(tmp_
     assert not any(name.startswith("cache/bacdive/") for name in delivered_names)
 
 
+def test_package_results_reports_include_reconciler_audit_triplet_and_scope_rows(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    _write_reconciler_audit_outputs(paths)
+
+    result = package_results(tmp_path, include="reports")
+
+    delivered_names = {
+        path.relative_to(result.delivery_dir).as_posix()
+        for path in result.delivery_dir.rglob("*")
+        if path.is_file()
+    }
+    assert {
+        "evidence/reconciler_audit.tsv",
+        "evidence/reconciler_summary.json",
+        "evidence/reconciler_diagnostics.tsv",
+    } <= delivered_names
+    assert not any(name.startswith("reports/reconciler_") for name in delivered_names)
+
+    root_scope = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    reports_scope = _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv")
+    assert root_scope == reports_scope
+    reconciler_rows = [
+        row
+        for row in root_scope
+        if row["artifact_path"].startswith("evidence/reconciler_")
+    ]
+    assert {row["artifact_path"] for row in reconciler_rows} == {
+        "evidence/reconciler_audit.tsv",
+        "evidence/reconciler_summary.json",
+        "evidence/reconciler_diagnostics.tsv",
+    }
+    assert {row["scope"] for row in reconciler_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in reconciler_rows} == {
+        "strict_reconciliation_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in reconciler_rows} == {
+        "false"
+    }
+    assert {row["strict_usable_count"] for row in reconciler_rows} == {"0"}
+    assert all(row["artifact_label"] for row in reconciler_rows)
+    assert all(row["recommended_use"] for row in reconciler_rows)
+    assert all("completion" in row["not_for"] for row in reconciler_rows)
+    assert all(row["source_artifact"] for row in reconciler_rows)
+    assert {row["consumer_priority"] for row in reconciler_rows} == {
+        "70",
+        "71",
+        "72",
+    }
+
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    package_text = readme + "\n" + index
+    assert "## Strict Reconciliation Audit" in readme
+    assert "audit availability only" in package_text
+    assert "strict_scientific_deliverable=false" in index
+    assert "strict_count=1" in package_text
+    assert "`strict_usable=true` row values, are not completion metrics" in readme
+    assert "Future policy/package gating is separate work." in readme
+    assert "Partial audit availability" not in readme
+
+
+def test_package_results_all_includes_reconciler_audit_triplet(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    _write_reconciler_audit_outputs(paths)
+
+    result = package_results(tmp_path, include="all")
+
+    assert (result.delivery_dir / "evidence" / "reconciler_audit.tsv").exists()
+    assert (result.delivery_dir / "evidence" / "reconciler_summary.json").exists()
+    assert (
+        result.delivery_dir / "evidence" / "reconciler_diagnostics.tsv"
+    ).exists()
+
+
+def test_package_results_omits_reconciler_outputs_gracefully_when_absent(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    result = package_results(tmp_path, include="reports")
+
+    assert not (result.delivery_dir / "evidence" / "reconciler_audit.tsv").exists()
+    assert not (result.delivery_dir / "evidence" / "reconciler_summary.json").exists()
+    assert not (
+        result.delivery_dir / "evidence" / "reconciler_diagnostics.tsv"
+    ).exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Strict Reconciliation Audit" not in readme
+    assert "Strict reconciliation audit: copied to evidence/" not in index
+
+
+def test_package_results_partial_reconciler_triplet_does_not_fail(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.reconciler_audit_path.write_text(
+        "schema_version\tspecies_name\tstrict_usable\n"
+        "1\tFusobacterium example\ttrue\n",
+        encoding="utf-8",
+    )
+
+    result = package_results(tmp_path, include="reports")
+
+    assert (result.delivery_dir / "evidence" / "reconciler_audit.tsv").exists()
+    assert not (result.delivery_dir / "evidence" / "reconciler_summary.json").exists()
+    assert not (
+        result.delivery_dir / "evidence" / "reconciler_diagnostics.tsv"
+    ).exists()
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    reconciler_rows = [
+        row
+        for row in scope_rows
+        if row["artifact_path"].startswith("evidence/reconciler_")
+    ]
+    assert [row["artifact_path"] for row in reconciler_rows] == [
+        "evidence/reconciler_audit.tsv"
+    ]
+    assert reconciler_rows[0]["scope"] == "audit"
+    assert reconciler_rows[0]["strict_scientific_deliverable"] == "false"
+
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Partial audit availability" in readme
+    assert "partial audit availability" in readme
+    assert "missing optional audit files do not fail package generation" in index
+    assert "record_count=1" in readme
+    assert "strict_count=not_recorded" in readme
+
+
+def test_package_results_failed_handoff_does_not_copy_reconciler_outputs(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    _write_reconciler_audit_outputs(paths)
+
+    result = package_results(tmp_path, include="reports", failed_handoff=True)
+
+    delivered_names = {
+        path.relative_to(result.delivery_dir).as_posix()
+        for path in result.delivery_dir.rglob("*")
+        if path.is_file()
+    }
+    assert "evidence/reconciler_audit.tsv" not in delivered_names
+    assert "evidence/reconciler_summary.json" not in delivered_names
+    assert "evidence/reconciler_diagnostics.tsv" not in delivered_names
+    readme = (result.delivery_dir / "README_failure.md").read_text(
+        encoding="utf-8"
+    )
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Strict Reconciliation Audit" not in readme
+    assert "Strict reconciliation audit: copied to evidence/" not in index
+
+
 def test_package_results_omits_bacdive_outputs_when_absent(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)
@@ -505,6 +662,7 @@ def test_package_results_cli_normal_reports_stdout_is_valid_json(tmp_path, capsy
     (tmp_path / ".env").write_text("TYPETREEFLOW_API_KEY=secret-token\n", encoding="utf-8")
     paths.run_summary_path.parent.mkdir(parents=True)
     paths.run_summary_path.write_text("# Summary\n", encoding="utf-8")
+    _write_reconciler_audit_outputs(paths)
 
     assert (
         main(
@@ -523,6 +681,8 @@ def test_package_results_cli_normal_reports_stdout_is_valid_json(tmp_path, capsy
     assert payload["command"] == "package-results"
     assert payload["schema_version"] == "1"
     assert payload["status"] in {"pass", "warning"}
+    assert output.strip().startswith("{")
+    assert output.strip().endswith("}")
     assert payload["package_path"] == str(tmp_path / "delivery")
     assert payload["mode"] == "normal_reports"
     assert payload["included"] == {"reports": True, "handoff": True}
@@ -532,7 +692,9 @@ def test_package_results_cli_normal_reports_stdout_is_valid_json(tmp_path, capsy
     assert "secret-token" not in output
     assert "ACGTSECRETSEQ" not in output
     assert ">rec-1" not in output
+    assert "strict_count" not in output
     assert (tmp_path / "delivery" / "reports" / "summary.md").exists()
+    assert (tmp_path / "delivery" / "evidence" / "reconciler_audit.tsv").exists()
     assert not (tmp_path / "delivery" / "genomes").exists()
     assert not (tmp_path / "delivery" / "16S").exists()
 
@@ -826,8 +988,18 @@ def test_package_results_failed_handoff_index_is_not_success_completion(tmp_path
 def test_package_results_does_not_copy_zip_or_env_files(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)
+    _write_reconciler_audit_outputs(paths)
     paths.ncbi_cache_dir.mkdir(parents=True, exist_ok=True)
     (paths.ncbi_cache_dir / "download.zip").write_text("zip", encoding="utf-8")
+    (paths.cache_dir / "reconciler").mkdir(parents=True, exist_ok=True)
+    (paths.cache_dir / "reconciler" / "raw_provider_payload.json").write_text(
+        '{"secret": true}\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "private").mkdir()
+    (tmp_path / "private" / "credentials.txt").write_text("token\n", encoding="utf-8")
+    (tmp_path / "tmp").mkdir()
+    (tmp_path / "tmp" / "sequence.fasta").write_text(">raw\nACGT\n", encoding="utf-8")
     (tmp_path / ".env").write_text("TYPETREEFLOW_API_KEY=secret\n", encoding="utf-8")
     (tmp_path / ".pytest_cache").mkdir()
 
@@ -839,6 +1011,9 @@ def test_package_results_does_not_copy_zip_or_env_files(tmp_path):
     }
 
     assert "cache/ncbi/download.zip" not in delivered_names
+    assert "cache/reconciler/raw_provider_payload.json" not in delivered_names
+    assert "private/credentials.txt" not in delivered_names
+    assert "tmp/sequence.fasta" not in delivered_names
     assert ".env" not in delivered_names
     assert ".pytest_cache" not in delivered_names
     assert all(not name.endswith(".zip") for name in delivered_names)
@@ -976,6 +1151,63 @@ def _write_bacdive_normalized_outputs(paths):
             indent=2,
         )
         + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_reconciler_audit_outputs(paths):
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.reconciler_audit_path.write_text(
+        (
+            "schema_version\tspecies_name\tassembly_accession\t"
+            "strain_designation\tbiosample_accession\tselection_policy\t"
+            "selection_evidence_level\tmanifest_evidence_level\t"
+            "manifest_type_confirmation_status\treconciled_evidence_tier\t"
+            "strict_usable\trequires_manual_review\tstrict_upgrade_basis\t"
+            "authority_sources\tmatched_lpsn_type_tokens\t"
+            "matched_bacdive_accessions\tmatched_biosample_accessions\t"
+            "selected_genome_linkage\tconflict_status\t"
+            "reconciliation_notes\tsource_input_status\tbacdive_row_count\t"
+            "diagnostic_codes\n"
+            "1\tFusobacterium example\tGCF_000001\tA\tSAMN1\tbalanced\t"
+            "strict_confirmed\tstrict_confirmed\tconfirmed\t"
+            "strict_lpsn_confirmed\ttrue\tfalse\tlpsn_selected_genome\t"
+            "lpsn;biosample\tATCC 1\t\tSAMN1\tlinked\tno_conflict\t"
+            "audit row\tcomplete\t0\t\n"
+            "1\tFusobacterium candidate\tGCF_000002\tB\tSAMN2\tbalanced\t"
+            "likely_type_material\tlikely_type_material\tcandidate\t"
+            "likely_type_material_candidate\tfalse\ttrue\t\tbiosample\t\t"
+            "\tSAMN2\tlinked\tno_conflict\tcandidate row\tcomplete\t0\t"
+            "manual_review_required\n"
+        ),
+        encoding="utf-8",
+    )
+    paths.reconciler_summary_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 2,
+                "strict_count": 1,
+                "candidate_count": 1,
+                "conflict_count": 0,
+                "gap_count": 0,
+                "manual_review_count": 1,
+                "diagnostic_count": 1,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    paths.reconciler_diagnostics_path.write_text(
+        (
+            "schema_version\tspecies_name\tassembly_accession\tsource\t"
+            "status\tseverity\tdiagnostic_code\tmessage\t"
+            "source_input_status\tnotes\n"
+            "1\tFusobacterium candidate\tGCF_000002\treconciler\twarning\t"
+            "warning\tmanual_review_required\tcandidate row\tcomplete\t"
+            "audit only\n"
+        ),
         encoding="utf-8",
     )
 

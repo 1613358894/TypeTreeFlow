@@ -79,11 +79,15 @@ Audit section. The section reads the JSON count fields `record_count`,
 `strict_count`, `candidate_count`, `conflict_count`, `gap_count`,
 `manual_review_count`, `diagnostic_count`, and `audit_only`, and may show a
 short top-diagnostic summary from `evidence/reconciler_diagnostics.tsv`. This
-section is audit-only. Its counts do not change completion metrics, and counts
-do not by themselves make package artifacts strict scientific deliverables.
-Strict gating / package tiering is future work. If the reconciler outputs are
-absent, the section is omitted; if the summary JSON is malformed, report
-generation continues with a compact warning or without reconciler counts.
+section is audit-only. `package-results --include reports` and `--include all`
+copy existing reconciler audit files to `evidence/` for audit availability
+only. Their counts, including `strict_count` and `strict_usable=true` row
+values, do not change completion metrics and do not by themselves make package
+artifacts strict scientific deliverables. Strict gating / package tiering is
+future work. If the reconciler outputs are absent, the section and package
+members are omitted; if the summary JSON is malformed or the triplet is
+partial, report and package generation continue with compact warnings or
+without reconciler counts.
 
 ### Offline BacDive/DSMZ Evidence Model
 
@@ -573,7 +577,13 @@ manifests also include `evidence/bacdive_enrichment.tsv`,
 only and are not strict type-strain confirmation. BacDive package inclusion
 means audit availability, not a strict scientific deliverable; strict
 deliverables must be determined from `artifact_scope.tsv` and strict evidence
-fields. Raw BacDive payloads are not included.
+fields. Raw BacDive payloads are not included. When existing reconciler audit
+files are packaged under `evidence/`, package scope manifests add one row per
+copied file with `scope=audit`,
+`evidence_policy=strict_reconciliation_audit`, and
+`strict_scientific_deliverable=false`. Reconciler package inclusion means audit
+availability, not strict scientific delivery, completion gating, manifest
+mutation, evidence-policy changes, or future package-tier policy.
 
 `completion/16s_gaps.tsv` includes `genome_ready_16s_not_found` for missing
 sequences and `genome_ready_16s_not_strict_usable` when a sequence exists but
