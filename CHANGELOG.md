@@ -1,5 +1,49 @@
 # Changelog
 
+## v2.2.34 - 2026-07-21
+
+v2.2.34 is an audit-only strict reconciliation workflow hook release based on
+v2.2.33. It wires the reconciler audit output triplet into `verify-genus`
+while preserving selection, manifests, downloads, providers, completion
+metrics, reports, packages, and evidence-policy behavior.
+
+### Added
+
+- `verify-genus` now writes audit-only strict reconciliation outputs:
+  `evidence/reconciler_audit.tsv`,
+  `evidence/reconciler_summary.json`, and
+  `evidence/reconciler_diagnostics.tsv`.
+- The `strict_reconciliation` run-state stage is inferred when the complete
+  output triplet exists.
+- Stage summaries include `record_count`, `strict_count`, `candidate_count`,
+  `conflict_count`, `gap_count`, `manual_review_count`,
+  `diagnostic_count`, and `audit_only=true`.
+- The workflow hook runs after stable selection/plan output and refreshes
+  after the final post-download manifest write.
+- Optional missing or malformed BacDive and BioSample inputs produce
+  diagnostics and warnings instead of core workflow failure.
+
+### Scientific Boundary
+
+- Strict tiers still come only from the reconciler model.
+- BacDive-only and NCBI/BioSample-only evidence remains non-strict.
+- Strict type-strain wording still requires evidence tying the genome record
+  to the species type-strain equivalence set.
+
+### Verification
+
+- Local release gates PASS.
+- Strict reconciliation workflow hook offline smoke PASS. This is bounded
+  release evidence only and is not production, broad live-provider,
+  full-download, broad live validation, strict gating, or full Clostridium
+  strict validation.
+
+### Notes
+
+- No selection, manifest, download/provider, completion metrics,
+  report/package membership, or evidence-policy behavior changes are included.
+- This release does not claim broad live validation or strict gating.
+
 ## v2.2.33 - 2026-07-20
 
 v2.2.33 is a strict reconciliation workflow stage surface release based on

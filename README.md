@@ -1,7 +1,7 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.33 release source writes audit-only
+workflow. The current 2.2.34 release source writes audit-only
 `strict_reconciliation`
 workflow outputs for `verify-genus` while preserving the v2.2.32 offline
 reconciler audit mapper/writers, the v2.2.31 strict evidence reconciler model,
@@ -9,10 +9,14 @@ the v2.2.30 BacDive compact report/package wording, the v2.2.29 BacDive
 source-audit top-level summary fields, the bounded BacDive v2 HTTP client, and
 the public tokens-only workflow from v2.2.28. The audit outputs are
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
-`evidence/reconciler_diagnostics.tsv`. `WorkflowState` accepts and serializes
-`strict_reconciliation`, and summary formatting supports strict reconciliation
-counts including additive `diagnostic_count` from
-`reconciler_summary.json`. This stage surface is audit-only. It does not change
+`evidence/reconciler_diagnostics.tsv`. The `strict_reconciliation` run-state
+stage is inferred when the output triplet exists, and stage summaries include
+`record_count`, `strict_count`, `candidate_count`, `conflict_count`,
+`gap_count`, `manual_review_count`, `diagnostic_count`, and
+`audit_only=true`. The hook runs after stable selection/plan output and
+refreshes after the final post-download manifest write. Optional missing or
+malformed BacDive and BioSample inputs produce diagnostics and warnings, not
+core workflow failure. This stage surface is audit-only. It does not change
 reports, packages, manifests, selection, downloads, providers, completion
 metrics, or `--evidence-policy`. The pure
 reconciler records and `reconcile_type_strain_evidence()` function combine
@@ -27,8 +31,9 @@ to that equivalence set, and no conflict. BacDive alone and NCBI/BioSample
 alone never become strict, and conflicts block strict upgrade. The reconciler
 is offline and pure: tests confirm it does not read environment variables or
 open sockets. Strict tiers continue to come only from the reconciler model. The
-audit mapper/writers do not mean the workflow automatically generates
-reconciler audit outputs. The current BacDive workflow contract remains an
+audit mapper/writers and workflow hook do not affect selection, manifests,
+downloads, completion metrics, report/package membership, or evidence-policy
+behavior. The current BacDive workflow contract remains an
 injectable client with simulated tests for timeout, rate-limit, schema drift,
 no-result, and 5xx handling. Endpoint construction covers
 `/v2/culturecollectionno/{culturecollectionno}`,
@@ -118,7 +123,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.33 workflow
+## Recommended v2.2.34 workflow
 
 Plan first:
 
@@ -262,17 +267,23 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.33 release record includes local release gates PASS and offline
-strict reconciliation stage surface smoke PASS. The smoke is bounded release
+The v2.2.34 release record includes local release gates PASS and strict
+reconciliation workflow hook offline smoke PASS. The smoke is bounded release
 evidence only; it is not production, broad live-provider, full-download, broad
-live validation, or full Clostridium strict validation. The current source
-writes audit-only `strict_reconciliation` outputs
+live validation, strict gating, or full Clostridium strict validation. The
+current source writes audit-only `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv` from local `verify-genus` artifacts;
-strict reconciliation summary formatting supports counts including additive
-`diagnostic_count`. The stage does not change manifests, selection, downloads,
-provider behavior, completion metrics, reports, packages, FASTA content,
-default phylogeny inputs, live query scope, or evidence-policy behavior.
+the `strict_reconciliation` run-state stage is inferred when the triplet
+exists. Stage summaries include `record_count`, `strict_count`,
+`candidate_count`, `conflict_count`, `gap_count`, `manual_review_count`,
+`diagnostic_count`, and `audit_only=true`. The hook runs after stable
+selection/plan output and refreshes after the final post-download manifest
+write. Optional missing or malformed BacDive and BioSample inputs produce
+diagnostics and warnings, not core workflow failure. The stage does not change
+manifests, selection, downloads, provider behavior, completion metrics,
+reports, packages, FASTA content, default phylogeny inputs, live query scope,
+or evidence-policy behavior.
 Strict tiers continue to come only from the reconciler model. The still-valid
 v2.2.32 audit mapper/writers, v2.2.31 strict evidence reconciler model,
 v2.2.30 BacDive compact wording, v2.2.29 BacDive source-audit polish, v2.2.28
