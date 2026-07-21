@@ -231,6 +231,58 @@ def _write_bacdive_normalized_outputs(paths) -> None:
     )
 
 
+def _write_reconciler_summary(
+    paths,
+    *,
+    record_count: int = 7,
+    strict_count: int = 2,
+    candidate_count: int = 3,
+    conflict_count: int = 1,
+    gap_count: int = 1,
+    manual_review_count: int = 4,
+    diagnostic_count: int = 2,
+    audit_only: bool = True,
+) -> None:
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.reconciler_summary_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "audit_only": audit_only,
+                "generated_at": "2026-07-21T00:00:00+00:00",
+                "record_count": record_count,
+                "strict_count": strict_count,
+                "candidate_count": candidate_count,
+                "conflict_count": conflict_count,
+                "gap_count": gap_count,
+                "manual_review_count": manual_review_count,
+                "diagnostic_count": diagnostic_count,
+                "tier_counts": {},
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_reconciler_diagnostics(paths) -> None:
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.reconciler_diagnostics_path.write_text(
+        (
+            "schema_version\tspecies_name\tassembly_accession\tsource\tstatus\t"
+            "severity\tdiagnostic_code\tmessage\tsource_input_status\tnotes\n"
+            "1\tExample alpha\tGCF_000000001.1\treconciler\twarning\twarning\t"
+            "conflict_detected\tconflict\tall_available\t\n"
+            "1\tExample beta\tGCF_000000002.1\treconciler\twarning\twarning\t"
+            "missing_optional_biosample_input\tmissing\tmissing_optional\t\n"
+            "1\tExample gamma\tGCF_000000003.1\treconciler\twarning\twarning\t"
+            "missing_optional_biosample_input\tmissing\tmissing_optional\t\n"
+        ),
+        encoding="utf-8",
+    )
+
+
 def _write_checklist_comparison(path: Path, rows: list[dict[str, str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -750,6 +802,82 @@ def test_report_summary_omits_bacdive_candidate_review_when_outputs_absent(tmp_p
     markdown = build_run_summary_markdown([_record("ref1")], get_output_paths(tmp_path))
 
     assert "BacDive Candidate Review" not in markdown
+
+
+def test_report_summary_includes_strict_reconciliation_audit_when_summary_exists(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_reconciler_summary(paths)
+    _write_reconciler_diagnostics(paths)
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Strict Reconciliation Audit" in markdown
+    assert (
+        "- Counts: record_count=7; strict_count=2; candidate_count=3; "
+        "conflict_count=1; gap_count=1; manual_review_count=4; "
+        "diagnostic_count=2"
+    ) in markdown
+    assert "- audit_only: true" in markdown
+    assert "This section is audit-only." in markdown
+    assert "Counts do not change completion metrics" in markdown
+    assert (
+        "counts do not by themselves make package artifacts strict scientific "
+        "deliverables"
+    ) in markdown
+    assert "Strict gating / package tiering is future work." in markdown
+    assert "evidence/reconciler_summary.json" in markdown
+    assert "| missing_optional_biosample_input | 2 |" in markdown
+    assert "| conflict_detected | 1 |" in markdown
+
+
+def test_report_summary_omits_strict_reconciliation_audit_when_outputs_absent(
+    tmp_path,
+):
+    markdown = build_run_summary_markdown([_record("ref1")], get_output_paths(tmp_path))
+
+    assert "## Strict Reconciliation Audit" not in markdown
+
+
+def test_report_summary_malformed_reconciler_summary_does_not_crash(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.reconciler_summary_path.write_text("{not json\n", encoding="utf-8")
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Strict Reconciliation Audit" in markdown
+    assert "evidence/reconciler_summary.json could not be summarized" in markdown
+    assert "## Status Distribution" in markdown
+    assert "- Counts: record_count=" not in markdown
+
+
+def test_report_summary_zero_count_reconciler_summary_is_not_absence_claim(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_reconciler_summary(
+        paths,
+        record_count=0,
+        strict_count=0,
+        candidate_count=0,
+        conflict_count=0,
+        gap_count=0,
+        manual_review_count=0,
+        diagnostic_count=0,
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Strict Reconciliation Audit" in markdown
+    assert (
+        "- Counts: record_count=0; strict_count=0; candidate_count=0; "
+        "conflict_count=0; gap_count=0; manual_review_count=0; "
+        "diagnostic_count=0"
+    ) in markdown
+    assert "No reconciled records were reported by evidence/reconciler_summary.json." in markdown
+    assert "Counts do not change completion metrics" in markdown
 
 
 def test_report_summary_omits_gtdb_audit_when_not_configured(tmp_path):

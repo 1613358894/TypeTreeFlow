@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from typetreeflow import cli
@@ -259,3 +260,41 @@ def test_report_only_includes_existing_completion_summary(tmp_path):
     assert "## Completion Audit" in summary
     assert "- NCBI Assembly strict completion: 1/3" in summary
     assert "- External-inclusive strict completion: 2/3" in summary
+
+
+def test_report_only_includes_existing_reconciler_summary(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.reconciler_summary_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "audit_only": True,
+                "generated_at": "2026-07-21T00:00:00+00:00",
+                "record_count": 2,
+                "strict_count": 1,
+                "candidate_count": 1,
+                "conflict_count": 0,
+                "gap_count": 0,
+                "manual_review_count": 1,
+                "diagnostic_count": 0,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = main(["--outdir", str(outdir), "--report-only"])
+
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert "## Strict Reconciliation Audit" in summary
+    assert (
+        "- Counts: record_count=2; strict_count=1; candidate_count=1; "
+        "conflict_count=0; gap_count=0; manual_review_count=1; "
+        "diagnostic_count=0"
+    ) in summary
+    assert "Counts do not change completion metrics" in summary
