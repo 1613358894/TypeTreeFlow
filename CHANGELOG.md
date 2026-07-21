@@ -1,5 +1,56 @@
 # Changelog
 
+## v2.2.35 - 2026-07-21
+
+v2.2.35 is an audit-only strict reconciliation report-section release based on
+v2.2.34. It surfaces existing local reconciler audit outputs in
+`report/summary.md` while preserving selection, manifests, downloads,
+providers, completion metrics, package/delivery membership, `artifact_scope`
+rows, FASTA content, default phylogeny inputs, live query scope, and
+evidence-policy behavior.
+
+### Added
+
+- `report/summary.md` now includes a compact `Strict Reconciliation Audit`
+  section when local reconciler outputs exist.
+- The section displays `record_count`, `strict_count`, `candidate_count`,
+  `conflict_count`, `gap_count`, `manual_review_count`, `diagnostic_count`,
+  and `audit_only`.
+- The section may show compact reconciler diagnostic-code counts from
+  `evidence/reconciler_diagnostics.tsv`.
+
+### Fixed
+
+- Missing reconciler outputs omit the report section.
+- Malformed `evidence/reconciler_summary.json` no longer fails report
+  generation.
+- Zero-count reconciler summaries are handled and can still render the compact
+  report section.
+
+### Scientific Boundary
+
+- The report section is audit-only. Its counts do not change completion
+  metrics and do not imply package artifacts are strict scientific
+  deliverables.
+- Strict gating and package tiering remain future work.
+- Strict type-strain wording still requires evidence tying the genome record
+  to the species type-strain equivalence set.
+
+### Verification
+
+- Local release gates PASS.
+- Strict Reconciliation Audit report-section offline smoke PASS. This is
+  bounded release evidence only and is not production, broad live-provider,
+  full-download, broad live validation, strict gating, or full Clostridium
+  strict validation.
+
+### Notes
+
+- No package/delivery membership or `artifact_scope` changes are included.
+- No selection, manifest, download/provider, completion, or evidence-policy
+  behavior changes are included.
+- This release does not claim broad live validation or strict gating.
+
 ## v2.2.34 - 2026-07-21
 
 v2.2.34 is an audit-only strict reconciliation workflow hook release based on

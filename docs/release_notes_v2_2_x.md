@@ -1,9 +1,51 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.34 integration review as
+These notes consolidate the v2.2.2 through v2.2.35 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.35
+
+v2.2.35 is an audit-only strict reconciliation report-section release based on
+v2.2.34. It surfaces existing local reconciler audit outputs in
+`report/summary.md` without changing selection, manifests, downloads,
+providers, completion metrics, package/delivery membership, `artifact_scope`
+rows, FASTA content, default phylogeny inputs, live query scope, or
+evidence-policy behavior:
+
+- `report/summary.md` now includes a compact `Strict Reconciliation Audit`
+  section when local reconciler outputs exist.
+- The section displays `record_count`, `strict_count`, `candidate_count`,
+  `conflict_count`, `gap_count`, `manual_review_count`, `diagnostic_count`,
+  and `audit_only`.
+- The section may show compact reconciler diagnostic-code counts from
+  `evidence/reconciler_diagnostics.tsv`.
+- Missing reconciler outputs omit the section.
+- Malformed `evidence/reconciler_summary.json` does not fail report
+  generation.
+- Zero-count reconciler summaries are handled.
+- The section is audit-only. Its counts do not change completion metrics and
+  do not imply package artifacts are strict scientific deliverables. Strict
+  gating and package tiering remain future work.
+- Verification evidence includes local release gates PASS and Strict
+  Reconciliation Audit report-section offline smoke PASS. The smoke is bounded
+  release evidence only, not production, broad live-provider, full-download,
+  broad live validation, strict gating, or full Clostridium strict validation.
+
+v2.2.35 does not change package/delivery membership, `artifact_scope`,
+manifests, selection, downloads, providers, completion metrics, FASTA content,
+default phylogeny inputs, live query scope, evidence-policy behavior, release
+asset publication, or strict evidence thresholds. It does not call live
+BacDive, run live LPSN/NCBI/Entrez lookups, run datasets downloads, or run
+external bioinformatics tools. The v2.2.34 audit-only strict reconciliation
+workflow hook, v2.2.33 strict reconciliation stage surface, v2.2.32 audit
+mapper/writers, v2.2.31 strict evidence reconciler model, v2.2.30 BacDive
+compact wording, v2.2.29 BacDive source-audit polish, v2.2.28 bounded public
+live tokens path, v2.2.27 live-client HTTP skeleton, v2.2.26 report/package
+handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing, v2.2.23 offline
+adapter contract, v2.2.22 offline BacDive model, and v2.2.21 artifact scope
+readability semantics remain valid.
 
 ## v2.2.34
 

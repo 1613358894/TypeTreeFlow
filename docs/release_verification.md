@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.34 / 2.2.34 release verification path uses
+The current v2.2.35 / 2.2.35 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -23,6 +23,7 @@ BacDiveLiveClient HTTP skeleton behavior, injectable HTTP transport
 diagnostics, source-audit live/fake/blocked path provenance, raw-payload
 policy, the offline strict evidence reconciler model, offline reconciler audit
 mapper and writers, the audit-only strict reconciliation workflow hook,
+the audit-only Strict Reconciliation Audit report section,
 clean deployment readiness, provider timeout/error classification, stdout JSON
 isolation, failed-handoff cache boundaries, workspace hygiene, and ensures
 repository-root `results/` remains absent. The clean deployment path is
@@ -49,26 +50,35 @@ does not read environment variables, open sockets, call live BacDive, run live
 LPSN/NCBI/Entrez lookups, run datasets downloads, or run external
 bioinformatics tools. It is connected to CLI/workflow execution only through
 the audit-only strict reconciliation hook, and it does not change manifests,
-selection, downloads, completion metrics, reports, package membership, FASTA
-content, default phylogeny inputs, live query scope, or provider automation.
+selection, downloads, completion metrics, package membership, FASTA content,
+default phylogeny inputs, live query scope, or provider automation.
 
-The offline reconciler audit mapper, writers, and
-`strict_reconciliation` workflow hook are review-only helper surfaces for
-synthetic or already-normalized local evidence rows. The normalized audit
-outputs are `evidence/reconciler_audit.tsv`,
-`evidence/reconciler_summary.json`, and
+The offline reconciler audit mapper, writers, workflow hook, and report
+section are review-only helper surfaces for synthetic or already-normalized
+local evidence rows. The normalized audit outputs are
+`evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv`. `WorkflowState` accepts and serializes
 the `strict_reconciliation` stage when the complete output triplet exists, and
 stage summaries include `record_count`, `strict_count`, `candidate_count`,
 `conflict_count`, `gap_count`, `manual_review_count`, `diagnostic_count`, and
 `audit_only=true`. The `verify-genus` hook writes these outputs after stable
 selection/plan output and refreshes them after the final post-download
-manifest write. Optional missing or malformed BacDive and BioSample inputs
-produce diagnostics and warnings instead of core workflow failure. These
-surfaces remain audit-only. They do not change reports, packages, completion
-metrics, manifest mutation, selection behavior, downloads, providers, or
-`--evidence-policy`. Strict tiers continue to come only from the reconciler
-model, and BacDive-only or NCBI/BioSample-only evidence remains non-strict.
+manifest write. When local reconciler outputs exist, `report/summary.md`
+includes a compact `Strict Reconciliation Audit` section with `record_count`,
+`strict_count`, `candidate_count`, `conflict_count`, `gap_count`,
+`manual_review_count`, `diagnostic_count`, and `audit_only`; it may show
+compact reconciler diagnostic-code counts from
+`evidence/reconciler_diagnostics.tsv`. Missing outputs omit the section,
+malformed `evidence/reconciler_summary.json` does not fail report generation,
+and zero-count summaries are handled. Optional missing or malformed BacDive
+and BioSample inputs produce diagnostics and warnings instead of core workflow
+failure. These surfaces remain audit-only. They do not change package/delivery
+membership, `artifact_scope`, completion metrics, manifest mutation, selection
+behavior, downloads, providers, or `--evidence-policy`; report counts do not
+imply package artifacts are strict scientific deliverables. Strict gating and
+package tiering remain future work. Strict tiers continue to come only from
+the reconciler model, and BacDive-only or NCBI/BioSample-only evidence remains
+non-strict.
 
 Completion coverage and strict type evidence gaps are separate review claims.
 The `--evidence-policy strict|candidate|exploratory` setting controls derived
@@ -197,32 +207,37 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.34 release record includes local release gates PASS and strict
-reconciliation workflow hook offline smoke PASS. The smoke is bounded release
-evidence only: it does not claim production, broad live-provider,
+The v2.2.35 release record includes local release gates PASS and Strict
+Reconciliation Audit report-section offline smoke PASS. The smoke is bounded
+release evidence only: it does not claim production, broad live-provider,
 full-download, broad live validation, strict gating, or full Clostridium
-strict validation. The v2.2.34 hook writes audit-only
+strict validation. The current source writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv`; `WorkflowState` infers the
 `strict_reconciliation` stage when the triplet exists. Stage summaries include
 `record_count`, `strict_count`, `candidate_count`, `conflict_count`,
 `gap_count`, `manual_review_count`, `diagnostic_count`, and
-`audit_only=true`. The hook runs after stable selection/plan output and
-refreshes after the final post-download manifest write. Optional missing or
-malformed BacDive and BioSample inputs produce diagnostics and warnings, not
-core workflow failure. The still-valid v2.2.33 stage surface, v2.2.32
-mapper/writers, v2.2.31 strict evidence reconciler model, v2.2.30 BacDive
-compact wording, v2.2.29 BacDive source-audit polish, v2.2.28 bounded public
-live tokens path, v2.2.27 BacDive live-client HTTP skeleton, v2.2.26 BacDive
-report/package handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing,
-v2.2.23 offline BacDive adapter contract, v2.2.22 offline BacDive model,
-v2.2.21 artifact scope readability semantics, and v2.2.20 policy-aware
-artifacts and GTDB gating validations remain verification evidence only: they
-do not claim full Clostridium strict completion or full-download validation.
-The release does not change artifact membership, FASTA content, default
-phylogeny input, provider/download behavior, provider automation, selection,
-completion metrics, live query scope, package membership, evidence-policy
-behavior, or strict evidence thresholds.
+`audit_only=true`. When local reconciler outputs exist, `report/summary.md`
+includes a compact `Strict Reconciliation Audit` section with those count
+fields plus `audit_only`, and it may show compact reconciler diagnostic-code
+counts. Missing outputs omit the section, malformed summary JSON does not fail
+report generation, and zero-count summaries are handled. The hook runs after
+stable selection/plan output and refreshes after the final post-download
+manifest write. Optional missing or malformed BacDive and BioSample inputs
+produce diagnostics and warnings, not core workflow failure. The still-valid
+v2.2.34 hook, v2.2.33 stage surface, v2.2.32 mapper/writers, v2.2.31 strict
+evidence reconciler model, v2.2.30 BacDive compact wording, v2.2.29 BacDive
+source-audit polish, v2.2.28 bounded public live tokens path, v2.2.27 BacDive
+live-client HTTP skeleton, v2.2.26 BacDive report/package handoff, v2.2.25
+skeleton, v2.2.24 configuration plumbing, v2.2.23 offline BacDive adapter
+contract, v2.2.22 offline BacDive model, v2.2.21 artifact scope readability
+semantics, and v2.2.20 policy-aware artifacts and GTDB gating validations
+remain verification evidence only: they do not claim full Clostridium strict
+completion or full-download validation. The release does not change artifact
+membership, package/delivery membership, `artifact_scope`, FASTA content,
+default phylogeny input, provider/download behavior, provider automation,
+selection, completion metrics, live query scope, evidence-policy behavior, or
+strict evidence thresholds.
 
 Older matrix runbooks, baselines, and acceptance checklists are historical.
