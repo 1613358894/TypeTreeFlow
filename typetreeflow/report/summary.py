@@ -5,7 +5,7 @@ import json
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from typetreeflow.completion import (
     CONFLICT,
@@ -118,6 +118,15 @@ REPRESENTATIVE_DUPLICATE_NEXT_ACTION = (
     "mismatch or rerun after selection fix"
 )
 NCBI_TAXONOMY_LOOKUP_EXECUTED = "executed"
+RECONCILER_COUNT_FIELDS = (
+    "record_count",
+    "strict_count",
+    "candidate_count",
+    "conflict_count",
+    "gap_count",
+    "manual_review_count",
+    "diagnostic_count",
+)
 
 
 @dataclass(frozen=True)
@@ -149,6 +158,15 @@ class BacDiveCandidateReviewSummary:
     candidate_count: int
     enrichment_row_count: int
     diagnostic_row_count: int
+    top_diagnostics: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class StrictReconciliationAuditSummary:
+    counts: dict[str, str]
+    audit_only: str
+    present_files: list[str]
+    warning: str
     top_diagnostics: list[tuple[str, int]]
 
 
@@ -423,6 +441,92 @@ def bacdive_compact_source_audit_summary(
         f"stopped_reason={review.stopped_reason}; "
         f"raw_payload_saved={review.raw_payload_saved}; "
         f"raw_payload_policy={review.raw_payload_policy}"
+    )
+
+
+def reconciler_outputs_available(paths: OutputPaths) -> bool:
+    return any(
+        path.exists()
+        for path in (
+            paths.reconciler_audit_path,
+            paths.reconciler_summary_path,
+            paths.reconciler_diagnostics_path,
+        )
+    )
+
+
+def read_optional_strict_reconciliation_audit_summary(
+    paths: OutputPaths,
+) -> StrictReconciliationAuditSummary | None:
+    if not reconciler_outputs_available(paths):
+        return None
+
+    present_files = [
+        _display_path(path, paths)
+        for path in (
+            paths.reconciler_audit_path,
+            paths.reconciler_summary_path,
+            paths.reconciler_diagnostics_path,
+        )
+        if path.exists()
+    ]
+    counts: dict[str, str] = {}
+    audit_only = "unknown"
+    warnings: list[str] = []
+
+    if paths.reconciler_summary_path.exists():
+        try:
+            summary = json.loads(
+                paths.reconciler_summary_path.read_text(encoding="utf-8")
+            )
+            if not isinstance(summary, dict):
+                raise ValueError("summary JSON root is not an object")
+            counts = {
+                field: _summary_count(summary.get(field, 0))
+                for field in RECONCILER_COUNT_FIELDS
+            }
+            audit_only = _summary_bool(summary.get("audit_only"))
+        except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as error:
+            warnings.append(
+                "evidence/reconciler_summary.json could not be summarized: "
+                f"{error}"
+            )
+    else:
+        warnings.append("evidence/reconciler_summary.json is not present.")
+
+    top_diagnostics: list[tuple[str, int]] = []
+    if paths.reconciler_diagnostics_path.exists():
+        try:
+            diagnostic_rows = _read_tsv_rows(paths.reconciler_diagnostics_path)
+            diagnostic_codes = Counter(
+                row.get("diagnostic_code", "").strip()
+                for row in diagnostic_rows
+                if row.get("diagnostic_code", "").strip()
+            )
+            top_diagnostics = sorted(
+                diagnostic_codes.items(), key=lambda item: (-item[1], item[0])
+            )[:5]
+        except (OSError, UnicodeError, csv.Error) as error:
+            warnings.append(
+                "evidence/reconciler_diagnostics.tsv could not be summarized: "
+                f"{error}"
+            )
+
+    return StrictReconciliationAuditSummary(
+        counts=counts,
+        audit_only=audit_only,
+        present_files=present_files,
+        warning="; ".join(warnings),
+        top_diagnostics=top_diagnostics,
+    )
+
+
+def strict_reconciliation_compact_counts_summary(
+    summary: StrictReconciliationAuditSummary,
+) -> str:
+    return "; ".join(
+        f"{field}={summary.counts.get(field, 'unavailable')}"
+        for field in RECONCILER_COUNT_FIELDS
     )
 
 
@@ -1071,6 +1175,9 @@ def build_run_summary_markdown(
     except (OSError, ValueError, json.JSONDecodeError) as error:
         bacdive_review = None
         bacdive_review_error = str(error)
+    strict_reconciliation_summary = read_optional_strict_reconciliation_audit_summary(
+        paths
+    )
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -1274,6 +1381,60 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(code)} | {count} |"
                         for code, count in bacdive_review.top_diagnostics
+                    ],
+                ]
+            )
+
+    if strict_reconciliation_summary is not None:
+        lines.extend(
+            [
+                "",
+                "## Strict Reconciliation Audit",
+                "",
+                (
+                    "This section is audit-only. Counts do not change "
+                    "completion metrics, and counts do not by themselves make "
+                    "package artifacts strict scientific deliverables. Strict "
+                    "gating / package tiering is future work."
+                ),
+            ]
+        )
+        if strict_reconciliation_summary.counts:
+            lines.extend(
+                [
+                    (
+                        "- Counts: "
+                        + strict_reconciliation_compact_counts_summary(
+                            strict_reconciliation_summary
+                        )
+                    ),
+                    f"- audit_only: {strict_reconciliation_summary.audit_only}",
+                ]
+            )
+            if all(
+                strict_reconciliation_summary.counts.get(field, "0") == "0"
+                for field in RECONCILER_COUNT_FIELDS
+            ):
+                lines.append(
+                    "- No reconciled records were reported by "
+                    "evidence/reconciler_summary.json."
+                )
+        if strict_reconciliation_summary.warning:
+            lines.append(f"- Warning: {strict_reconciliation_summary.warning}")
+        if strict_reconciliation_summary.present_files:
+            lines.append(
+                "- Audit files present: "
+                + "; ".join(strict_reconciliation_summary.present_files)
+            )
+        if strict_reconciliation_summary.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in strict_reconciliation_summary.top_diagnostics
                     ],
                 ]
             )
@@ -2735,6 +2896,24 @@ def _int_value(value: object, *, default: int = 0) -> int:
         return int(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return default
+
+
+def _summary_count(value: Any) -> str:
+    try:
+        return str(int(value))
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _summary_bool(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return "unknown"
+    text = str(value).strip().lower()
+    if text in {"true", "false"}:
+        return text
+    return "unknown"
 
 
 def _bacdive_string_field(

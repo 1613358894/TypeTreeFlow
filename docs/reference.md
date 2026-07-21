@@ -73,6 +73,18 @@ These fields do not filter manifest or selected rows, downloads,
 `rrna/all_16S.fasta`, phylogeny input, or package members, and they do not
 change workflow stage-status or existing completion-status metric semantics.
 
+When `evidence/reconciler_summary.json` or related local reconciler audit
+outputs exist, `report/summary.md` includes a compact Strict Reconciliation
+Audit section. The section reads the JSON count fields `record_count`,
+`strict_count`, `candidate_count`, `conflict_count`, `gap_count`,
+`manual_review_count`, `diagnostic_count`, and `audit_only`, and may show a
+short top-diagnostic summary from `evidence/reconciler_diagnostics.tsv`. This
+section is audit-only. Its counts do not change completion metrics, and counts
+do not by themselves make package artifacts strict scientific deliverables.
+Strict gating / package tiering is future work. If the reconciler outputs are
+absent, the section is omitted; if the summary JSON is malformed, report
+generation continues with a compact warning or without reconciler counts.
+
 ### Offline BacDive/DSMZ Evidence Model
 
 `typetreeflow.evidence.bacdive` is an offline, fixture-testable enrichment
@@ -289,8 +301,9 @@ diagnostics, conflicts, gaps, or manual-review rows. `warning` means the output
 triplet was written with optional input issues, gaps, conflicts, or manual
 review rows. `failed` means the written triplet is incomplete or unreadable.
 These statuses do not change status/next-step stdout, completion metrics,
-manifests, selection, downloads, providers, reports, packages, or
-`--evidence-policy`.
+manifests, selection, downloads, providers, packages, or `--evidence-policy`.
+Report surfacing is limited to the audit-only Strict Reconciliation Audit
+summary when local reconciler outputs already exist.
 
 The primary audit output path is
 `evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
