@@ -1374,8 +1374,32 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         )
         == 0
     )
-    assert not (delivery_dir / "evidence" / "reconciler_audit.tsv").exists()
-    assert not (delivery_dir / "reports" / "reconciler_audit.tsv").exists()
+    delivered_names = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in delivery_dir.rglob("*")
+        if path.is_file()
+    }
+    assert {
+        "evidence/reconciler_audit.tsv",
+        "evidence/reconciler_summary.json",
+        "evidence/reconciler_diagnostics.tsv",
+    } <= delivered_names
+    assert not any(name.startswith("reports/reconciler_") for name in delivered_names)
+    scope_rows = _read_tsv(delivery_dir / "artifact_scope.tsv")
+    reconciler_scope_rows = [
+        row
+        for row in scope_rows
+        if row["artifact_path"].startswith("evidence/reconciler_")
+    ]
+    assert {row["artifact_path"] for row in reconciler_scope_rows} == {
+        "evidence/reconciler_audit.tsv",
+        "evidence/reconciler_summary.json",
+        "evidence/reconciler_diagnostics.tsv",
+    }
+    assert {row["scope"] for row in reconciler_scope_rows} == {"audit"}
+    assert {row["strict_scientific_deliverable"] for row in reconciler_scope_rows} == {
+        "false"
+    }
 
 
 def test_verify_genus_plan_only_profile_records_profile_without_downloads(
