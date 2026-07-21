@@ -47,6 +47,19 @@ from typetreeflow.evidence.bacdive_workflow import (
     bacdive_stage_state_from_outputs,
     run_bacdive_enrichment_stage,
 )
+from typetreeflow.evidence.reconciler_audit import (
+    BacdiveEvidenceRow,
+    BiosampleEvidenceRow,
+    LpsnEvidenceRow,
+    ManifestEvidenceRow,
+    ReconcilerAuditInput,
+    ReconcilerDiagnosticRow,
+    SelectionEvidenceRow,
+    build_reconciler_audit_rows,
+    write_reconciler_audit_tsv,
+    write_reconciler_diagnostics_tsv,
+    write_reconciler_summary_json,
+)
 from typetreeflow.exceptions import ManifestError
 from typetreeflow.expanded_discovery import (
     execute_expanded_discovery_plan,
@@ -228,6 +241,7 @@ from typetreeflow.workflow.summary import (
     row_count_summary as _row_count_summary,
     status_count_summary as _status_count_summary,
     status_counts as _status_counts,
+    strict_reconciliation_count_summary as _strict_reconciliation_count_summary,
 )
 from typetreeflow.workflow.state import (
     StageState,
@@ -2105,6 +2119,384 @@ def _expanded_discovery_biosample_client(paths, config: AppConfig):
     return None
 
 
+@dataclass(frozen=True)
+class ReconcilerAuditWorkflowResult:
+    status: str
+    record_count: int
+    diagnostic_count: int
+    outputs: list[Path]
+    summary: str
+
+
+def run_reconciler_audit_stage(paths, config: AppConfig) -> ReconcilerAuditWorkflowResult:
+    audit_input = _build_reconciler_audit_input_from_workflow_outputs(paths, config)
+    build = build_reconciler_audit_rows(audit_input)
+    write_reconciler_audit_tsv(build.audit_rows, paths.reconciler_audit_path)
+    write_reconciler_summary_json(
+        build.audit_rows,
+        paths.reconciler_summary_path,
+        diagnostic_count=len(build.diagnostics),
+    )
+    write_reconciler_diagnostics_tsv(
+        build.diagnostics,
+        paths.reconciler_diagnostics_path,
+    )
+    stage = _strict_reconciliation_stage_state(paths)
+    status = stage.status if stage is not None else "warning"
+    summary = stage.summary if stage is not None else ""
+    LOGGER.info(
+        "Wrote audit-only strict reconciliation outputs: %s, %s, %s.",
+        paths.reconciler_audit_path,
+        paths.reconciler_summary_path,
+        paths.reconciler_diagnostics_path,
+    )
+    return ReconcilerAuditWorkflowResult(
+        status=status,
+        record_count=len(build.audit_rows),
+        diagnostic_count=len(build.diagnostics),
+        outputs=[
+            paths.reconciler_audit_path,
+            paths.reconciler_summary_path,
+            paths.reconciler_diagnostics_path,
+        ],
+        summary=summary,
+    )
+
+
+def _build_reconciler_audit_input_from_workflow_outputs(
+    paths,
+    config: AppConfig,
+) -> ReconcilerAuditInput:
+    diagnostics: list[ReconcilerDiagnosticRow] = []
+    checklist_path = config.species_checklist or config.outdir / "species_checklist.tsv"
+    lpsn_rows = _read_reconciler_lpsn_rows(checklist_path, diagnostics)
+    selection_rows = _read_reconciler_selection_rows(paths.user_selection_path, diagnostics)
+    manifest_rows = _read_reconciler_manifest_rows(paths.manifest, diagnostics)
+    bacdive_rows = _read_reconciler_bacdive_rows(paths.bacdive_enrichment_path, diagnostics)
+    biosample_path = config.biosample_cache or paths.biosample_records_path
+    biosample_rows = _read_reconciler_biosample_rows(biosample_path, diagnostics)
+    return ReconcilerAuditInput(
+        lpsn_rows=tuple(lpsn_rows),
+        selection_rows=tuple(selection_rows),
+        manifest_rows=tuple(manifest_rows),
+        bacdive_rows=bacdive_rows,
+        biosample_rows=biosample_rows,
+        input_diagnostics=tuple(diagnostics),
+    )
+
+
+def _read_reconciler_lpsn_rows(
+    path: Path,
+    diagnostics: list[ReconcilerDiagnosticRow],
+) -> list[LpsnEvidenceRow]:
+    try:
+        entries = read_species_checklist(path)
+    except (OSError, ValueError) as error:
+        diagnostics.append(
+            _reconciler_input_diagnostic(
+                source="lpsn",
+                status="missing_or_malformed_required",
+                code="missing_or_malformed_required_lpsn_checklist",
+                message=f"required species checklist could not be read: {error}",
+            )
+        )
+        return []
+    return [
+        LpsnEvidenceRow(
+            species_name=entry.full_name or f"{entry.genus} {entry.species}",
+            type_strain_names=tuple(_split_reconciler_tokens(entry.type_strain_names)),
+            type_strain=tuple(_split_reconciler_tokens(entry.type_strain)),
+            status=_reconciler_lpsn_status(entry.taxonomic_status or entry.status),
+            taxonomic_status=entry.taxonomic_status,
+            nomenclatural_status=entry.nomenclatural_status,
+            source=entry.source or "lpsn",
+            notes=entry.notes,
+        )
+        for entry in entries
+    ]
+
+
+def _read_reconciler_selection_rows(
+    path: Path,
+    diagnostics: list[ReconcilerDiagnosticRow],
+) -> list[SelectionEvidenceRow]:
+    try:
+        rows = read_user_selection(path)
+    except (OSError, ValueError) as error:
+        diagnostics.append(
+            _reconciler_input_diagnostic(
+                source="selection",
+                status="missing_or_malformed_required",
+                code="missing_or_malformed_required_selection",
+                message=f"required selection table could not be read: {error}",
+            )
+        )
+        return []
+    return [
+        SelectionEvidenceRow(
+            species_name=row.species,
+            assembly_accession=row.assembly_accession,
+            organism_name=row.organism_name,
+            strain_designation=row.strain,
+            culture_collection_tokens=tuple(
+                _split_reconciler_tokens(row.culture_collection_ids)
+            ),
+            is_type_material=row.is_type_material,
+            selected=row.selected,
+            selection_policy=row.selection_policy,
+            evidence_level=row.evidence_level,
+            selection_role=row.policy_decision,
+            species_name_only_match="species_name" in row.match_evidence,
+            strain_text_only_match="strain_text" in row.match_evidence,
+            notes=row.notes,
+        )
+        for row in rows
+    ]
+
+
+def _read_reconciler_manifest_rows(
+    path: Path,
+    diagnostics: list[ReconcilerDiagnosticRow],
+) -> list[ManifestEvidenceRow]:
+    try:
+        records = read_manifest(path)
+    except (OSError, ManifestError, ValueError) as error:
+        diagnostics.append(
+            _reconciler_input_diagnostic(
+                source="manifest",
+                status="missing_or_malformed_required",
+                code="missing_or_malformed_required_manifest",
+                message=f"required manifest could not be read: {error}",
+            )
+        )
+        return []
+    return [
+        ManifestEvidenceRow(
+            species_name=record.canonical_name
+            or " ".join(part for part in (record.genus, record.species) if part)
+            or record.display_name,
+            assembly_accession=record.assembly_accession,
+            display_name=record.display_name,
+            strain_designation=record.strain,
+            is_type_material=record.is_type_material,
+            has_genome=record.has_genome,
+            genome_path=record.genome_path,
+            evidence_level=record.evidence_level,
+            type_confirmation_status=record.type_confirmation_status,
+            selection_policy=record.selection_policy,
+            selection_role=record.selection_role,
+            selection_reason=record.selection_reason,
+            notes=record.notes,
+        )
+        for record in records
+    ]
+
+
+def _read_reconciler_bacdive_rows(
+    path: Path,
+    diagnostics: list[ReconcilerDiagnosticRow],
+) -> tuple[BacdiveEvidenceRow, ...] | None:
+    if not path.exists():
+        return None
+    rows: list[BacdiveEvidenceRow] = []
+    for index, row in enumerate(_read_optional_reconciler_tsv(path, "bacdive", diagnostics), start=1):
+        if _optional_reconciler_row_is_malformed(row, "bacdive", index, diagnostics):
+            continue
+        mapped = BacdiveEvidenceRow(
+            species_name=row.get("species", "") or row.get("bacdive_species", ""),
+            strain_designation=row.get("strain_designation", ""),
+            culture_collection_tokens=tuple(
+                _split_reconciler_tokens(
+                    row.get("culture_collection_numbers", ""),
+                    row.get("dsmz_accession", ""),
+                )
+            ),
+            is_type_strain=_truthy(row.get("is_type_strain", "")),
+            bacdive_id=row.get("bacdive_id", ""),
+            dsmz_accession=row.get("dsmz_accession", ""),
+            notes=row.get("notes", ""),
+        )
+        if not mapped.species_name or not (
+            mapped.bacdive_id
+            or mapped.dsmz_accession
+            or mapped.strain_designation
+            or mapped.culture_collection_tokens
+        ):
+            diagnostics.append(
+                _reconciler_input_diagnostic(
+                    source="bacdive",
+                    status="malformed_optional_row",
+                    code="malformed_optional_bacdive_row",
+                    message="BacDive row lacks species plus accession or strain tokens",
+                    species_name=mapped.species_name,
+                    notes=f"row_index={index}",
+                )
+            )
+            continue
+        rows.append(mapped)
+    return tuple(rows)
+
+
+def _read_reconciler_biosample_rows(
+    path: Path,
+    diagnostics: list[ReconcilerDiagnosticRow],
+) -> tuple[BiosampleEvidenceRow, ...] | None:
+    if not path.exists():
+        return None
+    try:
+        records = read_biosample_records(path)
+    except (OSError, ValueError) as error:
+        diagnostics.append(
+            _reconciler_input_diagnostic(
+                source="biosample",
+                status="malformed_optional_input",
+                code="malformed_optional_biosample_input",
+                message=f"optional BioSample input could not be read: {error}",
+            )
+        )
+        return ()
+    rows: list[BiosampleEvidenceRow] = []
+    for record in records:
+        if not record.biosample:
+            diagnostics.append(
+                _reconciler_input_diagnostic(
+                    source="biosample",
+                    status="malformed_optional_row",
+                    code="malformed_optional_biosample_row",
+                    message="BioSample row lacks BioSample accession",
+                    species_name=record.organism,
+                )
+            )
+            continue
+        type_text = " ".join([record.type_material, record.attributes_text])
+        rows.append(
+            BiosampleEvidenceRow(
+                biosample_accession=record.biosample,
+                species_name=record.organism,
+                strain_designation=record.strain or record.isolate,
+                culture_collection_tokens=tuple(
+                    _split_reconciler_tokens(record.culture_collection)
+                ),
+                is_type_material=(
+                    not _negative_type_material_text(type_text)
+                    and _positive_type_material_text(type_text)
+                ),
+                negative_type_material=_negative_type_material_text(type_text),
+                notes=record.notes,
+            )
+        )
+    return tuple(rows)
+
+
+def _read_optional_reconciler_tsv(
+    path: Path,
+    source: str,
+    diagnostics: list[ReconcilerDiagnosticRow],
+) -> list[dict[str, str]]:
+    try:
+        _allow_large_csv_fields()
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            rows: list[dict[str, str]] = []
+            for index, row in enumerate(reader, start=2):
+                if None in row:
+                    diagnostics.append(
+                        _reconciler_input_diagnostic(
+                            source=source,
+                            status="malformed_optional_row",
+                            code=f"malformed_optional_{source}_row",
+                            message=f"optional {source} row has unexpected columns",
+                            notes=f"row_index={index}",
+                        )
+                    )
+                    continue
+                rows.append({str(key): str(value or "") for key, value in row.items()})
+            return rows
+    except (OSError, csv.Error) as error:
+        diagnostics.append(
+            _reconciler_input_diagnostic(
+                source=source,
+                status="malformed_optional_input",
+                code=f"malformed_optional_{source}_input",
+                message=f"optional {source} input could not be read: {error}",
+            )
+        )
+        return []
+
+
+def _optional_reconciler_row_is_malformed(
+    row: dict[str, str],
+    source: str,
+    index: int,
+    diagnostics: list[ReconcilerDiagnosticRow],
+) -> bool:
+    if row:
+        return False
+    diagnostics.append(
+        _reconciler_input_diagnostic(
+            source=source,
+            status="malformed_optional_row",
+            code=f"malformed_optional_{source}_row",
+            message=f"{source} row is empty or malformed",
+            notes=f"row_index={index}",
+        )
+    )
+    return True
+
+
+def _split_reconciler_tokens(*values: object) -> list[str]:
+    tokens: list[str] = []
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, (list, tuple)):
+            parts = value
+        else:
+            parts = str(value).replace(",", ";").split(";")
+        tokens.extend(str(part).strip() for part in parts if str(part).strip())
+    return tokens
+
+
+def _reconciler_lpsn_status(value: str) -> str:
+    return str(value).strip().lower().replace(" ", "_").replace("-", "_")
+
+
+def _positive_type_material_text(value: str) -> bool:
+    lowered = value.lower()
+    return "type material" in lowered or "type strain" in lowered
+
+
+def _negative_type_material_text(value: str) -> bool:
+    lowered = value.lower()
+    return any(
+        marker in lowered
+        for marker in ("not type material", "not type strain", "non-type", "non type")
+    )
+
+
+def _reconciler_input_diagnostic(
+    *,
+    source: str,
+    status: str,
+    code: str,
+    message: str,
+    species_name: str = "",
+    assembly_accession: str = "",
+    notes: str = "",
+) -> ReconcilerDiagnosticRow:
+    return ReconcilerDiagnosticRow(
+        species_name=species_name,
+        assembly_accession=assembly_accession,
+        source=source,
+        status=status,
+        severity="warning",
+        diagnostic_code=code,
+        message=message,
+        source_input_status=status,
+        notes=notes,
+    )
+
+
 def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None) -> None:
     if isinstance(error, CrossGenusOutdirError):
         return
@@ -2211,6 +2603,10 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
             outputs=[_state_output_path(path, paths) for path in selection_outputs],
             summary=str(error) if selection_failed else _selection_summary(paths, config),
         )
+
+    strict_reconciliation_stage = _strict_reconciliation_stage_state(paths)
+    if strict_reconciliation_stage is not None:
+        stages["strict_reconciliation"] = strict_reconciliation_stage
 
     gtdb_stage = _gtdb_audit_stage_state(paths, config)
     if gtdb_stage is not None:
@@ -2332,6 +2728,70 @@ def _add_file_stage(
         outputs=[_state_output_path(path, paths) for path in existing],
         summary=summary,
     )
+
+
+def _strict_reconciliation_stage_state(paths) -> StageState | None:
+    outputs = [
+        paths.reconciler_audit_path,
+        paths.reconciler_summary_path,
+        paths.reconciler_diagnostics_path,
+    ]
+    existing = [path for path in outputs if path.exists()]
+    if not existing:
+        return None
+    if len(existing) != len(outputs):
+        return StageState(
+            status="failed",
+            outputs=[_state_output_path(path, paths) for path in existing],
+            summary="strict reconciliation audit output triplet is incomplete.",
+        )
+    try:
+        summary_data = json.loads(paths.reconciler_summary_path.read_text(encoding="utf-8"))
+        diagnostics = _read_tsv_rows(paths.reconciler_diagnostics_path)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return StageState(
+            status="failed",
+            outputs=[_state_output_path(path, paths) for path in existing],
+            summary=f"strict reconciliation audit outputs could not be read: {error}",
+        )
+    counts = (
+        _strict_reconciliation_count_summary(paths.reconciler_summary_path)
+        or "record_count=0"
+    )
+    summary = f"{counts}; audit_only=true"
+    status = "succeeded"
+    if (
+        _summary_int(summary_data, "conflict_count")
+        or _summary_int(summary_data, "gap_count")
+        or _summary_int(summary_data, "manual_review_count")
+        or _has_warning_reconciler_diagnostics(diagnostics)
+    ):
+        status = "warning"
+    return StageState(
+        status=status,
+        outputs=[_state_output_path(path, paths) for path in existing],
+        summary=summary,
+    )
+
+
+def _summary_int(data: object, field: str) -> int:
+    if not isinstance(data, dict):
+        return 0
+    try:
+        return int(data.get(field, 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _has_warning_reconciler_diagnostics(rows: list[dict[str, str]]) -> bool:
+    for row in rows:
+        code = row.get("diagnostic_code", "").strip()
+        severity = row.get("severity", "").strip().lower()
+        if code == "audit_only_status" and severity == "info":
+            continue
+        if severity in {"warning", "error", "failed"}:
+            return True
+    return False
 
 
 def _download_stage_state(
@@ -3226,6 +3686,8 @@ def run_genus_acquisition_workflow(
     query_record_changed = _sync_local_query_if_requested(records, paths, acquisition_config)
     if query_record_changed:
         write_name_map(records, paths.name_map)
+    if config.verify_genus:
+        run_reconciler_audit_stage(paths, acquisition_config)
     if verify_genus_guarded_download:
         download_config = replace(
             acquisition_config,
@@ -3270,6 +3732,7 @@ def run_genus_acquisition_workflow(
             phylo_runner=phylo_runner,
         )
         write_manifest(records, paths.manifest)
+        run_reconciler_audit_stage(paths, download_config)
         if download_config.species_checklist is not None:
             run_taxonomy_audit_stage(
                 records,

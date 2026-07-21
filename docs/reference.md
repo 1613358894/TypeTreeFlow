@@ -218,9 +218,9 @@ boundary.
 
 `typetreeflow.evidence.reconciler` is a pure offline model for reconciling
 LPSN, NCBI Assembly/BioSample, BacDive/DSMZ, archive, curated, and selected
-genome linkage facts into an audit tier. It is not wired into `verify-genus`,
-provider planning, downloads, selection, manifest writes, reports, packages, or
-completion metrics.
+genome linkage facts into an audit tier. The model performs no provider
+planning, downloads, selection, manifest writes, reports, packages, or
+completion metric updates.
 
 The model contract is built from frozen dataclass records:
 `ReconcilerInput`, `SourceEvidence`, `SelectedGenomeEvidence`,
@@ -268,30 +268,31 @@ conflicts, BioSample conflicts, and negative type-material evidence return
 Checklist rows with `public_genome_available=false` return
 `missing_public_genome`.
 
-`typetreeflow.evidence.reconciler_audit` is the planned offline mapper and
-writer layer for future normalized audit outputs. It accepts synthetic or
-already-normalized local evidence rows and maps them to `ReconcilerInput`
-records before calling `reconcile_type_strain_evidence()`. The mapper and
-writers are importable helper functions only; they are not wired into
-`verify-genus` workflow execution, reports, packages, completion metrics,
-manifest mutation, selection behavior, downloads, providers, or
+`typetreeflow.evidence.reconciler_audit` is the offline mapper and writer layer
+for normalized audit outputs. It accepts synthetic or already-normalized local
+evidence rows and maps them to `ReconcilerInput` records before calling
+`reconcile_type_strain_evidence()`.
+
+`verify-genus` runs an audit-only strict reconciliation hook after stable
+selection dry-run/plan outputs are written. In guarded auto-accepted download
+runs, it refreshes the same audit outputs after the final manifest write. The
+hook reads only local workflow files: `species_checklist.tsv`,
+`selection/user_selection.tsv`, `manifest.tsv`, optional
+`evidence/bacdive_enrichment.tsv`, and optional BioSample cache TSV. Missing or
+malformed optional BacDive/BioSample inputs become diagnostics and do not fail
+the workflow.
+
+`strict_reconciliation` is the run-state stage id for this audit-only surface.
+The stage is ordered logically after `selection` and before `gtdb_audit`.
+`succeeded` means the audit output triplet was written with no warning-level
+diagnostics, conflicts, gaps, or manual-review rows. `warning` means the output
+triplet was written with optional input issues, gaps, conflicts, or manual
+review rows. `failed` means the written triplet is incomplete or unreadable.
+These statuses do not change status/next-step stdout, completion metrics,
+manifests, selection, downloads, providers, reports, packages, or
 `--evidence-policy`.
 
-`strict_reconciliation` is a reserved run-state stage id for this future
-audit-only surface. Current normal workflows do not add the stage unless a
-test/helper explicitly sets it, and they do not generate reconciler output
-files. The stage is ordered logically after `selection` and before
-`gtdb_audit`. Its reserved status meanings are:
-`skipped` means the workflow did not run the reconciler audit surface or input
-was unavailable; `succeeded` means the audit output triplet was written;
-`warning` means partial or optional input issues were present but the audit
-output triplet was written; and `failed` is reserved for future writer or
-required-input failures after the P3c-b2b workflow hook exists. These statuses
-are an audit surface only and do not change status/next-step stdout,
-completion metrics, manifests, selection, downloads, providers, reports,
-packages, or evidence-policy behavior in P3c-b2a.
-
-The future primary audit output path is
+The primary audit output path is
 `evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
 expected species. When no selected genome exists, the mapper may write a
 synthetic gap row with blank genome fields and
@@ -307,13 +308,13 @@ synthetic gap row with blank genome fields and
 `source_input_status`, `bacdive_row_count`, and `diagnostic_codes`.
 List-valued TSV fields use a stable semicolon-space delimiter.
 
-The future summary output path is
+The summary output path is
 `evidence/reconciler_summary.json`. Its JSON contract includes
 `schema_version`, `audit_only=true`, `generated_at`, `record_count`,
 `strict_count`, `candidate_count`, `conflict_count`, `gap_count`,
 `manual_review_count`, `diagnostic_count`, and `tier_counts`.
 
-The future diagnostics output path is
+The diagnostics output path is
 `evidence/reconciler_diagnostics.tsv`. Its field order is:
 `schema_version`, `species_name`, `assembly_accession`, `source`, `status`,
 `severity`, `diagnostic_code`, `message`, `source_input_status`, and `notes`.
@@ -422,11 +423,11 @@ Recommended layout:
   enabled
 - `evidence/bacdive_source_audit.json` when BacDive enrichment is explicitly
   enabled
-- `evidence/reconciler_audit.tsv` reserved for the future
+- `evidence/reconciler_audit.tsv` written by the `verify-genus`
   `strict_reconciliation` audit-only stage
-- `evidence/reconciler_summary.json` reserved for the future
+- `evidence/reconciler_summary.json` written by the `verify-genus`
   `strict_reconciliation` audit-only stage
-- `evidence/reconciler_diagnostics.tsv` reserved for the future
+- `evidence/reconciler_diagnostics.tsv` written by the `verify-genus`
   `strict_reconciliation` audit-only stage
 - `report/summary.md`
 - `report/run_review.md`
@@ -454,9 +455,9 @@ Recommended layout:
 - `evidence/bacdive_enrichment.tsv`: `schema_version`, `run_id`, `species`, `checklist_source`, `lpsn_type_strain_text`, `lpsn_type_strain_identifiers`, `query_index`, `query_kind`, `query`, `endpoint`, `lookup_status`, `bacdive_id`, `bacdive_species`, `strain_designation`, `culture_collection_numbers`, `dsmz_accession`, `is_type_strain`, `evidence_tier`, `reconciliation_status`, `overlapping_identifiers`, `selected_genome_linkage`, `strict_confirmed`, `source_platform`, `source_url`, `accessed_at`, `diagnostic_codes`, `notes`
 - `evidence/bacdive_diagnostics.tsv`: `schema_version`, `run_id`, `query_index`, `species`, `query_kind`, `query`, `endpoint`, `status`, `severity`, `diagnostic_code`, `evidence_effect`, `message`, `http_status`, `retry_count`, `accessed_at`, `notes`
 - `evidence/bacdive_source_audit.json`: JSON audit written only for opt-in BacDive enrichment runs. It records `enabled`, `query_mode`, `max_queries`, `timeout_seconds`, `client_kind`, `stage_status`, `live_api_called`, `generated_at`, official documentation/field/terms/citation/license URLs, additive `docs_url`, top-level source-access and call summary fields (`accessed_at_start`, `accessed_at_end`, `endpoint_count`, `lookup_call_count`, `fetch_call_count`, `last_http_status`, `stopped_reason`), `planned_query_count`, `executed_query_count`, `http_call_count`, `http_calls`, `completed_query_count`, `skipped_query_count`, `result_status_counts`, `record_count`, `diagnostic_count`, output paths, `candidate_only`, `strict_confirmed=false`, `strict_or_completion_effect=none`, `raw_payload_policy=not_written`, `raw_payload_saved=false`, and the redaction policy. Fake/no-client paths do not synthesize HTTP call counts; blocked public live paths keep zero call counts and record the blocker in `stopped_reason`.
-- `evidence/reconciler_audit.tsv`: reserved audit-only output for the future `strict_reconciliation` stage. Field order: `schema_version`, `species_name`, `assembly_accession`, `strain_designation`, `biosample_accession`, `selection_policy`, `selection_evidence_level`, `manifest_evidence_level`, `manifest_type_confirmation_status`, `reconciled_evidence_tier`, `strict_usable`, `requires_manual_review`, `strict_upgrade_basis`, `authority_sources`, `matched_lpsn_type_tokens`, `matched_bacdive_accessions`, `matched_biosample_accessions`, `selected_genome_linkage`, `conflict_status`, `reconciliation_notes`, `source_input_status`, `bacdive_row_count`, `diagnostic_codes`
-- `evidence/reconciler_summary.json`: reserved audit-only JSON summary for the future `strict_reconciliation` stage. Count fields: `record_count`, `strict_count`, `candidate_count`, `conflict_count`, `gap_count`, `manual_review_count`, `diagnostic_count`
-- `evidence/reconciler_diagnostics.tsv`: reserved audit-only diagnostics for the future `strict_reconciliation` stage. Field order: `schema_version`, `species_name`, `assembly_accession`, `source`, `status`, `severity`, `diagnostic_code`, `message`, `source_input_status`, `notes`
+- `evidence/reconciler_audit.tsv`: audit-only output for the `strict_reconciliation` stage. Field order: `schema_version`, `species_name`, `assembly_accession`, `strain_designation`, `biosample_accession`, `selection_policy`, `selection_evidence_level`, `manifest_evidence_level`, `manifest_type_confirmation_status`, `reconciled_evidence_tier`, `strict_usable`, `requires_manual_review`, `strict_upgrade_basis`, `authority_sources`, `matched_lpsn_type_tokens`, `matched_bacdive_accessions`, `matched_biosample_accessions`, `selected_genome_linkage`, `conflict_status`, `reconciliation_notes`, `source_input_status`, `bacdive_row_count`, `diagnostic_codes`
+- `evidence/reconciler_summary.json`: audit-only JSON summary for the `strict_reconciliation` stage. Count fields: `record_count`, `strict_count`, `candidate_count`, `conflict_count`, `gap_count`, `manual_review_count`, `diagnostic_count`
+- `evidence/reconciler_diagnostics.tsv`: audit-only diagnostics for the `strict_reconciliation` stage. Field order: `schema_version`, `species_name`, `assembly_accession`, `source`, `status`, `severity`, `diagnostic_code`, `message`, `source_input_status`, `notes`
 - `candidates/assembly_candidates.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `bioproject`, `assembly_level`, `refseq_category`, `is_type_material`, `culture_collection_ids`, `has_recognized_deposit_id`, `lpsn_type_strain_ids`, `ncbi_culture_collection_ids`, `curator_culture_collection_ids`, `matched_lpsn_type_strain_ids`, `has_lpsn_type_strain_match`, `match_evidence`, `curator_evidence_source`, `curator_notes`, `curator_evidence_applied`, `discovery_name`, `discovery_name_type`, `matched_correct_name`, `synonym_used`, `synonym_evidence`, `requires_manual_review`, `manual_review_reason`, `source`, `notes`
 - `candidates/assembly_candidate_diagnostics.tsv`: `species`, `code`, `message`, `assembly_accession`
 - `candidates/discovery_records.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `bioproject`, `assembly_level`, `refseq_category`, `is_type_material`, `source`, `notes`

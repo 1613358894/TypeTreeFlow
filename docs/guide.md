@@ -72,6 +72,12 @@ Review `status`, `next-step`, `report/summary.md`, `report/run_review.md`,
 `selection/strain_candidates.tsv`, and `selection/user_selection.tsv`.
 Selection evidence levels remain distinct: `strict_confirmed`,
 `likely_type_material`, and `representative_only` are not interchangeable.
+`verify-genus` also writes audit-only strict reconciliation files under
+`evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
+`evidence/reconciler_diagnostics.tsv` when the local checklist, selection, and
+manifest outputs are available. These files are for review only; they do not
+change selected rows, manifest rows, downloads, completion metrics,
+`--evidence-policy`, reports, or package membership.
 
 ## Bounded Real Smoke
 
