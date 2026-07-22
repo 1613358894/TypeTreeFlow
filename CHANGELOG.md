@@ -1,5 +1,58 @@
 # Changelog
 
+## v2.2.36 - 2026-07-22
+
+v2.2.36 is an audit-only strict reconciliation package inclusion release based
+on v2.2.35. It includes existing local reconciler audit artifacts in
+`package-results --include reports` and `--include all` while preserving the
+v2.2.35 report section, selection, manifests, downloads, providers,
+completion metrics, package tiering, evidence-policy behavior, existing
+BacDive artifact-scope rows, raw/cache/private/env/tmp/sequence exclusions,
+and `--failed-handoff` behavior.
+
+### Added
+
+- `package-results --include reports` and `--include all` copy existing
+  reconciler audit artifacts to package `evidence/`:
+  `evidence/reconciler_audit.tsv`,
+  `evidence/reconciler_summary.json`, and
+  `evidence/reconciler_diagnostics.tsv`.
+- Package `artifact_scope.tsv` and `reports/artifact_scope.tsv` get one
+  audit-only row per copied reconciler file, with
+  `strict_scientific_deliverable=false`.
+- Delivery `README.md` and `handoff_index.md` describe reconciler package
+  inclusion as audit availability, not strict scientific delivery.
+
+### Fixed
+
+- Missing reconciler outputs are omitted gracefully.
+- Partial reconciler triplets copy existing files without failing package
+  generation.
+
+### Scientific Boundary
+
+- Reconciler package inclusion means audit availability, not a strict
+  scientific deliverable.
+- Reconciler `strict_count` values and `strict_usable=true` rows do not change
+  completion metrics.
+- No strict gating, package tiering, evidence-policy, manifest, selection,
+  provider/download, or completion behavior changes are included.
+- Existing BacDive `artifact_scope` rows are unchanged.
+- Raw/cache/private/env/tmp/sequence payloads remain excluded.
+
+### Verification
+
+- Local release gates PASS.
+- Reconciler package artifact offline smoke PASS. This is bounded release
+  evidence only and is not broad live validation, strict gating, production,
+  full-download, or full Clostridium strict validation.
+
+### Notes
+
+- `--failed-handoff` behavior remains unchanged and does not copy reconciler
+  package outputs.
+- This release does not claim broad live validation or strict gating.
+
 ## v2.2.35 - 2026-07-21
 
 v2.2.35 is an audit-only strict reconciliation report-section release based on

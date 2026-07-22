@@ -1,9 +1,54 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.35 integration review as
+These notes consolidate the v2.2.2 through v2.2.36 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.36
+
+v2.2.36 is an audit-only strict reconciliation package inclusion release based
+on v2.2.35. It includes existing local reconciler audit artifacts in
+`package-results --include reports` and `--include all` without changing
+selection, manifests, downloads, providers, completion metrics, package
+tiering, `--failed-handoff`, existing BacDive artifact-scope rows,
+raw/cache/private/env/tmp/sequence exclusions, live query scope, or
+evidence-policy behavior:
+
+- `package-results --include reports` and `--include all` copy existing
+  `evidence/reconciler_audit.tsv`,
+  `evidence/reconciler_summary.json`, and
+  `evidence/reconciler_diagnostics.tsv` files to package `evidence/`.
+- Missing reconciler outputs are omitted gracefully.
+- Partial reconciler triplets copy existing files without failing package
+  generation.
+- Package `artifact_scope.tsv` and `reports/artifact_scope.tsv` get one
+  audit-only row per copied reconciler file, with
+  `strict_scientific_deliverable=false`.
+- Existing BacDive artifact-scope rows are unchanged.
+- Reconciler package inclusion means audit availability, not a strict
+  scientific deliverable.
+- Reconciler `strict_count` values and `strict_usable=true` row values do not
+  change completion metrics.
+- Raw/cache/private/env/tmp/sequence payloads remain excluded.
+- Verification evidence includes local release gates PASS and reconciler
+  package artifact offline smoke PASS. The smoke is bounded release evidence
+  only, not broad live validation, strict gating, production, full-download,
+  or full Clostridium strict validation.
+
+v2.2.36 does not add strict gating, package tiering, evidence-policy changes,
+manifest mutation, selection changes, provider/download behavior changes,
+completion behavior changes, release asset publication, broad live validation,
+or strict evidence threshold changes. It does not call live BacDive, run live
+LPSN/NCBI/Entrez lookups, run datasets downloads, or run external
+bioinformatics tools. The v2.2.35 report section, v2.2.34 audit-only strict
+reconciliation workflow hook, v2.2.33 strict reconciliation stage surface,
+v2.2.32 audit mapper/writers, v2.2.31 strict evidence reconciler model,
+v2.2.30 BacDive compact wording, v2.2.29 BacDive source-audit polish, v2.2.28
+bounded public live tokens path, v2.2.27 live-client HTTP skeleton, v2.2.26
+report/package handoff, v2.2.25 skeleton, v2.2.24 configuration plumbing,
+v2.2.23 offline adapter contract, v2.2.22 offline BacDive model, and v2.2.21
+artifact scope readability semantics remain valid.
 
 ## v2.2.35
 

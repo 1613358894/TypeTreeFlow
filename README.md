@@ -1,14 +1,16 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.35 release source adds a compact audit-only
-`Strict Reconciliation Audit` section to `report/summary.md` when local
-reconciler outputs exist, while preserving the v2.2.34 audit-only
-`strict_reconciliation` workflow outputs, the v2.2.32 offline reconciler audit
-mapper/writers, the v2.2.31 strict evidence reconciler model, the v2.2.30
-BacDive compact report/package wording, the v2.2.29 BacDive source-audit
-top-level summary fields, the bounded BacDive v2 HTTP client, and the public
-tokens-only workflow from v2.2.28. The audit outputs are
+workflow. The current 2.2.36 release source includes existing audit-only
+strict reconciliation artifacts in `package-results --include reports` and
+`--include all` when local reconciler outputs exist, while preserving the
+v2.2.35 compact audit-only `Strict Reconciliation Audit` report section, the
+v2.2.34 audit-only `strict_reconciliation` workflow outputs, the v2.2.32
+offline reconciler audit mapper/writers, the v2.2.31 strict evidence
+reconciler model, the v2.2.30 BacDive compact report/package wording, the
+v2.2.29 BacDive source-audit top-level summary fields, the bounded BacDive v2
+HTTP client, and the public tokens-only workflow from v2.2.28. The audit
+outputs are
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv`. The `strict_reconciliation` run-state
 stage is inferred when the output triplet exists, and stage summaries include
@@ -17,15 +19,21 @@ stage is inferred when the output triplet exists, and stage summaries include
 `audit_only=true`. The report section displays those count fields and
 `audit_only`, may show compact reconciler diagnostic-code counts, omits itself
 when outputs are absent, tolerates malformed summary JSON without failing
-report generation, and handles zero-count summaries. The hook runs after
+report generation, and handles zero-count summaries. Packages copy any
+existing reconciler files without requiring the complete triplet, omit missing
+outputs gracefully, leave `--failed-handoff` behavior unchanged, and add one
+audit-only `artifact_scope.tsv` row per copied reconciler file with
+`strict_scientific_deliverable=false`. Reconciler package inclusion means
+audit availability, not strict scientific delivery; reconciler `strict_count`
+and `strict_usable=true` row values do not change completion metrics. Existing
+BacDive artifact-scope rows are unchanged, and raw/cache/private/env/tmp/sequence
+payloads remain excluded. The hook runs after
 stable selection/plan output and refreshes after the final post-download
 manifest write. Optional missing or malformed BacDive and BioSample inputs
 produce diagnostics and warnings, not core workflow failure. These surfaces
-are audit-only. They do not change packages, manifests, selection, downloads,
-providers, completion metrics, package/delivery membership, `artifact_scope`,
-or `--evidence-policy`; report counts do not imply package artifacts are
-strict scientific deliverables, and strict gating/package tiering remains
-future work. The pure
+are audit-only. They do not change manifests, selection, downloads, providers,
+completion metrics, package tiering, evidence-policy behavior, or strict
+gating. The pure
 reconciler records and `reconcile_type_strain_evidence()` function combine
 LPSN, NCBI/BioSample, BacDive, curated/archive, and selected-genome linkage
 evidence into
@@ -130,7 +138,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.35 workflow
+## Recommended v2.2.36 workflow
 
 Plan first:
 
@@ -274,11 +282,11 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.35 release record includes local release gates PASS and Strict
-Reconciliation Audit report-section offline smoke PASS. The smoke is bounded
-release evidence only; it is not production, broad live-provider,
-full-download, broad live validation, strict gating, or full Clostridium
-strict validation. The current source writes audit-only
+The v2.2.36 release record includes local release gates PASS and reconciler
+package artifact offline smoke PASS. The smoke is bounded release evidence
+only; it is not production, broad live-provider, full-download, broad live
+validation, strict gating, or full Clostridium strict validation. The current
+source writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv` from local `verify-genus` artifacts;
@@ -294,15 +302,23 @@ Missing reconciler outputs omit the section, malformed summary JSON does not
 fail report generation, and zero-count summaries are handled. The hook runs
 after stable selection/plan output and refreshes after the final post-download
 manifest write. Optional missing or malformed BacDive and BioSample inputs
-produce diagnostics and warnings, not core workflow failure. The report
-section is audit-only: it does not change manifests, selection, downloads,
-provider behavior, completion metrics, package/delivery membership,
-`artifact_scope`, FASTA content, default phylogeny inputs, live query scope,
-or evidence-policy behavior, and it does not imply package artifacts are
-strict scientific deliverables. Strict gating and package tiering remain
-future work.
+produce diagnostics and warnings, not core workflow failure.
+`package-results --include reports` and `--include all` copy existing
+reconciler audit files to package `evidence/`, omit missing outputs
+gracefully, and copy partial triplets without failing package generation.
+Package `artifact_scope.tsv` receives one audit-only row per copied reconciler
+file. Reconciler package inclusion means audit availability, not strict
+scientific delivery; `strict_count` and `strict_usable=true` row values do not
+change completion metrics. Existing BacDive artifact-scope rows are unchanged,
+raw/cache/private/env/tmp/sequence payloads remain excluded, and
+`--failed-handoff` behavior remains unchanged. These surfaces are audit-only:
+they do not change manifests, selection, downloads, provider behavior,
+completion metrics, package tiering, FASTA content, default phylogeny inputs,
+live query scope, evidence-policy behavior, or strict gating. Strict gating and
+package tiering remain future work.
 Strict tiers continue to come only from the reconciler model. The still-valid
-v2.2.32 audit mapper/writers, v2.2.31 strict evidence reconciler model,
+v2.2.35 report section, v2.2.34 hook, v2.2.32 audit mapper/writers,
+v2.2.31 strict evidence reconciler model,
 v2.2.30 BacDive compact wording, v2.2.29 BacDive source-audit polish, v2.2.28
 bounded public live tokens path, v2.2.27 BacDive live-client HTTP skeleton,
 v2.2.26 BacDive report/package handoff, v2.2.25 skeleton, v2.2.24
