@@ -297,4 +297,36 @@ def test_report_only_includes_existing_reconciler_summary(tmp_path):
         "conflict_count=0; gap_count=0; manual_review_count=1; "
         "diagnostic_count=0"
     ) in summary
+    assert summary.count("## Strict Reconciliation Audit") == 1
     assert "Counts do not change completion metrics" in summary
+
+    paths.reconciler_summary_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "audit_only": True,
+                "generated_at": "2026-07-21T00:00:00+00:00",
+                "record_count": 3,
+                "strict_count": 2,
+                "candidate_count": 1,
+                "conflict_count": 0,
+                "gap_count": 0,
+                "manual_review_count": 1,
+                "diagnostic_count": 4,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = main(["--outdir", str(outdir), "--report-only"])
+
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert summary.count("## Strict Reconciliation Audit") == 1
+    assert (
+        "- Counts: record_count=3; strict_count=2; candidate_count=1; "
+        "conflict_count=0; gap_count=0; manual_review_count=1; "
+        "diagnostic_count=4"
+    ) in summary

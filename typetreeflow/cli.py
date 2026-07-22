@@ -3686,8 +3686,6 @@ def run_genus_acquisition_workflow(
     query_record_changed = _sync_local_query_if_requested(records, paths, acquisition_config)
     if query_record_changed:
         write_name_map(records, paths.name_map)
-    if config.verify_genus:
-        run_reconciler_audit_stage(paths, acquisition_config)
     if verify_genus_guarded_download:
         download_config = replace(
             acquisition_config,
@@ -4614,6 +4612,8 @@ def run_selection_dry_run_stage(
         run_taxonomy_audit_stage(records, paths, config.species_checklist)
     if _gtdb_metadata_audit_configured(config):
         run_gtdb_metadata_audit_stage(records, paths, config)
+    if config.verify_genus:
+        run_reconciler_audit_stage(paths, config)
     _write_run_summary(
         records,
         paths,

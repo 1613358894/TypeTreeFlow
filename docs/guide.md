@@ -78,7 +78,8 @@ Selection evidence levels remain distinct: `strict_confirmed`,
 manifest outputs are available. These files are for review only; they do not
 change selected rows, manifest rows, downloads, completion metrics,
 `--evidence-policy`, or package membership. When present, `report/summary.md`
-may show a compact Strict Reconciliation Audit section from those local files.
+shows a compact Strict Reconciliation Audit section from those local files in
+the same workflow run when that run generates or refreshes the report.
 Treat that section as audit-only: counts do not change completion metrics, do
 not by themselves make package artifacts strict scientific deliverables, and do
 not enable strict gating or package tiering.

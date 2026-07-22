@@ -307,7 +307,11 @@ review rows. `failed` means the written triplet is incomplete or unreadable.
 These statuses do not change status/next-step stdout, completion metrics,
 manifests, selection, downloads, providers, packages, or `--evidence-policy`.
 Report surfacing is limited to the audit-only Strict Reconciliation Audit
-summary when local reconciler outputs already exist.
+summary. `verify-genus` writes or refreshes the local reconciler outputs before
+same-run report generation, so a generated `report/summary.md` sees the
+reconciler audit counts without a separate report-only refresh. Guarded
+auto-accepted download runs refresh the audit outputs after the final manifest
+write and before the final report is generated.
 
 The primary audit output path is
 `evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
