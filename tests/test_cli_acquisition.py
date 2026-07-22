@@ -1331,10 +1331,18 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert paths.run_summary_path.exists()
     assert paths.run_state_path.exists()
     assert paths.manifest.exists()
+    summary_markdown = paths.run_summary_path.read_text(encoding="utf-8")
     summary = _assert_reconciler_outputs(paths, expected_records=2)
     assert summary["strict_count"] == 2
     assert summary["candidate_count"] == 0
     assert summary["manual_review_count"] == 0
+    assert summary_markdown.count("## Strict Reconciliation Audit") == 1
+    assert (
+        "- Counts: record_count=2; strict_count=2; candidate_count=0; "
+        "conflict_count=0; gap_count=0; manual_review_count=0; "
+        "diagnostic_count=3"
+    ) in summary_markdown
+    assert "Counts do not change completion metrics" in summary_markdown
     assert state.status == "partial"
     assert state.stages["strict_reconciliation"].status == "warning"
     assert "record_count=2" in state.stages["strict_reconciliation"].summary
@@ -1358,7 +1366,12 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert paths.manifest.read_text(encoding="utf-8") == manifest_before
     assert paths.user_selection_path.read_text(encoding="utf-8") == selection_before
     assert paths.completion_summary_path.exists() is False
-    assert "reconciler" not in paths.run_summary_path.read_text(encoding="utf-8").lower()
+    assert (
+        paths.run_summary_path.read_text(encoding="utf-8").count(
+            "## Strict Reconciliation Audit"
+        )
+        == 1
+    )
     delivery_dir = tmp_path / "delivery_reconciler_boundary"
     assert (
         main(
@@ -2877,10 +2890,19 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     hook_manifest_statuses: list[set[str]] = []
 
     def tracked_reconciler_hook(paths, config):
-        hook_manifest_statuses.append(
-            {record.status for record in read_manifest(paths.manifest)}
-        )
-        return run_reconciler_audit_stage(paths, config)
+        manifest_statuses = {record.status for record in read_manifest(paths.manifest)}
+        hook_manifest_statuses.append(manifest_statuses)
+        result = run_reconciler_audit_stage(paths, config)
+        if manifest_statuses == {"genome_ready"}:
+            summary_payload = json.loads(
+                paths.reconciler_summary_path.read_text(encoding="utf-8")
+            )
+            summary_payload["diagnostic_count"] = 37
+            paths.reconciler_summary_path.write_text(
+                json.dumps(summary_payload, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        return result
 
     monkeypatch.setattr(
         "typetreeflow.cli.run_reconciler_audit_stage",
@@ -2928,6 +2950,7 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     assert paths.run_state_path.exists()
     summary_json = _assert_reconciler_outputs(paths, expected_records=2)
     assert summary_json["strict_count"] == 2
+    assert summary_json["diagnostic_count"] == 37
     assert hook_manifest_statuses == [{"genome_download_planned"}, {"genome_ready"}]
     assert state.stages["download"].status == "succeeded"
     assert state.stages["strict_reconciliation"].status == "warning"
@@ -2937,6 +2960,8 @@ def test_verify_genus_auto_accept_enable_downloads_runs_guarded_fake_downloads(
     assert not paths.rrna_plan_path.exists()
     assert not paths.all_16s_fasta_path.exists()
     assert "auto_accepted_selection" in summary
+    assert summary.count("## Strict Reconciliation Audit") == 1
+    assert "diagnostic_count=37" in summary
     assert {record.status for record in records} == {"genome_ready"}
 
 
