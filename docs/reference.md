@@ -313,6 +313,12 @@ reconciler audit counts without a separate report-only refresh. Guarded
 auto-accepted download runs refresh the audit outputs after the final manifest
 write and before the final report is generated.
 
+`--report-only` has priority over `--resume`. In particular,
+`verify-genus GENUS --resume --report-only` reads the existing manifest and
+available reconciler outputs to refresh the reports without entering resume
+planning, rewriting the manifest, or regenerating derived workflow outputs.
+Normal `--resume` behavior is unchanged when `--report-only` is absent.
+
 The primary audit output path is
 `evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
 expected species. When no selected genome exists, the mapper may write a

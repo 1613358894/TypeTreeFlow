@@ -960,6 +960,13 @@ def main(
                 raise ValueError("--strains-per-species must be at least 1")
             if config.limit_selected is not None and config.limit_selected < 1:
                 raise ValueError("--limit-selected must be at least 1")
+            if config.report_only:
+                records = load_existing_manifest(config.outdir)
+                _write_run_summary(records, paths, config)
+                if not _source_audit_policy_allows_stage(paths, config, "report"):
+                    exit_code = 2
+                    return 2
+                return 0
             if config.plan_provider_registration is not None:
                 run_provider_registration_planning_stage(paths, config)
                 return 0
@@ -1016,13 +1023,6 @@ def main(
                     run_lpsn_child_taxa_checklist_conversion(config)
                 else:
                     run_lpsn_species_checklist_conversion(config, lpsn_client=lpsn_client)
-                return 0
-            if config.report_only:
-                records = load_existing_manifest(config.outdir)
-                _write_run_summary(records, paths, config)
-                if not _source_audit_policy_allows_stage(paths, config, "report"):
-                    exit_code = 2
-                    return 2
                 return 0
             if config.discover_assembly_candidates:
                 run_candidate_discovery_stage(
@@ -1943,7 +1943,7 @@ def _write_run_summary(
 ) -> None:
     taxonomy_error: Exception | None = None
     ncbi_taxonomy_lookup_status = ""
-    if config.verify_genus:
+    if config.verify_genus and not config.report_only:
         try:
             ncbi_taxonomy_lookup_status = _write_ncbi_taxonomy_outputs(
                 paths,

@@ -4,7 +4,7 @@ from pathlib import Path
 from typetreeflow import cli
 from typetreeflow.completion import CompletionSummary, write_completion_summary
 from typetreeflow.cli import main
-from typetreeflow.manifest import write_manifest
+from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.taxonomy.source_audit import (
     SequenceSourceAudit,
@@ -50,6 +50,112 @@ def test_report_only_refreshes_report_without_genus_or_metadata(tmp_path):
     assert "- 16S-ready records: 1" in summary
     assert "rrna_16s_skipped_existing | note for rrna_16s_skipped_existing" not in summary
     assert "| missing-genome | Aliivibrio fischeri ES114 | skipped_no_genome | note for skipped_no_genome |" in summary
+
+
+def test_verify_genus_resume_report_only_preserves_manifest_and_skips_planning(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    record = _record("ready", "genome_ready")
+    record.has_genome = True
+    record.genome_path = "genomes/references/ready.fna"
+    genome_path = outdir / record.genome_path
+    genome_path.parent.mkdir(parents=True, exist_ok=True)
+    genome_path.write_text(">ready\nACGT\n", encoding="utf-8")
+    write_manifest([record], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    paths.report_dir.mkdir(parents=True, exist_ok=True)
+    paths.run_summary_path.write_text("stale report\n", encoding="utf-8")
+    paths.evidence_dir.mkdir(parents=True, exist_ok=True)
+    paths.reconciler_summary_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "audit_only": True,
+                "generated_at": "2026-07-22T00:00:00+00:00",
+                "record_count": 1,
+                "strict_count": 1,
+                "candidate_count": 0,
+                "conflict_count": 0,
+                "gap_count": 0,
+                "manual_review_count": 0,
+                "diagnostic_count": 0,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_side_effect(*args, **kwargs):
+        raise AssertionError("report-only must not enter resume or planning side effects")
+
+    for name in (
+        "_run_resume_from_manifest",
+        "_write_genome_download_plan",
+        "_prepare_local_16s_if_ready",
+        "_write_ani_plan_if_ready",
+        "_write_phylo_plan",
+        "mark_rrna_planned_records",
+        "write_manifest",
+        "_write_ncbi_taxonomy_outputs",
+        "_write_completion_gap_reports",
+        "_write_expanded_discovery_results_if_enabled",
+    ):
+        monkeypatch.setattr(cli, name, fail_side_effect)
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+        ]
+    )
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert payload["command"] == "verify-genus"
+    assert output.strip().startswith("{")
+    assert "Authentication successful" not in output
+    assert paths.manifest.read_bytes() == manifest_before
+    assert read_manifest(paths.manifest)[0].status == "genome_ready"
+    assert not paths.rrna_plan_path.exists()
+    assert "stale report" not in summary
+    assert "## Strict Reconciliation Audit" in summary
+
+
+def test_verify_genus_resume_without_report_only_still_plans_rrna(tmp_path, capsys):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    record = _record("ready", "genome_ready")
+    record.has_genome = True
+    record.genome_path = "genomes/references/ready.fna"
+    genome_path = outdir / record.genome_path
+    genome_path.parent.mkdir(parents=True, exist_ok=True)
+    genome_path.write_text(">ready\nACGT\n", encoding="utf-8")
+    write_manifest([record], paths.manifest)
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+        ]
+    )
+
+    json.loads(capsys.readouterr().out)
+    assert result == 0
+    assert paths.rrna_plan_path.exists()
+    assert read_manifest(paths.manifest)[0].status == "rrna_extraction_planned"
 
 
 def test_report_only_missing_manifest_returns_error(tmp_path, caplog):
