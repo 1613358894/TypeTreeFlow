@@ -1,9 +1,30 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.36 integration review as
+These notes consolidate the v2.2.2 through v2.2.37 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.37
+
+v2.2.37 makes `verify-genus --resume --report-only` read-only for
+`manifest.tsv` and derived workflow state. `report_only` dispatches before
+`resume`, so the combined command refreshes reports only:
+
+- It reads the existing manifest and available local report inputs.
+- It does not run rRNA planning or call `mark_rrna_planned_records()`.
+- It does not write or mutate `manifest.tsv`.
+- It does not regenerate taxonomy, completion, or expanded-discovery outputs.
+- Normal `--resume` behavior remains unchanged.
+- Bare `--report-only` behavior remains unchanged.
+- Same-run `Strict Reconciliation Audit` report behavior remains unchanged.
+- Verification evidence includes local release gates PASS and report-order
+  offline smoke rerun PASS.
+
+The smoke is bounded offline release evidence only. v2.2.37 does not claim
+broad live validation or strict gating, and it does not run live BacDive,
+LPSN/NCBI/Entrez lookups, datasets downloads, or external bioinformatics
+tools.
 
 ## v2.2.36
 

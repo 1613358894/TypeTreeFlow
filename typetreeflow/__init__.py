@@ -1,3 +1,3 @@
 """TypeTreeFlow package."""
 
-__version__ = "2.2.36"
+__version__ = "2.2.37"

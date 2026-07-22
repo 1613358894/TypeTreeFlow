@@ -1,10 +1,14 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.36 release source includes existing audit-only
-strict reconciliation artifacts in `package-results --include reports` and
-`--include all` when local reconciler outputs exist, while preserving the
-v2.2.35 compact audit-only `Strict Reconciliation Audit` report section, the
+workflow. The current 2.2.37 release source makes
+`verify-genus --resume --report-only` read-only for `manifest.tsv` and derived
+workflow state. `report_only` dispatches before `resume`, so the combined
+command refreshes reports without rRNA planning, manifest writes, or taxonomy,
+completion, and expanded-discovery regeneration. Normal `--resume`, bare
+`--report-only`, and same-run `Strict Reconciliation Audit` report behavior
+remain unchanged. The release preserves the v2.2.36 audit-only reconciler
+package inclusion, the v2.2.35 compact audit-only report section, the
 v2.2.34 audit-only `strict_reconciliation` workflow outputs, the v2.2.32
 offline reconciler audit mapper/writers, the v2.2.31 strict evidence
 reconciler model, the v2.2.30 BacDive compact report/package wording, the
@@ -138,7 +142,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.36 workflow
+## Recommended v2.2.37 workflow
 
 Plan first:
 
@@ -282,11 +286,10 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.36 release record includes local release gates PASS and reconciler
-package artifact offline smoke PASS. The smoke is bounded release evidence
-only; it is not production, broad live-provider, full-download, broad live
-validation, strict gating, or full Clostridium strict validation. The current
-source writes audit-only
+The v2.2.37 release record includes local release gates PASS and report-order
+offline smoke rerun PASS. This is bounded offline release evidence only and
+does not claim broad live validation or strict gating. The current source
+writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv` from local `verify-genus` artifacts;

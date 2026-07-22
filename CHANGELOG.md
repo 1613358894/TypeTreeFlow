@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.2.37 - 2026-07-22
+
+v2.2.37 makes `verify-genus --resume --report-only` a report refresh that is
+read-only for `manifest.tsv` and derived workflow state. `report_only`
+dispatches before `resume`, so the combined command reads existing local
+artifacts and refreshes reports without entering resume planning.
+
+### Fixed
+
+- Combined `--resume --report-only` does not run rRNA planning or call
+  `mark_rrna_planned_records()`.
+- It does not write or mutate `manifest.tsv` and does not regenerate taxonomy,
+  completion, or expanded-discovery outputs.
+
+### Compatibility
+
+- Normal `--resume` behavior remains unchanged.
+- Bare `--report-only` behavior remains unchanged.
+- Same-run `Strict Reconciliation Audit` report behavior remains unchanged.
+
+### Verification
+
+- Local release gates PASS.
+- Report-order offline smoke rerun PASS. This is bounded offline release
+  evidence only and does not claim broad live validation or strict gating.
+
 ## v2.2.36 - 2026-07-22
 
 v2.2.36 is an audit-only strict reconciliation package inclusion release based

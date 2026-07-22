@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.36 / 2.2.36 release verification path uses
+The current v2.2.37 / 2.2.37 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -32,6 +32,13 @@ repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`,
 operator-run `barrnap --updatedb`, and `typetreeflow doctor`; server rehearsal
 passed the clean deployment full rerun.
+
+For v2.2.37, `verify-genus --resume --report-only` dispatches report-only
+before resume and refreshes reports from existing local artifacts. It does not
+run rRNA planning, call `mark_rrna_planned_records()`, write or mutate
+`manifest.tsv`, or regenerate taxonomy, completion, or expanded-discovery
+outputs. Normal `--resume`, bare `--report-only`, and same-run `Strict
+Reconciliation Audit` report behavior remain unchanged.
 
 Selection evidence levels remain visible as `strict_confirmed`,
 `likely_type_material`, and `representative_only`. `--auto-accept-selection`
@@ -219,11 +226,10 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.36 release record includes local release gates PASS and reconciler
-package artifact offline smoke PASS. The smoke is bounded release evidence
-only: it does not claim production, broad live-provider, full-download, broad
-live validation, strict gating, or full Clostridium strict validation. The
-current source writes audit-only
+The v2.2.37 release record includes local release gates PASS and report-order
+offline smoke rerun PASS. This is bounded offline release evidence only: it
+does not claim broad live validation or strict gating. The current source
+writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv`; `WorkflowState` infers the
