@@ -215,6 +215,12 @@ typetreeflow verify-genus Fusobacterium --outdir <workspace>/runs/fusobacterium_
 recomputes planned outputs. Cross-genus outdir reuse is blocked unless
 `--allow-genus-change` is explicit.
 
+To refresh reports for an existing run without resuming workflow stages, use
+`verify-genus GENUS --outdir <workspace>/runs/genus --resume --report-only`.
+Report-only takes priority over resume: it reads existing manifest and audit
+outputs but does not plan rRNA work, rewrite the manifest, or regenerate
+derived workflow outputs.
+
 ## External Genome Registration
 
 Manual external genomes enter only through reviewed `external_genomes.tsv`.
