@@ -131,6 +131,19 @@ issues TSV is a curator handoff artifact only. Its existence, including a
 header-only PASS result, does not create workflow output or upgrade a strict
 scientific deliverable.
 
+The library-only manual-review import mapper adds deterministic audit linkage
+to the exact frozen `reconciler_audit.tsv`. Its decision, summary, and
+diagnostic serializations are independent handoff artifacts, not manifest,
+selection, completion, reconciler, report, or package outputs. A clean,
+validated `curated_strict_confirmed` row may be labeled
+`strict_upgrade_candidate=true`, including when the frozen tier is an
+NCBI-only or BacDive-supported candidate, but that label is not an automatic
+scientific promotion. `strict_upgrade_applied` is always `false`. A frozen
+non-`none` conflict or `conflict_blocked` tier blocks the candidate, and
+candidate, conflict, gap, and exclusion review statuses can never be strict
+candidates. The mapper does not change evidence-policy gating or initiate live
+lookups, downloads, or provider actions.
+
 ## Evidence Policy
 
 Evidence policy is a run-level derived-view strategy, not a source fact or an
