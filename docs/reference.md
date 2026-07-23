@@ -362,6 +362,21 @@ issues can also be rendered as TSV text with
 `manual_review_validation_tsv()`. The renderer returns text and does not choose
 or write an output path.
 
+The read-only CLI adapter is:
+
+```text
+typetreeflow manual-review validate --input <review.tsv> [--json]
+```
+
+It always emits exactly one compact JSON object to stdout; `--json` is an
+accepted no-op. It has no `--out` and writes no workflow or issues file. Exit
+code `0` reports a valid TSV, `2` reports command usage, unreadable input,
+schema, or row-validation issues, and `1` reports an unexpected internal
+error. The envelope includes `status`, `command`, `input`, `record_count`,
+`valid_count`, `issue_count`, `strict_candidate_count`,
+`blocked_strict_count`, a bounded `issues_preview`, `dry_run=true`,
+`writes_outputs=false`, and `strict_upgrade_applied=false`.
+
 The required TSV columns, in stable order, are `species`,
 `selected_accession`, `review_status`, `reviewer_id`, `review_date`,
 `evidence_summary`, `evidence_source_ids`, `conflict_resolution`,
@@ -384,8 +399,8 @@ status.
 `dry_run=true` means only that the decision TSV passed or failed schema and
 policy validation. A valid `curated_strict_confirmed` row remains a curator
 decision awaiting a separately authorized implementation/import; this module
-does not upgrade the reconciler tier or create a strict scientific
-deliverable.
+does not upgrade manifest, reconciler, report, or package strict status and
+does not create a strict scientific deliverable.
 
 ### Doctor Readiness
 

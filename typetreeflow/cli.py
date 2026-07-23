@@ -920,6 +920,14 @@ def main(
     bacdive_transport: BacDiveHTTPTransportProtocol | None = None,
     lpsn_client=None,
 ) -> int:
+    command_argv = list(sys.argv[1:] if argv is None else argv)
+    from typetreeflow.manual_review_cli import (
+        is_manual_review_command,
+        run_manual_review_command,
+    )
+
+    if is_manual_review_command(command_argv):
+        return run_manual_review_command(command_argv)
     config = parse_args(argv)
     setup_logging(config.log_level)
     paths = get_output_paths(config.outdir)
