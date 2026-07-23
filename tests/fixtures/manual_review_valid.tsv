@@ -1,0 +1,5 @@
+species	selected_accession	review_status	reviewer_id	review_date	evidence_summary	evidence_source_ids	conflict_resolution	second_reviewer_id	decision_notes
+Clostridium alpha	GCF_000000001.1	curated_strict_confirmed	curator-a	2026-07-23	GCF_000000001.1 is directly linked to the accepted type-strain deposit token.	LPSN:alpha-1;BioSample:SAMN000001	resolved	curator-b	Exact accession and linkage independently reviewed.
+Clostridium beta	GCF_000000002.1	candidate_needs_more_evidence	curator-a	2026-07-23	Selected record lacks a direct type-strain equivalence edge.	Assembly:GCF_000000002.1	none		Retain as candidate only.
+Clostridium gamma	GCF_000000003.1	conflict_blocked	curator-a	2026-07-23	Species and deposit-token assertions remain inconsistent.	LPSN:gamma-1;Assembly:GCF_000000003.1	unresolved		Do not use as strict.
+Clostridium delta		gap_no_public_strict_genome	curator-a	2026-07-23	No retained evidence binds a public genome to the type-strain set.	LPSN:delta-1	none		This is not evidence that provider lookup was attempted.

@@ -351,6 +351,42 @@ BacDive or BioSample rows, no selected genome gap rows, conflicts detected by
 the reconciler, and the audit-only status. Diagnostics are review evidence;
 they do not create workflow failures or completion changes by themselves.
 
+### Offline Manual-Review Decision Validation
+
+`typetreeflow.evidence.manual_review` reads curator-supplied TSV decisions and
+performs pure offline, dry-run validation. It is not connected to
+`verify-genus`, the reconciler writer, selection, manifests, reports,
+completion metrics, downloads, providers, packages, or evidence-policy gates.
+It returns a JSON-serializable `ManualReviewValidationResult`; validation
+issues can also be rendered as TSV text with
+`manual_review_validation_tsv()`. The renderer returns text and does not choose
+or write an output path.
+
+The required TSV columns, in stable order, are `species`,
+`selected_accession`, `review_status`, `reviewer_id`, `review_date`,
+`evidence_summary`, `evidence_source_ids`, `conflict_resolution`,
+`second_reviewer_id`, and `decision_notes`. The column must exist even when a
+status permits a blank value. `selected_accession` may be blank only for
+`gap_no_public_strict_genome`; `second_reviewer_id` may be blank except for
+`curated_strict_confirmed`. `review_date` is an ISO 8601 calendar date.
+
+The controlled statuses are `curated_strict_confirmed`,
+`candidate_needs_more_evidence`, `conflict_blocked`,
+`gap_no_public_strict_genome`, and `exclude_non_type`. A curated-strict
+decision is valid only when its evidence summary explicitly contains the exact
+selected accession and a direct type-strain linkage, all conflicts are marked
+resolved or absent, and a different second reviewer is recorded. Optional
+input claim columns `strict_usable`, `strict_confirmed`, and
+`strict_scientific_deliverable`, when present, are guard inputs only:
+truthy claims are rejected for every candidate, conflict, gap, or exclusion
+status.
+
+`dry_run=true` means only that the decision TSV passed or failed schema and
+policy validation. A valid `curated_strict_confirmed` row remains a curator
+decision awaiting a separately authorized implementation/import; this module
+does not upgrade the reconciler tier or create a strict scientific
+deliverable.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.

@@ -117,6 +117,17 @@ automatic strict use with `conflict_blocked` and
 `requires_manual_review=true`. A conflicting row must not be rescued by another
 source's type-material claim until a curator records resolved equivalence.
 
+Offline manual-review decision TSV validation is a curator dry run, not an
+automatic strict-upgrade path. Unknown decisions and incomplete provenance are
+blocked. `curated_strict_confirmed` additionally requires an exact selected
+accession/type-strain linkage in the evidence summary, no unresolved conflict,
+and an independent second reviewer. Passing those checks only validates the
+decision record for later review; it does not modify reconciler outputs,
+selection, manifests, completion metrics, download/provider behavior,
+evidence-policy gating, package/report strict semantics, or strict scientific
+deliverables. Candidate, conflict, gap, and exclusion decisions must never
+claim strict usability or strict-deliverable status.
+
 ## Evidence Policy
 
 Evidence policy is a run-level derived-view strategy, not a source fact or an
