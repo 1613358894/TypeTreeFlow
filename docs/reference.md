@@ -423,6 +423,49 @@ decision awaiting a separately authorized implementation/import; this module
 does not upgrade manifest, reconciler, report, or package strict status and
 does not create a strict scientific deliverable.
 
+### Offline Manual-Review Decision Import Mapper
+
+`typetreeflow.evidence.manual_review_import` is a library-only, pure offline
+mapper. It accepts manual-review TSV rows plus rows from the exact frozen
+`reconciler_audit.tsv` used for review. It performs deterministic linkage on
+the exact, trimmed `species`/`species_name` and
+`selected_accession`/`assembly_accession` pair. Reconciler tier and conflict
+status are linkage guards, never fuzzy-match inputs. No synonym inference,
+accession version removal, case substitution, or provider lookup occurs.
+
+`import_manual_review_rows()` and `import_manual_review_tsv()` return a
+`ManualReviewImportResult` containing decision rows, diagnostics, and a
+summary. The serializers return text and never select or write paths:
+`manual_review_decisions_tsv()`, `manual_review_summary_json()`, and
+`manual_review_diagnostics_tsv()`. The corresponding handoff names are
+`manual_review_decisions.tsv`, `manual_review_summary.json`, and
+`manual_review_diagnostics.tsv`; they are not workflow-owned or automatically
+discovered outputs.
+
+The stable decision TSV field order is: `species`, `selected_accession`,
+`review_status`, `reviewer_id`, `review_date`, `evidence_summary`,
+`evidence_source_ids`, `conflict_resolution`, `second_reviewer_id`,
+`decision_notes`, `decision_status`, `reconciler_tier`,
+`reconciler_conflict_status`, `linkage_status`, `import_status`,
+`strict_upgrade_candidate`, `strict_upgrade_applied`, and
+`diagnostic_codes`. Original review fields are retained; `decision_status` is
+the normalized validated status. Boolean TSV values are lowercase.
+
+The summary JSON contains `record_count`, `accepted_decision_count`,
+`diagnostic_count`, `strict_upgrade_candidate_count`,
+`strict_upgrade_applied=false`, `audit_only=true`, and `schema_version`.
+Diagnostics use the stable fields `schema_version`, `row_number`, `severity`,
+`diagnostic_code`, `species`, `selected_accession`, and `message`. They cover
+missing audit linkage, species/accession mismatch, duplicate manual decisions,
+duplicate audit linkage, validation-issue passthrough, strict attempts against
+unresolved conflicts, and unknown or malformed audit rows.
+
+`strict_upgrade_candidate=true` is possible only for a validated
+`curated_strict_confirmed` decision with one exact clean linkage and no frozen
+conflict. It is an audit handoff label. `strict_upgrade_applied` is always
+`false`; the mapper does not modify the reconciler tier or any workflow
+output.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.
