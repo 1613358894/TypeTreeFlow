@@ -23,16 +23,20 @@ typetreeflow doctor
 version, environment files, workspace/output readiness, and external tool
 availability without running downloads or external bioinformatics tools.
 
-Validate a local curator decision file without loading workflow configuration
-or writing outputs:
+Validate a local curator decision file without loading workflow configuration:
 
 ```bash
-typetreeflow manual-review validate --input <review.tsv> --json
+typetreeflow manual-review validate --input <review.tsv> [--json] \
+  [--out <issues.tsv>] [--force]
 ```
 
 `--json` is optional because the command always writes one compact JSON object
-to stdout. Exit code `0` means valid, `2` means unreadable input or a
-schema/validation issue, and `1` is reserved for an unexpected internal error.
+to stdout. Without `--out`, it writes no file. With `--out`, it writes a
+header-only issues TSV for valid input or all issue rows for invalid input.
+Existing files are refused unless `--force` is supplied and their header
+exactly matches the issues schema. Exit code `0` means valid and any requested
+write succeeded, `2` means command usage, unreadable input, or a
+schema/validation issue, and `1` means an output-path/write or internal error.
 The dry run performs no live lookup, download, external-tool execution, or
 workflow-output mutation.
 

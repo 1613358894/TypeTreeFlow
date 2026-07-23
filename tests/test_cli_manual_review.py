@@ -43,6 +43,9 @@ def test_valid_manual_review_is_compact_json_dry_run(json_args, capsys):
         "summary": "Manual-review TSV validation passed",
         "dry_run": True,
         "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "issues_output_path": None,
+        "issues_output_written": False,
         "strict_upgrade_applied": False,
     }
 
@@ -122,7 +125,7 @@ def test_unsafe_non_strict_claim_returns_two(tmp_path, capsys):
 
 
 def test_command_does_not_read_env_open_socket_launch_process_or_build_config(
-    monkeypatch, capsys
+    monkeypatch, capsys, tmp_path
 ):
     def fail(*args, **kwargs):
         raise AssertionError("manual-review CLI must remain isolated and offline")
@@ -134,11 +137,16 @@ def test_command_does_not_read_env_open_socket_launch_process_or_build_config(
     monkeypatch.setattr(cli, "get_output_paths", fail)
 
     exit_code, payload, _ = _run(
-        ["manual-review", "validate", "--input", str(FIXTURE)], capsys
+        [
+            "manual-review", "validate", "--input", str(FIXTURE),
+            "--out", str(tmp_path / "issues.tsv"),
+        ],
+        capsys,
     )
 
     assert exit_code == 0
-    assert payload["writes_outputs"] is False
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
 
 
 def test_command_does_not_modify_sentinel_workflow_outputs(tmp_path, capsys):
@@ -146,14 +154,123 @@ def test_command_does_not_modify_sentinel_workflow_outputs(tmp_path, capsys):
     sentinel.parent.mkdir()
     sentinel.write_bytes(b"unchanged\n")
     before = sentinel.read_bytes()
+    issues = tmp_path / "manual_review_issues.tsv"
 
     exit_code, _, _ = _run(
-        ["manual-review", "validate", "--input", str(FIXTURE)], capsys
+        [
+            "manual-review", "validate", "--input", str(FIXTURE),
+            "--out", str(issues),
+        ],
+        capsys,
     )
 
     assert exit_code == 0
     assert sentinel.read_bytes() == before
-    assert [path.relative_to(tmp_path) for path in tmp_path.rglob("*")] == [
+    assert {path.relative_to(tmp_path) for path in tmp_path.rglob("*")} == {
         Path("run"),
         Path("run/manifest.tsv"),
-    ]
+        Path("manual_review_issues.tsv"),
+    }
+
+
+def test_valid_out_writes_header_only_and_reports_output(tmp_path, capsys):
+    issues = tmp_path / "issues.tsv"
+
+    exit_code, payload, _ = _run(
+        [
+            "manual-review", "validate", "--input", str(FIXTURE),
+            "--out", str(issues),
+        ],
+        capsys,
+    )
+
+    assert exit_code == 0
+    assert len(issues.read_text(encoding="utf-8").splitlines()) == 1
+    assert payload["issues_output_path"] == str(issues)
+    assert payload["issues_output_written"] is True
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+
+
+def test_invalid_out_writes_all_issues_and_still_returns_two(tmp_path, capsys):
+    invalid = tmp_path / "invalid.tsv"
+    invalid.write_text(
+        FIXTURE.read_text(encoding="utf-8").replace(
+            "candidate_needs_more_evidence", "automatic_strict", 1
+        ),
+        encoding="utf-8",
+    )
+    issues = tmp_path / "issues.tsv"
+
+    exit_code, payload, _ = _run(
+        ["manual-review", "validate", "--input", str(invalid), "--out", str(issues)],
+        capsys,
+    )
+
+    assert exit_code == 2
+    assert "unknown_review_status" in issues.read_text(encoding="utf-8")
+    assert payload["issues_output_written"] is True
+    assert payload["writes_outputs"] is True
+
+
+def test_existing_output_requires_force_and_matching_schema(tmp_path, capsys):
+    issues = tmp_path / "issues.tsv"
+    issues.write_text("unrelated\n", encoding="utf-8")
+
+    exit_code, payload, _ = _run(
+        ["manual-review", "validate", "--input", str(FIXTURE), "--out", str(issues)],
+        capsys,
+    )
+    assert exit_code == 1
+    assert payload["issues_preview"][-1]["code"] == "output_write_failed"
+    assert issues.read_text(encoding="utf-8") == "unrelated\n"
+
+    exit_code, _, _ = _run(
+        [
+            "manual-review", "validate", "--input", str(FIXTURE),
+            "--out", str(issues), "--force",
+        ],
+        capsys,
+    )
+    assert exit_code == 1
+    assert issues.read_text(encoding="utf-8") == "unrelated\n"
+
+
+def test_force_replaces_only_matching_issues_output(tmp_path, capsys):
+    issues = tmp_path / "issues.tsv"
+    first_exit, _, _ = _run(
+        ["manual-review", "validate", "--input", str(FIXTURE), "--out", str(issues)],
+        capsys,
+    )
+    assert first_exit == 0
+    issues.write_text(issues.read_text(encoding="utf-8") + "stale\n", encoding="utf-8")
+
+    exit_code, payload, _ = _run(
+        [
+            "manual-review", "validate", "--input", str(FIXTURE),
+            "--out", str(issues), "--force",
+        ],
+        capsys,
+    )
+
+    assert exit_code == 0
+    assert "stale" not in issues.read_text(encoding="utf-8")
+    assert payload["issues_output_written"] is True
+
+
+def test_missing_output_parent_and_force_without_out_fail_safely(tmp_path, capsys):
+    missing = tmp_path / "missing" / "issues.tsv"
+
+    exit_code, payload, _ = _run(
+        ["manual-review", "validate", "--input", str(FIXTURE), "--out", str(missing)],
+        capsys,
+    )
+    assert exit_code == 1
+    assert not missing.parent.exists()
+    assert payload["issues_output_written"] is False
+
+    exit_code, payload, _ = _run(
+        ["manual-review", "validate", "--input", str(FIXTURE), "--force"], capsys
+    )
+    assert exit_code == 2
+    assert payload["issues_preview"][0]["code"] == "invalid_command_usage"

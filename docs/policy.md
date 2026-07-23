@@ -126,7 +126,10 @@ decision record for later review; it does not modify reconciler outputs,
 selection, manifests, completion metrics, download/provider behavior,
 evidence-policy gating, package/report strict semantics, or strict scientific
 deliverables. Candidate, conflict, gap, and exclusion decisions must never
-claim strict usability or strict-deliverable status.
+claim strict usability or strict-deliverable status. An explicitly requested
+issues TSV is a curator handoff artifact only. Its existence, including a
+header-only PASS result, does not create workflow output or upgrade a strict
+scientific deliverable.
 
 ## Evidence Policy
 
