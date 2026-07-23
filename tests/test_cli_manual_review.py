@@ -10,12 +10,278 @@ from typetreeflow import cli
 
 
 FIXTURE = Path("tests/fixtures/manual_review_valid.tsv")
+IMPORT_FIXTURE = Path("tests/fixtures/manual_review_import_valid.tsv")
+AUDIT_FIXTURE = Path("tests/fixtures/manual_review_import_reconciler_audit.tsv")
 
 
 def _run(argv, capsys):
     exit_code = cli.main(argv)
     captured = capsys.readouterr()
     return exit_code, json.loads(captured.out), captured
+
+
+def _import_args(*extra):
+    return [
+        "manual-review",
+        "import",
+        "--input",
+        str(IMPORT_FIXTURE),
+        "--reconciler-audit",
+        str(AUDIT_FIXTURE),
+        *extra,
+    ]
+
+
+@pytest.mark.parametrize("json_args", [[], ["--json"]])
+def test_manual_review_import_clean_dry_run_is_single_json(json_args, capsys):
+    exit_code, payload, captured = _run(_import_args(*json_args), capsys)
+
+    assert exit_code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["command"] == "manual-review import"
+    assert payload["record_count"] == 4
+    assert payload["accepted_decision_count"] == 4
+    assert payload["diagnostic_count"] == 0
+    assert payload["strict_upgrade_candidate_count"] == 1
+    assert payload["strict_upgrade_applied"] is False
+    assert payload["audit_only"] is True
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert set(payload["output_paths"].values()) == {None}
+
+
+def test_manual_review_import_diagnostic_dry_run_returns_two(tmp_path, capsys):
+    review = tmp_path / "review.tsv"
+    review.write_text(
+        IMPORT_FIXTURE.read_text(encoding="utf-8").replace(
+            "GCF_000000001.1", "GCF_999999999.1", 1
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code, payload, _ = _run(
+        [
+            "manual-review",
+            "import",
+            "--input",
+            str(review),
+            "--reconciler-audit",
+            str(AUDIT_FIXTURE),
+        ],
+        capsys,
+    )
+
+    assert exit_code == 2
+    assert payload["diagnostic_count"] > 0
+    assert payload["writes_outputs"] is False
+    assert not any(path.name.startswith("manual_review_") for path in tmp_path.iterdir())
+
+
+def test_manual_review_import_clean_write_publishes_triplet(tmp_path, capsys):
+    outdir = tmp_path / "imported"
+
+    exit_code, payload, captured = _run(
+        _import_args("--write", "--outdir", str(outdir)), capsys
+    )
+
+    assert exit_code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["dry_run"] is False
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert set(path.name for path in outdir.iterdir()) == {
+        "manual_review_decisions.tsv",
+        "manual_review_summary.json",
+        "manual_review_diagnostics.tsv",
+    }
+    assert not (outdir / "evidence").exists()
+    assert set(payload["output_paths"]) == {"decisions", "summary", "diagnostics"}
+
+
+def test_manual_review_import_diagnostic_write_publishes_audit(tmp_path, capsys):
+    review = tmp_path / "review.tsv"
+    review.write_text(
+        IMPORT_FIXTURE.read_text(encoding="utf-8").replace(
+            "GCF_000000001.1", "GCF_999999999.1", 1
+        ),
+        encoding="utf-8",
+    )
+    outdir = tmp_path / "imported"
+
+    exit_code, payload, _ = _run(
+        [
+            "manual-review",
+            "import",
+            "--input",
+            str(review),
+            "--reconciler-audit",
+            str(AUDIT_FIXTURE),
+            "--write",
+            "--outdir",
+            str(outdir),
+        ],
+        capsys,
+    )
+
+    assert exit_code == 2
+    assert payload["writes_outputs"] is True
+    assert "species_accession_mismatch" in (
+        outdir / "manual_review_diagnostics.tsv"
+    ).read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ("--write",),
+        ("--outdir", "unused"),
+        ("--force",),
+    ],
+)
+def test_manual_review_import_invalid_write_usage_returns_two(extra, capsys):
+    exit_code, payload, _ = _run(_import_args(*extra), capsys)
+
+    assert exit_code == 2
+    assert payload["diagnostics_preview"][0]["diagnostic_code"] == (
+        "invalid_command_usage"
+    )
+    assert payload["writes_outputs"] is False
+
+
+def test_manual_review_import_existing_requires_force_and_owned_schema(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "imported"
+    assert _run(
+        _import_args("--write", "--outdir", str(outdir)), capsys
+    )[0] == 0
+    before = {
+        path.name: path.read_bytes() for path in outdir.iterdir()
+    }
+
+    exit_code, payload, _ = _run(
+        _import_args("--write", "--outdir", str(outdir)), capsys
+    )
+    assert exit_code == 2
+    assert payload["writes_outputs"] is False
+    assert {path.name: path.read_bytes() for path in outdir.iterdir()} == before
+
+    (outdir / "manual_review_decisions.tsv").write_text(
+        (outdir / "manual_review_decisions.tsv").read_text(encoding="utf-8")
+        + "stale\n",
+        encoding="utf-8",
+    )
+    exit_code, payload, _ = _run(
+        _import_args("--write", "--outdir", str(outdir), "--force"), capsys
+    )
+    assert exit_code == 0
+    assert payload["writes_outputs"] is True
+    assert "stale" not in (
+        outdir / "manual_review_decisions.tsv"
+    ).read_text(encoding="utf-8")
+
+    (outdir / "extra.txt").write_text("unrelated\n", encoding="utf-8")
+    exit_code, _, _ = _run(
+        _import_args("--write", "--outdir", str(outdir), "--force"), capsys
+    )
+    assert exit_code == 2
+    assert (outdir / "extra.txt").read_text(encoding="utf-8") == "unrelated\n"
+
+
+def test_manual_review_import_force_rejects_bad_schema_and_protected_paths(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "imported"
+    assert _run(
+        _import_args("--write", "--outdir", str(outdir)), capsys
+    )[0] == 0
+    decisions = outdir / "manual_review_decisions.tsv"
+    decisions.write_text("unrelated\n", encoding="utf-8")
+
+    exit_code, _, _ = _run(
+        _import_args("--write", "--outdir", str(outdir), "--force"), capsys
+    )
+    assert exit_code == 2
+    assert decisions.read_text(encoding="utf-8") == "unrelated\n"
+
+    protected = tmp_path / "run" / "manual-review"
+    protected.parent.mkdir()
+    exit_code, payload, _ = _run(
+        _import_args("--write", "--outdir", str(protected)), capsys
+    )
+    assert exit_code == 2
+    assert payload["writes_outputs"] is False
+    assert not protected.exists()
+
+
+def test_manual_review_import_rejects_input_inside_outdir(tmp_path, capsys):
+    outdir = tmp_path / "imported"
+    outdir.mkdir()
+    review = outdir / "review.tsv"
+    review.write_bytes(IMPORT_FIXTURE.read_bytes())
+
+    exit_code, _, _ = _run(
+        [
+            "manual-review",
+            "import",
+            "--input",
+            str(review),
+            "--reconciler-audit",
+            str(AUDIT_FIXTURE),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--force",
+        ],
+        capsys,
+    )
+
+    assert exit_code == 2
+    assert review.exists()
+
+
+def test_manual_review_import_force_rejects_symlink_outdir(tmp_path, capsys):
+    owned = tmp_path / "owned"
+    assert _run(
+        _import_args("--write", "--outdir", str(owned)), capsys
+    )[0] == 0
+    linked = tmp_path / "linked"
+    try:
+        linked.symlink_to(owned, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks are unavailable on this platform")
+
+    exit_code, payload, _ = _run(
+        _import_args("--write", "--outdir", str(linked), "--force"), capsys
+    )
+
+    assert exit_code == 2
+    assert payload["writes_outputs"] is False
+    assert linked.is_symlink()
+
+
+def test_manual_review_import_does_not_read_env_socket_or_workflow(
+    monkeypatch, capsys, tmp_path
+):
+    def fail(*args, **kwargs):
+        raise AssertionError("manual-review import must remain isolated and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+    monkeypatch.setattr(subprocess, "run", fail)
+    monkeypatch.setattr(cli, "parse_args", fail)
+    monkeypatch.setattr(cli, "get_output_paths", fail)
+    sentinel = tmp_path / "workflow-sentinel.tsv"
+    sentinel.write_bytes(b"unchanged\n")
+
+    exit_code, payload, _ = _run(_import_args(), capsys)
+
+    assert exit_code == 0
+    assert payload["writes_workflow_outputs"] is False
+    assert sentinel.read_bytes() == b"unchanged\n"
 
 
 @pytest.mark.parametrize("json_args", [[], ["--json"]])

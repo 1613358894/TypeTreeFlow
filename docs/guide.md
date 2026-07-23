@@ -40,6 +40,24 @@ schema/validation issue, and `1` means an output-path/write or internal error.
 The dry run performs no live lookup, download, external-tool execution, or
 workflow-output mutation.
 
+Import validated decisions against the exact frozen reconciler audit with:
+
+```bash
+typetreeflow manual-review import --input <review.tsv> \
+  --reconciler-audit <reconciler_audit.tsv> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+The default is a no-write dry run. An explicit write atomically publishes
+`manual_review_decisions.tsv`, `manual_review_summary.json`, and
+`manual_review_diagnostics.tsv` directly under the new output directory; it
+does not create a workflow-style `evidence/` directory. Diagnostic imports
+still publish the complete audit triplet when write mode was explicitly
+requested, then return exit code `2`. Existing destinations are refused.
+`--force` replaces only a dedicated directory containing exactly a
+schema-recognized prior triplet. Keep the destination isolated from inputs and
+workflow run, report, package, provider, download, and evidence paths.
+
 For clean deployment rehearsal, keep the route minimal:
 
 ```bash
