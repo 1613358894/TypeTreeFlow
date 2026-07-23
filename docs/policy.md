@@ -144,6 +144,15 @@ candidate, conflict, gap, and exclusion review statuses can never be strict
 candidates. The mapper does not change evidence-policy gating or initiate live
 lookups, downloads, or provider actions.
 
+The `manual-review import` CLI is only an offline publisher for those three
+independent audit handoff artifacts. Dry-run writes nothing. Explicit write
+mode does not modify manifests, selection, completion, reconciler outputs,
+reports, packages, provider/download behavior, or evidence-policy gates, and
+does not connect the importer to `verify-genus`. Even when a validated
+`curated_strict_confirmed` decision yields
+`strict_upgrade_candidate=true`, `strict_upgrade_applied` remains `false`;
+the command does not produce a strict deliverable upgrade.
+
 ## Evidence Policy
 
 Evidence policy is a run-level derived-view strategy, not a source fact or an

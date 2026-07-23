@@ -442,6 +442,41 @@ summary. The serializers return text and never select or write paths:
 `manual_review_diagnostics.tsv`; they are not workflow-owned or automatically
 discovered outputs.
 
+The offline CLI adapter is:
+
+```text
+typetreeflow manual-review import --input <review.tsv> --reconciler-audit <reconciler_audit.tsv> [--json] [--write --outdir <isolated-directory> [--force]]
+```
+
+Stdout is always exactly one compact JSON object; `--json` is an accepted
+no-op. Without `--write`, `dry_run=true`, `writes_outputs=false`, all
+`output_paths` values are null, and no file or directory is created.
+`--write` requires `--outdir`, while `--outdir` without `--write` and
+`--force` without write mode are usage errors. A successful write publishes
+the three handoff files directly under the output directory as one staged
+directory transaction and reports `dry_run=false`, `writes_outputs=true`,
+`writes_workflow_outputs=false`, and their paths. No `evidence/` child is
+created.
+
+An existing destination is refused by default. With `--force`, it must be a
+real, non-symlink directory containing exactly the three regular artifacts;
+both TSV headers and the summary schema version must match. Input-containing,
+symlinked, repository-root, and protected workflow-shaped destinations are
+refused. Expected validation, linkage, duplicate, or conflict diagnostics
+return exit code `2`; an explicitly requested write still publishes the
+complete diagnostic audit triplet. Usage, input, and safety failures also
+return `2`; unexpected serialization, staging, fsync, rename, or write
+failures return `1`; clean dry-run and write operations return `0`.
+
+The CLI envelope contains `schema_version`, `status`, `command`,
+`record_count`, `accepted_decision_count`, `diagnostic_count`,
+`strict_upgrade_candidate_count`, `strict_upgrade_applied=false`,
+`audit_only=true`, `dry_run`, `writes_outputs`,
+`writes_workflow_outputs=false`, `output_paths`, a bounded
+`diagnostics_preview`, `diagnostics_truncated`, and a short `summary`.
+`strict_upgrade_candidate=true` remains an audit-only flag and never means a
+strict upgrade was applied.
+
 The stable decision TSV field order is: `species`, `selected_accession`,
 `review_status`, `reviewer_id`, `review_date`, `evidence_summary`,
 `evidence_source_ids`, `conflict_resolution`, `second_reviewer_id`,
