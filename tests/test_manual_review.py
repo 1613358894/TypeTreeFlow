@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 import os
@@ -8,6 +9,7 @@ import pytest
 
 from typetreeflow.evidence.manual_review import (
     MANUAL_REVIEW_FIELDS,
+    MANUAL_REVIEW_ISSUES_FIELDS,
     manual_review_validation_tsv,
     validate_manual_review_rows,
     validate_manual_review_tsv,
@@ -108,6 +110,35 @@ def test_issue_tsv_is_returned_as_text_not_written(tmp_path):
 
     assert "unresolved_conflict" in rendered
     assert list(tmp_path.iterdir()) == []
+
+
+def test_issue_tsv_uses_public_schema_and_safe_controlled_values():
+    result = validate_manual_review_rows(
+        [_strict_row(review_status="secret-status", reviewer_id="secret-reviewer")]
+    )
+
+    rows = list(
+        csv.DictReader(
+            io.StringIO(manual_review_validation_tsv(result)), delimiter="\t"
+        )
+    )
+
+    assert tuple(rows[0]) == MANUAL_REVIEW_ISSUES_FIELDS
+    unknown = next(row for row in rows if row["code"] == "unknown_review_status")
+    assert unknown["severity"] == "error"
+    assert unknown["status"] == "validation_failed"
+    assert unknown["message"] == "Unknown manual-review status"
+    assert unknown["recommended_action"] == "use_allowed_review_status"
+    assert "secret-status" not in manual_review_validation_tsv(result)
+    assert "secret-reviewer" not in manual_review_validation_tsv(result)
+
+
+def test_valid_result_renders_header_only():
+    result = validate_manual_review_rows([_strict_row()])
+
+    assert manual_review_validation_tsv(result) == (
+        "\t".join(MANUAL_REVIEW_ISSUES_FIELDS) + "\r\n"
+    )
 
 
 def test_parser_and_validator_do_not_read_env_or_open_sockets(monkeypatch):

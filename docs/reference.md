@@ -365,17 +365,38 @@ or write an output path.
 The read-only CLI adapter is:
 
 ```text
-typetreeflow manual-review validate --input <review.tsv> [--json]
+typetreeflow manual-review validate --input <review.tsv> [--json] [--out <issues.tsv>] [--force]
 ```
 
 It always emits exactly one compact JSON object to stdout; `--json` is an
-accepted no-op. It has no `--out` and writes no workflow or issues file. Exit
-code `0` reports a valid TSV, `2` reports command usage, unreadable input,
-schema, or row-validation issues, and `1` reports an unexpected internal
-error. The envelope includes `status`, `command`, `input`, `record_count`,
+accepted no-op. Without `--out`, no file is written. With `--out`, validation
+always writes an issues TSV: header-only for valid input and the full issue set
+for invalid input. The parent must already exist, the suffix must be `.tsv`,
+and the target cannot be the input, a symlink path, or a protected workflow
+artifact name. Existing targets are refused by default. `--force` is accepted
+only with `--out` and replaces only a regular, non-symlink file whose header
+exactly matches the issues schema.
+
+Exit code `0` reports valid input and any requested write success. Exit code
+`2` reports command usage, unreadable input, schema, or row-validation issues;
+invalid content remains exit `2` after its issues TSV is successfully written.
+Exit code `1` reports an output-path, overwrite, write, or unexpected internal
+failure. The envelope includes `status`, `command`, `input`, `record_count`,
 `valid_count`, `issue_count`, `strict_candidate_count`,
 `blocked_strict_count`, a bounded `issues_preview`, `dry_run=true`,
-`writes_outputs=false`, and `strict_upgrade_applied=false`.
+`writes_outputs`, `writes_workflow_outputs=false`, `issues_output_path`,
+`issues_output_written`, and `strict_upgrade_applied=false`.
+`writes_outputs=true` means only that the explicitly requested issues TSV was
+written; it never means workflow output mutation.
+
+The issues TSV schema has the fixed order `row_number`, `severity`, `code`,
+`field`, `status`, `species`, `selected_accession`, `message`, and
+`recommended_action`. Current findings use `severity=error` and
+`status=validation_failed`; `recommended_action` is a controlled mapping from
+the issue code. The writer uses UTF-8, tab delimiters, CSV quoting, a trailing
+newline, and an adjacent atomic replacement. It does not create missing parent
+directories. Unknown raw status values, evidence text, reviewer identifiers,
+notes, provider payloads, credentials, and exception details are not emitted.
 
 The required TSV columns, in stable order, are `species`,
 `selected_accession`, `review_status`, `reviewer_id`, `review_date`,

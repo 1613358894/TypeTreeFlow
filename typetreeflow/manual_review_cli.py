@@ -4,15 +4,36 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Sequence, TextIO
 
-from typetreeflow.evidence.manual_review import validate_manual_review_tsv
+from typetreeflow.evidence.manual_review import (
+    MANUAL_REVIEW_ISSUES_FIELDS,
+    manual_review_validation_tsv,
+    validate_manual_review_tsv,
+)
 
 
 COMMAND = "manual-review validate"
 ISSUES_PREVIEW_LIMIT = 20
+_PROTECTED_OUTPUT_TERMS = (
+    "manifest",
+    "selection",
+    "completion",
+    "reconciler",
+    "report",
+    "package",
+    "provider",
+    "download",
+    "cache",
+    "sequence",
+    "fasta",
+    "fastq",
+    "evidence_policy",
+)
 
 
 class _UsageError(Exception):
@@ -50,6 +71,18 @@ def run_manual_review_command(
         return 2
 
     input_path = Path(args.input)
+    output_path = Path(args.out) if args.out is not None else None
+    if args.force and output_path is None:
+        _emit(
+            _failed_payload(
+                input_path=str(input_path),
+                code="invalid_command_usage",
+                message="--force requires --out",
+                issues_output_path=None,
+            ),
+            output,
+        )
+        return 2
     try:
         if not input_path.is_file():
             raise OSError("input is not a regular file")
@@ -60,6 +93,7 @@ def run_manual_review_command(
                 input_path=str(input_path),
                 code="input_unreadable",
                 message="Manual-review input is unreadable",
+                issues_output_path=args.out,
             ),
             output,
         )
@@ -70,6 +104,7 @@ def run_manual_review_command(
                 input_path=str(input_path),
                 code="internal_error",
                 message="Manual-review validation failed unexpectedly",
+                issues_output_path=args.out,
             ),
             output,
         )
@@ -105,8 +140,45 @@ def run_manual_review_command(
         ),
         "dry_run": True,
         "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "issues_output_path": args.out,
+        "issues_output_written": False,
         "strict_upgrade_applied": False,
     }
+    if output_path is not None:
+        try:
+            _write_issues_output(
+                input_path=input_path,
+                output_path=output_path,
+                rendered=manual_review_validation_tsv(result),
+                force=args.force,
+            )
+        except (OSError, UnicodeError, ValueError):
+            output_diagnostic = {
+                "row_number": 1,
+                "species": "",
+                "selected_accession": "",
+                "code": "output_write_failed",
+                "field": "out",
+                "message": "Manual-review issues output was not written",
+            }
+            failure_preview = preview[: ISSUES_PREVIEW_LIMIT - 1] + [
+                output_diagnostic
+            ]
+            payload.update(
+                {
+                    "status": "failed",
+                    "issues_preview": failure_preview,
+                    "issues_truncated": len(result.issues) > len(
+                        failure_preview
+                    ) - 1,
+                    "summary": "Manual-review issues output write failed",
+                }
+            )
+            _emit(payload, output)
+            return 1
+        payload["writes_outputs"] = True
+        payload["issues_output_written"] = True
     _emit(payload, output)
     return 0 if result.valid else 2
 
@@ -119,7 +191,62 @@ def _build_parser() -> argparse.ArgumentParser:
     validate = actions.add_parser("validate", add_help=False)
     validate.add_argument("--input", required=True)
     validate.add_argument("--json", action="store_true")
+    validate.add_argument("--out")
+    validate.add_argument("--force", action="store_true")
     return parser
+
+
+def _write_issues_output(
+    *,
+    input_path: Path,
+    output_path: Path,
+    rendered: str,
+    force: bool,
+) -> None:
+    if output_path.suffix.lower() != ".tsv":
+        raise ValueError("issues output must use the .tsv suffix")
+    parent = output_path.parent
+    if not parent.is_dir() or _has_symlink_component(parent):
+        raise ValueError("issues output parent must be an existing real directory")
+    if output_path.is_symlink():
+        raise ValueError("issues output cannot be a symlink")
+    if output_path.resolve(strict=False) == input_path.resolve(strict=False):
+        raise ValueError("issues output cannot replace the input")
+    lowered_name = output_path.name.lower()
+    if any(term in lowered_name for term in _PROTECTED_OUTPUT_TERMS):
+        raise ValueError("issues output resembles a protected workflow artifact")
+
+    if output_path.exists():
+        if not force or not output_path.is_file():
+            raise ValueError("issues output already exists")
+        with output_path.open("r", encoding="utf-8", newline="") as handle:
+            existing_header = handle.readline().rstrip("\r\n")
+        expected_header = "\t".join(MANUAL_REVIEW_ISSUES_FIELDS)
+        if existing_header != expected_header:
+            raise ValueError("existing issues output schema does not match")
+
+    temp_name: str | None = None
+    try:
+        descriptor, temp_name = tempfile.mkstemp(
+            prefix=f".{output_path.name}.", suffix=".tmp", dir=parent
+        )
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            handle.write(rendered)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, output_path)
+        temp_name = None
+    finally:
+        if temp_name is not None:
+            try:
+                Path(temp_name).unlink()
+            except OSError:
+                pass
+
+
+def _has_symlink_component(path: Path) -> bool:
+    candidate = path.absolute()
+    return any(part.is_symlink() for part in (candidate, *candidate.parents))
 
 
 def _safe_issue(issue) -> dict[str, object]:
@@ -141,6 +268,7 @@ def _failed_payload(
     input_path: str,
     code: str,
     message: str,
+    issues_output_path: str | None = None,
 ) -> dict[str, object]:
     return {
         "schema_version": "1",
@@ -166,6 +294,9 @@ def _failed_payload(
         "summary": "Manual-review TSV validation failed",
         "dry_run": True,
         "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "issues_output_path": issues_output_path,
+        "issues_output_written": False,
         "strict_upgrade_applied": False,
     }
 

@@ -17,6 +17,28 @@ from typing import Mapping, TextIO
 
 
 MANUAL_REVIEW_SCHEMA_VERSION = "1"
+MANUAL_REVIEW_ISSUES_FIELDS: tuple[str, ...] = (
+    "row_number",
+    "severity",
+    "code",
+    "field",
+    "status",
+    "species",
+    "selected_accession",
+    "message",
+    "recommended_action",
+)
+_ISSUE_RECOMMENDED_ACTIONS = {
+    "missing_required_column": "add_required_column",
+    "missing_required_field": "add_required_value",
+    "unknown_review_status": "use_allowed_review_status",
+    "invalid_review_date": "use_iso_review_date",
+    "missing_direct_strict_evidence": "document_direct_type_strain_linkage",
+    "unresolved_conflict": "resolve_conflict",
+    "second_reviewer_required": "add_independent_second_reviewer",
+    "second_reviewer_not_independent": "add_independent_second_reviewer",
+    "non_strict_status_claims_strict": "remove_strict_claim",
+}
 MANUAL_REVIEW_FIELDS: tuple[str, ...] = (
     "species",
     "selected_accession",
@@ -89,6 +111,26 @@ class ManualReviewIssue:
             "code": self.code,
             "field": self.field,
             "message": self.message,
+        }
+
+    def to_output_row(self) -> dict[str, object]:
+        """Return the stable, redaction-safe public issues TSV row."""
+
+        message = self.message
+        if self.code == "unknown_review_status":
+            message = "Unknown manual-review status"
+        return {
+            "row_number": self.row_number,
+            "severity": "error",
+            "code": self.code,
+            "field": self.field,
+            "status": "validation_failed",
+            "species": self.species,
+            "selected_accession": self.selected_accession,
+            "message": message,
+            "recommended_action": _ISSUE_RECOMMENDED_ACTIONS.get(
+                self.code, "review_input"
+            ),
         }
 
 
@@ -200,17 +242,11 @@ def manual_review_validation_tsv(
     """Render validation issues as TSV text; no file is written."""
 
     output = io.StringIO(newline="")
-    fields = (
-        "row_number",
-        "species",
-        "selected_accession",
-        "code",
-        "field",
-        "message",
+    writer = csv.DictWriter(
+        output, fieldnames=MANUAL_REVIEW_ISSUES_FIELDS, delimiter="\t"
     )
-    writer = csv.DictWriter(output, fieldnames=fields, delimiter="\t")
     writer.writeheader()
-    writer.writerows(issue.to_dict() for issue in result.issues)
+    writer.writerows(issue.to_output_row() for issue in result.issues)
     return output.getvalue()
 
 
