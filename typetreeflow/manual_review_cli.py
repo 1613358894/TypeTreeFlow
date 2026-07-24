@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import shutil
@@ -286,9 +287,16 @@ def _run_import(args: argparse.Namespace, output: TextIO) -> int:
         return 1
 
     try:
+        handoff_summary = dict(result.summary)
+        handoff_summary["input_digests"] = {
+            "manual_review_input.tsv": _sha256_file(input_path),
+            "reconciler_audit.tsv": _sha256_file(audit_path),
+        }
         rendered = {
             "decisions": manual_review_decisions_tsv(result),
-            "summary": manual_review_summary_json(result),
+            "summary": json.dumps(
+                handoff_summary, sort_keys=True, indent=2
+            ) + "\n",
             "diagnostics": manual_review_diagnostics_tsv(result),
         }
     except Exception:
@@ -526,6 +534,14 @@ def _is_relative_to(path: Path, parent: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _write_issues_output(

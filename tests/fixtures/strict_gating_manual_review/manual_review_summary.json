@@ -1,0 +1,12 @@
+{
+  "accepted_decision_count": 1,
+  "audit_only": true,
+  "diagnostic_count": 0,
+  "input_digests": {
+    "reconciler_audit.tsv": "efb4a0dd6e1b1151a17ed89f31e656d6b07cdbeebe0bd40abf6d9ee9c4953121"
+  },
+  "record_count": 1,
+  "schema_version": "1",
+  "strict_upgrade_applied": false,
+  "strict_upgrade_candidate_count": 1
+}

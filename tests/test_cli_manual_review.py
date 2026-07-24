@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 import socket
 import subprocess
@@ -99,6 +100,12 @@ def test_manual_review_import_clean_write_publishes_triplet(tmp_path, capsys):
     }
     assert not (outdir / "evidence").exists()
     assert set(payload["output_paths"]) == {"decisions", "summary", "diagnostics"}
+    summary = json.loads(
+        (outdir / "manual_review_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["input_digests"]["reconciler_audit.tsv"] == hashlib.sha256(
+        AUDIT_FIXTURE.read_bytes()
+    ).hexdigest()
 
 
 def test_manual_review_import_diagnostic_write_publishes_audit(tmp_path, capsys):

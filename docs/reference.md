@@ -505,6 +505,9 @@ the normalized validated status. Boolean TSV values are lowercase.
 The summary JSON contains `record_count`, `accepted_decision_count`,
 `diagnostic_count`, `strict_upgrade_candidate_count`,
 `strict_upgrade_applied=false`, `audit_only=true`, and `schema_version`.
+CLI write-mode summaries additionally contain `input_digests`, including the
+SHA-256 of the exact frozen `reconciler_audit.tsv`; this is an immutable
+handoff guard, not a workflow mutation.
 Diagnostics use the stable fields `schema_version`, `row_number`, `severity`,
 `diagnostic_code`, `species`, `selected_accession`, and `message`. They cover
 missing audit linkage, species/accession mismatch, duplicate manual decisions,
@@ -516,6 +519,41 @@ unresolved conflicts, and unknown or malformed audit rows.
 conflict. It is an audit handoff label. `strict_upgrade_applied` is always
 `false`; the mapper does not modify the reconciler tier or any workflow
 output.
+
+### Guarded Strict-Gating Evaluator
+
+The standalone offline adapter is:
+
+```text
+typetreeflow strict-gating evaluate --manual-review-dir <dir> --reconciler-audit <tsv> [--json] [--write --outdir <dir> [--force]]
+```
+
+It requires the exact manual-review import triplet and an exact-header
+reconciler audit. The summary's recorded reconciler SHA-256 must match the
+supplied audit bytes. It checks canonical candidate/application flags, summary
+counts, duplicate keys, exact species/accession linkage, clean import status,
+distinct reviewers, unresolved conflicts, synthetic markers, source strength,
+and a structured chain comprising selected accession, BioSample, LPSN
+type-strain token, selected-genome linkage, and preserved source IDs.
+Unknown, missing, malformed, stale, ambiguous, or synthetic input fails closed.
+There is no test-mode exception; synthetic fixtures are blocked.
+
+Dry-run stdout is one compact JSON object with `dry_run=true`,
+`writes_outputs=false`, `writes_workflow_outputs=false`,
+`strict_gate_passed_count`, `audit_only=true`,
+`strict_deliverable_written=false`, and `strict_upgrade_applied=false`.
+Write mode atomically publishes only `strict_gating_audit.tsv`,
+`strict_gating_summary.json`, and `strict_gating_diagnostics.tsv` directly
+under the dedicated outdir. `--force` accepts only an existing exact triplet
+whose TSV headers and summary schema match. No workflow-shaped `evidence/`
+directory is created.
+
+Exit `0` means no blocking diagnostic and any requested audit write succeeded.
+Input, validation, gating, usage, or refused-output diagnostics return `2`;
+blocked evaluations still write the audit triplet when explicitly requested.
+Unexpected internal or write failures return `1`. A passed row is only an
+audit result: it never implies a strict deliverable was written or a strict
+upgrade was applied.
 
 ### Doctor Readiness
 
