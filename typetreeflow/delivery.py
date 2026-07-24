@@ -16,6 +16,7 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
     BacDiveCandidateReviewSummary,
     ManualReviewImportAuditSummary,
+    StrictGatingAuditSummary,
     bacdive_compact_counts_summary,
     bacdive_compact_source_audit_summary,
     bacdive_normalized_outputs_available,
@@ -23,6 +24,7 @@ from typetreeflow.report.summary import (
     read_optional_gtdb_metadata_audit,
     read_optional_manual_review_import_audit,
     read_optional_sequence_source_audit,
+    read_optional_strict_gating_audit,
     summarize_16s_coverage,
     summarize_sequence_source_audit,
     summarize_type_confirmation_counts,
@@ -49,6 +51,7 @@ class DeliveryResult:
     rrna_sequence_count: int = 0
     all_16s_included: bool = False
     manual_review_warnings: list[str] = field(default_factory=list)
+    strict_gating_warnings: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -76,6 +79,7 @@ def package_results(
     include: str | Iterable[str] = DEFAULT_INCLUDE,
     failed_handoff: bool = False,
     manual_review_import_dir: str | Path | None = None,
+    strict_gating_dir: str | Path | None = None,
 ) -> DeliveryResult:
     paths = get_output_paths(outdir)
     if failed_handoff:
@@ -116,6 +120,8 @@ def package_results(
     reconciler_outputs_copied: list[Path] = []
     manual_review_outputs_copied: list[Path] = []
     manual_review_audit: ManualReviewImportAuditSummary | None = None
+    strict_gating_outputs_copied: list[Path] = []
+    strict_gating_audit: StrictGatingAuditSummary | None = None
     if "reports" in requested:
         _copy_optional(
             paths.run_summary_path,
@@ -189,6 +195,13 @@ def package_results(
             output_dir,
             copied,
         )
+        strict_gating_audit = read_optional_strict_gating_audit(strict_gating_dir)
+        strict_gating_outputs_copied = _copy_strict_gating_outputs(
+            strict_gating_dir,
+            strict_gating_audit,
+            output_dir,
+            copied,
+        )
 
     _write_package_artifact_scope(
         paths,
@@ -199,6 +212,7 @@ def package_results(
         reconciler_outputs_copied=reconciler_outputs_copied,
         manual_review_outputs_copied=manual_review_outputs_copied,
         manual_review_audit=manual_review_audit,
+        strict_gating_outputs_copied=strict_gating_outputs_copied,
     )
 
     genome_count = 0
@@ -256,6 +270,7 @@ def package_results(
             rrna_sequence_count=rrna_sequence_count,
             all_16s_included=all_16s_included,
             manual_review_audit=manual_review_audit,
+            strict_gating_audit=strict_gating_audit,
         ),
         encoding="utf-8",
         newline="\n",
@@ -275,6 +290,7 @@ def package_results(
             rrna_sequence_count=rrna_sequence_count,
             all_16s_included=all_16s_included,
             manual_review_audit=manual_review_audit,
+            strict_gating_audit=strict_gating_audit,
         ),
         encoding="utf-8",
         newline="\n",
@@ -291,6 +307,11 @@ def package_results(
         manual_review_warnings=(
             list(manual_review_audit.warnings)
             if manual_review_audit is not None
+            else []
+        ),
+        strict_gating_warnings=(
+            list(strict_gating_audit.warnings)
+            if strict_gating_audit is not None
             else []
         ),
     )
@@ -456,6 +477,7 @@ def build_delivery_readme(
     rrna_sequence_count: int,
     all_16s_included: bool,
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
+    strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
     record_list = list(records)
     type_counts = summarize_type_confirmation_counts(record_list)
@@ -542,6 +564,8 @@ def build_delivery_readme(
         lines.extend(_reconciler_readme_lines(reconciler_review))
     if manual_review_audit is not None:
         lines.extend(_manual_review_import_readme_lines(manual_review_audit))
+    if strict_gating_audit is not None:
+        lines.extend(_strict_gating_readme_lines(strict_gating_audit))
     lines.extend(
         [
             "",
@@ -635,6 +659,7 @@ def build_handoff_index(
     rrna_sequence_count: int,
     all_16s_included: bool,
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
+    strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
     record_list = list(records)
     type_counts = summarize_type_confirmation_counts(record_list)
@@ -735,6 +760,8 @@ def build_handoff_index(
         lines.extend(_reconciler_handoff_lines(reconciler_review))
     if manual_review_audit is not None:
         lines.extend(_manual_review_import_handoff_lines(manual_review_audit))
+    if strict_gating_audit is not None:
+        lines.extend(_strict_gating_handoff_lines(strict_gating_audit))
     lines.extend(["", "## Included Files", ""])
     if copied_names:
         lines.extend(f"- {item}" for item in copied_names)
@@ -1100,6 +1127,26 @@ def _copy_manual_review_import_outputs(
     return copied_manual_review
 
 
+def _copy_strict_gating_outputs(
+    directory: str | Path | None,
+    audit: StrictGatingAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_strict_gating: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "strict_gating" / name,
+        )
+        copied.append(copied_path)
+        copied_strict_gating.append(copied_path)
+    return copied_strict_gating
+
+
 def _write_package_artifact_scope(
     paths: OutputPaths,
     delivery_dir: Path,
@@ -1110,6 +1157,7 @@ def _write_package_artifact_scope(
     reconciler_outputs_copied: list[Path],
     manual_review_outputs_copied: list[Path],
     manual_review_audit: ManualReviewImportAuditSummary | None,
+    strict_gating_outputs_copied: list[Path],
 ) -> None:
     source_rows = read_artifact_scope(paths.artifact_scope_path)
     rows = list(source_rows)
@@ -1117,6 +1165,12 @@ def _write_package_artifact_scope(
         rows.extend(_bacdive_artifact_scope_rows(paths))
     rows.extend(
         _reconciler_artifact_scope_rows(delivery_dir, reconciler_outputs_copied)
+    )
+    rows.extend(
+        _strict_gating_artifact_scope_rows(
+            delivery_dir,
+            strict_gating_outputs_copied,
+        )
     )
     rows.extend(
         _manual_review_artifact_scope_rows(
@@ -1133,6 +1187,7 @@ def _write_package_artifact_scope(
         include_bacdive
         or reconciler_outputs_copied
         or manual_review_outputs_copied
+        or strict_gating_outputs_copied
         or not paths.artifact_scope_path.exists()
     ):
         write_artifact_scope(rows, root_scope)
@@ -1146,6 +1201,7 @@ def _write_package_artifact_scope(
             include_bacdive
             or reconciler_outputs_copied
             or manual_review_outputs_copied
+            or strict_gating_outputs_copied
             or not paths.artifact_scope_path.exists()
         ):
             write_artifact_scope(rows, reports_scope)
@@ -1364,6 +1420,66 @@ def _manual_review_artifact_scope_rows(
                 "consumer_priority": str(priority),
                 "strict_scientific_deliverable": "false",
                 "notes": notes,
+            }
+        )
+    return rows
+
+
+def _strict_gating_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    specifications = (
+        (
+            "strict_gating/strict_gating_audit.tsv",
+            "strict_gating_audit",
+            "Strict-gating evaluator row audit",
+            90,
+        ),
+        (
+            "strict_gating/strict_gating_summary.json",
+            "strict_gating_summary",
+            "Strict-gating evaluator compact audit summary",
+            91,
+        ),
+        (
+            "strict_gating/strict_gating_diagnostics.tsv",
+            "strict_gating_diagnostics",
+            "Strict-gating evaluator diagnostics",
+            92,
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        record_count = 1 if path.suffix == ".json" else _safe_tsv_row_count(path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "strict_gating_audit",
+                "record_count": str(record_count),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "guarded strict-gating review",
+                "not_for": "strict deliverable materialization",
+                "source_artifact": "strict_gating_evaluator",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Audit-only evaluator output; strict_gate_passed=true is "
+                    "not a strict deliverable upgrade."
+                ),
             }
         )
     return rows
@@ -1897,6 +2013,45 @@ def _manual_review_import_readme_lines(
         lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
     if audit.warnings:
         lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _strict_gating_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Strict-gating artifacts are audit-only. "
+            "`strict_gate_passed=true` means only that the offline strict-gating "
+            "evaluator passed its guards. It is not a strict deliverable upgrade."
+        ),
+        "- `strict_deliverable_written=false`.",
+        "- `strict_upgrade_applied=false`.",
+        (
+            "- Package inclusion means review availability, not completion, "
+            "strict materialization, or strict gating application."
+        ),
+    ]
+
+
+def _strict_gating_readme_lines(
+    audit: StrictGatingAuditSummary,
+) -> list[str]:
+    lines = ["", "## Strict Gating Audit", ""]
+    lines.extend(_strict_gating_boundary_lines())
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _strict_gating_handoff_lines(
+    audit: StrictGatingAuditSummary,
+) -> list[str]:
+    lines = _strict_gating_boundary_lines()
+    if audit.present_files:
+        lines.append("- Strict-gating files copied: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Strict-gating warning: " + "; ".join(audit.warnings))
     return lines
 
 

@@ -155,9 +155,14 @@ def build_app_config_from_args(
             "--manual-review-import-dir is only supported with --report-only "
             "or package-results."
         )
-    if args.strict_gating_dir is not None and not args.report_only:
+    if (
+        args.strict_gating_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
         raise ValueError(
-            "--strict-gating-dir is only supported with --report-only."
+            "--strict-gating-dir is only supported with --report-only "
+            "or package-results."
         )
     load_env_files(args.env_file)
     _validate_bacdive_args(args, verify_genus=verify_genus)
