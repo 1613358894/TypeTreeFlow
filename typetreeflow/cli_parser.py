@@ -537,7 +537,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "Explicit read-only directory containing the manual-review import "
-            "triplet for --report-only audit reporting; no automatic discovery."
+            "triplet for --report-only audit reporting or package-results; "
+            "no automatic discovery."
         ),
     )
     parser.add_argument(

@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import csv
 import json
+import os
+import socket
 
 import pytest
 
 from typetreeflow.cli import main
 from typetreeflow.delivery import DeliveryResult, package_results
+from typetreeflow.evidence.manual_review_import import (
+    MANUAL_REVIEW_DECISION_FIELDS,
+    MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
+)
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.rrna.artifacts import write_policy_aware_16s_artifacts
@@ -21,6 +27,32 @@ from typetreeflow.workflow.state import StageState, WorkflowState, write_run_sta
 def _package_stdout_payload(capsys):
     output = capsys.readouterr().out
     return json.loads(output), output
+
+
+def _write_manual_review_import_triplet(directory):
+    directory.mkdir(parents=True)
+    (directory / "manual_review_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 0,
+                "accepted_decision_count": 0,
+                "diagnostic_count": 0,
+                "strict_upgrade_candidate_count": 0,
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (directory / "manual_review_decisions.tsv").write_text(
+        "\t".join(MANUAL_REVIEW_DECISION_FIELDS) + "\n",
+        encoding="utf-8",
+    )
+    (directory / "manual_review_diagnostics.tsv").write_text(
+        "\t".join(MANUAL_REVIEW_DIAGNOSTIC_FIELDS) + "\n",
+        encoding="utf-8",
+    )
 
 
 def test_package_results_writes_readme_and_core_tsvs(tmp_path):
@@ -457,6 +489,233 @@ def test_package_results_all_includes_reconciler_audit_triplet(tmp_path):
     assert (
         result.delivery_dir / "evidence" / "reconciler_diagnostics.tsv"
     ).exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_explicit_manual_review_import_triplet_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    import_dir = tmp_path / "isolated-manual-review-import"
+    _write_manual_review_import_triplet(import_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        manual_review_import_dir=import_dir,
+    )
+
+    delivered = result.delivery_dir / "manual_review"
+    assert {path.name for path in delivered.iterdir()} == {
+        "manual_review_decisions.tsv",
+        "manual_review_summary.json",
+        "manual_review_diagnostics.tsv",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    manual_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("manual_review/")
+    ]
+    assert len(manual_rows) == 3
+    assert {row["scope"] for row in manual_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in manual_rows} == {
+        "manual_review_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in manual_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in manual_rows} == {
+        "curator decision review"
+    }
+    assert {row["not_for"] for row in manual_rows} == {
+        "strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in manual_rows} == {
+        "manual_review_import"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "manual-review import artifacts are audit-only" in package_text.lower()
+    assert "`strict_upgrade_candidate=true` is" in package_text
+    assert "not a strict deliverable upgrade" in package_text
+    assert "`strict_upgrade_applied=false` means no manifest" in package_text
+    assert "review availability, not completion or strict" in package_text
+
+
+def test_package_results_manual_review_import_is_explicit_and_missing_is_omitted(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    missing_dir = tmp_path / "missing-manual-review-import"
+
+    without_input = package_results(
+        tmp_path,
+        delivery_dir=tmp_path / "delivery-without-input",
+        include="reports",
+    )
+    missing_input = package_results(
+        tmp_path,
+        delivery_dir=tmp_path / "delivery-missing-input",
+        include="reports",
+        manual_review_import_dir=missing_dir,
+    )
+
+    for result in (without_input, missing_input):
+        assert not (result.delivery_dir / "manual_review").exists()
+        assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+        assert result.manual_review_warnings == []
+        assert "Manual Review Import Audit" not in (
+            result.delivery_dir / "README.md"
+        ).read_text(encoding="utf-8")
+
+
+def test_package_results_partial_manual_review_import_warns_and_copies_valid_members(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    import_dir = tmp_path / "partial-manual-review-import"
+    _write_manual_review_import_triplet(import_dir)
+    (import_dir / "manual_review_summary.json").write_text(
+        '{"schema_version":"1","strict_upgrade_applied":true}',
+        encoding="utf-8",
+    )
+    (import_dir / "manual_review_diagnostics.tsv").unlink()
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        manual_review_import_dir=import_dir,
+    )
+
+    assert (result.delivery_dir / "manual_review" / "manual_review_decisions.tsv").exists()
+    assert not (
+        result.delivery_dir / "manual_review" / "manual_review_summary.json"
+    ).exists()
+    assert not (
+        result.delivery_dir / "manual_review" / "manual_review_diagnostics.tsv"
+    ).exists()
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert [row["artifact_path"] for row in scope_rows] == [
+        "manual_review/manual_review_decisions.tsv"
+    ]
+    assert result.manual_review_warnings == [
+        "missing members: manual_review_diagnostics.tsv",
+        "manual_review_summary.json malformed",
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Warning: missing members:" in package_text
+    assert "manual_review_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_explicit_manual_review_import(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    import_dir = tmp_path / "manual-review-import"
+    _write_manual_review_import_triplet(import_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        manual_review_import_dir=import_dir,
+    )
+
+    assert not (result.delivery_dir / "manual_review").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Manual Review Import Audit" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_manual_review_import_and_keeps_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    import_dir = tmp_path / "manual-review-import"
+    _write_manual_review_import_triplet(import_dir)
+
+    assert (
+        main(
+            [
+                "package-results",
+                "--outdir",
+                str(tmp_path),
+                "--include",
+                "reports",
+                "--manual-review-import-dir",
+                str(import_dir),
+            ]
+        )
+        == 0
+    )
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert payload["status"] == "warning"
+    assert [warning["id"] for warning in payload["warnings"]] == [
+        "missing_optional_files"
+    ]
+    assert (
+        tmp_path
+        / "delivery"
+        / "manual_review"
+        / "manual_review_summary.json"
+    ).exists()
+
+
+def test_package_results_manual_review_import_is_offline_and_non_mutating(
+    tmp_path, monkeypatch
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    import_dir = tmp_path / "manual-review-import"
+    _write_manual_review_import_triplet(import_dir)
+    manifest_before = paths.manifest.read_bytes()
+    input_before = {
+        path.name: path.read_bytes() for path in import_dir.iterdir() if path.is_file()
+    }
+
+    monkeypatch.setattr(
+        os,
+        "getenv",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("manual-review packaging must not read environment variables")
+        ),
+    )
+    monkeypatch.setattr(
+        socket,
+        "create_connection",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("manual-review packaging must remain offline")
+        ),
+    )
+
+    package_results(
+        tmp_path,
+        include="reports",
+        manual_review_import_dir=import_dir,
+    )
+
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes() for path in import_dir.iterdir() if path.is_file()
+    } == input_before
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
 
 
 def test_package_results_omits_reconciler_outputs_gracefully_when_absent(tmp_path):

@@ -334,6 +334,7 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             delivery_dir=config.delivery_dir,
             include=config.include,
             failed_handoff=config.failed_handoff,
+            manual_review_import_dir=config.manual_review_import_dir,
         )
     except (FileNotFoundError, ManifestError, ValueError, RuntimeError) as error:
         LOGGER.error("%s", error)
@@ -360,6 +361,16 @@ def _format_package_results_envelope(
                 "message": (
                     f"{len(result.missing_optional_files)} optional package "
                     "file(s) were not copied"
+                ),
+            }
+        )
+    if result.manual_review_warnings:
+        warnings.append(
+            {
+                "id": "manual_review_import_warning",
+                "message": (
+                    f"{len(result.manual_review_warnings)} manual-review import "
+                    "warning(s); see package README and handoff index"
                 ),
             }
         )

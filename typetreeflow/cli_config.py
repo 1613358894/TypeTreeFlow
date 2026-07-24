@@ -146,9 +146,14 @@ def build_app_config_from_args(
     verify_genus: bool,
     package_results_command: bool,
 ) -> AppConfig:
-    if args.manual_review_import_dir is not None and not args.report_only:
+    if (
+        args.manual_review_import_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
         raise ValueError(
-            "--manual-review-import-dir is only supported with --report-only."
+            "--manual-review-import-dir is only supported with --report-only "
+            "or package-results."
         )
     load_env_files(args.env_file)
     _validate_bacdive_args(args, verify_genus=verify_genus)
