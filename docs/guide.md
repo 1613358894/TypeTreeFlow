@@ -299,6 +299,15 @@ automatically under the workflow outdir. A missing or empty directory omits the
 section. Partial or malformed input keeps report generation successful and
 adds a compact warning to `## Manual Review Import Audit`.
 
+To include a previously generated P3f-1 strict-gating audit in the refreshed
+report, pass `--strict-gating-dir <isolated-triplet-directory>` together with
+`--report-only`. This is an explicit read-only input: TypeTreeFlow reads only
+`strict_gating_summary.json`, `strict_gating_audit.tsv`, and
+`strict_gating_diagnostics.tsv`, without scanning the workflow outdir or
+running the evaluator. A missing or empty directory omits `## Strict Gating
+Audit`; partial or malformed input keeps report generation successful and
+shows a compact warning.
+
 ## External Genome Registration
 
 Manual external genomes enter only through reviewed `external_genomes.tsv`.

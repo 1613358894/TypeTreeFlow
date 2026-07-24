@@ -37,6 +37,11 @@ from typetreeflow.evidence.manual_review_import import (
     MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
     MANUAL_REVIEW_IMPORT_SCHEMA_VERSION,
 )
+from typetreeflow.evidence.strict_gating import (
+    STRICT_GATING_AUDIT_FIELDS,
+    STRICT_GATING_DIAGNOSTIC_FIELDS,
+    STRICT_GATING_SCHEMA_VERSION,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     build_download_preflight_summary,
@@ -144,6 +149,18 @@ MANUAL_REVIEW_IMPORT_COUNT_FIELDS = (
     "strict_upgrade_candidate_count",
 )
 MANUAL_REVIEW_IMPORT_MAX_BYTES = 5 * 1024 * 1024
+STRICT_GATING_MEMBERS = (
+    "strict_gating_summary.json",
+    "strict_gating_audit.tsv",
+    "strict_gating_diagnostics.tsv",
+)
+STRICT_GATING_COUNT_FIELDS = (
+    "record_count",
+    "strict_gate_passed_count",
+    "blocked_count",
+    "diagnostic_count",
+)
+STRICT_GATING_MAX_BYTES = 5 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -193,6 +210,166 @@ class ManualReviewImportAuditSummary:
     present_files: list[str]
     warnings: list[str]
     top_diagnostics: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class StrictGatingAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    top_codes: list[tuple[str, int]]
+
+
+def read_optional_strict_gating_audit(
+    directory: str | Path | None,
+) -> StrictGatingAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [name for name in STRICT_GATING_MEMBERS if (input_dir / name).exists()]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    summary_data: dict[str, object] | None = None
+    summary_codes: Counter[str] = Counter()
+    diagnostic_codes: Counter[str] = Counter()
+    observed_audit: int | None = None
+    observed_diagnostics: int | None = None
+
+    missing = [name for name in STRICT_GATING_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / "strict_gating_summary.json"
+    if summary_path.exists():
+        try:
+            _validate_strict_gating_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != STRICT_GATING_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            for field in STRICT_GATING_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            if loaded.get("strict_deliverable_written") is not False:
+                raise ValueError("strict_deliverable_written boundary violation")
+            if loaded.get("strict_upgrade_applied") is not False:
+                raise ValueError("strict_upgrade_applied boundary violation")
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            raw_codes = loaded.get("blocker_counts", {})
+            if not isinstance(raw_codes, dict):
+                raise ValueError("invalid blocker_counts")
+            for code, value in raw_codes.items():
+                if (
+                    not isinstance(code, str)
+                    or not code.strip()
+                    or isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value < 0
+                ):
+                    raise ValueError("invalid blocker_counts")
+                summary_codes[code.strip()] = value
+            summary_data = loaded
+            counts = {
+                **{field: loaded[field] for field in STRICT_GATING_COUNT_FIELDS},
+                "strict_deliverable_written": False,
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+            }
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append("strict_gating_summary.json malformed")
+
+    audit_path = input_dir / "strict_gating_audit.tsv"
+    if audit_path.exists():
+        try:
+            audit_rows = _read_strict_gating_tsv(
+                audit_path, STRICT_GATING_AUDIT_FIELDS
+            )
+            if any(
+                row.get("schema_version") != STRICT_GATING_SCHEMA_VERSION
+                or row.get("audit_only", "").strip().lower() != "true"
+                or row.get("strict_deliverable_written", "").strip().lower()
+                != "false"
+                or row.get("strict_upgrade_applied", "").strip().lower() != "false"
+                for row in audit_rows
+            ):
+                raise ValueError("audit boundary violation")
+            observed_audit = len(audit_rows)
+            valid_files.append(audit_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("strict_gating_audit.tsv malformed")
+
+    diagnostics_path = input_dir / "strict_gating_diagnostics.tsv"
+    if diagnostics_path.exists():
+        try:
+            diagnostic_rows = _read_strict_gating_tsv(
+                diagnostics_path, STRICT_GATING_DIAGNOSTIC_FIELDS
+            )
+            if any(
+                row.get("schema_version") != STRICT_GATING_SCHEMA_VERSION
+                for row in diagnostic_rows
+            ):
+                raise ValueError("unsupported schema_version")
+            observed_diagnostics = len(diagnostic_rows)
+            diagnostic_codes.update(
+                row.get("blocker_code", "").strip()
+                for row in diagnostic_rows
+                if row.get("blocker_code", "").strip()
+            )
+            valid_files.append(diagnostics_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("strict_gating_diagnostics.tsv malformed")
+
+    if summary_data is not None:
+        if observed_audit is not None and summary_data["record_count"] != observed_audit:
+            warnings.append("record_count does not match audit rows")
+        if (
+            observed_diagnostics is not None
+            and summary_data["diagnostic_count"] != observed_diagnostics
+        ):
+            warnings.append("diagnostic_count does not match diagnostics rows")
+        if diagnostic_codes and summary_codes != diagnostic_codes:
+            warnings.append("blocker_counts do not match diagnostics rows")
+
+    displayed_codes = summary_codes or diagnostic_codes
+    return StrictGatingAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        top_codes=sorted(
+            displayed_codes.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+    )
+
+
+def _validate_strict_gating_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > STRICT_GATING_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_strict_gating_tsv(
+    path: Path, expected_fields: tuple[str, ...]
+) -> list[dict[str, str]]:
+    _validate_strict_gating_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != expected_fields:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
 
 
 def read_optional_manual_review_import_audit(
@@ -1336,6 +1513,9 @@ def build_run_summary_markdown(
     manual_review_import_audit = read_optional_manual_review_import_audit(
         getattr(args, "manual_review_import_dir", None)
     )
+    strict_gating_audit = read_optional_strict_gating_audit(
+        getattr(args, "strict_gating_dir", None)
+    )
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -1648,6 +1828,62 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(code)} | {count} |"
                         for code, count in manual_review_import_audit.top_diagnostics
+                    ],
+                ]
+            )
+
+    if strict_gating_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Strict Gating Audit",
+                "",
+                "The strict-gating evaluation is audit-only.",
+                (
+                    "`strict_gate_passed=true` means only that the offline "
+                    "strict-gating evaluator passed its guards. It is not a "
+                    "strict deliverable upgrade."
+                ),
+                (
+                    "The evaluator and this report surface keep "
+                    "`strict_deliverable_written=false` and "
+                    "`strict_upgrade_applied=false`."
+                ),
+                (
+                    "Report inclusion does not change "
+                    "manifest/reconciler/package/completion/evidence-policy "
+                    "gating; it also does not change selection, reconciler "
+                    "tier, provider/download behavior, or genome workflow "
+                    "outputs."
+                ),
+            ]
+        )
+        if strict_gating_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in strict_gating_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if strict_gating_audit.warnings:
+            lines.append("- Warning: " + "; ".join(strict_gating_audit.warnings))
+        if strict_gating_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(strict_gating_audit.present_files)
+            )
+        if strict_gating_audit.top_codes:
+            lines.extend(
+                [
+                    "",
+                    "| Blocker/Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in strict_gating_audit.top_codes
                     ],
                 ]
             )

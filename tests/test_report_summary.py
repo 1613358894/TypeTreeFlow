@@ -33,6 +33,10 @@ from typetreeflow.evidence.manual_review_import import (
     MANUAL_REVIEW_DECISION_FIELDS,
     MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
 )
+from typetreeflow.evidence.strict_gating import (
+    STRICT_GATING_AUDIT_FIELDS,
+    STRICT_GATING_DIAGNOSTIC_FIELDS,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     write_download_preflight_summary,
@@ -48,6 +52,7 @@ from typetreeflow.report.summary import (
     build_run_review_markdown,
     build_run_summary_markdown,
     read_optional_manual_review_import_audit,
+    read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
     read_optional_download_preflight_summary,
@@ -106,6 +111,148 @@ def _write_manual_review_import_triplet(directory: Path) -> None:
         "\n".join(diagnostic_lines) + "\n",
         encoding="utf-8",
     )
+
+
+def _write_strict_gating_triplet(directory: Path) -> None:
+    directory.mkdir(parents=True)
+    codes = ("z", "a", "b", "c", "d", "e", "a")
+    (directory / "strict_gating_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 1,
+                "strict_gate_passed_count": 0,
+                "blocked_count": 1,
+                "diagnostic_count": len(codes),
+                "blocker_counts": {
+                    code: codes.count(code) for code in sorted(set(codes))
+                },
+                "strict_deliverable_written": False,
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    audit = {field: "" for field in STRICT_GATING_AUDIT_FIELDS}
+    audit.update(
+        {
+            "schema_version": "1",
+            "species": "Aliivibrio fischeri",
+            "strict_gate_passed": "false",
+            "gate_status": "blocked",
+            "audit_only": "true",
+            "strict_deliverable_written": "false",
+            "strict_upgrade_applied": "false",
+        }
+    )
+    with (directory / "strict_gating_audit.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=STRICT_GATING_AUDIT_FIELDS, delimiter="\t"
+        )
+        writer.writeheader()
+        writer.writerow(audit)
+    with (directory / "strict_gating_diagnostics.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=STRICT_GATING_DIAGNOSTIC_FIELDS, delimiter="\t"
+        )
+        writer.writeheader()
+        for index, code in enumerate(codes, start=1):
+            writer.writerow(
+                {
+                    "schema_version": "1",
+                    "row_number": index,
+                    "severity": "error",
+                    "blocker_code": code,
+                    "message": f"private-message-{index}",
+                }
+            )
+
+
+def test_strict_gating_audit_section_is_explicit_bounded_and_audit_only(tmp_path):
+    strict_dir = tmp_path / "strict-gating"
+    _write_strict_gating_triplet(strict_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(strict_gating_dir=strict_dir),
+    )
+
+    assert "## Strict Gating Audit" in markdown
+    assert (
+        "record_count=1; strict_gate_passed_count=0; blocked_count=1; "
+        "diagnostic_count=7; strict_deliverable_written=false; "
+        "strict_upgrade_applied=false; audit_only=true"
+    ) in markdown
+    assert "The strict-gating evaluation is audit-only" in markdown
+    assert "`strict_gate_passed=true` means only that" in markdown
+    assert "It is not a strict deliverable upgrade" in markdown
+    assert "`strict_deliverable_written=false`" in markdown
+    assert "`strict_upgrade_applied=false`" in markdown
+    assert "Report inclusion does not change manifest" in markdown
+    assert markdown.count("| a | 2 |") == 1
+    assert "| z | 1 |" not in markdown
+    assert "private-message-" not in markdown
+
+
+def test_strict_gating_audit_absent_without_input_missing_or_empty_dir(tmp_path):
+    paths = get_output_paths(tmp_path / "run")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    for args in (
+        None,
+        SimpleNamespace(strict_gating_dir=tmp_path / "missing"),
+        SimpleNamespace(strict_gating_dir=empty),
+    ):
+        assert "## Strict Gating Audit" not in build_run_summary_markdown(
+            [_record("ref1")], paths, args
+        )
+
+
+def test_strict_gating_audit_partial_malformed_summary_warns(tmp_path):
+    strict_dir = tmp_path / "strict-gating"
+    strict_dir.mkdir()
+    (strict_dir / "strict_gating_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+    (strict_dir / "strict_gating_diagnostics.tsv").write_text(
+        "\t".join(STRICT_GATING_DIAGNOSTIC_FIELDS) + "\n", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(strict_gating_dir=strict_dir),
+    )
+
+    assert "## Strict Gating Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "strict_gating_summary.json malformed" in markdown
+    assert "missing members: strict_gating_audit.tsv" in markdown
+
+
+def test_strict_gating_audit_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    strict_dir = tmp_path / "strict-gating"
+    _write_strict_gating_triplet(strict_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("strict-gating reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_strict_gating_audit(strict_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
 
 
 def test_manual_review_import_audit_section_is_explicit_bounded_and_audit_only(
