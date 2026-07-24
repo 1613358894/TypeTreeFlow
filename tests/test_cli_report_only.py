@@ -12,6 +12,10 @@ from typetreeflow.taxonomy.source_audit import (
 )
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import read_run_state
+from typetreeflow.evidence.manual_review_import import (
+    MANUAL_REVIEW_DECISION_FIELDS,
+    MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
+)
 
 
 def _record(record_id: str, status: str, has_16s: bool = False) -> StrainRecord:
@@ -28,6 +32,75 @@ def _record(record_id: str, status: str, has_16s: bool = False) -> StrainRecord:
         source="fixture",
         status=status,
         notes=f"note for {status}",
+    )
+
+
+def test_report_only_explicit_manual_review_import_dir_is_read_only(tmp_path, capsys):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    import_dir = tmp_path / "manual-review-import"
+    import_dir.mkdir()
+    (import_dir / "manual_review_summary.json").write_text(
+        json.dumps(
+            {
+                "record_count": 0,
+                "accepted_decision_count": 0,
+                "diagnostic_count": 0,
+                "strict_upgrade_candidate_count": 0,
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+                "schema_version": "1",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (import_dir / "manual_review_decisions.tsv").write_text(
+        "\t".join(MANUAL_REVIEW_DECISION_FIELDS) + "\n", encoding="utf-8"
+    )
+    (import_dir / "manual_review_diagnostics.tsv").write_text(
+        "\t".join(MANUAL_REVIEW_DIAGNOSTIC_FIELDS) + "\n", encoding="utf-8"
+    )
+    import_before = {
+        path.name: path.read_bytes() for path in import_dir.iterdir()
+    }
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--manual-review-import-dir",
+            str(import_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    assert result == 0
+    assert stdout.strip().startswith("{")
+    assert json.loads(stdout)["command"] == "verify-genus"
+    assert "## Manual Review Import Audit" in paths.run_summary_path.read_text(
+        encoding="utf-8"
+    )
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {path.name: path.read_bytes() for path in import_dir.iterdir()} == import_before
+    assert not paths.completion_dir.exists()
+
+
+def test_report_only_without_manual_review_import_dir_remains_unchanged(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+
+    result = main(["--outdir", str(outdir), "--report-only"])
+
+    assert result == 0
+    assert "## Manual Review Import Audit" not in paths.run_summary_path.read_text(
+        encoding="utf-8"
     )
 
 

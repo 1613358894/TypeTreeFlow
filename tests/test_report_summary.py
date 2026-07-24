@@ -1,5 +1,7 @@
 import csv
 import json
+import os
+import socket
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -27,6 +29,10 @@ from typetreeflow.expanded_discovery import (
     write_expanded_discovery_results,
     write_manual_supplement_hints,
 )
+from typetreeflow.evidence.manual_review_import import (
+    MANUAL_REVIEW_DECISION_FIELDS,
+    MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     write_download_preflight_summary,
@@ -41,6 +47,7 @@ from typetreeflow.provider_plan import (
 from typetreeflow.report.summary import (
     build_run_review_markdown,
     build_run_summary_markdown,
+    read_optional_manual_review_import_audit,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
     read_optional_download_preflight_summary,
@@ -70,6 +77,122 @@ from typetreeflow.taxonomy.source_audit import (
 )
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 from typetreeflow.workflow.paths import get_output_paths
+
+
+def _write_manual_review_import_triplet(directory: Path) -> None:
+    directory.mkdir(parents=True)
+    (directory / "manual_review_summary.json").write_text(
+        json.dumps(
+            {
+                "record_count": 0,
+                "accepted_decision_count": 0,
+                "diagnostic_count": 7,
+                "strict_upgrade_candidate_count": 0,
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+                "schema_version": "1",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (directory / "manual_review_decisions.tsv").write_text(
+        "\t".join(MANUAL_REVIEW_DECISION_FIELDS) + "\n",
+        encoding="utf-8",
+    )
+    diagnostic_lines = ["\t".join(MANUAL_REVIEW_DIAGNOSTIC_FIELDS)]
+    for index, code in enumerate(("z", "a", "b", "c", "d", "e", "a"), start=1):
+        diagnostic_lines.append(f"1\t{index}\terror\t{code}\t\t\tmessage-{index}")
+    (directory / "manual_review_diagnostics.tsv").write_text(
+        "\n".join(diagnostic_lines) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_manual_review_import_audit_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    import_dir = tmp_path / "manual-review-import"
+    _write_manual_review_import_triplet(import_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(manual_review_import_dir=import_dir),
+    )
+
+    assert "## Manual Review Import Audit" in markdown
+    assert (
+        "- Counts: record_count=0; accepted_decision_count=0; "
+        "diagnostic_count=7; strict_upgrade_candidate_count=0; "
+        "strict_upgrade_applied=false; audit_only=true"
+    ) in markdown
+    assert "The manual-review import is audit-only" in markdown
+    assert "`strict_upgrade_candidate=true` is not a strict deliverable upgrade" in markdown
+    assert (
+        "`strict_upgrade_applied=false` means no "
+        "manifest/reconciler/package/completion change"
+    ) in markdown
+    assert "report inclusion does not change evidence-policy gating" in markdown
+    assert "curated_strict_confirmed" in markdown
+    assert markdown.count("| a | 2 |") == 1
+    assert "| z | 1 |" not in markdown
+    assert "message-" not in markdown
+
+
+def test_manual_review_import_audit_absent_without_explicit_input_or_empty_dir(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path / "run")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    assert "## Manual Review Import Audit" not in build_run_summary_markdown(
+        [_record("ref1")], paths
+    )
+    assert "## Manual Review Import Audit" not in build_run_summary_markdown(
+        [_record("ref1")],
+        paths,
+        SimpleNamespace(manual_review_import_dir=empty),
+    )
+
+
+def test_manual_review_import_audit_partial_malformed_summary_warns(tmp_path):
+    import_dir = tmp_path / "manual-review-import"
+    import_dir.mkdir()
+    (import_dir / "manual_review_summary.json").write_text("{broken", encoding="utf-8")
+    (import_dir / "manual_review_diagnostics.tsv").write_text(
+        "\t".join(MANUAL_REVIEW_DIAGNOSTIC_FIELDS) + "\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(manual_review_import_dir=import_dir),
+    )
+
+    assert "## Manual Review Import Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "manual_review_summary.json malformed" in markdown
+    assert "missing members: manual_review_decisions.tsv" in markdown
+
+
+def test_manual_review_import_audit_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    import_dir = tmp_path / "manual-review-import"
+    _write_manual_review_import_triplet(import_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("audit reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_manual_review_import_audit(import_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
 
 
 def _record(

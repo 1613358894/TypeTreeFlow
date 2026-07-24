@@ -32,6 +32,11 @@ from typetreeflow.expanded_discovery import (
     summarize_manual_supplement_hints,
 )
 from typetreeflow.evidence_policy import summarize_evidence_policy
+from typetreeflow.evidence.manual_review_import import (
+    MANUAL_REVIEW_DECISION_FIELDS,
+    MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
+    MANUAL_REVIEW_IMPORT_SCHEMA_VERSION,
+)
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     build_download_preflight_summary,
@@ -127,6 +132,18 @@ RECONCILER_COUNT_FIELDS = (
     "manual_review_count",
     "diagnostic_count",
 )
+MANUAL_REVIEW_IMPORT_MEMBERS = (
+    "manual_review_summary.json",
+    "manual_review_decisions.tsv",
+    "manual_review_diagnostics.tsv",
+)
+MANUAL_REVIEW_IMPORT_COUNT_FIELDS = (
+    "record_count",
+    "accepted_decision_count",
+    "diagnostic_count",
+    "strict_upgrade_candidate_count",
+)
+MANUAL_REVIEW_IMPORT_MAX_BYTES = 5 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -168,6 +185,144 @@ class StrictReconciliationAuditSummary:
     present_files: list[str]
     warning: str
     top_diagnostics: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class ManualReviewImportAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    top_diagnostics: list[tuple[str, int]]
+
+
+def read_optional_manual_review_import_audit(
+    directory: str | Path | None,
+) -> ManualReviewImportAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name for name in MANUAL_REVIEW_IMPORT_MEMBERS if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    top_diagnostics: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    observed_decisions: int | None = None
+    observed_diagnostics: int | None = None
+
+    missing = [name for name in MANUAL_REVIEW_IMPORT_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / "manual_review_summary.json"
+    if summary_path.exists():
+        try:
+            _validate_manual_review_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != MANUAL_REVIEW_IMPORT_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            for field in MANUAL_REVIEW_IMPORT_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            if loaded.get("strict_upgrade_applied") is not False:
+                raise ValueError("strict_upgrade_applied boundary violation")
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            summary_data = loaded
+            counts = {
+                **{field: loaded[field] for field in MANUAL_REVIEW_IMPORT_COUNT_FIELDS},
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+            }
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append("manual_review_summary.json malformed")
+
+    decisions_path = input_dir / "manual_review_decisions.tsv"
+    if decisions_path.exists():
+        try:
+            decision_rows = _read_manual_review_tsv(
+                decisions_path, MANUAL_REVIEW_DECISION_FIELDS
+            )
+            if any(
+                row.get("strict_upgrade_applied", "").strip().lower() != "false"
+                for row in decision_rows
+            ):
+                raise ValueError("strict_upgrade_applied boundary violation")
+            observed_decisions = len(decision_rows)
+            valid_files.append(decisions_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("manual_review_decisions.tsv malformed")
+
+    diagnostics_path = input_dir / "manual_review_diagnostics.tsv"
+    if diagnostics_path.exists():
+        try:
+            diagnostic_rows = _read_manual_review_tsv(
+                diagnostics_path, MANUAL_REVIEW_DIAGNOSTIC_FIELDS
+            )
+            observed_diagnostics = len(diagnostic_rows)
+            diagnostic_counts = Counter(
+                row.get("diagnostic_code", "").strip()
+                for row in diagnostic_rows
+                if row.get("diagnostic_code", "").strip()
+            )
+            top_diagnostics = sorted(
+                diagnostic_counts.items(), key=lambda item: (-item[1], item[0])
+            )[:5]
+            valid_files.append(diagnostics_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("manual_review_diagnostics.tsv malformed")
+
+    if summary_data is not None:
+        if (
+            observed_decisions is not None
+            and summary_data["record_count"] != observed_decisions
+        ):
+            warnings.append("record_count does not match decisions rows")
+        if (
+            observed_diagnostics is not None
+            and summary_data["diagnostic_count"] != observed_diagnostics
+        ):
+            warnings.append("diagnostic_count does not match diagnostics rows")
+
+    return ManualReviewImportAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        top_diagnostics=top_diagnostics,
+    )
+
+
+def _validate_manual_review_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > MANUAL_REVIEW_IMPORT_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_manual_review_tsv(
+    path: Path,
+    expected_fields: tuple[str, ...],
+) -> list[dict[str, str]]:
+    _validate_manual_review_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != expected_fields:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
 
 
 def summarize_manifest(records: Iterable[StrainRecord]) -> dict[str, int]:
@@ -1178,6 +1333,9 @@ def build_run_summary_markdown(
     strict_reconciliation_summary = read_optional_strict_reconciliation_audit_summary(
         paths
     )
+    manual_review_import_audit = read_optional_manual_review_import_audit(
+        getattr(args, "manual_review_import_dir", None)
+    )
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -1435,6 +1593,61 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(code)} | {count} |"
                         for code, count in strict_reconciliation_summary.top_diagnostics
+                    ],
+                ]
+            )
+
+    if manual_review_import_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Manual Review Import Audit",
+                "",
+                (
+                    "The manual-review import is audit-only; report inclusion does "
+                    "not change evidence-policy gating."
+                ),
+                (
+                    "`strict_upgrade_candidate=true` is not a strict "
+                    "deliverable upgrade; `curated_strict_confirmed` is a "
+                    "recorded review status, not an applied strict deliverable "
+                    "upgrade."
+                ),
+                (
+                    "`strict_upgrade_applied=false` means no "
+                    "manifest/reconciler/package/completion change."
+                ),
+            ]
+        )
+        if manual_review_import_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in manual_review_import_audit.counts.items()
+                )
+            )
+            lines.append("- strict_upgrade_applied=false")
+        else:
+            lines.append("- Counts: not_recorded")
+        if manual_review_import_audit.warnings:
+            lines.append(
+                "- Warning: " + "; ".join(manual_review_import_audit.warnings)
+            )
+        if manual_review_import_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(manual_review_import_audit.present_files)
+            )
+        if manual_review_import_audit.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in manual_review_import_audit.top_diagnostics
                     ],
                 ]
             )

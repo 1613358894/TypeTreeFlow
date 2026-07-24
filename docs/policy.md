@@ -96,6 +96,14 @@ remains exploratory non-type evidence. `missing_public_genome` means no public
 selected genome is available to reconcile; it is distinct from a genome that is
 present but lacks strict type linkage.
 
+Manual-review import reporting is audit-only. Explicit report inclusion does
+not change evidence-policy gating, manifests, selection, reconciler outputs,
+completion, packages, providers, or downloads. `strict_upgrade_candidate=true`
+is not a strict deliverable upgrade. `curated_strict_confirmed` is a recorded
+review status, not an applied strict deliverable upgrade.
+`strict_upgrade_applied=false` means no
+manifest/reconciler/package/completion change.
+
 The P3c-b2b reconciler workflow hook remains offline and audit-only.
 `verify-genus` writes `evidence/reconciler_audit.tsv`,
 `evidence/reconciler_summary.json`, and
