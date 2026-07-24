@@ -335,6 +335,26 @@ At most five diagnostic-code counts are displayed; diagnostic messages and raw
 decision content are not displayed. Primary stdout retains the existing compact
 JSON contract.
 
+`--strict-gating-dir <dir>` is accepted only with `--report-only`. It is an
+explicit read-only input and is never automatically discovered under the
+workflow outdir. Report generation recognizes only
+`strict_gating_summary.json`, `strict_gating_audit.tsv`, and
+`strict_gating_diagnostics.tsv`; it does not recurse or invoke
+`strict-gating evaluate`. If the directory is missing, empty, or contains none
+of those members, `## Strict Gating Audit` is omitted. A partial or malformed
+triplet produces a compact bounded warning without failing the report.
+
+A valid summary displays `record_count`, `strict_gate_passed_count`,
+`blocked_count`, `diagnostic_count`, `strict_deliverable_written`,
+`strict_upgrade_applied`, and `audit_only`, plus at most five
+blocker/diagnostic code counts. `strict_gate_passed=true` means only that the
+offline evaluator guards passed; it is not a strict deliverable upgrade.
+`strict_deliverable_written=false` and `strict_upgrade_applied=false` remain
+independent invariants. Report inclusion does not change manifest, selection,
+reconciler outputs or tier, package outputs, completion, evidence-policy
+gating, provider/download behavior, or genome workflow outputs. Primary stdout
+retains the existing compact JSON contract.
+
 The primary audit output path is
 `evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
 expected species. When no selected genome exists, the mapper may write a

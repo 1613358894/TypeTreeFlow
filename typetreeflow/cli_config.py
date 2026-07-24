@@ -155,6 +155,10 @@ def build_app_config_from_args(
             "--manual-review-import-dir is only supported with --report-only "
             "or package-results."
         )
+    if args.strict_gating_dir is not None and not args.report_only:
+        raise ValueError(
+            "--strict-gating-dir is only supported with --report-only."
+        )
     load_env_files(args.env_file)
     _validate_bacdive_args(args, verify_genus=verify_genus)
     query_genomes = tuple(args.query_genome or ())
@@ -254,4 +258,5 @@ def build_app_config_from_args(
         bacdive_timeout_seconds=args.bacdive_timeout_seconds,
         bacdive_max_queries=args.bacdive_max_queries,
         manual_review_import_dir=args.manual_review_import_dir,
+        strict_gating_dir=args.strict_gating_dir,
     )

@@ -16,6 +16,7 @@ from typetreeflow.evidence.manual_review_import import (
     MANUAL_REVIEW_DECISION_FIELDS,
     MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
 )
+from tests.test_report_summary import _write_strict_gating_triplet
 
 
 def _record(record_id: str, status: str, has_16s: bool = False) -> StrainRecord:
@@ -100,6 +101,58 @@ def test_report_only_without_manual_review_import_dir_remains_unchanged(tmp_path
 
     assert result == 0
     assert "## Manual Review Import Audit" not in paths.run_summary_path.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_report_only_explicit_strict_gating_dir_is_read_only_and_compact(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    strict_dir = tmp_path / "strict-gating"
+    _write_strict_gating_triplet(strict_dir)
+    strict_before = {path.name: path.read_bytes() for path in strict_dir.iterdir()}
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--strict-gating-dir",
+            str(strict_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    assert result == 0
+    assert stdout.count("\n") <= 1
+    assert json.loads(stdout)["command"] == "verify-genus"
+    assert "## Strict Gating Audit" in paths.run_summary_path.read_text(
+        encoding="utf-8"
+    )
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {path.name: path.read_bytes() for path in strict_dir.iterdir()} == strict_before
+    assert not paths.completion_dir.exists()
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+def test_report_only_without_strict_gating_dir_remains_unchanged(tmp_path):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+
+    result = main(["--outdir", str(outdir), "--report-only"])
+
+    assert result == 0
+    assert "## Strict Gating Audit" not in paths.run_summary_path.read_text(
         encoding="utf-8"
     )
 
