@@ -57,6 +57,26 @@ requested, then return exit code `2`. Existing destinations are refused.
 `--force` replaces only a dedicated directory containing exactly a
 schema-recognized prior triplet. Keep the destination isolated from inputs and
 workflow run, report, package, provider, download, and evidence paths.
+Write-mode import summaries also record SHA-256 input digests so a later
+offline evaluator can prove that it received the same frozen reconciler audit.
+
+Evaluate a completed import handoff without changing workflow state:
+
+```bash
+typetreeflow strict-gating evaluate \
+  --manual-review-dir <manual-review-import-directory> \
+  --reconciler-audit <frozen-reconciler-audit.tsv> [--json] \
+  [--write --outdir <strict-gating-audit-directory> [--force]]
+```
+
+The default is a no-write dry run with one compact JSON object on stdout.
+Explicit write mode publishes only `strict_gating_audit.tsv`,
+`strict_gating_summary.json`, and `strict_gating_diagnostics.tsv` directly in
+the dedicated directory. Blocked evaluations may write that triplet but still
+exit `2`. The command never writes an `evidence/` child, strict deliverable, or
+workflow output. `strict_gate_passed=true` means only that the offline guards
+passed; `strict_deliverable_written` and `strict_upgrade_applied` remain
+`false`.
 
 For clean deployment rehearsal, keep the route minimal:
 

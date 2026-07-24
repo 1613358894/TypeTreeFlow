@@ -932,11 +932,17 @@ def main(
     lpsn_client=None,
 ) -> int:
     command_argv = list(sys.argv[1:] if argv is None else argv)
+    from typetreeflow.strict_gating_cli import (
+        is_strict_gating_command,
+        run_strict_gating_command,
+    )
     from typetreeflow.manual_review_cli import (
         is_manual_review_command,
         run_manual_review_command,
     )
 
+    if is_strict_gating_command(command_argv):
+        return run_strict_gating_command(command_argv)
     if is_manual_review_command(command_argv):
         return run_manual_review_command(command_argv)
     config = parse_args(argv)

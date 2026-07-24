@@ -161,6 +161,19 @@ does not connect the importer to `verify-genus`. Even when a validated
 `strict_upgrade_candidate=true`, `strict_upgrade_applied` remains `false`;
 the command does not produce a strict deliverable upgrade.
 
+The standalone `strict-gating evaluate` command is the only P3f-1 consumer of
+the manual-review import handoff. It remains outside `verify-genus` and
+compares the handoff-recorded SHA-256 with the exact frozen reconciler audit.
+Its fail-closed checks are audit evaluation only. Synthetic evidence is always
+blocked (there is no test-mode promotion), as are unresolved conflicts,
+duplicates, weak-source-only support, incomplete direct linkage, reviewer
+failures, mismatched species/accessions, stale snapshots, and malformed
+artifacts. Even when `strict_gate_passed=true`, `audit_only=true`,
+`strict_deliverable_written=false`, and `strict_upgrade_applied=false` remain
+independent invariants. The evaluator cannot mutate manifests, selection,
+completion, reconciler or evidence-policy results, reports, packages,
+providers, or downloads.
+
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit
 `--manual-review-import-dir`. They are packaged under `manual_review/` with
