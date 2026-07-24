@@ -533,6 +533,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--manual-review-import-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing the manual-review import "
+            "triplet for --report-only audit reporting; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],

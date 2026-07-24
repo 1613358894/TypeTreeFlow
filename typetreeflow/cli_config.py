@@ -146,6 +146,10 @@ def build_app_config_from_args(
     verify_genus: bool,
     package_results_command: bool,
 ) -> AppConfig:
+    if args.manual_review_import_dir is not None and not args.report_only:
+        raise ValueError(
+            "--manual-review-import-dir is only supported with --report-only."
+        )
     load_env_files(args.env_file)
     _validate_bacdive_args(args, verify_genus=verify_genus)
     query_genomes = tuple(args.query_genome or ())
@@ -244,4 +248,5 @@ def build_app_config_from_args(
         bacdive_query_mode=args.bacdive_query_mode,
         bacdive_timeout_seconds=args.bacdive_timeout_seconds,
         bacdive_max_queries=args.bacdive_max_queries,
+        manual_review_import_dir=args.manual_review_import_dir,
     )

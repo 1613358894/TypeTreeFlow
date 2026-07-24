@@ -96,6 +96,7 @@ class AppConfig:
     bacdive_query_mode: str = "tokens"
     bacdive_timeout_seconds: float = 20.0
     bacdive_max_queries: int = 50
+    manual_review_import_dir: Path | None = None
 
 
 def ensure_real_action_allowed(

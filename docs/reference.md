@@ -319,6 +319,20 @@ available reconciler outputs to refresh the reports without entering resume
 planning, rewriting the manifest, or regenerating derived workflow outputs.
 Normal `--resume` behavior is unchanged when `--report-only` is absent.
 
+`--manual-review-import-dir <dir>` is accepted only with `--report-only`.
+When explicitly supplied, report generation reads only
+`manual_review_summary.json`, `manual_review_decisions.tsv`, and
+`manual_review_diagnostics.tsv` from that directory. It does not recurse,
+discover workflow artifacts, or mutate the input. If all three are absent
+(including a missing or empty directory), the section is omitted. Partial or
+malformed input produces a compact warning in `## Manual Review Import Audit`
+and does not fail the report. Valid summary counts appear in stable order:
+`record_count`, `accepted_decision_count`, `diagnostic_count`,
+`strict_upgrade_candidate_count`, `strict_upgrade_applied`, and `audit_only`.
+At most five diagnostic-code counts are displayed; diagnostic messages and raw
+decision content are not displayed. Primary stdout retains the existing compact
+JSON contract.
+
 The primary audit output path is
 `evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
 expected species. When no selected genome exists, the mapper may write a

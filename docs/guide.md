@@ -256,6 +256,14 @@ Report-only takes priority over resume: it reads existing manifest and audit
 outputs but does not plan rRNA work, rewrite the manifest, or regenerate
 derived workflow outputs.
 
+To add the P3e-3b curator handoff to that refreshed report, pass
+`--manual-review-import-dir <isolated-triplet-directory>` together with
+`--report-only`. The directory is an explicit read-only input; TypeTreeFlow
+checks only the three exact manual-review filenames and never discovers them
+automatically under the workflow outdir. A missing or empty directory omits the
+section. Partial or malformed input keeps report generation successful and
+adds a compact warning to `## Manual Review Import Audit`.
+
 ## External Genome Registration
 
 Manual external genomes enter only through reviewed `external_genomes.tsv`.
