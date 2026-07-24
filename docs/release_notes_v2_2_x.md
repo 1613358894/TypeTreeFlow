@@ -1,9 +1,41 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.37 integration review as
+These notes consolidate the v2.2.2 through v2.2.38 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.38
+
+v2.2.38 batches the P3e manual-review audit-only pipeline merged after
+v2.2.37:
+
+- Offline manual-review TSV validation is available through the library and
+  the JSON-oriented `manual-review validate` CLI, with optional validation
+  issues TSV output.
+- The curated decision import mapper and `manual-review import` CLI provide
+  dry-run and explicit write modes for the three isolated handoff artifacts:
+  `manual_review_decisions.tsv`, `manual_review_summary.json`, and
+  `manual_review_diagnostics.tsv`.
+- `verify-genus --report-only --manual-review-import-dir <dir>` may add the
+  explicit report-only `Manual Review Import Audit` section.
+- `package-results --include reports|all --manual-review-import-dir <dir>`
+  copies recognized import artifacts under `manual_review/` and adds
+  audit-only `artifact_scope.tsv` rows.
+
+`curated_strict_confirmed` and `strict_upgrade_candidate=true` are audit-only
+signals. `strict_upgrade_applied=false` remains the contract. No manifest,
+selection, completion, reconciler tier, evidence-policy gating,
+provider/download, or report/package strict semantics change. BacDive-only,
+NCBI/BioSample-only, representative/reference-only, species-name-only,
+strain-text-only, and likely-type-material evidence cannot auto-upgrade.
+
+Bounded offline evidence is retained outside the repository at
+`D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_pipeline_closure_20260724`
+and
+`D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_integrated_offline_smoke_20260724`.
+This release does not claim live BacDive, LPSN/NCBI/Entrez lookup, datasets
+download, or external bioinformatics-tool validation.
 
 ## v2.2.37
 

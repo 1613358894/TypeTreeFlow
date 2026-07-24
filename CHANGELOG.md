@@ -1,5 +1,38 @@
 # Changelog
 
+## v2.2.38 - 2026-07-24
+
+v2.2.38 batches the P3e manual-review audit-only pipeline merged after
+v2.2.37.
+
+### Added
+
+- Offline manual-review TSV validation with short JSON CLI output and optional
+  validation issues TSV output.
+- A curated decision import mapper and `manual-review import` CLI with dry-run
+  and explicit write modes.
+- An explicit report-only `Manual Review Import Audit` section selected with
+  `--manual-review-import-dir`.
+- `package-results` support for the three manual-review import artifacts under
+  `manual_review/`, with audit-only `artifact_scope.tsv` rows.
+
+### Scientific boundary
+
+- `curated_strict_confirmed` and `strict_upgrade_candidate=true` are audit-only
+  signals; `strict_upgrade_applied=false` remains the contract.
+- No manifest, selection, completion, reconciler tier, evidence-policy gating,
+  provider/download, report/package strict semantics are changed.
+- BacDive-only, NCBI/BioSample-only, representative/reference-only,
+  species-name-only, strain-text-only, and likely-type-material evidence cannot
+  auto-upgrade.
+
+### Verification
+
+- P3e pipeline closure evidence:
+  `D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_pipeline_closure_20260724`.
+- Integrated offline smoke evidence:
+  `D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_integrated_offline_smoke_20260724`.
+
 ## v2.2.37 - 2026-07-22
 
 v2.2.37 makes `verify-genus --resume --report-only` a report refresh that is

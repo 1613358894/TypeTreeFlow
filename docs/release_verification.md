@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.37 / 2.2.37 release verification path uses
+The current v2.2.38 / 2.2.38 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -25,13 +25,31 @@ policy, the offline strict evidence reconciler model, offline reconciler audit
 mapper and writers, the audit-only strict reconciliation workflow hook,
 the audit-only Strict Reconciliation Audit report section, audit-only
 reconciler package inclusion under `package-results --include reports` and
-`--include all`,
+`--include all`, offline manual-review TSV validation and issues output,
+manual-review decision import mapping and CLI dry-run/write behavior, the
+report-only Manual Review Import Audit section, and audit-only package
+inclusion of manual-review import artifacts,
 clean deployment readiness, provider timeout/error classification, stdout JSON
 isolation, failed-handoff cache boundaries, workspace hygiene, and ensures
 repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`,
 operator-run `barrnap --updatedb`, and `typetreeflow doctor`; server rehearsal
 passed the clean deployment full rerun.
+
+For v2.2.38, the P3e manual-review pipeline remains offline and audit-only.
+`manual-review validate` provides JSON-oriented validation and optional issues
+TSV output. `manual-review import` maps curated decisions in dry-run or
+explicit write mode. `--manual-review-import-dir` enables the report-only
+`Manual Review Import Audit` section and package copying of recognized import
+artifacts under `manual_review/`, with `scope=audit`,
+`evidence_policy=manual_review_audit`, and
+`strict_scientific_deliverable=false` artifact-scope rows.
+`curated_strict_confirmed` and `strict_upgrade_candidate=true` remain
+audit-only signals, while `strict_upgrade_applied=false` remains the contract.
+No manifest, selection, completion, reconciler tier, evidence-policy gating,
+provider/download, or report/package strict semantics change. BacDive-only,
+NCBI/BioSample-only, representative/reference-only, species-name-only,
+strain-text-only, and likely-type-material evidence cannot auto-upgrade.
 
 For v2.2.37, `verify-genus --resume --report-only` dispatches report-only
 before resume and refreshes reports from existing local artifacts. It does not
@@ -226,9 +244,13 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.37 release record includes local release gates PASS and report-order
-offline smoke rerun PASS. This is bounded offline release evidence only: it
-does not claim broad live validation or strict gating. The current source
+The v2.2.38 release record references the bounded offline P3e pipeline closure
+at
+`D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_pipeline_closure_20260724`
+and integrated smoke at
+`D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_integrated_offline_smoke_20260724`.
+This evidence does not claim live-provider validation, downloads, external
+bioinformatics-tool execution, or applied strict upgrades. The current source
 writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and

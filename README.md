@@ -1,13 +1,16 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.37 release source makes
-`verify-genus --resume --report-only` read-only for `manifest.tsv` and derived
-workflow state. `report_only` dispatches before `resume`, so the combined
-command refreshes reports without rRNA planning, manifest writes, or taxonomy,
-completion, and expanded-discovery regeneration. Normal `--resume`, bare
-`--report-only`, and same-run `Strict Reconciliation Audit` report behavior
-remain unchanged. The release preserves the v2.2.36 audit-only reconciler
+workflow. The current 2.2.38 release batches the P3e manual-review audit-only
+pipeline: offline TSV validation with JSON CLI output and optional issues TSV,
+curated decision import mapping with CLI dry-run/write modes, an explicit
+report-only `Manual Review Import Audit` section via
+`--manual-review-import-dir`, and package support for the three import
+artifacts under `manual_review/` with audit-only `artifact_scope.tsv` rows.
+`curated_strict_confirmed` and `strict_upgrade_candidate=true` remain
+audit-only signals, and `strict_upgrade_applied=false` remains the contract.
+The release preserves the v2.2.37 report-only ordering fix, the v2.2.36
+audit-only reconciler
 package inclusion, the v2.2.35 compact audit-only report section, the
 v2.2.34 audit-only `strict_reconciliation` workflow outputs, the v2.2.32
 offline reconciler audit mapper/writers, the v2.2.31 strict evidence
@@ -142,7 +145,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.37 workflow
+## Recommended v2.2.38 workflow
 
 Plan first:
 
@@ -286,10 +289,11 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.37 release record includes local release gates PASS and report-order
-offline smoke rerun PASS. This is bounded offline release evidence only and
-does not claim broad live validation or strict gating. The current source
-writes audit-only
+The v2.2.38 release record batches the P3e manual-review audit-only pipeline.
+Release evidence is the P3e pipeline closure and integrated offline smoke
+under `D:\Draft\TypeTreeFlow_release_evidence\`; it is bounded offline
+evidence and does not claim live-provider validation, downloads, external-tool
+execution, or applied strict upgrades. The current source writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv` from local `verify-genus` artifacts;
