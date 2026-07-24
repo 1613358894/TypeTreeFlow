@@ -546,7 +546,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "Explicit read-only directory containing the strict-gating audit "
-            "triplet for --report-only; no automatic discovery."
+            "triplet for --report-only audit reporting or package-results; "
+            "no automatic discovery."
         ),
     )
     parser.add_argument(

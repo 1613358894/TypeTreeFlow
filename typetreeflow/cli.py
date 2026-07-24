@@ -335,6 +335,7 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             include=config.include,
             failed_handoff=config.failed_handoff,
             manual_review_import_dir=config.manual_review_import_dir,
+            strict_gating_dir=config.strict_gating_dir,
         )
     except (FileNotFoundError, ManifestError, ValueError, RuntimeError) as error:
         LOGGER.error("%s", error)
@@ -370,6 +371,16 @@ def _format_package_results_envelope(
                 "id": "manual_review_import_warning",
                 "message": (
                     f"{len(result.manual_review_warnings)} manual-review import "
+                    "warning(s); see package README and handoff index"
+                ),
+            }
+        )
+    if result.strict_gating_warnings:
+        warnings.append(
+            {
+                "id": "strict_gating_warning",
+                "message": (
+                    f"{len(result.strict_gating_warnings)} strict-gating "
                     "warning(s); see package README and handoff index"
                 ),
             }

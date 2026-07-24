@@ -244,6 +244,11 @@ typetreeflow package-results \
   --manual-review-import-dir <isolated-triplet-directory>
 
 typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
+  --strict-gating-dir <isolated-triplet-directory>
+
+typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_failed \
   --delivery-dir <workspace>/deliveries/fusobacterium_failed \
   --failed-handoff
@@ -268,6 +273,16 @@ audit-only: `strict_upgrade_candidate=true` is not a strict deliverable
 upgrade, and `strict_upgrade_applied=false` means no manifest, selection,
 reconciler, package, completion, or evidence-policy change.
 `--failed-handoff` excludes manual-review import artifacts.
+With an explicit `--strict-gating-dir`, `--include reports` and `--include
+all` copy each validated P3f-1 member under `strict_gating/` and add one
+`scope=audit`, `evidence_policy=strict_gating_audit` artifact-scope row per
+copied member. Missing input is omitted; partial or malformed input copies
+only validated members and records a compact warning. These files are
+audit-only. `strict_gate_passed=true` means only that evaluator guards passed,
+not a strict deliverable upgrade; `strict_deliverable_written=false` and
+`strict_upgrade_applied=false` remain unchanged. Package inclusion means
+review availability, not completion, strict materialization, or strict gating
+application. `--failed-handoff` excludes strict-gating artifacts.
 Failed-handoff packages do not include `cache/` or raw provider intermediates
 by default. Use the source run directory for cache reuse; the handoff package
 keeps only small review artifacts and diagnostics.

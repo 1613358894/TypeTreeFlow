@@ -174,15 +174,25 @@ independent invariants. The evaluator cannot mutate manifests, selection,
 completion, reconciler or evidence-policy results, reports, packages,
 providers, or downloads.
 
-The optional report-only `--strict-gating-dir` surface is a passive reader of
-the three P3f-1 audit files. It does not make strict gating a `verify-genus`
-stage, discover artifacts under the workflow outdir, rerun the evaluator, or
-generate a strict deliverable. The strict-gating evaluation is audit-only.
+The optional report/package `--strict-gating-dir` surface is a passive reader
+of the three P3f-1 audit files. It does not make strict gating a
+`verify-genus` stage, discover artifacts under the workflow outdir, rerun the
+evaluator, or generate a strict deliverable. The strict-gating evaluation is
+audit-only.
 `strict_gate_passed=true` means only that evaluator guards passed, not that a
 strict deliverable was created or upgraded. The report preserves
 `strict_deliverable_written=false` and `strict_upgrade_applied=false`; its
-inclusion changes no manifest, selection, reconciler, package, completion,
+inclusion changes no manifest, selection, reconciler, completion,
 evidence-policy, provider/download, or genome workflow output.
+
+Normal `package-results --include reports` and `--include all` may copy each
+validated member only from an explicit `--strict-gating-dir`, under
+`strict_gating/`, with one audit-only artifact-scope row per copied member.
+Missing input is omitted; partial or malformed input copies only validated
+members and emits a compact warning. Package inclusion means review
+availability, not completion, strict materialization, or strict gating
+application. It must not reinterpret `strict_gate_passed=true` as a strict
+deliverable upgrade. Failed-handoff packages exclude strict-gating artifacts.
 
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit
