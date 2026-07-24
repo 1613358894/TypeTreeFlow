@@ -319,7 +319,9 @@ available reconciler outputs to refresh the reports without entering resume
 planning, rewriting the manifest, or regenerating derived workflow outputs.
 Normal `--resume` behavior is unchanged when `--report-only` is absent.
 
-`--manual-review-import-dir <dir>` is accepted only with `--report-only`.
+`--manual-review-import-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is always an explicit read-only input and is never
+automatically discovered under the workflow outdir.
 When explicitly supplied, report generation reads only
 `manual_review_summary.json`, `manual_review_decisions.tsv`, and
 `manual_review_diagnostics.tsv` from that directory. It does not recurse,
@@ -758,6 +760,21 @@ copied file with `scope=audit`,
 `strict_scientific_deliverable=false`. Reconciler package inclusion means audit
 availability, not strict scientific delivery, completion gating, manifest
 mutation, evidence-policy changes, or future package-tier policy.
+When `package-results --include reports` or `--include all` receives an
+explicit `--manual-review-import-dir`, each valid recognized member is copied
+to `manual_review/`. Package-root and reports scope manifests add one row per
+copied member with `scope=audit`,
+`evidence_policy=manual_review_audit`,
+`recommended_use=curator decision review`,
+`not_for=strict deliverable gating`,
+`source_artifact=manual_review_import`, and
+`strict_scientific_deliverable=false`. A missing or empty triplet is omitted.
+Partial or malformed input does not fail packaging: valid members remain
+copyable and the package README/handoff index records a compact warning.
+Failed-handoff packages exclude this surface. Inclusion means review
+availability only; `strict_upgrade_candidate=true` is not a strict deliverable
+upgrade, and `strict_upgrade_applied=false` means no manifest, selection,
+reconciler, package, completion, or evidence-policy change.
 
 `completion/16s_gaps.tsv` includes `genome_ready_16s_not_found` for missing
 sequences and `genome_ready_16s_not_strict_usable` when a sequence exists but

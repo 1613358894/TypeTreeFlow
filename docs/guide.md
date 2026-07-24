@@ -219,6 +219,11 @@ typetreeflow package-results \
   --delivery-dir <workspace>/deliveries/fusobacterium_plan
 
 typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
+  --manual-review-import-dir <isolated-triplet-directory>
+
+typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_failed \
   --delivery-dir <workspace>/deliveries/fusobacterium_failed \
   --failed-handoff
@@ -233,6 +238,16 @@ When local strict-reconciliation audit files exist, `--include reports` and
 properties, not completion metrics, strict deliverable gates, or policy/package
 gating. Missing or partial reconciler audit files do not fail package
 generation. Future policy/package gating is separate work.
+With an explicit `--manual-review-import-dir`, `--include reports` and
+`--include all` copy each recognized member of the P3e-3b triplet under
+`manual_review/` and add one `scope=audit`,
+`evidence_policy=manual_review_audit` row per copied member. Missing input is
+omitted; partial or malformed input copies only recognized members and records
+a compact warning in `README.md` and `handoff_index.md`. These files are
+audit-only: `strict_upgrade_candidate=true` is not a strict deliverable
+upgrade, and `strict_upgrade_applied=false` means no manifest, selection,
+reconciler, package, completion, or evidence-policy change.
+`--failed-handoff` excludes manual-review import artifacts.
 Failed-handoff packages do not include `cache/` or raw provider intermediates
 by default. Use the source run directory for cache reuse; the handoff package
 keeps only small review artifacts and diagnostics.

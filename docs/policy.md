@@ -161,6 +161,17 @@ does not connect the importer to `verify-genus`. Even when a validated
 `strict_upgrade_candidate=true`, `strict_upgrade_applied` remains `false`;
 the command does not produce a strict deliverable upgrade.
 
+Normal `package-results --include reports` and `--include all` may copy valid
+members of that triplet only from an explicit
+`--manual-review-import-dir`. They are packaged under `manual_review/` with
+audit-only artifact-scope rows. This is review availability, not workflow
+completion or strict gating. Packaging does not reinterpret
+`curated_strict_confirmed` or `strict_upgrade_candidate=true`, and
+`strict_upgrade_applied=false` continues to mean no manifest, selection,
+reconciler, package, completion, report, provider/download, or evidence-policy
+mutation. The workflow outdir is not scanned automatically, and failed-handoff
+packages exclude these imported artifacts.
+
 ## Evidence Policy
 
 Evidence policy is a run-level derived-view strategy, not a source fact or an

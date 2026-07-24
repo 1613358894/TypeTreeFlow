@@ -15,11 +15,13 @@ from typetreeflow.manifest import read_manifest, resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
     BacDiveCandidateReviewSummary,
+    ManualReviewImportAuditSummary,
     bacdive_compact_counts_summary,
     bacdive_compact_source_audit_summary,
     bacdive_normalized_outputs_available,
     read_optional_bacdive_candidate_review,
     read_optional_gtdb_metadata_audit,
+    read_optional_manual_review_import_audit,
     read_optional_sequence_source_audit,
     summarize_16s_coverage,
     summarize_sequence_source_audit,
@@ -46,6 +48,7 @@ class DeliveryResult:
     genome_count: int = 0
     rrna_sequence_count: int = 0
     all_16s_included: bool = False
+    manual_review_warnings: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -72,6 +75,7 @@ def package_results(
     delivery_dir: str | Path | None = None,
     include: str | Iterable[str] = DEFAULT_INCLUDE,
     failed_handoff: bool = False,
+    manual_review_import_dir: str | Path | None = None,
 ) -> DeliveryResult:
     paths = get_output_paths(outdir)
     if failed_handoff:
@@ -110,6 +114,8 @@ def package_results(
 
     bacdive_outputs_copied = False
     reconciler_outputs_copied: list[Path] = []
+    manual_review_outputs_copied: list[Path] = []
+    manual_review_audit: ManualReviewImportAuditSummary | None = None
     if "reports" in requested:
         _copy_optional(
             paths.run_summary_path,
@@ -174,6 +180,15 @@ def package_results(
             output_dir,
             copied,
         )
+        manual_review_audit = read_optional_manual_review_import_audit(
+            manual_review_import_dir
+        )
+        manual_review_outputs_copied = _copy_manual_review_import_outputs(
+            manual_review_import_dir,
+            manual_review_audit,
+            output_dir,
+            copied,
+        )
 
     _write_package_artifact_scope(
         paths,
@@ -182,6 +197,8 @@ def package_results(
         include_reports="reports" in requested,
         include_bacdive=bacdive_outputs_copied,
         reconciler_outputs_copied=reconciler_outputs_copied,
+        manual_review_outputs_copied=manual_review_outputs_copied,
+        manual_review_audit=manual_review_audit,
     )
 
     genome_count = 0
@@ -238,6 +255,7 @@ def package_results(
             genome_count=genome_count,
             rrna_sequence_count=rrna_sequence_count,
             all_16s_included=all_16s_included,
+            manual_review_audit=manual_review_audit,
         ),
         encoding="utf-8",
         newline="\n",
@@ -256,6 +274,7 @@ def package_results(
             genome_count=genome_count,
             rrna_sequence_count=rrna_sequence_count,
             all_16s_included=all_16s_included,
+            manual_review_audit=manual_review_audit,
         ),
         encoding="utf-8",
         newline="\n",
@@ -269,6 +288,11 @@ def package_results(
         genome_count=genome_count,
         rrna_sequence_count=rrna_sequence_count,
         all_16s_included=all_16s_included,
+        manual_review_warnings=(
+            list(manual_review_audit.warnings)
+            if manual_review_audit is not None
+            else []
+        ),
     )
 
 
@@ -431,6 +455,7 @@ def build_delivery_readme(
     genome_count: int,
     rrna_sequence_count: int,
     all_16s_included: bool,
+    manual_review_audit: ManualReviewImportAuditSummary | None = None,
 ) -> str:
     record_list = list(records)
     type_counts = summarize_type_confirmation_counts(record_list)
@@ -515,6 +540,8 @@ def build_delivery_readme(
         lines.extend(_bacdive_readme_lines(bacdive_review))
     if reconciler_review is not None:
         lines.extend(_reconciler_readme_lines(reconciler_review))
+    if manual_review_audit is not None:
+        lines.extend(_manual_review_import_readme_lines(manual_review_audit))
     lines.extend(
         [
             "",
@@ -607,6 +634,7 @@ def build_handoff_index(
     genome_count: int,
     rrna_sequence_count: int,
     all_16s_included: bool,
+    manual_review_audit: ManualReviewImportAuditSummary | None = None,
 ) -> str:
     record_list = list(records)
     type_counts = summarize_type_confirmation_counts(record_list)
@@ -705,6 +733,8 @@ def build_handoff_index(
         lines.extend(_bacdive_handoff_lines(bacdive_review))
     if reconciler_review is not None:
         lines.extend(_reconciler_handoff_lines(reconciler_review))
+    if manual_review_audit is not None:
+        lines.extend(_manual_review_import_handoff_lines(manual_review_audit))
     lines.extend(["", "## Included Files", ""])
     if copied_names:
         lines.extend(f"- {item}" for item in copied_names)
@@ -1050,6 +1080,26 @@ def _copy_reconciler_audit_outputs(
     return copied_reconciler
 
 
+def _copy_manual_review_import_outputs(
+    directory: str | Path | None,
+    audit: ManualReviewImportAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_manual_review: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "manual_review" / name,
+        )
+        copied.append(copied_path)
+        copied_manual_review.append(copied_path)
+    return copied_manual_review
+
+
 def _write_package_artifact_scope(
     paths: OutputPaths,
     delivery_dir: Path,
@@ -1058,6 +1108,8 @@ def _write_package_artifact_scope(
     include_reports: bool,
     include_bacdive: bool,
     reconciler_outputs_copied: list[Path],
+    manual_review_outputs_copied: list[Path],
+    manual_review_audit: ManualReviewImportAuditSummary | None,
 ) -> None:
     source_rows = read_artifact_scope(paths.artifact_scope_path)
     rows = list(source_rows)
@@ -1066,6 +1118,13 @@ def _write_package_artifact_scope(
     rows.extend(
         _reconciler_artifact_scope_rows(delivery_dir, reconciler_outputs_copied)
     )
+    rows.extend(
+        _manual_review_artifact_scope_rows(
+            delivery_dir,
+            manual_review_outputs_copied,
+            manual_review_audit,
+        )
+    )
     if not rows:
         return
 
@@ -1073,6 +1132,7 @@ def _write_package_artifact_scope(
     if (
         include_bacdive
         or reconciler_outputs_copied
+        or manual_review_outputs_copied
         or not paths.artifact_scope_path.exists()
     ):
         write_artifact_scope(rows, root_scope)
@@ -1085,6 +1145,7 @@ def _write_package_artifact_scope(
         if (
             include_bacdive
             or reconciler_outputs_copied
+            or manual_review_outputs_copied
             or not paths.artifact_scope_path.exists()
         ):
             write_artifact_scope(rows, reports_scope)
@@ -1235,6 +1296,75 @@ def _reconciler_artifact_scope_rows(
                     "remain warnings, not live lookup triggers."
                 ),
             )
+        )
+    return rows
+
+
+def _manual_review_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: ManualReviewImportAuditSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    candidate_count = 0
+    if audit is not None:
+        value = audit.counts.get("strict_upgrade_candidate_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            candidate_count = value
+    specifications = (
+        (
+            "manual_review/manual_review_decisions.tsv",
+            "manual_review_import_decisions",
+            "Manual-review imported decision audit",
+            80,
+            candidate_count,
+            "strict_upgrade_candidate is a curator-review label, not an applied strict deliverable upgrade.",
+        ),
+        (
+            "manual_review/manual_review_summary.json",
+            "manual_review_import_summary",
+            "Manual-review import compact audit summary",
+            81,
+            0,
+            "strict_upgrade_applied=false means no manifest, reconciler, package, completion, or evidence-policy change.",
+        ),
+        (
+            "manual_review/manual_review_diagnostics.tsv",
+            "manual_review_import_diagnostics",
+            "Manual-review import diagnostics",
+            82,
+            0,
+            "Diagnostics are audit warnings and do not gate workflow success or strict delivery.",
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority, candidates, notes in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        record_count = 1 if path.suffix == ".json" else _safe_tsv_row_count(path=path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "manual_review_audit",
+                "record_count": str(record_count),
+                "strict_usable_count": "0",
+                "candidate_count": str(candidates),
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "curator decision review",
+                "not_for": "strict deliverable gating",
+                "source_artifact": "manual_review_import",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": notes,
+            }
         )
     return rows
 
@@ -1740,6 +1870,55 @@ def _reconciler_handoff_lines(
             + "; ".join(dict.fromkeys(review.warnings))
             + "; warnings do not alter completion metrics."
         )
+    return lines
+
+
+def _manual_review_import_readme_lines(
+    audit: ManualReviewImportAuditSummary,
+) -> list[str]:
+    lines = [
+        "",
+        "## Manual Review Import Audit",
+        "",
+        (
+            "- Manual-review import artifacts are audit-only. Package inclusion "
+            "means review availability, not completion or strict gating."
+        ),
+        (
+            "- `strict_upgrade_candidate=true` is a curator-review candidate, "
+            "not a strict deliverable upgrade."
+        ),
+        (
+            "- `strict_upgrade_applied=false` means no manifest, selection, "
+            "reconciler, package, completion, or evidence-policy change."
+        ),
+    ]
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _manual_review_import_handoff_lines(
+    audit: ManualReviewImportAuditSummary,
+) -> list[str]:
+    lines = [
+        "",
+        "## Manual Review Import Audit",
+        "",
+        (
+            "- Manual-review import artifacts are audit-only; inclusion means "
+            "review availability, not completion or strict deliverable gating."
+        ),
+        (
+            "- `strict_upgrade_candidate=true` is not a strict deliverable upgrade; "
+            "`strict_upgrade_applied=false` means no manifest, selection, "
+            "reconciler, package, completion, or evidence-policy change."
+        ),
+    ]
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
     return lines
 
 
