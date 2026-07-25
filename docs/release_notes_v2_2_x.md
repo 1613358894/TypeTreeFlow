@@ -1,9 +1,45 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.38 integration review as
+These notes consolidate the v2.2.2 through v2.2.39 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.39
+
+v2.2.39 batches the P3f guarded strict-gating audit-only workflow merged after
+v2.2.38:
+
+- The standalone `strict-gating evaluate` CLI provides a no-write dry run and
+  optional explicit writing of `strict_gating_audit.tsv`,
+  `strict_gating_summary.json`, and `strict_gating_diagnostics.tsv`.
+- Evaluation fails closed for synthetic evidence, unresolved conflicts,
+  duplicate decisions, missing direct evidence, stale fingerprints,
+  species/accession or audit-linkage mismatches, weak-source-only support,
+  malformed artifacts, and missing independent review.
+- `verify-genus --report-only --strict-gating-dir <dir>` may add the explicit
+  `Strict Gating Audit` report section.
+- `package-results --include reports|all --strict-gating-dir <dir>` copies
+  validated audit artifacts under `strict_gating/` and adds audit-only
+  `artifact_scope.tsv` rows.
+
+`strict_gate_passed=true` means only that evaluator guards passed.
+`strict_deliverable_written=false` and `strict_upgrade_applied=false` remain
+the contract. No manifest, selection, completion, reconciler tier,
+evidence-policy gating, provider/download, or report/package strict semantics
+change. No strict deliverable materialization is included.
+
+Bounded offline evidence is retained outside the repository at
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_1_strict_gating_evaluator_closure_20260724`,
+and
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_integrated_offline_smoke_20260725`.
+The expected P3f-2 path
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_2_strict_gating_report_package_closure_20260725`
+was unavailable; the verified closure is at
+`C:\Users\14394\.codex\visualizations\2026\07\25\019f98da-6c33-7411-a253-a39b8eb07429\p3f_2_strict_gating_report_package_closure_20260725`.
+This release does not claim live BacDive, LPSN/NCBI/Entrez lookup, datasets
+download, external bioinformatics-tool validation, or strict deliverable
+materialization.
 
 ## v2.2.38
 

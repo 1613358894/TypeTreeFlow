@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.2.39 - 2026-07-25
+
+v2.2.39 batches the P3f guarded strict-gating audit-only workflow merged after
+v2.2.38.
+
+### Added
+
+- A standalone `strict-gating evaluate` CLI with a no-write dry run and an
+  optional explicit write of the isolated strict-gating audit triplet.
+- Fail-closed blocker checks for synthetic evidence, unresolved conflicts,
+  duplicate decisions, missing direct evidence, stale fingerprints,
+  species/accession or audit-linkage mismatches, weak-source-only support,
+  malformed artifacts, and missing independent review.
+- An explicit `Strict Gating Audit` report section selected with
+  `--strict-gating-dir`.
+- `package-results` support for recognized audit artifacts under
+  `strict_gating/`, with audit-only `artifact_scope.tsv` rows.
+
+### Scientific boundary
+
+- `strict_gate_passed=true` means only that evaluator guards passed.
+- `strict_deliverable_written=false` and `strict_upgrade_applied=false` remain
+  the contract.
+- No manifest, selection, completion, reconciler tier, evidence-policy gating,
+  provider/download, or report/package strict semantics are changed.
+- No strict deliverable materialization is included.
+
+### Verification
+
+- P3f-1 evaluator closure evidence:
+  `D:\Draft\TypeTreeFlow_release_evidence\p3f_1_strict_gating_evaluator_closure_20260724`.
+- The expected P3f-2 report/package closure path
+  `D:\Draft\TypeTreeFlow_release_evidence\p3f_2_strict_gating_report_package_closure_20260725`
+  was unavailable; the verified closure is at
+  `C:\Users\14394\.codex\visualizations\2026\07\25\019f98da-6c33-7411-a253-a39b8eb07429\p3f_2_strict_gating_report_package_closure_20260725`.
+- Integrated offline smoke evidence:
+  `D:\Draft\TypeTreeFlow_release_evidence\p3f_integrated_offline_smoke_20260725`.
+
 ## v2.2.38 - 2026-07-24
 
 v2.2.38 batches the P3e manual-review audit-only pipeline merged after

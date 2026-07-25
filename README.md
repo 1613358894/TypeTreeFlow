@@ -1,17 +1,18 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.38 release batches the P3e manual-review audit-only
-pipeline: offline TSV validation with JSON CLI output and optional issues TSV,
-curated decision import mapping with CLI dry-run/write modes, an explicit
-report-only `Manual Review Import Audit` section via
-`--manual-review-import-dir`, and package support for the three import
-artifacts under `manual_review/` with audit-only `artifact_scope.tsv` rows.
-`curated_strict_confirmed` and `strict_upgrade_candidate=true` remain
-audit-only signals, and `strict_upgrade_applied=false` remains the contract.
-The release preserves the v2.2.37 report-only ordering fix, the v2.2.36
-audit-only reconciler
-package inclusion, the v2.2.35 compact audit-only report section, the
+workflow. The current 2.2.39 release batches the P3f guarded strict-gating
+audit-only workflow: a standalone `strict-gating evaluate` CLI with dry-run
+and optional audit-triplet write, fail-closed blocker checks, an explicit
+`Strict Gating Audit` report section via `--strict-gating-dir`, and package
+support for recognized artifacts under `strict_gating/` with audit-only
+`artifact_scope.tsv` rows. `strict_gate_passed=true` means only that evaluator
+guards passed. `strict_deliverable_written=false` and
+`strict_upgrade_applied=false` remain the contract, and no strict deliverable
+materialization is included. The release preserves the v2.2.38 P3e
+manual-review audit-only pipeline, the v2.2.37 report-only ordering fix, the
+v2.2.36 audit-only reconciler package inclusion, the v2.2.35 compact
+audit-only report section, the
 v2.2.34 audit-only `strict_reconciliation` workflow outputs, the v2.2.32
 offline reconciler audit mapper/writers, the v2.2.31 strict evidence
 reconciler model, the v2.2.30 BacDive compact report/package wording, the
@@ -145,7 +146,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.38 workflow
+## Recommended v2.2.39 workflow
 
 Plan first:
 
@@ -289,11 +290,31 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.38 release record batches the P3e manual-review audit-only pipeline.
-Release evidence is the P3e pipeline closure and integrated offline smoke
-under `D:\Draft\TypeTreeFlow_release_evidence\`; it is bounded offline
-evidence and does not claim live-provider validation, downloads, external-tool
-execution, or applied strict upgrades. The current source writes audit-only
+The v2.2.39 release record batches the P3f guarded strict-gating audit-only
+workflow. Release evidence is retained outside the repository at
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_1_strict_gating_evaluator_closure_20260724`,
+and
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_integrated_offline_smoke_20260725`.
+The expected P3f-2 path
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_2_strict_gating_report_package_closure_20260725`
+was unavailable; the verified closure is at
+`C:\Users\14394\.codex\visualizations\2026\07\25\019f98da-6c33-7411-a253-a39b8eb07429\p3f_2_strict_gating_report_package_closure_20260725`.
+This is bounded offline evidence and does not claim live-provider validation,
+downloads, external-tool execution, applied strict upgrades, or strict
+deliverable materialization. The standalone `strict-gating evaluate` CLI is a
+no-write dry run by default and may explicitly write only
+`strict_gating_audit.tsv`, `strict_gating_summary.json`, and
+`strict_gating_diagnostics.tsv`. It fails closed for synthetic evidence,
+unresolved conflicts, duplicate decisions, missing direct evidence, stale
+fingerprints, mismatches, weak-source-only support, malformed artifacts, and
+missing independent review. `--strict-gating-dir` passively adds the explicit
+`Strict Gating Audit` report section or copies validated audit artifacts under
+package `strict_gating/` with audit-only `artifact_scope.tsv` rows.
+`strict_gate_passed=true` means only that evaluator guards passed;
+`strict_deliverable_written=false` and `strict_upgrade_applied=false` remain
+the contract. No manifest, selection, completion, reconciler tier,
+evidence-policy gating, provider/download, or report/package strict semantics
+change. The current source writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
 `evidence/reconciler_diagnostics.tsv` from local `verify-genus` artifacts;
@@ -321,8 +342,7 @@ raw/cache/private/env/tmp/sequence payloads remain excluded, and
 `--failed-handoff` behavior remains unchanged. These surfaces are audit-only:
 they do not change manifests, selection, downloads, provider behavior,
 completion metrics, package tiering, FASTA content, default phylogeny inputs,
-live query scope, evidence-policy behavior, or strict gating. Strict gating and
-package tiering remain future work.
+live query scope, evidence-policy behavior, or strict deliverable semantics.
 Strict tiers continue to come only from the reconciler model. The still-valid
 v2.2.35 report section, v2.2.34 hook, v2.2.32 audit mapper/writers,
 v2.2.31 strict evidence reconciler model,

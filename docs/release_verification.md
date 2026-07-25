@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.38 / 2.2.38 release verification path uses
+The current v2.2.39 / 2.2.39 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -27,14 +27,32 @@ the audit-only Strict Reconciliation Audit report section, audit-only
 reconciler package inclusion under `package-results --include reports` and
 `--include all`, offline manual-review TSV validation and issues output,
 manual-review decision import mapping and CLI dry-run/write behavior, the
-report-only Manual Review Import Audit section, and audit-only package
-inclusion of manual-review import artifacts,
+report-only Manual Review Import Audit section, audit-only package
+inclusion of manual-review import artifacts, the standalone guarded
+strict-gating evaluator and fail-closed blockers, the explicit Strict Gating
+Audit report section, and audit-only package inclusion under `strict_gating/`,
 clean deployment readiness, provider timeout/error classification, stdout JSON
 isolation, failed-handoff cache boundaries, workspace hygiene, and ensures
 repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`,
 operator-run `barrnap --updatedb`, and `typetreeflow doctor`; server rehearsal
 passed the clean deployment full rerun.
+
+For v2.2.39, the P3f guarded strict-gating workflow remains offline and
+audit-only. `strict-gating evaluate` is a no-write dry run by default and may
+explicitly write only `strict_gating_audit.tsv`,
+`strict_gating_summary.json`, and `strict_gating_diagnostics.tsv`. It fails
+closed for synthetic evidence, unresolved conflicts, duplicate decisions,
+missing direct evidence, stale fingerprints, species/accession or audit-linkage
+mismatches, weak-source-only support, malformed artifacts, and missing
+independent review. `--strict-gating-dir` enables the passive `Strict Gating
+Audit` report section and package copying of validated artifacts under
+`strict_gating/`, with audit-only `artifact_scope.tsv` rows.
+`strict_gate_passed=true` means only that evaluator guards passed.
+`strict_deliverable_written=false` and `strict_upgrade_applied=false` remain
+the contract. No manifest, selection, completion, reconciler tier,
+evidence-policy gating, provider/download, or report/package strict semantics
+change. No strict deliverable materialization is included.
 
 For v2.2.38, the P3e manual-review pipeline remains offline and audit-only.
 `manual-review validate` provides JSON-oriented validation and optional issues
@@ -244,13 +262,18 @@ keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
 
-The v2.2.38 release record references the bounded offline P3e pipeline closure
-at
-`D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_pipeline_closure_20260724`
-and integrated smoke at
-`D:\Draft\TypeTreeFlow_release_evidence\p3e_manual_review_integrated_offline_smoke_20260724`.
+The v2.2.39 release record references the bounded offline P3f evaluator
+closure at
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_1_strict_gating_evaluator_closure_20260724`,
+and the integrated smoke at
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_integrated_offline_smoke_20260725`.
+The expected P3f-2 report/package closure path
+`D:\Draft\TypeTreeFlow_release_evidence\p3f_2_strict_gating_report_package_closure_20260725`
+was unavailable; the verified closure is at
+`C:\Users\14394\.codex\visualizations\2026\07\25\019f98da-6c33-7411-a253-a39b8eb07429\p3f_2_strict_gating_report_package_closure_20260725`.
 This evidence does not claim live-provider validation, downloads, external
-bioinformatics-tool execution, or applied strict upgrades. The current source
+bioinformatics-tool execution, applied strict upgrades, or strict deliverable
+materialization. The current source
 writes audit-only
 `strict_reconciliation` outputs
 `evidence/reconciler_audit.tsv`, `evidence/reconciler_summary.json`, and
