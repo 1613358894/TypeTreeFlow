@@ -411,7 +411,7 @@ issues can also be rendered as TSV text with
 `manual_review_validation_tsv()`. The renderer returns text and does not choose
 or write an output path.
 
-The read-only CLI adapter is:
+The no-write-by-default CLI adapter is:
 
 ```text
 typetreeflow manual-review validate --input <review.tsv> [--json] [--out <issues.tsv>] [--force]
