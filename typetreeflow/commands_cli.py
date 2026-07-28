@@ -8,10 +8,26 @@ from collections.abc import Sequence
 from typing import TextIO
 
 from typetreeflow.cli_recognizer import recognize_cli_command
+from typetreeflow.config import REAL_ACTION_FLAGS
 
 
 COMMAND_RECOGNIZE = "commands recognize"
 COMMAND_CATALOG = "commands catalog"
+COMMAND_PREFLIGHT = "commands preflight"
+_NETWORK_FLAGS = {
+    "--enable-downloads",
+    "--enable-entrez",
+    "--enable-biosample-entrez",
+    "--enable-ncbi-discovery",
+    "--enable-ncbi-taxonomy",
+    "--enable-bacdive-enrichment",
+}
+_EXTERNAL_TOOL_FLAGS = {
+    "--enable-barrnap",
+    "--enable-fastani",
+    "--enable-phylo",
+}
+_REAL_ACTION_FLAGS = set(REAL_ACTION_FLAGS.values()) | {"--enable-bacdive-enrichment"}
 _CATALOG_ENTRIES = (
     {
         "command": "doctor",
@@ -133,6 +149,16 @@ _CATALOG_ENTRIES = (
         "requires_outdir": False,
         "boundary": "metadata only; no dispatch authority",
     },
+    {
+        "command": "commands",
+        "subcommand": "preflight",
+        "mode": "cli_metadata",
+        "argv_pattern": "typetreeflow commands preflight --argv-json <json-array>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "metadata risk gate only; no dispatch authority",
+    },
 )
 
 
@@ -149,14 +175,20 @@ def run_commands_command(
 
     output = stdout or sys.stdout
     try:
-        action, target_argv = _parse_command(argv)
+        parsed = _parse_command(argv)
     except ValueError as error:
         code = "invalid_argv" if "argv" in str(error).lower() else "invalid_command_usage"
         _emit(_failure(code, str(error)), output)
         return 2
+    action = parsed["action"]
+    target_argv = parsed["target_argv"]
     if action == "catalog":
         _emit(_catalog_payload(), output)
         return 0
+    if action == "preflight":
+        payload = _preflight_payload(parsed)
+        _emit(payload, output)
+        return 0 if payload["decision"] == "allow" else 2
 
     payload = {
         "command": COMMAND_RECOGNIZE,
@@ -177,7 +209,7 @@ def run_commands_command(
     return 0
 
 
-def _parse_command(argv: Sequence[str]) -> tuple[str, list[str]]:
+def _parse_command(argv: Sequence[str]) -> dict[str, object]:
     tokens = list(argv)
     if len(tokens) < 2 or tokens[0] != "commands":
         raise ValueError("Invalid commands usage")
@@ -186,16 +218,41 @@ def _parse_command(argv: Sequence[str]) -> tuple[str, list[str]]:
         extras = [token for token in tokens[2:] if token != "--json"]
         if extras:
             raise ValueError("Invalid commands catalog usage")
-        return action, []
-    if action != "recognize":
+        return _parsed_command(action=action, target_argv=[])
+    if action not in {"preflight", "recognize"}:
         raise ValueError("Invalid commands usage")
 
     argv_json: str | None = None
     target_tokens: list[str] = []
+    allow_write = False
+    allow_workflow_outputs = False
+    allow_real_actions = False
+    allow_network = False
+    allow_external_tools = False
     index = 2
     while index < len(tokens):
         token = tokens[index]
         if token == "--json":
+            index += 1
+            continue
+        if action == "preflight" and token == "--allow-write":
+            allow_write = True
+            index += 1
+            continue
+        if action == "preflight" and token == "--allow-workflow-outputs":
+            allow_workflow_outputs = True
+            index += 1
+            continue
+        if action == "preflight" and token == "--allow-real-actions":
+            allow_real_actions = True
+            index += 1
+            continue
+        if action == "preflight" and token == "--allow-network":
+            allow_network = True
+            index += 1
+            continue
+        if action == "preflight" and token == "--allow-external-tools":
+            allow_external_tools = True
             index += 1
             continue
         if token == "--argv-json":
@@ -223,8 +280,37 @@ def _parse_command(argv: Sequence[str]) -> tuple[str, list[str]]:
             isinstance(token, str) for token in parsed
         ):
             raise ValueError("argv JSON must be a JSON string array")
-        return action, list(parsed)
-    return action, target_tokens
+        target_tokens = list(parsed)
+    return _parsed_command(
+        action=action,
+        target_argv=target_tokens,
+        allow_write=allow_write,
+        allow_workflow_outputs=allow_workflow_outputs,
+        allow_real_actions=allow_real_actions,
+        allow_network=allow_network,
+        allow_external_tools=allow_external_tools,
+    )
+
+
+def _parsed_command(
+    *,
+    action: str,
+    target_argv: list[str],
+    allow_write: bool = False,
+    allow_workflow_outputs: bool = False,
+    allow_real_actions: bool = False,
+    allow_network: bool = False,
+    allow_external_tools: bool = False,
+) -> dict[str, object]:
+    return {
+        "action": action,
+        "target_argv": target_argv,
+        "allow_write": allow_write,
+        "allow_workflow_outputs": allow_workflow_outputs,
+        "allow_real_actions": allow_real_actions,
+        "allow_network": allow_network,
+        "allow_external_tools": allow_external_tools,
+    }
 
 
 def _catalog_payload() -> dict[str, object]:
@@ -242,6 +328,150 @@ def _catalog_payload() -> dict[str, object]:
         "blocking": [],
         "warnings": [],
     }
+
+
+def _preflight_payload(parsed: dict[str, object]) -> dict[str, object]:
+    target_argv = list(parsed["target_argv"])
+    recognized = recognize_cli_command(target_argv)
+    risk = _preflight_risk(target_argv, recognized)
+    blocking = _preflight_blocking(parsed, recognized, risk)
+    decision = "block" if blocking else "allow"
+    return {
+        "command": COMMAND_PREFLIGHT,
+        "schema_version": "1",
+        "status": "pass" if decision == "allow" else "blocked",
+        "summary": (
+            "Command preflight allowed"
+            if decision == "allow"
+            else "Command preflight blocked"
+        ),
+        "decision": decision,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "network_access": False,
+        "external_tools": False,
+        "recognized": recognized,
+        "target_argv": target_argv,
+        "allowances": {
+            "allow_write": bool(parsed["allow_write"]),
+            "allow_workflow_outputs": bool(parsed["allow_workflow_outputs"]),
+            "allow_real_actions": bool(parsed["allow_real_actions"]),
+            "allow_network": bool(parsed["allow_network"]),
+            "allow_external_tools": bool(parsed["allow_external_tools"]),
+        },
+        "risk": risk,
+        "blocking": blocking,
+        "warnings": _preflight_warnings(risk),
+    }
+
+
+def _preflight_risk(
+    target_argv: list[str],
+    recognized: dict[str, object],
+) -> dict[str, object]:
+    flags = set(target_argv)
+    dry_run_declared = "--dry-run" in flags
+    real_action_flags = sorted(flags & _REAL_ACTION_FLAGS)
+    network_flags = sorted(flags & _NETWORK_FLAGS)
+    external_tool_flags = sorted(flags & _EXTERNAL_TOOL_FLAGS)
+    workflow_outputs_declared = bool(
+        recognized.get("writes_outputs_declared")
+        and recognized.get("command")
+        in {"verify-genus", "verify-release-genus", "workflow"}
+    )
+    return {
+        "unknown": bool(recognized.get("unknown")),
+        "invalid": bool(recognized.get("invalid")),
+        "writes_outputs_declared": bool(recognized.get("writes_outputs_declared")),
+        "workflow_outputs_declared": workflow_outputs_declared,
+        "dry_run_declared": dry_run_declared,
+        "real_action_flags": real_action_flags,
+        "network_flags": network_flags,
+        "external_tool_flags": external_tool_flags,
+        "real_actions_declared": bool(real_action_flags) and not dry_run_declared,
+        "network_declared": bool(network_flags) and not dry_run_declared,
+        "external_tools_declared": bool(external_tool_flags) and not dry_run_declared,
+    }
+
+
+def _preflight_blocking(
+    parsed: dict[str, object],
+    recognized: dict[str, object],
+    risk: dict[str, object],
+) -> list[dict[str, object]]:
+    blocking: list[dict[str, object]] = []
+    if risk["unknown"] or risk["invalid"]:
+        blocking.append(
+            {
+                "id": "unknown_or_invalid_command",
+                "message": "Command is unknown or structurally invalid.",
+            }
+        )
+    if risk["writes_outputs_declared"] and not parsed["allow_write"]:
+        blocking.append(
+            {
+                "id": "write_not_allowed",
+                "message": "Command declares output writes but --allow-write is absent.",
+            }
+        )
+    if risk["workflow_outputs_declared"] and not parsed["allow_workflow_outputs"]:
+        blocking.append(
+            {
+                "id": "workflow_outputs_not_allowed",
+                "message": (
+                    "Command declares workflow output mutation but "
+                    "--allow-workflow-outputs is absent."
+                ),
+            }
+        )
+    if risk["real_actions_declared"] and not parsed["allow_real_actions"]:
+        blocking.append(
+            {
+                "id": "real_actions_not_allowed",
+                "message": "Real-action enable flags require --allow-real-actions.",
+                "flags": risk["real_action_flags"],
+            }
+        )
+    if risk["network_declared"] and not parsed["allow_network"]:
+        blocking.append(
+            {
+                "id": "network_not_allowed",
+                "message": "Network/download/provider flags require --allow-network.",
+                "flags": risk["network_flags"],
+            }
+        )
+    if risk["external_tools_declared"] and not parsed["allow_external_tools"]:
+        blocking.append(
+            {
+                "id": "external_tools_not_allowed",
+                "message": "External-tool flags require --allow-external-tools.",
+                "flags": risk["external_tool_flags"],
+            }
+        )
+    if recognized.get("command") is None:
+        blocking.append(
+            {
+                "id": "empty_target_argv",
+                "message": "Target argv is empty.",
+            }
+        )
+    return blocking
+
+
+def _preflight_warnings(risk: dict[str, object]) -> list[dict[str, object]]:
+    if risk["dry_run_declared"] and risk["real_action_flags"]:
+        return [
+            {
+                "id": "real_action_flags_under_dry_run",
+                "message": (
+                    "Real-action flags are present, but --dry-run keeps this "
+                    "preflight in non-executing mode."
+                ),
+                "flags": risk["real_action_flags"],
+            }
+        ]
+    return []
 
 
 def _failure(code: str, message: str) -> dict[str, object]:
