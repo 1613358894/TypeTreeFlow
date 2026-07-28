@@ -124,6 +124,61 @@ def test_commands_recognize_is_offline_and_non_mutating(tmp_path, monkeypatch, c
     assert set(tmp_path.iterdir()) == before
 
 
+def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
+    assert main(["commands", "catalog", "--json"]) == 0
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["command"] == "commands catalog"
+    assert payload["status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    catalog = payload["catalog"]
+    assert all(
+        set(entry) == {
+            "command",
+            "subcommand",
+            "mode",
+            "argv_pattern",
+            "json_stdout",
+            "write_behavior",
+            "requires_outdir",
+            "boundary",
+        }
+        for entry in catalog
+    )
+    assert {
+        (entry["command"], entry["subcommand"])
+        for entry in catalog
+    } >= {
+        ("doctor", None),
+        ("verify-genus", None),
+        ("package-results", None),
+        ("manual-review", "validate"),
+        ("manual-review", "import"),
+        ("strict-gating", "evaluate"),
+        ("readiness", "evaluate"),
+        ("acquisition-worklist", "build"),
+        ("commands", "recognize"),
+        ("commands", "catalog"),
+    }
+
+
+def test_commands_catalog_rejects_extra_tokens(capsys):
+    assert main(["commands", "catalog", "doctor"]) == 2
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["status"] == "failed"
+    assert payload["blocking"] == [
+        {
+            "id": "invalid_command_usage",
+            "message": "Invalid commands catalog usage",
+        }
+    ]
+
+
 def test_recognizer_knows_commands_recognize_surface():
     assert recognize_cli_command(["commands", "recognize"]) == {
         "command": "commands",
@@ -141,6 +196,18 @@ def test_recognizer_knows_commands_recognize_surface():
     }
 
 
+def test_recognizer_knows_commands_catalog_surface():
+    result = recognize_cli_command(["commands", "catalog"])
+
+    assert result["command"] == "commands"
+    assert result["subcommand"] == "catalog"
+    assert result["mode"] == "cli_metadata"
+    assert result["writes_outputs_declared"] is False
+    assert result["requires_outdir"] is False
+    assert result["unknown"] is False
+    assert result["invalid"] is False
+
+
 def test_recognizer_rejects_unknown_commands_subcommand():
     result = recognize_cli_command(["commands", "publish"])
 
@@ -149,4 +216,3 @@ def test_recognizer_rejects_unknown_commands_subcommand():
     assert result["mode"] == "cli_metadata"
     assert result["unknown"] is True
     assert result["invalid"] is True
-
