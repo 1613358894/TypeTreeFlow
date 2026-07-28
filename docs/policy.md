@@ -202,6 +202,14 @@ availability, not completion, strict materialization, or strict gating
 application. It must not reinterpret `strict_gate_passed=true` as a strict
 deliverable upgrade. Failed-handoff packages exclude strict-gating artifacts.
 
+The strict-gate state projection helper is a read-only interpretation layer
+for manual-review import and strict-gating fields. It may label rows as
+`audit-only`, `candidate`, `blocked`, or `gate-passed` for current artifacts,
+and reserves `deliverable-written` and `upgrade-applied` for separately
+authorized future work. Invalid flag combinations are blocked rather than
+promoted. The helper cannot create strict deliverables, apply upgrades, mutate
+workflow outputs, or authorize provider/download behavior.
+
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit
 `--manual-review-import-dir`. They are packaged under `manual_review/` with

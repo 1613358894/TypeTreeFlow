@@ -598,6 +598,22 @@ Unexpected internal or write failures return `1`. A passed row is only an
 audit result: it never implies a strict deliverable was written or a strict
 upgrade was applied.
 
+### Strict-Gate State Projection
+
+The offline library helper `project_strict_gate_state()` maps existing
+manual-review import and strict-gating fields into the stable six-state model:
+`audit-only`, `candidate`, `blocked`, `gate-passed`,
+`deliverable-written`, and `upgrade-applied`. It is an interpretation helper,
+not a dispatch, evaluation, writer, or workflow authority.
+
+Invalid flag combinations fail closed as `blocked` with deterministic
+diagnostic codes. Existing TypeTreeFlow audit outputs should not exceed
+`gate-passed`; `deliverable-written` and `upgrade-applied` are reserved future
+states that require separate materialization and scientific-application
+authorization. The companion `summarize_strict_gate_states()` function returns
+JSON-serializable counts without reading files, writing files, or mutating any
+workflow output.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.
