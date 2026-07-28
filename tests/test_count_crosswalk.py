@@ -97,3 +97,14 @@ def test_missing_metric_name_is_diagnostic_not_exception():
 
     assert report.valid is False
     assert "missing_metric" in _codes(report)
+
+
+def test_invalid_family_and_missing_context_are_diagnostic():
+    rows = _rows()
+    rows[0]["metric_family"] = "combined_coverage"
+    rows[0]["status_semantics"] = ""
+    report = build_count_crosswalk_report(rows)
+
+    assert report.valid is False
+    assert "invalid_metric_family" in _codes(report)
+    assert "missing_metric_context" in _codes(report)

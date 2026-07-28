@@ -46,6 +46,26 @@ STRICT_PARTITION_METRICS = (
     "conflict_rows",
     "gap_rows",
 )
+COUNT_CROSSWALK_METRIC_FAMILIES = frozenset(
+    {
+        "species_universe",
+        "selection_surface",
+        "manifest_surface",
+        "strict_reconciliation_partition",
+        "manual_review_worklist",
+        "diagnostic_surface",
+        "download_surface",
+        "row_surface",
+        "metric_surface",
+    }
+)
+_DESCRIPTIVE_FIELDS = (
+    "unit",
+    "denominator_or_universe",
+    "status_semantics",
+    "not_equivalent_to",
+    "source_snapshot",
+)
 
 
 @dataclass(frozen=True)
@@ -148,6 +168,10 @@ def build_count_crosswalk_report(
         metric_family = str(row.get("metric_family", "")).strip()
         if not metric_family:
             metric_family = _default_metric_family(metric)
+        elif metric_family not in COUNT_CROSSWALK_METRIC_FAMILIES:
+            issues.append(CountCrosswalkIssue("invalid_metric_family", metric))
+            metric_family = "metric_surface"
+        _validate_descriptive_fields(row, metric, issues)
         metrics.append(
             CountCrosswalkMetric(
                 metric=metric,
@@ -323,6 +347,22 @@ def _default_metric_family(metric: str) -> str:
     if metric.endswith("_rows"):
         return "row_surface"
     return "metric_surface"
+
+
+def _validate_descriptive_fields(
+    row: Mapping[str, object],
+    metric: str,
+    issues: list[CountCrosswalkIssue],
+) -> None:
+    for field in _DESCRIPTIVE_FIELDS:
+        if not str(row.get(field, "")).strip():
+            issues.append(
+                CountCrosswalkIssue(
+                    "missing_metric_context",
+                    metric,
+                    f"Missing {field}",
+                )
+            )
 
 
 def _validate_required_metrics(
