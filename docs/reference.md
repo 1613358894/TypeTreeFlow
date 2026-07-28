@@ -968,6 +968,20 @@ other non-strict evidence stay out of `uncovered_species.tsv`; they appear in
 are review caveats and must not be described as strict LPSN-confirmed type
 strains or as missing genomes.
 
+Acquisition worklists built by
+`typetreeflow.evidence.acquisition_worklist` are pure offline review queues.
+They combine already available checklist, reconciler, completion-gap, and
+external-genome rows and assign at most one lane per species. The TSV field
+order is `schema_version`, `species`, `lane`, `selected_accession`,
+`reconciled_evidence_tier`, `reason_code`, `recommended_action`,
+`source_artifacts`, `audit_only`, and `strict_scientific_deliverable`.
+Supported lanes are `no_action_strict_complete`,
+`curator_conflict_resolution`, `public_linkage_review`,
+`external_registration_ready`, `external_fasta_required`, and
+`not_evaluated`. Conflict lanes take precedence over candidate or
+external-ready lanes. The summary preserves `downloads_triggered=0`,
+`providers_contacted=0`, and `manifest_mutated=false`.
+
 Manual supplement actions: `review_matched_candidates`,
 `review_species_identity_mismatch`, `manual_search_required`,
 `provide_curator_accession`, `provide_external_genome_fasta`,
