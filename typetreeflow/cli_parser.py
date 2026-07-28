@@ -542,6 +542,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--acquisition-worklist-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing acquisition-worklist audit "
+            "outputs for --report-only audit reporting; "
+            "no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--strict-gating-dir",
         type=Path,
         help=(

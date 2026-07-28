@@ -329,6 +329,14 @@ automatically under the workflow outdir. A missing or empty directory omits the
 section. Partial or malformed input keeps report generation successful and
 adds a compact warning to `## Manual Review Import Audit`.
 
+To include a previously generated acquisition worklist in the refreshed report,
+pass `--acquisition-worklist-dir <isolated-worklist-directory>` together with
+`--report-only`. This is an explicit read-only input: TypeTreeFlow reads only
+`acquisition_worklist.tsv` and `acquisition_worklist_summary.json`, without
+scanning the workflow outdir or triggering providers/downloads. A missing or
+empty directory omits `## Acquisition Worklist Audit`; partial or malformed
+input keeps report generation successful and shows a compact warning.
+
 To include a previously generated P3f-1 strict-gating audit in the refreshed
 report, pass `--strict-gating-dir <isolated-triplet-directory>` together with
 `--report-only`. This is an explicit read-only input: TypeTreeFlow reads only
