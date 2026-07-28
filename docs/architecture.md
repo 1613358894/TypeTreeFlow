@@ -31,6 +31,11 @@ as `--enable-downloads`, `--enable-barrnap`, `--enable-entrez`,
 The maintained command surface includes `verify-genus`, `status`, `next-step`,
 and `package-results`.
 
+Small isolated adapters such as `manual-review`, `strict-gating`, and
+`readiness` are dispatched before full workflow configuration is loaded. They
+emit compact JSON for AI operators and remain outside workflow mutation,
+provider access, downloads, and external-tool execution.
+
 `typetreeflow.cli_recognizer` provides side-effect-free, JSON-serializable
 command metadata for AI/helper-facing tooling. It does not parse arguments,
 load configuration, execute commands, or act as dispatch authority; the

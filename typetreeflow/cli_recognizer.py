@@ -10,10 +10,11 @@ _WORKFLOW_COMMANDS = {"verify-genus", "verify-release-genus"}
 _KNOWN_TOP_LEVEL_COMMANDS = (
     _DIAGNOSTIC_COMMANDS
     | _WORKFLOW_COMMANDS
-    | {"package-results", "manual-review", "strict-gating"}
+    | {"package-results", "manual-review", "strict-gating", "readiness"}
 )
 _MANUAL_REVIEW_SUBCOMMANDS = {"validate", "import"}
 _STRICT_GATING_SUBCOMMANDS = {"evaluate"}
+_READINESS_SUBCOMMANDS = {"evaluate"}
 
 
 def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
@@ -31,10 +32,17 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     mode = "workflow"
     is_manual_review = first == "manual-review"
     is_strict_gating = first == "strict-gating"
+    is_readiness = first == "readiness"
     unknown = False
     invalid = False
 
-    if is_strict_gating:
+    if is_readiness:
+        command = "readiness"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "readiness"
+        invalid = subcommand not in _READINESS_SUBCOMMANDS
+        unknown = subcommand is not None and subcommand not in _READINESS_SUBCOMMANDS
+    elif is_strict_gating:
         command = "strict-gating"
         subcommand = tokens[1] if len(tokens) > 1 else None
         mode = "strict_gating"
@@ -90,6 +98,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_report_only": is_report_only,
         "is_manual_review": is_manual_review,
         "is_strict_gating": is_strict_gating,
+        "is_readiness": is_readiness,
         "writes_outputs_declared": writes_outputs_declared,
         "requires_outdir": requires_outdir,
         "unknown": unknown,
@@ -141,6 +150,8 @@ def _writes_outputs_declared(
         )
     if command == "strict-gating":
         return subcommand == "evaluate" and "--write" in tokens
+    if command == "readiness":
+        return False
     if is_report_only:
         return True
     return command in {

@@ -648,6 +648,24 @@ Missing, invalid, contradictory, denominator-collapsed, nonzero-download, or
 higher-than-`gate-passed` inputs fail closed. The helper does not read files,
 write files, dispatch commands, contact providers, or mutate workflow outputs.
 
+The isolated CLI adapter is:
+
+```text
+typetreeflow readiness evaluate [--curator-packet-preflight-json <json>] [--strict-gate-state-json <json>] [--count-crosswalk-json <json>] [--json]
+```
+
+It reads only the explicitly named component JSON files and emits exactly one
+compact JSON object to stdout; `--json` is an accepted no-op. Missing component
+paths are evaluated as missing components rather than as command-usage errors.
+Unreadable, symlink, malformed JSON, or non-object inputs fail closed with
+component diagnostics. The command always reports `dry_run=true`,
+`writes_outputs=false`, `writes_workflow_outputs=false`,
+`authorization_granted=false`, `real_curator_data_evaluated=false`,
+`strict_deliverable_written=false`, and `strict_upgrade_applied=false`.
+Exit code `0` means `offline_readiness_status=ready`; exit code `2` means
+blocked or not evaluated; exit code `1` is reserved for unexpected internal
+errors.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.

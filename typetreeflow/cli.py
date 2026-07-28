@@ -947,11 +947,17 @@ def main(
         is_strict_gating_command,
         run_strict_gating_command,
     )
+    from typetreeflow.readiness_cli import (
+        is_readiness_command,
+        run_readiness_command,
+    )
     from typetreeflow.manual_review_cli import (
         is_manual_review_command,
         run_manual_review_command,
     )
 
+    if is_readiness_command(command_argv):
+        return run_readiness_command(command_argv)
     if is_strict_gating_command(command_argv):
         return run_strict_gating_command(command_argv)
     if is_manual_review_command(command_argv):
