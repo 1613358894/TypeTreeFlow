@@ -9,6 +9,10 @@ import pytest
 
 from typetreeflow.cli import main
 from typetreeflow.delivery import DeliveryResult, package_results
+from typetreeflow.evidence.acquisition_worklist import (
+    ACQUISITION_WORKLIST_FIELDS,
+    ACQUISITION_WORKLIST_LANES,
+)
 from typetreeflow.evidence.manual_review_import import (
     MANUAL_REVIEW_DECISION_FIELDS,
     MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
@@ -85,6 +89,48 @@ def _write_strict_gating_triplet(directory):
         "\t".join(STRICT_GATING_DIAGNOSTIC_FIELDS) + "\n",
         encoding="utf-8",
     )
+
+
+def _write_acquisition_worklist_pair(directory):
+    directory.mkdir(parents=True)
+    lane_counts = {lane: 0 for lane in ACQUISITION_WORKLIST_LANES}
+    lane_counts["external_registration_ready"] = 1
+    (directory / "acquisition_worklist_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 1,
+                "lane_counts": lane_counts,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    with (directory / "acquisition_worklist.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=ACQUISITION_WORKLIST_FIELDS, delimiter="\t"
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "schema_version": "1",
+                "species": "Clostridium externum",
+                "lane": "external_registration_ready",
+                "selected_accession": "",
+                "reconciled_evidence_tier": "",
+                "reason_code": "fixture",
+                "recommended_action": "private action detail",
+                "source_artifacts": "fixture",
+                "audit_only": "true",
+                "strict_scientific_deliverable": "false",
+            }
+        )
 
 
 def test_package_results_writes_readme_and_core_tsvs(tmp_path):
@@ -744,6 +790,219 @@ def test_package_results_manual_review_import_is_offline_and_non_mutating(
     assert paths.manifest.read_bytes() == manifest_before
     assert {
         path.name: path.read_bytes() for path in import_dir.iterdir() if path.is_file()
+    } == input_before
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_explicit_acquisition_worklist_pair_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    worklist_dir = tmp_path / "isolated-acquisition-worklist"
+    _write_acquisition_worklist_pair(worklist_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        acquisition_worklist_dir=worklist_dir,
+    )
+
+    delivered = result.delivery_dir / "acquisition_worklist"
+    assert {path.name for path in delivered.iterdir()} == {
+        "acquisition_worklist.tsv",
+        "acquisition_worklist_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    worklist_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("acquisition_worklist/")
+    ]
+    assert len(worklist_rows) == 2
+    assert {row["scope"] for row in worklist_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in worklist_rows} == {
+        "acquisition_worklist_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in worklist_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in worklist_rows} == {
+        "acquisition lane review"
+    }
+    assert {row["not_for"] for row in worklist_rows} == {
+        "provider contact or download execution"
+    }
+    assert {row["source_artifact"] for row in worklist_rows} == {
+        "acquisition_worklist_builder"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Acquisition worklist artifacts are audit-only" in package_text
+    assert "provider contact or download execution" in package_text
+    assert "`downloads_triggered=0`" in package_text
+    assert "`strict_scientific_deliverable=false`" in package_text
+    assert "private action detail" not in package_text
+
+
+def test_package_results_acquisition_worklist_is_explicit_and_missing_is_omitted(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    for name, worklist_dir in (
+        ("without-input", None),
+        ("missing-input", tmp_path / "missing-acquisition-worklist"),
+    ):
+        result = package_results(
+            tmp_path,
+            delivery_dir=tmp_path / f"delivery-{name}",
+            include="reports",
+            acquisition_worklist_dir=worklist_dir,
+        )
+        assert not (result.delivery_dir / "acquisition_worklist").exists()
+        assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+        assert result.acquisition_worklist_warnings == []
+
+
+def test_package_results_partial_acquisition_worklist_warns_and_copies_valid_member(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    worklist_dir = tmp_path / "partial-acquisition-worklist"
+    _write_acquisition_worklist_pair(worklist_dir)
+    (worklist_dir / "acquisition_worklist_summary.json").write_text(
+        '{"schema_version":"1","downloads_triggered":1}',
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        acquisition_worklist_dir=worklist_dir,
+    )
+
+    assert (
+        result.delivery_dir / "acquisition_worklist" / "acquisition_worklist.tsv"
+    ).exists()
+    assert not (
+        result.delivery_dir
+        / "acquisition_worklist"
+        / "acquisition_worklist_summary.json"
+    ).exists()
+    assert result.acquisition_worklist_warnings == [
+        "acquisition_worklist_summary.json malformed",
+    ]
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert [row["artifact_path"] for row in scope_rows] == [
+        "acquisition_worklist/acquisition_worklist.tsv"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "acquisition_worklist_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_explicit_acquisition_worklist(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    worklist_dir = tmp_path / "acquisition-worklist"
+    _write_acquisition_worklist_pair(worklist_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        acquisition_worklist_dir=worklist_dir,
+    )
+
+    assert not (result.delivery_dir / "acquisition_worklist").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Acquisition Worklist Audit" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_acquisition_worklist_and_keeps_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    worklist_dir = tmp_path / "acquisition-worklist"
+    _write_acquisition_worklist_pair(worklist_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--acquisition-worklist-dir",
+            str(worklist_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "acquisition_worklist"
+        / "acquisition_worklist_summary.json"
+    ).exists()
+
+
+def test_package_results_acquisition_worklist_is_offline_and_non_mutating(
+    tmp_path, monkeypatch
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    worklist_dir = tmp_path / "acquisition-worklist"
+    _write_acquisition_worklist_pair(worklist_dir)
+    manifest_before = paths.manifest.read_bytes()
+    input_before = {
+        path.name: path.read_bytes()
+        for path in worklist_dir.iterdir()
+        if path.is_file()
+    }
+    monkeypatch.setattr(
+        os,
+        "getenv",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("acquisition worklist packaging must not read environment variables")
+        ),
+    )
+    monkeypatch.setattr(
+        socket,
+        "create_connection",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("acquisition worklist packaging must remain offline")
+        ),
+    )
+
+    package_results(
+        tmp_path,
+        include="reports",
+        acquisition_worklist_dir=worklist_dir,
+    )
+
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes()
+        for path in worklist_dir.iterdir()
+        if path.is_file()
     } == input_before
     assert not paths.reconciler_audit_path.exists()
     assert not paths.reconciler_summary_path.exists()
