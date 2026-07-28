@@ -218,6 +218,15 @@ metric families. The frozen Clostridium plan-only invariants
 reconciliation only. They must not be interpreted as download coverage,
 provider availability, or strict deliverable readiness.
 
+Offline readiness projection is an aggregate contract check over already
+constructed local summaries. A `ready` projection means only that synthetic
+curator-packet metadata, strict-gate state, and count-crosswalk facts are
+internally coherent under the current audit-only ceiling. It does not grant
+authorization, evaluate real curator data, create strict deliverables, apply
+upgrades, start providers, or imply download readiness. Any missing,
+contradictory, denominator-collapsed, nonzero-download, or above-ceiling input
+must be treated as blocked.
+
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit
 `--manual-review-import-dir`. They are packaged under `manual_review/` with

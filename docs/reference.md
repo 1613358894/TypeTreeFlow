@@ -632,6 +632,22 @@ candidate, or checklist rows are unavailable. Invalid or missing counts are
 reported as deterministic issues; the helper does not read workflow outputs,
 change completion metrics, or contact providers.
 
+### Offline Readiness Projection
+
+The offline `project_offline_readiness()` helper combines already constructed
+curator-packet preflight, strict-gate state, and count-crosswalk summaries into
+one JSON-serializable projection. It accepts in-memory objects or mappings
+only and returns `offline_readiness_status` as `ready`, `blocked`, or
+`not_evaluated`, with per-component status and stable diagnostic codes.
+
+`ready` means only that local synthetic/offline contracts are mutually
+coherent. It always preserves `audit_only=true`,
+`authorization_granted=false`, `real_curator_data_evaluated=false`,
+`strict_deliverable_written=false`, and `strict_upgrade_applied=false`.
+Missing, invalid, contradictory, denominator-collapsed, nonzero-download, or
+higher-than-`gate-passed` inputs fail closed. The helper does not read files,
+write files, dispatch commands, contact providers, or mutate workflow outputs.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.
