@@ -23,6 +23,21 @@ typetreeflow doctor
 version, environment files, workspace/output readiness, and external tool
 availability without running downloads or external bioinformatics tools.
 
+For AI-facing offline planning, classify existing local checklist,
+reconciler, completion-gap, and external-genome rows into one review lane per
+species:
+
+```bash
+typetreeflow acquisition-worklist build --checklist-tsv <species.tsv> \
+  --reconciler-audit-tsv <reconciler_audit.tsv> \
+  --completion-gaps-tsv <gaps.tsv> \
+  --external-genomes-tsv <external_genomes.tsv> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+The command is a planning aid only. It does not contact providers, download
+genomes, merge manifests, or grant strict scientific deliverable status.
+
 Validate a local curator decision file without loading workflow configuration:
 
 ```bash
