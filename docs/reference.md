@@ -29,7 +29,8 @@ Primary commands write compact JSON to stdout by default. This does not require
 - `verify-genus` and `verify-release-genus`: compact JSON summary with command,
   genus, outdir, status, stages, selected counts, report paths, and next action.
 - `status` and `next-step`: compact JSON view of current run state and
-  recovery guidance.
+  recovery guidance only; it does not authorize execution, and gated actions
+  still require separate explicit authorization.
 - `package-results`: compact JSON with delivery directory, included artifacts,
   missing optional files, success/failure handoff status, warnings, and next
   action.
@@ -411,7 +412,7 @@ issues can also be rendered as TSV text with
 `manual_review_validation_tsv()`. The renderer returns text and does not choose
 or write an output path.
 
-The read-only CLI adapter is:
+The no-write-by-default CLI adapter is:
 
 ```text
 typetreeflow manual-review validate --input <review.tsv> [--json] [--out <issues.tsv>] [--force]
@@ -425,6 +426,15 @@ and the target cannot be the input, a symlink path, or a protected workflow
 artifact name. Existing targets are refused by default. `--force` is accepted
 only with `--out` and replaces only a regular, non-symlink file whose header
 exactly matches the issues schema.
+
+`typetreeflow.evidence.curator_packet` provides a library-only preflight for
+small, pre-redacted curator-readiness packets. It checks a repo-external packet
+directory for the required custody manifest, approval records, redaction
+attestation, manual-review TSV, and frozen reconciler audit; it verifies
+SHA-256/byte-length bindings, bounded row counts, exact schemas, and forbidden
+payload markers. The result is JSON-serializable and redaction-safe: it reports
+member names, counts, digests, and issue codes, but does not echo curator rows,
+reviewer IDs, notes, evidence summaries, or workflow outputs.
 
 Exit code `0` reports valid input and any requested write success. Exit code
 `2` reports command usage, unreadable input, schema, or row-validation issues;
@@ -587,6 +597,56 @@ blocked evaluations still write the audit triplet when explicitly requested.
 Unexpected internal or write failures return `1`. A passed row is only an
 audit result: it never implies a strict deliverable was written or a strict
 upgrade was applied.
+
+### Strict-Gate State Projection
+
+The offline library helper `project_strict_gate_state()` maps existing
+manual-review import and strict-gating fields into the stable six-state model:
+`audit-only`, `candidate`, `blocked`, `gate-passed`,
+`deliverable-written`, and `upgrade-applied`. It is an interpretation helper,
+not a dispatch, evaluation, writer, or workflow authority.
+
+Invalid flag combinations fail closed as `blocked` with deterministic
+diagnostic codes. Existing TypeTreeFlow audit outputs should not exceed
+`gate-passed`; `deliverable-written` and `upgrade-applied` are reserved future
+states that require separate materialization and scientific-application
+authorization. The companion `summarize_strict_gate_states()` function returns
+JSON-serializable counts without reading files, writing files, or mutating any
+workflow output.
+
+### Count Crosswalk Reports
+
+The offline `build_count_crosswalk_report()` helper renders mixed-denominator
+audit metrics as a stable TSV/JSON report without writing files. Each metric
+has an explicit `metric_family`, `unit`, `denominator_or_universe`,
+`status_semantics`, and `not_equivalent_to` field so species-universe,
+selection-row, manifest-row, reconciler-partition, diagnostic, and download
+counts are not collapsed into one coverage number.
+
+The bundled `clostridium_plan_only_crosswalk()` encodes the frozen no-live
+Clostridium plan-only invariants: `strict_rows + candidate_rows +
+conflict_rows + gap_rows = checklist_species` (`0 + 115 + 8 + 48 = 171`) and
+`candidate_rows + conflict_rows = manual_review_rows` (`115 + 8 = 123`).
+`downloads=0` remains a plan-only execution fact, not proof that manifest,
+candidate, or checklist rows are unavailable. Invalid or missing counts are
+reported as deterministic issues; the helper does not read workflow outputs,
+change completion metrics, or contact providers.
+
+### Offline Readiness Projection
+
+The offline `project_offline_readiness()` helper combines already constructed
+curator-packet preflight, strict-gate state, and count-crosswalk summaries into
+one JSON-serializable projection. It accepts in-memory objects or mappings
+only and returns `offline_readiness_status` as `ready`, `blocked`, or
+`not_evaluated`, with per-component status and stable diagnostic codes.
+
+`ready` means only that local synthetic/offline contracts are mutually
+coherent. It always preserves `audit_only=true`,
+`authorization_granted=false`, `real_curator_data_evaluated=false`,
+`strict_deliverable_written=false`, and `strict_upgrade_applied=false`.
+Missing, invalid, contradictory, denominator-collapsed, nonzero-download, or
+higher-than-`gate-passed` inputs fail closed. The helper does not read files,
+write files, dispatch commands, contact providers, or mutate workflow outputs.
 
 ### Doctor Readiness
 

@@ -139,6 +139,14 @@ issues TSV is a curator handoff artifact only. Its existence, including a
 header-only PASS result, does not create workflow output or upgrade a strict
 scientific deliverable.
 
+Curator packet preflight is one step earlier than manual-review validation. It
+only checks that a small repo-external packet is structurally ready for a later
+offline dry run: required files, digest bindings, row bounds, approval kinds,
+and redaction attestations. A preflight PASS does not authorize reading a
+private export, applying curator decisions, writing import or strict-gating
+audit triplets, running provider/download steps, or creating a strict
+deliverable.
+
 The library-only manual-review import mapper adds deterministic audit linkage
 to the exact frozen `reconciler_audit.tsv`. Its decision, summary, and
 diagnostic serializations are independent handoff artifacts, not manifest,
@@ -193,6 +201,31 @@ members and emits a compact warning. Package inclusion means review
 availability, not completion, strict materialization, or strict gating
 application. It must not reinterpret `strict_gate_passed=true` as a strict
 deliverable upgrade. Failed-handoff packages exclude strict-gating artifacts.
+
+The strict-gate state projection helper is a read-only interpretation layer
+for manual-review import and strict-gating fields. It may label rows as
+`audit-only`, `candidate`, `blocked`, or `gate-passed` for current artifacts,
+and reserves `deliverable-written` and `upgrade-applied` for separately
+authorized future work. Invalid flag combinations are blocked rather than
+promoted. The helper cannot create strict deliverables, apply upgrades, mutate
+workflow outputs, or authorize provider/download behavior.
+
+Count crosswalk reports are denominator guards, not completion or coverage
+promotion. They keep checklist species, selection rows, manifest rows,
+reconciler partition rows, diagnostic rows, and download counts in separate
+metric families. The frozen Clostridium plan-only invariants
+`0 + 115 + 8 + 48 = 171` and `115 + 8 = 123` may be used for audit
+reconciliation only. They must not be interpreted as download coverage,
+provider availability, or strict deliverable readiness.
+
+Offline readiness projection is an aggregate contract check over already
+constructed local summaries. A `ready` projection means only that synthetic
+curator-packet metadata, strict-gate state, and count-crosswalk facts are
+internally coherent under the current audit-only ceiling. It does not grant
+authorization, evaluate real curator data, create strict deliverables, apply
+upgrades, start providers, or imply download readiness. Any missing,
+contradictory, denominator-collapsed, nonzero-download, or above-ceiling input
+must be treated as blocked.
 
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit
