@@ -555,7 +555,8 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "Explicit read-only directory containing offline-readiness audit "
-            "outputs for --report-only audit reporting; no automatic discovery."
+            "outputs for --report-only audit reporting or package-results; "
+            "no automatic discovery."
         ),
     )
     parser.add_argument(

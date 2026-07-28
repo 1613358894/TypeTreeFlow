@@ -30,6 +30,7 @@ from typetreeflow.taxonomy.source_audit import (
 )
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
+from tests.test_report_summary import _write_offline_readiness_pair
 
 
 def _package_stdout_payload(capsys):
@@ -1002,6 +1003,220 @@ def test_package_results_acquisition_worklist_is_offline_and_non_mutating(
     assert {
         path.name: path.read_bytes()
         for path in worklist_dir.iterdir()
+        if path.is_file()
+    } == input_before
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_explicit_offline_readiness_pair_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    readiness_dir = tmp_path / "isolated-offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        offline_readiness_dir=readiness_dir,
+    )
+
+    delivered = result.delivery_dir / "offline_readiness"
+    assert {path.name for path in delivered.iterdir()} == {
+        "offline_readiness_summary.json",
+        "offline_readiness_diagnostics.tsv",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    readiness_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("offline_readiness/")
+    ]
+    assert len(readiness_rows) == 2
+    assert {row["scope"] for row in readiness_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in readiness_rows} == {
+        "offline_readiness_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in readiness_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in readiness_rows} == {
+        "offline readiness review"
+    }
+    assert {row["not_for"] for row in readiness_rows} == {
+        "authorization or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in readiness_rows} == {
+        "readiness_evaluator"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Offline readiness artifacts are audit-only" in package_text
+    assert "readiness review availability, not authorization" in package_text
+    assert "`authorization_granted=false`" in package_text
+    assert "`strict_deliverable_written=false`" in package_text
+
+
+def test_package_results_offline_readiness_is_explicit_and_missing_is_omitted(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    for name, readiness_dir in (
+        ("without-input", None),
+        ("missing-input", tmp_path / "missing-offline-readiness"),
+    ):
+        result = package_results(
+            tmp_path,
+            delivery_dir=tmp_path / f"delivery-{name}",
+            include="reports",
+            offline_readiness_dir=readiness_dir,
+        )
+        assert not (result.delivery_dir / "offline_readiness").exists()
+        assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+        assert result.offline_readiness_warnings == []
+
+
+def test_package_results_partial_offline_readiness_warns_and_copies_valid_member(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    readiness_dir = tmp_path / "partial-offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+    (readiness_dir / "offline_readiness_summary.json").write_text(
+        '{"schema_version":"1","authorization_granted":true}',
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        offline_readiness_dir=readiness_dir,
+    )
+
+    assert (
+        result.delivery_dir
+        / "offline_readiness"
+        / "offline_readiness_diagnostics.tsv"
+    ).exists()
+    assert not (
+        result.delivery_dir
+        / "offline_readiness"
+        / "offline_readiness_summary.json"
+    ).exists()
+    assert result.offline_readiness_warnings == [
+        "offline_readiness_summary.json malformed",
+    ]
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert [row["artifact_path"] for row in scope_rows] == [
+        "offline_readiness/offline_readiness_diagnostics.tsv"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "offline_readiness_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_explicit_offline_readiness(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    readiness_dir = tmp_path / "offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        offline_readiness_dir=readiness_dir,
+    )
+
+    assert not (result.delivery_dir / "offline_readiness").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Offline Readiness Audit" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_offline_readiness_and_keeps_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    readiness_dir = tmp_path / "offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--offline-readiness-dir",
+            str(readiness_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "offline_readiness"
+        / "offline_readiness_summary.json"
+    ).exists()
+
+
+def test_package_results_offline_readiness_is_offline_and_non_mutating(
+    tmp_path, monkeypatch
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    readiness_dir = tmp_path / "offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+    manifest_before = paths.manifest.read_bytes()
+    input_before = {
+        path.name: path.read_bytes()
+        for path in readiness_dir.iterdir()
+        if path.is_file()
+    }
+    monkeypatch.setattr(
+        os,
+        "getenv",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("offline-readiness packaging must not read environment variables")
+        ),
+    )
+    monkeypatch.setattr(
+        socket,
+        "create_connection",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("offline-readiness packaging must remain offline")
+        ),
+    )
+
+    package_results(
+        tmp_path,
+        include="reports",
+        offline_readiness_dir=readiness_dir,
+    )
+
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes()
+        for path in readiness_dir.iterdir()
         if path.is_file()
     } == input_before
     assert not paths.reconciler_audit_path.exists()
