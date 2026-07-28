@@ -457,33 +457,45 @@ they do not create workflow failures or completion changes by themselves.
 
 ### AI-Facing Command Recognition
 
-`typetreeflow commands catalog` and `typetreeflow commands recognize` expose
-side-effect-free CLI command metadata for AI operators:
+`typetreeflow commands catalog`, `typetreeflow commands recognize`, and
+`typetreeflow commands preflight` expose side-effect-free CLI command metadata
+for AI operators:
 
 ```text
 typetreeflow commands catalog [--json]
 typetreeflow commands recognize --argv-json '["verify-genus","Fusobacterium","--report-only"]'
 typetreeflow commands recognize -- doctor --json
+typetreeflow commands preflight --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
 ```
 
-Both commands always emit exactly one compact JSON object to stdout; `--json`
-is an accepted no-op. They return exit code `0` for successful metadata output
-and exit code `2` for usage or argv-shape errors. They do not write files,
-load workflow configuration, read environment files, contact providers, run
-downloads, or invoke external tools.
+All three commands always emit exactly one compact JSON object to stdout; `--json`
+is an accepted no-op. Metadata commands return exit code `0` for successful
+allow/pass output and exit code `2` for usage, argv-shape, or blocked preflight
+results. They do not write files, load workflow configuration, read
+environment files, contact providers, run downloads, or invoke external tools.
 
 `commands catalog` returns `catalog`, a static list of command entries with
 `command`, `subcommand`, `mode`, `argv_pattern`, `json_stdout`,
 `write_behavior`, `requires_outdir`, and `boundary`.
 
-`commands recognize` requires `--argv-json` as a JSON string array or target
-argv tokens after `--`. Its JSON envelope includes `target_argv` and
-`recognized`. The `recognized` object comes from
+`commands recognize` and `commands preflight` require `--argv-json` as a JSON
+string array or target argv tokens after `--`. Their JSON envelopes include
+`target_argv` and `recognized`. The `recognized` object comes from
 `typetreeflow.cli_recognizer.recognize_cli_command()` and contains conservative
 helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
 `is_acquisition_worklist`, `writes_outputs_declared`, `requires_outdir`,
-`unknown`, and `invalid`. The catalog and recognizer are not dispatch
+`unknown`, and `invalid`.
+
+`commands preflight` adds an advisory `decision` of `allow` or `block`,
+`allowances`, `risk`, `blocking`, and `warnings`. Declared output writes
+require `--allow-write`; workflow-output mutation additionally requires
+`--allow-workflow-outputs`; non-dry-run real-action flags require
+`--allow-real-actions`; network/download/provider flags require
+`--allow-network`; external-tool flags require `--allow-external-tools`.
+Real-action flags under `--dry-run` produce a warning rather than a block. The
+preflight decision is a conservative local planning aid and is not execution
+authorization. The catalog, recognizer, and preflight gate are not dispatch
 authority; argparse and the existing command dispatch order remain
 authoritative.
 

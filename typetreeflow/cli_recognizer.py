@@ -23,7 +23,7 @@ _MANUAL_REVIEW_SUBCOMMANDS = {"validate", "import"}
 _STRICT_GATING_SUBCOMMANDS = {"evaluate"}
 _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
-_COMMANDS_SUBCOMMANDS = {"catalog", "recognize"}
+_COMMANDS_SUBCOMMANDS = {"catalog", "preflight", "recognize"}
 
 
 def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:

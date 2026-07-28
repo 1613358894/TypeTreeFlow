@@ -179,6 +179,157 @@ def test_commands_catalog_rejects_extra_tokens(capsys):
     ]
 
 
+def test_commands_preflight_allows_read_only_diagnostic(capsys):
+    assert main(["commands", "preflight", "--argv-json", '["doctor"]']) == 0
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["command"] == "commands preflight"
+    assert payload["status"] == "pass"
+    assert payload["decision"] == "allow"
+    assert payload["risk"]["writes_outputs_declared"] is False
+    assert payload["blocking"] == []
+
+
+def test_commands_preflight_blocks_declared_writes_without_allowance(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--argv-json",
+                '["manual-review","validate","--input","review.tsv","--out","issues.tsv"]',
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["status"] == "blocked"
+    assert payload["decision"] == "block"
+    assert payload["blocking"] == [
+        {
+            "id": "write_not_allowed",
+            "message": "Command declares output writes but --allow-write is absent.",
+        }
+    ]
+
+
+def test_commands_preflight_allows_declared_non_workflow_write(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--argv-json",
+                '["manual-review","validate","--input","review.tsv","--out","issues.tsv"]',
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["allowances"]["allow_write"] is True
+
+
+def test_commands_preflight_blocks_workflow_outputs_without_specific_allowance(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--argv-json",
+                '["verify-genus","Clostridium","--outdir","run"]',
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["risk"]["workflow_outputs_declared"] is True
+    assert payload["blocking"] == [
+        {
+            "id": "workflow_outputs_not_allowed",
+            "message": (
+                "Command declares workflow output mutation but "
+                "--allow-workflow-outputs is absent."
+            ),
+        }
+    ]
+
+
+def test_commands_preflight_blocks_non_dry_run_real_action_flags(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--allow-workflow-outputs",
+                "--argv-json",
+                '["verify-genus","Clostridium","--outdir","run","--enable-downloads","--enable-phylo"]',
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert [item["id"] for item in payload["blocking"]] == [
+        "real_actions_not_allowed",
+        "network_not_allowed",
+        "external_tools_not_allowed",
+    ]
+    assert payload["risk"]["network_flags"] == ["--enable-downloads"]
+    assert payload["risk"]["external_tool_flags"] == ["--enable-phylo"]
+
+
+def test_commands_preflight_dry_run_real_action_flags_warn_without_blocking(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--allow-workflow-outputs",
+                "--argv-json",
+                '["verify-genus","Clostridium","--outdir","run","--dry-run","--enable-downloads"]',
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["risk"]["real_actions_declared"] is False
+    assert payload["warnings"] == [
+        {
+            "id": "real_action_flags_under_dry_run",
+            "message": (
+                "Real-action flags are present, but --dry-run keeps this "
+                "preflight in non-executing mode."
+            ),
+            "flags": ["--enable-downloads"],
+        }
+    ]
+
+
+def test_commands_preflight_blocks_unknown_command(capsys):
+    assert (
+        main(["commands", "preflight", "--argv-json", '["unknown-command"]'])
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"] == [
+        {
+            "id": "unknown_or_invalid_command",
+            "message": "Command is unknown or structurally invalid.",
+        }
+    ]
+
+
 def test_recognizer_knows_commands_recognize_surface():
     assert recognize_cli_command(["commands", "recognize"]) == {
         "command": "commands",
@@ -201,6 +352,18 @@ def test_recognizer_knows_commands_catalog_surface():
 
     assert result["command"] == "commands"
     assert result["subcommand"] == "catalog"
+    assert result["mode"] == "cli_metadata"
+    assert result["writes_outputs_declared"] is False
+    assert result["requires_outdir"] is False
+    assert result["unknown"] is False
+    assert result["invalid"] is False
+
+
+def test_recognizer_knows_commands_preflight_surface():
+    result = recognize_cli_command(["commands", "preflight"])
+
+    assert result["command"] == "commands"
+    assert result["subcommand"] == "preflight"
     assert result["mode"] == "cli_metadata"
     assert result["writes_outputs_declared"] is False
     assert result["requires_outdir"] is False
