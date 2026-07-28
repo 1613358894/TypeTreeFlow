@@ -29,10 +29,16 @@ from typetreeflow.cli_recognizer import recognize_cli_command
         (["status"], {"command": "status", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True}),
         (["next-step"], {"command": "next-step", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True}),
         (["package-results"], {"command": "package-results", "mode": "packaging", "writes_outputs_declared": True, "requires_outdir": True}),
+        (["--doctor"], {"command": "doctor", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": False}),
+        (["--status"], {"command": "status", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True}),
+        (["--next-step"], {"command": "next-step", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True}),
+        (["--package-results"], {"command": "package-results", "mode": "packaging", "writes_outputs_declared": True, "requires_outdir": True}),
+        (["--verify-release-genus", "Fusobacterium"], {"command": "verify-release-genus", "mode": "workflow", "writes_outputs_declared": True, "requires_outdir": True}),
         (["manual-review", "validate", "--input", "review.tsv"], {"command": "manual-review", "subcommand": "validate", "mode": "manual_review", "is_manual_review": True, "writes_outputs_declared": False, "requires_outdir": False}),
         (["manual-review", "import", "--input", "review.tsv", "--reconciler-audit", "audit.tsv", "--write", "--outdir", "isolated"], {"command": "manual-review", "subcommand": "import", "mode": "manual_review", "is_manual_review": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["strict-gating", "evaluate", "--manual-review-dir", "review", "--reconciler-audit", "audit.tsv"], {"command": "strict-gating", "subcommand": "evaluate", "mode": "strict_gating", "is_strict_gating": True, "writes_outputs_declared": False, "requires_outdir": False}),
         (["verify-genus", "Fusobacterium", "--resume", "--report-only"], {"command": "verify-genus", "mode": "report_only", "is_report_only": True, "writes_outputs_declared": True, "requires_outdir": True}),
+        (["--report-only", "--outdir", "existing-run"], {"command": "workflow", "mode": "report_only", "is_report_only": True, "writes_outputs_declared": True, "requires_outdir": True}),
     ],
 )
 def test_recognizes_documented_cli_surfaces(argv, expected):
@@ -55,6 +61,58 @@ def test_strict_gating_precedes_manual_review_tokens_like_main_dispatch():
     assert result["command"] == "strict-gating"
     assert result["is_strict_gating"] is True
     assert result["is_manual_review"] is False
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (
+            ["doctor", "--report-only"],
+            {"command": "doctor", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": False},
+        ),
+        (
+            ["status", "--report-only"],
+            {"command": "status", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True},
+        ),
+        (
+            ["next-step", "--report-only"],
+            {"command": "next-step", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True},
+        ),
+        (
+            ["package-results", "--report-only"],
+            {"command": "package-results", "mode": "packaging", "writes_outputs_declared": True, "requires_outdir": True},
+        ),
+        (
+            ["verify-release-genus", "Fusobacterium", "--report-only"],
+            {"command": "verify-release-genus", "mode": "workflow", "writes_outputs_declared": True, "requires_outdir": True},
+        ),
+        (
+            ["--doctor", "--report-only"],
+            {"command": "doctor", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": False},
+        ),
+        (
+            ["--status", "--report-only"],
+            {"command": "status", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True},
+        ),
+        (
+            ["--next-step", "--report-only"],
+            {"command": "next-step", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True},
+        ),
+        (
+            ["--package-results", "--report-only"],
+            {"command": "package-results", "mode": "packaging", "writes_outputs_declared": True, "requires_outdir": True},
+        ),
+        (
+            ["--verify-release-genus", "Fusobacterium", "--report-only"],
+            {"command": "verify-release-genus", "mode": "workflow", "writes_outputs_declared": True, "requires_outdir": True},
+        ),
+    ],
+)
+def test_report_only_flag_does_not_override_higher_priority_dispatch(argv, expected):
+    result = recognize_cli_command(argv)
+
+    assert result["is_report_only"] is True
+    assert result == {**result, **expected}
 
 
 @pytest.mark.parametrize(

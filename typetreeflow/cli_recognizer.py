@@ -63,9 +63,10 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         invalid = unknown
     else:
         command = _recognize_option_style_command(tokens)
+        mode = _mode_for_recognized_command(command)
 
     is_report_only = "--report-only" in tokens
-    if is_report_only and not (is_manual_review or is_strict_gating):
+    if is_report_only and _report_only_dispatch_applies(command):
         mode = "report_only"
 
     writes_outputs_declared = _writes_outputs_declared(
@@ -110,6 +111,18 @@ def _recognize_option_style_command(tokens: tuple[str, ...]) -> str | None:
     if "--acquire-genus" in tokens:
         return "workflow"
     return "workflow" if tokens else None
+
+
+def _mode_for_recognized_command(command: str | None) -> str:
+    if command in _DIAGNOSTIC_COMMANDS:
+        return "diagnostic"
+    if command == "package-results":
+        return "packaging"
+    return "workflow"
+
+
+def _report_only_dispatch_applies(command: str | None) -> bool:
+    return command in {"verify-genus", "workflow"}
 
 
 def _writes_outputs_declared(
