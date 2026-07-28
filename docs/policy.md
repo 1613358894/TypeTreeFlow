@@ -257,6 +257,11 @@ coherent. In explicit write mode it may publish only its isolated readiness
 summary/diagnostics pair. It must not discover workflow outputs, load
 environment credentials, contact providers, write reports/packages, or advance
 any strict deliverable state.
+The optional report-only `--offline-readiness-dir` surface is a passive reader
+over that pair. It may display compact status, component statuses, and
+diagnostic-code counts, but it must not display raw component JSON, grant
+authorization, evaluate real curator data, write workflow outputs, contact
+providers, trigger downloads, or advance strict deliverables.
 
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit

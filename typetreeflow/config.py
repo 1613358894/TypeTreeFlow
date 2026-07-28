@@ -98,6 +98,7 @@ class AppConfig:
     bacdive_max_queries: int = 50
     manual_review_import_dir: Path | None = None
     acquisition_worklist_dir: Path | None = None
+    offline_readiness_dir: Path | None = None
     strict_gating_dir: Path | None = None
 
 

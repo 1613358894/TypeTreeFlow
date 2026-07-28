@@ -551,6 +551,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--offline-readiness-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing offline-readiness audit "
+            "outputs for --report-only audit reporting; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--strict-gating-dir",
         type=Path,
         help=(

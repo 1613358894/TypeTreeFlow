@@ -362,6 +362,21 @@ Partial or malformed input copies only valid members and adds a compact
 warning to the README, handoff index, and compact JSON envelope.
 Failed-handoff packages exclude these artifacts and rows.
 
+`--offline-readiness-dir <dir>` is accepted with `--report-only`. It is an
+explicit read-only input and is never automatically discovered under the
+workflow outdir. Report generation reads only `offline_readiness_summary.json`
+and `offline_readiness_diagnostics.tsv` from that directory. A missing or
+empty directory omits `## Offline Readiness Audit`. Partial or malformed input
+keeps report generation successful and shows a compact warning. Valid summary
+counts show `offline_readiness_status`, `valid`, `diagnostic_count`,
+`denominator_families_preserved`, `audit_only`, `authorization_granted`,
+`real_curator_data_evaluated`, `strict_deliverable_written`, and
+`strict_upgrade_applied`, plus component statuses and at most five diagnostic
+code counts. Input paths, raw component JSON, diagnostic messages, reviewer
+details, and private curator content are not displayed. Report inclusion does
+not grant authorization, evaluate real curator data, write workflow outputs,
+contact providers, trigger downloads, or create strict deliverables.
+
 `--strict-gating-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only input and is never
 automatically discovered under the workflow outdir. Report and normal-package
@@ -1033,6 +1048,9 @@ The optional report/package surfaces are separate from worklist generation:
 pass `--acquisition-worklist-dir <dir>` with `--report-only` to display compact
 audit counts, or with `package-results --include reports|all` to copy the
 validated pair into a delivery package.
+For offline readiness, pass `--offline-readiness-dir <dir>` with
+`--report-only` to display compact audit status from a previously generated
+readiness pair.
 
 Manual supplement actions: `review_matched_candidates`,
 `review_species_identity_mismatch`, `manual_search_required`,
