@@ -455,6 +455,34 @@ BacDive or BioSample rows, no selected genome gap rows, conflicts detected by
 the reconciler, and the audit-only status. Diagnostics are review evidence;
 they do not create workflow failures or completion changes by themselves.
 
+### AI-Facing Command Recognition
+
+`typetreeflow commands recognize` exposes side-effect-free CLI command
+metadata for AI operators:
+
+```text
+typetreeflow commands recognize --argv-json '["verify-genus","Fusobacterium","--report-only"]'
+typetreeflow commands recognize -- doctor --json
+```
+
+The command always emits exactly one compact JSON object to stdout; `--json`
+is an accepted no-op. `--argv-json` must be a JSON string array. Alternatively,
+target argv tokens may be passed after `--`. The command returns exit code `0`
+for recognized metadata output and exit code `2` for usage or argv-shape
+errors. It does not write files, load workflow configuration, read environment
+files, contact providers, run downloads, or invoke external tools.
+
+The JSON envelope includes `command="commands recognize"`,
+`schema_version="1"`, `status`, `dry_run=true`, `writes_outputs=false`,
+`writes_workflow_outputs=false`, `network_access=false`,
+`external_tools=false`, `target_argv`, and `recognized`. The `recognized`
+object comes from `typetreeflow.cli_recognizer.recognize_cli_command()` and
+contains conservative helper metadata: `command`, `subcommand`, `mode`,
+`is_report_only`, `is_manual_review`, `is_strict_gating`, `is_readiness`,
+`is_acquisition_worklist`, `writes_outputs_declared`, `requires_outdir`,
+`unknown`, and `invalid`. It is not dispatch authority; argparse and the
+existing command dispatch order remain authoritative.
+
 ### Offline Manual-Review Decision Validation
 
 `typetreeflow.evidence.manual_review` reads curator-supplied TSV decisions and

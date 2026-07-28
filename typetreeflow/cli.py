@@ -977,11 +977,17 @@ def main(
         is_acquisition_worklist_command,
         run_acquisition_worklist_command,
     )
+    from typetreeflow.commands_cli import (
+        is_commands_command,
+        run_commands_command,
+    )
     from typetreeflow.manual_review_cli import (
         is_manual_review_command,
         run_manual_review_command,
     )
 
+    if is_commands_command(command_argv):
+        return run_commands_command(command_argv)
     if is_acquisition_worklist_command(command_argv):
         return run_acquisition_worklist_command(command_argv)
     if is_readiness_command(command_argv):
