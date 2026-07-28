@@ -17,6 +17,7 @@ from typetreeflow.report.summary import (
     AcquisitionWorklistAuditSummary,
     BacDiveCandidateReviewSummary,
     ManualReviewImportAuditSummary,
+    OfflineReadinessAuditSummary,
     StrictGatingAuditSummary,
     bacdive_compact_counts_summary,
     bacdive_compact_source_audit_summary,
@@ -25,6 +26,7 @@ from typetreeflow.report.summary import (
     read_optional_bacdive_candidate_review,
     read_optional_gtdb_metadata_audit,
     read_optional_manual_review_import_audit,
+    read_optional_offline_readiness_audit,
     read_optional_sequence_source_audit,
     read_optional_strict_gating_audit,
     summarize_16s_coverage,
@@ -54,6 +56,7 @@ class DeliveryResult:
     all_16s_included: bool = False
     manual_review_warnings: list[str] = field(default_factory=list)
     acquisition_worklist_warnings: list[str] = field(default_factory=list)
+    offline_readiness_warnings: list[str] = field(default_factory=list)
     strict_gating_warnings: list[str] = field(default_factory=list)
 
 
@@ -83,6 +86,7 @@ def package_results(
     failed_handoff: bool = False,
     manual_review_import_dir: str | Path | None = None,
     acquisition_worklist_dir: str | Path | None = None,
+    offline_readiness_dir: str | Path | None = None,
     strict_gating_dir: str | Path | None = None,
 ) -> DeliveryResult:
     paths = get_output_paths(outdir)
@@ -126,6 +130,8 @@ def package_results(
     manual_review_audit: ManualReviewImportAuditSummary | None = None
     acquisition_worklist_outputs_copied: list[Path] = []
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None
+    offline_readiness_outputs_copied: list[Path] = []
+    offline_readiness_audit: OfflineReadinessAuditSummary | None = None
     strict_gating_outputs_copied: list[Path] = []
     strict_gating_audit: StrictGatingAuditSummary | None = None
     if "reports" in requested:
@@ -210,6 +216,15 @@ def package_results(
             output_dir,
             copied,
         )
+        offline_readiness_audit = read_optional_offline_readiness_audit(
+            offline_readiness_dir
+        )
+        offline_readiness_outputs_copied = _copy_offline_readiness_outputs(
+            offline_readiness_dir,
+            offline_readiness_audit,
+            output_dir,
+            copied,
+        )
         strict_gating_audit = read_optional_strict_gating_audit(strict_gating_dir)
         strict_gating_outputs_copied = _copy_strict_gating_outputs(
             strict_gating_dir,
@@ -229,6 +244,8 @@ def package_results(
         manual_review_audit=manual_review_audit,
         acquisition_worklist_outputs_copied=acquisition_worklist_outputs_copied,
         acquisition_worklist_audit=acquisition_worklist_audit,
+        offline_readiness_outputs_copied=offline_readiness_outputs_copied,
+        offline_readiness_audit=offline_readiness_audit,
         strict_gating_outputs_copied=strict_gating_outputs_copied,
     )
 
@@ -288,6 +305,7 @@ def package_results(
             all_16s_included=all_16s_included,
             manual_review_audit=manual_review_audit,
             acquisition_worklist_audit=acquisition_worklist_audit,
+            offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
         encoding="utf-8",
@@ -309,6 +327,7 @@ def package_results(
             all_16s_included=all_16s_included,
             manual_review_audit=manual_review_audit,
             acquisition_worklist_audit=acquisition_worklist_audit,
+            offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
         encoding="utf-8",
@@ -331,6 +350,11 @@ def package_results(
         acquisition_worklist_warnings=(
             list(acquisition_worklist_audit.warnings)
             if acquisition_worklist_audit is not None
+            else []
+        ),
+        offline_readiness_warnings=(
+            list(offline_readiness_audit.warnings)
+            if offline_readiness_audit is not None
             else []
         ),
         strict_gating_warnings=(
@@ -502,6 +526,7 @@ def build_delivery_readme(
     all_16s_included: bool,
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None,
+    offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
     record_list = list(records)
@@ -591,6 +616,8 @@ def build_delivery_readme(
         lines.extend(_manual_review_import_readme_lines(manual_review_audit))
     if acquisition_worklist_audit is not None:
         lines.extend(_acquisition_worklist_readme_lines(acquisition_worklist_audit))
+    if offline_readiness_audit is not None:
+        lines.extend(_offline_readiness_readme_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
         lines.extend(_strict_gating_readme_lines(strict_gating_audit))
     lines.extend(
@@ -687,6 +714,7 @@ def build_handoff_index(
     all_16s_included: bool,
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None,
+    offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
     record_list = list(records)
@@ -790,6 +818,8 @@ def build_handoff_index(
         lines.extend(_manual_review_import_handoff_lines(manual_review_audit))
     if acquisition_worklist_audit is not None:
         lines.extend(_acquisition_worklist_handoff_lines(acquisition_worklist_audit))
+    if offline_readiness_audit is not None:
+        lines.extend(_offline_readiness_handoff_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
         lines.extend(_strict_gating_handoff_lines(strict_gating_audit))
     lines.extend(["", "## Included Files", ""])
@@ -1177,6 +1207,26 @@ def _copy_acquisition_worklist_outputs(
     return copied_worklist
 
 
+def _copy_offline_readiness_outputs(
+    directory: str | Path | None,
+    audit: OfflineReadinessAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_readiness: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "offline_readiness" / name,
+        )
+        copied.append(copied_path)
+        copied_readiness.append(copied_path)
+    return copied_readiness
+
+
 def _copy_strict_gating_outputs(
     directory: str | Path | None,
     audit: StrictGatingAuditSummary | None,
@@ -1209,6 +1259,8 @@ def _write_package_artifact_scope(
     manual_review_audit: ManualReviewImportAuditSummary | None,
     acquisition_worklist_outputs_copied: list[Path],
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None,
+    offline_readiness_outputs_copied: list[Path],
+    offline_readiness_audit: OfflineReadinessAuditSummary | None,
     strict_gating_outputs_copied: list[Path],
 ) -> None:
     source_rows = read_artifact_scope(paths.artifact_scope_path)
@@ -1238,6 +1290,13 @@ def _write_package_artifact_scope(
             acquisition_worklist_audit,
         )
     )
+    rows.extend(
+        _offline_readiness_artifact_scope_rows(
+            delivery_dir,
+            offline_readiness_outputs_copied,
+            offline_readiness_audit,
+        )
+    )
     if not rows:
         return
 
@@ -1247,6 +1306,7 @@ def _write_package_artifact_scope(
         or reconciler_outputs_copied
         or manual_review_outputs_copied
         or acquisition_worklist_outputs_copied
+        or offline_readiness_outputs_copied
         or strict_gating_outputs_copied
         or not paths.artifact_scope_path.exists()
     ):
@@ -1262,6 +1322,7 @@ def _write_package_artifact_scope(
             or reconciler_outputs_copied
             or manual_review_outputs_copied
             or acquisition_worklist_outputs_copied
+            or offline_readiness_outputs_copied
             or strict_gating_outputs_copied
             or not paths.artifact_scope_path.exists()
         ):
@@ -1543,6 +1604,69 @@ def _acquisition_worklist_artifact_scope_rows(
                     "Audit-only acquisition planning output; lane assignment "
                     "does not trigger downloads, provider contact, manifest "
                     "mutation, or strict deliverable promotion."
+                ),
+            }
+        )
+    return rows
+
+
+def _offline_readiness_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: OfflineReadinessAuditSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    diagnostic_count = 0
+    if audit is not None:
+        value = audit.counts.get("diagnostic_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            diagnostic_count = value
+    specifications = (
+        (
+            "offline_readiness/offline_readiness_summary.json",
+            "offline_readiness_summary",
+            "Offline readiness compact audit summary",
+            87,
+            1,
+        ),
+        (
+            "offline_readiness/offline_readiness_diagnostics.tsv",
+            "offline_readiness_diagnostics",
+            "Offline readiness diagnostics",
+            88,
+            diagnostic_count,
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority, count in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        record_count = count if path.suffix == ".json" else _safe_tsv_row_count(path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "offline_readiness_audit",
+                "record_count": str(record_count),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "offline readiness review",
+                "not_for": "authorization or strict deliverable gating",
+                "source_artifact": "readiness_evaluator",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Audit-only readiness output; ready status does not grant "
+                    "authorization, evaluate real curator data, trigger "
+                    "providers/downloads, or write strict deliverables."
                 ),
             }
         )
@@ -2170,6 +2294,37 @@ def _acquisition_worklist_readme_lines(
     return lines
 
 
+def _offline_readiness_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Offline readiness artifacts are audit-only. Package inclusion "
+            "means readiness review availability, not authorization."
+        ),
+        (
+            "- `authorization_granted=false`, "
+            "`real_curator_data_evaluated=false`, "
+            "`strict_deliverable_written=false`, and "
+            "`strict_upgrade_applied=false` remain package boundaries."
+        ),
+        (
+            "- A ready status does not contact providers, trigger downloads, "
+            "write workflow outputs, or promote strict deliverables."
+        ),
+    ]
+
+
+def _offline_readiness_readme_lines(
+    audit: OfflineReadinessAuditSummary,
+) -> list[str]:
+    lines = ["", "## Offline Readiness Audit", ""]
+    lines.extend(_offline_readiness_boundary_lines())
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
 def _strict_gating_boundary_lines() -> list[str]:
     return [
         (
@@ -2240,6 +2395,18 @@ def _acquisition_worklist_handoff_lines(
         lines.append("- Acquisition worklist files copied: " + ", ".join(audit.present_files))
     if audit.warnings:
         lines.append("- Acquisition worklist warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _offline_readiness_handoff_lines(
+    audit: OfflineReadinessAuditSummary,
+) -> list[str]:
+    lines = ["", "## Offline Readiness Audit", ""]
+    lines.extend(_offline_readiness_boundary_lines())
+    if audit.present_files:
+        lines.append("- Offline readiness files copied: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Offline readiness warning: " + "; ".join(audit.warnings))
     return lines
 
 

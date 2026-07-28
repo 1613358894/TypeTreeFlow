@@ -266,6 +266,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --offline-readiness-dir <isolated-readiness-directory>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --strict-gating-dir <isolated-triplet-directory>
 
 typetreeflow package-results \
@@ -302,6 +307,16 @@ validated members and records a compact warning. These files are audit-only:
 worklist lanes mean review availability, not provider contact, download
 execution, manifest mutation, completion credit, or strict deliverable
 promotion. `--failed-handoff` excludes acquisition-worklist artifacts.
+With an explicit `--offline-readiness-dir`, `--include reports` and
+`--include all` copy each validated readiness member under
+`offline_readiness/` and add one `scope=audit`,
+`evidence_policy=offline_readiness_audit` artifact-scope row per copied
+member. Missing input is omitted; partial or malformed input copies only
+validated members and records a compact warning. These files are audit-only:
+`offline_readiness_status=ready` means local offline gate inputs are coherent,
+not authorization, real curator-data evaluation, provider/download execution,
+workflow output mutation, or strict deliverable promotion. `--failed-handoff`
+excludes offline-readiness artifacts.
 With an explicit `--strict-gating-dir`, `--include reports` and `--include
 all` copy each validated P3f-1 member under `strict_gating/` and add one
 `scope=audit`, `evidence_policy=strict_gating_audit` artifact-scope row per

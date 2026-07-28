@@ -262,6 +262,13 @@ over that pair. It may display compact status, component statuses, and
 diagnostic-code counts, but it must not display raw component JSON, grant
 authorization, evaluate real curator data, write workflow outputs, contact
 providers, trigger downloads, or advance strict deliverables.
+Normal `package-results --include reports` and `--include all` may copy valid
+members of that pair only from an explicit `--offline-readiness-dir`. They are
+packaged under `offline_readiness/` with audit-only artifact-scope rows. This
+is review availability, not authorization, real curator-data evaluation,
+provider execution, download readiness, workflow mutation, completion credit,
+or strict deliverable promotion. Failed-handoff packages exclude these
+offline-readiness artifacts.
 
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit
