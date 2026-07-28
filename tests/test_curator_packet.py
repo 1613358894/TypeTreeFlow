@@ -21,7 +21,7 @@ from typetreeflow.evidence.reconciler_audit import (
 def test_valid_curator_packet_passes(tmp_path):
     packet = _valid_packet(tmp_path)
 
-    result = preflight_curator_packet(packet, repo_root=tmp_path / "repo")
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
 
     assert result.valid is True
     assert result.dry_run is True
@@ -30,6 +30,14 @@ def test_valid_curator_packet_passes(tmp_path):
     assert result.curator_row_count == 3
     assert result.approval_kind_count == 4
     json.dumps(result.to_dict(), sort_keys=True)
+
+
+def test_repo_root_is_required(tmp_path):
+    packet = _valid_packet(tmp_path)
+
+    result = preflight_curator_packet(packet, repo_root=None)
+
+    assert "repo_root_required" in _codes(result)
 
 
 def test_packet_inside_repo_is_blocked(tmp_path):
@@ -46,7 +54,7 @@ def test_missing_required_member_is_blocked(tmp_path):
     packet = _valid_packet(tmp_path)
     (packet / "redaction_attestation.tsv").unlink()
 
-    result = preflight_curator_packet(packet, repo_root=tmp_path / "repo")
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
 
     assert "missing_required_member" in _codes(result)
 
@@ -54,21 +62,31 @@ def test_missing_required_member_is_blocked(tmp_path):
 def test_custody_digest_mismatch_is_blocked(tmp_path):
     packet = _valid_packet(tmp_path)
     text = (packet / "custody_manifest.tsv").read_text(encoding="utf-8")
-    (packet / "custody_manifest.tsv").write_text(
-        text.replace("curator_review.tsv", "curator_review.tsv"), encoding="utf-8"
-    )
-    with (packet / "custody_manifest.tsv").open("a", encoding="utf-8") as handle:
+    lines = text.splitlines()
+    fields = lines[1].split("\t")
+    fields[4] = "0" * 64
+    lines[1] = "\t".join(fields)
+    (packet / "custody_manifest.tsv").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+
+    assert "custody_manifest_sha256_mismatch" in _codes(result)
+
+
+def test_approval_records_are_bound_by_custody_manifest(tmp_path):
+    packet = _valid_packet(tmp_path)
+    with (packet / "approval_records.tsv").open("a", encoding="utf-8") as handle:
         handle.write("\n")
 
-    result = preflight_curator_packet(packet, repo_root=tmp_path / "repo")
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
 
-    assert "approval_digest_mismatch" in _codes(result)
+    assert "custody_manifest_sha256_mismatch" in _codes(result)
 
 
 def test_curator_row_bounds_are_blocking(tmp_path):
     packet = _valid_packet(tmp_path, review_rows=2)
 
-    result = preflight_curator_packet(packet, repo_root=tmp_path / "repo")
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
 
     assert "curator_row_count_out_of_bounds" in _codes(result)
 
@@ -76,7 +94,7 @@ def test_curator_row_bounds_are_blocking(tmp_path):
 def test_synthetic_marker_is_blocking_without_echoing_row_values(tmp_path):
     packet = _valid_packet(tmp_path, marker="synthetic")
 
-    result = preflight_curator_packet(packet, repo_root=tmp_path / "repo")
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
     rendered = json.dumps(result.to_dict(), sort_keys=True)
 
     assert "synthetic_or_test_marker" in _codes(result)
@@ -88,7 +106,7 @@ def test_synthetic_marker_is_blocking_without_echoing_row_values(tmp_path):
 def test_missing_approval_kind_is_blocking(tmp_path):
     packet = _valid_packet(tmp_path, approval_kinds=("custody_export",))
 
-    result = preflight_curator_packet(packet, repo_root=tmp_path / "repo")
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
 
     assert "missing_required_approval" in _codes(result)
 
@@ -97,10 +115,59 @@ def test_forbidden_payload_file_is_blocking(tmp_path):
     packet = _valid_packet(tmp_path)
     (packet / "payload.fasta").write_text("ACGT\n", encoding="utf-8")
 
-    result = preflight_curator_packet(packet, repo_root=tmp_path / "repo")
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
 
     assert "unexpected_packet_member" in _codes(result)
     assert "forbidden_packet_member" in _codes(result)
+
+
+def test_unknown_manifest_member_is_not_echoed(tmp_path):
+    packet = _valid_packet(tmp_path)
+    with (packet / "custody_manifest.tsv").open("a", encoding="utf-8") as handle:
+        handle.write(
+            "\t".join(
+                [
+                    "packet-001",
+                    "curator-a private note GCF_999",
+                    "1",
+                    "1",
+                    "0" * 64,
+                    "Clostridium",
+                    "3",
+                    "10",
+                    "2026-07-28T00:00:00Z",
+                ]
+            )
+            + "\n"
+        )
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+    rendered = json.dumps(result.to_dict(), sort_keys=True)
+
+    assert "custody_manifest_unknown_member" in _codes(result)
+    assert "untrusted_member" in rendered
+    assert "curator-a private note" not in rendered
+    assert "GCF_999" not in rendered
+
+
+def test_expected_counts_schema_and_custody_binding_are_required(tmp_path):
+    packet = _valid_packet(tmp_path)
+    (packet / "expected_counts.tsv").write_text("bad\tshape\n1\t2\n", encoding="utf-8")
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+
+    assert "invalid_expected_counts_schema" in _codes(result)
+    assert "custody_manifest_missing_member" in _codes(result)
+
+
+def test_malformed_utf8_is_fail_closed(tmp_path):
+    packet = _valid_packet(tmp_path)
+    (packet / "curator_review.tsv").write_bytes(b"\xff\xfe\xff")
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+
+    assert "member_text_unreadable" in _codes(result)
+    assert "member_tsv_unreadable" in _codes(result)
 
 
 def _valid_packet(
@@ -131,16 +198,16 @@ def _valid_packet(
         packet / "redaction_attestation.tsv",
         REDACTION_ATTESTATION_FIELDS,
         [
+            {"check_name": "forbidden_payload_files", "status": "PASS", "finding_count": "0"},
             {"check_name": "credential_values", "status": "PASS", "finding_count": "0"},
             {"check_name": "sequence_like_lines", "status": "PASS", "finding_count": "0"},
+            {"check_name": "private_identity_values", "status": "PASS", "finding_count": "0"},
         ],
     )
     (packet / "README.md").write_text(
         "Packet packet-001 is approved for offline metadata preflight only.\n",
         encoding="utf-8",
     )
-    _write_manifest(packet)
-    custody_digest = _sha256(packet / "custody_manifest.tsv")
     _write_tsv(
         packet / "approval_records.tsv",
         APPROVAL_RECORD_FIELDS,
@@ -151,12 +218,19 @@ def _valid_packet(
                 "scope": "offline metadata preflight",
                 "decision": "PASS",
                 "approval_date": "2026-07-28",
-                "packet_digest_reference": custody_digest,
+                "packet_digest_reference": "packet-001",
             }
             for kind in approval_kinds
         ],
     )
+    _write_manifest(packet)
     return packet
+
+
+def _repo_root(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir(exist_ok=True)
+    return repo
 
 
 def _write_manifest(packet: Path) -> None:
@@ -164,6 +238,7 @@ def _write_manifest(packet: Path) -> None:
     for member in (
         "curator_review.tsv",
         "reconciler_audit.tsv",
+        "approval_records.tsv",
         "redaction_attestation.tsv",
         "README.md",
     ):

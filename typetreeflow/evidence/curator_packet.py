@@ -13,7 +13,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping
 
-from typetreeflow.evidence.manual_review import MANUAL_REVIEW_FIELDS
+from typetreeflow.evidence.manual_review import (
+    MANUAL_REVIEW_FIELDS,
+    MANUAL_REVIEW_STATUSES,
+)
 from typetreeflow.evidence.reconciler_audit import RECONCILER_AUDIT_FIELDS
 
 
@@ -55,11 +58,23 @@ REDACTION_ATTESTATION_FIELDS = (
     "status",
     "finding_count",
 )
+EXPECTED_COUNTS_FIELDS = (
+    "metric",
+    "value",
+    "denominator_family",
+    "notes",
+)
 REQUIRED_APPROVAL_KINDS = (
     "custody_export",
     "privacy_redaction",
     "scientific_scope",
     "reviewer_independence",
+)
+REQUIRED_REDACTION_CHECKS = (
+    "forbidden_payload_files",
+    "credential_values",
+    "sequence_like_lines",
+    "private_identity_values",
 )
 FORBIDDEN_SUFFIXES = {
     ".fa",
@@ -157,7 +172,7 @@ class CuratorPacketPreflightResult:
 def preflight_curator_packet(
     packet_dir: str | Path,
     *,
-    repo_root: str | Path | None = None,
+    repo_root: str | Path | None,
     expected_genus: str = "Clostridium",
     min_rows: int = 3,
     max_rows: int = 10,
@@ -172,6 +187,8 @@ def preflight_curator_packet(
     curator_row_count = 0
     packet_id = ""
     repo_external = True
+    if min_rows < 0 or max_rows < min_rows:
+        issues.append(CuratorPacketIssue("invalid_row_bound_configuration"))
 
     resolved_packet = _safe_resolve(packet_path)
     if resolved_packet is None or not packet_path.is_dir() or packet_path.is_symlink():
@@ -185,22 +202,31 @@ def preflight_curator_packet(
             approval_kind_count=len(approval_kinds),
         )
 
-    if repo_root is not None:
-        resolved_repo = _safe_resolve(Path(repo_root))
-        if resolved_repo is not None and _is_relative_to(resolved_packet, resolved_repo):
-            repo_external = False
-            issues.append(CuratorPacketIssue("packet_must_be_repo_external"))
+    resolved_repo = _safe_resolve(Path(repo_root)) if repo_root is not None else None
+    if resolved_repo is None:
+        repo_external = False
+        issues.append(CuratorPacketIssue("repo_root_required"))
+    elif _is_relative_to(resolved_packet, resolved_repo):
+        repo_external = False
+        issues.append(CuratorPacketIssue("packet_must_be_repo_external"))
 
     found_files = _flat_packet_files(packet_path, issues)
     allowed = set(CURATOR_PACKET_ALLOWED_MEMBERS)
     for name, path in found_files.items():
         if name not in allowed:
-            issues.append(CuratorPacketIssue("unexpected_packet_member", name))
+            issues.append(CuratorPacketIssue("unexpected_packet_member", "untrusted_member"))
+            if path.suffix.lower() in FORBIDDEN_SUFFIXES:
+                issues.append(CuratorPacketIssue("forbidden_packet_member", "untrusted_member"))
+            continue
         if _has_forbidden_path_part(path) or path.suffix.lower() in FORBIDDEN_SUFFIXES:
             issues.append(CuratorPacketIssue("forbidden_packet_member", name))
         if path.is_symlink():
             issues.append(CuratorPacketIssue("symlink_or_reparse_member", name))
-        byte_length, digest = _file_fingerprint(path)
+        try:
+            byte_length, digest = _file_fingerprint(path)
+        except OSError:
+            byte_length, digest = 0, ""
+            issues.append(CuratorPacketIssue("member_unreadable", name))
         members[name] = CuratorPacketMember(
             member=name,
             present=True,
@@ -256,7 +282,7 @@ def preflight_curator_packet(
         )
         approval_kinds = _validate_approval_rows(
             approval_rows,
-            members.get("custody_manifest.tsv", CuratorPacketMember("", False)).sha256,
+            packet_id,
             issues,
         )
     if "redaction_attestation.tsv" in found_files:
@@ -268,6 +294,20 @@ def preflight_curator_packet(
             issues,
         )
         _validate_redaction_rows(redaction_rows, issues)
+    if "expected_counts.tsv" in found_files:
+        _read_tsv(
+            found_files["expected_counts.tsv"],
+            EXPECTED_COUNTS_FIELDS,
+            "expected_counts.tsv",
+            "invalid_expected_counts_schema",
+            issues,
+        )
+    if "README.md" in found_files:
+        text = _read_text(found_files["README.md"])
+        if text is None:
+            issues.append(CuratorPacketIssue("readme_unreadable", "README.md"))
+        elif packet_id and (packet_id not in text or "offline" not in text.lower()):
+            issues.append(CuratorPacketIssue("readme_missing_packet_context", "README.md"))
 
     return _result(
         issues=issues,
@@ -333,6 +373,8 @@ def _validate_curator_review(
     if row_count < min_rows or row_count > max_rows:
         issues.append(CuratorPacketIssue("curator_row_count_out_of_bounds", path.name))
     for row in rows:
+        if row.get("review_status") not in MANUAL_REVIEW_STATUSES:
+            issues.append(CuratorPacketIssue("invalid_curator_review_status", path.name))
         joined = " ".join(str(value or "") for value in row.values())
         if _SYNTHETIC_MARKER.search(joined):
             issues.append(CuratorPacketIssue("synthetic_or_test_marker", path.name))
@@ -357,12 +399,16 @@ def _read_tsv(
     code: str,
     issues: list[CuratorPacketIssue],
 ) -> list[Mapping[str, str]]:
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        if tuple(reader.fieldnames or ()) != tuple(expected_fields):
-            issues.append(CuratorPacketIssue(code, member))
-            return []
-        return list(reader)
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            if tuple(reader.fieldnames or ()) != tuple(expected_fields):
+                issues.append(CuratorPacketIssue(code, member))
+                return []
+            return list(reader)
+    except (OSError, UnicodeError, csv.Error):
+        issues.append(CuratorPacketIssue("member_tsv_unreadable", member))
+        return []
 
 
 def _validate_manifest_rows(
@@ -378,38 +424,42 @@ def _validate_manifest_rows(
     packet_ids.discard("")
     if len(packet_ids) != 1:
         issues.append(CuratorPacketIssue("custody_manifest_packet_id_mismatch", "custody_manifest.tsv"))
-    for required in CURATOR_PACKET_REQUIRED_MEMBERS:
-        if required in {"custody_manifest.tsv", "approval_records.tsv"}:
-            continue
-        if not any(row.get("member_path") == required for row in rows):
-            issues.append(CuratorPacketIssue("custody_manifest_missing_member", required))
+    expected_members = set(CURATOR_PACKET_REQUIRED_MEMBERS)
+    expected_members.discard("custody_manifest.tsv")
+    for optional in CURATOR_PACKET_OPTIONAL_MEMBERS:
+        if optional in members:
+            expected_members.add(optional)
+    for expected_member in sorted(expected_members):
+        if not any(row.get("member_path") == expected_member for row in rows):
+            issues.append(CuratorPacketIssue("custody_manifest_missing_member", expected_member))
     for row in rows:
         member_name = str(row.get("member_path", "")).strip()
+        member_label = member_name if member_name in CURATOR_PACKET_ALLOWED_MEMBERS else "untrusted_member"
         member = members.get(member_name)
         if member is None or not member.present:
-            issues.append(CuratorPacketIssue("custody_manifest_unknown_member", member_name))
+            issues.append(CuratorPacketIssue("custody_manifest_unknown_member", member_label))
             continue
         if row.get("sha256") != member.sha256 or not _SHA256.match(str(row.get("sha256", ""))):
-            issues.append(CuratorPacketIssue("custody_manifest_sha256_mismatch", member_name))
+            issues.append(CuratorPacketIssue("custody_manifest_sha256_mismatch", member_label))
         try:
             if int(str(row.get("byte_length", ""))) != member.byte_length:
-                issues.append(CuratorPacketIssue("custody_manifest_byte_length_mismatch", member_name))
+                issues.append(CuratorPacketIssue("custody_manifest_byte_length_mismatch", member_label))
         except ValueError:
-            issues.append(CuratorPacketIssue("custody_manifest_invalid_byte_length", member_name))
+            issues.append(CuratorPacketIssue("custody_manifest_invalid_byte_length", member_label))
         if row.get("schema_version") != CURATOR_PACKET_SCHEMA_VERSION:
-            issues.append(CuratorPacketIssue("custody_manifest_schema_version_mismatch", member_name))
+            issues.append(CuratorPacketIssue("custody_manifest_schema_version_mismatch", member_label))
         if row.get("genus") != expected_genus:
-            issues.append(CuratorPacketIssue("custody_manifest_genus_mismatch", member_name))
+            issues.append(CuratorPacketIssue("custody_manifest_genus_mismatch", member_label))
         if row.get("row_bound_min") != str(min_rows) or row.get("row_bound_max") != str(max_rows):
-            issues.append(CuratorPacketIssue("custody_manifest_row_bound_mismatch", member_name))
+            issues.append(CuratorPacketIssue("custody_manifest_row_bound_mismatch", member_label))
         if not row.get("freeze_timestamp_utc"):
-            issues.append(CuratorPacketIssue("custody_manifest_missing_freeze_timestamp", member_name))
+            issues.append(CuratorPacketIssue("custody_manifest_missing_freeze_timestamp", member_label))
     return next(iter(packet_ids), "")
 
 
 def _validate_approval_rows(
     rows: list[Mapping[str, str]],
-    custody_digest: str,
+    packet_id: str,
     issues: list[CuratorPacketIssue],
 ) -> set[str]:
     kinds = {str(row.get("approval_kind", "")).strip() for row in rows}
@@ -422,8 +472,8 @@ def _validate_approval_rows(
             issues.append(CuratorPacketIssue("approval_not_pass", "approval_records.tsv"))
         if not row.get("approval_id") or not row.get("approval_date") or not row.get("scope"):
             issues.append(CuratorPacketIssue("approval_record_incomplete", "approval_records.tsv"))
-        if custody_digest and row.get("packet_digest_reference") != custody_digest:
-            issues.append(CuratorPacketIssue("approval_digest_mismatch", "approval_records.tsv"))
+        if packet_id and row.get("packet_digest_reference") != packet_id:
+            issues.append(CuratorPacketIssue("approval_packet_reference_mismatch", "approval_records.tsv"))
         if kind not in REQUIRED_APPROVAL_KINDS:
             issues.append(CuratorPacketIssue("unknown_approval_kind", "approval_records.tsv"))
     return kinds
@@ -435,6 +485,10 @@ def _validate_redaction_rows(
 ) -> None:
     if not rows:
         issues.append(CuratorPacketIssue("redaction_attestation_empty", "redaction_attestation.tsv"))
+    checks = {str(row.get("check_name", "")).strip() for row in rows}
+    for required in REQUIRED_REDACTION_CHECKS:
+        if required not in checks:
+            issues.append(CuratorPacketIssue("missing_required_redaction_check", "redaction_attestation.tsv"))
     for row in rows:
         if row.get("status") != "PASS":
             issues.append(CuratorPacketIssue("redaction_attestation_not_pass", "redaction_attestation.tsv"))
@@ -447,7 +501,9 @@ def _validate_redaction_rows(
 
 def _scan_safe_text(path: Path, member: str) -> list[CuratorPacketIssue]:
     issues: list[CuratorPacketIssue] = []
-    text = path.read_text(encoding="utf-8", errors="replace")
+    text = _read_text(path)
+    if text is None:
+        return [CuratorPacketIssue("member_text_unreadable", member)]
     if _SECRET_MARKER.search(text):
         issues.append(CuratorPacketIssue("secret_like_text_detected", member))
     if _EMAIL.search(text):
@@ -455,6 +511,13 @@ def _scan_safe_text(path: Path, member: str) -> list[CuratorPacketIssue]:
     if any(_DNA_LINE.match(line.strip()) for line in text.splitlines()):
         issues.append(CuratorPacketIssue("long_sequence_like_line", member))
     return issues
+
+
+def _read_text(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
 
 
 def _file_fingerprint(path: Path) -> tuple[int, str]:
