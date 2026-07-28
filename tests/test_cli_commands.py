@@ -155,6 +155,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     } >= {
         ("doctor", None),
         ("verify-genus", None),
+        ("verify-release-genus", None),
         ("package-results", None),
         ("manual-review", "validate"),
         ("manual-review", "import"),

@@ -70,6 +70,16 @@ _CATALOG_ENTRIES = (
         "boundary": "real actions require explicit enable flags",
     },
     {
+        "command": "verify-release-genus",
+        "subcommand": None,
+        "mode": "workflow",
+        "argv_pattern": "typetreeflow verify-release-genus <genus> --outdir <run>",
+        "json_stdout": False,
+        "write_behavior": "workflow_outputs",
+        "requires_outdir": True,
+        "boundary": "release verification workflow; real actions require explicit enable flags",
+    },
+    {
         "command": "package-results",
         "subcommand": None,
         "mode": "packaging",
