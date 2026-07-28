@@ -218,6 +218,13 @@ metric families. The frozen Clostridium plan-only invariants
 reconciliation only. They must not be interpreted as download coverage,
 provider availability, or strict deliverable readiness.
 
+Acquisition worklists are review queues, not acquisition execution. A worklist
+lane may recommend public linkage review, conflict resolution, external FASTA
+review, or no action, but it must not trigger provider contact, downloads,
+manifest merges, completion credit, or strict deliverable promotion. Conflict
+lanes take precedence over candidate and external-ready lanes until curator
+resolution is recorded.
+
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
 curator-packet metadata, strict-gate state, and count-crosswalk facts are
