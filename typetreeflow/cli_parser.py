@@ -546,7 +546,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "Explicit read-only directory containing acquisition-worklist audit "
-            "outputs for --report-only audit reporting; "
+            "outputs for --report-only audit reporting or package-results; "
             "no automatic discovery."
         ),
     )

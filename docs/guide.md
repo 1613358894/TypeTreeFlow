@@ -261,6 +261,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --acquisition-worklist-dir <isolated-worklist-directory>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --strict-gating-dir <isolated-triplet-directory>
 
 typetreeflow package-results \
@@ -288,6 +293,15 @@ audit-only: `strict_upgrade_candidate=true` is not a strict deliverable
 upgrade, and `strict_upgrade_applied=false` means no manifest, selection,
 reconciler, package, completion, or evidence-policy change.
 `--failed-handoff` excludes manual-review import artifacts.
+With an explicit `--acquisition-worklist-dir`, `--include reports` and
+`--include all` copy each validated worklist member under
+`acquisition_worklist/` and add one `scope=audit`,
+`evidence_policy=acquisition_worklist_audit` artifact-scope row per copied
+member. Missing input is omitted; partial or malformed input copies only
+validated members and records a compact warning. These files are audit-only:
+worklist lanes mean review availability, not provider contact, download
+execution, manifest mutation, completion credit, or strict deliverable
+promotion. `--failed-handoff` excludes acquisition-worklist artifacts.
 With an explicit `--strict-gating-dir`, `--include reports` and `--include
 all` copy each validated P3f-1 member under `strict_gating/` and add one
 `scope=audit`, `evidence_policy=strict_gating_audit` artifact-scope row per

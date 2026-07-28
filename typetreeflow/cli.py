@@ -335,6 +335,7 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             include=config.include,
             failed_handoff=config.failed_handoff,
             manual_review_import_dir=config.manual_review_import_dir,
+            acquisition_worklist_dir=config.acquisition_worklist_dir,
             strict_gating_dir=config.strict_gating_dir,
         )
     except (FileNotFoundError, ManifestError, ValueError, RuntimeError) as error:
@@ -372,6 +373,16 @@ def _format_package_results_envelope(
                 "message": (
                     f"{len(result.manual_review_warnings)} manual-review import "
                     "warning(s); see package README and handoff index"
+                ),
+            }
+        )
+    if result.acquisition_worklist_warnings:
+        warnings.append(
+            {
+                "id": "acquisition_worklist_warning",
+                "message": (
+                    f"{len(result.acquisition_worklist_warnings)} acquisition "
+                    "worklist warning(s); see package README and handoff index"
                 ),
             }
         )

@@ -158,9 +158,11 @@ def build_app_config_from_args(
     if (
         args.acquisition_worklist_dir is not None
         and not args.report_only
+        and not package_results_command
     ):
         raise ValueError(
-            "--acquisition-worklist-dir is only supported with --report-only."
+            "--acquisition-worklist-dir is only supported with --report-only "
+            "or package-results."
         )
     if (
         args.strict_gating_dir is not None

@@ -336,18 +336,31 @@ At most five diagnostic-code counts are displayed; diagnostic messages and raw
 decision content are not displayed. Primary stdout retains the existing compact
 JSON contract.
 
-`--acquisition-worklist-dir <dir>` is accepted with `--report-only`. It is an
-explicit read-only input and is never automatically discovered under the
-workflow outdir. Report generation reads only `acquisition_worklist.tsv` and
-`acquisition_worklist_summary.json` from that directory. A missing or empty
-directory omits `## Acquisition Worklist Audit`. Partial or malformed input
-keeps report generation successful and shows a compact warning. Valid summary
-counts show `record_count`, `downloads_triggered`, `providers_contacted`,
-`manifest_mutated`, `audit_only`, and `strict_scientific_deliverable`, plus up
-to five nonzero lane counts. Row-level species, recommended action text, notes,
-or source details are not displayed. Report inclusion does not contact
-providers, trigger downloads, mutate manifests, create workflow outputs, or
-create strict scientific deliverables.
+`--acquisition-worklist-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is an explicit read-only input and is never
+automatically discovered under the workflow outdir. Report generation reads
+only `acquisition_worklist.tsv` and `acquisition_worklist_summary.json` from
+that directory. A missing or empty directory omits `## Acquisition Worklist
+Audit`. Partial or malformed input keeps report generation successful and
+shows a compact warning. Valid summary counts show `record_count`,
+`downloads_triggered`, `providers_contacted`, `manifest_mutated`,
+`audit_only`, and `strict_scientific_deliverable`, plus up to five nonzero
+lane counts. Row-level species, recommended action text, notes, or source
+details are not displayed. Report inclusion does not contact providers,
+trigger downloads, mutate manifests, create workflow outputs, or create strict
+scientific deliverables.
+
+For `package-results --include reports` or `--include all`, each validated
+member is copied under `acquisition_worklist/`. Each copied member gets one row
+in package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
+`scope=audit`, `evidence_policy=acquisition_worklist_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=acquisition lane review`,
+`not_for=provider contact or download execution`, and
+`source_artifact=acquisition_worklist_builder`. Missing input is omitted.
+Partial or malformed input copies only valid members and adds a compact
+warning to the README, handoff index, and compact JSON envelope.
+Failed-handoff packages exclude these artifacts and rows.
 
 `--strict-gating-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only input and is never
@@ -1008,9 +1021,10 @@ the explicitly supplied directory. Existing output directories are refused by
 default; `--force` replaces only an owned pair with matching schemas. Missing
 or unreadable input blocks the command with exit code `2`; successful worklist
 generation exits `0`; unexpected internal or write failures exit `1`.
-The optional report surface is separate: pass
-`--acquisition-worklist-dir <dir>` with `--report-only` to display compact
-audit counts from a previously generated worklist pair.
+The optional report/package surfaces are separate from worklist generation:
+pass `--acquisition-worklist-dir <dir>` with `--report-only` to display compact
+audit counts, or with `package-results --include reports|all` to copy the
+validated pair into a delivery package.
 
 Manual supplement actions: `review_matched_candidates`,
 `review_species_identity_mismatch`, `manual_search_required`,
