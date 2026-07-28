@@ -159,6 +159,28 @@ ACQUISITION_WORKLIST_MEMBERS = (
     "acquisition_worklist.tsv",
 )
 ACQUISITION_WORKLIST_MAX_BYTES = 5 * 1024 * 1024
+OFFLINE_READINESS_MEMBERS = (
+    "offline_readiness_summary.json",
+    "offline_readiness_diagnostics.tsv",
+)
+OFFLINE_READINESS_DIAGNOSTIC_FIELDS = (
+    "schema_version",
+    "component",
+    "severity",
+    "diagnostic_code",
+)
+OFFLINE_READINESS_COUNT_FIELDS = (
+    "offline_readiness_status",
+    "valid",
+    "diagnostic_count",
+    "denominator_families_preserved",
+    "audit_only",
+    "authorization_granted",
+    "real_curator_data_evaluated",
+    "strict_deliverable_written",
+    "strict_upgrade_applied",
+)
+OFFLINE_READINESS_MAX_BYTES = 5 * 1024 * 1024
 STRICT_GATING_MEMBERS = (
     "strict_gating_summary.json",
     "strict_gating_audit.tsv",
@@ -228,6 +250,15 @@ class AcquisitionWorklistAuditSummary:
     present_files: list[str]
     warnings: list[str]
     lane_counts: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class OfflineReadinessAuditSummary:
+    counts: dict[str, object]
+    component_status: list[tuple[str, str]]
+    present_files: list[str]
+    warnings: list[str]
+    top_diagnostics: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -646,6 +677,130 @@ def _read_acquisition_worklist_tsv(path: Path) -> list[dict[str, str]]:
         rows = list(reader)
     if any(None in row for row in rows):
         raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def read_optional_offline_readiness_audit(
+    directory: str | Path | None,
+) -> OfflineReadinessAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name for name in OFFLINE_READINESS_MEMBERS if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    component_status: list[tuple[str, str]] = []
+    diagnostic_codes: Counter[str] = Counter()
+    summary_data: dict[str, object] | None = None
+    observed_diagnostics: int | None = None
+
+    missing = [name for name in OFFLINE_READINESS_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / "offline_readiness_summary.json"
+    if summary_path.exists():
+        try:
+            _validate_offline_readiness_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != "1":
+                raise ValueError("unsupported schema_version")
+            status = loaded.get("offline_readiness_status")
+            if status not in {"ready", "blocked", "not_evaluated"}:
+                raise ValueError("invalid offline_readiness_status")
+            diagnostic_count = loaded.get("diagnostic_count")
+            if (
+                isinstance(diagnostic_count, bool)
+                or not isinstance(diagnostic_count, int)
+                or diagnostic_count < 0
+            ):
+                raise ValueError("invalid diagnostic_count")
+            for field, expected in (
+                ("audit_only", True),
+                ("authorization_granted", False),
+                ("real_curator_data_evaluated", False),
+                ("strict_deliverable_written", False),
+                ("strict_upgrade_applied", False),
+                ("writes_workflow_outputs", False),
+            ):
+                if loaded.get(field) is not expected:
+                    raise ValueError(f"{field} boundary violation")
+            raw_components = loaded.get("component_status")
+            if not isinstance(raw_components, dict):
+                raise ValueError("invalid component_status")
+            parsed_components: list[tuple[str, str]] = []
+            for component, value in raw_components.items():
+                if not isinstance(component, str) or not isinstance(value, str):
+                    raise ValueError("invalid component_status")
+                if value not in {"ready", "blocked", "not_evaluated"}:
+                    raise ValueError("invalid component_status")
+                parsed_components.append((component, value))
+            summary_data = loaded
+            counts = {field: loaded.get(field) for field in OFFLINE_READINESS_COUNT_FIELDS}
+            component_status = sorted(parsed_components)
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append("offline_readiness_summary.json malformed")
+
+    diagnostics_path = input_dir / "offline_readiness_diagnostics.tsv"
+    if diagnostics_path.exists():
+        try:
+            diagnostic_rows = _read_offline_readiness_diagnostics_tsv(
+                diagnostics_path
+            )
+            observed_diagnostics = len(diagnostic_rows)
+            diagnostic_codes.update(
+                row.get("diagnostic_code", "").strip()
+                for row in diagnostic_rows
+                if row.get("diagnostic_code", "").strip()
+            )
+            valid_files.append(diagnostics_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("offline_readiness_diagnostics.tsv malformed")
+
+    if summary_data is not None and observed_diagnostics is not None:
+        if summary_data["diagnostic_count"] != observed_diagnostics:
+            warnings.append("diagnostic_count does not match diagnostics rows")
+
+    return OfflineReadinessAuditSummary(
+        counts=counts,
+        component_status=component_status,
+        present_files=valid_files,
+        warnings=warnings,
+        top_diagnostics=sorted(
+            diagnostic_codes.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+    )
+
+
+def _validate_offline_readiness_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > OFFLINE_READINESS_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_offline_readiness_diagnostics_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_offline_readiness_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != OFFLINE_READINESS_DIAGNOSTIC_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    if any(row.get("schema_version") != "1" for row in rows):
+        raise ValueError("unsupported schema_version")
     return rows
 
 
@@ -1663,6 +1818,9 @@ def build_run_summary_markdown(
     acquisition_worklist_audit = read_optional_acquisition_worklist_audit(
         getattr(args, "acquisition_worklist_dir", None)
     )
+    offline_readiness_audit = read_optional_offline_readiness_audit(
+        getattr(args, "offline_readiness_dir", None)
+    )
     strict_gating_audit = read_optional_strict_gating_audit(
         getattr(args, "strict_gating_dir", None)
     )
@@ -2029,6 +2187,69 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(lane)} | {count} |"
                         for lane, count in acquisition_worklist_audit.lane_counts[:5]
+                    ],
+                ]
+            )
+
+    if offline_readiness_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Offline Readiness Audit",
+                "",
+                (
+                    "The offline readiness projection is audit-only. Report "
+                    "inclusion does not grant authorization, evaluate real "
+                    "curator data, write workflow outputs, contact providers, "
+                    "trigger downloads, or create strict deliverables."
+                ),
+                (
+                    "`strict_deliverable_written=false` and "
+                    "`strict_upgrade_applied=false` remain independent "
+                    "boundaries."
+                ),
+            ]
+        )
+        if offline_readiness_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in offline_readiness_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if offline_readiness_audit.warnings:
+            lines.append(
+                "- Warning: " + "; ".join(offline_readiness_audit.warnings)
+            )
+        if offline_readiness_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(offline_readiness_audit.present_files)
+            )
+        if offline_readiness_audit.component_status:
+            lines.extend(
+                [
+                    "",
+                    "| Readiness Component | Status |",
+                    "| --- | --- |",
+                    *[
+                        f"| {_markdown_cell(component)} | {_markdown_cell(status)} |"
+                        for component, status in offline_readiness_audit.component_status
+                    ],
+                ]
+            )
+        if offline_readiness_audit.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in offline_readiness_audit.top_diagnostics
                     ],
                 ]
             )

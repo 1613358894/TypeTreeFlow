@@ -20,6 +20,7 @@ from typetreeflow.evidence.manual_review_import import (
 )
 from tests.test_report_summary import (
     _write_acquisition_worklist_pair,
+    _write_offline_readiness_pair,
     _write_strict_gating_triplet,
 )
 
@@ -215,6 +216,64 @@ def test_acquisition_worklist_dir_requires_report_only(tmp_path, capsys):
                 str(tmp_path / "out"),
                 "--acquisition-worklist-dir",
                 str(tmp_path / "acquisition-worklist"),
+            ]
+        )
+
+
+def test_report_only_explicit_offline_readiness_dir_is_read_only_and_compact(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    readiness_dir = tmp_path / "offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+    readiness_before = {
+        path.name: path.read_bytes() for path in readiness_dir.iterdir()
+    }
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--offline-readiness-dir",
+            str(readiness_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert stdout.count("\n") <= 1
+    assert json.loads(stdout)["command"] == "verify-genus"
+    assert "## Offline Readiness Audit" in summary
+    assert "offline_readiness_status=ready" in summary
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes() for path in readiness_dir.iterdir()
+    } == readiness_before
+    assert not paths.completion_dir.exists()
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+def test_offline_readiness_dir_requires_report_only(tmp_path):
+    with pytest.raises(
+        ValueError,
+        match="--offline-readiness-dir is only supported with --report-only",
+    ):
+        main(
+            [
+                "--outdir",
+                str(tmp_path / "out"),
+                "--offline-readiness-dir",
+                str(tmp_path / "offline-readiness"),
             ]
         )
 

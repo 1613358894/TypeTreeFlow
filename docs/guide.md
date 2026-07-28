@@ -351,6 +351,15 @@ scanning the workflow outdir or triggering providers/downloads. A missing or
 empty directory omits `## Acquisition Worklist Audit`; partial or malformed
 input keeps report generation successful and shows a compact warning.
 
+To include a previously generated offline readiness projection in the
+refreshed report, pass `--offline-readiness-dir <isolated-readiness-directory>`
+together with `--report-only`. This is an explicit read-only input:
+TypeTreeFlow reads only `offline_readiness_summary.json` and
+`offline_readiness_diagnostics.tsv`, without scanning the workflow outdir or
+running `readiness evaluate`. A missing or empty directory omits
+`## Offline Readiness Audit`; partial or malformed input keeps report
+generation successful and shows a compact warning.
+
 To include a previously generated P3f-1 strict-gating audit in the refreshed
 report, pass `--strict-gating-dir <isolated-triplet-directory>` together with
 `--report-only`. This is an explicit read-only input: TypeTreeFlow reads only

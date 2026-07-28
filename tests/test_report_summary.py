@@ -57,6 +57,7 @@ from typetreeflow.report.summary import (
     build_run_summary_markdown,
     read_optional_acquisition_worklist_audit,
     read_optional_manual_review_import_audit,
+    read_optional_offline_readiness_audit,
     read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
@@ -471,6 +472,128 @@ def test_acquisition_worklist_audit_reader_does_not_access_env_or_socket(
     monkeypatch.setattr(socket, "create_connection", fail)
 
     audit = read_optional_acquisition_worklist_audit(worklist_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
+
+
+def _write_offline_readiness_pair(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "offline_readiness_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "command": "readiness evaluate",
+                "status": "pass",
+                "offline_readiness_status": "ready",
+                "valid": True,
+                "component_status": {
+                    "curator_packet_preflight": "ready",
+                    "strict_gate_state": "ready",
+                    "count_crosswalk": "ready",
+                },
+                "diagnostic_count": 0,
+                "diagnostics": [],
+                "dry_run": False,
+                "writes_outputs": True,
+                "writes_workflow_outputs": False,
+                "audit_only": True,
+                "authorization_granted": False,
+                "real_curator_data_evaluated": False,
+                "strict_deliverable_written": False,
+                "strict_upgrade_applied": False,
+                "current_output_ceiling": "gate-passed",
+                "denominator_families_preserved": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (directory / "offline_readiness_diagnostics.tsv").write_text(
+        "schema_version\tcomponent\tseverity\tdiagnostic_code\n",
+        encoding="utf-8",
+    )
+
+
+def test_offline_readiness_audit_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    readiness_dir = tmp_path / "offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(offline_readiness_dir=readiness_dir),
+    )
+
+    assert "## Offline Readiness Audit" in markdown
+    assert (
+        "- Counts: offline_readiness_status=ready; valid=true; "
+        "diagnostic_count=0; denominator_families_preserved=true; "
+        "audit_only=true; authorization_granted=false; "
+        "real_curator_data_evaluated=false; strict_deliverable_written=false; "
+        "strict_upgrade_applied=false"
+    ) in markdown
+    assert "The offline readiness projection is audit-only" in markdown
+    assert "does not grant authorization" in markdown
+    assert "`strict_deliverable_written=false`" in markdown
+    assert "| curator_packet_preflight | ready |" in markdown
+
+
+def test_offline_readiness_audit_absent_without_explicit_input_or_empty_dir(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path / "run")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    assert "## Offline Readiness Audit" not in build_run_summary_markdown(
+        [_record("ref1")], paths
+    )
+    assert "## Offline Readiness Audit" not in build_run_summary_markdown(
+        [_record("ref1")],
+        paths,
+        SimpleNamespace(offline_readiness_dir=empty),
+    )
+
+
+def test_offline_readiness_audit_partial_malformed_summary_warns(tmp_path):
+    readiness_dir = tmp_path / "offline-readiness"
+    readiness_dir.mkdir()
+    (readiness_dir / "offline_readiness_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+    (readiness_dir / "offline_readiness_diagnostics.tsv").write_text(
+        "schema_version\tcomponent\tseverity\tdiagnostic_code\n"
+        "1\tcurator_packet_preflight\terror\tmissing_component\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(offline_readiness_dir=readiness_dir),
+    )
+
+    assert "## Offline Readiness Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "offline_readiness_summary.json malformed" in markdown
+    assert "| missing_component | 1 |" in markdown
+
+
+def test_offline_readiness_audit_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    readiness_dir = tmp_path / "offline-readiness"
+    _write_offline_readiness_pair(readiness_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("offline readiness reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_offline_readiness_audit(readiness_dir)
 
     assert audit is not None
     assert audit.counts["audit_only"] is True

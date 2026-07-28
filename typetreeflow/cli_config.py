@@ -164,6 +164,10 @@ def build_app_config_from_args(
             "--acquisition-worklist-dir is only supported with --report-only "
             "or package-results."
         )
+    if args.offline_readiness_dir is not None and not args.report_only:
+        raise ValueError(
+            "--offline-readiness-dir is only supported with --report-only."
+        )
     if (
         args.strict_gating_dir is not None
         and not args.report_only
@@ -273,5 +277,6 @@ def build_app_config_from_args(
         bacdive_max_queries=args.bacdive_max_queries,
         manual_review_import_dir=args.manual_review_import_dir,
         acquisition_worklist_dir=args.acquisition_worklist_dir,
+        offline_readiness_dir=args.offline_readiness_dir,
         strict_gating_dir=args.strict_gating_dir,
     )
