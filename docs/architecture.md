@@ -31,6 +31,11 @@ as `--enable-downloads`, `--enable-barrnap`, `--enable-entrez`,
 The maintained command surface includes `verify-genus`, `status`, `next-step`,
 and `package-results`.
 
+`typetreeflow.cli_recognizer` provides side-effect-free, JSON-serializable
+command metadata for AI/helper-facing tooling. It does not parse arguments,
+load configuration, execute commands, or act as dispatch authority; the
+existing CLI parser and dispatch order remain authoritative.
+
 `AppConfig` centralizes runtime options, outdir/workspace resolution, email/API
 configuration, dry-run behavior, resume/force semantics, and local query inputs.
 Environment loading must not require reading private credential files during
