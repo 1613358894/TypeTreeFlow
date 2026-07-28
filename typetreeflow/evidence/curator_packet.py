@@ -295,13 +295,14 @@ def preflight_curator_packet(
         )
         _validate_redaction_rows(redaction_rows, issues)
     if "expected_counts.tsv" in found_files:
-        _read_tsv(
+        expected_count_rows = _read_tsv(
             found_files["expected_counts.tsv"],
             EXPECTED_COUNTS_FIELDS,
             "expected_counts.tsv",
             "invalid_expected_counts_schema",
             issues,
         )
+        _validate_expected_counts_rows(expected_count_rows, issues)
     if "README.md" in found_files:
         text = _read_text(found_files["README.md"])
         if text is None:
@@ -349,7 +350,7 @@ def _flat_packet_files(
     found: dict[str, Path] = {}
     for child in packet_path.iterdir():
         if child.is_dir():
-            issues.append(CuratorPacketIssue("nested_packet_directory", child.name))
+            issues.append(CuratorPacketIssue("nested_packet_directory", "untrusted_member"))
             continue
         found[child.name] = child
     return found
@@ -380,6 +381,23 @@ def _validate_curator_review(
             issues.append(CuratorPacketIssue("synthetic_or_test_marker", path.name))
             break
     return row_count
+
+
+def _validate_expected_counts_rows(
+    rows: list[Mapping[str, str]],
+    issues: list[CuratorPacketIssue],
+) -> None:
+    for row in rows:
+        if not row.get("metric") or not row.get("denominator_family"):
+            issues.append(CuratorPacketIssue("invalid_expected_counts_row", "expected_counts.tsv"))
+            continue
+        try:
+            value = int(str(row.get("value", "")))
+        except ValueError:
+            issues.append(CuratorPacketIssue("invalid_expected_counts_row", "expected_counts.tsv"))
+            continue
+        if value < 0:
+            issues.append(CuratorPacketIssue("invalid_expected_counts_row", "expected_counts.tsv"))
 
 
 def _validate_exact_tsv_header(

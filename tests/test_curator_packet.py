@@ -160,6 +160,39 @@ def test_expected_counts_schema_and_custody_binding_are_required(tmp_path):
     assert "custody_manifest_missing_member" in _codes(result)
 
 
+def test_expected_counts_semantic_values_are_checked(tmp_path):
+    packet = _valid_packet(tmp_path)
+    _write_tsv(
+        packet / "expected_counts.tsv",
+        ("metric", "value", "denominator_family", "notes"),
+        [
+            {
+                "metric": "",
+                "value": "-1",
+                "denominator_family": "",
+                "notes": "invalid aggregate only",
+            }
+        ],
+    )
+    _write_manifest(packet)
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+
+    assert "invalid_expected_counts_row" in _codes(result)
+
+
+def test_nested_directory_name_is_not_echoed(tmp_path):
+    packet = _valid_packet(tmp_path)
+    (packet / "curator-a private evidence").mkdir()
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+    rendered = json.dumps(result.to_dict(), sort_keys=True)
+
+    assert "nested_packet_directory" in _codes(result)
+    assert "untrusted_member" in rendered
+    assert "curator-a private evidence" not in rendered
+
+
 def test_malformed_utf8_is_fail_closed(tmp_path):
     packet = _valid_packet(tmp_path)
     (packet / "curator_review.tsv").write_bytes(b"\xff\xfe\xff")
@@ -235,13 +268,16 @@ def _repo_root(tmp_path: Path) -> Path:
 
 def _write_manifest(packet: Path) -> None:
     rows = []
-    for member in (
+    member_names = [
         "curator_review.tsv",
         "reconciler_audit.tsv",
         "approval_records.tsv",
         "redaction_attestation.tsv",
         "README.md",
-    ):
+    ]
+    if (packet / "expected_counts.tsv").exists():
+        member_names.append("expected_counts.tsv")
+    for member in member_names:
         path = packet / member
         rows.append(
             {
