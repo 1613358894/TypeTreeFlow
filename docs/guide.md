@@ -23,6 +23,19 @@ typetreeflow doctor
 version, environment files, workspace/output readiness, and external tool
 availability without running downloads or external bioinformatics tools.
 
+For AI-facing command planning, inspect an argv shape without executing it:
+
+```bash
+typetreeflow commands recognize \
+  --argv-json '["verify-genus","Fusobacterium","--report-only"]'
+```
+
+The command emits one compact JSON object describing the recognized command,
+mode, write-output declaration, and outdir requirement. It does not load
+workflow configuration, read environment files, write outputs, contact
+providers, or run external tools. It is helper metadata only; normal CLI
+parsing and dispatch remain authoritative.
+
 For AI-facing offline planning, classify existing local checklist,
 reconciler, completion-gap, and external-genome rows into one review lane per
 species:

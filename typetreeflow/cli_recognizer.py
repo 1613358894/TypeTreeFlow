@@ -16,12 +16,14 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "strict-gating",
         "readiness",
         "acquisition-worklist",
+        "commands",
     }
 )
 _MANUAL_REVIEW_SUBCOMMANDS = {"validate", "import"}
 _STRICT_GATING_SUBCOMMANDS = {"evaluate"}
 _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
+_COMMANDS_SUBCOMMANDS = {"recognize"}
 
 
 def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
@@ -44,7 +46,13 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     unknown = False
     invalid = False
 
-    if is_acquisition_worklist:
+    if first == "commands":
+        command = "commands"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "cli_metadata"
+        invalid = subcommand not in _COMMANDS_SUBCOMMANDS
+        unknown = subcommand is not None and subcommand not in _COMMANDS_SUBCOMMANDS
+    elif is_acquisition_worklist:
         command = "acquisition-worklist"
         subcommand = tokens[1] if len(tokens) > 1 else None
         mode = "acquisition_worklist"
@@ -161,6 +169,8 @@ def _writes_outputs_declared(
     unknown: bool,
 ) -> bool:
     if unknown or command is None or command in _DIAGNOSTIC_COMMANDS:
+        return False
+    if command == "commands":
         return False
     if command == "manual-review":
         return (subcommand == "validate" and "--out" in tokens) or (
