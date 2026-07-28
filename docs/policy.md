@@ -250,11 +250,13 @@ upgrades, start providers, or imply download readiness. Any missing,
 contradictory, denominator-collapsed, nonzero-download, or above-ceiling input
 must be treated as blocked.
 
-The `readiness evaluate` CLI is a no-write, no-workflow adapter for that same
-projection. It may read only explicitly provided component JSON files, and a
-PASS only means the offline gate inputs are structurally coherent. It must not
-discover workflow outputs, load environment credentials, contact providers,
-write reports/packages, or advance any strict deliverable state.
+The `readiness evaluate` CLI is a no-write-by-default, no-workflow adapter for
+that same projection. It may read only explicitly provided component JSON
+files, and a PASS only means the offline gate inputs are structurally
+coherent. In explicit write mode it may publish only its isolated readiness
+summary/diagnostics pair. It must not discover workflow outputs, load
+environment credentials, contact providers, write reports/packages, or advance
+any strict deliverable state.
 
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit

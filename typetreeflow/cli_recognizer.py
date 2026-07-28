@@ -169,7 +169,7 @@ def _writes_outputs_declared(
     if command == "strict-gating":
         return subcommand == "evaluate" and "--write" in tokens
     if command == "readiness":
-        return False
+        return subcommand == "evaluate" and "--write" in tokens
     if command == "acquisition-worklist":
         return subcommand == "build" and "--write" in tokens
     if is_report_only:
@@ -195,6 +195,8 @@ def _requires_outdir(
     if command == "manual-review":
         return subcommand == "import" and writes_outputs_declared
     if command == "strict-gating":
+        return subcommand == "evaluate" and writes_outputs_declared
+    if command == "readiness":
         return subcommand == "evaluate" and writes_outputs_declared
     if command == "acquisition-worklist":
         return subcommand == "build" and writes_outputs_declared

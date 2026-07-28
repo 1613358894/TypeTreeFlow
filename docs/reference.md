@@ -677,17 +677,25 @@ write files, dispatch commands, contact providers, or mutate workflow outputs.
 The isolated CLI adapter is:
 
 ```text
-typetreeflow readiness evaluate [--curator-packet-preflight-json <json>] [--strict-gate-state-json <json>] [--count-crosswalk-json <json>] [--json]
+typetreeflow readiness evaluate [--curator-packet-preflight-json <json>] [--strict-gate-state-json <json>] [--count-crosswalk-json <json>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named component JSON files and emits exactly one
 compact JSON object to stdout; `--json` is an accepted no-op. Missing component
 paths are evaluated as missing components rather than as command-usage errors.
 Unreadable, symlink, malformed JSON, or non-object inputs fail closed with
-component diagnostics. The command always reports `dry_run=true`,
+component diagnostics. By default, the command reports `dry_run=true`,
 `writes_outputs=false`, `writes_workflow_outputs=false`,
 `authorization_granted=false`, `real_curator_data_evaluated=false`,
 `strict_deliverable_written=false`, and `strict_upgrade_applied=false`.
+With explicit `--write --outdir`, it atomically writes only
+`offline_readiness_summary.json` and `offline_readiness_diagnostics.tsv` to
+the isolated output directory, reports `dry_run=false` and
+`writes_outputs=true`, and still reports `writes_workflow_outputs=false`.
+Existing output directories are refused by default; `--force` replaces only an
+owned readiness pair with matching schemas. Protected workflow-like output
+paths are refused. Write mode does not make readiness a workflow output and
+does not alter any strict deliverable boundary.
 Exit code `0` means `offline_readiness_status=ready`; exit code `2` means
 blocked or not evaluated; exit code `1` is reserved for unexpected internal
 errors.
