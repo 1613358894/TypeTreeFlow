@@ -951,11 +951,17 @@ def main(
         is_readiness_command,
         run_readiness_command,
     )
+    from typetreeflow.acquisition_worklist_cli import (
+        is_acquisition_worklist_command,
+        run_acquisition_worklist_command,
+    )
     from typetreeflow.manual_review_cli import (
         is_manual_review_command,
         run_manual_review_command,
     )
 
+    if is_acquisition_worklist_command(command_argv):
+        return run_acquisition_worklist_command(command_argv)
     if is_readiness_command(command_argv):
         return run_readiness_command(command_argv)
     if is_strict_gating_command(command_argv):

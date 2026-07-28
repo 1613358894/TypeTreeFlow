@@ -982,6 +982,20 @@ Supported lanes are `no_action_strict_complete`,
 external-ready lanes. The summary preserves `downloads_triggered=0`,
 `providers_contacted=0`, and `manifest_mutated=false`.
 
+The isolated CLI adapter is:
+
+```text
+typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-audit-tsv <tsv>] [--completion-gaps-tsv <tsv>] [--external-genomes-tsv <tsv>] [--json] [--write --outdir <dir> [--force]]
+```
+
+It reads only the explicitly named TSV files and emits exactly one compact
+JSON object. Without `--write`, it writes nothing. With `--write`, it writes
+only `acquisition_worklist.tsv` and `acquisition_worklist_summary.json` into
+the explicitly supplied directory. Existing output directories are refused by
+default; `--force` replaces only an owned pair with matching schemas. Missing
+or unreadable input blocks the command with exit code `2`; successful worklist
+generation exits `0`; unexpected internal or write failures exit `1`.
+
 Manual supplement actions: `review_matched_candidates`,
 `review_species_identity_mismatch`, `manual_search_required`,
 `provide_curator_accession`, `provide_external_genome_fasta`,

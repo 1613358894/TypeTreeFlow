@@ -225,6 +225,11 @@ manifest merges, completion credit, or strict deliverable promotion. Conflict
 lanes take precedence over candidate and external-ready lanes until curator
 resolution is recorded.
 
+The `acquisition-worklist build` CLI remains an isolated adapter. It may write
+only its explicitly requested worklist pair and must not scan workflow
+directories, read environment credentials, package raw curator/provider data,
+or convert a recommended action into an executed action.
+
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
 curator-packet metadata, strict-gate state, and count-crosswalk facts are
