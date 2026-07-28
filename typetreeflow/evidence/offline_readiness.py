@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
+from typetreeflow.evidence.strict_gate_state import STRICT_GATE_STATES
+
 
 OFFLINE_READINESS_SCHEMA_VERSION = "1"
 OFFLINE_READINESS_STATUSES = ("ready", "blocked", "not_evaluated")
@@ -110,7 +112,16 @@ def _curator_status(
         diagnostics.append(OfflineReadinessDiagnostic(component, "missing_component"))
         return "blocked"
     data = _mapping(value)
-    if not _bool_value(data.get("dry_run"), True):
+    if not data:
+        diagnostics.append(OfflineReadinessDiagnostic(component, "malformed_component"))
+        return "blocked"
+    _require_fields(
+        data,
+        component,
+        diagnostics,
+        ("dry_run", "valid", "repo_external", "curator_row_count"),
+    )
+    if not _bool_value(data.get("dry_run"), False):
         diagnostics.append(OfflineReadinessDiagnostic(component, "not_dry_run"))
     if not _bool_value(data.get("valid"), False):
         diagnostics.append(OfflineReadinessDiagnostic(component, "invalid_preflight"))
@@ -131,6 +142,35 @@ def _strict_gate_status(
         diagnostics.append(OfflineReadinessDiagnostic(component, "missing_component"))
         return "blocked"
     data = _mapping(value)
+    if not data:
+        diagnostics.append(OfflineReadinessDiagnostic(component, "malformed_component"))
+        return "blocked"
+    has_projection = "state_id" in data
+    has_summary = "record_count" in data or "state_counts" in data
+    if not (has_projection or has_summary):
+        diagnostics.append(OfflineReadinessDiagnostic(component, "malformed_component"))
+    if has_projection:
+        state_id = data.get("state_id")
+        if state_id not in STRICT_GATE_STATES:
+            diagnostics.append(OfflineReadinessDiagnostic(component, "unknown_state"))
+        _require_fields(
+            data,
+            component,
+            diagnostics,
+            (
+                "valid",
+                "strict_deliverable_written",
+                "strict_upgrade_applied",
+                "exceeds_current_output_ceiling",
+            ),
+        )
+    if has_summary:
+        _require_fields(
+            data,
+            component,
+            diagnostics,
+            ("record_count", "valid_count", "exceeds_current_output_ceiling_count"),
+        )
     if _bool_value(data.get("strict_deliverable_written"), False):
         diagnostics.append(OfflineReadinessDiagnostic(component, "strict_deliverable_written"))
     if _bool_value(data.get("strict_upgrade_applied"), False):
@@ -141,7 +181,7 @@ def _strict_gate_status(
         diagnostics.append(OfflineReadinessDiagnostic(component, "exceeds_current_output_ceiling"))
     if data.get("state_id") in {"deliverable-written", "upgrade-applied"}:
         diagnostics.append(OfflineReadinessDiagnostic(component, "higher_state_present"))
-    if data.get("valid") is False:
+    if "valid" in data and not _bool_value(data.get("valid"), False):
         diagnostics.append(OfflineReadinessDiagnostic(component, "invalid_state_projection"))
     record_count = _int_value(data.get("record_count"), -1)
     valid_count = _int_value(data.get("valid_count"), record_count)
@@ -158,7 +198,24 @@ def _count_crosswalk_status(
         diagnostics.append(OfflineReadinessDiagnostic(component, "missing_component"))
         return "blocked"
     data = _mapping(value)
-    if data.get("valid") is False:
+    if not data:
+        diagnostics.append(OfflineReadinessDiagnostic(component, "malformed_component"))
+        return "blocked"
+    _require_fields(
+        data,
+        component,
+        diagnostics,
+        (
+            "valid",
+            "checklist_species",
+            "strict_partition_sum",
+            "manual_review_rows",
+            "manual_review_sum",
+            "downloads",
+            "metric_families",
+        ),
+    )
+    if not _bool_value(data.get("valid"), False):
         diagnostics.append(OfflineReadinessDiagnostic(component, "invalid_count_crosswalk"))
     if data.get("checklist_species") != data.get("strict_partition_sum"):
         diagnostics.append(OfflineReadinessDiagnostic(component, "strict_partition_mismatch"))
@@ -194,6 +251,21 @@ def _mapping(value: object) -> Mapping[str, object]:
     if isinstance(summary, Mapping):
         return summary
     return {}
+
+
+def _require_fields(
+    data: Mapping[str, object],
+    component: str,
+    diagnostics: list[OfflineReadinessDiagnostic],
+    fields: tuple[str, ...],
+) -> None:
+    for field in fields:
+        if field not in data:
+            diagnostics.append(
+                OfflineReadinessDiagnostic(
+                    component, f"missing_{field}"
+                )
+            )
 
 
 def _bool_value(value: object, default: bool) -> bool:
