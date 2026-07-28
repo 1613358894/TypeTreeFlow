@@ -34,9 +34,14 @@ from typetreeflow.cli_recognizer import recognize_cli_command
         (["--next-step"], {"command": "next-step", "mode": "diagnostic", "writes_outputs_declared": False, "requires_outdir": True}),
         (["--package-results"], {"command": "package-results", "mode": "packaging", "writes_outputs_declared": True, "requires_outdir": True}),
         (["--verify-release-genus", "Fusobacterium"], {"command": "verify-release-genus", "mode": "workflow", "writes_outputs_declared": True, "requires_outdir": True}),
+        (["--acquire-genus", "Fusobacterium"], {"command": "workflow", "mode": "workflow", "writes_outputs_declared": True, "requires_outdir": True}),
+        (["verify-release-genus", "Fusobacterium"], {"command": "verify-release-genus", "mode": "workflow", "writes_outputs_declared": True, "requires_outdir": True}),
         (["manual-review", "validate", "--input", "review.tsv"], {"command": "manual-review", "subcommand": "validate", "mode": "manual_review", "is_manual_review": True, "writes_outputs_declared": False, "requires_outdir": False}),
+        (["manual-review", "validate", "--input", "review.tsv", "--out", "issues.tsv"], {"command": "manual-review", "subcommand": "validate", "mode": "manual_review", "is_manual_review": True, "writes_outputs_declared": True, "requires_outdir": False}),
+        (["manual-review", "import", "--input", "review.tsv", "--reconciler-audit", "audit.tsv"], {"command": "manual-review", "subcommand": "import", "mode": "manual_review", "is_manual_review": True, "writes_outputs_declared": False, "requires_outdir": False}),
         (["manual-review", "import", "--input", "review.tsv", "--reconciler-audit", "audit.tsv", "--write", "--outdir", "isolated"], {"command": "manual-review", "subcommand": "import", "mode": "manual_review", "is_manual_review": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["strict-gating", "evaluate", "--manual-review-dir", "review", "--reconciler-audit", "audit.tsv"], {"command": "strict-gating", "subcommand": "evaluate", "mode": "strict_gating", "is_strict_gating": True, "writes_outputs_declared": False, "requires_outdir": False}),
+        (["strict-gating", "evaluate", "--manual-review-dir", "review", "--reconciler-audit", "audit.tsv", "--write", "--outdir", "gating"], {"command": "strict-gating", "subcommand": "evaluate", "mode": "strict_gating", "is_strict_gating": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["verify-genus", "Fusobacterium", "--resume", "--report-only"], {"command": "verify-genus", "mode": "report_only", "is_report_only": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["--report-only", "--outdir", "existing-run"], {"command": "workflow", "mode": "report_only", "is_report_only": True, "writes_outputs_declared": True, "requires_outdir": True}),
     ],
@@ -61,6 +66,85 @@ def test_strict_gating_precedes_manual_review_tokens_like_main_dispatch():
     assert result["command"] == "strict-gating"
     assert result["is_strict_gating"] is True
     assert result["is_manual_review"] is False
+
+
+def test_empty_argv_contract_is_exact():
+    assert recognize_cli_command([]) == {
+        "command": None,
+        "subcommand": None,
+        "mode": "workflow",
+        "is_report_only": False,
+        "is_manual_review": False,
+        "is_strict_gating": False,
+        "writes_outputs_declared": False,
+        "requires_outdir": False,
+        "unknown": False,
+        "invalid": False,
+    }
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        (
+            ["doctor"],
+            {
+                "command": "doctor",
+                "subcommand": None,
+                "mode": "diagnostic",
+                "is_report_only": False,
+                "is_manual_review": False,
+                "is_strict_gating": False,
+                "writes_outputs_declared": False,
+                "requires_outdir": False,
+                "unknown": False,
+                "invalid": False,
+            },
+        ),
+        (
+            ["manual-review", "validate", "--input", "review.tsv", "--out", "issues.tsv"],
+            {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "mode": "manual_review",
+                "is_report_only": False,
+                "is_manual_review": True,
+                "is_strict_gating": False,
+                "writes_outputs_declared": True,
+                "requires_outdir": False,
+                "unknown": False,
+                "invalid": False,
+            },
+        ),
+        (
+            [
+                "strict-gating",
+                "evaluate",
+                "--manual-review-dir",
+                "review",
+                "--reconciler-audit",
+                "audit.tsv",
+                "--write",
+                "--outdir",
+                "gating",
+            ],
+            {
+                "command": "strict-gating",
+                "subcommand": "evaluate",
+                "mode": "strict_gating",
+                "is_report_only": False,
+                "is_manual_review": False,
+                "is_strict_gating": True,
+                "writes_outputs_declared": True,
+                "requires_outdir": True,
+                "unknown": False,
+                "invalid": False,
+            },
+        ),
+    ],
+)
+def test_representative_command_mappings_are_exact(argv, expected):
+    assert recognize_cli_command(argv) == expected
 
 
 @pytest.mark.parametrize(
