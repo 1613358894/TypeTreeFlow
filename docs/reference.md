@@ -29,7 +29,8 @@ Primary commands write compact JSON to stdout by default. This does not require
 - `verify-genus` and `verify-release-genus`: compact JSON summary with command,
   genus, outdir, status, stages, selected counts, report paths, and next action.
 - `status` and `next-step`: compact JSON view of current run state and
-  recovery guidance.
+  recovery guidance only; it does not authorize execution, and gated actions
+  still require separate explicit authorization.
 - `package-results`: compact JSON with delivery directory, included artifacts,
   missing optional files, success/failure handoff status, warnings, and next
   action.
