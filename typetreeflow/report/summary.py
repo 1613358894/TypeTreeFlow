@@ -37,6 +37,11 @@ from typetreeflow.evidence.manual_review_import import (
     MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
     MANUAL_REVIEW_IMPORT_SCHEMA_VERSION,
 )
+from typetreeflow.evidence.acquisition_worklist import (
+    ACQUISITION_WORKLIST_FIELDS,
+    ACQUISITION_WORKLIST_LANES,
+    ACQUISITION_WORKLIST_SCHEMA_VERSION,
+)
 from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
@@ -149,6 +154,11 @@ MANUAL_REVIEW_IMPORT_COUNT_FIELDS = (
     "strict_upgrade_candidate_count",
 )
 MANUAL_REVIEW_IMPORT_MAX_BYTES = 5 * 1024 * 1024
+ACQUISITION_WORKLIST_MEMBERS = (
+    "acquisition_worklist_summary.json",
+    "acquisition_worklist.tsv",
+)
+ACQUISITION_WORKLIST_MAX_BYTES = 5 * 1024 * 1024
 STRICT_GATING_MEMBERS = (
     "strict_gating_summary.json",
     "strict_gating_audit.tsv",
@@ -210,6 +220,14 @@ class ManualReviewImportAuditSummary:
     present_files: list[str]
     warnings: list[str]
     top_diagnostics: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class AcquisitionWorklistAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    lane_counts: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -495,6 +513,135 @@ def _read_manual_review_tsv(
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         if tuple(reader.fieldnames or ()) != expected_fields:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def read_optional_acquisition_worklist_audit(
+    directory: str | Path | None,
+) -> AcquisitionWorklistAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name for name in ACQUISITION_WORKLIST_MEMBERS if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    lane_counts: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    observed_rows: int | None = None
+
+    missing = [name for name in ACQUISITION_WORKLIST_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / "acquisition_worklist_summary.json"
+    if summary_path.exists():
+        try:
+            _validate_acquisition_worklist_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != ACQUISITION_WORKLIST_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            record_count = loaded.get("record_count")
+            if (
+                isinstance(record_count, bool)
+                or not isinstance(record_count, int)
+                or record_count < 0
+            ):
+                raise ValueError("invalid record_count")
+            raw_lane_counts = loaded.get("lane_counts")
+            if not isinstance(raw_lane_counts, dict):
+                raise ValueError("invalid lane_counts")
+            parsed_lane_counts: dict[str, int] = {}
+            for lane in ACQUISITION_WORKLIST_LANES:
+                value = raw_lane_counts.get(lane, 0)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid lane count for {lane}")
+                parsed_lane_counts[lane] = value
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            summary_data = loaded
+            counts = {
+                "record_count": record_count,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+            lane_counts = sorted(
+                (
+                    (lane, count)
+                    for lane, count in parsed_lane_counts.items()
+                    if count
+                ),
+                key=lambda item: (-item[1], item[0]),
+            )
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append("acquisition_worklist_summary.json malformed")
+
+    worklist_path = input_dir / "acquisition_worklist.tsv"
+    if worklist_path.exists():
+        try:
+            rows = _read_acquisition_worklist_tsv(worklist_path)
+            if any(
+                row.get("schema_version") != ACQUISITION_WORKLIST_SCHEMA_VERSION
+                or row.get("audit_only", "").strip().lower() != "true"
+                or row.get("strict_scientific_deliverable", "").strip().lower()
+                != "false"
+                for row in rows
+            ):
+                raise ValueError("worklist boundary violation")
+            observed_rows = len(rows)
+            valid_files.append(worklist_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("acquisition_worklist.tsv malformed")
+
+    if summary_data is not None and observed_rows is not None:
+        if summary_data["record_count"] != observed_rows:
+            warnings.append("record_count does not match worklist rows")
+
+    return AcquisitionWorklistAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        lane_counts=lane_counts,
+    )
+
+
+def _validate_acquisition_worklist_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > ACQUISITION_WORKLIST_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_acquisition_worklist_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_acquisition_worklist_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != ACQUISITION_WORKLIST_FIELDS:
             raise ValueError("unexpected TSV header")
         rows = list(reader)
     if any(None in row for row in rows):
@@ -1513,6 +1660,9 @@ def build_run_summary_markdown(
     manual_review_import_audit = read_optional_manual_review_import_audit(
         getattr(args, "manual_review_import_dir", None)
     )
+    acquisition_worklist_audit = read_optional_acquisition_worklist_audit(
+        getattr(args, "acquisition_worklist_dir", None)
+    )
     strict_gating_audit = read_optional_strict_gating_audit(
         getattr(args, "strict_gating_dir", None)
     )
@@ -1828,6 +1978,57 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(code)} | {count} |"
                         for code, count in manual_review_import_audit.top_diagnostics
+                    ],
+                ]
+            )
+
+    if acquisition_worklist_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Acquisition Worklist Audit",
+                "",
+                (
+                    "The acquisition worklist is audit-only planning input for "
+                    "review. Report inclusion does not contact providers, "
+                    "trigger downloads, mutate the manifest, or create strict "
+                    "scientific deliverables."
+                ),
+                (
+                    "`strict_scientific_deliverable=false` means worklist rows "
+                    "are not strict deliverable rows; they only describe "
+                    "next-action acquisition lanes."
+                ),
+            ]
+        )
+        if acquisition_worklist_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in acquisition_worklist_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if acquisition_worklist_audit.warnings:
+            lines.append(
+                "- Warning: " + "; ".join(acquisition_worklist_audit.warnings)
+            )
+        if acquisition_worklist_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(acquisition_worklist_audit.present_files)
+            )
+        if acquisition_worklist_audit.lane_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Worklist Lane | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(lane)} | {count} |"
+                        for lane, count in acquisition_worklist_audit.lane_counts[:5]
                     ],
                 ]
             )

@@ -229,6 +229,11 @@ The `acquisition-worklist build` CLI remains an isolated adapter. It may write
 only its explicitly requested worklist pair and must not scan workflow
 directories, read environment credentials, package raw curator/provider data,
 or convert a recommended action into an executed action.
+The optional `--report-only --acquisition-worklist-dir` surface is a passive
+reader over that same pair. It may display compact counts and lane totals in
+`report/summary.md`, but it must not display raw row-level action details,
+discover workflow outputs, contact providers, trigger downloads, mutate the
+manifest, or reinterpret worklist lanes as strict scientific deliverables.
 
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic

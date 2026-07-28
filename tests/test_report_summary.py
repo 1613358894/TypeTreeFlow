@@ -33,6 +33,10 @@ from typetreeflow.evidence.manual_review_import import (
     MANUAL_REVIEW_DECISION_FIELDS,
     MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
 )
+from typetreeflow.evidence.acquisition_worklist import (
+    ACQUISITION_WORKLIST_FIELDS,
+    ACQUISITION_WORKLIST_LANES,
+)
 from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
@@ -51,6 +55,7 @@ from typetreeflow.provider_plan import (
 from typetreeflow.report.summary import (
     build_run_review_markdown,
     build_run_summary_markdown,
+    read_optional_acquisition_worklist_audit,
     read_optional_manual_review_import_audit,
     read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
@@ -337,6 +342,135 @@ def test_manual_review_import_audit_reader_does_not_access_env_or_socket(
     monkeypatch.setattr(socket, "create_connection", fail)
 
     audit = read_optional_manual_review_import_audit(import_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
+
+
+def _write_acquisition_worklist_pair(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    lanes = {lane: 0 for lane in ACQUISITION_WORKLIST_LANES}
+    lanes["external_registration_ready"] = 2
+    lanes["curator_conflict_resolution"] = 1
+    (directory / "acquisition_worklist_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 3,
+                "lane_counts": lanes,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    with (directory / "acquisition_worklist.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=ACQUISITION_WORKLIST_FIELDS, delimiter="\t"
+        )
+        writer.writeheader()
+        for species, lane in (
+            ("Clostridium alpha", "external_registration_ready"),
+            ("Clostridium beta", "external_registration_ready"),
+            ("Clostridium gamma", "curator_conflict_resolution"),
+        ):
+            writer.writerow(
+                {
+                    "schema_version": "1",
+                    "species": species,
+                    "lane": lane,
+                    "selected_accession": "",
+                    "reconciled_evidence_tier": "",
+                    "reason_code": "fixture",
+                    "recommended_action": "private action detail",
+                    "source_artifacts": "fixture",
+                    "audit_only": "true",
+                    "strict_scientific_deliverable": "false",
+                }
+            )
+
+
+def test_acquisition_worklist_audit_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    worklist_dir = tmp_path / "acquisition-worklist"
+    _write_acquisition_worklist_pair(worklist_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(acquisition_worklist_dir=worklist_dir),
+    )
+
+    assert "## Acquisition Worklist Audit" in markdown
+    assert (
+        "- Counts: record_count=3; downloads_triggered=0; "
+        "providers_contacted=0; manifest_mutated=false; audit_only=true; "
+        "strict_scientific_deliverable=false"
+    ) in markdown
+    assert "The acquisition worklist is audit-only planning input" in markdown
+    assert "does not contact providers, trigger downloads, mutate the manifest" in markdown
+    assert "`strict_scientific_deliverable=false`" in markdown
+    assert "| external_registration_ready | 2 |" in markdown
+    assert "| curator_conflict_resolution | 1 |" in markdown
+    assert "private action detail" not in markdown
+    assert "Clostridium alpha" not in markdown
+
+
+def test_acquisition_worklist_audit_absent_without_explicit_input_or_empty_dir(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path / "run")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    assert "## Acquisition Worklist Audit" not in build_run_summary_markdown(
+        [_record("ref1")], paths
+    )
+    assert "## Acquisition Worklist Audit" not in build_run_summary_markdown(
+        [_record("ref1")],
+        paths,
+        SimpleNamespace(acquisition_worklist_dir=empty),
+    )
+
+
+def test_acquisition_worklist_audit_partial_malformed_summary_warns(tmp_path):
+    worklist_dir = tmp_path / "acquisition-worklist"
+    worklist_dir.mkdir()
+    (worklist_dir / "acquisition_worklist_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(acquisition_worklist_dir=worklist_dir),
+    )
+
+    assert "## Acquisition Worklist Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "acquisition_worklist_summary.json malformed" in markdown
+    assert "missing members: acquisition_worklist.tsv" in markdown
+
+
+def test_acquisition_worklist_audit_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    worklist_dir = tmp_path / "acquisition-worklist"
+    _write_acquisition_worklist_pair(worklist_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("acquisition worklist reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_acquisition_worklist_audit(worklist_dir)
 
     assert audit is not None
     assert audit.counts["audit_only"] is True
