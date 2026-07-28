@@ -139,6 +139,14 @@ issues TSV is a curator handoff artifact only. Its existence, including a
 header-only PASS result, does not create workflow output or upgrade a strict
 scientific deliverable.
 
+Curator packet preflight is one step earlier than manual-review validation. It
+only checks that a small repo-external packet is structurally ready for a later
+offline dry run: required files, digest bindings, row bounds, approval kinds,
+and redaction attestations. A preflight PASS does not authorize reading a
+private export, applying curator decisions, writing import or strict-gating
+audit triplets, running provider/download steps, or creating a strict
+deliverable.
+
 The library-only manual-review import mapper adds deterministic audit linkage
 to the exact frozen `reconciler_audit.tsv`. Its decision, summary, and
 diagnostic serializations are independent handoff artifacts, not manifest,
