@@ -614,6 +614,24 @@ authorization. The companion `summarize_strict_gate_states()` function returns
 JSON-serializable counts without reading files, writing files, or mutating any
 workflow output.
 
+### Count Crosswalk Reports
+
+The offline `build_count_crosswalk_report()` helper renders mixed-denominator
+audit metrics as a stable TSV/JSON report without writing files. Each metric
+has an explicit `metric_family`, `unit`, `denominator_or_universe`,
+`status_semantics`, and `not_equivalent_to` field so species-universe,
+selection-row, manifest-row, reconciler-partition, diagnostic, and download
+counts are not collapsed into one coverage number.
+
+The bundled `clostridium_plan_only_crosswalk()` encodes the frozen no-live
+Clostridium plan-only invariants: `strict_rows + candidate_rows +
+conflict_rows + gap_rows = checklist_species` (`0 + 115 + 8 + 48 = 171`) and
+`candidate_rows + conflict_rows = manual_review_rows` (`115 + 8 = 123`).
+`downloads=0` remains a plan-only execution fact, not proof that manifest,
+candidate, or checklist rows are unavailable. Invalid or missing counts are
+reported as deterministic issues; the helper does not read workflow outputs,
+change completion metrics, or contact providers.
+
 ### Doctor Readiness
 
 `doctor` checks IQ-TREE readiness by resolving `iqtree2` first, then `iqtree`.

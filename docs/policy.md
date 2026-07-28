@@ -210,6 +210,14 @@ authorized future work. Invalid flag combinations are blocked rather than
 promoted. The helper cannot create strict deliverables, apply upgrades, mutate
 workflow outputs, or authorize provider/download behavior.
 
+Count crosswalk reports are denominator guards, not completion or coverage
+promotion. They keep checklist species, selection rows, manifest rows,
+reconciler partition rows, diagnostic rows, and download counts in separate
+metric families. The frozen Clostridium plan-only invariants
+`0 + 115 + 8 + 48 = 171` and `115 + 8 = 123` may be used for audit
+reconciliation only. They must not be interpreted as download coverage,
+provider availability, or strict deliverable readiness.
+
 Normal `package-results --include reports` and `--include all` may copy valid
 members of that triplet only from an explicit
 `--manual-review-import-dir`. They are packaged under `manual_review/` with
