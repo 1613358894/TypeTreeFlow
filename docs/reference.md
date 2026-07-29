@@ -415,15 +415,45 @@ or malformed input copies only valid members and adds a compact warning to the
 README, handoff index, and compact JSON envelope. Failed-handoff packages
 exclude these artifacts and rows.
 
+`--provider-request-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is an explicit read-only input and is never
+automatically discovered under the workflow outdir. Report generation reads
+only `provider_request.tsv` and `provider_request_draft_summary.json` from
+that directory. A missing or empty directory omits
+`## Provider Request Draft Audit`. Partial or malformed input keeps report
+generation successful and shows a compact warning. Valid summary counts show
+`record_count`, `downloads_triggered`, `providers_contacted`,
+`network_access`, `manifest_mutated`, `writes_workflow_outputs`,
+`audit_only`, and `strict_scientific_deliverable`, plus up to five nonzero
+provider-key and provider-status counts. Row-level species, provider names,
+notes, curator fields, provider record fields, local FASTA paths, hashes, and
+license details are not displayed. Report inclusion does not contact
+providers, authenticate, accept terms, trigger downloads, mutate manifests,
+create workflow outputs, or create strict scientific deliverables.
+
+For `package-results --include reports` or `--include all`, each validated
+member is copied under `provider_request/`. Each copied member gets one row in
+package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
+`scope=audit`, `evidence_policy=provider_request_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=curator provider request review`,
+`not_for=provider contact, downloads, or strict deliverable gating`, and
+`source_artifact=provider_request_draft`. Missing input is omitted. Partial
+or malformed input copies only valid members and adds a compact warning to the
+README, handoff index, and compact JSON envelope. Failed-handoff packages
+exclude these artifacts and rows.
+
 `--coverage-pipeline-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only handoff for the isolated output
 of `coverage-pipeline build` and is never automatically discovered under the
 workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
-`coverage_plan/`, and `provider_handoff/` under that directory, then applies
-the same report, package, warning, and audit-only artifact-scope contracts as
-the individual component directory options. Explicit
+`coverage_plan/`, `provider_handoff/`, and `provider_request/` under that
+directory, then applies the same report, package, warning, and audit-only
+artifact-scope contracts as the individual component directory options.
+Explicit
 `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
-`--provider-handoff-dir` values take precedence over derived subdirectories.
+`--provider-handoff-dir`, and `--provider-request-dir` values take precedence
+over derived subdirectories.
 The option does not rerun coverage planning, contact providers, trigger
 downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
@@ -568,7 +598,7 @@ string array or target argv tokens after `--`. Their JSON envelopes include
 helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
 `is_acquisition_worklist`, `is_count_crosswalk`, `is_archive_candidates`,
-`is_coverage_plan`, `is_provider_handoff`, `is_providers`,
+`is_coverage_plan`, `is_provider_handoff`, `is_provider_request`, `is_providers`,
 `is_curator_packet`, `writes_outputs_declared`, `requires_outdir`, `unknown`,
 and `invalid`.
 

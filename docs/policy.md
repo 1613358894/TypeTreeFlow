@@ -351,6 +351,17 @@ not scan workflow directories, read credentials, contact providers,
 authenticate, accept terms, trigger downloads, mutate manifests, change
 completion metrics, or reinterpret provider handoff rows as strict scientific
 deliverables.
+The optional report-only `--provider-request-dir` surface is a passive reader
+over that draft pair. It may display compact counts and warnings, but it must
+not display row-level provider instructions, notes, species, provider names,
+curator fields, local FASTA paths, hashes, license details, or provider record
+details. Normal `package-results --include reports` and `--include all` may
+copy valid members of the pair only from an explicit `--provider-request-dir`
+or derived coverage-pipeline subdirectory. They are packaged under
+`provider_request/` with audit-only artifact-scope rows. This is curator
+review availability, not provider execution, download readiness, completion
+credit, manifest mutation, or strict deliverable promotion. Failed-handoff
+packages exclude these provider-request artifacts.
 
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
@@ -362,7 +373,7 @@ credentials, contact providers, authenticate, accept terms, trigger downloads,
 mutate manifests, change completion metrics, or reinterpret planning rows as
 strict scientific deliverables.
 The optional `--coverage-pipeline-dir` report/package surface is only a
-convenience handoff for that isolated directory. It may derive the three
+convenience handoff for that isolated directory. It may derive the four
 known component subdirectories under the explicitly supplied path, but it must
 not scan workflow outputs, rerun planning, contact providers, trigger
 downloads, or change any scientific status.

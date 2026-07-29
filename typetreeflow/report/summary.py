@@ -50,6 +50,9 @@ from typetreeflow.evidence.provider_handoff import (
     PROVIDER_HANDOFF_FIELDS,
     PROVIDER_HANDOFF_SCHEMA_VERSION,
 )
+from typetreeflow.evidence.provider_request_draft import (
+    PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
+)
 from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
@@ -72,6 +75,7 @@ from typetreeflow.rrna.artifacts import read_artifact_scope
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
     PROVIDER_PLAN_STATUSES,
+    PROVIDER_REQUEST_FIELDS,
     PROVIDER_REGISTRATION_PLAN_FIELDS,
 )
 from typetreeflow.selection.evidence import (
@@ -177,6 +181,11 @@ PROVIDER_HANDOFF_MEMBERS = (
     "provider_handoff.tsv",
 )
 PROVIDER_HANDOFF_MAX_BYTES = 5 * 1024 * 1024
+PROVIDER_REQUEST_MEMBERS = (
+    "provider_request_draft_summary.json",
+    "provider_request.tsv",
+)
+PROVIDER_REQUEST_MAX_BYTES = 5 * 1024 * 1024
 OFFLINE_READINESS_MEMBERS = (
     "offline_readiness_summary.json",
     "offline_readiness_diagnostics.tsv",
@@ -288,6 +297,15 @@ class ProviderHandoffAuditSummary:
     provider_counts: list[tuple[str, int]]
     status_counts: list[tuple[str, int]]
     action_counts: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class ProviderRequestDraftAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    provider_counts: list[tuple[str, int]]
+    status_counts: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -1027,6 +1045,112 @@ def read_optional_provider_handoff_audit(
     )
 
 
+def read_optional_provider_request_draft_audit(
+    directory: str | Path | None,
+) -> ProviderRequestDraftAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [name for name in PROVIDER_REQUEST_MEMBERS if (input_dir / name).exists()]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    provider_counts: list[tuple[str, int]] = []
+    status_counts: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    observed_rows: int | None = None
+
+    missing = [name for name in PROVIDER_REQUEST_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / "provider_request_draft_summary.json"
+    if summary_path.exists():
+        try:
+            _validate_provider_request_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            record_count = loaded.get("record_count")
+            if (
+                isinstance(record_count, bool)
+                or not isinstance(record_count, int)
+                or record_count < 0
+            ):
+                raise ValueError("invalid record_count")
+            parsed_provider_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "provider_key_counts")
+            )
+            parsed_status_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "provider_status_counts")
+            )
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            if loaded.get("writes_workflow_outputs") is not False:
+                raise ValueError("writes_workflow_outputs boundary violation")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("network_access") is not False:
+                raise ValueError("network_access boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            summary_data = loaded
+            counts = {
+                "record_count": record_count,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "manifest_mutated": False,
+                "writes_workflow_outputs": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+            provider_counts = _sorted_nonzero_counts(parsed_provider_counts)
+            status_counts = _sorted_nonzero_counts(parsed_status_counts)
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append("provider_request_draft_summary.json malformed")
+
+    request_path = input_dir / "provider_request.tsv"
+    if request_path.exists():
+        try:
+            rows = _read_provider_request_tsv(request_path)
+            if any(
+                row.get("terms_review_status") != "not_reviewed"
+                or row.get("is_type_material") != "false"
+                or row.get("requires_manual_review") != "true"
+                for row in rows
+            ):
+                raise ValueError("provider request draft boundary violation")
+            observed_rows = len(rows)
+            valid_files.append(request_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("provider_request.tsv malformed")
+
+    if summary_data is not None and observed_rows is not None:
+        if summary_data["record_count"] != observed_rows:
+            warnings.append("record_count does not match provider request rows")
+
+    return ProviderRequestDraftAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        provider_counts=provider_counts,
+        status_counts=status_counts,
+    )
+
+
 def _required_dict(value: dict[str, object], field: str) -> dict[object, object]:
     loaded = value.get(field)
     if not isinstance(loaded, dict):
@@ -1053,6 +1177,25 @@ def _read_provider_handoff_tsv(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         if tuple(reader.fieldnames or ()) != PROVIDER_HANDOFF_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def _validate_provider_request_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > PROVIDER_REQUEST_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_provider_request_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_provider_request_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != tuple(PROVIDER_REQUEST_FIELDS):
             raise ValueError("unexpected TSV header")
         rows = list(reader)
     if any(None in row for row in rows):
@@ -2222,6 +2365,11 @@ def build_run_summary_markdown(
             args, "provider_handoff_dir", "provider_handoff"
         )
     )
+    provider_request_audit = read_optional_provider_request_draft_audit(
+        _coverage_pipeline_component_dir(
+            args, "provider_request_dir", "provider_request"
+        )
+    )
     offline_readiness_audit = read_optional_offline_readiness_audit(
         getattr(args, "offline_readiness_dir", None)
     )
@@ -2739,6 +2887,68 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(action)} | {count} |"
                         for action, count in provider_handoff_audit.action_counts[:5]
+                    ],
+                ]
+            )
+
+    if provider_request_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Provider Request Draft Audit",
+                "",
+                (
+                    "The provider request draft is audit-only planning output "
+                    "for AI/operator review. Report inclusion does not contact "
+                    "providers, authenticate, accept terms, trigger downloads, "
+                    "mutate the manifest, or create strict scientific "
+                    "deliverables."
+                ),
+                (
+                    "Draft rows are intentionally incomplete. Curator-owned "
+                    "strain, provider record, local FASTA, hash, license, "
+                    "retrieval, and curator fields remain review inputs."
+                ),
+            ]
+        )
+        if provider_request_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in provider_request_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if provider_request_audit.warnings:
+            lines.append("- Warning: " + "; ".join(provider_request_audit.warnings))
+        if provider_request_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(provider_request_audit.present_files)
+            )
+        if provider_request_audit.provider_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Provider Key | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(provider)} | {count} |"
+                        for provider, count in provider_request_audit.provider_counts[:5]
+                    ],
+                ]
+            )
+        if provider_request_audit.status_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Provider Status | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(status)} | {count} |"
+                        for status, count in provider_request_audit.status_counts[:5]
                     ],
                 ]
             )
