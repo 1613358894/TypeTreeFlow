@@ -233,6 +233,9 @@ def _payload(
         "worklist_record_count": worklist_summary["record_count"],
         "lane_counts": worklist_summary["lane_counts"],
         "review_signal_counts": worklist_summary["review_signal_counts"],
+        "worklist_candidate_provider_key_counts": worklist_summary[
+            "candidate_provider_key_counts"
+        ],
         "coverage_action_count": coverage_summary["record_count"],
         "coverage_action_counts": coverage_summary["action_counts"],
         "coverage_provider_key_counts": coverage_summary["provider_key_counts"],
@@ -319,6 +322,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "worklist_record_count": 0,
         "lane_counts": {},
         "review_signal_counts": {},
+        "worklist_candidate_provider_key_counts": {},
         "coverage_action_count": 0,
         "coverage_action_counts": {},
         "coverage_provider_key_counts": {},
@@ -365,6 +369,7 @@ def _rendered_outputs(
             "worklist_record_count",
             "lane_counts",
             "review_signal_counts",
+            "worklist_candidate_provider_key_counts",
             "coverage_action_count",
             "coverage_action_counts",
             "coverage_provider_key_counts",
