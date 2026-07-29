@@ -15,6 +15,7 @@ def test_default_registry_contains_planning_only_culture_collections():
         "cect",
         "cip",
         "ccug",
+        "ccm",
         "bccm_lmg",
     ):
         entry = registry.get(key)
@@ -56,6 +57,7 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "Spanish Type Culture Collection": "cect",
         "Collection de l'Institut Pasteur": "cip",
         "Culture Collection University of Gothenburg": "ccug",
+        "Czech Collection of Microorganisms": "ccm",
         "European Nucleotide Archive": "ena",
     }
 

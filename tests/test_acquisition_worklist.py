@@ -195,14 +195,16 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
         checklist_rows=[
             {
                 "full_name": "Clostridium providerum",
-                "type_strain_names": "ATCC 1001; DSM 2002; KCTC 3003; LMG 4004",
+                "type_strain_names": (
+                    "ATCC 1001; DSM 2002; KCTC 3003; LMG 4004; CCM 5005"
+                ),
             }
         ],
         reconciler_rows=[
             _row(
                 "Clostridium providerum",
                 reconciled_evidence_tier="missing_public_genome",
-                candidate_provider_keys="CIP; CECT; CIP",
+                candidate_provider_keys="CIP; CECT; Czech Collection of Microorganisms; CIP",
             )
         ],
         completion_gap_rows=[
@@ -213,13 +215,14 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
     row = report.rows[0]
     assert row.lane == "external_fasta_required"
     assert row.candidate_provider_keys == (
-        "atcc_genome_portal; dsmz; kctc; bccm_lmg; cip; cect"
+        "atcc_genome_portal; dsmz; kctc; ccm; bccm_lmg; cip; cect"
     )
     rendered = list(csv.DictReader(io.StringIO(report.rows_tsv()), delimiter="\t"))
     assert rendered[0]["candidate_provider_keys"] == row.candidate_provider_keys
     assert report.summary["candidate_provider_key_counts"] == {
         "atcc_genome_portal": 1,
         "bccm_lmg": 1,
+        "ccm": 1,
         "cect": 1,
         "cip": 1,
         "dsmz": 1,

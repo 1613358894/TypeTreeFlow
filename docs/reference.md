@@ -1509,7 +1509,7 @@ do not write `name_map.tsv`, do not create `manifest.tsv`, do not create
 External registered genomes must not change this boundary. Provider-native IDs remain external identifiers. They must not be written to NCBI `assembly_accession`.
 The default provider registry includes static fail-closed entries for ATCC
 Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC, KCTC, CECT,
-CIP, CCUG, and BCCM/LMG; and public archives ENA, DDBJ, GenBank, and NCBI
+CIP, CCUG, CCM, and BCCM/LMG; and public archives ENA, DDBJ, GenBank, and NCBI
 RefSeq. Culture-collection entries are `planning_only`; public archive entries
 are `metadata_only`. Coverage action planning may use explicit
 `provider_keys`, `candidate_provider_keys`, `preferred_provider_keys`, or
