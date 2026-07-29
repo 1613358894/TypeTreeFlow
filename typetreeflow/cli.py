@@ -337,6 +337,7 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             manual_review_import_dir=config.manual_review_import_dir,
             acquisition_worklist_dir=config.acquisition_worklist_dir,
             coverage_plan_dir=config.coverage_plan_dir,
+            provider_handoff_dir=config.provider_handoff_dir,
             offline_readiness_dir=config.offline_readiness_dir,
             strict_gating_dir=config.strict_gating_dir,
         )
@@ -394,6 +395,16 @@ def _format_package_results_envelope(
                 "id": "coverage_plan_warning",
                 "message": (
                     f"{len(result.coverage_plan_warnings)} coverage plan "
+                    "warning(s); see package README and handoff index"
+                ),
+            }
+        )
+    if result.provider_handoff_warnings:
+        warnings.append(
+            {
+                "id": "provider_handoff_warning",
+                "message": (
+                    f"{len(result.provider_handoff_warnings)} provider handoff "
                     "warning(s); see package README and handoff index"
                 ),
             }

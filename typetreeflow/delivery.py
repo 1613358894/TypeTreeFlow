@@ -19,6 +19,7 @@ from typetreeflow.report.summary import (
     CoveragePlanAuditSummary,
     ManualReviewImportAuditSummary,
     OfflineReadinessAuditSummary,
+    ProviderHandoffAuditSummary,
     StrictGatingAuditSummary,
     bacdive_compact_counts_summary,
     bacdive_compact_source_audit_summary,
@@ -29,6 +30,7 @@ from typetreeflow.report.summary import (
     read_optional_gtdb_metadata_audit,
     read_optional_manual_review_import_audit,
     read_optional_offline_readiness_audit,
+    read_optional_provider_handoff_audit,
     read_optional_sequence_source_audit,
     read_optional_strict_gating_audit,
     summarize_16s_coverage,
@@ -59,6 +61,7 @@ class DeliveryResult:
     manual_review_warnings: list[str] = field(default_factory=list)
     acquisition_worklist_warnings: list[str] = field(default_factory=list)
     coverage_plan_warnings: list[str] = field(default_factory=list)
+    provider_handoff_warnings: list[str] = field(default_factory=list)
     offline_readiness_warnings: list[str] = field(default_factory=list)
     strict_gating_warnings: list[str] = field(default_factory=list)
 
@@ -90,6 +93,7 @@ def package_results(
     manual_review_import_dir: str | Path | None = None,
     acquisition_worklist_dir: str | Path | None = None,
     coverage_plan_dir: str | Path | None = None,
+    provider_handoff_dir: str | Path | None = None,
     offline_readiness_dir: str | Path | None = None,
     strict_gating_dir: str | Path | None = None,
 ) -> DeliveryResult:
@@ -136,6 +140,8 @@ def package_results(
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None
     coverage_plan_outputs_copied: list[Path] = []
     coverage_plan_audit: CoveragePlanAuditSummary | None = None
+    provider_handoff_outputs_copied: list[Path] = []
+    provider_handoff_audit: ProviderHandoffAuditSummary | None = None
     offline_readiness_outputs_copied: list[Path] = []
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None
     strict_gating_outputs_copied: list[Path] = []
@@ -229,6 +235,15 @@ def package_results(
             output_dir,
             copied,
         )
+        provider_handoff_audit = read_optional_provider_handoff_audit(
+            provider_handoff_dir
+        )
+        provider_handoff_outputs_copied = _copy_provider_handoff_outputs(
+            provider_handoff_dir,
+            provider_handoff_audit,
+            output_dir,
+            copied,
+        )
         offline_readiness_audit = read_optional_offline_readiness_audit(
             offline_readiness_dir
         )
@@ -259,6 +274,8 @@ def package_results(
         acquisition_worklist_audit=acquisition_worklist_audit,
         coverage_plan_outputs_copied=coverage_plan_outputs_copied,
         coverage_plan_audit=coverage_plan_audit,
+        provider_handoff_outputs_copied=provider_handoff_outputs_copied,
+        provider_handoff_audit=provider_handoff_audit,
         offline_readiness_outputs_copied=offline_readiness_outputs_copied,
         offline_readiness_audit=offline_readiness_audit,
         strict_gating_outputs_copied=strict_gating_outputs_copied,
@@ -321,6 +338,7 @@ def package_results(
             manual_review_audit=manual_review_audit,
             acquisition_worklist_audit=acquisition_worklist_audit,
             coverage_plan_audit=coverage_plan_audit,
+            provider_handoff_audit=provider_handoff_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
@@ -344,6 +362,7 @@ def package_results(
             manual_review_audit=manual_review_audit,
             acquisition_worklist_audit=acquisition_worklist_audit,
             coverage_plan_audit=coverage_plan_audit,
+            provider_handoff_audit=provider_handoff_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
@@ -372,6 +391,11 @@ def package_results(
         coverage_plan_warnings=(
             list(coverage_plan_audit.warnings)
             if coverage_plan_audit is not None
+            else []
+        ),
+        provider_handoff_warnings=(
+            list(provider_handoff_audit.warnings)
+            if provider_handoff_audit is not None
             else []
         ),
         offline_readiness_warnings=(
@@ -549,6 +573,7 @@ def build_delivery_readme(
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None,
     coverage_plan_audit: CoveragePlanAuditSummary | None = None,
+    provider_handoff_audit: ProviderHandoffAuditSummary | None = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
@@ -641,6 +666,8 @@ def build_delivery_readme(
         lines.extend(_acquisition_worklist_readme_lines(acquisition_worklist_audit))
     if coverage_plan_audit is not None:
         lines.extend(_coverage_plan_readme_lines(coverage_plan_audit))
+    if provider_handoff_audit is not None:
+        lines.extend(_provider_handoff_readme_lines(provider_handoff_audit))
     if offline_readiness_audit is not None:
         lines.extend(_offline_readiness_readme_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
@@ -740,6 +767,7 @@ def build_handoff_index(
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None,
     coverage_plan_audit: CoveragePlanAuditSummary | None = None,
+    provider_handoff_audit: ProviderHandoffAuditSummary | None = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
@@ -846,6 +874,8 @@ def build_handoff_index(
         lines.extend(_acquisition_worklist_handoff_lines(acquisition_worklist_audit))
     if coverage_plan_audit is not None:
         lines.extend(_coverage_plan_handoff_lines(coverage_plan_audit))
+    if provider_handoff_audit is not None:
+        lines.extend(_provider_handoff_handoff_lines(provider_handoff_audit))
     if offline_readiness_audit is not None:
         lines.extend(_offline_readiness_handoff_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
@@ -1255,6 +1285,26 @@ def _copy_coverage_plan_outputs(
     return copied_plan
 
 
+def _copy_provider_handoff_outputs(
+    directory: str | Path | None,
+    audit: ProviderHandoffAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_handoff: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "provider_handoff" / name,
+        )
+        copied.append(copied_path)
+        copied_handoff.append(copied_path)
+    return copied_handoff
+
+
 def _copy_offline_readiness_outputs(
     directory: str | Path | None,
     audit: OfflineReadinessAuditSummary | None,
@@ -1309,6 +1359,8 @@ def _write_package_artifact_scope(
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None,
     coverage_plan_outputs_copied: list[Path],
     coverage_plan_audit: CoveragePlanAuditSummary | None,
+    provider_handoff_outputs_copied: list[Path],
+    provider_handoff_audit: ProviderHandoffAuditSummary | None,
     offline_readiness_outputs_copied: list[Path],
     offline_readiness_audit: OfflineReadinessAuditSummary | None,
     strict_gating_outputs_copied: list[Path],
@@ -1348,6 +1400,13 @@ def _write_package_artifact_scope(
         )
     )
     rows.extend(
+        _provider_handoff_artifact_scope_rows(
+            delivery_dir,
+            provider_handoff_outputs_copied,
+            provider_handoff_audit,
+        )
+    )
+    rows.extend(
         _offline_readiness_artifact_scope_rows(
             delivery_dir,
             offline_readiness_outputs_copied,
@@ -1364,6 +1423,7 @@ def _write_package_artifact_scope(
         or manual_review_outputs_copied
         or acquisition_worklist_outputs_copied
         or coverage_plan_outputs_copied
+        or provider_handoff_outputs_copied
         or offline_readiness_outputs_copied
         or strict_gating_outputs_copied
         or not paths.artifact_scope_path.exists()
@@ -1381,6 +1441,7 @@ def _write_package_artifact_scope(
             or manual_review_outputs_copied
             or acquisition_worklist_outputs_copied
             or coverage_plan_outputs_copied
+            or provider_handoff_outputs_copied
             or offline_readiness_outputs_copied
             or strict_gating_outputs_copied
             or not paths.artifact_scope_path.exists()
@@ -1726,6 +1787,70 @@ def _coverage_plan_artifact_scope_rows(
                     "Audit-only coverage planning output; action assignment "
                     "does not contact providers, trigger downloads, mutate "
                     "the manifest, or promote strict deliverables."
+                ),
+            }
+        )
+    return rows
+
+
+def _provider_handoff_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: ProviderHandoffAuditSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    handoff_count = 0
+    if audit is not None:
+        value = audit.counts.get("record_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            handoff_count = value
+    specifications = (
+        (
+            "provider_handoff/provider_handoff.tsv",
+            "provider_handoff_rows",
+            "Provider handoff planning rows",
+            91,
+            handoff_count,
+        ),
+        (
+            "provider_handoff/provider_handoff_summary.json",
+            "provider_handoff_summary",
+            "Provider handoff compact audit summary",
+            92,
+            1,
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority, count in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        record_count = count if path.suffix == ".json" else _safe_tsv_row_count(path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "provider_handoff_audit",
+                "record_count": str(record_count),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "AI/operator provider handoff planning",
+                "not_for": "provider contact or strict deliverable gating",
+                "source_artifact": "provider_handoff_builder",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Audit-only provider handoff output; provider assignment "
+                    "does not contact providers, authenticate, accept terms, "
+                    "trigger downloads, mutate manifests, or promote strict "
+                    "deliverables."
                 ),
             }
         )
@@ -2446,6 +2571,38 @@ def _coverage_plan_readme_lines(
     return lines
 
 
+def _provider_handoff_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Provider handoff artifacts are audit-only. Package inclusion "
+            "means AI/operator provider planning availability, not provider "
+            "contact or download execution."
+        ),
+        (
+            "- `downloads_triggered=0`, `providers_contacted=0`, "
+            "`network_access=false`, and `manifest_mutated=false` remain "
+            "package boundaries."
+        ),
+        (
+            "- Provider status, terms-review, and credential fields are gates "
+            "for review; they do not grant authorization, accept terms, or "
+            "promote strict deliverables."
+        ),
+    ]
+
+
+def _provider_handoff_readme_lines(
+    audit: ProviderHandoffAuditSummary,
+) -> list[str]:
+    lines = ["", "## Provider Handoff Audit", ""]
+    lines.extend(_provider_handoff_boundary_lines())
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
 def _offline_readiness_boundary_lines() -> list[str]:
     return [
         (
@@ -2559,6 +2716,18 @@ def _coverage_plan_handoff_lines(
         lines.append("- Coverage action plan files copied: " + ", ".join(audit.present_files))
     if audit.warnings:
         lines.append("- Coverage action plan warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _provider_handoff_handoff_lines(
+    audit: ProviderHandoffAuditSummary,
+) -> list[str]:
+    lines = ["", "## Provider Handoff Audit", ""]
+    lines.extend(_provider_handoff_boundary_lines())
+    if audit.present_files:
+        lines.append("- Provider handoff files copied: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Provider handoff warning: " + "; ".join(audit.warnings))
     return lines
 
 

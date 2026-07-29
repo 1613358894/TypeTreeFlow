@@ -33,6 +33,7 @@ from typetreeflow.workflow.state import StageState, WorkflowState, write_run_sta
 from tests.test_report_summary import (
     _write_coverage_plan_pair,
     _write_offline_readiness_pair,
+    _write_provider_handoff_pair,
 )
 
 
@@ -1210,6 +1211,212 @@ def test_package_results_coverage_plan_is_offline_and_non_mutating(
     assert {
         path.name: path.read_bytes()
         for path in plan_dir.iterdir()
+        if path.is_file()
+    } == input_before
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_explicit_provider_handoff_pair_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    handoff_dir = tmp_path / "isolated-provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        provider_handoff_dir=handoff_dir,
+    )
+
+    delivered = result.delivery_dir / "provider_handoff"
+    assert {path.name for path in delivered.iterdir()} == {
+        "provider_handoff.tsv",
+        "provider_handoff_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    handoff_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("provider_handoff/")
+    ]
+    assert len(handoff_rows) == 2
+    assert {row["scope"] for row in handoff_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in handoff_rows} == {
+        "provider_handoff_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in handoff_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in handoff_rows} == {
+        "AI/operator provider handoff planning"
+    }
+    assert {row["not_for"] for row in handoff_rows} == {
+        "provider contact or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in handoff_rows} == {
+        "provider_handoff_builder"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Provider handoff artifacts are audit-only" in package_text
+    assert "AI/operator provider planning availability" in package_text
+    assert "`network_access=false`" in package_text
+    assert "private provider detail" not in package_text
+
+
+def test_package_results_provider_handoff_is_explicit_and_missing_is_omitted(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    for name, handoff_dir in (
+        ("without-input", None),
+        ("missing-input", tmp_path / "missing-provider-handoff"),
+    ):
+        result = package_results(
+            tmp_path,
+            delivery_dir=tmp_path / f"delivery-{name}",
+            include="reports",
+            provider_handoff_dir=handoff_dir,
+        )
+        assert not (result.delivery_dir / "provider_handoff").exists()
+        assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+        assert result.provider_handoff_warnings == []
+
+
+def test_package_results_partial_provider_handoff_warns_and_copies_valid_member(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    handoff_dir = tmp_path / "partial-provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+    (handoff_dir / "provider_handoff_summary.json").write_text(
+        '{"schema_version":"1","providers_contacted":1}',
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        provider_handoff_dir=handoff_dir,
+    )
+
+    assert (result.delivery_dir / "provider_handoff" / "provider_handoff.tsv").exists()
+    assert not (
+        result.delivery_dir / "provider_handoff" / "provider_handoff_summary.json"
+    ).exists()
+    assert result.provider_handoff_warnings == [
+        "provider_handoff_summary.json malformed",
+    ]
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert [row["artifact_path"] for row in scope_rows] == [
+        "provider_handoff/provider_handoff.tsv"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "provider_handoff_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_explicit_provider_handoff(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    handoff_dir = tmp_path / "provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        provider_handoff_dir=handoff_dir,
+    )
+
+    assert not (result.delivery_dir / "provider_handoff").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Provider Handoff Audit" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_provider_handoff_and_keeps_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    handoff_dir = tmp_path / "provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--provider-handoff-dir",
+            str(handoff_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "provider_handoff"
+        / "provider_handoff_summary.json"
+    ).exists()
+
+
+def test_package_results_provider_handoff_is_offline_and_non_mutating(
+    tmp_path, monkeypatch
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    handoff_dir = tmp_path / "provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+    manifest_before = paths.manifest.read_bytes()
+    input_before = {
+        path.name: path.read_bytes()
+        for path in handoff_dir.iterdir()
+        if path.is_file()
+    }
+    monkeypatch.setattr(
+        os,
+        "getenv",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("provider handoff packaging must not read environment variables")
+        ),
+    )
+    monkeypatch.setattr(
+        socket,
+        "create_connection",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("provider handoff packaging must remain offline")
+        ),
+    )
+
+    package_results(
+        tmp_path,
+        include="reports",
+        provider_handoff_dir=handoff_dir,
+    )
+
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes()
+        for path in handoff_dir.iterdir()
         if path.is_file()
     } == input_before
     assert not paths.reconciler_audit_path.exists()

@@ -99,6 +99,7 @@ class AppConfig:
     manual_review_import_dir: Path | None = None
     acquisition_worklist_dir: Path | None = None
     coverage_plan_dir: Path | None = None
+    provider_handoff_dir: Path | None = None
     offline_readiness_dir: Path | None = None
     strict_gating_dir: Path | None = None
 

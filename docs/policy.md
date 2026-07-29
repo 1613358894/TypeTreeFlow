@@ -318,6 +318,18 @@ its isolated provider-handoff pair. It must not scan workflow directories,
 read environment credentials, execute provider adapters, package raw
 curator/provider data, or convert a recommended action into an executed
 provider/download action.
+The optional report-only `--provider-handoff-dir` surface is a passive reader
+over that pair. It may display compact counts, provider-key totals,
+provider-status totals, and source-action totals in `report/summary.md`, but
+it must not display row-level provider instructions, discover workflow outputs,
+authenticate, accept terms, contact providers, trigger downloads, mutate the
+manifest, or reinterpret handoff rows as strict scientific deliverables.
+Normal `package-results --include reports` and `--include all` may copy valid
+members of the pair only from an explicit `--provider-handoff-dir`. They are
+packaged under `provider_handoff/` with audit-only artifact-scope rows. This is
+AI/operator provider planning availability, not provider execution, download
+readiness, completion credit, manifest mutation, or strict deliverable
+promotion. Failed-handoff packages exclude these provider-handoff artifacts.
 
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
