@@ -287,3 +287,22 @@ def test_review_required_provider_proposal_is_not_install_ready(tmp_path):
     assert not (tmp_path / "external_genomes.tsv").exists()
     assert not (tmp_path / "manifest.tsv").exists()
     assert not (tmp_path / "name_map.tsv").exists()
+
+
+def test_static_public_archive_provider_is_metadata_only_review(tmp_path):
+    path = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        provider="ena",
+        provider_name="European Nucleotide Archive",
+        provider_record_id="GCA_000001.1",
+        provider_artifact_id="",
+    )
+
+    plan_rows, proposed_rows = plan_provider_registration(read_provider_requests(path))
+
+    assert plan_rows[0].network_action == "none"
+    assert plan_rows[0].download_action == "none"
+    assert "provider_registry_status=metadata_only" in plan_rows[0].notes
+    assert "provider_guidance=public_archive_metadata_review" in plan_rows[0].notes
+    assert proposed_rows[0].requires_manual_review is True
+    assert proposed_rows[0].status == "external_genome_manual_review_required"
