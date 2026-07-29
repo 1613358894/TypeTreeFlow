@@ -24,6 +24,14 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "CCM",
     "CECT",
     "CGMCC",
+    "NCIMB",
+    "NCIB",
+    "BCRC",
+    "CCRC",
+    "NCCB",
+    "CSUR",
+    "CICC",
+    "IFO",
 ]
 CULTURE_COLLECTION_AUDIT_FIELDS = [
     "species",

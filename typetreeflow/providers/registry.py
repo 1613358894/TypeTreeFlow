@@ -95,6 +95,14 @@ def _build_aliases(
             _alias_key("BCCM LMG"): "bccm_lmg",
             _alias_key("BCCM-LMG"): "bccm_lmg",
             _alias_key("LMG"): "bccm_lmg",
+            _alias_key("NCIMB"): "ncimb",
+            _alias_key("NCIB"): "ncib",
+            _alias_key("BCRC"): "bcrc",
+            _alias_key("CCRC"): "ccrc",
+            _alias_key("NCCB"): "nccb",
+            _alias_key("CSUR"): "csur",
+            _alias_key("CICC"): "cicc",
+            _alias_key("IFO"): "ifo",
             _alias_key("ENA"): "ena",
             _alias_key("European Nucleotide Archive"): "ena",
             _alias_key("DDBJ"): "ddbj",
@@ -168,6 +176,46 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "bccm_lmg",
             "BCCM/LMG Bacteria Collection",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ncimb",
+            "NCIMB",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ncib",
+            "NCIB",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "bcrc",
+            "BCRC",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ccrc",
+            "CCRC",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "nccb",
+            "NCCB",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "csur",
+            "CSUR",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "cicc",
+            "CICC",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ifo",
+            "IFO",
             guidance_tag="culture_collection_user_handoff",
         ),
         metadata_only_provider(

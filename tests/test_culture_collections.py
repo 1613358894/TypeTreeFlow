@@ -104,6 +104,28 @@ def test_extracts_multiple_ids_in_order():
     ]
 
 
+def test_extracts_expanded_public_collection_prefixes():
+    text = (
+        "type strain NCIMB 123; NCIB 456; BCRC 789; CCRC 1011; "
+        "NCCB 12003; CSUR P900; CICC 10456; IFO 15517"
+    )
+
+    normalized_ids = [
+        collection_id.normalized for collection_id in extract_culture_collection_ids(text)
+    ]
+
+    assert normalized_ids == [
+        "NCIMB 123",
+        "NCIB 456",
+        "BCRC 789",
+        "CCRC 1011",
+        "NCCB 12003",
+        "CSUR P900",
+        "CICC 10456",
+        "IFO 15517",
+    ]
+
+
 def test_extracts_unique_ids_preserving_first_occurrence():
     ids = extract_culture_collection_ids("DSM 1234; dsm1234; ATCC 25586")
 
@@ -196,6 +218,14 @@ def test_known_prefixes_include_required_collections():
         "CCM",
         "CECT",
         "CGMCC",
+        "NCIMB",
+        "NCIB",
+        "BCRC",
+        "CCRC",
+        "NCCB",
+        "CSUR",
+        "CICC",
+        "IFO",
     }
 
     assert required.issubset(set(RECOGNIZED_COLLECTION_PREFIXES))

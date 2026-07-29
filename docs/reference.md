@@ -1286,7 +1286,8 @@ hints. These counts are review hints only and do not change lane, completion,
 provider, or download semantics.
 For `external_fasta_required` rows, `candidate_provider_keys` may be derived
 from explicit local provider hints or recognizable culture-collection tokens
-such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, CCM, and LMG.
+such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, CCM,
+LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR, CICC, and IFO.
 Explicit provider hints may use canonical provider keys, common abbreviations,
 or static registry display names; they are normalized to canonical provider
 keys before summary counting.
@@ -1516,9 +1517,10 @@ do not write `name_map.tsv`, do not create `manifest.tsv`, do not create
 External registered genomes must not change this boundary. Provider-native IDs remain external identifiers. They must not be written to NCBI `assembly_accession`.
 The default provider registry includes static fail-closed entries for ATCC
 Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC, KCTC, CECT,
-CIP, CCUG, CCM, and BCCM/LMG; and public archives ENA, DDBJ, GenBank, and NCBI
-RefSeq. Culture-collection entries are `planning_only`; public archive entries
-are `metadata_only`. Coverage action planning may use explicit
+CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR, CICC, and IFO;
+and public archives ENA, DDBJ, GenBank, and NCBI RefSeq. Culture-collection
+entries are `planning_only`; public archive entries are `metadata_only`.
+Coverage action planning may use explicit
 `provider_keys`, `candidate_provider_keys`, `preferred_provider_keys`, or
 `provider_key` hints from local rows and normalizes known aliases to canonical
 provider keys. These statuses and hints describe review guidance only and do

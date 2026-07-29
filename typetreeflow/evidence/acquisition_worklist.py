@@ -465,6 +465,14 @@ _PROVIDER_TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("CCUG", "ccug"),
     ("CCM", "ccm"),
     ("LMG", "bccm_lmg"),
+    ("NCIMB", "ncimb"),
+    ("NCIB", "ncib"),
+    ("BCRC", "bcrc"),
+    ("CCRC", "ccrc"),
+    ("NCCB", "nccb"),
+    ("CSUR", "csur"),
+    ("CICC", "cicc"),
+    ("IFO", "ifo"),
 )
 _PROVIDER_HINT_ALIASES = {
     "atcc": "atcc_genome_portal",
@@ -493,6 +501,14 @@ _PROVIDER_HINT_ALIASES = {
     "lmg": "bccm_lmg",
     "bccm lmg": "bccm_lmg",
     "bccm-lmg": "bccm_lmg",
+    "ncimb": "ncimb",
+    "ncib": "ncib",
+    "bcrc": "bcrc",
+    "ccrc": "ccrc",
+    "nccb": "nccb",
+    "csur": "csur",
+    "cicc": "cicc",
+    "ifo": "ifo",
 }
 
 
