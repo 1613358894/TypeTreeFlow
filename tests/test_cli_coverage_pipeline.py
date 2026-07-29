@@ -132,6 +132,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     }
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
+    assert payload["provider_terms_review_required_count"] == 8
+    assert payload["provider_credentials_required_count"] == 0
+    assert payload["provider_network_supported_count"] == 0
+    assert payload["provider_default_network_enabled_count"] == 0
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
@@ -238,6 +242,8 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["command"] == "coverage-pipeline build"
     assert summary["provider_handoff_record_count"] == 8
+    assert summary["provider_terms_review_required_count"] == 8
+    assert summary["provider_network_supported_count"] == 0
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
         "kctc": 1,

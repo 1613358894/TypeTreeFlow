@@ -329,8 +329,9 @@ curator/provider data, or convert a recommended action into an executed
 provider/download action.
 The optional report-only `--provider-handoff-dir` surface is a passive reader
 over that pair. It may display compact counts, provider-key totals,
-provider-status totals, and source-action totals in `report/summary.md`, but
-it must not display row-level provider instructions, discover workflow outputs,
+provider-status totals, source-action totals, and readiness totals for terms,
+credentials, and network support in `report/summary.md`, but it must not
+display row-level provider instructions, discover workflow outputs,
 authenticate, accept terms, contact providers, trigger downloads, mutate the
 manifest, or reinterpret handoff rows as strict scientific deliverables.
 Normal `package-results --include reports` and `--include all` may copy valid

@@ -1341,7 +1341,9 @@ It reads only the explicitly named coverage-plan TSV and expands non-empty
 `provider_keys` through the static fail-closed provider registry. Common
 provider labels and case variants such as `DSMZ`, `RefSeq`,
 `ATCC Genome Portal`, and `BCCM-LMG` are normalized to canonical provider keys
-before counting and serialization; unknown providers still fail closed as
+before counting and serialization. The compact JSON and summary also include
+readiness counts for terms review, credential requirement, network support,
+and default network enablement. Unknown providers still fail closed as
 planning-only rows under the supplied value. Without `--write`, it writes nothing. With `--write`, it writes only
 `provider_handoff.tsv` and `provider_handoff_summary.json` into the explicitly
 supplied directory. Existing output directories are refused by default;
