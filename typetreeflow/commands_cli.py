@@ -212,6 +212,16 @@ _CATALOG_ENTRIES = (
         "boundary": "provider request draft only; no provider contact or downloads",
     },
     {
+        "command": "plan-provider-registration",
+        "subcommand": None,
+        "mode": "provider_registration_plan",
+        "argv_pattern": "typetreeflow --plan-provider-registration <provider_request.tsv> --outdir <run>",
+        "json_stdout": True,
+        "write_behavior": "workflow_provider_review_outputs",
+        "requires_outdir": True,
+        "boundary": "dry-run provider registration planning only; no provider contact or downloads",
+    },
+    {
         "command": "providers",
         "subcommand": "catalog",
         "mode": "provider_metadata",
@@ -789,6 +799,22 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated provider request draft pair",
+        },
+    ],
+    ("plan-provider-registration", None): [
+        {
+            "name": "provider_request",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "curator-completed provider_request.tsv input",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "existing or new workflow run directory for review outputs",
         },
     ],
     ("providers", "catalog"): [
@@ -1557,6 +1583,14 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if outdir:
             argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force"})
+    if command == "plan-provider-registration":
+        _reject_unknown_fields(request, {"command", "provider_request", "outdir"})
+        return [
+            "--plan-provider-registration",
+            _required_string(request, "provider_request"),
+            "--outdir",
+            _required_string(request, "outdir"),
+        ]
     if command == "providers" and subcommand == "catalog":
         _reject_unknown_fields(request, {"command", "subcommand", "json"})
         return _with_flags(["providers", "catalog"], request, {"json": "--json"})
