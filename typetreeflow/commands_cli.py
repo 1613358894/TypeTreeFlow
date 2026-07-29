@@ -1036,6 +1036,27 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "permit commands that mutate workflow outputs",
         },
+        {
+            "name": "--allow-real-actions",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit non-dry-run real-action enable flags",
+        },
+        {
+            "name": "--allow-network",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit non-dry-run network, provider, or download flags",
+        },
+        {
+            "name": "--allow-external-tools",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit non-dry-run external bioinformatics tool flags",
+        },
     ],
     ("commands", "render"): [
         {
@@ -1067,6 +1088,27 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "permit rendered commands that mutate workflow outputs",
+        },
+        {
+            "name": "--allow-real-actions",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit rendered non-dry-run real-action enable flags",
+        },
+        {
+            "name": "--allow-network",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit rendered non-dry-run network, provider, or download flags",
+        },
+        {
+            "name": "--allow-external-tools",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit rendered non-dry-run external bioinformatics tool flags",
         },
     ],
 }
