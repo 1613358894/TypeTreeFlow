@@ -34,7 +34,9 @@ def _coverage_rows():
             "action_label": "Prepare handoff",
             "provider_keys": "dsmz",
             "required_input": "permitted local FASTA",
-            "recommended_next_command": "external-genomes register --input <external_genomes.tsv>",
+            "recommended_next_command": (
+                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+            ),
             "input_artifacts": "coverage_plan.tsv",
             "audit_only": "true",
             "strict_scientific_deliverable": "false",
