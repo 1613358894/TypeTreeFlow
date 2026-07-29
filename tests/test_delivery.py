@@ -30,7 +30,10 @@ from typetreeflow.taxonomy.source_audit import (
 )
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
-from tests.test_report_summary import _write_offline_readiness_pair
+from tests.test_report_summary import (
+    _write_coverage_plan_pair,
+    _write_offline_readiness_pair,
+)
 
 
 def _package_stdout_payload(capsys):
@@ -1003,6 +1006,210 @@ def test_package_results_acquisition_worklist_is_offline_and_non_mutating(
     assert {
         path.name: path.read_bytes()
         for path in worklist_dir.iterdir()
+        if path.is_file()
+    } == input_before
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_explicit_coverage_plan_pair_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    plan_dir = tmp_path / "isolated-coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        coverage_plan_dir=plan_dir,
+    )
+
+    delivered = result.delivery_dir / "coverage_plan"
+    assert {path.name for path in delivered.iterdir()} == {
+        "coverage_plan.tsv",
+        "coverage_plan_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    plan_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("coverage_plan/")
+    ]
+    assert len(plan_rows) == 2
+    assert {row["scope"] for row in plan_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in plan_rows} == {
+        "coverage_plan_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in plan_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in plan_rows} == {
+        "AI/operator coverage action planning"
+    }
+    assert {row["not_for"] for row in plan_rows} == {
+        "provider contact or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in plan_rows} == {
+        "coverage_plan_builder"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Coverage action plan artifacts are audit-only" in package_text
+    assert "AI/operator planning availability" in package_text
+    assert "`downloads_triggered=0`" in package_text
+    assert "`strict_scientific_deliverable=false`" in package_text
+    assert "private action detail" not in package_text
+
+
+def test_package_results_coverage_plan_is_explicit_and_missing_is_omitted(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    for name, plan_dir in (
+        ("without-input", None),
+        ("missing-input", tmp_path / "missing-coverage-plan"),
+    ):
+        result = package_results(
+            tmp_path,
+            delivery_dir=tmp_path / f"delivery-{name}",
+            include="reports",
+            coverage_plan_dir=plan_dir,
+        )
+        assert not (result.delivery_dir / "coverage_plan").exists()
+        assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+        assert result.coverage_plan_warnings == []
+
+
+def test_package_results_partial_coverage_plan_warns_and_copies_valid_member(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    plan_dir = tmp_path / "partial-coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+    (plan_dir / "coverage_plan_summary.json").write_text(
+        '{"schema_version":"1","downloads_triggered":1}',
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        coverage_plan_dir=plan_dir,
+    )
+
+    assert (result.delivery_dir / "coverage_plan" / "coverage_plan.tsv").exists()
+    assert not (
+        result.delivery_dir / "coverage_plan" / "coverage_plan_summary.json"
+    ).exists()
+    assert result.coverage_plan_warnings == [
+        "coverage_plan_summary.json malformed",
+    ]
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert [row["artifact_path"] for row in scope_rows] == [
+        "coverage_plan/coverage_plan.tsv"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "coverage_plan_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_explicit_coverage_plan(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    plan_dir = tmp_path / "coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        coverage_plan_dir=plan_dir,
+    )
+
+    assert not (result.delivery_dir / "coverage_plan").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Coverage Action Plan Audit" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_coverage_plan_and_keeps_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    plan_dir = tmp_path / "coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--coverage-plan-dir",
+            str(plan_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path / "delivery" / "coverage_plan" / "coverage_plan_summary.json"
+    ).exists()
+
+
+def test_package_results_coverage_plan_is_offline_and_non_mutating(
+    tmp_path, monkeypatch
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    plan_dir = tmp_path / "coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+    manifest_before = paths.manifest.read_bytes()
+    input_before = {
+        path.name: path.read_bytes()
+        for path in plan_dir.iterdir()
+        if path.is_file()
+    }
+    monkeypatch.setattr(
+        os,
+        "getenv",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("coverage plan packaging must not read environment variables")
+        ),
+    )
+    monkeypatch.setattr(
+        socket,
+        "create_connection",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("coverage plan packaging must remain offline")
+        ),
+    )
+
+    package_results(
+        tmp_path,
+        include="reports",
+        coverage_plan_dir=plan_dir,
+    )
+
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes()
+        for path in plan_dir.iterdir()
         if path.is_file()
     } == input_before
     assert not paths.reconciler_audit_path.exists()

@@ -281,6 +281,31 @@ This is review availability, not provider execution, download readiness,
 completion credit, manifest mutation, or strict deliverable promotion.
 Failed-handoff packages exclude these acquisition-worklist artifacts.
 
+Coverage action plans are AI/operator planning queues derived from existing
+acquisition worklists. They may prioritize conflict resolution, public archive
+linkage review, public type-linkage review, external registration review,
+provider handoff preparation, local-evidence construction, or no action, but
+they must not trigger provider contact, downloads, manifest merges, completion
+credit, or strict deliverable promotion.
+
+The `coverage-plan build` CLI remains an isolated adapter. It may read only an
+explicit acquisition worklist TSV, and in explicit write mode it may publish
+only its isolated coverage-plan pair. It must not scan workflow directories,
+read environment credentials, package raw curator/provider data, or convert a
+recommended action into an executed provider/download action.
+The optional report-only `--coverage-plan-dir` surface is a passive reader over
+that pair. It may display compact counts, action totals, and provider-key
+totals in `report/summary.md`, but it must not display raw row-level action
+details, discover workflow outputs, contact providers, trigger downloads,
+mutate the manifest, or reinterpret coverage actions as strict scientific
+deliverables.
+Normal `package-results --include reports` and `--include all` may copy valid
+members of the pair only from an explicit `--coverage-plan-dir`. They are
+packaged under `coverage_plan/` with audit-only artifact-scope rows. This is
+AI/operator planning availability, not provider execution, download readiness,
+completion credit, manifest mutation, or strict deliverable promotion.
+Failed-handoff packages exclude these coverage-plan artifacts.
+
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
 curator-packet metadata, strict-gate state, and count-crosswalk facts are

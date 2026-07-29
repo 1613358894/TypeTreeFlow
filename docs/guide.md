@@ -387,6 +387,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --coverage-plan-dir <isolated-coverage-plan-directory>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --offline-readiness-dir <isolated-readiness-directory>
 
 typetreeflow package-results \
@@ -428,6 +433,15 @@ validated members and records a compact warning. These files are audit-only:
 worklist lanes mean review availability, not provider contact, download
 execution, manifest mutation, completion credit, or strict deliverable
 promotion. `--failed-handoff` excludes acquisition-worklist artifacts.
+With an explicit `--coverage-plan-dir`, `--include reports` and `--include
+all` copy each validated coverage-plan member under `coverage_plan/` and add
+one `scope=audit`, `evidence_policy=coverage_plan_audit` artifact-scope row
+per copied member. Missing input is omitted; partial or malformed input copies
+only validated members and records a compact warning. These files are
+audit-only: coverage action rows mean AI/operator planning availability, not
+provider contact, download execution, manifest mutation, completion credit, or
+strict deliverable promotion. `--failed-handoff` excludes coverage-plan
+artifacts.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,
@@ -486,6 +500,14 @@ pass `--acquisition-worklist-dir <isolated-worklist-directory>` together with
 scanning the workflow outdir or triggering providers/downloads. A missing or
 empty directory omits `## Acquisition Worklist Audit`; partial or malformed
 input keeps report generation successful and shows a compact warning.
+
+To include a previously generated coverage action plan in the refreshed
+report, pass `--coverage-plan-dir <isolated-coverage-plan-directory>` together
+with `--report-only`. This is an explicit read-only input: TypeTreeFlow reads
+only `coverage_plan.tsv` and `coverage_plan_summary.json`, without scanning
+the workflow outdir or triggering providers/downloads. A missing or empty
+directory omits `## Coverage Action Plan Audit`; partial or malformed input
+keeps report generation successful and shows a compact warning.
 
 To include a previously generated offline readiness projection in the
 refreshed report, pass `--offline-readiness-dir <isolated-readiness-directory>`

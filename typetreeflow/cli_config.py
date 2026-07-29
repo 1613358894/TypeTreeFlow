@@ -165,6 +165,15 @@ def build_app_config_from_args(
             "or package-results."
         )
     if (
+        args.coverage_plan_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
+        raise ValueError(
+            "--coverage-plan-dir is only supported with --report-only "
+            "or package-results."
+        )
+    if (
         args.offline_readiness_dir is not None
         and not args.report_only
         and not package_results_command
@@ -282,6 +291,7 @@ def build_app_config_from_args(
         bacdive_max_queries=args.bacdive_max_queries,
         manual_review_import_dir=args.manual_review_import_dir,
         acquisition_worklist_dir=args.acquisition_worklist_dir,
+        coverage_plan_dir=args.coverage_plan_dir,
         offline_readiness_dir=args.offline_readiness_dir,
         strict_gating_dir=args.strict_gating_dir,
     )

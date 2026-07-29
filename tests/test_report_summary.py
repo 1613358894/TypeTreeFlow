@@ -37,6 +37,7 @@ from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_FIELDS,
     ACQUISITION_WORKLIST_LANES,
 )
+from typetreeflow.evidence.coverage_plan import COVERAGE_PLAN_FIELDS
 from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
@@ -56,6 +57,7 @@ from typetreeflow.report.summary import (
     build_run_review_markdown,
     build_run_summary_markdown,
     read_optional_acquisition_worklist_audit,
+    read_optional_coverage_plan_audit,
     read_optional_manual_review_import_audit,
     read_optional_offline_readiness_audit,
     read_optional_strict_gating_audit,
@@ -472,6 +474,150 @@ def test_acquisition_worklist_audit_reader_does_not_access_env_or_socket(
     monkeypatch.setattr(socket, "create_connection", fail)
 
     audit = read_optional_acquisition_worklist_audit(worklist_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
+
+
+def _write_coverage_plan_pair(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "coverage_plan_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 3,
+                "action_counts": {
+                    "review_public_archive_linkage": 2,
+                    "prepare_provider_handoff": 1,
+                },
+                "provider_key_counts": {
+                    "genbank": 2,
+                    "refseq": 2,
+                    "dsmz": 1,
+                },
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    with (directory / "coverage_plan.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=COVERAGE_PLAN_FIELDS, delimiter="\t"
+        )
+        writer.writeheader()
+        for species, action, providers in (
+            (
+                "Clostridium alpha",
+                "review_public_archive_linkage",
+                "genbank; refseq",
+            ),
+            (
+                "Clostridium beta",
+                "review_public_archive_linkage",
+                "genbank; refseq",
+            ),
+            ("Clostridium gamma", "prepare_provider_handoff", "dsmz"),
+        ):
+            writer.writerow(
+                {
+                    "schema_version": "1",
+                    "priority": "20",
+                    "species": species,
+                    "source_lane": "public_linkage_review",
+                    "action_code": action,
+                    "action_label": "private action detail",
+                    "provider_keys": providers,
+                    "required_input": "curated direct evidence",
+                    "recommended_next_command": "manual-review validate --input <review.tsv>",
+                    "input_artifacts": "fixture",
+                    "audit_only": "true",
+                    "strict_scientific_deliverable": "false",
+                }
+            )
+
+
+def test_coverage_plan_audit_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    plan_dir = tmp_path / "coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(coverage_plan_dir=plan_dir),
+    )
+
+    assert "## Coverage Action Plan Audit" in markdown
+    assert (
+        "- Counts: record_count=3; downloads_triggered=0; "
+        "providers_contacted=0; manifest_mutated=false; audit_only=true; "
+        "strict_scientific_deliverable=false"
+    ) in markdown
+    assert "The coverage action plan is audit-only planning output" in markdown
+    assert "does not contact providers, trigger downloads, mutate the manifest" in markdown
+    assert "`strict_scientific_deliverable=false`" in markdown
+    assert "| review_public_archive_linkage | 2 |" in markdown
+    assert "| prepare_provider_handoff | 1 |" in markdown
+    assert "| genbank | 2 |" in markdown
+    assert "| dsmz | 1 |" in markdown
+    assert "private action detail" not in markdown
+    assert "Clostridium alpha" not in markdown
+
+
+def test_coverage_plan_audit_absent_without_explicit_input_or_empty_dir(tmp_path):
+    paths = get_output_paths(tmp_path / "run")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    assert "## Coverage Action Plan Audit" not in build_run_summary_markdown(
+        [_record("ref1")], paths
+    )
+    assert "## Coverage Action Plan Audit" not in build_run_summary_markdown(
+        [_record("ref1")],
+        paths,
+        SimpleNamespace(coverage_plan_dir=empty),
+    )
+
+
+def test_coverage_plan_audit_partial_malformed_summary_warns(tmp_path):
+    plan_dir = tmp_path / "coverage-plan"
+    plan_dir.mkdir()
+    (plan_dir / "coverage_plan_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(coverage_plan_dir=plan_dir),
+    )
+
+    assert "## Coverage Action Plan Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "coverage_plan_summary.json malformed" in markdown
+    assert "missing members: coverage_plan.tsv" in markdown
+
+
+def test_coverage_plan_audit_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    plan_dir = tmp_path / "coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("coverage plan reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_coverage_plan_audit(plan_dir)
 
     assert audit is not None
     assert audit.counts["audit_only"] is True

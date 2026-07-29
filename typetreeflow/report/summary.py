@@ -42,6 +42,10 @@ from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_LANES,
     ACQUISITION_WORKLIST_SCHEMA_VERSION,
 )
+from typetreeflow.evidence.coverage_plan import (
+    COVERAGE_PLAN_FIELDS,
+    COVERAGE_PLAN_SCHEMA_VERSION,
+)
 from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
@@ -159,6 +163,11 @@ ACQUISITION_WORKLIST_MEMBERS = (
     "acquisition_worklist.tsv",
 )
 ACQUISITION_WORKLIST_MAX_BYTES = 5 * 1024 * 1024
+COVERAGE_PLAN_MEMBERS = (
+    "coverage_plan_summary.json",
+    "coverage_plan.tsv",
+)
+COVERAGE_PLAN_MAX_BYTES = 5 * 1024 * 1024
 OFFLINE_READINESS_MEMBERS = (
     "offline_readiness_summary.json",
     "offline_readiness_diagnostics.tsv",
@@ -250,6 +259,15 @@ class AcquisitionWorklistAuditSummary:
     present_files: list[str]
     warnings: list[str]
     lane_counts: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class CoveragePlanAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    action_counts: list[tuple[str, int]]
+    provider_counts: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -673,6 +691,156 @@ def _read_acquisition_worklist_tsv(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         if tuple(reader.fieldnames or ()) != ACQUISITION_WORKLIST_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def read_optional_coverage_plan_audit(
+    directory: str | Path | None,
+) -> CoveragePlanAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [name for name in COVERAGE_PLAN_MEMBERS if (input_dir / name).exists()]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    action_counts: list[tuple[str, int]] = []
+    provider_counts: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    observed_rows: int | None = None
+
+    missing = [name for name in COVERAGE_PLAN_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / "coverage_plan_summary.json"
+    if summary_path.exists():
+        try:
+            _validate_coverage_plan_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != COVERAGE_PLAN_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            record_count = loaded.get("record_count")
+            if (
+                isinstance(record_count, bool)
+                or not isinstance(record_count, int)
+                or record_count < 0
+            ):
+                raise ValueError("invalid record_count")
+            raw_action_counts = loaded.get("action_counts")
+            raw_provider_counts = loaded.get("provider_key_counts")
+            if not isinstance(raw_action_counts, dict) or not isinstance(
+                raw_provider_counts, dict
+            ):
+                raise ValueError("invalid count maps")
+            parsed_action_counts = _parse_nonnegative_int_map(raw_action_counts)
+            parsed_provider_counts = _parse_nonnegative_int_map(raw_provider_counts)
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            summary_data = loaded
+            counts = {
+                "record_count": record_count,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+            action_counts = sorted(
+                (
+                    (action, count)
+                    for action, count in parsed_action_counts.items()
+                    if count
+                ),
+                key=lambda item: (-item[1], item[0]),
+            )
+            provider_counts = sorted(
+                (
+                    (provider, count)
+                    for provider, count in parsed_provider_counts.items()
+                    if count
+                ),
+                key=lambda item: (-item[1], item[0]),
+            )
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append("coverage_plan_summary.json malformed")
+
+    plan_path = input_dir / "coverage_plan.tsv"
+    if plan_path.exists():
+        try:
+            rows = _read_coverage_plan_tsv(plan_path)
+            if any(
+                row.get("schema_version") != COVERAGE_PLAN_SCHEMA_VERSION
+                or row.get("audit_only", "").strip().lower() != "true"
+                or row.get("strict_scientific_deliverable", "").strip().lower()
+                != "false"
+                for row in rows
+            ):
+                raise ValueError("coverage plan boundary violation")
+            observed_rows = len(rows)
+            valid_files.append(plan_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("coverage_plan.tsv malformed")
+
+    if summary_data is not None and observed_rows is not None:
+        if summary_data["record_count"] != observed_rows:
+            warnings.append("record_count does not match coverage plan rows")
+
+    return CoveragePlanAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        action_counts=action_counts,
+        provider_counts=provider_counts,
+    )
+
+
+def _parse_nonnegative_int_map(value: dict[object, object]) -> dict[str, int]:
+    parsed: dict[str, int] = {}
+    for key, count in value.items():
+        if (
+            not isinstance(key, str)
+            or isinstance(count, bool)
+            or not isinstance(count, int)
+            or count < 0
+        ):
+            raise ValueError("invalid count map")
+        parsed[key] = count
+    return parsed
+
+
+def _validate_coverage_plan_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > COVERAGE_PLAN_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_coverage_plan_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_coverage_plan_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != COVERAGE_PLAN_FIELDS:
             raise ValueError("unexpected TSV header")
         rows = list(reader)
     if any(None in row for row in rows):
@@ -1818,6 +1986,9 @@ def build_run_summary_markdown(
     acquisition_worklist_audit = read_optional_acquisition_worklist_audit(
         getattr(args, "acquisition_worklist_dir", None)
     )
+    coverage_plan_audit = read_optional_coverage_plan_audit(
+        getattr(args, "coverage_plan_dir", None)
+    )
     offline_readiness_audit = read_optional_offline_readiness_audit(
         getattr(args, "offline_readiness_dir", None)
     )
@@ -2187,6 +2358,66 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(lane)} | {count} |"
                         for lane, count in acquisition_worklist_audit.lane_counts[:5]
+                    ],
+                ]
+            )
+
+    if coverage_plan_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Coverage Action Plan Audit",
+                "",
+                (
+                    "The coverage action plan is audit-only planning output "
+                    "for AI/operator review. Report inclusion does not contact "
+                    "providers, trigger downloads, mutate the manifest, or "
+                    "create strict scientific deliverables."
+                ),
+                (
+                    "`strict_scientific_deliverable=false` means coverage-plan "
+                    "actions are not strict deliverable rows; they only "
+                    "prioritize next coverage work."
+                ),
+            ]
+        )
+        if coverage_plan_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in coverage_plan_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if coverage_plan_audit.warnings:
+            lines.append("- Warning: " + "; ".join(coverage_plan_audit.warnings))
+        if coverage_plan_audit.present_files:
+            lines.append(
+                "- Valid audit files: " + "; ".join(coverage_plan_audit.present_files)
+            )
+        if coverage_plan_audit.action_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Coverage Action | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(action)} | {count} |"
+                        for action, count in coverage_plan_audit.action_counts[:5]
+                    ],
+                ]
+            )
+        if coverage_plan_audit.provider_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Provider Key | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(provider)} | {count} |"
+                        for provider, count in coverage_plan_audit.provider_counts[:5]
                     ],
                 ]
             )
