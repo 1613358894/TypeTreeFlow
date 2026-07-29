@@ -38,12 +38,14 @@ mutation, provider access, downloads, and external-tool execution.
 
 `typetreeflow.cli_recognizer` provides side-effect-free, JSON-serializable
 command metadata for AI/helper-facing tooling. `typetreeflow commands catalog`,
-`typetreeflow commands recognize`, and `typetreeflow commands preflight` expose
-static command-surface metadata, argv-shape recognition, and conservative
-allow/block planning through isolated compact-JSON adapters. They do not parse
-command-specific arguments, load configuration, read environment files,
-execute commands, write outputs, or act as dispatch or approval authority; the
-existing CLI parser and dispatch order remain authoritative.
+`typetreeflow commands recognize`, `typetreeflow commands render`,
+`typetreeflow commands plan`, and `typetreeflow commands preflight` expose
+static command-surface metadata, argv-shape recognition, structured request to
+argv rendering, and conservative allow/block planning through isolated
+compact-JSON adapters. They do not run command-specific argparse dispatch,
+load configuration, read environment files, execute commands, write outputs, or
+act as dispatch or approval authority; the existing CLI parser and dispatch
+order remain authoritative.
 
 `AppConfig` centralizes runtime options, outdir/workspace resolution, email/API
 configuration, dry-run behavior, resume/force semantics, and local query inputs.
