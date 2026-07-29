@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from typetreeflow.providers.atcc import AtccGenomePortalAdapter
 from typetreeflow.providers.base import ProviderAdapter, ProviderCapability, ProviderStatus
+from typetreeflow.providers.static import metadata_only_provider, planning_only_provider
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,58 @@ def unknown_provider_entry(provider_key: str) -> ProviderRegistryEntry:
 
 def build_default_provider_registry() -> ProviderRegistry:
     atcc = AtccGenomePortalAdapter()
+    static_entries = [
+        planning_only_provider(
+            "dsmz",
+            "DSMZ",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "jcm",
+            "Japan Collection of Microorganisms",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "nctc",
+            "National Collection of Type Cultures",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "cgmcc",
+            "China General Microbiological Culture Collection Center",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "nbrc",
+            "NITE Biological Resource Center",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "bccm_lmg",
+            "BCCM/LMG Bacteria Collection",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        metadata_only_provider(
+            "ena",
+            "European Nucleotide Archive",
+            guidance_tag="public_archive_metadata_review",
+        ),
+        metadata_only_provider(
+            "ddbj",
+            "DNA Data Bank of Japan",
+            guidance_tag="public_archive_metadata_review",
+        ),
+        metadata_only_provider(
+            "genbank",
+            "GenBank",
+            guidance_tag="public_archive_metadata_review",
+        ),
+        metadata_only_provider(
+            "refseq",
+            "NCBI RefSeq",
+            guidance_tag="public_archive_metadata_review",
+        ),
+    ]
     return ProviderRegistry(
         [
             ProviderRegistryEntry(
@@ -66,6 +119,20 @@ def build_default_provider_registry() -> ProviderRegistry:
                     "ATCC downloader gate has not passed; only planning-only "
                     "user-assisted handoff guidance is available."
                 ),
-            )
+            ),
+            *(
+                ProviderRegistryEntry(
+                    provider_key=adapter.provider_key,
+                    provider_name=adapter.display_name,
+                    capability=adapter.capability,
+                    adapter=adapter,
+                    gate_review_document="docs/provider_automation_policy.md",
+                    notes=(
+                        "Static registry entry only; no TypeTreeFlow network "
+                        "or download adapter is enabled."
+                    ),
+                )
+                for adapter in static_entries
+            ),
         ]
     )

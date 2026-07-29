@@ -397,8 +397,11 @@ mutation, or completion-metric changes.
 Provider planning must not write manifests; do not write manifests and do not
 change completion metrics are explicit boundaries.
 
-There is no default provider download. ATCC Genome Portal has no automated downloader. There is no ATCC Genome Portal automation. The default provider
-registry is planning-only; provider cache must stay outside `cache/ncbi/`.
+There is no default provider download. ATCC Genome Portal has no automated downloader. There is no ATCC Genome Portal automation. Static registry entries
+for culture collections and public archives are planning-only or metadata-only
+review aids; they do not authorize network access, credential handling, terms
+acceptance, downloads, or FASTA installation. The default provider registry is
+fail-closed; provider cache must stay outside `cache/ncbi/`.
 
 Provider planning writes `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv`. It uses `network_action`,
