@@ -174,6 +174,13 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--argv-json",
         "--allow-write",
     ]
+    assert {
+        "--allow-write",
+        "--allow-workflow-outputs",
+        "--allow-real-actions",
+        "--allow-network",
+        "--allow-external-tools",
+    } <= {parameter["name"] for parameter in preflight["parameters"]}
     plan = next(
         entry
         for entry in catalog
@@ -183,6 +190,13 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--request-json",
         "--allow-write",
     ]
+    assert {
+        "--allow-write",
+        "--allow-workflow-outputs",
+        "--allow-real-actions",
+        "--allow-network",
+        "--allow-external-tools",
+    } <= {parameter["name"] for parameter in plan["parameters"]}
     external_registration = next(
         entry
         for entry in catalog
