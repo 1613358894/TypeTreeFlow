@@ -27,6 +27,11 @@ from typetreeflow.evidence.provider_handoff import (
     PROVIDER_HANDOFF_SCHEMA_VERSION,
     build_provider_handoff,
 )
+from typetreeflow.evidence.provider_request_draft import (
+    PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
+    build_provider_request_draft,
+)
+from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 
 
 COMMAND_PREVIEW = "coverage-pipeline preview"
@@ -39,6 +44,8 @@ OUTPUT_PATHS = {
     "coverage_plan_summary": "coverage_plan/coverage_plan_summary.json",
     "provider_handoff": "provider_handoff/provider_handoff.tsv",
     "provider_handoff_summary": "provider_handoff/provider_handoff_summary.json",
+    "provider_request": "provider_request/provider_request.tsv",
+    "provider_request_summary": "provider_request/provider_request_draft_summary.json",
     "pipeline_summary": "coverage_pipeline_summary.json",
 }
 _PROTECTED_OUTPUT_TERMS = {
@@ -112,6 +119,9 @@ def run_coverage_pipeline_command(
         provider_handoff = build_provider_handoff(
             action.to_row() for action in coverage_plan.actions
         )
+        provider_request = build_provider_request_draft(
+            row.to_row() for row in provider_handoff.rows
+        )
     except Exception:
         _emit(_failure("internal_error", "Coverage pipeline build failed unexpectedly"), output)
         return 1
@@ -122,6 +132,7 @@ def run_coverage_pipeline_command(
         worklist,
         coverage_plan,
         provider_handoff,
+        provider_request,
         diagnostics=diagnostics,
         command=COMMAND_BUILD if args.action == "build" else COMMAND_PREVIEW,
         dry_run=not args.write,
@@ -145,6 +156,7 @@ def run_coverage_pipeline_command(
                     worklist,
                     coverage_plan,
                     provider_handoff,
+                    provider_request,
                     payload,
                 ),
                 force=args.force,
@@ -218,6 +230,7 @@ def _payload(
     worklist,
     coverage_plan,
     provider_handoff,
+    provider_request,
     *,
     diagnostics: list[dict[str, object]],
     command: str,
@@ -226,6 +239,7 @@ def _payload(
     worklist_summary = worklist.summary
     coverage_summary = coverage_plan.summary
     provider_summary = provider_handoff.summary
+    request_summary = provider_request.summary
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -256,6 +270,13 @@ def _payload(
         "provider_default_network_enabled_count": provider_summary[
             "default_network_enabled_count"
         ],
+        "provider_request_record_count": request_summary["record_count"],
+        "provider_request_provider_key_counts": request_summary[
+            "provider_key_counts"
+        ],
+        "provider_request_status_counts": request_summary[
+            "provider_status_counts"
+        ],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -268,6 +289,11 @@ def _payload(
             row.to_row() for row in provider_handoff.rows[:_PREVIEW_LIMIT]
         ],
         "provider_handoff_truncated": len(provider_handoff.rows) > _PREVIEW_LIMIT,
+        "provider_request_preview": [
+            row.to_provider_request_row()
+            for row in provider_request.rows[:_PREVIEW_LIMIT]
+        ],
+        "provider_request_truncated": len(provider_request.rows) > _PREVIEW_LIMIT,
         "audit_only": True,
         "dry_run": dry_run,
         "writes_outputs": False,
@@ -345,6 +371,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_credentials_required_count": 0,
         "provider_network_supported_count": 0,
         "provider_default_network_enabled_count": 0,
+        "provider_request_record_count": 0,
+        "provider_request_provider_key_counts": {},
+        "provider_request_status_counts": {},
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -353,6 +382,8 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_plan_truncated": False,
         "provider_handoff_preview": [],
         "provider_handoff_truncated": False,
+        "provider_request_preview": [],
+        "provider_request_truncated": False,
         "audit_only": True,
         "dry_run": True,
         "writes_outputs": False,
@@ -372,6 +403,7 @@ def _rendered_outputs(
     worklist,
     coverage_plan,
     provider_handoff,
+    provider_request,
     payload: dict[str, object],
 ) -> dict[str, str]:
     summary = {
@@ -396,6 +428,9 @@ def _rendered_outputs(
             "provider_credentials_required_count",
             "provider_network_supported_count",
             "provider_default_network_enabled_count",
+            "provider_request_record_count",
+            "provider_request_provider_key_counts",
+            "provider_request_status_counts",
             "diagnostic_count",
             "diagnostics",
             "audit_only",
@@ -417,6 +452,8 @@ def _rendered_outputs(
         "coverage_plan_summary": coverage_plan.summary_json() + "\n",
         "provider_handoff": provider_handoff.handoff_tsv(),
         "provider_handoff_summary": provider_handoff.summary_json() + "\n",
+        "provider_request": provider_request.provider_request_tsv(),
+        "provider_request_summary": provider_request.summary_json() + "\n",
         "pipeline_summary": json.dumps(summary, sort_keys=True, separators=(",", ":"))
         + "\n",
     }
@@ -514,6 +551,11 @@ def _validate_owned_output_dir(outdir: Path) -> None:
     _validate_existing_json(
         outdir / OUTPUT_PATHS["provider_handoff_summary"],
         PROVIDER_HANDOFF_SCHEMA_VERSION,
+    )
+    _validate_existing_member(outdir / OUTPUT_PATHS["provider_request"], PROVIDER_REQUEST_FIELDS)
+    _validate_existing_json(
+        outdir / OUTPUT_PATHS["provider_request_summary"],
+        PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
     )
     _validate_existing_json(
         outdir / OUTPUT_PATHS["pipeline_summary"],

@@ -1398,17 +1398,18 @@ typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconcil
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
-worklist, coverage action plan, and provider handoff, then emits one compact
-JSON object with lane, action, provider-key, and provider-status counts plus
+worklist, coverage action plan, provider handoff, and provider request draft,
+then emits one compact JSON object with lane, action, provider-key,
+provider-status, and provider-request draft counts plus
 `worklist_candidate_provider_key_counts`, `coverage_next_action_groups`, and
 bounded previews. Action groups are sorted by priority and summarize action
 code, record count, source lanes, provider keys, and the recommended next
-command for AI/operator routing. `preview`
-never writes files. `build --write` writes only
-isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
-`coverage_pipeline_summary.json` members under the explicitly supplied
-directory. Existing output directories are refused by default; `--force`
-replaces only an owned coverage-pipeline directory with matching schemas.
+command for AI/operator routing. `preview` never writes files. `build --write`
+writes only isolated `acquisition_worklist/`, `coverage_plan/`,
+`provider_handoff/`, `provider_request/`, and `coverage_pipeline_summary.json`
+members under the explicitly supplied directory. Existing output directories
+are refused by default; `--force` replaces only an owned coverage-pipeline
+directory with matching schemas.
 Missing, unreadable, or empty inputs block with exit code `2`; successful
 previews/builds exit `0`; unexpected internal or write failures exit `1`. The
 pipeline is an AI/operator planning shortcut only: it does not contact
@@ -1422,6 +1423,9 @@ directory and then applies the same audit-only report/package contracts as the
 individual `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
 `--provider-handoff-dir` options. Explicit component directories take
 precedence over the derived pipeline subdirectories.
+The generated `provider_request/` member is an offline draft for
+`plan-provider-registration`; it is not currently copied by the
+coverage-pipeline report/package handoff.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the
