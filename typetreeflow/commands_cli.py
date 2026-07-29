@@ -461,6 +461,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "isolated manual review import output directory",
         },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated manual review import triplet",
+        },
     ],
     ("strict-gating", "evaluate"): [
         {
@@ -491,6 +498,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "isolated strict gating output directory",
         },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated strict gating audit triplet",
+        },
     ],
     ("readiness", "evaluate"): [
         {
@@ -506,6 +520,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "isolated readiness output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated readiness audit pair",
         },
     ],
     ("acquisition-worklist", "build"): [
@@ -557,6 +578,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "isolated worklist output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated acquisition worklist outputs",
         },
     ],
     ("coverage-pipeline", "preview"): [
