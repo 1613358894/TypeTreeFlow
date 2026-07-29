@@ -458,14 +458,16 @@ they do not create workflow failures or completion changes by themselves.
 ### AI-Facing Command Recognition
 
 `typetreeflow commands catalog`, `typetreeflow commands recognize`,
-`typetreeflow commands render`, and `typetreeflow commands preflight` expose
-side-effect-free CLI command metadata for AI operators:
+`typetreeflow commands render`, `typetreeflow commands plan`, and
+`typetreeflow commands preflight` expose side-effect-free CLI command metadata
+for AI operators:
 
 ```text
 typetreeflow commands catalog [--json]
 typetreeflow commands recognize --argv-json '["verify-genus","Fusobacterium","--report-only"]'
 typetreeflow commands recognize -- doctor --json
 typetreeflow commands render --request-json '{"command":"status","outdir":"run"}'
+typetreeflow commands plan --request-json '{"command":"status","outdir":"run"}'
 typetreeflow commands preflight --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
 ```
 
@@ -499,6 +501,13 @@ metadata. Unsupported commands, missing required fields, unknown request fields,
 or wrong value types fail with exit code `2`. Rendering is a string-planning
 step only; the returned argv must still be checked with `commands preflight`
 before any executor considers running it.
+
+`commands plan` also requires `--request-json`, renders the request to
+`target_argv`, and immediately applies the same advisory preflight gate. Its
+JSON envelope includes `decision`, `recognized`, `preflight`, `blocking`, and
+`warnings`. It returns exit code `0` when the rendered argv is allowed and exit
+code `2` when rendering fails or preflight blocks. A successful plan is still
+metadata only; it is not execution authorization.
 
 `commands preflight` adds an advisory `decision` of `allow` or `block`,
 `allowances`, `risk`, `blocking`, and `warnings`. Declared output writes

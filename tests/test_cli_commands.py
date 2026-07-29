@@ -174,6 +174,15 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--argv-json",
         "--allow-write",
     ]
+    plan = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"]) == ("commands", "plan")
+    )
+    assert [parameter["name"] for parameter in plan["parameters"]][:2] == [
+        "--request-json",
+        "--allow-write",
+    ]
     assert {
         (entry["command"], entry["subcommand"])
         for entry in catalog
@@ -190,6 +199,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("commands", "recognize"),
         ("commands", "catalog"),
         ("commands", "render"),
+        ("commands", "plan"),
     }
 
 
@@ -303,6 +313,83 @@ def test_commands_render_rejects_missing_required_field(capsys):
     payload, _output = _stdout_payload(capsys)
     assert payload["blocking"][0]["id"] == "invalid_request"
     assert "outdir" in payload["blocking"][0]["message"]
+
+
+def test_commands_plan_allows_rendered_read_only_command(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--request-json",
+                '{"command":"status","outdir":"run"}',
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["command"] == "commands plan"
+    assert payload["status"] == "pass"
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == ["status", "--outdir", "run"]
+    assert payload["preflight"]["decision"] == "allow"
+    assert payload["writes_outputs"] is False
+
+
+def test_commands_plan_blocks_rendered_workflow_without_allowances(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run"}'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["status"] == "blocked"
+    assert payload["decision"] == "block"
+    assert [item["id"] for item in payload["blocking"]] == [
+        "write_not_allowed",
+        "workflow_outputs_not_allowed",
+    ]
+
+
+def test_commands_plan_allows_rendered_workflow_with_allowances(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--allow-workflow-outputs",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","dry_run":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "verify-genus",
+        "Clostridium",
+        "--outdir",
+        "run",
+        "--dry-run",
+    ]
+    assert payload["preflight"]["allowances"]["allow_workflow_outputs"] is True
 
 
 def test_commands_preflight_allows_read_only_diagnostic(capsys):
@@ -502,6 +589,18 @@ def test_recognizer_knows_commands_render_surface():
 
     assert result["command"] == "commands"
     assert result["subcommand"] == "render"
+    assert result["mode"] == "cli_metadata"
+    assert result["writes_outputs_declared"] is False
+    assert result["requires_outdir"] is False
+    assert result["unknown"] is False
+    assert result["invalid"] is False
+
+
+def test_recognizer_knows_commands_plan_surface():
+    result = recognize_cli_command(["commands", "plan"])
+
+    assert result["command"] == "commands"
+    assert result["subcommand"] == "plan"
     assert result["mode"] == "cli_metadata"
     assert result["writes_outputs_declared"] is False
     assert result["requires_outdir"] is False

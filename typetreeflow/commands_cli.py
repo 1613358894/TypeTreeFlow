@@ -15,6 +15,7 @@ COMMAND_RECOGNIZE = "commands recognize"
 COMMAND_CATALOG = "commands catalog"
 COMMAND_PREFLIGHT = "commands preflight"
 COMMAND_RENDER = "commands render"
+COMMAND_PLAN = "commands plan"
 _NETWORK_FLAGS = {
     "--enable-downloads",
     "--enable-entrez",
@@ -179,6 +180,16 @@ _CATALOG_ENTRIES = (
         "write_behavior": "none",
         "requires_outdir": False,
         "boundary": "structured request to argv rendering only; no dispatch authority",
+    },
+    {
+        "command": "commands",
+        "subcommand": "plan",
+        "mode": "cli_metadata",
+        "argv_pattern": "typetreeflow commands plan --request-json <json-object>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "structured request rendering plus preflight only; no dispatch authority",
     },
 )
 _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
@@ -450,6 +461,29 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "structured command request object",
         },
     ],
+    ("commands", "plan"): [
+        {
+            "name": "--request-json",
+            "kind": "json_object",
+            "required": True,
+            "repeatable": False,
+            "purpose": "structured command request object",
+        },
+        {
+            "name": "--allow-write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit rendered commands that declare output writes",
+        },
+        {
+            "name": "--allow-workflow-outputs",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit rendered commands that mutate workflow outputs",
+        },
+    ],
 }
 
 
@@ -484,6 +518,14 @@ def run_commands_command(
             return 2
         _emit(payload, output)
         return 0
+    if action == "plan":
+        try:
+            payload = _plan_payload(parsed)
+        except ValueError as error:
+            _emit(_failure("invalid_request", str(error), command=COMMAND_PLAN), output)
+            return 2
+        _emit(payload, output)
+        return 0 if payload["decision"] == "allow" else 2
     if action == "preflight":
         payload = _preflight_payload(parsed)
         _emit(payload, output)
@@ -518,7 +560,7 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
         if extras:
             raise ValueError("Invalid commands catalog usage")
         return _parsed_command(action=action, target_argv=[])
-    if action not in {"preflight", "recognize", "render"}:
+    if action not in {"preflight", "recognize", "render", "plan"}:
         raise ValueError("Invalid commands usage")
 
     argv_json: str | None = None
@@ -535,29 +577,29 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
         if token == "--json":
             index += 1
             continue
-        if action == "preflight" and token == "--allow-write":
+        if action in {"preflight", "plan"} and token == "--allow-write":
             allow_write = True
             index += 1
             continue
-        if action == "preflight" and token == "--allow-workflow-outputs":
+        if action in {"preflight", "plan"} and token == "--allow-workflow-outputs":
             allow_workflow_outputs = True
             index += 1
             continue
-        if action == "preflight" and token == "--allow-real-actions":
+        if action in {"preflight", "plan"} and token == "--allow-real-actions":
             allow_real_actions = True
             index += 1
             continue
-        if action == "preflight" and token == "--allow-network":
+        if action in {"preflight", "plan"} and token == "--allow-network":
             allow_network = True
             index += 1
             continue
-        if action == "preflight" and token == "--allow-external-tools":
+        if action in {"preflight", "plan"} and token == "--allow-external-tools":
             allow_external_tools = True
             index += 1
             continue
         if token == "--argv-json":
-            if action == "render":
-                raise ValueError("Use --request-json for commands render")
+            if action in {"render", "plan"}:
+                raise ValueError(f"Use --request-json for commands {action}")
             if index + 1 >= len(tokens):
                 raise ValueError("argv JSON must be a JSON string array")
             if argv_json is not None:
@@ -565,7 +607,7 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
             argv_json = tokens[index + 1]
             index += 2
             continue
-        if action == "render" and token == "--request-json":
+        if action in {"render", "plan"} and token == "--request-json":
             if index + 1 >= len(tokens):
                 raise ValueError("request JSON must be a JSON object")
             if request_json is not None:
@@ -574,8 +616,8 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
             index += 2
             continue
         if token == "--":
-            if action == "render":
-                raise ValueError("commands render requires --request-json")
+            if action in {"render", "plan"}:
+                raise ValueError(f"commands {action} requires --request-json")
             target_tokens = tokens[index + 1 :]
             index = len(tokens)
             continue
@@ -583,16 +625,25 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
 
     if argv_json is not None and target_tokens:
         raise ValueError("Use either --argv-json or trailing argv tokens, not both")
-    if action == "render":
+    if action in {"render", "plan"}:
         if request_json is None:
-            raise ValueError("commands render requires --request-json")
+            raise ValueError(f"commands {action} requires --request-json")
         try:
             request = json.loads(request_json)
         except json.JSONDecodeError as error:
             raise ValueError("request JSON must be a JSON object") from error
         if not isinstance(request, dict):
             raise ValueError("request JSON must be a JSON object")
-        return _parsed_command(action=action, target_argv=[], request=request)
+        return _parsed_command(
+            action=action,
+            target_argv=[],
+            allow_write=allow_write,
+            allow_workflow_outputs=allow_workflow_outputs,
+            allow_real_actions=allow_real_actions,
+            allow_network=allow_network,
+            allow_external_tools=allow_external_tools,
+            request=request,
+        )
     if argv_json is not None:
         try:
             parsed = json.loads(argv_json)
@@ -682,6 +733,45 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
         "recognized": recognized,
         "blocking": [],
         "warnings": [],
+    }
+
+
+def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
+    request = dict(parsed["request"])
+    target_argv = _render_target_argv(request)
+    preflight = _preflight_payload(
+        _parsed_command(
+            action="preflight",
+            target_argv=target_argv,
+            allow_write=bool(parsed["allow_write"]),
+            allow_workflow_outputs=bool(parsed["allow_workflow_outputs"]),
+            allow_real_actions=bool(parsed["allow_real_actions"]),
+            allow_network=bool(parsed["allow_network"]),
+            allow_external_tools=bool(parsed["allow_external_tools"]),
+        )
+    )
+    decision = str(preflight["decision"])
+    return {
+        "command": COMMAND_PLAN,
+        "schema_version": "1",
+        "status": "pass" if decision == "allow" else "blocked",
+        "summary": (
+            "Command plan allowed"
+            if decision == "allow"
+            else "Command plan blocked by preflight"
+        ),
+        "decision": decision,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "network_access": False,
+        "external_tools": False,
+        "request": request,
+        "target_argv": target_argv,
+        "recognized": preflight["recognized"],
+        "preflight": preflight,
+        "blocking": preflight["blocking"],
+        "warnings": preflight["warnings"],
     }
 
 
