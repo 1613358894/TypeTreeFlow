@@ -571,6 +571,37 @@ def test_commands_render_emits_normalized_provider_registration_plan_argv(capsys
     assert payload["recognized"]["requires_outdir"] is True
 
 
+def test_commands_render_emits_normalized_register_external_genomes_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"register-external-genomes",'
+                    '"external_genomes":"external_genomes.tsv",'
+                    '"outdir":"run","dry_run":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "--register-external-genomes",
+        "external_genomes.tsv",
+        "--outdir",
+        "run",
+        "--dry-run",
+    ]
+    assert payload["recognized"]["command"] == "register-external-genomes"
+    assert payload["recognized"]["mode"] == "external_genome_registration"
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is True
+
+
 def test_commands_render_emits_normalized_providers_catalog_argv(capsys):
     assert (
         main(
@@ -1039,6 +1070,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_provider_handoff": False,
         "is_provider_request": False,
         "is_provider_registration_plan": False,
+        "is_external_genome_registration": False,
         "is_providers": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,

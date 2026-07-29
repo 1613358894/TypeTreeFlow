@@ -599,7 +599,8 @@ helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
 `is_acquisition_worklist`, `is_count_crosswalk`, `is_archive_candidates`,
 `is_coverage_plan`, `is_provider_handoff`, `is_provider_request`,
-`is_provider_registration_plan`, `is_providers`, `is_curator_packet`,
+`is_provider_registration_plan`, `is_external_genome_registration`,
+`is_providers`, `is_curator_packet`,
 `writes_outputs_declared`, `requires_outdir`, `unknown`, and `invalid`.
 
 `commands render` requires `--request-json` as a JSON object. It accepts a

@@ -222,6 +222,16 @@ _CATALOG_ENTRIES = (
         "boundary": "dry-run provider registration planning only; no provider contact or downloads",
     },
     {
+        "command": "register-external-genomes",
+        "subcommand": None,
+        "mode": "external_genome_registration",
+        "argv_pattern": "typetreeflow --register-external-genomes <external_genomes.tsv> --outdir <run> [--dry-run]",
+        "json_stdout": True,
+        "write_behavior": "workflow_external_genome_outputs",
+        "requires_outdir": True,
+        "boundary": "local external-genome registration only; no provider contact or downloads",
+    },
+    {
         "command": "providers",
         "subcommand": "catalog",
         "mode": "provider_metadata",
@@ -1591,6 +1601,33 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--outdir",
             _required_string(request, "outdir"),
         ]
+    if command == "register-external-genomes":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "external_genomes",
+                "outdir",
+                "dry_run",
+                "force",
+                "merge_manifest",
+            },
+        )
+        argv = [
+            "--register-external-genomes",
+            _required_string(request, "external_genomes"),
+            "--outdir",
+            _required_string(request, "outdir"),
+        ]
+        return _with_flags(
+            argv,
+            request,
+            {
+                "dry_run": "--dry-run",
+                "force": "--force",
+                "merge_manifest": "--merge-manifest",
+            },
+        )
     if command == "providers" and subcommand == "catalog":
         _reject_unknown_fields(request, {"command", "subcommand", "json"})
         return _with_flags(["providers", "catalog"], request, {"json": "--json"})
