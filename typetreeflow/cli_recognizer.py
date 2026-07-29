@@ -22,6 +22,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "coverage-plan",
         "provider-handoff",
         "provider-request",
+        "plan-provider-registration",
         "providers",
         "curator-packet",
         "strict-gate-state",
@@ -67,6 +68,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_coverage_plan = first == "coverage-plan"
     is_provider_handoff = first == "provider-handoff"
     is_provider_request = first == "provider-request"
+    is_provider_registration_plan = first == "plan-provider-registration"
     is_providers = first == "providers"
     is_curator_packet = first == "curator-packet"
     is_strict_gate_state = first == "strict-gate-state"
@@ -142,6 +144,9 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
             subcommand is not None
             and subcommand not in _PROVIDER_REQUEST_SUBCOMMANDS
         )
+    elif is_provider_registration_plan:
+        command = "plan-provider-registration"
+        mode = "provider_registration_plan"
     elif is_providers:
         command = "providers"
         subcommand = tokens[1] if len(tokens) > 1 else None
@@ -237,6 +242,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_coverage_plan": is_coverage_plan,
         "is_provider_handoff": is_provider_handoff,
         "is_provider_request": is_provider_request,
+        "is_provider_registration_plan": is_provider_registration_plan,
         "is_providers": is_providers,
         "is_curator_packet": is_curator_packet,
         "is_strict_gate_state": is_strict_gate_state,
@@ -256,6 +262,8 @@ def _recognize_option_style_command(tokens: tuple[str, ...]) -> str | None:
         return "next-step"
     if "--package-results" in tokens:
         return "package-results"
+    if "--plan-provider-registration" in tokens:
+        return "plan-provider-registration"
     if "--verify-release-genus" in tokens:
         return "verify-release-genus"
     if "--acquire-genus" in tokens:
@@ -268,6 +276,8 @@ def _mode_for_recognized_command(command: str | None) -> str:
         return "diagnostic"
     if command == "package-results":
         return "packaging"
+    if command == "plan-provider-registration":
+        return "provider_registration_plan"
     return "workflow"
 
 
@@ -311,6 +321,8 @@ def _writes_outputs_declared(
         return subcommand == "build" and "--write" in tokens
     if command == "provider-request":
         return subcommand == "draft" and "--write" in tokens
+    if command == "plan-provider-registration":
+        return True
     if command == "curator-packet":
         return subcommand == "preflight" and "--write" in tokens
     if command == "strict-gate-state":
@@ -333,7 +345,7 @@ def _requires_outdir(
     writes_outputs_declared: bool,
 ) -> bool:
     if command in {"status", "next-step", "package-results", "verify-genus",
-                   "verify-release-genus", "workflow"}:
+                   "verify-release-genus", "workflow", "plan-provider-registration"}:
         return True
     if command == "manual-review":
         return subcommand == "import" and writes_outputs_declared

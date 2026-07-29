@@ -598,9 +598,9 @@ string array or target argv tokens after `--`. Their JSON envelopes include
 helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
 `is_acquisition_worklist`, `is_count_crosswalk`, `is_archive_candidates`,
-`is_coverage_plan`, `is_provider_handoff`, `is_provider_request`, `is_providers`,
-`is_curator_packet`, `writes_outputs_declared`, `requires_outdir`, `unknown`,
-and `invalid`.
+`is_coverage_plan`, `is_provider_handoff`, `is_provider_request`,
+`is_provider_registration_plan`, `is_providers`, `is_curator_packet`,
+`writes_outputs_declared`, `requires_outdir`, `unknown`, and `invalid`.
 
 `commands render` requires `--request-json` as a JSON object. It accepts a
 conservative, command-specific request such as `{"command":"status",
@@ -1419,6 +1419,10 @@ leaving curator-owned strain, type-strain ID, provider record, local FASTA,
 SHA-256, license, retrieval date, and curator fields blank. These rows do not
 contact providers, accept terms, download genomes, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
+For AI metadata routing, `commands render` accepts
+`{"command":"plan-provider-registration","provider_request":"provider_request.tsv","outdir":"run"}`
+and renders the current compatible argv form:
+`--plan-provider-registration <provider_request.tsv> --outdir <run>`.
 
 The isolated coverage pipeline adapter is:
 
