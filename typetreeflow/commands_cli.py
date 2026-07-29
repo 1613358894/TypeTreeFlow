@@ -142,6 +142,16 @@ _CATALOG_ENTRIES = (
         "boundary": "planning only; no provider contact or downloads",
     },
     {
+        "command": "count-crosswalk",
+        "subcommand": "build",
+        "mode": "count_crosswalk",
+        "argv_pattern": "typetreeflow count-crosswalk build [--metrics-tsv <tsv>|--clostridium-plan-only]",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_triplet",
+        "requires_outdir": False,
+        "boundary": "denominator audit only; no completion or download promotion",
+    },
+    {
         "command": "commands",
         "subcommand": "recognize",
         "mode": "cli_metadata",
@@ -402,6 +412,43 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "isolated worklist output directory",
+        },
+    ],
+    ("count-crosswalk", "build"): [
+        {
+            "name": "--metrics-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit count crosswalk metric TSV input",
+        },
+        {
+            "name": "--clostridium-plan-only",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit frozen Clostridium plan-only denominator crosswalk",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated count crosswalk outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated count crosswalk output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated count crosswalk triplet",
         },
     ],
     ("commands", "recognize"): [
@@ -881,6 +928,31 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--reconciler-audit",
             _required_string(request, "reconciler_audit"),
         ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "count-crosswalk" and subcommand == "build":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "metrics_tsv",
+                "clostridium_plan_only",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = ["count-crosswalk", "build"]
+        metrics_tsv = _optional_string(request, "metrics_tsv")
+        if metrics_tsv:
+            argv.extend(["--metrics-tsv", metrics_tsv])
+        if _bool_flag(request, "clostridium_plan_only"):
+            argv.append("--clostridium-plan-only")
         if _bool_flag(request, "write"):
             argv.append("--write")
         outdir = _optional_string(request, "outdir")

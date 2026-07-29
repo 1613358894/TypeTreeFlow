@@ -196,6 +196,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("strict-gating", "evaluate"),
         ("readiness", "evaluate"),
         ("acquisition-worklist", "build"),
+        ("count-crosswalk", "build"),
         ("commands", "recognize"),
         ("commands", "catalog"),
         ("commands", "render"),
@@ -275,6 +276,38 @@ def test_commands_render_emits_normalized_preflight_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "commands"
     assert payload["recognized"]["subcommand"] == "preflight"
+
+
+def test_commands_render_emits_normalized_count_crosswalk_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"count-crosswalk","subcommand":"build",'
+                    '"clostridium_plan_only":true,"write":true,'
+                    '"outdir":"crosswalk","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "count-crosswalk",
+        "build",
+        "--clostridium-plan-only",
+        "--write",
+        "--outdir",
+        "crosswalk",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "count-crosswalk"
+    assert payload["recognized"]["mode"] == "count_crosswalk"
+    assert payload["recognized"]["requires_outdir"] is True
 
 
 def test_commands_render_rejects_unknown_fields(capsys):
@@ -446,6 +479,29 @@ def test_commands_preflight_allows_declared_non_workflow_write(capsys):
     assert payload["allowances"]["allow_write"] is True
 
 
+def test_commands_preflight_allows_count_crosswalk_write_with_write_allowance(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--argv-json",
+                (
+                    '["count-crosswalk","build","--clostridium-plan-only",'
+                    '"--write","--outdir","crosswalk"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["risk"]["workflow_outputs_declared"] is False
+    assert payload["recognized"]["is_count_crosswalk"] is True
+
+
 def test_commands_preflight_blocks_workflow_outputs_without_specific_allowance(capsys):
     assert (
         main(
@@ -553,6 +609,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_strict_gating": False,
         "is_readiness": False,
         "is_acquisition_worklist": False,
+        "is_count_crosswalk": False,
         "writes_outputs_declared": False,
         "requires_outdir": False,
         "unknown": False,

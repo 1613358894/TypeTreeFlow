@@ -1,4 +1,4 @@
-"""Isolated offline CLI adapter for acquisition worklists."""
+"""Isolated offline CLI adapter for count crosswalk reports."""
 
 from __future__ import annotations
 
@@ -12,19 +12,20 @@ import uuid
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
-from typetreeflow.evidence.acquisition_worklist import (
-    ACQUISITION_WORKLIST_FIELDS,
-    ACQUISITION_WORKLIST_SCHEMA_VERSION,
-    build_acquisition_worklist,
+from typetreeflow.evidence.count_crosswalk import (
+    COUNT_CROSSWALK_FIELDS,
+    COUNT_CROSSWALK_ISSUE_FIELDS,
+    build_count_crosswalk_report,
+    clostridium_plan_only_crosswalk,
 )
 
 
-COMMAND = "acquisition-worklist build"
+COMMAND = "count-crosswalk build"
 OUTPUT_NAMES = {
-    "worklist": "acquisition_worklist.tsv",
-    "summary": "acquisition_worklist_summary.json",
+    "metrics": "count_crosswalk_metrics.tsv",
+    "summary": "count_crosswalk_summary.json",
+    "issues": "count_crosswalk_issues.tsv",
 }
-_PREVIEW_LIMIT = 20
 _PROTECTED_OUTPUT_TERMS = {
     "manifest",
     "selection",
@@ -56,99 +57,113 @@ class _Parser(argparse.ArgumentParser):
         raise _UsageError(message)
 
 
-def is_acquisition_worklist_command(argv: Sequence[str]) -> bool:
-    return bool(argv) and argv[0] == "acquisition-worklist"
+def is_count_crosswalk_command(argv: Sequence[str]) -> bool:
+    return bool(argv) and argv[0] == "count-crosswalk"
 
 
-def run_acquisition_worklist_command(
+def run_count_crosswalk_command(
     argv: Sequence[str], *, stdout: TextIO | None = None
 ) -> int:
     output = stdout or sys.stdout
     try:
         args = _build_parser().parse_args(list(argv))
     except _UsageError:
-        _emit(_failure("invalid_command_usage", "Invalid acquisition-worklist usage"), output)
+        _emit(_failure("invalid_command_usage", "Invalid count-crosswalk usage"), output)
         return 2
     outdir = Path(args.outdir) if args.outdir else None
     if (
         (args.write and outdir is None)
         or (outdir is not None and not args.write)
         or (args.force and not args.write)
+        or (args.metrics_tsv and args.clostridium_plan_only)
+        or (args.metrics_tsv is None and not args.clostridium_plan_only)
     ):
-        _emit(_failure("invalid_command_usage", "Invalid acquisition-worklist write usage"), output)
+        _emit(_failure("invalid_command_usage", "Invalid count-crosswalk write or input usage"), output)
         return 2
 
-    diagnostics: list[dict[str, object]] = []
-    checklist = _read_optional_tsv(args.checklist_tsv, "checklist", diagnostics)
-    reconciler = _read_optional_tsv(args.reconciler_audit_tsv, "reconciler_audit", diagnostics)
-    gaps = _read_optional_tsv(args.completion_gaps_tsv, "completion_gaps", diagnostics)
-    external = _read_optional_tsv(args.external_genomes_tsv, "external_genomes", diagnostics)
+    input_diagnostics: list[dict[str, object]] = []
+    rows = _read_metrics(args.metrics_tsv, input_diagnostics)
     try:
-        report = build_acquisition_worklist(
-            checklist_rows=checklist,
-            reconciler_rows=reconciler,
-            completion_gap_rows=gaps,
-            external_rows=external,
-        )
+        if args.clostridium_plan_only:
+            report = clostridium_plan_only_crosswalk()
+        else:
+            report = build_count_crosswalk_report(rows)
     except Exception:
-        _emit(_failure("internal_error", "Acquisition worklist build failed unexpectedly"), output)
+        _emit(_failure("internal_error", "Count crosswalk build failed unexpectedly"), output)
         return 1
 
-    if not report.rows:
-        diagnostics.append(_diagnostic("acquisition_worklist", "no_species_rows"))
-    payload = _payload(report, diagnostics=diagnostics, dry_run=not args.write)
+    issues = [issue.to_row() for issue in report.issues]
+    diagnostics = input_diagnostics + issues
+    payload = {
+        **report.summary,
+        "status": "pass" if report.valid and not input_diagnostics else "blocked",
+        "command": COMMAND,
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "dry_run": not args.write,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "strict_scientific_deliverable": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "input_paths": {"metrics_tsv": _path_text(args.metrics_tsv)},
+        "output_paths": {key: None for key in OUTPUT_NAMES},
+        "summary": (
+            "Count crosswalk build passed"
+            if report.valid and not input_diagnostics
+            else "Count crosswalk build blocked"
+        ),
+    }
     if args.write:
+        written_payload = {
+            **payload,
+            "writes_outputs": True,
+            "output_paths": {
+                key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
+            },
+        }
         try:
             _publish(
-                input_paths=tuple(
-                    Path(value)
-                    for value in (
-                        args.checklist_tsv,
-                        args.reconciler_audit_tsv,
-                        args.completion_gaps_tsv,
-                        args.external_genomes_tsv,
-                    )
-                    if value is not None
-                ),
+                input_paths=(Path(args.metrics_tsv),) if args.metrics_tsv else (),
                 outdir=outdir,
                 rendered={
-                    "worklist": report.rows_tsv(),
-                    "summary": report.summary_json() + "\n",
+                    "metrics": report.metrics_tsv(),
+                    "summary": json.dumps(
+                        written_payload, sort_keys=True, separators=(",", ":")
+                    )
+                    + "\n",
+                    "issues": report.issues_tsv(),
                 },
                 force=args.force,
             )
         except ValueError:
             payload.update(
                 status="failed",
-                summary="Acquisition worklist output path was refused",
+                summary="Count crosswalk output path was refused",
             )
             _emit(payload, output)
             return 2
         except (OSError, UnicodeError):
             payload.update(
                 status="failed",
-                summary="Acquisition worklist output write failed",
+                summary="Count crosswalk output write failed",
             )
             _emit(payload, output)
             return 1
-        payload["writes_outputs"] = True
-        payload["output_paths"] = {
-            key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
-        }
+        payload = written_payload
     _emit(payload, output)
-    return 0 if not diagnostics else 2
+    return 0 if report.valid and not input_diagnostics else 2
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="typetreeflow", add_help=False)
     commands = parser.add_subparsers(dest="command", required=True)
-    worklist = commands.add_parser("acquisition-worklist", add_help=False)
-    actions = worklist.add_subparsers(dest="action", required=True)
+    crosswalk = commands.add_parser("count-crosswalk", add_help=False)
+    actions = crosswalk.add_subparsers(dest="action", required=True)
     build = actions.add_parser("build", add_help=False)
-    build.add_argument("--checklist-tsv")
-    build.add_argument("--reconciler-audit-tsv")
-    build.add_argument("--completion-gaps-tsv")
-    build.add_argument("--external-genomes-tsv")
+    build.add_argument("--metrics-tsv")
+    build.add_argument("--clostridium-plan-only", action="store_true")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -156,91 +171,62 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _read_optional_tsv(
-    value: str | None,
-    component: str,
-    diagnostics: list[dict[str, object]],
+def _read_metrics(
+    value: str | None, diagnostics: list[dict[str, object]]
 ) -> tuple[Mapping[str, object], ...]:
     if value is None:
         return ()
     path = Path(value)
     try:
         if not path.is_file() or path.is_symlink():
-            raise OSError("input is not a regular file")
+            raise OSError("metrics input is not a regular file")
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle, delimiter="\t")
             if not reader.fieldnames:
-                diagnostics.append(_diagnostic(component, "missing_header"))
+                diagnostics.append(_diagnostic("missing_header"))
                 return ()
             return tuple(dict(row) for row in reader)
     except (OSError, UnicodeError, csv.Error):
-        diagnostics.append(_diagnostic(component, "input_unreadable"))
+        diagnostics.append(_diagnostic("input_unreadable"))
         return ()
-
-
-def _payload(report, *, diagnostics: list[dict[str, object]], dry_run: bool) -> dict[str, object]:
-    summary = report.summary
-    preview = [row.to_row() for row in report.rows[:_PREVIEW_LIMIT]]
-    return {
-        "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
-        "status": "pass" if not diagnostics else "blocked",
-        "command": COMMAND,
-        "record_count": summary["record_count"],
-        "lane_counts": summary["lane_counts"],
-        "review_signal_counts": summary["review_signal_counts"],
-        "diagnostic_count": len(diagnostics),
-        "diagnostics": diagnostics,
-        "rows_preview": preview,
-        "rows_truncated": len(report.rows) > len(preview),
-        "audit_only": True,
-        "dry_run": dry_run,
-        "writes_outputs": False,
-        "writes_workflow_outputs": False,
-        "strict_scientific_deliverable": False,
-        "downloads_triggered": 0,
-        "providers_contacted": 0,
-        "manifest_mutated": False,
-        "output_paths": {key: None for key in OUTPUT_NAMES},
-        "summary": (
-            "Acquisition worklist build passed"
-            if not diagnostics
-            else "Acquisition worklist build blocked"
-        ),
-    }
 
 
 def _failure(code: str, message: str) -> dict[str, object]:
     return {
-        "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
+        "schema_version": "1",
         "status": "failed",
         "command": COMMAND,
-        "record_count": 0,
-        "lane_counts": {},
-        "review_signal_counts": {},
+        "metric_count": 0,
+        "valid": False,
+        "issue_count": 1,
         "diagnostic_count": 1,
-        "diagnostics": [_diagnostic("acquisition_worklist_cli", code)],
-        "rows_preview": [],
-        "rows_truncated": False,
-        "audit_only": True,
+        "diagnostics": [_diagnostic(code)],
         "dry_run": True,
         "writes_outputs": False,
         "writes_workflow_outputs": False,
+        "audit_only": True,
         "strict_scientific_deliverable": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
         "manifest_mutated": False,
+        "input_paths": {"metrics_tsv": None},
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "summary": message,
     }
 
 
-def _diagnostic(component: str, code: str) -> dict[str, object]:
+def _diagnostic(code: str) -> dict[str, object]:
     return {
-        "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
-        "component": component,
+        "schema_version": "1",
         "severity": "error",
-        "diagnostic_code": code,
+        "issue_code": code,
+        "metric": "",
+        "message": "",
     }
+
+
+def _path_text(value: str | None) -> str | None:
+    return str(Path(value)) if value is not None else None
 
 
 def _publish(
@@ -252,8 +238,8 @@ def _publish(
 ) -> None:
     _validate_outdir(input_paths=input_paths, outdir=outdir, force=force)
     parent = outdir.parent
-    stage = parent / f".{outdir.name}.acquisition-worklist-stage-{uuid.uuid4().hex}"
-    backup = parent / f".{outdir.name}.acquisition-worklist-backup-{uuid.uuid4().hex}"
+    stage = parent / f".{outdir.name}.count-crosswalk-stage-{uuid.uuid4().hex}"
+    backup = parent / f".{outdir.name}.count-crosswalk-backup-{uuid.uuid4().hex}"
     backed_up = False
     published = False
     try:
@@ -309,17 +295,20 @@ def _validate_outdir(
         raise ValueError("existing output requires --force")
     entries = {item.name: item for item in outdir.iterdir()}
     if set(entries) != set(OUTPUT_NAMES.values()):
-        raise ValueError("existing output is not an owned worklist pair")
+        raise ValueError("existing output is not an owned count-crosswalk triplet")
     if any(not item.is_file() or item.is_symlink() for item in entries.values()):
         raise ValueError("existing output contains unsafe artifacts")
-    with entries[OUTPUT_NAMES["worklist"]].open(encoding="utf-8", newline="") as handle:
-        if handle.readline().rstrip("\r\n") != "\t".join(ACQUISITION_WORKLIST_FIELDS):
-            raise ValueError("existing worklist schema does not match")
+    with entries[OUTPUT_NAMES["metrics"]].open(encoding="utf-8", newline="") as handle:
+        if handle.readline().rstrip("\r\n") != "\t".join(COUNT_CROSSWALK_FIELDS):
+            raise ValueError("existing metrics schema does not match")
+    with entries[OUTPUT_NAMES["issues"]].open(encoding="utf-8", newline="") as handle:
+        if handle.readline().rstrip("\r\n") != "\t".join(COUNT_CROSSWALK_ISSUE_FIELDS):
+            raise ValueError("existing issues schema does not match")
     try:
         summary = json.loads(entries[OUTPUT_NAMES["summary"]].read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("existing summary is malformed") from exc
-    if summary.get("schema_version") != ACQUISITION_WORKLIST_SCHEMA_VERSION:
+    if summary.get("schema_version") != "1":
         raise ValueError("existing summary schema does not match")
 
 

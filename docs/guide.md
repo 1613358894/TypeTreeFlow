@@ -68,6 +68,32 @@ typetreeflow acquisition-worklist build --checklist-tsv <species.tsv> \
 
 The command is a planning aid only. It does not contact providers, download
 genomes, merge manifests, or grant strict scientific deliverable status.
+Its summary includes lane counts and review-signal counts so AI or curator
+operators can prioritize candidate, conflict, gap, BioSample, BacDive/DSMZ,
+NCBI, and external-registration review without treating those counts as
+completion or download readiness.
+
+Build a denominator-preserving crosswalk for already known counts with:
+
+```bash
+typetreeflow count-crosswalk build --metrics-tsv <metrics.tsv> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+For the frozen no-live Clostridium plan-only audit, use:
+
+```bash
+typetreeflow count-crosswalk build --clostridium-plan-only [--json]
+```
+
+The command is an audit aid only. It keeps checklist, selection, manifest,
+strict reconciliation, manual-review, diagnostic, and download counts in
+separate metric families so AI operators do not collapse them into one
+coverage number. Explicit write mode publishes only
+`count_crosswalk_metrics.tsv`, `count_crosswalk_summary.json`, and
+`count_crosswalk_issues.tsv` in an isolated directory. It does not scan
+workflow outputs, contact providers, trigger downloads, mutate manifests, or
+grant strict deliverable status.
 
 Validate a local curator decision file without loading workflow configuration:
 

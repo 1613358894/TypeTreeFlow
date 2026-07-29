@@ -66,6 +66,17 @@ def test_worklist_assigns_one_lane_per_species_with_conflict_priority():
     assert report.summary["downloads_triggered"] == 0
     assert report.summary["providers_contacted"] == 0
     assert report.summary["manifest_mutated"] is False
+    assert report.summary["review_signal_counts"] == {
+        "selected_accession": 3,
+        "strict_usable": 1,
+        "conflict_blocked": 1,
+        "ncbi_type_material_candidate": 1,
+        "authoritative_type_material_candidate": 1,
+        "bacdive_or_dsmz_candidate": 0,
+        "biosample_linkage_review": 0,
+        "missing_public_genome": 1,
+        "external_registration_ready": 1,
+    }
 
 
 def test_worklist_conflict_overrides_external_ready():
@@ -108,6 +119,51 @@ def test_worklist_tsv_and_json_are_stable_and_audit_only():
     summary = json.loads(report.summary_json())
     assert summary["audit_only"] is True
     assert summary["strict_scientific_deliverable"] is False
+    assert summary["review_signal_counts"]["ncbi_type_material_candidate"] == 1
+
+
+def test_worklist_public_linkage_reasons_surface_review_signals():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {"full_name": "Clostridium biosampleum"},
+            {"full_name": "Clostridium bacdiveum"},
+            {"full_name": "Clostridium ncbium"},
+            {"full_name": "Clostridium selectedum"},
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium biosampleum",
+                assembly_accession="GCF_0004.1",
+                reconciled_evidence_tier="ncbi_type_material_candidate",
+                matched_biosample_accessions="SAMN00000004",
+            ),
+            _row(
+                "Clostridium bacdiveum",
+                assembly_accession="GCF_0005.1",
+                reconciled_evidence_tier="authoritative_type_material_candidate",
+                authority_sources="BacDive/DSMZ",
+                matched_bacdive_accessions="12345",
+            ),
+            _row(
+                "Clostridium ncbium",
+                assembly_accession="GCF_0006.1",
+                reconciled_evidence_tier="ncbi_type_material_candidate",
+                authority_sources="NCBI",
+            ),
+            _row("Clostridium selectedum", assembly_accession="GCF_0007.1"),
+        ],
+    )
+
+    reasons = {row.species: row.reason_code for row in report.rows}
+    assert reasons == {
+        "Clostridium biosampleum": "public_candidate_biosample_linkage_review",
+        "Clostridium bacdiveum": "public_candidate_bacdive_or_dsmz_review",
+        "Clostridium ncbium": "public_candidate_ncbi_type_material_review",
+        "Clostridium selectedum": "public_selected_accession_type_linkage_review",
+    }
+    assert report.summary["review_signal_counts"]["biosample_linkage_review"] == 1
+    assert report.summary["review_signal_counts"]["bacdive_or_dsmz_candidate"] == 1
+    assert report.summary["review_signal_counts"]["ncbi_type_material_candidate"] == 2
 
 
 def test_worklist_sanitizes_tsv_text():

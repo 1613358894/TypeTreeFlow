@@ -345,7 +345,7 @@ Audit`. Partial or malformed input keeps report generation successful and
 shows a compact warning. Valid summary counts show `record_count`,
 `downloads_triggered`, `providers_contacted`, `manifest_mutated`,
 `audit_only`, and `strict_scientific_deliverable`, plus up to five nonzero
-lane counts. Row-level species, recommended action text, notes, or source
+lane counts and review-signal counts. Row-level species, recommended action text, notes, or source
 details are not displayed. Report inclusion does not contact providers,
 trigger downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
@@ -752,6 +752,23 @@ candidate, or checklist rows are unavailable. Invalid or missing counts are
 reported as deterministic issues; the helper does not read workflow outputs,
 change completion metrics, or contact providers.
 
+The isolated CLI surface is:
+
+```bash
+typetreeflow count-crosswalk build \
+  (--metrics-tsv <metrics.tsv> | --clostridium-plan-only) [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+Stdout is always a single compact JSON object. Valid inputs return exit code
+`0`; invalid usage, unreadable inputs, and count-invariant diagnostics return
+`2`; unexpected internal or write failures return `1`. The optional write mode
+atomically publishes `count_crosswalk_metrics.tsv`,
+`count_crosswalk_summary.json`, and `count_crosswalk_issues.tsv` directly
+under the requested isolated directory. The command records
+`writes_workflow_outputs=false`, `downloads_triggered=0`,
+`providers_contacted=0`, and `manifest_mutated=false`.
+
 ### Offline Readiness Projection
 
 The offline `project_offline_readiness()` helper combines already constructed
@@ -1108,7 +1125,13 @@ Supported lanes are `no_action_strict_complete`,
 `external_registration_ready`, `external_fasta_required`, and
 `not_evaluated`. Conflict lanes take precedence over candidate or
 external-ready lanes. The summary preserves `downloads_triggered=0`,
-`providers_contacted=0`, and `manifest_mutated=false`.
+`providers_contacted=0`, and `manifest_mutated=false`. It also includes
+additive `review_signal_counts` for triage signals such as selected accession,
+strict usable, conflict blocked, NCBI type-material candidate, authoritative
+type-material candidate, BacDive/DSMZ candidate, BioSample linkage review,
+missing public genome, and external-registration-ready rows. These counts are
+review hints only and do not change lane, completion, provider, or download
+semantics.
 
 The isolated CLI adapter is:
 
