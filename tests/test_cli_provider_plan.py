@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 
 import pytest
@@ -107,6 +108,76 @@ def test_plan_provider_registration_valid_tsv_writes_provider_outputs(tmp_path):
     assert len(proposed_rows) == 1
     assert proposed_rows[0]["external_source"] == "synthetic_provider"
     assert proposed_rows[0]["external_genome_id"] == "SP-9817"
+
+
+def test_plan_provider_registration_stdout_is_compact_json(tmp_path, capsys):
+    outdir = tmp_path / "out"
+    request = _write_provider_request(tmp_path / "provider_request.tsv")
+
+    result = cli.main(
+        [
+            "--plan-provider-registration",
+            str(request),
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    assert result == 0
+    assert stdout.count("\n") == 1
+    assert payload["command"] == "plan-provider-registration"
+    assert payload["status"] == "pass"
+    assert payload["request_count"] == 1
+    assert payload["provider_registration_plan_count"] == 1
+    assert payload["proposed_external_genomes_count"] == 1
+    assert payload["manual_review_required_count"] == 1
+    assert payload["status_counts"] == {"provider_plan_ready_for_review": 1}
+    assert payload["proposed_external_genomes_status_counts"] == {
+        "external_genome_manual_review_required": 1
+    }
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+    assert "register-external-genomes" in payload["recommended_next_command"]
+
+
+def test_plan_provider_registration_failure_stdout_is_compact_json(tmp_path, capsys):
+    fields = [*PROVIDER_REQUEST_FIELDS, "api_token"]
+    values = _request_values()
+    request = _write(
+        tmp_path / "provider_request.tsv",
+        "\t".join(fields)
+        + "\n"
+        + "\t".join([*(values[field] for field in PROVIDER_REQUEST_FIELDS), "secret"])
+        + "\n",
+    )
+
+    result = cli.main(
+        [
+            "--plan-provider-registration",
+            str(request),
+            "--outdir",
+            str(tmp_path / "out"),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    assert result == 2
+    assert stdout.count("\n") == 1
+    assert payload["command"] == "plan-provider-registration"
+    assert payload["status"] == "failed"
+    assert payload["request_count"] == 0
+    assert payload["writes_outputs"] is False
+    assert payload["blocking"][0]["id"] == "provider_registration_planning_failed"
+    assert "unsupported credential-like field(s): api_token" in payload["summary"]
+    assert "secret" not in stdout
 
 
 def test_plan_provider_registration_dry_run_writes_same_outputs(tmp_path):
