@@ -1285,7 +1285,10 @@ hints. These counts are review hints only and do not change lane, completion,
 provider, or download semantics.
 For `external_fasta_required` rows, `candidate_provider_keys` may be derived
 from explicit local provider hints or recognizable culture-collection tokens
-such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, and LMG.
+such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, CCM, and LMG.
+Explicit provider hints may use canonical provider keys, common abbreviations,
+or static registry display names; they are normalized to canonical provider
+keys before summary counting.
 The field is a provider handoff hint only; it does not confirm type-strain
 status, contact providers, authorize terms, or trigger downloads.
 

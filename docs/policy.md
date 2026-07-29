@@ -506,8 +506,9 @@ There is no default provider download. ATCC Genome Portal has no automated downl
 for culture collections and public archives are planning-only or metadata-only
 review aids; they do not authorize network access, credential handling, terms
 acceptance, downloads, or FASTA installation. Explicit provider hints in local
-coverage-planning rows may improve provider handoff specificity, but they
-remain review labels only. The default provider registry is fail-closed;
+coverage-planning rows may use provider keys, abbreviations, or static registry
+display names to improve provider handoff specificity, but they remain review
+labels only. The default provider registry is fail-closed;
 provider cache must stay outside `cache/ncbi/`.
 
 Provider planning writes `provider/provider_registration_plan.tsv` and

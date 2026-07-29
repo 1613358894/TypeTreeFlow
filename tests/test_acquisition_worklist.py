@@ -230,6 +230,49 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
     }
 
 
+def test_worklist_explicit_provider_hints_accept_registry_display_names():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium aliasesum"}],
+        reconciler_rows=[
+            _row(
+                "Clostridium aliasesum",
+                reconciled_evidence_tier="missing_public_genome",
+                candidate_provider_keys=(
+                    "German Collection of Microorganisms and Cell Cultures; "
+                    "Japan Collection of Microorganisms; "
+                    "National Collection of Type Cultures; "
+                    "China General Microbiological Culture Collection Center; "
+                    "NITE Biological Resource Center; "
+                    "Korean Collection for Type Cultures; "
+                    "Spanish Type Culture Collection; "
+                    "Collection de l'Institut Pasteur; "
+                    "Culture Collection University of Gothenburg; "
+                    "BCCM-LMG"
+                ),
+            )
+        ],
+        completion_gap_rows=[
+            {"species": "Clostridium aliasesum", "reason_category": "missing_genome"}
+        ],
+    )
+
+    assert report.rows[0].candidate_provider_keys == (
+        "dsmz; jcm; nctc; cgmcc; nbrc; kctc; cect; cip; ccug; bccm_lmg"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "bccm_lmg": 1,
+        "ccug": 1,
+        "cect": 1,
+        "cgmcc": 1,
+        "cip": 1,
+        "dsmz": 1,
+        "jcm": 1,
+        "kctc": 1,
+        "nbrc": 1,
+        "nctc": 1,
+    }
+
+
 def test_worklist_conflict_overrides_archive_candidate():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium conflictum"}],
