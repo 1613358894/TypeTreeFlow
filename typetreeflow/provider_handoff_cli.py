@@ -48,6 +48,11 @@ _PROTECTED_OUTPUT_TERMS = {
     "fastq",
     "evidence",
 }
+_REQUIRED_COVERAGE_PLAN_ROW_FIELDS = (
+    "species",
+    "source_lane",
+    "action_code",
+)
 
 
 class _UsageError(Exception):
@@ -158,6 +163,15 @@ def _read_required_coverage_plan(
         for row in rows
     ):
         diagnostics.append(_diagnostic("provider_handoff", "coverage_plan_boundary_violation"))
+        return ()
+    if any(
+        not str(row.get(field) or "").strip()
+        for row in rows
+        for field in _REQUIRED_COVERAGE_PLAN_ROW_FIELDS
+    ):
+        diagnostics.append(
+            _diagnostic("provider_handoff", "coverage_plan_required_field_missing")
+        )
         return ()
     return rows
 

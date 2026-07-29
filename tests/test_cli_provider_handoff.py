@@ -121,6 +121,30 @@ def test_provider_handoff_blocks_invalid_or_empty_inputs(capsys, tmp_path):
     assert payload["diagnostics"][0]["diagnostic_code"] == "no_provider_key_rows"
 
 
+def test_provider_handoff_blocks_coverage_plan_missing_required_row_fields(
+    capsys, tmp_path
+):
+    coverage_plan = tmp_path / "coverage_plan.tsv"
+    _write_coverage_plan(coverage_plan)
+    with coverage_plan.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    rows[0]["species"] = ""
+    with coverage_plan.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=COVERAGE_PLAN_FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    code, payload, _ = _run(["--coverage-plan-tsv", str(coverage_plan)], capsys)
+
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert payload["record_count"] == 0
+    assert payload["handoff_preview"] == []
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "coverage_plan_required_field_missing"
+    )
+
+
 def test_provider_handoff_refuses_workflow_like_output(capsys, tmp_path):
     coverage_plan = tmp_path / "coverage_plan.tsv"
     _write_coverage_plan(coverage_plan)
