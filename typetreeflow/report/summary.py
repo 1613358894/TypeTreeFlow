@@ -2075,6 +2075,20 @@ def summarize_ani_stage_status(paths: OutputPaths) -> dict[str, str] | None:
     }
 
 
+def _coverage_pipeline_component_dir(
+    args: object | None,
+    explicit_attr: str,
+    component_dir_name: str,
+) -> Path | None:
+    explicit_dir = getattr(args, explicit_attr, None)
+    if explicit_dir is not None:
+        return Path(explicit_dir)
+    pipeline_dir = getattr(args, "coverage_pipeline_dir", None)
+    if pipeline_dir is None:
+        return None
+    return Path(pipeline_dir) / component_dir_name
+
+
 def build_run_summary_markdown(
     records: Iterable[StrainRecord],
     paths: OutputPaths,
@@ -2148,13 +2162,17 @@ def build_run_summary_markdown(
         getattr(args, "manual_review_import_dir", None)
     )
     acquisition_worklist_audit = read_optional_acquisition_worklist_audit(
-        getattr(args, "acquisition_worklist_dir", None)
+        _coverage_pipeline_component_dir(
+            args, "acquisition_worklist_dir", "acquisition_worklist"
+        )
     )
     coverage_plan_audit = read_optional_coverage_plan_audit(
-        getattr(args, "coverage_plan_dir", None)
+        _coverage_pipeline_component_dir(args, "coverage_plan_dir", "coverage_plan")
     )
     provider_handoff_audit = read_optional_provider_handoff_audit(
-        getattr(args, "provider_handoff_dir", None)
+        _coverage_pipeline_component_dir(
+            args, "provider_handoff_dir", "provider_handoff"
+        )
     )
     offline_readiness_audit = read_optional_offline_readiness_audit(
         getattr(args, "offline_readiness_dir", None)

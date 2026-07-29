@@ -415,6 +415,19 @@ or malformed input copies only valid members and adds a compact warning to the
 README, handoff index, and compact JSON envelope. Failed-handoff packages
 exclude these artifacts and rows.
 
+`--coverage-pipeline-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is an explicit read-only handoff for the isolated output
+of `coverage-pipeline build` and is never automatically discovered under the
+workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
+`coverage_plan/`, and `provider_handoff/` under that directory, then applies
+the same report, package, warning, and audit-only artifact-scope contracts as
+the individual component directory options. Explicit
+`--acquisition-worklist-dir`, `--coverage-plan-dir`, and
+`--provider-handoff-dir` values take precedence over derived subdirectories.
+The option does not rerun coverage planning, contact providers, trigger
+downloads, mutate manifests, create workflow outputs, or create strict
+scientific deliverables.
+
 `--offline-readiness-dir <dir>` is accepted with `--report-only`. It is an
 explicit read-only input and is never automatically discovered under the
 workflow outdir. The same option is accepted with `package-results`. Report
@@ -1363,6 +1376,14 @@ previews/builds exit `0`; unexpected internal or write failures exit `1`. The
 pipeline is an AI/operator planning shortcut only: it does not contact
 providers, authenticate, accept terms, download genomes, mutate manifests,
 change completion metrics, or promote strict scientific deliverables.
+The written pipeline directory can be supplied later as one explicit
+read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
+`package-results --include reports|all`. TypeTreeFlow derives only
+`acquisition_worklist/`, `coverage_plan/`, and `provider_handoff/` under that
+directory and then applies the same audit-only report/package contracts as the
+individual `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
+`--provider-handoff-dir` options. Explicit component directories take
+precedence over the derived pipeline subdirectories.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the

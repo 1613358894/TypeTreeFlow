@@ -1425,6 +1425,129 @@ def test_package_results_provider_handoff_is_offline_and_non_mutating(
 
 
 @pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_coverage_pipeline_dir_copies_three_audit_surfaces(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    pipeline_dir = tmp_path / "coverage-pipeline"
+    _write_acquisition_worklist_pair(pipeline_dir / "acquisition_worklist")
+    _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
+    _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        coverage_pipeline_dir=pipeline_dir,
+    )
+
+    assert {
+        path.relative_to(result.delivery_dir).as_posix()
+        for path in result.copied_files
+        if path.is_file()
+    } >= {
+        "acquisition_worklist/acquisition_worklist.tsv",
+        "acquisition_worklist/acquisition_worklist_summary.json",
+        "coverage_plan/coverage_plan.tsv",
+        "coverage_plan/coverage_plan_summary.json",
+        "provider_handoff/provider_handoff.tsv",
+        "provider_handoff/provider_handoff_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    grouped = {
+        prefix: [
+            row for row in scope_rows if row["artifact_path"].startswith(prefix)
+        ]
+        for prefix in ("acquisition_worklist/", "coverage_plan/", "provider_handoff/")
+    }
+    assert {prefix: len(rows) for prefix, rows in grouped.items()} == {
+        "acquisition_worklist/": 2,
+        "coverage_plan/": 2,
+        "provider_handoff/": 2,
+    }
+    assert {row["scope"] for rows in grouped.values() for row in rows} == {"audit"}
+    assert {
+        row["strict_scientific_deliverable"]
+        for rows in grouped.values()
+        for row in rows
+    } == {"false"}
+    assert {
+        row["evidence_policy"] for row in grouped["acquisition_worklist/"]
+    } == {"acquisition_worklist_audit"}
+    assert {row["evidence_policy"] for row in grouped["coverage_plan/"]} == {
+        "coverage_plan_audit"
+    }
+    assert {row["evidence_policy"] for row in grouped["provider_handoff/"]} == {
+        "provider_handoff_audit"
+    }
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Acquisition worklist artifacts are audit-only" in package_text
+    assert "Coverage action plan artifacts are audit-only" in package_text
+    assert "Provider handoff artifacts are audit-only" in package_text
+    assert "private action detail" not in package_text
+    assert "private provider detail" not in package_text
+
+
+def test_package_results_coverage_pipeline_dir_is_missing_safe(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        coverage_pipeline_dir=tmp_path / "missing-coverage-pipeline",
+    )
+
+    assert not (result.delivery_dir / "acquisition_worklist").exists()
+    assert not (result.delivery_dir / "coverage_plan").exists()
+    assert not (result.delivery_dir / "provider_handoff").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert result.acquisition_worklist_warnings == []
+    assert result.coverage_plan_warnings == []
+    assert result.provider_handoff_warnings == []
+
+
+def test_package_results_cli_accepts_coverage_pipeline_dir_and_keeps_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    pipeline_dir = tmp_path / "coverage-pipeline"
+    _write_acquisition_worklist_pair(pipeline_dir / "acquisition_worklist")
+    _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
+    _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "acquisition_worklist"
+        / "acquisition_worklist_summary.json"
+    ).exists()
+    assert (tmp_path / "delivery" / "coverage_plan" / "coverage_plan.tsv").exists()
+    assert (
+        tmp_path / "delivery" / "provider_handoff" / "provider_handoff.tsv"
+    ).exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
 def test_package_results_includes_explicit_offline_readiness_pair_and_scope(
     tmp_path, include
 ):

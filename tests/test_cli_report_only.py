@@ -334,6 +334,78 @@ def test_provider_handoff_dir_requires_report_only(tmp_path, capsys):
         )
 
 
+def test_report_only_coverage_pipeline_dir_reads_three_surfaces(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    pipeline_dir = tmp_path / "coverage-pipeline"
+    _write_acquisition_worklist_pair(pipeline_dir / "acquisition_worklist")
+    _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
+    _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
+    pipeline_before = {
+        str(path.relative_to(pipeline_dir)): path.read_bytes()
+        for path in pipeline_dir.rglob("*")
+        if path.is_file()
+    }
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert stdout.count("\n") <= 1
+    assert json.loads(stdout)["command"] == "verify-genus"
+    assert "## Acquisition Worklist Audit" in summary
+    assert "## Coverage Action Plan Audit" in summary
+    assert "## Provider Handoff Audit" in summary
+    assert "external_registration_ready" in summary
+    assert "review_public_archive_linkage" in summary
+    assert "metadata_only" in summary
+    assert "private action detail" not in summary
+    assert "private provider detail" not in summary
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        str(path.relative_to(pipeline_dir)): path.read_bytes()
+        for path in pipeline_dir.rglob("*")
+        if path.is_file()
+    } == pipeline_before
+    assert not paths.completion_dir.exists()
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+def test_coverage_pipeline_dir_requires_report_only_or_package_results(
+    tmp_path, capsys
+):
+    with pytest.raises(
+        ValueError,
+        match="--coverage-pipeline-dir is only supported with --report-only",
+    ):
+        main(
+            [
+                "--outdir",
+                str(tmp_path / "out"),
+                "--coverage-pipeline-dir",
+                str(tmp_path / "coverage-pipeline"),
+            ]
+        )
+
+
 def test_report_only_explicit_offline_readiness_dir_is_read_only_and_compact(
     tmp_path, capsys
 ):

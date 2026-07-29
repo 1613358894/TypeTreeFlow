@@ -338,6 +338,7 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             acquisition_worklist_dir=config.acquisition_worklist_dir,
             coverage_plan_dir=config.coverage_plan_dir,
             provider_handoff_dir=config.provider_handoff_dir,
+            coverage_pipeline_dir=config.coverage_pipeline_dir,
             offline_readiness_dir=config.offline_readiness_dir,
             strict_gating_dir=config.strict_gating_dir,
         )

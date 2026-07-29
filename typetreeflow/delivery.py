@@ -94,6 +94,7 @@ def package_results(
     acquisition_worklist_dir: str | Path | None = None,
     coverage_plan_dir: str | Path | None = None,
     provider_handoff_dir: str | Path | None = None,
+    coverage_pipeline_dir: str | Path | None = None,
     offline_readiness_dir: str | Path | None = None,
     strict_gating_dir: str | Path | None = None,
 ) -> DeliveryResult:
@@ -136,10 +137,19 @@ def package_results(
     reconciler_outputs_copied: list[Path] = []
     manual_review_outputs_copied: list[Path] = []
     manual_review_audit: ManualReviewImportAuditSummary | None = None
+    acquisition_worklist_dir = _coverage_pipeline_component_dir(
+        acquisition_worklist_dir, coverage_pipeline_dir, "acquisition_worklist"
+    )
     acquisition_worklist_outputs_copied: list[Path] = []
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None
+    coverage_plan_dir = _coverage_pipeline_component_dir(
+        coverage_plan_dir, coverage_pipeline_dir, "coverage_plan"
+    )
     coverage_plan_outputs_copied: list[Path] = []
     coverage_plan_audit: CoveragePlanAuditSummary | None = None
+    provider_handoff_dir = _coverage_pipeline_component_dir(
+        provider_handoff_dir, coverage_pipeline_dir, "provider_handoff"
+    )
     provider_handoff_outputs_copied: list[Path] = []
     provider_handoff_audit: ProviderHandoffAuditSummary | None = None
     offline_readiness_outputs_copied: list[Path] = []
@@ -538,6 +548,18 @@ def package_failed_handoff(
         copied_files=copied,
         missing_optional_files=missing,
     )
+
+
+def _coverage_pipeline_component_dir(
+    explicit_dir: str | Path | None,
+    pipeline_dir: str | Path | None,
+    component_dir_name: str,
+) -> Path | None:
+    if explicit_dir is not None:
+        return Path(explicit_dir)
+    if pipeline_dir is None:
+        return None
+    return Path(pipeline_dir) / component_dir_name
 
 
 def parse_include(include: str | Iterable[str]) -> set[str]:
