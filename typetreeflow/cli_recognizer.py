@@ -22,6 +22,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "coverage-plan",
         "provider-handoff",
         "provider-request",
+        "external-genomes",
         "plan-provider-registration",
         "providers",
         "curator-packet",
@@ -39,6 +40,7 @@ _ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
 _COVERAGE_PLAN_SUBCOMMANDS = {"build"}
 _PROVIDER_HANDOFF_SUBCOMMANDS = {"build"}
 _PROVIDER_REQUEST_SUBCOMMANDS = {"draft"}
+_EXTERNAL_GENOMES_SUBCOMMANDS = {"validate"}
 _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
@@ -68,6 +70,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_coverage_plan = first == "coverage-plan"
     is_provider_handoff = first == "provider-handoff"
     is_provider_request = first == "provider-request"
+    is_external_genomes = first == "external-genomes"
     is_provider_registration_plan = first == "plan-provider-registration"
     is_external_genome_registration = first == "register-external-genomes"
     is_providers = first == "providers"
@@ -144,6 +147,15 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         unknown = (
             subcommand is not None
             and subcommand not in _PROVIDER_REQUEST_SUBCOMMANDS
+        )
+    elif is_external_genomes:
+        command = "external-genomes"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "external_genomes"
+        invalid = subcommand not in _EXTERNAL_GENOMES_SUBCOMMANDS
+        unknown = (
+            subcommand is not None
+            and subcommand not in _EXTERNAL_GENOMES_SUBCOMMANDS
         )
     elif is_provider_registration_plan:
         command = "plan-provider-registration"
@@ -247,6 +259,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_coverage_plan": is_coverage_plan,
         "is_provider_handoff": is_provider_handoff,
         "is_provider_request": is_provider_request,
+        "is_external_genomes": is_external_genomes,
         "is_provider_registration_plan": is_provider_registration_plan,
         "is_external_genome_registration": is_external_genome_registration,
         "is_providers": is_providers,
@@ -331,6 +344,8 @@ def _writes_outputs_declared(
         return subcommand == "build" and "--write" in tokens
     if command == "provider-request":
         return subcommand == "draft" and "--write" in tokens
+    if command == "external-genomes":
+        return False
     if command == "plan-provider-registration":
         return True
     if command == "register-external-genomes":
@@ -387,6 +402,8 @@ def _requires_outdir(
         return subcommand == "build" and writes_outputs_declared
     if command == "provider-request":
         return subcommand == "draft" and writes_outputs_declared
+    if command == "external-genomes":
+        return False
     if command == "curator-packet":
         return subcommand == "preflight" and writes_outputs_declared
     if command == "strict-gate-state":

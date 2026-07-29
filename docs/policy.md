@@ -553,9 +553,12 @@ This layer has no provider network access, no login, scraping, terms acceptance,
 ## External Genome Registration
 
 Reviewed `external_genomes.tsv` is the only external-genome registration input.
-Registration validates local files and provenance. Installation plans and
-results remain explicit. External registered records can support
-external-inclusive completion only after review.
+`external-genomes validate` is only a no-write preflight for local row and FASTA
+readiness; it does not register genomes, install FASTA files, write workflow
+outputs, mutate manifests, or change completion metrics. Registration validates
+local files and provenance. Installation plans and results remain explicit.
+External registered records can support external-inclusive completion only
+after review.
 
 Manual external registration must preserve:
 

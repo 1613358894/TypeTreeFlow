@@ -1081,6 +1081,10 @@ def main(
         is_coverage_pipeline_command,
         run_coverage_pipeline_command,
     )
+    from typetreeflow.external_genomes_cli import (
+        is_external_genomes_command,
+        run_external_genomes_command,
+    )
     from typetreeflow.manual_review_cli import (
         is_manual_review_command,
         run_manual_review_command,
@@ -1102,6 +1106,8 @@ def main(
         return run_provider_handoff_command(command_argv)
     if is_provider_request_command(command_argv):
         return run_provider_request_command(command_argv)
+    if is_external_genomes_command(command_argv):
+        return run_external_genomes_command(command_argv)
     if is_providers_command(command_argv):
         return run_providers_command(command_argv)
     if is_curator_packet_command(command_argv):

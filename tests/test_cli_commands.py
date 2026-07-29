@@ -210,6 +210,17 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--force",
         "--merge-manifest",
     ]
+    external_validate = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"]) == ("external-genomes", "validate")
+    )
+    assert external_validate["write_behavior"] == "none"
+    assert external_validate["requires_outdir"] is False
+    assert [parameter["name"] for parameter in external_validate["parameters"]] == [
+        "--input",
+        "--json",
+    ]
     parameter_names = {
         (entry["command"], entry["subcommand"]): {
             parameter["name"] for parameter in entry["parameters"]
@@ -581,6 +592,36 @@ def test_commands_render_emits_normalized_provider_request_argv(capsys):
     assert payload["recognized"]["command"] == "provider-request"
     assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_external_genomes_validate_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"external-genomes","subcommand":"validate",'
+                    '"input":"external_genomes.tsv","json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "external-genomes",
+        "validate",
+        "--input",
+        "external_genomes.tsv",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "external-genomes"
+    assert payload["recognized"]["mode"] == "external_genomes"
+    assert payload["recognized"]["writes_outputs_declared"] is False
+    assert payload["recognized"]["requires_outdir"] is False
 
 
 def test_commands_render_emits_normalized_provider_registration_plan_argv(capsys):
@@ -1111,6 +1152,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_coverage_plan": False,
         "is_provider_handoff": False,
         "is_provider_request": False,
+        "is_external_genomes": False,
         "is_provider_registration_plan": False,
         "is_external_genome_registration": False,
         "is_providers": False,

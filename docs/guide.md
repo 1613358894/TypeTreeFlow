@@ -696,6 +696,9 @@ from local rows into provider handoff. These entries and hints still do not
 enable TypeTreeFlow network access or downloads.
 
 ```bash
+typetreeflow external-genomes validate \
+  --input <reviewed_external_genomes.tsv>
+
 typetreeflow register-external-genomes \
   --external-genomes <reviewed_external_genomes.tsv> \
   --outdir <workspace>/runs/fusobacterium_external
