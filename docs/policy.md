@@ -512,7 +512,10 @@ review aids; they do not authorize network access, credential handling, terms
 acceptance, downloads, or FASTA installation. Explicit provider hints in local
 coverage-planning rows may use provider keys, abbreviations, or static registry
 display names to improve provider handoff specificity, but they remain review
-labels only. The default provider registry is fail-closed;
+labels only. These review labels include common culture collections such as
+DSMZ, ATCC, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, CCM, BCCM/LMG,
+NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR, CICC, and IFO. The default provider
+registry is fail-closed;
 provider cache must stay outside `cache/ncbi/`.
 
 Provider planning writes `provider/provider_registration_plan.tsv` and

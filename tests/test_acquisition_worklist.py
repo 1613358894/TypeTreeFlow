@@ -196,7 +196,8 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
             {
                 "full_name": "Clostridium providerum",
                 "type_strain_names": (
-                    "ATCC 1001; DSM 2002; KCTC 3003; LMG 4004; CCM 5005"
+                    "ATCC 1001; DSM 2002; KCTC 3003; LMG 4004; CCM 5005; "
+                    "NCIMB 6006; BCRC 7007; CSUR P900"
                 ),
             }
         ],
@@ -215,18 +216,22 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
     row = report.rows[0]
     assert row.lane == "external_fasta_required"
     assert row.candidate_provider_keys == (
-        "atcc_genome_portal; dsmz; kctc; ccm; bccm_lmg; cip; cect"
+        "atcc_genome_portal; dsmz; kctc; ccm; bccm_lmg; ncimb; bcrc; "
+        "csur; cip; cect"
     )
     rendered = list(csv.DictReader(io.StringIO(report.rows_tsv()), delimiter="\t"))
     assert rendered[0]["candidate_provider_keys"] == row.candidate_provider_keys
     assert report.summary["candidate_provider_key_counts"] == {
         "atcc_genome_portal": 1,
         "bccm_lmg": 1,
+        "bcrc": 1,
         "ccm": 1,
         "cect": 1,
         "cip": 1,
+        "csur": 1,
         "dsmz": 1,
         "kctc": 1,
+        "ncimb": 1,
     }
 
 

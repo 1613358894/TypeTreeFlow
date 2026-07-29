@@ -689,11 +689,11 @@ install files, write manifests, write NCBI download plans, or change completion
 metrics.
 The provider registry includes static planning-only entries for ATCC Genome
 Portal and common culture collections including DSMZ, JCM, NCTC, CGMCC, NBRC,
-KCTC, CECT, CIP, CCUG, CCM, and BCCM/LMG, plus metadata-only public archive
-entries for ENA, DDBJ, GenBank, and NCBI RefSeq. Coverage planning can carry
-explicit
-provider hints from local rows into provider handoff. These entries and hints
-still do not enable TypeTreeFlow network access or downloads.
+KCTC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR,
+CICC, and IFO, plus metadata-only public archive entries for ENA, DDBJ,
+GenBank, and NCBI RefSeq. Coverage planning can carry explicit provider hints
+from local rows into provider handoff. These entries and hints still do not
+enable TypeTreeFlow network access or downloads.
 
 ```bash
 typetreeflow register-external-genomes \

@@ -17,6 +17,14 @@ def test_default_registry_contains_planning_only_culture_collections():
         "ccug",
         "ccm",
         "bccm_lmg",
+        "ncimb",
+        "ncib",
+        "bcrc",
+        "ccrc",
+        "nccb",
+        "csur",
+        "cicc",
+        "ifo",
     ):
         entry = registry.get(key)
         assert entry.provider_key == key
@@ -58,6 +66,14 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "Collection de l'Institut Pasteur": "cip",
         "Culture Collection University of Gothenburg": "ccug",
         "Czech Collection of Microorganisms": "ccm",
+        "NCIMB": "ncimb",
+        "NCIB": "ncib",
+        "BCRC": "bcrc",
+        "CCRC": "ccrc",
+        "NCCB": "nccb",
+        "CSUR": "csur",
+        "CICC": "cicc",
+        "IFO": "ifo",
         "European Nucleotide Archive": "ena",
     }
 
