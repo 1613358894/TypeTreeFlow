@@ -1,0 +1,74 @@
+import csv
+import json
+from io import StringIO
+
+from typetreeflow.evidence.provider_request_draft import build_provider_request_draft
+from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
+
+
+def _handoff_rows():
+    return [
+        {
+            "provider_key": "dsmz",
+            "provider_name": "DSMZ",
+            "provider_status": "planning_only",
+            "species": "Clostridium beta",
+            "source_action_code": "prepare_provider_handoff",
+            "source_lane": "external_fasta_required",
+            "provider_guidance_notes": "provider_guidance=culture_collection_user_handoff",
+        },
+        {
+            "provider_key": "genbank",
+            "provider_name": "GenBank",
+            "provider_status": "metadata_only",
+            "species": "Clostridium gamma",
+            "source_action_code": "review_public_archive_linkage",
+            "source_lane": "public_linkage_review",
+            "provider_guidance_notes": "provider_guidance=public_archive_metadata_review",
+        },
+    ]
+
+
+def test_provider_request_draft_builds_review_only_provider_request_rows():
+    draft = build_provider_request_draft(_handoff_rows())
+
+    rows = [row.to_provider_request_row() for row in draft.rows]
+    assert [row["request_id"] for row in rows] == ["PH-0001", "PH-0002"]
+    assert rows[0]["provider"] == "dsmz"
+    assert rows[0]["provider_name"] == "DSMZ"
+    assert rows[0]["artifact_type"] == "genome_fasta"
+    assert rows[0]["terms_review_status"] == "not_reviewed"
+    assert rows[0]["is_type_material"] == "false"
+    assert rows[0]["requires_manual_review"] == "true"
+    assert rows[0]["strain"] == ""
+    assert rows[0]["type_strain_id"] == ""
+    assert "draft_from_provider_handoff=true" in rows[0]["notes"]
+    assert "provider_contacted=false" in rows[0]["notes"]
+    assert "downloads_triggered=0" in rows[0]["notes"]
+
+
+def test_provider_request_draft_summary_and_serializers_are_stable():
+    draft = build_provider_request_draft(_handoff_rows())
+
+    assert draft.summary == {
+        "schema_version": "1",
+        "record_count": 2,
+        "provider_key_counts": {"dsmz": 1, "genbank": 1},
+        "provider_status_counts": {"metadata_only": 1, "planning_only": 1},
+        "source_action_counts": {
+            "prepare_provider_handoff": 1,
+            "review_public_archive_linkage": 1,
+        },
+        "audit_only": True,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+    }
+    assert json.loads(draft.summary_json()) == draft.summary
+
+    reader = csv.DictReader(StringIO(draft.provider_request_tsv()), delimiter="\t")
+    assert tuple(reader.fieldnames or ()) == tuple(PROVIDER_REQUEST_FIELDS)
+    assert len(list(reader)) == 2

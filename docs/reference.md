@@ -1367,6 +1367,29 @@ to copy the validated pair into a delivery package under `provider_handoff/`
 with `evidence_policy=provider_handoff_audit` and
 `strict_scientific_deliverable=false` artifact-scope rows.
 
+The isolated provider request draft adapter is:
+
+```text
+typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv> [--json] [--write --outdir <dir> [--force]]
+```
+
+It reads only the explicitly named `provider_handoff.tsv` and converts valid
+handoff rows into a deterministic review draft for `plan-provider-registration`.
+Without `--write`, it writes nothing. With `--write`, it writes only
+`provider_request.tsv` and `provider_request_draft_summary.json` into the
+explicitly supplied directory. Existing output directories are refused by
+default; `--force` replaces only an owned pair with matching schemas.
+Missing, unreadable, malformed, boundary-violating, or empty input blocks the
+command with exit code `2`; successful draft generation exits `0`; unexpected
+internal or write failures exit `1`.
+
+Draft rows are intentionally incomplete. The adapter fills stable provider,
+species, artifact type, request ID, review flags, and audit notes, while
+leaving curator-owned strain, type-strain ID, provider record, local FASTA,
+SHA-256, license, retrieval date, and curator fields blank. These rows do not
+contact providers, accept terms, download genomes, mutate manifests, change
+completion metrics, or promote strict scientific deliverables.
+
 The isolated coverage pipeline adapter is:
 
 ```text

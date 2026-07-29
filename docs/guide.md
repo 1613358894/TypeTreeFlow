@@ -117,6 +117,19 @@ boundaries, with compact readiness counts in stdout and the summary JSON. It
 does not contact providers, download genomes, mutate manifests, or claim
 strict scientific delivery.
 
+Draft a review-only provider request TSV from a provider handoff:
+
+```bash
+typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv> \
+  [--json] [--write --outdir <isolated-directory> [--force]]
+```
+
+The draft fills only deterministic planning fields and leaves curator-owned
+provider record, strain, local FASTA, hash, license, and retrieval fields
+blank for review. It is a bridge to `plan-provider-registration`, not provider
+contact, terms acceptance, download execution, manifest mutation, completion
+credit, or strict scientific delivery.
+
 Preview the full offline coverage planning chain in one no-write command:
 
 ```bash
