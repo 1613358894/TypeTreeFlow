@@ -198,6 +198,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("acquisition-worklist", "build"),
         ("count-crosswalk", "build"),
         ("archive-candidates", "build"),
+        ("providers", "catalog"),
         ("curator-packet", "preflight"),
         ("strict-gate-state", "project"),
         ("commands", "recognize"),
@@ -389,6 +390,26 @@ def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
     assert payload["recognized"]["command"] == "archive-candidates"
     assert payload["recognized"]["mode"] == "archive_candidates"
     assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_providers_catalog_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                '{"command":"providers","subcommand":"catalog","json":true}',
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == ["providers", "catalog", "--json"]
+    assert payload["recognized"]["command"] == "providers"
+    assert payload["recognized"]["mode"] == "provider_metadata"
+    assert payload["recognized"]["writes_outputs_declared"] is False
 
 
 def test_commands_render_emits_normalized_curator_packet_argv(capsys):
@@ -835,6 +856,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_acquisition_worklist": False,
         "is_count_crosswalk": False,
         "is_archive_candidates": False,
+        "is_providers": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,
         "writes_outputs_declared": False,

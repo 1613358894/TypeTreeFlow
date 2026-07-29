@@ -39,6 +39,8 @@ typetreeflow commands plan \
 
 typetreeflow commands preflight \
   --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
+
+typetreeflow providers catalog
 ```
 
 The catalog command emits the stable command surface for AI operators. The
@@ -53,6 +55,10 @@ flags. These commands do not load workflow configuration, read environment
 files, write outputs, contact providers, or run external tools. They are helper
 metadata only; normal CLI parsing, dispatch, and human or parent-agent approval
 remain authoritative.
+
+The provider catalog command emits the static fail-closed provider registry for
+AI operators. It is metadata only: no provider is contacted and no download
+capability is enabled by listing a provider.
 
 For AI-facing offline planning, first normalize public archive candidates from
 already collected ENA/DDBJ/INSDC/GenBank-style metadata:

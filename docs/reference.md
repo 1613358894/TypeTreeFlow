@@ -469,6 +469,7 @@ typetreeflow commands recognize -- doctor --json
 typetreeflow commands render --request-json '{"command":"status","outdir":"run"}'
 typetreeflow commands plan --request-json '{"command":"status","outdir":"run"}'
 typetreeflow commands preflight --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
+typetreeflow providers catalog [--json]
 ```
 
 All command metadata commands always emit exactly one compact JSON object to
@@ -485,14 +486,21 @@ Each `parameters` item has `name`, `kind`, `required`, `repeatable`, and
 `purpose` fields so AI operators can construct candidate argv lists before
 passing them through `commands preflight`.
 
+`providers catalog` is a related isolated metadata command. It emits provider
+keys, names, capability statuses, allowed modes, and fail-closed
+network/download fields as one compact JSON object. It does not contact
+providers, read credentials, write outputs, or enable provider download
+behavior.
+
 `commands recognize` and `commands preflight` require `--argv-json` as a JSON
 string array or target argv tokens after `--`. Their JSON envelopes include
 `target_argv` and `recognized`. The `recognized` object comes from
 `typetreeflow.cli_recognizer.recognize_cli_command()` and contains conservative
 helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
-`is_acquisition_worklist`, `is_count_crosswalk`, `is_curator_packet`,
-`writes_outputs_declared`, `requires_outdir`, `unknown`, and `invalid`.
+`is_acquisition_worklist`, `is_count_crosswalk`, `is_archive_candidates`,
+`is_providers`, `is_curator_packet`, `writes_outputs_declared`,
+`requires_outdir`, `unknown`, and `invalid`.
 
 `commands render` requires `--request-json` as a JSON object. It accepts a
 conservative, command-specific request such as `{"command":"status",

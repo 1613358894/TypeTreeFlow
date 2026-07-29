@@ -162,6 +162,16 @@ _CATALOG_ENTRIES = (
         "boundary": "public archive linkage audit only; no download or strict promotion",
     },
     {
+        "command": "providers",
+        "subcommand": "catalog",
+        "mode": "provider_metadata",
+        "argv_pattern": "typetreeflow providers catalog [--json]",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "provider registry metadata only; no provider contact or downloads",
+    },
+    {
         "command": "curator-packet",
         "subcommand": "preflight",
         "mode": "curator_packet",
@@ -544,6 +554,15 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated archive candidate triplet",
+        },
+    ],
+    ("providers", "catalog"): [
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit JSON stdout",
         },
     ],
     ("curator-packet", "preflight"): [
@@ -1199,6 +1218,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if outdir:
             argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force"})
+    if command == "providers" and subcommand == "catalog":
+        _reject_unknown_fields(request, {"command", "subcommand", "json"})
+        return _with_flags(["providers", "catalog"], request, {"json": "--json"})
     if command == "curator-packet" and subcommand == "preflight":
         _reject_unknown_fields(
             request,

@@ -18,6 +18,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "acquisition-worklist",
         "count-crosswalk",
         "archive-candidates",
+        "providers",
         "curator-packet",
         "strict-gate-state",
         "commands",
@@ -29,6 +30,7 @@ _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
 _COUNT_CROSSWALK_SUBCOMMANDS = {"build"}
 _ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
+_PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
 _COMMANDS_SUBCOMMANDS = {"catalog", "plan", "preflight", "recognize", "render"}
@@ -53,6 +55,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_acquisition_worklist = first == "acquisition-worklist"
     is_count_crosswalk = first == "count-crosswalk"
     is_archive_candidates = first == "archive-candidates"
+    is_providers = first == "providers"
     is_curator_packet = first == "curator-packet"
     is_strict_gate_state = first == "strict-gate-state"
     unknown = False
@@ -90,6 +93,14 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         unknown = (
             subcommand is not None
             and subcommand not in _ARCHIVE_CANDIDATES_SUBCOMMANDS
+        )
+    elif is_providers:
+        command = "providers"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "provider_metadata"
+        invalid = subcommand not in _PROVIDERS_SUBCOMMANDS
+        unknown = (
+            subcommand is not None and subcommand not in _PROVIDERS_SUBCOMMANDS
         )
     elif is_curator_packet:
         command = "curator-packet"
@@ -175,6 +186,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_acquisition_worklist": is_acquisition_worklist,
         "is_count_crosswalk": is_count_crosswalk,
         "is_archive_candidates": is_archive_candidates,
+        "is_providers": is_providers,
         "is_curator_packet": is_curator_packet,
         "is_strict_gate_state": is_strict_gate_state,
         "writes_outputs_declared": writes_outputs_declared,
@@ -223,6 +235,8 @@ def _writes_outputs_declared(
     if unknown or command is None or command in _DIAGNOSTIC_COMMANDS:
         return False
     if command == "commands":
+        return False
+    if command == "providers":
         return False
     if command == "manual-review":
         return (subcommand == "validate" and "--out" in tokens) or (
