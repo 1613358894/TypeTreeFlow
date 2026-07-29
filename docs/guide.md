@@ -128,7 +128,9 @@ The draft fills only deterministic planning fields and leaves curator-owned
 provider record, strain, local FASTA, hash, license, and retrieval fields
 blank for review. It is a bridge to `plan-provider-registration`, not provider
 contact, terms acceptance, download execution, manifest mutation, completion
-credit, or strict scientific delivery.
+credit, or strict scientific delivery. Input rows with missing provider key,
+provider name, provider status, or species are blocked instead of producing
+empty provider request rows.
 
 Preview the full offline coverage planning chain in one no-write command:
 
