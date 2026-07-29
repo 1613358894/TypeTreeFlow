@@ -147,6 +147,10 @@ only isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 and `coverage_pipeline_summary.json` members under the requested directory. It
 remains audit-only: no workflow outputs, provider contacts, downloads,
 manifest mutation, completion credit, or strict deliverable promotion.
+When missing-public-genome rows contain explicit provider hints or recognizable
+culture-collection tokens, the worklist may carry `candidate_provider_keys` so
+the coverage plan can route provider handoff more precisely. Those keys remain
+review hints only.
 Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 `--report-only` or `package-results --include reports|all` to hand off that
 directory as one explicit read-only input. TypeTreeFlow derives only its

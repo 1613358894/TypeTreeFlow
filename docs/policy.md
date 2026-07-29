@@ -269,6 +269,12 @@ The `acquisition-worklist build` CLI remains an isolated adapter. It may write
 only its explicitly requested worklist pair and must not scan workflow
 directories, read environment credentials, package raw curator/provider data,
 or convert a recommended action into an executed action.
+Acquisition worklist `candidate_provider_keys` are local review hints derived
+from explicit provider-key fields or recognizable culture-collection tokens.
+They may guide later provider handoff planning for missing-public-genome rows,
+but they do not authorize provider contact, terms acceptance, downloads, FASTA
+installation, manifest mutation, completion credit, or strict deliverable
+promotion.
 The optional `--report-only --acquisition-worklist-dir` surface is a passive
 reader over that same pair. It may display compact counts and lane totals in
 `report/summary.md`, but it must not display raw row-level action details,

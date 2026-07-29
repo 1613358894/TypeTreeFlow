@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
@@ -25,6 +26,7 @@ ACQUISITION_WORKLIST_FIELDS: tuple[str, ...] = (
     "reconciled_evidence_tier",
     "reason_code",
     "recommended_action",
+    "candidate_provider_keys",
     "source_artifacts",
     "audit_only",
     "strict_scientific_deliverable",
@@ -47,6 +49,7 @@ class AcquisitionWorklistRow:
     reconciled_evidence_tier: str = ""
     reason_code: str = ""
     recommended_action: str = ""
+    candidate_provider_keys: str = ""
     source_artifacts: str = ""
     schema_version: str = ACQUISITION_WORKLIST_SCHEMA_VERSION
     audit_only: bool = True
@@ -61,6 +64,7 @@ class AcquisitionWorklistRow:
             "reconciled_evidence_tier": _clean(self.reconciled_evidence_tier),
             "reason_code": self.reason_code,
             "recommended_action": self.recommended_action,
+            "candidate_provider_keys": self.candidate_provider_keys,
             "source_artifacts": self.source_artifacts,
             "audit_only": str(self.audit_only).lower(),
             "strict_scientific_deliverable": str(
@@ -109,6 +113,11 @@ def build_acquisition_worklist(
 ) -> AcquisitionWorklistReport:
     """Build a one-species-one-lane acquisition review worklist."""
 
+    checklist_rows = tuple(checklist_rows)
+    reconciler_rows = tuple(reconciler_rows)
+    completion_gap_rows = tuple(completion_gap_rows)
+    external_rows = tuple(external_rows)
+    archive_candidate_rows = tuple(archive_candidate_rows)
     species_names: dict[str, str] = {}
     for rows in (
         checklist_rows,
@@ -123,6 +132,7 @@ def build_acquisition_worklist(
             if key and key not in species_names:
                 species_names[key] = species
 
+    checklist_by_species = _group_by_species(checklist_rows)
     reconciler_by_species = _group_by_species(reconciler_rows)
     gaps_by_species = _group_by_species(completion_gap_rows)
     external_by_species = _group_by_species(external_rows)
@@ -133,6 +143,7 @@ def build_acquisition_worklist(
         worklist.append(
             _classify_species(
                 species,
+                checklist_by_species.get(key, ()),
                 reconciler_by_species.get(key, ()),
                 gaps_by_species.get(key, ()),
                 external_by_species.get(key, ()),
@@ -144,6 +155,7 @@ def build_acquisition_worklist(
 
 def _classify_species(
     species: str,
+    checklist_rows: tuple[Mapping[str, object], ...],
     reconciler_rows: tuple[Mapping[str, object], ...],
     gap_rows: tuple[Mapping[str, object], ...],
     external_rows: tuple[Mapping[str, object], ...],
@@ -161,6 +173,13 @@ def _classify_species(
     )
     tier = _first_nonempty(
         _value(row, "reconciled_evidence_tier", "tier") for row in reconciler_rows
+    )
+    candidate_provider_keys = _candidate_provider_keys(
+        checklist_rows,
+        reconciler_rows,
+        gap_rows,
+        external_rows,
+        archive_candidate_rows,
     )
     if _has_conflict(reconciler_rows):
         return _row(
@@ -215,6 +234,7 @@ def _classify_species(
             tier,
             "no_public_strict_genome_linkage",
             source_artifacts,
+            candidate_provider_keys,
         )
     return _row(
         species,
@@ -233,6 +253,7 @@ def _row(
     tier: str,
     reason_code: str,
     source_artifacts: str,
+    candidate_provider_keys: str = "",
 ) -> AcquisitionWorklistRow:
     return AcquisitionWorklistRow(
         species=species,
@@ -241,6 +262,7 @@ def _row(
         reconciled_evidence_tier=tier,
         reason_code=reason_code,
         recommended_action=_recommended_action(lane),
+        candidate_provider_keys=candidate_provider_keys,
         source_artifacts=source_artifacts,
     )
 
@@ -414,6 +436,98 @@ def _has_archive_candidate(rows: Iterable[Mapping[str, object]]) -> bool:
         if status == "archive_candidate_for_public_linkage_review":
             return True
     return False
+
+
+_PROVIDER_TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
+    ("ATCC", "atcc_genome_portal"),
+    ("DSM", "dsmz"),
+    ("JCM", "jcm"),
+    ("NCTC", "nctc"),
+    ("CGMCC", "cgmcc"),
+    ("NBRC", "nbrc"),
+    ("KCTC", "kctc"),
+    ("CECT", "cect"),
+    ("CIP", "cip"),
+    ("CCUG", "ccug"),
+    ("LMG", "bccm_lmg"),
+)
+_PROVIDER_HINT_ALIASES = {
+    "atcc": "atcc_genome_portal",
+    "atcc genome portal": "atcc_genome_portal",
+    "dsm": "dsmz",
+    "dsmz": "dsmz",
+    "jcm": "jcm",
+    "nctc": "nctc",
+    "cgmcc": "cgmcc",
+    "nbrc": "nbrc",
+    "kctc": "kctc",
+    "cect": "cect",
+    "cip": "cip",
+    "ccug": "ccug",
+    "lmg": "bccm_lmg",
+    "bccm lmg": "bccm_lmg",
+    "bccm-lmg": "bccm_lmg",
+}
+
+
+def _candidate_provider_keys(
+    *row_groups: Iterable[Mapping[str, object]],
+) -> str:
+    provider_keys: list[str] = []
+    for rows in row_groups:
+        for row in rows:
+            _extend_provider_keys_from_explicit_hints(provider_keys, row)
+            _extend_provider_keys_from_tokens(provider_keys, row)
+    return "; ".join(provider_keys)
+
+
+def _extend_provider_keys_from_explicit_hints(
+    provider_keys: list[str],
+    row: Mapping[str, object],
+) -> None:
+    value = _value(
+        row,
+        "candidate_provider_keys",
+        "preferred_provider_keys",
+        "provider_keys",
+        "provider_key",
+    )
+    for token in re.split(r"[;,|]", value):
+        canonical = _PROVIDER_HINT_ALIASES.get(_provider_hint_key(token))
+        if canonical and canonical not in provider_keys:
+            provider_keys.append(canonical)
+
+
+def _extend_provider_keys_from_tokens(
+    provider_keys: list[str],
+    row: Mapping[str, object],
+) -> None:
+    text = " ; ".join(
+        _value(row, field)
+        for field in (
+            "type_strain",
+            "type_strain_names",
+            "strain_number",
+            "culture_collection",
+            "culture_collection_numbers",
+            "culture_collection_ids",
+            "lpsn_type_strain_ids",
+            "ncbi_culture_collection_ids",
+            "curator_culture_collection_ids",
+            "matched_lpsn_type_strain_ids",
+        )
+    )
+    normalized = text.upper()
+    for prefix, provider_key in _PROVIDER_TOKEN_PREFIXES:
+        pattern = rf"(?<![A-Z0-9]){re.escape(prefix)}(?:\s*[-:]?\s*[A-Z0-9]|$)"
+        if re.search(pattern, normalized) and provider_key not in provider_keys:
+            provider_keys.append(provider_key)
+
+
+def _provider_hint_key(value: str) -> str:
+    return " ".join(
+        str(value).strip().lower().replace("_", " ").replace("-", " ").split()
+    )
 
 
 def _source_artifacts(
