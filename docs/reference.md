@@ -1245,11 +1245,12 @@ Supported lanes are `no_action_strict_complete`,
 `not_evaluated`. Conflict lanes take precedence over candidate or
 external-ready lanes. The summary preserves `downloads_triggered=0`,
 `providers_contacted=0`, and `manifest_mutated=false`. It also includes
-additive `review_signal_counts` for triage signals such as selected accession,
-strict usable, conflict blocked, NCBI type-material candidate, authoritative
-type-material candidate, BacDive/DSMZ candidate, BioSample linkage review,
-archive candidate review, missing public genome, and external-registration-ready
-rows. These counts are review hints only and do not change lane, completion,
+additive `review_signal_counts` and `candidate_provider_key_counts` for triage
+signals such as selected accession, strict usable, conflict blocked, NCBI
+type-material candidate, authoritative type-material candidate, BacDive/DSMZ
+candidate, BioSample linkage review, archive candidate review, missing public
+genome, external-registration-ready rows, and candidate provider routing
+hints. These counts are review hints only and do not change lane, completion,
 provider, or download semantics.
 For `external_fasta_required` rows, `candidate_provider_keys` may be derived
 from explicit local provider hints or recognizable culture-collection tokens

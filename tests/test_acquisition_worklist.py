@@ -121,6 +121,7 @@ def test_worklist_tsv_and_json_are_stable_and_audit_only():
     summary = json.loads(report.summary_json())
     assert summary["audit_only"] is True
     assert summary["strict_scientific_deliverable"] is False
+    assert summary["candidate_provider_key_counts"] == {}
     assert summary["review_signal_counts"]["ncbi_type_material_candidate"] == 1
 
 
@@ -216,6 +217,14 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
     )
     rendered = list(csv.DictReader(io.StringIO(report.rows_tsv()), delimiter="\t"))
     assert rendered[0]["candidate_provider_keys"] == row.candidate_provider_keys
+    assert report.summary["candidate_provider_key_counts"] == {
+        "atcc_genome_portal": 1,
+        "bccm_lmg": 1,
+        "cect": 1,
+        "cip": 1,
+        "dsmz": 1,
+        "kctc": 1,
+    }
 
 
 def test_worklist_conflict_overrides_archive_candidate():

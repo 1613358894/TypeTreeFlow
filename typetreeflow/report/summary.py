@@ -268,6 +268,7 @@ class AcquisitionWorklistAuditSummary:
     present_files: list[str]
     warnings: list[str]
     lane_counts: list[tuple[str, int]]
+    provider_key_counts: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -606,6 +607,7 @@ def read_optional_acquisition_worklist_audit(
     valid_files: list[str] = []
     counts: dict[str, object] = {}
     lane_counts: list[tuple[str, int]] = []
+    provider_key_counts: list[tuple[str, int]] = []
     summary_data: dict[str, object] | None = None
     observed_rows: int | None = None
 
@@ -638,6 +640,20 @@ def read_optional_acquisition_worklist_audit(
                 if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                     raise ValueError(f"invalid lane count for {lane}")
                 parsed_lane_counts[lane] = value
+            raw_provider_counts = loaded.get("candidate_provider_key_counts", {})
+            if not isinstance(raw_provider_counts, dict):
+                raise ValueError("invalid candidate_provider_key_counts")
+            parsed_provider_counts: dict[str, int] = {}
+            for provider_key, value in raw_provider_counts.items():
+                if (
+                    not isinstance(provider_key, str)
+                    or not provider_key
+                    or isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value < 0
+                ):
+                    raise ValueError("invalid candidate_provider_key_counts")
+                parsed_provider_counts[provider_key] = value
             if loaded.get("audit_only") is not True:
                 raise ValueError("audit_only boundary violation")
             if loaded.get("strict_scientific_deliverable") is not False:
@@ -661,6 +677,14 @@ def read_optional_acquisition_worklist_audit(
                 (
                     (lane, count)
                     for lane, count in parsed_lane_counts.items()
+                    if count
+                ),
+                key=lambda item: (-item[1], item[0]),
+            )
+            provider_key_counts = sorted(
+                (
+                    (provider_key, count)
+                    for provider_key, count in parsed_provider_counts.items()
                     if count
                 ),
                 key=lambda item: (-item[1], item[0]),
@@ -695,6 +719,7 @@ def read_optional_acquisition_worklist_audit(
         present_files=valid_files,
         warnings=warnings,
         lane_counts=lane_counts,
+        provider_key_counts=provider_key_counts,
     )
 
 
@@ -2543,6 +2568,20 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(lane)} | {count} |"
                         for lane, count in acquisition_worklist_audit.lane_counts[:5]
+                    ],
+                ]
+            )
+        if acquisition_worklist_audit.provider_key_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Candidate Provider Key | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(provider_key)} | {count} |"
+                        for provider_key, count in (
+                            acquisition_worklist_audit.provider_key_counts[:5]
+                        )
                     ],
                 ]
             )
