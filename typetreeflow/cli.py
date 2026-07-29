@@ -1031,6 +1031,10 @@ def main(
         is_commands_command,
         run_commands_command,
     )
+    from typetreeflow.coverage_pipeline_cli import (
+        is_coverage_pipeline_command,
+        run_coverage_pipeline_command,
+    )
     from typetreeflow.manual_review_cli import (
         is_manual_review_command,
         run_manual_review_command,
@@ -1038,6 +1042,8 @@ def main(
 
     if is_commands_command(command_argv):
         return run_commands_command(command_argv)
+    if is_coverage_pipeline_command(command_argv):
+        return run_coverage_pipeline_command(command_argv)
     if is_acquisition_worklist_command(command_argv):
         return run_acquisition_worklist_command(command_argv)
     if is_count_crosswalk_command(command_argv):
