@@ -31,6 +31,9 @@ typetreeflow commands catalog
 typetreeflow commands recognize \
   --argv-json '["verify-genus","Fusobacterium","--report-only"]'
 
+typetreeflow commands render \
+  --request-json '{"command":"status","outdir":"run"}'
+
 typetreeflow commands preflight \
   --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
 ```
@@ -38,12 +41,13 @@ typetreeflow commands preflight \
 The catalog command emits the stable command surface for AI operators. The
 recognize command emits one compact JSON object describing a proposed argv
 shape, including recognized command, mode, write-output declaration, and
-outdir requirement. The preflight command adds an advisory allow/block decision
-based on declared writes, workflow-output mutation, and real-action/network or
-external-tool flags. These commands do not load workflow configuration, read
-environment files, write outputs, contact providers, or run external tools.
-They are helper metadata only; normal CLI parsing, dispatch, and human or
-parent-agent approval remain authoritative.
+outdir requirement. The render command turns a conservative structured request
+into normalized argv without executing it. The preflight command adds an
+advisory allow/block decision based on declared writes, workflow-output
+mutation, and real-action/network or external-tool flags. These commands do
+not load workflow configuration, read environment files, write outputs, contact
+providers, or run external tools. They are helper metadata only; normal CLI
+parsing, dispatch, and human or parent-agent approval remain authoritative.
 
 For AI-facing offline planning, classify existing local checklist,
 reconciler, completion-gap, and external-genome rows into one review lane per

@@ -14,6 +14,7 @@ from typetreeflow.config import REAL_ACTION_FLAGS
 COMMAND_RECOGNIZE = "commands recognize"
 COMMAND_CATALOG = "commands catalog"
 COMMAND_PREFLIGHT = "commands preflight"
+COMMAND_RENDER = "commands render"
 _NETWORK_FLAGS = {
     "--enable-downloads",
     "--enable-entrez",
@@ -168,6 +169,16 @@ _CATALOG_ENTRIES = (
         "write_behavior": "none",
         "requires_outdir": False,
         "boundary": "metadata risk gate only; no dispatch authority",
+    },
+    {
+        "command": "commands",
+        "subcommand": "render",
+        "mode": "cli_metadata",
+        "argv_pattern": "typetreeflow commands render --request-json <json-object>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "structured request to argv rendering only; no dispatch authority",
     },
 )
 _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
@@ -430,6 +441,15 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "permit commands that mutate workflow outputs",
         },
     ],
+    ("commands", "render"): [
+        {
+            "name": "--request-json",
+            "kind": "json_object",
+            "required": True,
+            "repeatable": False,
+            "purpose": "structured command request object",
+        },
+    ],
 }
 
 
@@ -455,6 +475,14 @@ def run_commands_command(
     target_argv = parsed["target_argv"]
     if action == "catalog":
         _emit(_catalog_payload(), output)
+        return 0
+    if action == "render":
+        try:
+            payload = _render_payload(parsed)
+        except ValueError as error:
+            _emit(_failure("invalid_request", str(error), command=COMMAND_RENDER), output)
+            return 2
+        _emit(payload, output)
         return 0
     if action == "preflight":
         payload = _preflight_payload(parsed)
@@ -490,10 +518,11 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
         if extras:
             raise ValueError("Invalid commands catalog usage")
         return _parsed_command(action=action, target_argv=[])
-    if action not in {"preflight", "recognize"}:
+    if action not in {"preflight", "recognize", "render"}:
         raise ValueError("Invalid commands usage")
 
     argv_json: str | None = None
+    request_json: str | None = None
     target_tokens: list[str] = []
     allow_write = False
     allow_workflow_outputs = False
@@ -527,6 +556,8 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
             index += 1
             continue
         if token == "--argv-json":
+            if action == "render":
+                raise ValueError("Use --request-json for commands render")
             if index + 1 >= len(tokens):
                 raise ValueError("argv JSON must be a JSON string array")
             if argv_json is not None:
@@ -534,7 +565,17 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
             argv_json = tokens[index + 1]
             index += 2
             continue
+        if action == "render" and token == "--request-json":
+            if index + 1 >= len(tokens):
+                raise ValueError("request JSON must be a JSON object")
+            if request_json is not None:
+                raise ValueError("Use only one --request-json value")
+            request_json = tokens[index + 1]
+            index += 2
+            continue
         if token == "--":
+            if action == "render":
+                raise ValueError("commands render requires --request-json")
             target_tokens = tokens[index + 1 :]
             index = len(tokens)
             continue
@@ -542,6 +583,16 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
 
     if argv_json is not None and target_tokens:
         raise ValueError("Use either --argv-json or trailing argv tokens, not both")
+    if action == "render":
+        if request_json is None:
+            raise ValueError("commands render requires --request-json")
+        try:
+            request = json.loads(request_json)
+        except json.JSONDecodeError as error:
+            raise ValueError("request JSON must be a JSON object") from error
+        if not isinstance(request, dict):
+            raise ValueError("request JSON must be a JSON object")
+        return _parsed_command(action=action, target_argv=[], request=request)
     if argv_json is not None:
         try:
             parsed = json.loads(argv_json)
@@ -572,10 +623,12 @@ def _parsed_command(
     allow_real_actions: bool = False,
     allow_network: bool = False,
     allow_external_tools: bool = False,
+    request: dict[str, object] | None = None,
 ) -> dict[str, object]:
     return {
         "action": action,
         "target_argv": target_argv,
+        "request": request or {},
         "allow_write": allow_write,
         "allow_workflow_outputs": allow_workflow_outputs,
         "allow_real_actions": allow_real_actions,
@@ -608,6 +661,226 @@ def _catalog_entry(entry: dict[str, object]) -> dict[str, object]:
         dict(parameter) for parameter in _PARAMETER_CATALOG.get(key, [])
     ]
     return payload
+
+
+def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
+    request = dict(parsed["request"])
+    target_argv = _render_target_argv(request)
+    recognized = recognize_cli_command(target_argv)
+    return {
+        "command": COMMAND_RENDER,
+        "schema_version": "1",
+        "status": "pass",
+        "summary": "Command argv rendered",
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "network_access": False,
+        "external_tools": False,
+        "request": request,
+        "target_argv": target_argv,
+        "recognized": recognized,
+        "blocking": [],
+        "warnings": [],
+    }
+
+
+def _render_target_argv(request: dict[str, object]) -> list[str]:
+    command = _required_string(request, "command")
+    subcommand = _optional_string(request, "subcommand")
+    if command == "doctor":
+        _reject_unknown_fields(request, {"command", "json"})
+        return _with_flags(["doctor"], request, {"json": "--json"})
+    if command in {"status", "next-step"}:
+        _reject_unknown_fields(request, {"command", "outdir"})
+        return [command, "--outdir", _required_string(request, "outdir")]
+    if command in {"verify-genus", "verify-release-genus"}:
+        allowed = {
+            "command",
+            "genus",
+            "outdir",
+            "dry_run",
+            "resume",
+            "report_only",
+            "enable_downloads",
+        }
+        _reject_unknown_fields(request, allowed)
+        argv = [
+            command,
+            _required_string(request, "genus"),
+            "--outdir",
+            _required_string(request, "outdir"),
+        ]
+        return _with_flags(
+            argv,
+            request,
+            {
+                "dry_run": "--dry-run",
+                "resume": "--resume",
+                "report_only": "--report-only",
+                "enable_downloads": "--enable-downloads",
+            },
+        )
+    if command == "package-results":
+        _reject_unknown_fields(request, {"command", "outdir", "include"})
+        argv = ["package-results", "--outdir", _required_string(request, "outdir")]
+        include = _optional_string(request, "include")
+        if include:
+            argv.extend(["--include", include])
+        return argv
+    if command == "manual-review":
+        if subcommand == "validate":
+            _reject_unknown_fields(
+                request, {"command", "subcommand", "input", "out", "force"}
+            )
+            argv = [
+                "manual-review",
+                "validate",
+                "--input",
+                _required_string(request, "input"),
+            ]
+            out = _optional_string(request, "out")
+            if out:
+                argv.extend(["--out", out])
+            return _with_flags(argv, request, {"force": "--force"})
+        if subcommand == "import":
+            _reject_unknown_fields(
+                request,
+                {
+                    "command",
+                    "subcommand",
+                    "input",
+                    "reconciler_audit",
+                    "write",
+                    "outdir",
+                    "force",
+                },
+            )
+            argv = [
+                "manual-review",
+                "import",
+                "--input",
+                _required_string(request, "input"),
+                "--reconciler-audit",
+                _required_string(request, "reconciler_audit"),
+            ]
+            if _bool_flag(request, "write"):
+                argv.append("--write")
+            outdir = _optional_string(request, "outdir")
+            if outdir:
+                argv.extend(["--outdir", outdir])
+            return _with_flags(argv, request, {"force": "--force"})
+    if command == "strict-gating" and subcommand == "evaluate":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "manual_review_dir",
+                "reconciler_audit",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "strict-gating",
+            "evaluate",
+            "--manual-review-dir",
+            _required_string(request, "manual_review_dir"),
+            "--reconciler-audit",
+            _required_string(request, "reconciler_audit"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "commands":
+        if subcommand == "catalog":
+            _reject_unknown_fields(request, {"command", "subcommand", "json"})
+            return _with_flags(["commands", "catalog"], request, {"json": "--json"})
+        if subcommand in {"recognize", "preflight"}:
+            _reject_unknown_fields(
+                request,
+                {
+                    "command",
+                    "subcommand",
+                    "target_argv",
+                    "allow_write",
+                    "allow_workflow_outputs",
+                    "allow_real_actions",
+                    "allow_network",
+                    "allow_external_tools",
+                },
+            )
+            target = _required_string_array(request, "target_argv")
+            argv = ["commands", subcommand, "--argv-json", json.dumps(target)]
+            if subcommand == "preflight":
+                argv = _with_flags(
+                    argv,
+                    request,
+                    {
+                        "allow_write": "--allow-write",
+                        "allow_workflow_outputs": "--allow-workflow-outputs",
+                        "allow_real_actions": "--allow-real-actions",
+                        "allow_network": "--allow-network",
+                        "allow_external_tools": "--allow-external-tools",
+                    },
+                )
+            return argv
+    raise ValueError("Unsupported command render request")
+
+
+def _required_string(request: dict[str, object], field: str) -> str:
+    value = request.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Request field {field!r} must be a non-empty string")
+    return value
+
+
+def _optional_string(request: dict[str, object], field: str) -> str | None:
+    value = request.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Request field {field!r} must be a non-empty string")
+    return value
+
+
+def _required_string_array(request: dict[str, object], field: str) -> list[str]:
+    value = request.get(field)
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"Request field {field!r} must be a non-empty string array")
+    if not all(isinstance(item, str) and item for item in value):
+        raise ValueError(f"Request field {field!r} must be a non-empty string array")
+    return list(value)
+
+
+def _bool_flag(request: dict[str, object], field: str) -> bool:
+    value = request.get(field, False)
+    if not isinstance(value, bool):
+        raise ValueError(f"Request field {field!r} must be a boolean")
+    return value
+
+
+def _with_flags(
+    argv: list[str],
+    request: dict[str, object],
+    flags: dict[str, str],
+) -> list[str]:
+    rendered = list(argv)
+    for field, flag in flags.items():
+        if _bool_flag(request, field):
+            rendered.append(flag)
+    return rendered
+
+
+def _reject_unknown_fields(request: dict[str, object], allowed: set[str]) -> None:
+    unknown = sorted(set(request) - allowed)
+    if unknown:
+        raise ValueError(f"Unsupported request fields: {', '.join(unknown)}")
 
 
 def _preflight_payload(parsed: dict[str, object]) -> dict[str, object]:
@@ -754,9 +1027,14 @@ def _preflight_warnings(risk: dict[str, object]) -> list[dict[str, object]]:
     return []
 
 
-def _failure(code: str, message: str) -> dict[str, object]:
+def _failure(
+    code: str,
+    message: str,
+    *,
+    command: str = COMMAND_RECOGNIZE,
+) -> dict[str, object]:
     return {
-        "command": COMMAND_RECOGNIZE,
+        "command": command,
         "schema_version": "1",
         "status": "failed",
         "summary": message,
