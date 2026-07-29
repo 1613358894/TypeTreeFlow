@@ -6,8 +6,10 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TextIO
 
+from typetreeflow.providers.base import ProviderContext
 from typetreeflow.providers.registry import build_default_provider_registry
 
 
@@ -86,6 +88,7 @@ def _entry_payload(entry) -> dict[str, object]:
         "gate_review_document": entry.gate_review_document,
         "adapter_present": entry.adapter is not None,
         "notes": _clean(entry.notes),
+        "guidance_notes": _guidance_notes(entry),
     }
 
 
@@ -111,6 +114,16 @@ def _failure(code: str, message: str) -> dict[str, object]:
 
 def _clean(value: str) -> str:
     return str(value or "").replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+
+def _guidance_notes(entry) -> list[str]:
+    if entry.adapter is None:
+        return []
+    try:
+        notes = entry.adapter.plan_notes(ProviderContext(outdir=Path(".")))
+    except Exception:
+        return ["provider_guidance=unavailable"]
+    return [_clean(note) for note in notes if str(note).strip()]
 
 
 def _emit(payload: dict[str, object], output: TextIO) -> None:

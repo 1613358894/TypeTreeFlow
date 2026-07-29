@@ -53,6 +53,9 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["record_count"] == 2
     assert payload["provider_key_counts"] == {"genbank": 1, "refseq": 1}
     assert payload["provider_status_counts"] == {"metadata_only": 2}
+    assert "provider_guidance=public_archive_metadata_review" in (
+        payload["handoff_preview"][0]["provider_guidance_notes"]
+    )
     assert payload["writes_outputs"] is False
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0

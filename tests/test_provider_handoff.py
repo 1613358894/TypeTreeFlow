@@ -73,6 +73,16 @@ def test_provider_handoff_serializers_are_stable_and_json_serializable():
     assert len(rows) == 3
     assert {row["audit_only"] for row in rows} == {"true"}
     assert {row["downloads_triggered"] for row in rows} == {"0"}
+    dsmz = next(row for row in rows if row["provider_key"] == "dsmz")
+    genbank = next(row for row in rows if row["provider_key"] == "genbank")
+    assert "provider_guidance=public_archive_metadata_review" in (
+        genbank["provider_guidance_notes"]
+    )
+    assert "provider_guidance=culture_collection_user_handoff" in (
+        dsmz["provider_guidance_notes"]
+    )
+    assert "download_action=none" in dsmz["provider_guidance_notes"]
+    assert "network_action=none" in genbank["provider_guidance_notes"]
 
 
 def test_coverage_fixture_uses_expected_schema():
