@@ -623,10 +623,12 @@ Provider planning writes review handoff tables and does not log in to ATCC
 Genome Portal, scrape pages, purchase access, accept terms, download FASTA,
 install files, write manifests, write NCBI download plans, or change completion
 metrics.
-The provider registry includes static planning-only or metadata-only entries
-for common culture collections and public archives so review rows can carry
-clear provider guidance. These entries still do not enable TypeTreeFlow network
-access or downloads.
+The provider registry includes static planning-only entries for ATCC Genome
+Portal and common culture collections including DSMZ, JCM, NCTC, CGMCC, NBRC,
+KCTC, CECT, CIP, CCUG, and BCCM/LMG, plus metadata-only public archive entries
+for ENA, DDBJ, GenBank, and NCBI RefSeq. Coverage planning can carry explicit
+provider hints from local rows into provider handoff. These entries and hints
+still do not enable TypeTreeFlow network access or downloads.
 
 ```bash
 typetreeflow register-external-genomes \

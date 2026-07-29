@@ -82,6 +82,14 @@ def _build_aliases(
             _alias_key("China General Microbiological Culture Collection Center"): "cgmcc",
             _alias_key("NBRC"): "nbrc",
             _alias_key("NITE Biological Resource Center"): "nbrc",
+            _alias_key("KCTC"): "kctc",
+            _alias_key("Korean Collection for Type Cultures"): "kctc",
+            _alias_key("CECT"): "cect",
+            _alias_key("Spanish Type Culture Collection"): "cect",
+            _alias_key("CIP"): "cip",
+            _alias_key("Collection de l'Institut Pasteur"): "cip",
+            _alias_key("CCUG"): "ccug",
+            _alias_key("Culture Collection University of Gothenburg"): "ccug",
             _alias_key("BCCM LMG"): "bccm_lmg",
             _alias_key("BCCM-LMG"): "bccm_lmg",
             _alias_key("LMG"): "bccm_lmg",
@@ -128,6 +136,26 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "nbrc",
             "NITE Biological Resource Center",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "kctc",
+            "Korean Collection for Type Cultures",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "cect",
+            "Spanish Type Culture Collection",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "cip",
+            "Collection de l'Institut Pasteur",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ccug",
+            "Culture Collection University of Gothenburg",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(

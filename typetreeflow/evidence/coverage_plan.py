@@ -10,8 +10,11 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping
+
+from typetreeflow.providers.registry import build_default_provider_registry
 
 
 COVERAGE_PLAN_SCHEMA_VERSION = "1"
@@ -109,6 +112,7 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
     reason = _value(row, "reason_code")
     species = _value(row, "species", "species_name", "full_name")
     input_artifacts = _value(row, "source_artifacts", "input_artifacts")
+    provider_keys = _provider_keys_from_row(row)
     if lane == "no_action_strict_complete":
         return CoveragePlanAction(
             priority=90,
@@ -137,7 +141,7 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
                 source_lane=lane,
                 action_code="review_public_archive_linkage",
                 action_label="Review public archive candidate against type-strain equivalence",
-                provider_keys="ddbj; ena; genbank; refseq",
+                provider_keys=provider_keys or "ddbj; ena; genbank; refseq",
                 required_input="public accession to type-strain direct evidence chain",
                 recommended_next_command="manual-review validate --input <review.tsv>",
                 input_artifacts=input_artifacts,
@@ -148,7 +152,7 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
             source_lane=lane,
             action_code="review_public_type_linkage",
             action_label="Review selected public genome linkage against type strain",
-            provider_keys="genbank; refseq",
+            provider_keys=provider_keys or "genbank; refseq",
             required_input="BioSample/accession to type-strain direct evidence chain",
             recommended_next_command="manual-review validate --input <review.tsv>",
             input_artifacts=input_artifacts,
@@ -171,7 +175,10 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
             source_lane=lane,
             action_code="prepare_provider_handoff",
             action_label="Prepare user-assisted provider handoff or record unresolved gap",
-            provider_keys="bccm_lmg; cgmcc; dsmz; jcm; nbrc; nctc",
+            provider_keys=(
+                provider_keys
+                or "atcc_genome_portal; bccm_lmg; cgmcc; dsmz; jcm; nbrc; nctc"
+            ),
             required_input="permitted local FASTA plus terms/license/provenance evidence",
             recommended_next_command="external-genomes register --input <external_genomes.tsv>",
             input_artifacts=input_artifacts,
@@ -194,6 +201,28 @@ def _sort_key(action: CoveragePlanAction) -> tuple[int, str]:
 
 def _split_keys(value: str) -> tuple[str, ...]:
     return tuple(part.strip() for part in value.split(";") if part.strip())
+
+
+def _provider_keys_from_row(row: Mapping[str, object]) -> str:
+    raw_keys = _value(
+        row,
+        "provider_keys",
+        "candidate_provider_keys",
+        "preferred_provider_keys",
+        "provider_key",
+    )
+    if not raw_keys:
+        return ""
+    registry = build_default_provider_registry()
+    provider_keys: list[str] = []
+    for raw_key in re.split(r"[;,|]", raw_keys):
+        cleaned = raw_key.strip()
+        if not cleaned:
+            continue
+        canonical = registry.get(cleaned).provider_key
+        if canonical and canonical not in provider_keys:
+            provider_keys.append(canonical)
+    return "; ".join(provider_keys)
 
 
 def _value(row: Mapping[str, object], *fields: str) -> str:
