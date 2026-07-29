@@ -463,6 +463,7 @@ _PROVIDER_TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("CECT", "cect"),
     ("CIP", "cip"),
     ("CCUG", "ccug"),
+    ("CCM", "ccm"),
     ("LMG", "bccm_lmg"),
 )
 _PROVIDER_HINT_ALIASES = {
@@ -478,6 +479,8 @@ _PROVIDER_HINT_ALIASES = {
     "cect": "cect",
     "cip": "cip",
     "ccug": "ccug",
+    "ccm": "ccm",
+    "czech collection of microorganisms": "ccm",
     "lmg": "bccm_lmg",
     "bccm lmg": "bccm_lmg",
     "bccm-lmg": "bccm_lmg",

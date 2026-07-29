@@ -90,6 +90,8 @@ def _build_aliases(
             _alias_key("Collection de l'Institut Pasteur"): "cip",
             _alias_key("CCUG"): "ccug",
             _alias_key("Culture Collection University of Gothenburg"): "ccug",
+            _alias_key("CCM"): "ccm",
+            _alias_key("Czech Collection of Microorganisms"): "ccm",
             _alias_key("BCCM LMG"): "bccm_lmg",
             _alias_key("BCCM-LMG"): "bccm_lmg",
             _alias_key("LMG"): "bccm_lmg",
@@ -156,6 +158,11 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "ccug",
             "Culture Collection University of Gothenburg",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ccm",
+            "Czech Collection of Microorganisms",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(
