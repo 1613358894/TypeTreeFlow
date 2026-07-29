@@ -1,15 +1,17 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.39 release batches the P3f guarded strict-gating
-audit-only workflow: a standalone `strict-gating evaluate` CLI with dry-run
-and optional audit-triplet write, fail-closed blocker checks, an explicit
-`Strict Gating Audit` report section via `--strict-gating-dir`, and package
-support for recognized artifacts under `strict_gating/` with audit-only
-`artifact_scope.tsv` rows. `strict_gate_passed=true` means only that evaluator
-guards passed. `strict_deliverable_written=false` and
-`strict_upgrade_applied=false` remain the contract, and no strict deliverable
-materialization is included. The release preserves the v2.2.38 P3e
+workflow. The current 2.2.40 release batches the P5 offline AI-control and
+coverage-planning surfaces: count crosswalks, curator-packet preflight,
+strict-gate state projection, acquisition worklist review signals, an isolated
+`archive-candidates build` audit triplet, read-only archive-candidate
+worklist integration, static provider registry metadata, a read-only
+`providers catalog` CLI, and command rendering for acquisition worklist
+archive-candidate inputs. Public archive and provider registry entries remain
+planning or metadata surfaces only; they do not contact providers, download
+genomes, write `external_genomes.tsv`, change manifests, change completion
+metrics, or promote strict type-strain evidence. The release preserves the
+v2.2.39 P3f guarded strict-gating audit-only workflow, the v2.2.38 P3e
 manual-review audit-only pipeline, the v2.2.37 report-only ordering fix, the
 v2.2.36 audit-only reconciler package inclusion, the v2.2.35 compact
 audit-only report section, the
@@ -146,7 +148,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.39 workflow
+## Recommended v2.2.40 workflow
 
 Plan first:
 
@@ -289,6 +291,14 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/expanded_discovery_history.tsv`,
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
+
+The v2.2.40 release record batches the P5 offline AI-control and
+coverage-planning surfaces. `archive-candidates build` writes only an isolated
+review triplet, acquisition worklists may read those candidate rows as
+review-only signals, `providers catalog` exposes provider metadata without
+provider contact, and command rendering can plan the corresponding offline
+commands. These surfaces do not claim live-provider validation, downloads,
+strict evidence promotion, or strict deliverable materialization.
 
 The v2.2.39 release record batches the P3f guarded strict-gating audit-only
 workflow. Release evidence is retained outside the repository at
