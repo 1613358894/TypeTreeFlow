@@ -125,6 +125,16 @@ automatic strict use with `conflict_blocked` and
 `requires_manual_review=true`. A conflicting row must not be rescued by another
 source's type-material claim until a curator records resolved equivalence.
 
+Public archive candidate audits are offline review surfaces only. The
+`archive-candidates build` CLI may normalize already collected ENA, DDBJ,
+INSDC, GenBank, RefSeq, or similar public archive metadata into isolated audit
+files for linkage review, but it must not query archives, download genomes,
+write `external_genomes.tsv`, mutate manifests, or create completion credit.
+Archive `type material` signals, assembly/BioSample flags, organism names,
+strain text, and culture-collection token overlap remain candidate evidence
+until strict selected-genome linkage to the species type-strain equivalence set
+is established and conflicts are resolved.
+
 Offline manual-review decision TSV validation is a curator dry run, not an
 automatic strict-upgrade path. Unknown decisions and incomplete provenance are
 blocked. `curated_strict_confirmed` additionally requires an exact selected

@@ -83,12 +83,14 @@ def run_acquisition_worklist_command(
     reconciler = _read_optional_tsv(args.reconciler_audit_tsv, "reconciler_audit", diagnostics)
     gaps = _read_optional_tsv(args.completion_gaps_tsv, "completion_gaps", diagnostics)
     external = _read_optional_tsv(args.external_genomes_tsv, "external_genomes", diagnostics)
+    archive = _read_optional_tsv(args.archive_candidates_tsv, "archive_candidates", diagnostics)
     try:
         report = build_acquisition_worklist(
             checklist_rows=checklist,
             reconciler_rows=reconciler,
             completion_gap_rows=gaps,
             external_rows=external,
+            archive_candidate_rows=archive,
         )
     except Exception:
         _emit(_failure("internal_error", "Acquisition worklist build failed unexpectedly"), output)
@@ -107,6 +109,7 @@ def run_acquisition_worklist_command(
                         args.reconciler_audit_tsv,
                         args.completion_gaps_tsv,
                         args.external_genomes_tsv,
+                        args.archive_candidates_tsv,
                     )
                     if value is not None
                 ),
@@ -149,6 +152,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--reconciler-audit-tsv")
     build.add_argument("--completion-gaps-tsv")
     build.add_argument("--external-genomes-tsv")
+    build.add_argument("--archive-candidates-tsv")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")

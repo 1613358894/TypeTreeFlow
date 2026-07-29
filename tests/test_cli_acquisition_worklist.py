@@ -27,6 +27,7 @@ def _inputs(tmp_path):
     audit = tmp_path / "reconciler.tsv"
     gaps = tmp_path / "gaps.tsv"
     external = tmp_path / "external.tsv"
+    archive = tmp_path / "archive.tsv"
     _write_tsv(
         checklist,
         ["full_name"],
@@ -34,6 +35,7 @@ def _inputs(tmp_path):
             {"full_name": "Clostridium strictum"},
             {"full_name": "Clostridium conflictum"},
             {"full_name": "Clostridium externum"},
+            {"full_name": "Clostridium archiveum"},
         ],
     )
     _write_tsv(
@@ -72,10 +74,21 @@ def _inputs(tmp_path):
         ["species", "status"],
         [{"species": "Clostridium externum", "status": "ready_for_registration"}],
     )
-    return checklist, audit, gaps, external
+    _write_tsv(
+        archive,
+        ["species", "candidate_status", "assembly_accession"],
+        [
+            {
+                "species": "Clostridium archiveum",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "assembly_accession": "GCA_0009.1",
+            }
+        ],
+    )
+    return checklist, audit, gaps, external, archive
 
 
-def _args(checklist, audit, gaps, external, *extra):
+def _args(checklist, audit, gaps, external, archive, *extra):
     return [
         "--checklist-tsv",
         str(checklist),
@@ -85,6 +98,8 @@ def _args(checklist, audit, gaps, external, *extra):
         str(gaps),
         "--external-genomes-tsv",
         str(external),
+        "--archive-candidates-tsv",
+        str(archive),
         *extra,
     ]
 
@@ -102,12 +117,13 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
     assert captured.out.count("\n") == 1
     assert payload["command"] == "acquisition-worklist build"
     assert payload["status"] == "pass"
-    assert payload["record_count"] == 3
+    assert payload["record_count"] == 4
     assert payload["lane_counts"]["no_action_strict_complete"] == 1
     assert payload["lane_counts"]["curator_conflict_resolution"] == 1
     assert payload["lane_counts"]["external_registration_ready"] == 1
     assert payload["review_signal_counts"]["selected_accession"] == 2
     assert payload["review_signal_counts"]["external_registration_ready"] == 1
+    assert payload["review_signal_counts"]["archive_candidate_review"] == 1
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False

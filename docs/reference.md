@@ -1155,8 +1155,9 @@ strains or as missing genomes.
 Acquisition worklists built by
 `typetreeflow.evidence.acquisition_worklist` are pure offline review queues.
 They combine already available checklist, reconciler, completion-gap, and
-external-genome rows and assign at most one lane per species. The TSV field
-order is `schema_version`, `species`, `lane`, `selected_accession`,
+external-genome rows plus optional archive-candidate audit rows and assign at
+most one lane per species. The TSV field order is `schema_version`, `species`,
+`lane`, `selected_accession`,
 `reconciled_evidence_tier`, `reason_code`, `recommended_action`,
 `source_artifacts`, `audit_only`, and `strict_scientific_deliverable`.
 Supported lanes are `no_action_strict_complete`,
@@ -1168,14 +1169,44 @@ external-ready lanes. The summary preserves `downloads_triggered=0`,
 additive `review_signal_counts` for triage signals such as selected accession,
 strict usable, conflict blocked, NCBI type-material candidate, authoritative
 type-material candidate, BacDive/DSMZ candidate, BioSample linkage review,
-missing public genome, and external-registration-ready rows. These counts are
-review hints only and do not change lane, completion, provider, or download
-semantics.
+archive candidate review, missing public genome, and external-registration-ready
+rows. These counts are review hints only and do not change lane, completion,
+provider, or download semantics.
+
+Archive candidate audits built by
+`typetreeflow.evidence.archive_candidates` are isolated public-linkage review
+surfaces. Input rows use `species`, `strain`, `type_strain_id`,
+`archive_source`, `archive_source_name`, `assembly_accession`,
+`biosample_accession`, `nuccore_accession`, `wgs_accession`, `organism_name`,
+`strain_designation`, `culture_collection_tokens`,
+`archive_type_material_signal`, `lpsn_token_overlap`, `source_url`, and
+`evidence_notes`. The generated `archive_candidates.tsv` prepends
+`schema_version` and appends `candidate_status`, `requires_manual_review`,
+`recommended_action`, `audit_only`, and `strict_scientific_deliverable`.
+Supported statuses are `archive_candidate_for_public_linkage_review`,
+`archive_candidate_insufficient_type_linkage`, `archive_candidate_conflict`,
+`archive_candidate_missing_accession`, and `archive_candidate_malformed`.
+Archive candidate summaries always preserve `downloads_triggered=0`,
+`providers_contacted=0`, `manifest_mutated=false`, `audit_only=true`, and
+`strict_scientific_deliverable=false`.
+
+The isolated archive candidate CLI adapter is:
+
+```text
+typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv> [--json] [--write --outdir <dir> [--force]]
+```
+
+Without `--write`, it writes nothing. With `--write`, it writes only
+`archive_candidates.tsv`, `archive_candidates_summary.json`, and
+`archive_candidates_diagnostics.tsv` into the explicitly supplied isolated
+directory. It does not query public archives, write `external_genomes.tsv`,
+mutate workflow outputs, contact providers, trigger downloads, or grant strict
+type-strain status.
 
 The isolated CLI adapter is:
 
 ```text
-typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-audit-tsv <tsv>] [--completion-gaps-tsv <tsv>] [--external-genomes-tsv <tsv>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-audit-tsv <tsv>] [--completion-gaps-tsv <tsv>] [--external-genomes-tsv <tsv>] [--archive-candidates-tsv <tsv>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named TSV files and emits exactly one compact

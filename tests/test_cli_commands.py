@@ -197,6 +197,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("readiness", "evaluate"),
         ("acquisition-worklist", "build"),
         ("count-crosswalk", "build"),
+        ("archive-candidates", "build"),
         ("curator-packet", "preflight"),
         ("strict-gate-state", "project"),
         ("commands", "recognize"),
@@ -309,6 +310,39 @@ def test_commands_render_emits_normalized_count_crosswalk_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "count-crosswalk"
     assert payload["recognized"]["mode"] == "count_crosswalk"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"archive-candidates","subcommand":"build",'
+                    '"input_tsv":"archive.tsv","write":true,'
+                    '"outdir":"archive","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "archive-candidates",
+        "build",
+        "--input-tsv",
+        "archive.tsv",
+        "--write",
+        "--outdir",
+        "archive",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "archive-candidates"
+    assert payload["recognized"]["mode"] == "archive_candidates"
     assert payload["recognized"]["requires_outdir"] is True
 
 
@@ -578,6 +612,29 @@ def test_commands_preflight_allows_count_crosswalk_write_with_write_allowance(ca
     assert payload["recognized"]["is_count_crosswalk"] is True
 
 
+def test_commands_preflight_allows_archive_candidate_write_with_write_allowance(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--argv-json",
+                (
+                    '["archive-candidates","build","--input-tsv","archive.tsv",'
+                    '"--write","--outdir","archive"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["risk"]["workflow_outputs_declared"] is False
+    assert payload["recognized"]["is_archive_candidates"] is True
+
+
 def test_commands_preflight_allows_curator_packet_write_with_write_allowance(capsys):
     assert (
         main(
@@ -732,6 +789,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_readiness": False,
         "is_acquisition_worklist": False,
         "is_count_crosswalk": False,
+        "is_archive_candidates": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,
         "writes_outputs_declared": False,

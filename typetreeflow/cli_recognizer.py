@@ -17,6 +17,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "readiness",
         "acquisition-worklist",
         "count-crosswalk",
+        "archive-candidates",
         "curator-packet",
         "strict-gate-state",
         "commands",
@@ -27,6 +28,7 @@ _STRICT_GATING_SUBCOMMANDS = {"evaluate"}
 _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
 _COUNT_CROSSWALK_SUBCOMMANDS = {"build"}
+_ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
 _COMMANDS_SUBCOMMANDS = {"catalog", "plan", "preflight", "recognize", "render"}
@@ -50,6 +52,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_readiness = first == "readiness"
     is_acquisition_worklist = first == "acquisition-worklist"
     is_count_crosswalk = first == "count-crosswalk"
+    is_archive_candidates = first == "archive-candidates"
     is_curator_packet = first == "curator-packet"
     is_strict_gate_state = first == "strict-gate-state"
     unknown = False
@@ -78,6 +81,15 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         unknown = (
             subcommand is not None
             and subcommand not in _COUNT_CROSSWALK_SUBCOMMANDS
+        )
+    elif is_archive_candidates:
+        command = "archive-candidates"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "archive_candidates"
+        invalid = subcommand not in _ARCHIVE_CANDIDATES_SUBCOMMANDS
+        unknown = (
+            subcommand is not None
+            and subcommand not in _ARCHIVE_CANDIDATES_SUBCOMMANDS
         )
     elif is_curator_packet:
         command = "curator-packet"
@@ -162,6 +174,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_readiness": is_readiness,
         "is_acquisition_worklist": is_acquisition_worklist,
         "is_count_crosswalk": is_count_crosswalk,
+        "is_archive_candidates": is_archive_candidates,
         "is_curator_packet": is_curator_packet,
         "is_strict_gate_state": is_strict_gate_state,
         "writes_outputs_declared": writes_outputs_declared,
@@ -223,6 +236,8 @@ def _writes_outputs_declared(
         return subcommand == "build" and "--write" in tokens
     if command == "count-crosswalk":
         return subcommand == "build" and "--write" in tokens
+    if command == "archive-candidates":
+        return subcommand == "build" and "--write" in tokens
     if command == "curator-packet":
         return subcommand == "preflight" and "--write" in tokens
     if command == "strict-gate-state":
@@ -256,6 +271,8 @@ def _requires_outdir(
     if command == "acquisition-worklist":
         return subcommand == "build" and writes_outputs_declared
     if command == "count-crosswalk":
+        return subcommand == "build" and writes_outputs_declared
+    if command == "archive-candidates":
         return subcommand == "build" and writes_outputs_declared
     if command == "curator-packet":
         return subcommand == "preflight" and writes_outputs_declared
