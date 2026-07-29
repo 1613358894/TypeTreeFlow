@@ -183,6 +183,15 @@ def build_app_config_from_args(
             "or package-results."
         )
     if (
+        args.coverage_pipeline_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
+        raise ValueError(
+            "--coverage-pipeline-dir is only supported with --report-only "
+            "or package-results."
+        )
+    if (
         args.offline_readiness_dir is not None
         and not args.report_only
         and not package_results_command
@@ -302,6 +311,7 @@ def build_app_config_from_args(
         acquisition_worklist_dir=args.acquisition_worklist_dir,
         coverage_plan_dir=args.coverage_plan_dir,
         provider_handoff_dir=args.provider_handoff_dir,
+        coverage_pipeline_dir=args.coverage_pipeline_dir,
         offline_readiness_dir=args.offline_readiness_dir,
         strict_gating_dir=args.strict_gating_dir,
     )

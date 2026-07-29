@@ -145,6 +145,11 @@ writes nothing. `build --write` publishes only isolated `acquisition_worklist/`,
 members under the requested directory. It remains audit-only: no workflow
 outputs, provider contacts, downloads, manifest mutation, completion credit, or
 strict deliverable promotion.
+Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
+`--report-only` or `package-results --include reports|all` to hand off that
+directory as one explicit read-only input. TypeTreeFlow derives only its
+`acquisition_worklist/`, `coverage_plan/`, and `provider_handoff/`
+subdirectories; it does not scan workflow outputs or rerun the pipeline.
 
 Build a denominator-preserving crosswalk for already known counts with:
 
@@ -439,6 +444,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --coverage-pipeline-dir <isolated-coverage-pipeline-directory>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --offline-readiness-dir <isolated-readiness-directory>
 
 typetreeflow package-results \
@@ -498,6 +508,13 @@ These files are audit-only: provider handoff rows mean AI/operator provider
 planning availability, not provider contact, authentication, terms acceptance,
 download execution, manifest mutation, completion credit, or strict deliverable
 promotion. `--failed-handoff` excludes provider-handoff artifacts.
+With an explicit `--coverage-pipeline-dir`, `--include reports` and
+`--include all` derive `acquisition_worklist/`, `coverage_plan/`, and
+`provider_handoff/` under the isolated pipeline directory, then apply the same
+copy and artifact-scope contracts as the three individual directory options.
+This is a convenience handoff only; it does not scan workflow outputs, rerun
+the pipeline, contact providers, trigger downloads, or change scientific
+status.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,
@@ -573,6 +590,13 @@ scanning the workflow outdir, contacting providers, authenticating, accepting
 terms, or triggering downloads. A missing or empty directory omits
 `## Provider Handoff Audit`; partial or malformed input keeps report
 generation successful and shows a compact warning.
+
+If all three artifacts were generated together by `coverage-pipeline build`,
+pass `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
+`--report-only` instead of naming the three component directories separately.
+The command derives only `acquisition_worklist/`, `coverage_plan/`, and
+`provider_handoff/` under that explicit directory. Individually supplied
+component directories take precedence when both forms are present.
 
 To include a previously generated offline readiness projection in the
 refreshed report, pass `--offline-readiness-dir <isolated-readiness-directory>`

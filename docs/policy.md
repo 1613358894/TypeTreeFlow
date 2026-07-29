@@ -343,6 +343,11 @@ write workflow outputs, discover workflow outputs, read credentials, contact
 providers, authenticate, accept terms, trigger downloads, mutate manifests,
 change completion metrics, or reinterpret planning rows as strict scientific
 deliverables.
+The optional `--coverage-pipeline-dir` report/package surface is only a
+convenience handoff for that isolated directory. It may derive the three
+known component subdirectories under the explicitly supplied path, but it must
+not scan workflow outputs, rerun planning, contact providers, trigger
+downloads, or change any scientific status.
 
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic

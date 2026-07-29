@@ -569,6 +569,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--coverage-pipeline-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing coverage-pipeline "
+            "acquisition_worklist, coverage_plan, and provider_handoff "
+            "subdirectories for --report-only audit reporting or "
+            "package-results; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--offline-readiness-dir",
         type=Path,
         help=(
