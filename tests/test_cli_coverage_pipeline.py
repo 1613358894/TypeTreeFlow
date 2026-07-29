@@ -136,6 +136,15 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0
     assert payload["provider_default_network_enabled_count"] == 0
+    assert payload["provider_request_record_count"] == 8
+    assert payload["provider_request_provider_key_counts"] == {
+        "ddbj": 1,
+        "dsmz": 1,
+        "ena": 1,
+        "genbank": 2,
+        "kctc": 1,
+        "refseq": 2,
+    }
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
@@ -146,6 +155,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert "provider_guidance=public_archive_metadata_review" in (
         payload["provider_handoff_preview"][0]["provider_guidance_notes"]
     )
+    assert payload["provider_request_preview"][0]["requires_manual_review"] == "true"
+    assert payload["provider_request_preview"][0]["local_fasta_path"] == ""
 
 
 def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
@@ -239,9 +250,11 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert (outdir / "acquisition_worklist" / "acquisition_worklist.tsv").exists()
     assert (outdir / "coverage_plan" / "coverage_plan.tsv").exists()
     assert (outdir / "provider_handoff" / "provider_handoff.tsv").exists()
+    assert (outdir / "provider_request" / "provider_request.tsv").exists()
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["command"] == "coverage-pipeline build"
     assert summary["provider_handoff_record_count"] == 8
+    assert summary["provider_request_record_count"] == 8
     assert summary["provider_terms_review_required_count"] == 8
     assert summary["provider_network_supported_count"] == 0
     assert summary["worklist_candidate_provider_key_counts"] == {

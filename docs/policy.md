@@ -354,13 +354,13 @@ deliverables.
 
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
-plan, and provider handoff. It may read only explicitly named local TSV files
-and emit compact JSON counts/previews. In explicit write mode it may publish
-only isolated planning artifacts under the requested directory. It must not
-write workflow outputs, discover workflow outputs, read credentials, contact
-providers, authenticate, accept terms, trigger downloads, mutate manifests,
-change completion metrics, or reinterpret planning rows as strict scientific
-deliverables.
+plan, provider handoff, and provider request draft. It may read only explicitly
+named local TSV files and emit compact JSON counts/previews. In explicit write
+mode it may publish only isolated planning artifacts under the requested
+directory. It must not write workflow outputs, discover workflow outputs, read
+credentials, contact providers, authenticate, accept terms, trigger downloads,
+mutate manifests, change completion metrics, or reinterpret planning rows as
+strict scientific deliverables.
 The optional `--coverage-pipeline-dir` report/package surface is only a
 convenience handoff for that isolated directory. It may derive the three
 known component subdirectories under the explicitly supplied path, but it must

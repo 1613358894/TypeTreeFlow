@@ -152,18 +152,21 @@ typetreeflow coverage-pipeline build \
   --write --outdir <isolated-coverage-pipeline-directory>
 ```
 
-The pipeline builds the same acquisition worklist, coverage action plan, and
-provider handoff artifacts that the individual adapters would build. `preview`
+The pipeline builds the same acquisition worklist, coverage action plan,
+provider handoff, and provider request draft artifacts that the individual
+adapters would build. `preview`
 writes nothing. Its compact JSON includes `coverage_next_action_groups`, a
 priority-ordered summary of action counts, source lanes, provider keys, and
 recommended next commands for AI/operator routing. It also carries
 `worklist_candidate_provider_key_counts` from the worklist layer so AI/operator
-handoff pressure is visible before reading the nested artifacts. `build
---write` publishes
-only isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
-and `coverage_pipeline_summary.json` members under the requested directory. It
-remains audit-only: no workflow outputs, provider contacts, downloads,
-manifest mutation, completion credit, or strict deliverable promotion.
+handoff pressure is visible before reading the nested artifacts. It also
+reports provider request draft counts so the next `plan-provider-registration`
+handoff is visible in one compact JSON object. `build --write` publishes only
+isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
+`provider_request/`, and `coverage_pipeline_summary.json` members under the
+requested directory. It remains audit-only: no workflow outputs, provider
+contacts, downloads, manifest mutation, completion credit, or strict
+deliverable promotion.
 When missing-public-genome rows contain explicit provider hints or recognizable
 culture-collection tokens, the worklist may carry `candidate_provider_keys` so
 the coverage plan can route provider handoff more precisely. Those keys remain
@@ -174,7 +177,9 @@ Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 `--report-only` or `package-results --include reports|all` to hand off that
 directory as one explicit read-only input. TypeTreeFlow derives only its
 `acquisition_worklist/`, `coverage_plan/`, and `provider_handoff/`
-subdirectories; it does not scan workflow outputs or rerun the pipeline.
+subdirectories; it does not scan workflow outputs or rerun the pipeline. The
+generated `provider_request/` member is a draft input for
+`plan-provider-registration`, not a report/package surface.
 
 Build a denominator-preserving crosswalk for already known counts with:
 
