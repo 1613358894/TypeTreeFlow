@@ -1004,6 +1004,10 @@ def main(
         is_providers_command,
         run_providers_command,
     )
+    from typetreeflow.provider_handoff_cli import (
+        is_provider_handoff_command,
+        run_provider_handoff_command,
+    )
     from typetreeflow.curator_packet_cli import (
         is_curator_packet_command,
         run_curator_packet_command,
@@ -1031,6 +1035,8 @@ def main(
         return run_archive_candidates_command(command_argv)
     if is_coverage_plan_command(command_argv):
         return run_coverage_plan_command(command_argv)
+    if is_provider_handoff_command(command_argv):
+        return run_provider_handoff_command(command_argv)
     if is_providers_command(command_argv):
         return run_providers_command(command_argv)
     if is_curator_packet_command(command_argv):
