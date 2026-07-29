@@ -101,8 +101,10 @@ typetreeflow coverage-plan build --worklist-tsv <acquisition_worklist.tsv> \
 The command is an AI planning aid only. It ranks conflict resolution, public
 archive linkage review, public type-linkage review, external registration
 review, provider handoff preparation, local-evidence construction, and
-already-strict records without contacting providers, downloading genomes,
-mutating manifests, or claiming strict scientific delivery.
+already-strict records from a matching acquisition-worklist schema. Wrong-schema
+or boundary-violating worklists are blocked rather than reinterpreted. The
+command does not contact providers, download genomes, mutate manifests, or
+claim strict scientific delivery.
 
 Turn coverage-plan provider keys into a provider-specific offline handoff:
 

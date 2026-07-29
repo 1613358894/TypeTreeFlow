@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 from typetreeflow import cli
+from typetreeflow.evidence.acquisition_worklist import ACQUISITION_WORKLIST_FIELDS
 
 
 def _run(args, capsys):
@@ -16,13 +17,8 @@ def _run(args, capsys):
 
 def _write_worklist(path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    fields = [
-        "species",
-        "lane",
-        "reason_code",
-        "source_artifacts",
-    ]
-    rows = [
+    rows = []
+    for updates in (
         {
             "species": "Clostridium conflictum",
             "lane": "curator_conflict_resolution",
@@ -41,9 +37,24 @@ def _write_worklist(path: Path):
             "reason_code": "no_public_strict_genome_linkage",
             "source_artifacts": "completion_gaps",
         },
-    ]
+    ):
+        row = {field: "" for field in ACQUISITION_WORKLIST_FIELDS}
+        row.update(
+            {
+                "schema_version": "1",
+                "audit_only": "true",
+                "strict_scientific_deliverable": "false",
+                **updates,
+            }
+        )
+        rows.append(row)
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t", lineterminator="\n")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=ACQUISITION_WORKLIST_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -80,6 +91,39 @@ def test_coverage_plan_missing_input_blocks(capsys):
     codes = {diagnostic["diagnostic_code"] for diagnostic in payload["diagnostics"]}
     assert "input_unreadable" in codes
     assert "no_worklist_rows" in codes
+
+
+def test_coverage_plan_blocks_unexpected_or_boundary_violating_worklist(
+    tmp_path, capsys
+):
+    worklist = tmp_path / "worklist.tsv"
+    worklist.write_text("species\tlane\nClostridium badum\tnot_evaluated\n")
+
+    code, payload, _ = _run(["--worklist-tsv", str(worklist)], capsys)
+
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "unexpected_header"
+
+    _write_worklist(worklist)
+    with worklist.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    rows[0]["audit_only"] = "false"
+    with worklist.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=ACQUISITION_WORKLIST_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    code, payload, _ = _run(["--worklist-tsv", str(worklist)], capsys)
+
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "worklist_boundary_violation"
 
 
 def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):

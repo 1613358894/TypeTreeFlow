@@ -296,9 +296,10 @@ credit, or strict deliverable promotion.
 
 The `coverage-plan build` CLI remains an isolated adapter. It may read only an
 explicit acquisition worklist TSV, and in explicit write mode it may publish
-only its isolated coverage-plan pair. It must not scan workflow directories,
-read environment credentials, package raw curator/provider data, or convert a
-recommended action into an executed provider/download action.
+only its isolated coverage-plan pair. Wrong-schema or boundary-violating
+worklists must be blocked rather than reinterpreted. It must not scan workflow
+directories, read environment credentials, package raw curator/provider data,
+or convert a recommended action into an executed provider/download action.
 The optional report-only `--coverage-plan-dir` surface is a passive reader over
 that pair. It may display compact counts, action totals, and provider-key
 totals in `report/summary.md`, but it must not display raw row-level action
