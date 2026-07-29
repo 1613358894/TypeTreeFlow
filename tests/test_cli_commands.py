@@ -202,6 +202,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("archive-candidates", "build"),
         ("coverage-plan", "build"),
         ("provider-handoff", "build"),
+        ("provider-request", "draft"),
         ("providers", "catalog"),
         ("curator-packet", "preflight"),
         ("strict-gate-state", "project"),
@@ -504,6 +505,39 @@ def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "provider-handoff"
     assert payload["recognized"]["mode"] == "provider_handoff"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_provider_request_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"provider-request","subcommand":"draft",'
+                    '"provider_handoff_tsv":"handoff.tsv","write":true,'
+                    '"outdir":"requests","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        "handoff.tsv",
+        "--write",
+        "--outdir",
+        "requests",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "provider-request"
+    assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["requires_outdir"] is True
 
 
@@ -973,6 +1007,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_archive_candidates": False,
         "is_coverage_plan": False,
         "is_provider_handoff": False,
+        "is_provider_request": False,
         "is_providers": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,

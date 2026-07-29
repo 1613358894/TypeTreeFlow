@@ -202,6 +202,16 @@ _CATALOG_ENTRIES = (
         "boundary": "provider handoff planning only; no provider contact or downloads",
     },
     {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "mode": "provider_request",
+        "argv_pattern": "typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_pair",
+        "requires_outdir": False,
+        "boundary": "provider request draft only; no provider contact or downloads",
+    },
+    {
         "command": "providers",
         "subcommand": "catalog",
         "mode": "provider_metadata",
@@ -749,6 +759,36 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated provider handoff pair",
+        },
+    ],
+    ("provider-request", "draft"): [
+        {
+            "name": "--provider-handoff-tsv",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "offline provider handoff TSV input",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated provider request draft outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated provider request draft output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated provider request draft pair",
         },
     ],
     ("providers", "catalog"): [
@@ -1486,6 +1526,30 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "build",
             "--coverage-plan-tsv",
             _required_string(request, "coverage_plan_tsv"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "provider-request" and subcommand == "draft":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "provider_handoff_tsv",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "provider-request",
+            "draft",
+            "--provider-handoff-tsv",
+            _required_string(request, "provider_handoff_tsv"),
         ]
         if _bool_flag(request, "write"):
             argv.append("--write")

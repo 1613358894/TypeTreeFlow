@@ -341,6 +341,17 @@ AI/operator provider planning availability, not provider execution, download
 readiness, completion credit, manifest mutation, or strict deliverable
 promotion. Failed-handoff packages exclude these provider-handoff artifacts.
 
+The `provider-request draft` CLI remains an isolated adapter over an explicit
+`provider_handoff.tsv`. It may produce only a review-only
+`provider_request.tsv` plus a summary JSON in an explicit isolated output
+directory. Draft rows are intentionally incomplete: curator-owned strain,
+type-strain ID, provider record, local FASTA, hash, license, retrieval, and
+curator fields must remain blank until separately reviewed. The command must
+not scan workflow directories, read credentials, contact providers,
+authenticate, accept terms, trigger downloads, mutate manifests, change
+completion metrics, or reinterpret provider handoff rows as strict scientific
+deliverables.
+
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
 plan, and provider handoff. It may read only explicitly named local TSV files
