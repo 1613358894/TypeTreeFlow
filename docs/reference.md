@@ -1491,6 +1491,14 @@ outputs preserve the failure for review instead of waiting indefinitely.
 `provider/proposed_external_genomes.tsv` rows remain review-only.
 `proposed_external_genomes.tsv` is always a review-only handoff table and its
 rows are always `external_genome_manual_review_required`.
+`--register-external-genomes <external_genomes.tsv>` emits one compact JSON
+object on stdout. The payload reports registration-result, valid/invalid,
+install-plan, install-result, and manifest record counts plus the stable
+boundary fields `downloads_triggered=0`, `providers_contacted=0`,
+`network_access=false`, `external_tools=false`, and
+`strict_scientific_deliverable=false`. In `--dry-run` mode,
+`manifest_mutated=false`; in non-dry-run mode it becomes true only when
+manifest/name-map records are actually written.
 
 ## Stable Boundaries
 

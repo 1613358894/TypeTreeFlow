@@ -77,6 +77,9 @@ from typetreeflow.external.tools import (
     require_iqtree_executable,
 )
 from typetreeflow.external_genomes import (
+    ExternalGenomeInstallPlanItem,
+    ExternalGenomeInstallResult,
+    ExternalGenomeRegistrationResult,
     build_external_genome_install_plan,
     execute_external_genome_install_plan,
     external_install_results_to_strain_records,
@@ -286,6 +289,18 @@ class ProviderRegistrationPlanningResult:
     proposed_path: Path
     plan_rows: list[ProviderRegistrationPlanRecord]
     proposed_rows: list[ProposedExternalGenomeRecord]
+
+
+@dataclass(frozen=True)
+class ExternalGenomeRegistrationStageResult:
+    exit_code: int
+    registration_results_path: Path
+    install_plan_path: Path
+    registration_results: list[ExternalGenomeRegistrationResult]
+    install_plan: list[ExternalGenomeInstallPlanItem]
+    install_results_path: Path | None = None
+    install_results: list[ExternalGenomeInstallResult] = field(default_factory=list)
+    manifest_record_count: int = 0
 
 
 class CrossGenusOutdirError(ValueError):
@@ -1174,7 +1189,32 @@ def main(
                 )
                 return 0
             if config.register_external_genomes is not None:
-                return run_external_genome_registration_stage(paths, config)
+                try:
+                    result = run_external_genome_registration_stage(paths, config)
+                except (ValueError, RuntimeError) as error:
+                    run_error = error
+                    exit_code = 2
+                    LOGGER.error("%s", error)
+                    print(
+                        _format_external_genome_registration_envelope(
+                            paths,
+                            config,
+                            result=None,
+                            error=error,
+                        ),
+                        file=original_stdout,
+                    )
+                    return 2
+                print(
+                    _format_external_genome_registration_envelope(
+                        paths,
+                        config,
+                        result=result,
+                        error=None,
+                    ),
+                    file=original_stdout,
+                )
+                return result.exit_code
             if should_reuse_manifest(config.outdir, config.resume, config.force):
                 records = load_existing_manifest(config.outdir)
                 _run_resume_from_manifest(
@@ -4651,7 +4691,10 @@ def run_selection_read_stage(config: AppConfig) -> list[str]:
     return selected_accessions
 
 
-def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
+def run_external_genome_registration_stage(
+    paths,
+    config: AppConfig,
+) -> ExternalGenomeRegistrationStageResult:
     if config.force and config.merge_manifest:
         raise ValueError("--merge-manifest and --force cannot be used together.")
 
@@ -4696,7 +4739,13 @@ def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
         ),
     )
     if config.dry_run:
-        return 0
+        return ExternalGenomeRegistrationStageResult(
+            exit_code=0,
+            registration_results_path=output_path,
+            install_plan_path=install_plan_path,
+            registration_results=results,
+            install_plan=install_plan,
+        )
 
     if paths.manifest.exists() and not config.force and not config.merge_manifest:
         raise ValueError(
@@ -4730,7 +4779,15 @@ def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
             "No external genome install results are eligible for manifest output; "
             "leaving registration and install result TSVs for review."
         )
-        return 2
+        return ExternalGenomeRegistrationStageResult(
+            exit_code=2,
+            registration_results_path=output_path,
+            install_plan_path=install_plan_path,
+            registration_results=results,
+            install_plan=install_plan,
+            install_results_path=install_results_path,
+            install_results=install_results,
+        )
     ensure_unique_names(manifest_records)
     ensure_unique_record_ids(manifest_records)
     ensure_unique_normalized_ids(manifest_records)
@@ -4757,8 +4814,264 @@ def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
         "external_genome_install_skipped_invalid",
     }
     if any(result.status in problem_statuses for result in install_results):
-        return 2
-    return 0
+        exit_code = 2
+    else:
+        exit_code = 0
+    return ExternalGenomeRegistrationStageResult(
+        exit_code=exit_code,
+        registration_results_path=output_path,
+        install_plan_path=install_plan_path,
+        registration_results=results,
+        install_plan=install_plan,
+        install_results_path=install_results_path,
+        install_results=install_results,
+        manifest_record_count=len(output_records),
+    )
+
+
+def _format_external_genome_registration_envelope(
+    paths,
+    config: AppConfig,
+    *,
+    result: ExternalGenomeRegistrationStageResult | None,
+    error: Exception | None,
+) -> str:
+    registration_results = result.registration_results if result is not None else []
+    install_plan = result.install_plan if result is not None else []
+    install_results = result.install_results if result is not None else []
+    exit_code = 2 if result is None else result.exit_code
+    invalid_count = sum(1 for row in registration_results if not row.valid)
+    status = _external_genome_registration_status(
+        result=result,
+        error=error,
+        invalid_count=invalid_count,
+    )
+    payload = {
+        "command": "register-external-genomes",
+        "schema_version": "1",
+        "status": status,
+        "summary": _external_genome_registration_summary(
+            status=status,
+            result=result,
+            error=error,
+        ),
+        "outdir": str(config.outdir),
+        "input_path": str(config.register_external_genomes),
+        "exit_code": exit_code,
+        "dry_run": bool(config.dry_run),
+        "merge_manifest": bool(config.merge_manifest),
+        "force": bool(config.force),
+        "registration_results_path": str(paths.external_genome_registration_results_path),
+        "install_plan_path": str(paths.external_genome_install_plan_path),
+        "install_results_path": (
+            str(result.install_results_path)
+            if result is not None and result.install_results_path is not None
+            else str(paths.external_genome_install_results_path)
+        ),
+        "manifest_path": str(paths.manifest),
+        "name_map_path": str(paths.name_map),
+        "registration_result_count": len(registration_results),
+        "valid_count": sum(1 for row in registration_results if row.valid),
+        "invalid_count": invalid_count,
+        "registration_status_counts": _count_external_registration_statuses(
+            registration_results
+        ),
+        "install_plan_count": len(install_plan),
+        "install_plan_status_counts": _count_external_install_plan_statuses(
+            install_plan
+        ),
+        "install_result_count": len(install_results),
+        "install_result_status_counts": _count_external_install_result_statuses(
+            install_results
+        ),
+        "manifest_record_count": (
+            result.manifest_record_count if result is not None else 0
+        ),
+        "blocking": (
+            [
+                {
+                    "id": "external_genome_registration_failed",
+                    "message": _external_registration_error_summary(error),
+                }
+            ]
+            if error is not None
+            else []
+        ),
+        "warnings": _external_genome_registration_warnings(
+            invalid_count=invalid_count,
+            install_plan=install_plan,
+            install_results=install_results,
+        ),
+        "next_actions": _external_genome_registration_next_actions(
+            result=result,
+            error=error,
+            status=status,
+        ),
+        "writes_outputs": result is not None,
+        "writes_workflow_outputs": result is not None,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": (
+            result is not None and not config.dry_run and result.manifest_record_count > 0
+        ),
+        "strict_scientific_deliverable": False,
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _external_genome_registration_status(
+    *,
+    result: ExternalGenomeRegistrationStageResult | None,
+    error: Exception | None,
+    invalid_count: int,
+) -> str:
+    if error is not None:
+        return "failed"
+    if result is None:
+        return "failed"
+    if result.exit_code != 0:
+        return "blocked"
+    if invalid_count or any(
+        item.status in {"external_genome_install_skipped_invalid"}
+        for item in result.install_plan
+    ):
+        return "warning"
+    return "pass"
+
+
+def _external_genome_registration_summary(
+    *,
+    status: str,
+    result: ExternalGenomeRegistrationStageResult | None,
+    error: Exception | None,
+) -> str:
+    if error is not None:
+        return _external_registration_error_summary(error)
+    if result is None:
+        return "External genome registration failed"
+    return (
+        "External genome registration "
+        f"{status}: valid={sum(1 for row in result.registration_results if row.valid)}, "
+        f"invalid={sum(1 for row in result.registration_results if not row.valid)}"
+    )
+
+
+def _external_registration_error_summary(error: Exception | None) -> str:
+    if error is None:
+        return ""
+    message = str(error)
+    return message.splitlines()[0] if message else "External genome registration failed"
+
+
+def _external_genome_registration_warnings(
+    *,
+    invalid_count: int,
+    install_plan: list[ExternalGenomeInstallPlanItem],
+    install_results: list[ExternalGenomeInstallResult],
+) -> list[dict[str, object]]:
+    warnings: list[dict[str, object]] = []
+    if invalid_count:
+        warnings.append(
+            {
+                "id": "invalid_external_genome_rows",
+                "message": f"{invalid_count} external genome row(s) are invalid",
+            }
+        )
+    skipped_invalid = sum(
+        1 for item in install_plan if item.status == "external_genome_install_skipped_invalid"
+    )
+    if skipped_invalid:
+        warnings.append(
+            {
+                "id": "external_genome_install_skipped_invalid",
+                "message": f"{skipped_invalid} install plan row(s) were skipped as invalid",
+            }
+        )
+    problem_results = sum(
+        1
+        for item in install_results
+        if item.status
+        in {
+            "external_genome_install_failed",
+            "external_genome_install_checksum_mismatch",
+            "external_genome_install_skipped_invalid",
+        }
+    )
+    if problem_results:
+        warnings.append(
+            {
+                "id": "external_genome_install_problem",
+                "message": f"{problem_results} install result row(s) need review",
+            }
+        )
+    return warnings
+
+
+def _external_genome_registration_next_actions(
+    *,
+    result: ExternalGenomeRegistrationStageResult | None,
+    error: Exception | None,
+    status: str,
+) -> list[dict[str, str]]:
+    if error is not None:
+        return [{"id": "fix_external_genomes_input", "message": str(error)}]
+    if result is None:
+        return []
+    if status in {"warning", "blocked"}:
+        return [
+            {
+                "id": "review_external_genome_results",
+                "message": (
+                    "review external_genome_registration_results.tsv and "
+                    "external_genome_install_plan.tsv before downstream use"
+                ),
+            }
+        ]
+    if result.manifest_record_count:
+        return [
+            {
+                "id": "review_manifest_or_report",
+                "message": "review manifest.tsv/name_map.tsv or run report/package commands",
+            }
+        ]
+    return [
+        {
+            "id": "review_install_plan",
+            "message": "review external_genome_install_plan.tsv before non-dry-run install",
+        }
+    ]
+
+
+def _count_external_registration_statuses(
+    rows: list[ExternalGenomeRegistrationResult],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        if row.status:
+            counts[row.status] = counts.get(row.status, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _count_external_install_plan_statuses(
+    rows: list[ExternalGenomeInstallPlanItem],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        if row.status:
+            counts[row.status] = counts.get(row.status, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _count_external_install_result_statuses(
+    rows: list[ExternalGenomeInstallResult],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        if row.status:
+            counts[row.status] = counts.get(row.status, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def run_provider_registration_planning_stage(
