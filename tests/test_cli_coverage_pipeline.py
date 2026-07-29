@@ -145,6 +145,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "kctc": 1,
         "refseq": 2,
     }
+    assert payload["provider_request_recommended_next_command"] == (
+        "typetreeflow --plan-provider-registration "
+        "<provider_request.tsv> --outdir <run>"
+    )
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False

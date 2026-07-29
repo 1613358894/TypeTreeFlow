@@ -1432,9 +1432,10 @@ worklist, coverage action plan, provider handoff, and provider request draft,
 then emits one compact JSON object with lane, action, provider-key,
 provider-status, and provider-request draft counts plus
 `worklist_candidate_provider_key_counts`, `coverage_next_action_groups`, and
-bounded previews. Action groups are sorted by priority and summarize action
-code, record count, source lanes, provider keys, and the recommended next
-command for AI/operator routing. `preview` never writes files. `build --write`
+`provider_request_recommended_next_command`, plus bounded previews. Action
+groups are sorted by priority and summarize action code, record count, source
+lanes, provider keys, and the recommended next command for AI/operator
+routing. `preview` never writes files. `build --write`
 writes only isolated `acquisition_worklist/`, `coverage_plan/`,
 `provider_handoff/`, `provider_request/`, and `coverage_pipeline_summary.json`
 members under the explicitly supplied directory. Existing output directories
@@ -1448,14 +1449,15 @@ change completion metrics, or promote strict scientific deliverables.
 The written pipeline directory can be supplied later as one explicit
 read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
 `package-results --include reports|all`. TypeTreeFlow derives only
-`acquisition_worklist/`, `coverage_plan/`, and `provider_handoff/` under that
-directory and then applies the same audit-only report/package contracts as the
-individual `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
-`--provider-handoff-dir` options. Explicit component directories take
+`acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
+`provider_request/` under that directory and then applies the same audit-only
+report/package contracts as the individual `--acquisition-worklist-dir`,
+`--coverage-plan-dir`, `--provider-handoff-dir`, and
+`--provider-request-dir` options. Explicit component directories take
 precedence over the derived pipeline subdirectories.
 The generated `provider_request/` member is an offline draft for
-`plan-provider-registration`; it is not currently copied by the
-coverage-pipeline report/package handoff.
+`plan-provider-registration`; report/package inclusion means draft
+availability only and does not authorize provider contact or downloads.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the

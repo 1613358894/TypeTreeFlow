@@ -13,6 +13,9 @@ from typetreeflow.providers.policy import redact_secret_like_text
 
 
 PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION = "1"
+PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND = (
+    "typetreeflow --plan-provider-registration <provider_request.tsv> --outdir <run>"
+)
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,7 @@ class ProviderRequestDraft:
             "network_access": False,
             "manifest_mutated": False,
             "strict_scientific_deliverable": False,
+            "recommended_next_command": PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
         }
 
     def provider_request_tsv(self) -> str:

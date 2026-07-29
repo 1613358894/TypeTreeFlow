@@ -67,6 +67,10 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["downloads_triggered"] == 0
     assert payload["manifest_mutated"] is False
     assert payload["strict_scientific_deliverable"] is False
+    assert payload["recommended_next_command"] == (
+        "typetreeflow --plan-provider-registration "
+        "<provider_request.tsv> --outdir <run>"
+    )
 
 
 def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
