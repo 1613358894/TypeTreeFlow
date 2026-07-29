@@ -457,21 +457,23 @@ they do not create workflow failures or completion changes by themselves.
 
 ### AI-Facing Command Recognition
 
-`typetreeflow commands catalog`, `typetreeflow commands recognize`, and
-`typetreeflow commands preflight` expose side-effect-free CLI command metadata
-for AI operators:
+`typetreeflow commands catalog`, `typetreeflow commands recognize`,
+`typetreeflow commands render`, and `typetreeflow commands preflight` expose
+side-effect-free CLI command metadata for AI operators:
 
 ```text
 typetreeflow commands catalog [--json]
 typetreeflow commands recognize --argv-json '["verify-genus","Fusobacterium","--report-only"]'
 typetreeflow commands recognize -- doctor --json
+typetreeflow commands render --request-json '{"command":"status","outdir":"run"}'
 typetreeflow commands preflight --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
 ```
 
-All three commands always emit exactly one compact JSON object to stdout; `--json`
-is an accepted no-op. Metadata commands return exit code `0` for successful
-allow/pass output and exit code `2` for usage, argv-shape, or blocked preflight
-results. They do not write files, load workflow configuration, read
+All command metadata commands always emit exactly one compact JSON object to
+stdout; `--json` is an accepted no-op. Metadata commands return exit code `0`
+for successful allow/pass output and exit code `2` for usage, request/argv
+shape, or blocked preflight results. They do not write files, load workflow
+configuration, read
 environment files, contact providers, run downloads, or invoke external tools.
 
 `commands catalog` returns `catalog`, a static list of command entries with
@@ -489,6 +491,14 @@ helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
 `is_acquisition_worklist`, `writes_outputs_declared`, `requires_outdir`,
 `unknown`, and `invalid`.
+
+`commands render` requires `--request-json` as a JSON object. It accepts a
+conservative, command-specific request such as `{"command":"status",
+"outdir":"run"}` and returns normalized `target_argv` plus `recognized`
+metadata. Unsupported commands, missing required fields, unknown request fields,
+or wrong value types fail with exit code `2`. Rendering is a string-planning
+step only; the returned argv must still be checked with `commands preflight`
+before any executor considers running it.
 
 `commands preflight` adds an advisory `decision` of `allow` or `block`,
 `allowances`, `risk`, `blocking`, and `warnings`. Declared output writes

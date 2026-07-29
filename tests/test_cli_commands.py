@@ -189,6 +189,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("acquisition-worklist", "build"),
         ("commands", "recognize"),
         ("commands", "catalog"),
+        ("commands", "render"),
     }
 
 
@@ -203,6 +204,105 @@ def test_commands_catalog_rejects_extra_tokens(capsys):
             "message": "Invalid commands catalog usage",
         }
     ]
+
+
+def test_commands_render_emits_normalized_workflow_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","dry_run":true,"report_only":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["command"] == "commands render"
+    assert payload["status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["target_argv"] == [
+        "verify-genus",
+        "Clostridium",
+        "--outdir",
+        "run",
+        "--dry-run",
+        "--report-only",
+    ]
+    assert payload["recognized"]["command"] == "verify-genus"
+    assert payload["recognized"]["mode"] == "report_only"
+
+
+def test_commands_render_emits_normalized_preflight_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"commands","subcommand":"preflight",'
+                    '"target_argv":["doctor"],"allow_write":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "commands",
+        "preflight",
+        "--argv-json",
+        '["doctor"]',
+        "--allow-write",
+    ]
+    assert payload["recognized"]["command"] == "commands"
+    assert payload["recognized"]["subcommand"] == "preflight"
+
+
+def test_commands_render_rejects_unknown_fields(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                '{"command":"doctor","unexpected":true}',
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["command"] == "commands render"
+    assert payload["status"] == "failed"
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "Unsupported request fields" in payload["blocking"][0]["message"]
+
+
+def test_commands_render_rejects_missing_required_field(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                '{"command":"status"}',
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "outdir" in payload["blocking"][0]["message"]
 
 
 def test_commands_preflight_allows_read_only_diagnostic(capsys):
@@ -390,6 +490,18 @@ def test_recognizer_knows_commands_preflight_surface():
 
     assert result["command"] == "commands"
     assert result["subcommand"] == "preflight"
+    assert result["mode"] == "cli_metadata"
+    assert result["writes_outputs_declared"] is False
+    assert result["requires_outdir"] is False
+    assert result["unknown"] is False
+    assert result["invalid"] is False
+
+
+def test_recognizer_knows_commands_render_surface():
+    result = recognize_cli_command(["commands", "render"])
+
+    assert result["command"] == "commands"
+    assert result["subcommand"] == "render"
     assert result["mode"] == "cli_metadata"
     assert result["writes_outputs_declared"] is False
     assert result["requires_outdir"] is False
