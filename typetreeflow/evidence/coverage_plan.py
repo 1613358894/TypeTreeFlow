@@ -180,7 +180,9 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
                 or "atcc_genome_portal; bccm_lmg; cgmcc; dsmz; jcm; nbrc; nctc"
             ),
             required_input="permitted local FASTA plus terms/license/provenance evidence",
-            recommended_next_command="external-genomes register --input <external_genomes.tsv>",
+            recommended_next_command=(
+                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+            ),
             input_artifacts=input_artifacts,
         )
     return CoveragePlanAction(

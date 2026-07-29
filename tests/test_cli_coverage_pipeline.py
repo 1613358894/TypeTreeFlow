@@ -215,7 +215,9 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["external_fasta_required"],
             "provider_keys": ["dsmz", "kctc"],
-            "recommended_next_command": "external-genomes register --input <external_genomes.tsv>",
+            "recommended_next_command": (
+                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+            ),
         },
     ]
 

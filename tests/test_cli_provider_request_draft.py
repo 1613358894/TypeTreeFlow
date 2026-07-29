@@ -24,7 +24,9 @@ def _write_provider_handoff(path) -> None:
                 "source_action_code": "prepare_provider_handoff",
                 "source_lane": "external_fasta_required",
                 "required_input": "permitted local FASTA",
-                "recommended_next_command": "external-genomes register --input <external_genomes.tsv>",
+                "recommended_next_command": (
+                    "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+                ),
                 "terms_review_required": "true",
                 "credentials_required": "false",
                 "network_supported": "false",
