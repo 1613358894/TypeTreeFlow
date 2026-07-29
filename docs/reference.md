@@ -1295,12 +1295,14 @@ typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-au
 ```
 
 It reads only the explicitly named TSV files and emits exactly one compact
-JSON object. Without `--write`, it writes nothing. With `--write`, it writes
-only `acquisition_worklist.tsv` and `acquisition_worklist_summary.json` into
-the explicitly supplied directory. Existing output directories are refused by
-default; `--force` replaces only an owned pair with matching schemas. Missing
-or unreadable input blocks the command with exit code `2`; successful worklist
-generation exits `0`; unexpected internal or write failures exit `1`.
+JSON object, including `review_signal_counts` and
+`candidate_provider_key_counts` review hints. Without `--write`, it writes
+nothing. With `--write`, it writes only `acquisition_worklist.tsv` and
+`acquisition_worklist_summary.json` into the explicitly supplied directory.
+Existing output directories are refused by default; `--force` replaces only an
+owned pair with matching schemas. Missing or unreadable input blocks the
+command with exit code `2`; successful worklist generation exits `0`;
+unexpected internal or write failures exit `1`.
 The optional report/package surfaces are separate from worklist generation:
 pass `--acquisition-worklist-dir <dir>` with `--report-only` to display compact
 audit counts, or with `package-results --include reports|all` to copy the

@@ -30,12 +30,16 @@ def _inputs(tmp_path):
     archive = tmp_path / "archive.tsv"
     _write_tsv(
         checklist,
-        ["full_name"],
+        ["full_name", "type_strain_names"],
         [
             {"full_name": "Clostridium strictum"},
             {"full_name": "Clostridium conflictum"},
             {"full_name": "Clostridium externum"},
             {"full_name": "Clostridium archiveum"},
+            {
+                "full_name": "Clostridium providerum",
+                "type_strain_names": "ATCC 1001; DSM 2002",
+            },
         ],
     )
     _write_tsv(
@@ -62,12 +66,22 @@ def _inputs(tmp_path):
                 "strict_usable": "false",
                 "conflict_status": "strain_conflict",
             },
+            {
+                "species_name": "Clostridium providerum",
+                "assembly_accession": "",
+                "reconciled_evidence_tier": "missing_public_genome",
+                "strict_usable": "false",
+                "conflict_status": "",
+            },
         ],
     )
     _write_tsv(
         gaps,
         ["species", "reason_category"],
-        [{"species": "Clostridium externum", "reason_category": "missing_genome"}],
+        [
+            {"species": "Clostridium externum", "reason_category": "missing_genome"},
+            {"species": "Clostridium providerum", "reason_category": "missing_genome"},
+        ],
     )
     _write_tsv(
         external,
@@ -117,13 +131,18 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
     assert captured.out.count("\n") == 1
     assert payload["command"] == "acquisition-worklist build"
     assert payload["status"] == "pass"
-    assert payload["record_count"] == 4
+    assert payload["record_count"] == 5
     assert payload["lane_counts"]["no_action_strict_complete"] == 1
     assert payload["lane_counts"]["curator_conflict_resolution"] == 1
     assert payload["lane_counts"]["external_registration_ready"] == 1
+    assert payload["lane_counts"]["external_fasta_required"] == 1
     assert payload["review_signal_counts"]["selected_accession"] == 2
     assert payload["review_signal_counts"]["external_registration_ready"] == 1
     assert payload["review_signal_counts"]["archive_candidate_review"] == 1
+    assert payload["candidate_provider_key_counts"] == {
+        "atcc_genome_portal": 1,
+        "dsmz": 1,
+    }
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
@@ -171,6 +190,10 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
     )
     assert summary["downloads_triggered"] == 0
     assert "review_signal_counts" in summary
+    assert summary["candidate_provider_key_counts"] == {
+        "atcc_genome_portal": 1,
+        "dsmz": 1,
+    }
 
 
 def test_acquisition_worklist_force_only_replaces_matching_owned_pair(
