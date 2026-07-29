@@ -118,6 +118,8 @@ from typetreeflow.local_query import LOCAL_QUERY_SOURCE, sync_local_query_record
 from typetreeflow.naming import ensure_unique_names
 from typetreeflow.phylo.workflow import prepare_phylogeny
 from typetreeflow.provider_plan import (
+    ProviderRegistrationPlanRecord,
+    ProposedExternalGenomeRecord,
     plan_provider_registration,
     read_provider_requests,
     write_provider_registration_plan,
@@ -251,6 +253,11 @@ from typetreeflow.workflow.state import (
 )
 
 LOGGER = logging.getLogger(__name__)
+PROVIDER_REGISTRATION_PLAN_RECOMMENDED_NEXT_COMMAND = (
+    "review provider/proposed_external_genomes.tsv, copy accepted rows to "
+    "external_genomes.tsv, then run typetreeflow --register-external-genomes "
+    "<external_genomes.tsv> --outdir <run>"
+)
 _BIOSAMPLE_RECOMMENDATION_POLICIES = {"strict", "balanced"}
 SELECTED_LIMIT_SUMMARY_FIELDS = [
     "limit_selected",
@@ -271,6 +278,14 @@ class PipelineResult:
     phylo_status: str = ""
     status: str = ""
     notes: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ProviderRegistrationPlanningResult:
+    plan_path: Path
+    proposed_path: Path
+    plan_rows: list[ProviderRegistrationPlanRecord]
+    proposed_rows: list[ProposedExternalGenomeRecord]
 
 
 class CrossGenusOutdirError(ValueError):
@@ -1132,7 +1147,31 @@ def main(
                     return 2
                 return 0
             if config.plan_provider_registration is not None:
-                run_provider_registration_planning_stage(paths, config)
+                try:
+                    result = run_provider_registration_planning_stage(paths, config)
+                except (ValueError, RuntimeError) as error:
+                    run_error = error
+                    exit_code = 2
+                    LOGGER.error("%s", error)
+                    print(
+                        _format_provider_registration_planning_envelope(
+                            paths,
+                            config,
+                            result=None,
+                            error=error,
+                        ),
+                        file=original_stdout,
+                    )
+                    return 2
+                print(
+                    _format_provider_registration_planning_envelope(
+                        paths,
+                        config,
+                        result=result,
+                        error=None,
+                    ),
+                    file=original_stdout,
+                )
                 return 0
             if config.register_external_genomes is not None:
                 return run_external_genome_registration_stage(paths, config)
@@ -4722,7 +4761,10 @@ def run_external_genome_registration_stage(paths, config: AppConfig) -> int:
     return 0
 
 
-def run_provider_registration_planning_stage(paths, config: AppConfig) -> None:
+def run_provider_registration_planning_stage(
+    paths,
+    config: AppConfig,
+) -> ProviderRegistrationPlanningResult:
     output_paths = [
         paths.provider_registration_plan_path,
         paths.proposed_external_genomes_path,
@@ -4761,6 +4803,131 @@ def run_provider_registration_planning_stage(paths, config: AppConfig) -> None:
         "name-map writes, external_genomes.tsv writes, or NCBI download-plan "
         "writes were performed."
     )
+    return ProviderRegistrationPlanningResult(
+        plan_path=plan_path,
+        proposed_path=proposed_path,
+        plan_rows=plan_rows,
+        proposed_rows=proposed_rows,
+    )
+
+
+def _format_provider_registration_planning_envelope(
+    paths,
+    config: AppConfig,
+    *,
+    result: ProviderRegistrationPlanningResult | None,
+    error: Exception | None,
+) -> str:
+    plan_rows = result.plan_rows if result is not None else []
+    proposed_rows = result.proposed_rows if result is not None else []
+    status = "pass" if error is None else "failed"
+    payload = {
+        "command": "plan-provider-registration",
+        "schema_version": "1",
+        "status": status,
+        "summary": (
+            "Provider registration planning passed"
+            if error is None
+            else _provider_registration_error_summary(error)
+        ),
+        "outdir": str(config.outdir),
+        "input_path": str(config.plan_provider_registration),
+        "provider_registration_plan_path": str(paths.provider_registration_plan_path),
+        "proposed_external_genomes_path": str(paths.proposed_external_genomes_path),
+        "request_count": len(plan_rows),
+        "provider_registration_plan_count": len(plan_rows),
+        "proposed_external_genomes_count": len(proposed_rows),
+        "eligible_for_proposed_external_genomes_count": sum(
+            1 for row in plan_rows if row.eligible_for_proposed_external_genomes
+        ),
+        "manual_review_required_count": sum(
+            1 for row in plan_rows if row.manual_review_required
+        ),
+        "missing_required_field_count": sum(
+            1 for row in plan_rows if row.missing_fields
+        ),
+        "status_counts": _count_provider_plan_values(plan_rows, "status"),
+        "planned_action_counts": _count_provider_plan_values(
+            plan_rows, "planned_action"
+        ),
+        "blocking_reason_counts": _count_provider_plan_blocking_reasons(plan_rows),
+        "proposed_external_genomes_status_counts": _count_proposed_external_values(
+            proposed_rows, "status"
+        ),
+        "blocking": (
+            [
+                {
+                    "id": "provider_registration_planning_failed",
+                    "message": _provider_registration_error_summary(error),
+                }
+            ]
+            if error is not None
+            else []
+        ),
+        "warnings": [],
+        "next_actions": [
+            {
+                "id": "review_proposed_external_genomes",
+                "message": PROVIDER_REGISTRATION_PLAN_RECOMMENDED_NEXT_COMMAND,
+            }
+        ],
+        "audit_only": True,
+        "dry_run": True,
+        "dry_run_only": True,
+        "writes_outputs": error is None,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "recommended_next_command": PROVIDER_REGISTRATION_PLAN_RECOMMENDED_NEXT_COMMAND,
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _provider_registration_error_summary(error: Exception | None) -> str:
+    if error is None:
+        return ""
+    message = str(error)
+    return message.splitlines()[0] if message else "Provider registration planning failed"
+
+
+def _count_provider_plan_values(
+    rows: list[ProviderRegistrationPlanRecord],
+    field: str,
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = str(getattr(row, field)).strip()
+        if value:
+            counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _count_proposed_external_values(
+    rows: list[ProposedExternalGenomeRecord],
+    field: str,
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = str(getattr(row, field)).strip()
+        if value:
+            counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _count_provider_plan_blocking_reasons(
+    rows: list[ProviderRegistrationPlanRecord],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        for reason in row.blocking_reasons.split(";"):
+            reason = reason.strip()
+            if reason:
+                counts[reason] = counts.get(reason, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def run_selection_dry_run_stage(

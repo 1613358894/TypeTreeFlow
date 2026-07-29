@@ -1423,6 +1423,12 @@ For AI metadata routing, `commands render` accepts
 `{"command":"plan-provider-registration","provider_request":"provider_request.tsv","outdir":"run"}`
 and renders the current compatible argv form:
 `--plan-provider-registration <provider_request.tsv> --outdir <run>`.
+`--plan-provider-registration` itself emits one compact JSON object on stdout.
+The payload reports request, plan, proposed external-genome, status, planned
+action, blocker, and manual-review counts plus audit-only boundary fields
+(`downloads_triggered=0`, `providers_contacted=0`, `network_access=false`,
+`manifest_mutated=false`, `strict_scientific_deliverable=false`) and the
+recommended next command for reviewing `provider/proposed_external_genomes.tsv`.
 
 The isolated coverage pipeline adapter is:
 
