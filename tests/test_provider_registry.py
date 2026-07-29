@@ -31,6 +31,23 @@ def test_default_registry_contains_metadata_only_public_archives():
         )
 
 
+def test_provider_registry_aliases_human_labels_to_canonical_keys():
+    registry = build_default_provider_registry()
+
+    aliases = {
+        "DSMZ": "dsmz",
+        "RefSeq": "refseq",
+        "NCBI RefSeq": "refseq",
+        "ATCC": "atcc_genome_portal",
+        "ATCC Genome Portal": "atcc_genome_portal",
+        "BCCM-LMG": "bccm_lmg",
+        "European Nucleotide Archive": "ena",
+    }
+
+    for value, expected_key in aliases.items():
+        assert registry.get(value).provider_key == expected_key
+
+
 def test_unknown_provider_still_fails_closed():
     entry = build_default_provider_registry().get("new_provider")
 

@@ -25,10 +25,12 @@ class ProviderRegistryEntry:
 class ProviderRegistry:
     def __init__(self, entries: list[ProviderRegistryEntry] | None = None) -> None:
         self._entries = {entry.provider_key: entry for entry in entries or []}
+        self._aliases = _build_aliases(self._entries)
 
     def get(self, provider_key: str) -> ProviderRegistryEntry:
         normalized = provider_key.strip()
-        return self._entries.get(normalized) or unknown_provider_entry(normalized)
+        canonical = self._aliases.get(_alias_key(normalized), normalized)
+        return self._entries.get(canonical) or unknown_provider_entry(normalized)
 
     def entries(self) -> list[ProviderRegistryEntry]:
         return [self._entries[key] for key in sorted(self._entries)]
@@ -51,6 +53,53 @@ def unknown_provider_entry(provider_key: str) -> ProviderRegistryEntry:
             "network/download behavior remains disabled."
         ),
     )
+
+
+def _alias_key(value: str) -> str:
+    return " ".join(
+        value.strip().lower().replace("-", " ").replace("_", " ").split()
+    )
+
+
+def _build_aliases(
+    entries: dict[str, ProviderRegistryEntry],
+) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for key, entry in entries.items():
+        aliases[_alias_key(key)] = key
+        aliases[_alias_key(entry.provider_name)] = key
+    aliases.update(
+        {
+            _alias_key("ATCC"): "atcc_genome_portal",
+            _alias_key("ATCC Genome Portal"): "atcc_genome_portal",
+            _alias_key("DSMZ"): "dsmz",
+            _alias_key("German Collection of Microorganisms and Cell Cultures"): "dsmz",
+            _alias_key("JCM"): "jcm",
+            _alias_key("Japan Collection of Microorganisms"): "jcm",
+            _alias_key("NCTC"): "nctc",
+            _alias_key("National Collection of Type Cultures"): "nctc",
+            _alias_key("CGMCC"): "cgmcc",
+            _alias_key("China General Microbiological Culture Collection Center"): "cgmcc",
+            _alias_key("NBRC"): "nbrc",
+            _alias_key("NITE Biological Resource Center"): "nbrc",
+            _alias_key("BCCM LMG"): "bccm_lmg",
+            _alias_key("BCCM-LMG"): "bccm_lmg",
+            _alias_key("LMG"): "bccm_lmg",
+            _alias_key("ENA"): "ena",
+            _alias_key("European Nucleotide Archive"): "ena",
+            _alias_key("DDBJ"): "ddbj",
+            _alias_key("DNA Data Bank of Japan"): "ddbj",
+            _alias_key("GenBank"): "genbank",
+            _alias_key("NCBI GenBank"): "genbank",
+            _alias_key("RefSeq"): "refseq",
+            _alias_key("NCBI RefSeq"): "refseq",
+        }
+    )
+    return {
+        alias: canonical
+        for alias, canonical in aliases.items()
+        if alias and canonical in entries
+    }
 
 
 def build_default_provider_registry() -> ProviderRegistry:
