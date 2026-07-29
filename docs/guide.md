@@ -404,6 +404,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --provider-handoff-dir <isolated-provider-handoff-directory>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --offline-readiness-dir <isolated-readiness-directory>
 
 typetreeflow package-results \
@@ -454,6 +459,15 @@ audit-only: coverage action rows mean AI/operator planning availability, not
 provider contact, download execution, manifest mutation, completion credit, or
 strict deliverable promotion. `--failed-handoff` excludes coverage-plan
 artifacts.
+With an explicit `--provider-handoff-dir`, `--include reports` and `--include
+all` copy each validated provider-handoff member under `provider_handoff/` and
+add one `scope=audit`, `evidence_policy=provider_handoff_audit`
+artifact-scope row per copied member. Missing input is omitted; partial or
+malformed input copies only validated members and records a compact warning.
+These files are audit-only: provider handoff rows mean AI/operator provider
+planning availability, not provider contact, authentication, terms acceptance,
+download execution, manifest mutation, completion credit, or strict deliverable
+promotion. `--failed-handoff` excludes provider-handoff artifacts.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,
@@ -520,6 +534,15 @@ only `coverage_plan.tsv` and `coverage_plan_summary.json`, without scanning
 the workflow outdir or triggering providers/downloads. A missing or empty
 directory omits `## Coverage Action Plan Audit`; partial or malformed input
 keeps report generation successful and shows a compact warning.
+
+To include a previously generated provider handoff in the refreshed report,
+pass `--provider-handoff-dir <isolated-provider-handoff-directory>` together
+with `--report-only`. This is an explicit read-only input: TypeTreeFlow reads
+only `provider_handoff.tsv` and `provider_handoff_summary.json`, without
+scanning the workflow outdir, contacting providers, authenticating, accepting
+terms, or triggering downloads. A missing or empty directory omits
+`## Provider Handoff Audit`; partial or malformed input keeps report
+generation successful and shows a compact warning.
 
 To include a previously generated offline readiness projection in the
 refreshed report, pass `--offline-readiness-dir <isolated-readiness-directory>`

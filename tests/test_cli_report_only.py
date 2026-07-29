@@ -22,6 +22,7 @@ from tests.test_report_summary import (
     _write_acquisition_worklist_pair,
     _write_coverage_plan_pair,
     _write_offline_readiness_pair,
+    _write_provider_handoff_pair,
     _write_strict_gating_triplet,
 )
 
@@ -272,6 +273,63 @@ def test_coverage_plan_dir_requires_report_only(tmp_path, capsys):
                 str(tmp_path / "out"),
                 "--coverage-plan-dir",
                 str(tmp_path / "coverage-plan"),
+            ]
+        )
+
+
+def test_report_only_explicit_provider_handoff_dir_is_read_only_and_compact(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    handoff_dir = tmp_path / "provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+    handoff_before = {path.name: path.read_bytes() for path in handoff_dir.iterdir()}
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--provider-handoff-dir",
+            str(handoff_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert stdout.count("\n") <= 1
+    assert json.loads(stdout)["command"] == "verify-genus"
+    assert "## Provider Handoff Audit" in summary
+    assert "metadata_only" in summary
+    assert "private provider detail" not in summary
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes() for path in handoff_dir.iterdir()
+    } == handoff_before
+    assert not paths.completion_dir.exists()
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+def test_provider_handoff_dir_requires_report_only(tmp_path, capsys):
+    with pytest.raises(
+        ValueError,
+        match="--provider-handoff-dir is only supported with --report-only",
+    ):
+        main(
+            [
+                "--outdir",
+                str(tmp_path / "out"),
+                "--provider-handoff-dir",
+                str(tmp_path / "provider-handoff"),
             ]
         )
 

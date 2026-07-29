@@ -38,6 +38,7 @@ from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_LANES,
 )
 from typetreeflow.evidence.coverage_plan import COVERAGE_PLAN_FIELDS
+from typetreeflow.evidence.provider_handoff import PROVIDER_HANDOFF_FIELDS
 from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
@@ -60,6 +61,7 @@ from typetreeflow.report.summary import (
     read_optional_coverage_plan_audit,
     read_optional_manual_review_import_audit,
     read_optional_offline_readiness_audit,
+    read_optional_provider_handoff_audit,
     read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
@@ -618,6 +620,143 @@ def test_coverage_plan_audit_reader_does_not_access_env_or_socket(
     monkeypatch.setattr(socket, "create_connection", fail)
 
     audit = read_optional_coverage_plan_audit(plan_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
+
+
+def _write_provider_handoff_pair(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "provider_handoff_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 3,
+                "provider_key_counts": {"genbank": 2, "dsmz": 1},
+                "provider_status_counts": {"metadata_only": 2, "planning_only": 1},
+                "source_action_counts": {
+                    "review_public_archive_linkage": 2,
+                    "prepare_provider_handoff": 1,
+                },
+                "audit_only": True,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    with (directory / "provider_handoff.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=PROVIDER_HANDOFF_FIELDS, delimiter="\t"
+        )
+        writer.writeheader()
+        for species, provider, status, action in (
+            (
+                "Clostridium alpha",
+                "genbank",
+                "metadata_only",
+                "review_public_archive_linkage",
+            ),
+            (
+                "Clostridium beta",
+                "genbank",
+                "metadata_only",
+                "review_public_archive_linkage",
+            ),
+            (
+                "Clostridium gamma",
+                "dsmz",
+                "planning_only",
+                "prepare_provider_handoff",
+            ),
+        ):
+            writer.writerow(
+                {
+                    "schema_version": "1",
+                    "provider_key": provider,
+                    "provider_name": "private provider detail",
+                    "provider_status": status,
+                    "species": species,
+                    "source_action_code": action,
+                    "source_lane": "public_linkage_review",
+                    "required_input": "private input detail",
+                    "recommended_next_command": "private command detail",
+                    "terms_review_required": "true",
+                    "credentials_required": "false",
+                    "network_supported": "false",
+                    "default_network_enabled": "false",
+                    "audit_only": "true",
+                    "downloads_triggered": "0",
+                    "providers_contacted": "0",
+                    "strict_scientific_deliverable": "false",
+                }
+            )
+
+
+def test_provider_handoff_audit_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    handoff_dir = tmp_path / "provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_handoff_dir=handoff_dir),
+    )
+
+    assert "## Provider Handoff Audit" in markdown
+    assert (
+        "- Counts: record_count=3; downloads_triggered=0; "
+        "providers_contacted=0; network_access=false; manifest_mutated=false; "
+        "audit_only=true; strict_scientific_deliverable=false"
+    ) in markdown
+    assert "The provider handoff is audit-only planning output" in markdown
+    assert "does not contact providers, authenticate, accept terms" in markdown
+    assert "| genbank | 2 |" in markdown
+    assert "| metadata_only | 2 |" in markdown
+    assert "| review_public_archive_linkage | 2 |" in markdown
+    assert "private provider detail" not in markdown
+    assert "Clostridium alpha" not in markdown
+
+
+def test_provider_handoff_audit_partial_malformed_summary_warns(tmp_path):
+    handoff_dir = tmp_path / "provider-handoff"
+    handoff_dir.mkdir()
+    (handoff_dir / "provider_handoff_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_handoff_dir=handoff_dir),
+    )
+
+    assert "## Provider Handoff Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "provider_handoff_summary.json malformed" in markdown
+    assert "missing members: provider_handoff.tsv" in markdown
+
+
+def test_provider_handoff_audit_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    handoff_dir = tmp_path / "provider-handoff"
+    _write_provider_handoff_pair(handoff_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("provider handoff reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_provider_handoff_audit(handoff_dir)
 
     assert audit is not None
     assert audit.counts["audit_only"] is True
