@@ -1366,7 +1366,10 @@ typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconcil
 It reads only explicitly named local TSV files, builds an in-memory acquisition
 worklist, coverage action plan, and provider handoff, then emits one compact
 JSON object with lane, action, provider-key, and provider-status counts plus
-bounded previews. `preview` never writes files. `build --write` writes only
+`coverage_next_action_groups` and bounded previews. Action groups are sorted
+by priority and summarize action code, record count, source lanes, provider
+keys, and the recommended next command for AI/operator routing. `preview`
+never writes files. `build --write` writes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
 `coverage_pipeline_summary.json` members under the explicitly supplied
 directory. Existing output directories are refused by default; `--force`

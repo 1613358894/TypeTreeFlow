@@ -111,6 +111,35 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "review_public_archive_linkage": 1,
         "review_public_type_linkage": 1,
     }
+    assert payload["coverage_next_action_groups"] == [
+        {
+            "priority": 10,
+            "action_code": "resolve_curator_conflict",
+            "action_label": "Resolve conflicting type-strain evidence before acquisition",
+            "record_count": 1,
+            "source_lanes": ["curator_conflict_resolution"],
+            "provider_keys": [],
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        },
+        {
+            "priority": 20,
+            "action_code": "review_public_archive_linkage",
+            "action_label": "Review public archive candidate against type-strain equivalence",
+            "record_count": 1,
+            "source_lanes": ["public_linkage_review"],
+            "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        },
+        {
+            "priority": 30,
+            "action_code": "review_public_type_linkage",
+            "action_label": "Review selected public genome linkage against type strain",
+            "record_count": 1,
+            "source_lanes": ["public_linkage_review"],
+            "provider_keys": ["genbank", "refseq"],
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        },
+    ]
     assert payload["provider_handoff_record_count"] == 6
     assert payload["provider_status_counts"] == {"metadata_only": 6}
     assert payload["downloads_triggered"] == 0
@@ -158,6 +187,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["command"] == "coverage-pipeline build"
     assert summary["provider_handoff_record_count"] == 6
+    assert summary["coverage_next_action_groups"][0]["action_code"] == (
+        "resolve_curator_conflict"
+    )
 
     code, payload, _ = _run(args, capsys, action="build")
     assert code == 2
