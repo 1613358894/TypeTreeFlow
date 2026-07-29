@@ -34,6 +34,7 @@ from tests.test_report_summary import (
     _write_coverage_plan_pair,
     _write_offline_readiness_pair,
     _write_provider_handoff_pair,
+    _write_provider_request_pair,
 )
 
 
@@ -1425,7 +1426,170 @@ def test_package_results_provider_handoff_is_offline_and_non_mutating(
 
 
 @pytest.mark.parametrize("include", ["reports", "all"])
-def test_package_results_coverage_pipeline_dir_copies_three_audit_surfaces(
+def test_package_results_includes_explicit_provider_request_pair_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    request_dir = tmp_path / "isolated-provider-request"
+    _write_provider_request_pair(request_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        provider_request_dir=request_dir,
+    )
+
+    delivered = result.delivery_dir / "provider_request"
+    assert {path.name for path in delivered.iterdir()} == {
+        "provider_request.tsv",
+        "provider_request_draft_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    request_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("provider_request/")
+    ]
+    assert len(request_rows) == 2
+    assert {row["scope"] for row in request_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in request_rows} == {
+        "provider_request_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in request_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in request_rows} == {
+        "curator provider request review"
+    }
+    assert {row["not_for"] for row in request_rows} == {
+        "provider contact, downloads, or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in request_rows} == {
+        "provider_request_draft"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Provider request draft artifacts are audit-only" in package_text
+    assert "curator review availability" in package_text
+    assert "`network_access=false`" in package_text
+    assert "private provider detail" not in package_text
+
+
+def test_package_results_provider_request_is_explicit_and_missing_is_omitted(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    for name, request_dir in (
+        ("without-input", None),
+        ("missing-input", tmp_path / "missing-provider-request"),
+    ):
+        result = package_results(
+            tmp_path,
+            delivery_dir=tmp_path / f"delivery-provider-request-{name}",
+            include="reports",
+            provider_request_dir=request_dir,
+        )
+        assert not (result.delivery_dir / "provider_request").exists()
+        assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+        assert result.provider_request_warnings == []
+
+
+def test_package_results_partial_provider_request_warns_and_copies_valid_member(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    request_dir = tmp_path / "partial-provider-request"
+    _write_provider_request_pair(request_dir)
+    (request_dir / "provider_request_draft_summary.json").write_text(
+        '{"schema_version":"1","providers_contacted":1}',
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        provider_request_dir=request_dir,
+    )
+
+    assert (result.delivery_dir / "provider_request" / "provider_request.tsv").exists()
+    assert not (
+        result.delivery_dir
+        / "provider_request"
+        / "provider_request_draft_summary.json"
+    ).exists()
+    assert result.provider_request_warnings == [
+        "provider_request_draft_summary.json malformed",
+    ]
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert [row["artifact_path"] for row in scope_rows] == [
+        "provider_request/provider_request.tsv"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "provider_request_draft_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_explicit_provider_request(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    request_dir = tmp_path / "provider-request"
+    _write_provider_request_pair(request_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        provider_request_dir=request_dir,
+    )
+
+    assert not (result.delivery_dir / "provider_request").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Provider Request Draft Audit" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_provider_request_and_keeps_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    request_dir = tmp_path / "provider-request"
+    _write_provider_request_pair(request_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--provider-request-dir",
+            str(request_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "provider_request"
+        / "provider_request_draft_summary.json"
+    ).exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
     tmp_path, include
 ):
     paths = get_output_paths(tmp_path)
@@ -1434,6 +1598,7 @@ def test_package_results_coverage_pipeline_dir_copies_three_audit_surfaces(
     _write_acquisition_worklist_pair(pipeline_dir / "acquisition_worklist")
     _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
     _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
+    _write_provider_request_pair(pipeline_dir / "provider_request")
 
     result = package_results(
         tmp_path,
@@ -1452,18 +1617,26 @@ def test_package_results_coverage_pipeline_dir_copies_three_audit_surfaces(
         "coverage_plan/coverage_plan_summary.json",
         "provider_handoff/provider_handoff.tsv",
         "provider_handoff/provider_handoff_summary.json",
+        "provider_request/provider_request.tsv",
+        "provider_request/provider_request_draft_summary.json",
     }
     scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
     grouped = {
         prefix: [
             row for row in scope_rows if row["artifact_path"].startswith(prefix)
         ]
-        for prefix in ("acquisition_worklist/", "coverage_plan/", "provider_handoff/")
+        for prefix in (
+            "acquisition_worklist/",
+            "coverage_plan/",
+            "provider_handoff/",
+            "provider_request/",
+        )
     }
     assert {prefix: len(rows) for prefix, rows in grouped.items()} == {
         "acquisition_worklist/": 2,
         "coverage_plan/": 2,
         "provider_handoff/": 2,
+        "provider_request/": 2,
     }
     assert {row["scope"] for rows in grouped.values() for row in rows} == {"audit"}
     assert {
@@ -1480,6 +1653,9 @@ def test_package_results_coverage_pipeline_dir_copies_three_audit_surfaces(
     assert {row["evidence_policy"] for row in grouped["provider_handoff/"]} == {
         "provider_handoff_audit"
     }
+    assert {row["evidence_policy"] for row in grouped["provider_request/"]} == {
+        "provider_request_audit"
+    }
     package_text = (
         (result.delivery_dir / "README.md").read_text(encoding="utf-8")
         + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
@@ -1487,6 +1663,7 @@ def test_package_results_coverage_pipeline_dir_copies_three_audit_surfaces(
     assert "Acquisition worklist artifacts are audit-only" in package_text
     assert "Coverage action plan artifacts are audit-only" in package_text
     assert "Provider handoff artifacts are audit-only" in package_text
+    assert "Provider request draft artifacts are audit-only" in package_text
     assert "private action detail" not in package_text
     assert "private provider detail" not in package_text
 
@@ -1504,10 +1681,12 @@ def test_package_results_coverage_pipeline_dir_is_missing_safe(tmp_path):
     assert not (result.delivery_dir / "acquisition_worklist").exists()
     assert not (result.delivery_dir / "coverage_plan").exists()
     assert not (result.delivery_dir / "provider_handoff").exists()
+    assert not (result.delivery_dir / "provider_request").exists()
     assert not (result.delivery_dir / "artifact_scope.tsv").exists()
     assert result.acquisition_worklist_warnings == []
     assert result.coverage_plan_warnings == []
     assert result.provider_handoff_warnings == []
+    assert result.provider_request_warnings == []
 
 
 def test_package_results_cli_accepts_coverage_pipeline_dir_and_keeps_compact_json(
@@ -1519,6 +1698,7 @@ def test_package_results_cli_accepts_coverage_pipeline_dir_and_keeps_compact_jso
     _write_acquisition_worklist_pair(pipeline_dir / "acquisition_worklist")
     _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
     _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
+    _write_provider_request_pair(pipeline_dir / "provider_request")
 
     assert main(
         [
@@ -1544,6 +1724,9 @@ def test_package_results_cli_accepts_coverage_pipeline_dir_and_keeps_compact_jso
     assert (tmp_path / "delivery" / "coverage_plan" / "coverage_plan.tsv").exists()
     assert (
         tmp_path / "delivery" / "provider_handoff" / "provider_handoff.tsv"
+    ).exists()
+    assert (
+        tmp_path / "delivery" / "provider_request" / "provider_request.tsv"
     ).exists()
 
 

@@ -569,12 +569,21 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--provider-request-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing provider request draft "
+            "audit outputs for --report-only audit reporting or "
+            "package-results; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--coverage-pipeline-dir",
         type=Path,
         help=(
             "Explicit read-only directory containing coverage-pipeline "
-            "acquisition_worklist, coverage_plan, and provider_handoff "
-            "subdirectories for --report-only audit reporting or "
+            "acquisition_worklist, coverage_plan, provider_handoff, and "
+            "provider_request subdirectories for --report-only audit reporting or "
             "package-results; no automatic discovery."
         ),
     )

@@ -474,6 +474,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --provider-request-dir <isolated-provider-request-directory>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory>
 
 typetreeflow package-results \
@@ -538,13 +543,23 @@ These files are audit-only: provider handoff rows mean AI/operator provider
 planning availability, not provider contact, authentication, terms acceptance,
 download execution, manifest mutation, completion credit, or strict deliverable
 promotion. `--failed-handoff` excludes provider-handoff artifacts.
+With an explicit `--provider-request-dir`, `--include reports` and
+`--include all` copy each validated provider-request draft member under
+`provider_request/` and add one `scope=audit`,
+`evidence_policy=provider_request_audit` artifact-scope row per copied member.
+Missing input is omitted; partial or malformed input copies only validated
+members and records a compact warning. These files are audit-only: provider
+request draft rows mean curator review availability, not provider contact,
+authentication, terms acceptance, download execution, manifest mutation,
+completion credit, or strict deliverable promotion. `--failed-handoff`
+excludes provider-request artifacts.
 With an explicit `--coverage-pipeline-dir`, `--include reports` and
 `--include all` derive `acquisition_worklist/`, `coverage_plan/`, and
-`provider_handoff/` under the isolated pipeline directory, then apply the same
-copy and artifact-scope contracts as the three individual directory options.
-This is a convenience handoff only; it does not scan workflow outputs, rerun
-the pipeline, contact providers, trigger downloads, or change scientific
-status.
+`provider_handoff/`, and `provider_request/` under the isolated pipeline
+directory, then apply the same copy and artifact-scope contracts as the four
+individual directory options. This is a convenience handoff only; it does not
+scan workflow outputs, rerun the pipeline, contact providers, trigger
+downloads, or change scientific status.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,
@@ -621,12 +636,23 @@ terms, or triggering downloads. A missing or empty directory omits
 `## Provider Handoff Audit`; partial or malformed input keeps report
 generation successful and shows a compact warning.
 
-If all three artifacts were generated together by `coverage-pipeline build`,
+To include a previously generated provider request draft in the refreshed
+report, pass `--provider-request-dir <isolated-provider-request-directory>`
+together with `--report-only`. This is an explicit read-only input:
+TypeTreeFlow reads only `provider_request.tsv` and
+`provider_request_draft_summary.json`, without scanning the workflow outdir,
+contacting providers, authenticating, accepting terms, or triggering
+downloads. A missing or empty directory omits
+`## Provider Request Draft Audit`; partial or malformed input keeps report
+generation successful and shows a compact warning.
+
+If all four artifacts were generated together by `coverage-pipeline build`,
 pass `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
-`--report-only` instead of naming the three component directories separately.
-The command derives only `acquisition_worklist/`, `coverage_plan/`, and
-`provider_handoff/` under that explicit directory. Individually supplied
-component directories take precedence when both forms are present.
+`--report-only` instead of naming the four component directories separately.
+The command derives only `acquisition_worklist/`, `coverage_plan/`,
+`provider_handoff/`, and `provider_request/` under that explicit directory.
+Individually supplied component directories take precedence when both forms
+are present.
 
 To include a previously generated offline readiness projection in the
 refreshed report, pass `--offline-readiness-dir <isolated-readiness-directory>`

@@ -52,6 +52,7 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.rrna.artifacts import write_artifact_scope
 from typetreeflow.provider_plan import (
     PROPOSED_EXTERNAL_GENOME_FIELDS,
+    PROVIDER_REQUEST_FIELDS,
     PROVIDER_REGISTRATION_PLAN_FIELDS,
 )
 from typetreeflow.report.summary import (
@@ -62,6 +63,7 @@ from typetreeflow.report.summary import (
     read_optional_manual_review_import_audit,
     read_optional_offline_readiness_audit,
     read_optional_provider_handoff_audit,
+    read_optional_provider_request_draft_audit,
     read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
@@ -770,6 +772,128 @@ def test_provider_handoff_audit_reader_does_not_access_env_or_socket(
     monkeypatch.setattr(socket, "create_connection", fail)
 
     audit = read_optional_provider_handoff_audit(handoff_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
+
+
+def _write_provider_request_pair(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "provider_request_draft_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 2,
+                "provider_key_counts": {"dsmz": 1, "genbank": 1},
+                "provider_status_counts": {"metadata_only": 1, "planning_only": 1},
+                "source_action_counts": {"prepare_provider_handoff": 2},
+                "audit_only": True,
+                "writes_workflow_outputs": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    with (directory / "provider_request.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=PROVIDER_REQUEST_FIELDS, delimiter="\t"
+        )
+        writer.writeheader()
+        for request_id, species, provider, status in (
+            ("PH-0001", "Clostridium alpha", "genbank", "metadata_only"),
+            ("PH-0002", "Clostridium beta", "dsmz", "planning_only"),
+        ):
+            writer.writerow(
+                {
+                    "request_id": request_id,
+                    "species": species,
+                    "strain": "",
+                    "type_strain_id": "",
+                    "provider": provider,
+                    "provider_name": "private provider detail",
+                    "provider_record_id": "",
+                    "provider_record_url": "",
+                    "provider_artifact_id": "",
+                    "provider_artifact_version": "",
+                    "artifact_type": "genome_fasta",
+                    "local_fasta_path": "",
+                    "local_sha256": "",
+                    "terms_review_status": "not_reviewed",
+                    "license_notes": "",
+                    "retrieval_date": "",
+                    "is_type_material": "false",
+                    "requires_manual_review": "true",
+                    "curator": "",
+                    "notes": f"provider_status={status}; private notes",
+                }
+            )
+
+
+def test_provider_request_audit_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    request_dir = tmp_path / "provider-request"
+    _write_provider_request_pair(request_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_request_dir=request_dir),
+    )
+
+    assert "## Provider Request Draft Audit" in markdown
+    assert (
+        "- Counts: record_count=2; downloads_triggered=0; "
+        "providers_contacted=0; network_access=false; manifest_mutated=false; "
+        "writes_workflow_outputs=false; audit_only=true; "
+        "strict_scientific_deliverable=false"
+    ) in markdown
+    assert "provider request draft is audit-only planning output" in markdown
+    assert "does not contact providers, authenticate, accept terms" in markdown
+    assert "| dsmz | 1 |" in markdown
+    assert "| planning_only | 1 |" in markdown
+    assert "private provider detail" not in markdown
+    assert "private notes" not in markdown
+
+
+def test_provider_request_audit_partial_malformed_summary_warns(tmp_path):
+    request_dir = tmp_path / "provider-request"
+    request_dir.mkdir()
+    (request_dir / "provider_request_draft_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_request_dir=request_dir),
+    )
+
+    assert "## Provider Request Draft Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "provider_request_draft_summary.json malformed" in markdown
+    assert "missing members: provider_request.tsv" in markdown
+
+
+def test_provider_request_audit_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    request_dir = tmp_path / "provider-request"
+    _write_provider_request_pair(request_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("provider request reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_provider_request_draft_audit(request_dir)
 
     assert audit is not None
     assert audit.counts["audit_only"] is True
