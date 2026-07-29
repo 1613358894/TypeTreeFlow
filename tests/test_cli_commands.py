@@ -1064,6 +1064,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_strict_gating": False,
         "is_readiness": False,
         "is_acquisition_worklist": False,
+        "is_coverage_pipeline": False,
         "is_count_crosswalk": False,
         "is_archive_candidates": False,
         "is_coverage_plan": False,
