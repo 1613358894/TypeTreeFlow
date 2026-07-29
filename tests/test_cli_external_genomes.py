@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 
 import pytest
@@ -170,6 +171,119 @@ def test_register_external_genomes_dry_run_valid_tsv_writes_results_and_install_
     assert installed_path.parent == outdir / "genomes" / "references"
     assert installed_path.name.endswith(".fna")
     assert not installed_path.exists()
+
+
+def test_register_external_genomes_dry_run_stdout_is_compact_json(tmp_path, capsys):
+    outdir = tmp_path / "out"
+    _fasta(tmp_path / "genomes" / "reference.fna")
+    external_genomes = _external_genomes_tsv(
+        tmp_path / "external_genomes.tsv",
+        [_row()],
+    )
+
+    result = cli.main(
+        [
+            "--register-external-genomes",
+            str(external_genomes),
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    assert result == 0
+    assert stdout.count("\n") == 1
+    assert payload["command"] == "register-external-genomes"
+    assert payload["status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["registration_result_count"] == 1
+    assert payload["valid_count"] == 1
+    assert payload["invalid_count"] == 0
+    assert payload["install_plan_status_counts"] == {
+        "external_genome_install_planned": 1
+    }
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is True
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+
+
+def test_register_external_genomes_dry_run_mixed_stdout_is_warning_json(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    _fasta(tmp_path / "genomes" / "reference.fna")
+    external_genomes = _external_genomes_tsv(
+        tmp_path / "external_genomes.tsv",
+        [
+            _row(
+                external_genome_id="missing",
+                genome_fasta_path="genomes/missing.fna",
+            ),
+            _row(external_genome_id="good"),
+        ],
+    )
+
+    result = cli.main(
+        [
+            "--register-external-genomes",
+            str(external_genomes),
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 0
+    assert payload["status"] == "warning"
+    assert payload["registration_result_count"] == 2
+    assert payload["valid_count"] == 1
+    assert payload["invalid_count"] == 1
+    assert payload["registration_status_counts"] == {
+        "external_genome_missing_file": 1,
+        "external_genome_registered": 1,
+    }
+    assert payload["install_plan_status_counts"] == {
+        "external_genome_install_planned": 1,
+        "external_genome_install_skipped_invalid": 1,
+    }
+    assert payload["warnings"][0]["id"] == "invalid_external_genome_rows"
+
+
+def test_register_external_genomes_failure_stdout_is_compact_json(tmp_path, capsys):
+    external_genomes = _write(
+        tmp_path / "external_genomes.tsv",
+        "species\tstrain\nFusobacterium mortiferum\tATCC 9817\n",
+    )
+
+    result = cli.main(
+        [
+            "--register-external-genomes",
+            str(external_genomes),
+            "--outdir",
+            str(tmp_path / "out"),
+            "--dry-run",
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    assert result == 2
+    assert stdout.count("\n") == 1
+    assert payload["command"] == "register-external-genomes"
+    assert payload["status"] == "failed"
+    assert payload["registration_result_count"] == 0
+    assert payload["writes_outputs"] is False
+    assert payload["blocking"][0]["id"] == "external_genome_registration_failed"
+    assert "missing required field" in payload["summary"]
 
 
 def test_register_external_genomes_dry_run_mixed_rows_writes_results_and_install_plan(tmp_path):
