@@ -18,6 +18,7 @@ from typetreeflow.evidence.provider_handoff import (
 )
 from typetreeflow.evidence.provider_request_draft import (
     PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
+    PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
     build_provider_request_draft,
 )
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
@@ -197,6 +198,7 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "external_tools": False,
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
+        "recommended_next_command": PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "summary": (
             "Provider request draft passed"
@@ -229,6 +231,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "external_tools": False,
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
+        "recommended_next_command": PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "summary": message,
     }

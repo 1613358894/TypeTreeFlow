@@ -160,8 +160,10 @@ priority-ordered summary of action counts, source lanes, provider keys, and
 recommended next commands for AI/operator routing. It also carries
 `worklist_candidate_provider_key_counts` from the worklist layer so AI/operator
 handoff pressure is visible before reading the nested artifacts. It also
-reports provider request draft counts so the next `plan-provider-registration`
-handoff is visible in one compact JSON object. `build --write` publishes only
+reports provider request draft counts and
+`provider_request_recommended_next_command` so the next
+`plan-provider-registration` handoff is visible in one compact JSON object.
+`build --write` publishes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, and `coverage_pipeline_summary.json` members under the
 requested directory. It remains audit-only: no workflow outputs, provider
@@ -176,10 +178,11 @@ pressure before running the full coverage plan.
 Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 `--report-only` or `package-results --include reports|all` to hand off that
 directory as one explicit read-only input. TypeTreeFlow derives only its
-`acquisition_worklist/`, `coverage_plan/`, and `provider_handoff/`
-subdirectories; it does not scan workflow outputs or rerun the pipeline. The
-generated `provider_request/` member is a draft input for
-`plan-provider-registration`, not a report/package surface.
+`acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
+`provider_request/` subdirectories; it does not scan workflow outputs or rerun
+the pipeline. The generated `provider_request/` member is a draft input for
+`plan-provider-registration`; report/package inclusion only surfaces draft
+availability and remains separate from provider contact or downloads.
 
 Build a denominator-preserving crosswalk for already known counts with:
 

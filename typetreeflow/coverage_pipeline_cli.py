@@ -29,6 +29,7 @@ from typetreeflow.evidence.provider_handoff import (
 )
 from typetreeflow.evidence.provider_request_draft import (
     PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
+    PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
     build_provider_request_draft,
 )
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
@@ -277,6 +278,9 @@ def _payload(
         "provider_request_status_counts": request_summary[
             "provider_status_counts"
         ],
+        "provider_request_recommended_next_command": (
+            PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND
+        ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -374,6 +378,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_record_count": 0,
         "provider_request_provider_key_counts": {},
         "provider_request_status_counts": {},
+        "provider_request_recommended_next_command": (
+            PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND
+        ),
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
