@@ -15,8 +15,8 @@ def _write_tsv(path, fields, rows):
         writer.writerows(rows)
 
 
-def _run(args, capsys):
-    code = cli.main(["coverage-pipeline", "preview", *args])
+def _run(args, capsys, *, action="preview"):
+    code = cli.main(["coverage-pipeline", action, *args])
     captured = capsys.readouterr()
     return code, json.loads(captured.out), captured
 
@@ -123,6 +123,77 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert "provider_guidance=public_archive_metadata_review" in (
         payload["provider_handoff_preview"][0]["provider_guidance_notes"]
     )
+
+
+def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_path):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    outdir = tmp_path / "pipeline_outputs"
+    args = [
+        "--checklist-tsv",
+        str(checklist),
+        "--reconciler-audit-tsv",
+        str(reconciler),
+        "--completion-gaps-tsv",
+        str(gaps),
+        "--archive-candidates-tsv",
+        str(archive),
+        "--write",
+        "--outdir",
+        str(outdir),
+        "--json",
+    ]
+
+    code, payload, captured = _run(args, capsys, action="build")
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["command"] == "coverage-pipeline build"
+    assert payload["dry_run"] is False
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert (outdir / "coverage_pipeline_summary.json").exists()
+    assert (outdir / "acquisition_worklist" / "acquisition_worklist.tsv").exists()
+    assert (outdir / "coverage_plan" / "coverage_plan.tsv").exists()
+    assert (outdir / "provider_handoff" / "provider_handoff.tsv").exists()
+    summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
+    assert summary["command"] == "coverage-pipeline build"
+    assert summary["provider_handoff_record_count"] == 6
+
+    code, payload, _ = _run(args, capsys, action="build")
+    assert code == 2
+    assert payload["status"] == "failed"
+    assert payload["writes_outputs"] is False
+
+    code, payload, _ = _run([*args, "--force"], capsys, action="build")
+    assert code == 0
+    assert payload["writes_outputs"] is True
+
+
+def test_coverage_pipeline_build_rejects_unsafe_write_usage(capsys, tmp_path):
+    checklist, _, _, _ = _write_inputs(tmp_path)
+
+    code, payload, _ = _run(
+        ["--checklist-tsv", str(checklist), "--outdir", str(tmp_path / "isolated")],
+        capsys,
+        action="build",
+    )
+    assert code == 2
+    assert payload["status"] == "failed"
+
+    code, payload, _ = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--write",
+            "--outdir",
+            str(tmp_path / "reports" / "pipeline"),
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 2
+    assert payload["status"] == "failed"
+    assert payload["writes_outputs"] is False
 
 
 def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_path):

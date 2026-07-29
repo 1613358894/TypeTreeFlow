@@ -197,6 +197,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("readiness", "evaluate"),
         ("acquisition-worklist", "build"),
         ("coverage-pipeline", "preview"),
+        ("coverage-pipeline", "build"),
         ("count-crosswalk", "build"),
         ("archive-candidates", "build"),
         ("coverage-plan", "build"),
@@ -359,6 +360,51 @@ def test_commands_render_emits_normalized_acquisition_worklist_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "acquisition-worklist"
     assert payload["recognized"]["mode"] == "acquisition_worklist"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"coverage-pipeline","subcommand":"build",'
+                    '"checklist_tsv":"species.tsv",'
+                    '"reconciler_audit_tsv":"audit.tsv",'
+                    '"completion_gaps_tsv":"gaps.tsv",'
+                    '"external_genomes_tsv":"external.tsv",'
+                    '"archive_candidates_tsv":"archive.tsv",'
+                    '"write":true,"outdir":"pipeline","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "build",
+        "--checklist-tsv",
+        "species.tsv",
+        "--reconciler-audit-tsv",
+        "audit.tsv",
+        "--completion-gaps-tsv",
+        "gaps.tsv",
+        "--external-genomes-tsv",
+        "external.tsv",
+        "--archive-candidates-tsv",
+        "archive.tsv",
+        "--write",
+        "--outdir",
+        "pipeline",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert payload["recognized"]["mode"] == "coverage_pipeline"
     assert payload["recognized"]["requires_outdir"] is True
 
 

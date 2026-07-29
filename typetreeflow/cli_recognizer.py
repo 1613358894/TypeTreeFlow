@@ -31,7 +31,7 @@ _MANUAL_REVIEW_SUBCOMMANDS = {"validate", "import"}
 _STRICT_GATING_SUBCOMMANDS = {"evaluate"}
 _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
-_COVERAGE_PIPELINE_SUBCOMMANDS = {"preview"}
+_COVERAGE_PIPELINE_SUBCOMMANDS = {"build", "preview"}
 _COUNT_CROSSWALK_SUBCOMMANDS = {"build"}
 _ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
 _COVERAGE_PLAN_SUBCOMMANDS = {"build"}
@@ -287,7 +287,7 @@ def _writes_outputs_declared(
     if command == "acquisition-worklist":
         return subcommand == "build" and "--write" in tokens
     if command == "coverage-pipeline":
-        return False
+        return subcommand == "build" and "--write" in tokens
     if command == "count-crosswalk":
         return subcommand == "build" and "--write" in tokens
     if command == "archive-candidates":
@@ -329,7 +329,7 @@ def _requires_outdir(
     if command == "acquisition-worklist":
         return subcommand == "build" and writes_outputs_declared
     if command == "coverage-pipeline":
-        return False
+        return subcommand == "build" and writes_outputs_declared
     if command == "count-crosswalk":
         return subcommand == "build" and writes_outputs_declared
     if command == "archive-candidates":
