@@ -306,6 +306,19 @@ AI/operator planning availability, not provider execution, download readiness,
 completion credit, manifest mutation, or strict deliverable promotion.
 Failed-handoff packages exclude these coverage-plan artifacts.
 
+Provider handoff plans are a second offline planning layer over coverage-plan
+rows with provider keys. They may expand provider keys into registry-backed
+provider status, terms-review, credential, and network-disabled fields, but
+they must not contact providers, download genomes, authenticate, accept terms,
+write manifests, grant completion credit, or promote strict deliverables.
+
+The `provider-handoff build` CLI remains an isolated adapter. It may read only
+an explicit coverage-plan TSV, and in explicit write mode it may publish only
+its isolated provider-handoff pair. It must not scan workflow directories,
+read environment credentials, execute provider adapters, package raw
+curator/provider data, or convert a recommended action into an executed
+provider/download action.
+
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
 curator-packet metadata, strict-gate state, and count-crosswalk facts are

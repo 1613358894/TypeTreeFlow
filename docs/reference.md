@@ -496,6 +496,7 @@ typetreeflow commands render --request-json '{"command":"status","outdir":"run"}
 typetreeflow commands plan --request-json '{"command":"status","outdir":"run"}'
 typetreeflow commands preflight --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
 typetreeflow providers catalog [--json]
+typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--json]
 ```
 
 All command metadata commands always emit exactly one compact JSON object to
@@ -525,8 +526,9 @@ string array or target argv tokens after `--`. Their JSON envelopes include
 helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
 `is_acquisition_worklist`, `is_count_crosswalk`, `is_archive_candidates`,
-`is_providers`, `is_curator_packet`, `writes_outputs_declared`,
-`requires_outdir`, `unknown`, and `invalid`.
+`is_coverage_plan`, `is_provider_handoff`, `is_providers`,
+`is_curator_packet`, `writes_outputs_declared`, `requires_outdir`, `unknown`,
+and `invalid`.
 
 `commands render` requires `--request-json` as a JSON object. It accepts a
 conservative, command-specific request such as `{"command":"status",
@@ -1277,6 +1279,25 @@ counts, or with `package-results --include reports|all` to copy the validated
 pair into a delivery package under `coverage_plan/` with
 `evidence_policy=coverage_plan_audit` and
 `strict_scientific_deliverable=false` artifact-scope rows.
+
+The isolated provider handoff adapter is:
+
+```text
+typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--json] [--write --outdir <dir> [--force]]
+```
+
+It reads only the explicitly named coverage-plan TSV and expands non-empty
+`provider_keys` through the static fail-closed provider registry. Without
+`--write`, it writes nothing. With `--write`, it writes only
+`provider_handoff.tsv` and `provider_handoff_summary.json` into the explicitly
+supplied directory. Existing output directories are refused by default;
+`--force` replaces only an owned pair with matching schemas. Missing,
+unreadable, malformed, or provider-key-empty input blocks the command with exit
+code `2`; successful handoff generation exits `0`; unexpected internal or
+write failures exit `1`. Provider handoff rows are AI/operator planning
+artifacts only: they do not contact providers, download genomes, mutate
+manifests, change completion metrics, or promote strict scientific
+deliverables.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the

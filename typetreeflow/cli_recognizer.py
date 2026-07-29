@@ -19,6 +19,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "count-crosswalk",
         "archive-candidates",
         "coverage-plan",
+        "provider-handoff",
         "providers",
         "curator-packet",
         "strict-gate-state",
@@ -32,6 +33,7 @@ _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
 _COUNT_CROSSWALK_SUBCOMMANDS = {"build"}
 _ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
 _COVERAGE_PLAN_SUBCOMMANDS = {"build"}
+_PROVIDER_HANDOFF_SUBCOMMANDS = {"build"}
 _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
@@ -58,6 +60,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_count_crosswalk = first == "count-crosswalk"
     is_archive_candidates = first == "archive-candidates"
     is_coverage_plan = first == "coverage-plan"
+    is_provider_handoff = first == "provider-handoff"
     is_providers = first == "providers"
     is_curator_packet = first == "curator-packet"
     is_strict_gate_state = first == "strict-gate-state"
@@ -105,6 +108,15 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         unknown = (
             subcommand is not None
             and subcommand not in _COVERAGE_PLAN_SUBCOMMANDS
+        )
+    elif is_provider_handoff:
+        command = "provider-handoff"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "provider_handoff"
+        invalid = subcommand not in _PROVIDER_HANDOFF_SUBCOMMANDS
+        unknown = (
+            subcommand is not None
+            and subcommand not in _PROVIDER_HANDOFF_SUBCOMMANDS
         )
     elif is_providers:
         command = "providers"
@@ -199,6 +211,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_count_crosswalk": is_count_crosswalk,
         "is_archive_candidates": is_archive_candidates,
         "is_coverage_plan": is_coverage_plan,
+        "is_provider_handoff": is_provider_handoff,
         "is_providers": is_providers,
         "is_curator_packet": is_curator_packet,
         "is_strict_gate_state": is_strict_gate_state,
@@ -267,6 +280,8 @@ def _writes_outputs_declared(
         return subcommand == "build" and "--write" in tokens
     if command == "coverage-plan":
         return subcommand == "build" and "--write" in tokens
+    if command == "provider-handoff":
+        return subcommand == "build" and "--write" in tokens
     if command == "curator-packet":
         return subcommand == "preflight" and "--write" in tokens
     if command == "strict-gate-state":
@@ -304,6 +319,8 @@ def _requires_outdir(
     if command == "archive-candidates":
         return subcommand == "build" and writes_outputs_declared
     if command == "coverage-plan":
+        return subcommand == "build" and writes_outputs_declared
+    if command == "provider-handoff":
         return subcommand == "build" and writes_outputs_declared
     if command == "curator-packet":
         return subcommand == "preflight" and writes_outputs_declared

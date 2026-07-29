@@ -33,10 +33,10 @@ and `package-results`.
 
 Small isolated adapters such as `manual-review`, `strict-gating`, `readiness`,
 `curator-packet`, `strict-gate-state`, `archive-candidates`,
-`acquisition-worklist`, `coverage-plan`, and `count-crosswalk` are dispatched
-before full workflow configuration is loaded. They emit compact JSON for AI
-operators and remain outside workflow mutation, provider access, downloads,
-and external-tool execution.
+`acquisition-worklist`, `coverage-plan`, `provider-handoff`, and
+`count-crosswalk` are dispatched before full workflow configuration is loaded.
+They emit compact JSON for AI operators and remain outside workflow mutation,
+provider access, downloads, and external-tool execution.
 
 `typetreeflow.cli_recognizer` provides side-effect-free, JSON-serializable
 command metadata for AI/helper-facing tooling. `typetreeflow commands catalog`,

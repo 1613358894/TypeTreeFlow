@@ -104,6 +104,18 @@ review, provider handoff preparation, local-evidence construction, and
 already-strict records without contacting providers, downloading genomes,
 mutating manifests, or claiming strict scientific delivery.
 
+Turn coverage-plan provider keys into a provider-specific offline handoff:
+
+```bash
+typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> \
+  [--json] [--write --outdir <isolated-directory> [--force]]
+```
+
+The command expands provider keys through the static provider registry and
+records provider status, terms-review, credential, and network-disabled
+boundaries. It does not contact providers, download genomes, mutate manifests,
+or claim strict scientific delivery.
+
 Build a denominator-preserving crosswalk for already known counts with:
 
 ```bash
