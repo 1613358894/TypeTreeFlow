@@ -241,6 +241,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_strict_gating": is_strict_gating,
         "is_readiness": is_readiness,
         "is_acquisition_worklist": is_acquisition_worklist,
+        "is_coverage_pipeline": is_coverage_pipeline,
         "is_count_crosswalk": is_count_crosswalk,
         "is_archive_candidates": is_archive_candidates,
         "is_coverage_plan": is_coverage_plan,
