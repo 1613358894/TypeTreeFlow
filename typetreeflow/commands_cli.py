@@ -827,6 +827,43 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "existing or new workflow run directory for review outputs",
         },
     ],
+    ("register-external-genomes", None): [
+        {
+            "name": "external_genomes",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "reviewed external_genomes.tsv input",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "existing or new workflow run directory for local registration outputs",
+        },
+        {
+            "name": "--dry-run",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "validate local external-genome registration without installing manifest rows",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "allow compatible local registration output replacement",
+        },
+        {
+            "name": "--merge-manifest",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "merge accepted local external-genome rows into manifest outputs",
+        },
+    ],
     ("providers", "catalog"): [
         {
             "name": "--json",
