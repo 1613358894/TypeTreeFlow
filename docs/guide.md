@@ -140,11 +140,13 @@ typetreeflow coverage-pipeline build \
 
 The pipeline builds the same acquisition worklist, coverage action plan, and
 provider handoff artifacts that the individual adapters would build. `preview`
-writes nothing. `build --write` publishes only isolated `acquisition_worklist/`,
-`coverage_plan/`, `provider_handoff/`, and `coverage_pipeline_summary.json`
-members under the requested directory. It remains audit-only: no workflow
-outputs, provider contacts, downloads, manifest mutation, completion credit, or
-strict deliverable promotion.
+writes nothing. Its compact JSON includes `coverage_next_action_groups`, a
+priority-ordered summary of action counts, source lanes, provider keys, and
+recommended next commands for AI/operator routing. `build --write` publishes
+only isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
+and `coverage_pipeline_summary.json` members under the requested directory. It
+remains audit-only: no workflow outputs, provider contacts, downloads,
+manifest mutation, completion credit, or strict deliverable promotion.
 Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 `--report-only` or `package-results --include reports|all` to hand off that
 directory as one explicit read-only input. TypeTreeFlow derives only its

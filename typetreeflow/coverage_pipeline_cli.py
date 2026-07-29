@@ -236,6 +236,9 @@ def _payload(
         "coverage_action_count": coverage_summary["record_count"],
         "coverage_action_counts": coverage_summary["action_counts"],
         "coverage_provider_key_counts": coverage_summary["provider_key_counts"],
+        "coverage_next_action_groups": _coverage_next_action_groups(
+            coverage_plan.actions
+        ),
         "provider_handoff_record_count": provider_summary["record_count"],
         "provider_key_counts": provider_summary["provider_key_counts"],
         "provider_status_counts": provider_summary["provider_status_counts"],
@@ -276,6 +279,38 @@ def _summary_text(command: str, blocked: bool) -> str:
     )
 
 
+def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
+    grouped: dict[str, dict[str, object]] = {}
+    for action in actions:
+        group = grouped.setdefault(
+            action.action_code,
+            {
+                "priority": action.priority,
+                "action_code": action.action_code,
+                "action_label": action.action_label,
+                "record_count": 0,
+                "source_lanes": [],
+                "provider_keys": [],
+                "recommended_next_command": action.recommended_next_command,
+            },
+        )
+        group["record_count"] = int(group["record_count"]) + 1
+        _append_unique(group["source_lanes"], action.source_lane)
+        for provider_key in str(action.provider_keys).split(";"):
+            _append_unique(group["provider_keys"], provider_key.strip())
+        if not group["recommended_next_command"] and action.recommended_next_command:
+            group["recommended_next_command"] = action.recommended_next_command
+    return sorted(
+        grouped.values(),
+        key=lambda group: (int(group["priority"]), str(group["action_code"])),
+    )
+
+
+def _append_unique(values: list[str], value: str) -> None:
+    if value and value not in values:
+        values.append(value)
+
+
 def _failure(code: str, message: str) -> dict[str, object]:
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
@@ -287,6 +322,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_action_count": 0,
         "coverage_action_counts": {},
         "coverage_provider_key_counts": {},
+        "coverage_next_action_groups": [],
         "provider_handoff_record_count": 0,
         "provider_key_counts": {},
         "provider_status_counts": {},
@@ -332,6 +368,7 @@ def _rendered_outputs(
             "coverage_action_count",
             "coverage_action_counts",
             "coverage_provider_key_counts",
+            "coverage_next_action_groups",
             "provider_handoff_record_count",
             "provider_key_counts",
             "provider_status_counts",
