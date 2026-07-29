@@ -196,6 +196,19 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--force",
         "--merge-manifest",
     ]
+    parameter_names = {
+        (entry["command"], entry["subcommand"]): {
+            parameter["name"] for parameter in entry["parameters"]
+        }
+        for entry in catalog
+    }
+    for key in (
+        ("acquisition-worklist", "build"),
+        ("manual-review", "import"),
+        ("readiness", "evaluate"),
+        ("strict-gating", "evaluate"),
+    ):
+        assert {"--write", "--outdir", "--force"} <= parameter_names[key]
     assert {
         (entry["command"], entry["subcommand"])
         for entry in catalog
