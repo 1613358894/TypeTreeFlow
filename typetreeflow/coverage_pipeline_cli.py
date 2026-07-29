@@ -246,6 +246,16 @@ def _payload(
         "provider_key_counts": provider_summary["provider_key_counts"],
         "provider_status_counts": provider_summary["provider_status_counts"],
         "source_action_counts": provider_summary["source_action_counts"],
+        "provider_terms_review_required_count": provider_summary[
+            "terms_review_required_count"
+        ],
+        "provider_credentials_required_count": provider_summary[
+            "credentials_required_count"
+        ],
+        "provider_network_supported_count": provider_summary["network_supported_count"],
+        "provider_default_network_enabled_count": provider_summary[
+            "default_network_enabled_count"
+        ],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -331,6 +341,10 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_key_counts": {},
         "provider_status_counts": {},
         "source_action_counts": {},
+        "provider_terms_review_required_count": 0,
+        "provider_credentials_required_count": 0,
+        "provider_network_supported_count": 0,
+        "provider_default_network_enabled_count": 0,
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -378,6 +392,10 @@ def _rendered_outputs(
             "provider_key_counts",
             "provider_status_counts",
             "source_action_counts",
+            "provider_terms_review_required_count",
+            "provider_credentials_required_count",
+            "provider_network_supported_count",
+            "provider_default_network_enabled_count",
             "diagnostic_count",
             "diagnostics",
             "audit_only",

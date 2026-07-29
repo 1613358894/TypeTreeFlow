@@ -58,6 +58,10 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
         "planning_only": 1,
     }
     assert summary["provider_key_counts"] == {"dsmz": 1, "genbank": 1, "refseq": 1}
+    assert summary["terms_review_required_count"] == 3
+    assert summary["credentials_required_count"] == 0
+    assert summary["network_supported_count"] == 0
+    assert summary["default_network_enabled_count"] == 0
     assert summary["providers_contacted"] == 0
 
 

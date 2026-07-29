@@ -90,18 +90,34 @@ class ProviderHandoff:
         provider_counts: dict[str, int] = {}
         status_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
+        terms_review_required_count = 0
+        credentials_required_count = 0
+        network_supported_count = 0
+        default_network_enabled_count = 0
         for row in self.rows:
             provider_counts[row.provider_key] = provider_counts.get(row.provider_key, 0) + 1
             status_counts[row.provider_status] = status_counts.get(row.provider_status, 0) + 1
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
             )
+            if row.terms_review_required:
+                terms_review_required_count += 1
+            if row.credentials_required:
+                credentials_required_count += 1
+            if row.network_supported:
+                network_supported_count += 1
+            if row.default_network_enabled:
+                default_network_enabled_count += 1
         return {
             "schema_version": self.schema_version,
             "record_count": len(self.rows),
             "provider_key_counts": dict(sorted(provider_counts.items())),
             "provider_status_counts": dict(sorted(status_counts.items())),
             "source_action_counts": dict(sorted(action_counts.items())),
+            "terms_review_required_count": terms_review_required_count,
+            "credentials_required_count": credentials_required_count,
+            "network_supported_count": network_supported_count,
+            "default_network_enabled_count": default_network_enabled_count,
             "audit_only": True,
             "downloads_triggered": 0,
             "providers_contacted": 0,

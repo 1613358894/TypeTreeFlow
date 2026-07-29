@@ -873,6 +873,13 @@ def _parse_nonnegative_int_map(value: dict[object, object]) -> dict[str, int]:
     return parsed
 
 
+def _optional_nonnegative_int(value: dict[str, object], field: str) -> int:
+    loaded = value.get(field, 0)
+    if isinstance(loaded, bool) or not isinstance(loaded, int) or loaded < 0:
+        raise ValueError(f"invalid {field}")
+    return loaded
+
+
 def _validate_coverage_plan_member(path: Path) -> None:
     if path.is_symlink() or not path.is_file():
         raise ValueError("member is not a regular file")
@@ -942,6 +949,18 @@ def read_optional_provider_handoff_audit(
             parsed_action_counts = _parse_nonnegative_int_map(
                 _required_dict(loaded, "source_action_counts")
             )
+            terms_review_required_count = _optional_nonnegative_int(
+                loaded, "terms_review_required_count"
+            )
+            credentials_required_count = _optional_nonnegative_int(
+                loaded, "credentials_required_count"
+            )
+            network_supported_count = _optional_nonnegative_int(
+                loaded, "network_supported_count"
+            )
+            default_network_enabled_count = _optional_nonnegative_int(
+                loaded, "default_network_enabled_count"
+            )
             if loaded.get("audit_only") is not True:
                 raise ValueError("audit_only boundary violation")
             if loaded.get("strict_scientific_deliverable") is not False:
@@ -961,6 +980,10 @@ def read_optional_provider_handoff_audit(
                 "providers_contacted": 0,
                 "network_access": False,
                 "manifest_mutated": False,
+                "terms_review_required_count": terms_review_required_count,
+                "credentials_required_count": credentials_required_count,
+                "network_supported_count": network_supported_count,
+                "default_network_enabled_count": default_network_enabled_count,
                 "audit_only": True,
                 "strict_scientific_deliverable": False,
             }

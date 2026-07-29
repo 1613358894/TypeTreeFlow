@@ -645,6 +645,10 @@ def _write_provider_handoff_pair(directory: Path) -> None:
                     "review_public_archive_linkage": 2,
                     "prepare_provider_handoff": 1,
                 },
+                "terms_review_required_count": 3,
+                "credentials_required_count": 0,
+                "network_supported_count": 0,
+                "default_network_enabled_count": 0,
                 "audit_only": True,
                 "downloads_triggered": 0,
                 "providers_contacted": 0,
@@ -721,6 +725,8 @@ def test_provider_handoff_audit_section_is_explicit_bounded_and_audit_only(
     assert (
         "- Counts: record_count=3; downloads_triggered=0; "
         "providers_contacted=0; network_access=false; manifest_mutated=false; "
+        "terms_review_required_count=3; credentials_required_count=0; "
+        "network_supported_count=0; default_network_enabled_count=0; "
         "audit_only=true; strict_scientific_deliverable=false"
     ) in markdown
     assert "The provider handoff is audit-only planning output" in markdown

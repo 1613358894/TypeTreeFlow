@@ -113,8 +113,9 @@ typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> \
 
 The command expands provider keys through the static provider registry and
 records provider status, terms-review, credential, and network-disabled
-boundaries. It does not contact providers, download genomes, mutate manifests,
-or claim strict scientific delivery.
+boundaries, with compact readiness counts in stdout and the summary JSON. It
+does not contact providers, download genomes, mutate manifests, or claim
+strict scientific delivery.
 
 Preview the full offline coverage planning chain in one no-write command:
 
