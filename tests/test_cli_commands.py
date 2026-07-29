@@ -146,9 +146,34 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "write_behavior",
             "requires_outdir",
             "boundary",
+            "parameters",
         }
         for entry in catalog
     )
+    assert all(
+        set(parameter) == {
+            "name",
+            "kind",
+            "required",
+            "repeatable",
+            "purpose",
+        }
+        for entry in catalog
+        for parameter in entry["parameters"]
+    )
+    verify_genus = next(
+        entry for entry in catalog if (entry["command"], entry["subcommand"]) == ("verify-genus", None)
+    )
+    assert {"genus", "--outdir", "--dry-run", "--report-only", "--enable-downloads"} <= {
+        parameter["name"] for parameter in verify_genus["parameters"]
+    }
+    preflight = next(
+        entry for entry in catalog if (entry["command"], entry["subcommand"]) == ("commands", "preflight")
+    )
+    assert [parameter["name"] for parameter in preflight["parameters"]][:2] == [
+        "--argv-json",
+        "--allow-write",
+    ]
     assert {
         (entry["command"], entry["subcommand"])
         for entry in catalog

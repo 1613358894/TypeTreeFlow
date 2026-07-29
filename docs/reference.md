@@ -476,7 +476,10 @@ environment files, contact providers, run downloads, or invoke external tools.
 
 `commands catalog` returns `catalog`, a static list of command entries with
 `command`, `subcommand`, `mode`, `argv_pattern`, `json_stdout`,
-`write_behavior`, `requires_outdir`, and `boundary`.
+`write_behavior`, `requires_outdir`, `boundary`, and `parameters`.
+Each `parameters` item has `name`, `kind`, `required`, `repeatable`, and
+`purpose` fields so AI operators can construct candidate argv lists before
+passing them through `commands preflight`.
 
 `commands recognize` and `commands preflight` require `--argv-json` as a JSON
 string array or target argv tokens after `--`. Their JSON envelopes include
