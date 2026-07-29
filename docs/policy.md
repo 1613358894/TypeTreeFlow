@@ -217,6 +217,12 @@ authorized future work. Invalid flag combinations are blocked rather than
 promoted. The helper cannot create strict deliverables, apply upgrades, mutate
 workflow outputs, or authorize provider/download behavior.
 
+The `strict-gate-state project` CLI is an isolated no-workflow adapter for the
+same interpretation. It may write only its owned projection/summary/diagnostic
+triplet in an isolated directory. It must not run the strict-gating evaluator,
+discover workflow outputs, contact providers, trigger downloads, mutate
+manifests, or convert `gate-passed` into a strict deliverable.
+
 Count crosswalk reports are denominator guards, not completion or coverage
 promotion. They keep checklist species, selection rows, manifest rows,
 reconciler partition rows, diagnostic rows, and download counts in separate

@@ -755,6 +755,24 @@ authorization. The companion `summarize_strict_gate_states()` function returns
 JSON-serializable counts without reading files, writing files, or mutating any
 workflow output.
 
+The isolated CLI surface is:
+
+```bash
+typetreeflow strict-gate-state project --input-json <rows.json> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+`--input-json` accepts either a JSON array of row objects or an object with a
+`rows` array. Stdout is always a single compact JSON object. Valid projection
+inputs return exit code `0`; invalid usage, unreadable/malformed input, and
+invalid state combinations return `2`; unexpected internal or write failures
+return `1`. Optional write mode atomically publishes
+`strict_gate_state_projection.tsv`, `strict_gate_state_summary.json`, and
+`strict_gate_state_diagnostics.tsv` directly under the requested isolated
+directory. The command records `writes_workflow_outputs=false`,
+`strict_deliverable_written=false`, `downloads_triggered=0`,
+`providers_contacted=0`, and `manifest_mutated=false`.
+
 ### Count Crosswalk Reports
 
 The offline `build_count_crosswalk_report()` helper renders mixed-denominator

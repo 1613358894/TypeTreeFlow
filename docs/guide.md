@@ -167,6 +167,22 @@ workflow output. `strict_gate_passed=true` means only that the offline guards
 passed; `strict_deliverable_written` and `strict_upgrade_applied` remain
 `false`.
 
+Project already generated manual-review/strict-gating JSON rows into the
+stable six-state model with:
+
+```bash
+typetreeflow strict-gate-state project --input-json <rows.json> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+The command is interpretive only. It can label rows as `audit-only`,
+`candidate`, `blocked`, or `gate-passed`, and it reserves
+`deliverable-written` and `upgrade-applied` for future separately authorized
+materialization work. Explicit write mode publishes only the isolated
+projection TSV, summary JSON, and diagnostics TSV. It does not evaluate
+evidence, run the strict-gating evaluator, contact providers, mutate workflow
+outputs, write strict deliverables, or apply upgrades.
+
 For clean deployment rehearsal, keep the route minimal:
 
 ```bash

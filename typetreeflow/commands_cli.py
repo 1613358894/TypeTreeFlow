@@ -162,6 +162,16 @@ _CATALOG_ENTRIES = (
         "boundary": "packet metadata preflight only; no workflow or curator-data evaluation",
     },
     {
+        "command": "strict-gate-state",
+        "subcommand": "project",
+        "mode": "strict_gate_state",
+        "argv_pattern": "typetreeflow strict-gate-state project --input-json <rows.json>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_triplet",
+        "requires_outdir": False,
+        "boundary": "state projection only; no strict deliverable or upgrade",
+    },
+    {
         "command": "commands",
         "subcommand": "recognize",
         "mode": "cli_metadata",
@@ -517,6 +527,36 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated curator packet preflight pair",
+        },
+    ],
+    ("strict-gate-state", "project"): [
+        {
+            "name": "--input-json",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "JSON array or object with rows to project",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated strict-gate-state outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated strict-gate-state output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated strict-gate-state triplet",
         },
     ],
     ("commands", "recognize"): [
@@ -1060,6 +1100,30 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         max_rows = request.get("max_rows")
         if max_rows is not None:
             argv.extend(["--max-rows", str(max_rows)])
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "strict-gate-state" and subcommand == "project":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input_json",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "strict-gate-state",
+            "project",
+            "--input-json",
+            _required_string(request, "input_json"),
+        ]
         if _bool_flag(request, "write"):
             argv.append("--write")
         outdir = _optional_string(request, "outdir")

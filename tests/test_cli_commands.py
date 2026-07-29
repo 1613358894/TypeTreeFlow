@@ -198,6 +198,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("acquisition-worklist", "build"),
         ("count-crosswalk", "build"),
         ("curator-packet", "preflight"),
+        ("strict-gate-state", "project"),
         ("commands", "recognize"),
         ("commands", "catalog"),
         ("commands", "render"),
@@ -349,6 +350,39 @@ def test_commands_render_emits_normalized_curator_packet_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "curator-packet"
     assert payload["recognized"]["mode"] == "curator_packet"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_strict_gate_state_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"strict-gate-state","subcommand":"project",'
+                    '"input_json":"rows.json","write":true,'
+                    '"outdir":"state","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "strict-gate-state",
+        "project",
+        "--input-json",
+        "rows.json",
+        "--write",
+        "--outdir",
+        "state",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "strict-gate-state"
+    assert payload["recognized"]["mode"] == "strict_gate_state"
     assert payload["recognized"]["requires_outdir"] is True
 
 
@@ -567,6 +601,29 @@ def test_commands_preflight_allows_curator_packet_write_with_write_allowance(cap
     assert payload["recognized"]["is_curator_packet"] is True
 
 
+def test_commands_preflight_allows_strict_gate_state_write_with_write_allowance(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--argv-json",
+                (
+                    '["strict-gate-state","project","--input-json","rows.json",'
+                    '"--write","--outdir","state"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["risk"]["workflow_outputs_declared"] is False
+    assert payload["recognized"]["is_strict_gate_state"] is True
+
+
 def test_commands_preflight_blocks_workflow_outputs_without_specific_allowance(capsys):
     assert (
         main(
@@ -676,6 +733,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_acquisition_worklist": False,
         "is_count_crosswalk": False,
         "is_curator_packet": False,
+        "is_strict_gate_state": False,
         "writes_outputs_declared": False,
         "requires_outdir": False,
         "unknown": False,
