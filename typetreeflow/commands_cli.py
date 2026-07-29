@@ -170,6 +170,267 @@ _CATALOG_ENTRIES = (
         "boundary": "metadata risk gate only; no dispatch authority",
     },
 )
+_PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
+    ("doctor", None): [
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit JSON stdout",
+        },
+    ],
+    ("status", None): [
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "existing workflow run directory",
+        },
+    ],
+    ("next-step", None): [
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "existing workflow run directory",
+        },
+    ],
+    ("verify-genus", None): [
+        {
+            "name": "genus",
+            "kind": "positional",
+            "required": True,
+            "repeatable": False,
+            "purpose": "target genus name",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "workflow output directory",
+        },
+        {
+            "name": "--dry-run",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "plan without real provider/download/tool actions",
+        },
+        {
+            "name": "--report-only",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "refresh reports from existing artifacts only",
+        },
+        {
+            "name": "--enable-downloads",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicitly permit real download actions",
+        },
+    ],
+    ("verify-release-genus", None): [
+        {
+            "name": "genus",
+            "kind": "positional",
+            "required": True,
+            "repeatable": False,
+            "purpose": "target genus name",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "release verification output directory",
+        },
+    ],
+    ("package-results", None): [
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "existing workflow run directory",
+        },
+        {
+            "name": "--include",
+            "kind": "choice",
+            "required": False,
+            "repeatable": False,
+            "purpose": "package member set such as reports or all",
+        },
+    ],
+    ("manual-review", "validate"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "manual review TSV input",
+        },
+        {
+            "name": "--out",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional isolated issues TSV",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated issues TSV",
+        },
+    ],
+    ("manual-review", "import"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "manual review TSV input",
+        },
+        {
+            "name": "--reconciler-audit",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "frozen reconciler audit TSV",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated manual review import triplet",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated manual review import output directory",
+        },
+    ],
+    ("strict-gating", "evaluate"): [
+        {
+            "name": "--manual-review-dir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "manual review import triplet directory",
+        },
+        {
+            "name": "--reconciler-audit",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "frozen reconciler audit TSV",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated strict gating audit triplet",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated strict gating output directory",
+        },
+    ],
+    ("readiness", "evaluate"): [
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated readiness audit pair",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated readiness output directory",
+        },
+    ],
+    ("acquisition-worklist", "build"): [
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated acquisition worklist outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated worklist output directory",
+        },
+    ],
+    ("commands", "recognize"): [
+        {
+            "name": "--argv-json",
+            "kind": "json_array",
+            "required": False,
+            "repeatable": False,
+            "purpose": "target argv as JSON string array",
+        },
+        {
+            "name": "--",
+            "kind": "separator",
+            "required": False,
+            "repeatable": False,
+            "purpose": "alternate trailing target argv form",
+        },
+    ],
+    ("commands", "catalog"): [
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "stable no-op JSON compatibility flag",
+        },
+    ],
+    ("commands", "preflight"): [
+        {
+            "name": "--argv-json",
+            "kind": "json_array",
+            "required": True,
+            "repeatable": False,
+            "purpose": "target argv as JSON string array",
+        },
+        {
+            "name": "--allow-write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit commands that declare output writes",
+        },
+        {
+            "name": "--allow-workflow-outputs",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "permit commands that mutate workflow outputs",
+        },
+    ],
+}
 
 
 def is_commands_command(argv: Sequence[str]) -> bool:
@@ -334,10 +595,19 @@ def _catalog_payload() -> dict[str, object]:
         "writes_workflow_outputs": False,
         "network_access": False,
         "external_tools": False,
-        "catalog": [dict(entry) for entry in _CATALOG_ENTRIES],
+        "catalog": [_catalog_entry(entry) for entry in _CATALOG_ENTRIES],
         "blocking": [],
         "warnings": [],
     }
+
+
+def _catalog_entry(entry: dict[str, object]) -> dict[str, object]:
+    payload = dict(entry)
+    key = (str(entry["command"]), entry["subcommand"])
+    payload["parameters"] = [
+        dict(parameter) for parameter in _PARAMETER_CATALOG.get(key, [])
+    ]
+    return payload
 
 
 def _preflight_payload(parsed: dict[str, object]) -> dict[str, object]:
