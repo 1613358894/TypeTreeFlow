@@ -313,6 +313,51 @@ def test_commands_render_emits_normalized_count_crosswalk_argv(capsys):
     assert payload["recognized"]["requires_outdir"] is True
 
 
+def test_commands_render_emits_normalized_acquisition_worklist_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"acquisition-worklist","subcommand":"build",'
+                    '"checklist_tsv":"species.tsv",'
+                    '"reconciler_audit_tsv":"audit.tsv",'
+                    '"completion_gaps_tsv":"gaps.tsv",'
+                    '"external_genomes_tsv":"external.tsv",'
+                    '"archive_candidates_tsv":"archive.tsv",'
+                    '"write":true,"outdir":"worklist","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "acquisition-worklist",
+        "build",
+        "--checklist-tsv",
+        "species.tsv",
+        "--reconciler-audit-tsv",
+        "audit.tsv",
+        "--completion-gaps-tsv",
+        "gaps.tsv",
+        "--external-genomes-tsv",
+        "external.tsv",
+        "--archive-candidates-tsv",
+        "archive.tsv",
+        "--write",
+        "--outdir",
+        "worklist",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "acquisition-worklist"
+    assert payload["recognized"]["mode"] == "acquisition_worklist"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
 def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
     assert (
         main(
