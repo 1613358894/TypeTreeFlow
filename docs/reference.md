@@ -1339,6 +1339,22 @@ provider-handoff audit counts, or with `package-results --include reports|all`
 to copy the validated pair into a delivery package under `provider_handoff/`
 with `evidence_policy=provider_handoff_audit` and
 `strict_scientific_deliverable=false` artifact-scope rows.
+
+The no-write coverage pipeline preview adapter is:
+
+```text
+typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--json]
+```
+
+It reads only explicitly named local TSV files, builds an in-memory acquisition
+worklist, coverage action plan, and provider handoff, then emits one compact
+JSON object with lane, action, provider-key, and provider-status counts plus
+bounded previews. It never writes isolated adapter outputs or workflow
+outputs. Missing, unreadable, or empty inputs block with exit code `2`;
+successful previews exit `0`; unexpected internal failures exit `1`. The
+preview is an AI/operator planning shortcut only: it does not contact
+providers, authenticate, accept terms, download genomes, mutate manifests,
+change completion metrics, or promote strict scientific deliverables.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the

@@ -196,6 +196,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("strict-gating", "evaluate"),
         ("readiness", "evaluate"),
         ("acquisition-worklist", "build"),
+        ("coverage-pipeline", "preview"),
         ("count-crosswalk", "build"),
         ("archive-candidates", "build"),
         ("coverage-plan", "build"),

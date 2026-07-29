@@ -331,6 +331,14 @@ AI/operator provider planning availability, not provider execution, download
 readiness, completion credit, manifest mutation, or strict deliverable
 promotion. Failed-handoff packages exclude these provider-handoff artifacts.
 
+The `coverage-pipeline preview` CLI is a no-write shortcut over the same
+offline chain: acquisition worklist, coverage action plan, and provider
+handoff. It may read only explicitly named local TSV files and emit compact
+JSON counts/previews. It must not write isolated adapter outputs, discover
+workflow outputs, read credentials, contact providers, authenticate, accept
+terms, trigger downloads, mutate manifests, change completion metrics, or
+reinterpret planning rows as strict scientific deliverables.
+
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
 curator-packet metadata, strict-gate state, and count-crosswalk facts are

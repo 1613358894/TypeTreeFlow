@@ -116,6 +116,23 @@ records provider status, terms-review, credential, and network-disabled
 boundaries. It does not contact providers, download genomes, mutate manifests,
 or claim strict scientific delivery.
 
+Preview the full offline coverage planning chain in one no-write command:
+
+```bash
+typetreeflow coverage-pipeline preview \
+  --checklist-tsv <species.tsv> \
+  --reconciler-audit-tsv <reconciler_audit.tsv> \
+  --completion-gaps-tsv <gaps.tsv> \
+  --external-genomes-tsv <external_genomes.tsv> \
+  --archive-candidates-tsv <archive_candidates.tsv> [--json]
+```
+
+The preview builds the same in-memory acquisition worklist, coverage action
+plan, and provider handoff summaries that the individual adapters would build.
+It writes nothing and remains audit-only: no workflow outputs, provider
+contacts, downloads, manifest mutation, completion credit, or strict
+deliverable promotion.
+
 Build a denominator-preserving crosswalk for already known counts with:
 
 ```bash

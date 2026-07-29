@@ -16,6 +16,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "strict-gating",
         "readiness",
         "acquisition-worklist",
+        "coverage-pipeline",
         "count-crosswalk",
         "archive-candidates",
         "coverage-plan",
@@ -30,6 +31,7 @@ _MANUAL_REVIEW_SUBCOMMANDS = {"validate", "import"}
 _STRICT_GATING_SUBCOMMANDS = {"evaluate"}
 _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
+_COVERAGE_PIPELINE_SUBCOMMANDS = {"preview"}
 _COUNT_CROSSWALK_SUBCOMMANDS = {"build"}
 _ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
 _COVERAGE_PLAN_SUBCOMMANDS = {"build"}
@@ -57,6 +59,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_strict_gating = first == "strict-gating"
     is_readiness = first == "readiness"
     is_acquisition_worklist = first == "acquisition-worklist"
+    is_coverage_pipeline = first == "coverage-pipeline"
     is_count_crosswalk = first == "count-crosswalk"
     is_archive_candidates = first == "archive-candidates"
     is_coverage_plan = first == "coverage-plan"
@@ -81,6 +84,15 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         unknown = (
             subcommand is not None
             and subcommand not in _ACQUISITION_WORKLIST_SUBCOMMANDS
+        )
+    elif is_coverage_pipeline:
+        command = "coverage-pipeline"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "coverage_pipeline"
+        invalid = subcommand not in _COVERAGE_PIPELINE_SUBCOMMANDS
+        unknown = (
+            subcommand is not None
+            and subcommand not in _COVERAGE_PIPELINE_SUBCOMMANDS
         )
     elif is_count_crosswalk:
         command = "count-crosswalk"
@@ -274,6 +286,8 @@ def _writes_outputs_declared(
         return subcommand == "evaluate" and "--write" in tokens
     if command == "acquisition-worklist":
         return subcommand == "build" and "--write" in tokens
+    if command == "coverage-pipeline":
+        return False
     if command == "count-crosswalk":
         return subcommand == "build" and "--write" in tokens
     if command == "archive-candidates":
@@ -314,6 +328,8 @@ def _requires_outdir(
         return subcommand == "evaluate" and writes_outputs_declared
     if command == "acquisition-worklist":
         return subcommand == "build" and writes_outputs_declared
+    if command == "coverage-pipeline":
+        return False
     if command == "count-crosswalk":
         return subcommand == "build" and writes_outputs_declared
     if command == "archive-candidates":
