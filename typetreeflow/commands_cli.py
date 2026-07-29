@@ -212,6 +212,16 @@ _CATALOG_ENTRIES = (
         "boundary": "provider request draft only; no provider contact or downloads",
     },
     {
+        "command": "external-genomes",
+        "subcommand": "validate",
+        "mode": "external_genomes",
+        "argv_pattern": "typetreeflow external-genomes validate --input <external_genomes.tsv>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "external-genomes preflight only; no install, manifest, or workflow writes",
+    },
+    {
         "command": "plan-provider-registration",
         "subcommand": None,
         "mode": "provider_registration_plan",
@@ -837,6 +847,22 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated provider request draft pair",
+        },
+    ],
+    ("external-genomes", "validate"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "reviewed or proposed external genomes TSV input",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
         },
     ],
     ("plan-provider-registration", None): [
@@ -1700,6 +1726,15 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if outdir:
             argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force"})
+    if command == "external-genomes" and subcommand == "validate":
+        _reject_unknown_fields(request, {"command", "subcommand", "input", "json"})
+        argv = [
+            "external-genomes",
+            "validate",
+            "--input",
+            _required_string(request, "input"),
+        ]
+        return _with_flags(argv, request, {"json": "--json"})
     if command == "plan-provider-registration":
         _reject_unknown_fields(request, {"command", "provider_request", "outdir"})
         return [

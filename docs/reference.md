@@ -1500,6 +1500,16 @@ outputs preserve the failure for review instead of waiting indefinitely.
 `provider/proposed_external_genomes.tsv` rows remain review-only.
 `proposed_external_genomes.tsv` is always a review-only handoff table and its
 rows are always `external_genome_manual_review_required`.
+`external-genomes validate --input <external_genomes.tsv>` is a no-write
+preflight for reviewed or proposed external-genome rows. It reads only the
+explicit TSV and referenced local FASTA files, emits one compact JSON object,
+and returns `0` when all rows validate or `2` for schema, input, checksum,
+missing-file, or manual-review diagnostics. The payload includes `record_count`,
+`valid_count`, `invalid_count`, `status_counts`, bounded row previews, and the
+stable boundary fields `dry_run=true`, `writes_outputs=false`,
+`writes_workflow_outputs=false`, `downloads_triggered=0`,
+`providers_contacted=0`, `network_access=false`, `external_tools=false`,
+`manifest_mutated=false`, and `strict_scientific_deliverable=false`.
 `--register-external-genomes <external_genomes.tsv>` emits one compact JSON
 object on stdout. The payload reports registration-result, valid/invalid,
 install-plan, install-result, and manifest record counts plus the stable
