@@ -1343,19 +1343,24 @@ to copy the validated pair into a delivery package under `provider_handoff/`
 with `evidence_policy=provider_handoff_audit` and
 `strict_scientific_deliverable=false` artifact-scope rows.
 
-The no-write coverage pipeline preview adapter is:
+The isolated coverage pipeline adapter is:
 
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--json]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
 worklist, coverage action plan, and provider handoff, then emits one compact
 JSON object with lane, action, provider-key, and provider-status counts plus
-bounded previews. It never writes isolated adapter outputs or workflow
-outputs. Missing, unreadable, or empty inputs block with exit code `2`;
-successful previews exit `0`; unexpected internal failures exit `1`. The
-preview is an AI/operator planning shortcut only: it does not contact
+bounded previews. `preview` never writes files. `build --write` writes only
+isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
+`coverage_pipeline_summary.json` members under the explicitly supplied
+directory. Existing output directories are refused by default; `--force`
+replaces only an owned coverage-pipeline directory with matching schemas.
+Missing, unreadable, or empty inputs block with exit code `2`; successful
+previews/builds exit `0`; unexpected internal or write failures exit `1`. The
+pipeline is an AI/operator planning shortcut only: it does not contact
 providers, authenticate, accept terms, download genomes, mutate manifests,
 change completion metrics, or promote strict scientific deliverables.
 For offline readiness, pass `--offline-readiness-dir <dir>` with

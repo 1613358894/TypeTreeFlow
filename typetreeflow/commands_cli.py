@@ -152,6 +152,16 @@ _CATALOG_ENTRIES = (
         "boundary": "no-write coverage planning preview only; no provider contact or downloads",
     },
     {
+        "command": "coverage-pipeline",
+        "subcommand": "build",
+        "mode": "coverage_pipeline",
+        "argv_pattern": "typetreeflow coverage-pipeline build [local TSV inputs]",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_pipeline",
+        "requires_outdir": False,
+        "boundary": "isolated coverage planning artifacts only; no provider contact or downloads",
+    },
+    {
         "command": "count-crosswalk",
         "subcommand": "build",
         "mode": "count_crosswalk",
@@ -554,6 +564,64 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "optional public archive candidates TSV",
+        },
+    ],
+    ("coverage-pipeline", "build"): [
+        {
+            "name": "--checklist-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional species checklist TSV",
+        },
+        {
+            "name": "--reconciler-audit-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional strict reconciliation audit TSV",
+        },
+        {
+            "name": "--completion-gaps-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional completion gaps TSV",
+        },
+        {
+            "name": "--external-genomes-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional external genomes TSV",
+        },
+        {
+            "name": "--archive-candidates-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional public archive candidates TSV",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated coverage pipeline outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated coverage pipeline output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated coverage pipeline outputs",
         },
     ],
     ("count-crosswalk", "build"): [
@@ -1321,6 +1389,38 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if outdir:
             argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force"})
+    if command == "coverage-pipeline" and subcommand in {"build", "preview"}:
+        allowed = {
+            "command",
+            "subcommand",
+            "checklist_tsv",
+            "reconciler_audit_tsv",
+            "completion_gaps_tsv",
+            "external_genomes_tsv",
+            "archive_candidates_tsv",
+        }
+        if subcommand == "build":
+            allowed.update({"write", "outdir", "force"})
+        _reject_unknown_fields(request, allowed)
+        argv = ["coverage-pipeline", subcommand]
+        for key, flag in (
+            ("checklist_tsv", "--checklist-tsv"),
+            ("reconciler_audit_tsv", "--reconciler-audit-tsv"),
+            ("completion_gaps_tsv", "--completion-gaps-tsv"),
+            ("external_genomes_tsv", "--external-genomes-tsv"),
+            ("archive_candidates_tsv", "--archive-candidates-tsv"),
+        ):
+            value = _optional_string(request, key)
+            if value:
+                argv.extend([flag, value])
+        if subcommand == "build":
+            if _bool_flag(request, "write"):
+                argv.append("--write")
+            outdir = _optional_string(request, "outdir")
+            if outdir:
+                argv.extend(["--outdir", outdir])
+            return _with_flags(argv, request, {"force": "--force"})
+        return argv
     if command == "archive-candidates" and subcommand == "build":
         _reject_unknown_fields(
             request,

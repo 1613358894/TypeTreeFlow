@@ -127,11 +127,24 @@ typetreeflow coverage-pipeline preview \
   --archive-candidates-tsv <archive_candidates.tsv> [--json]
 ```
 
-The preview builds the same in-memory acquisition worklist, coverage action
-plan, and provider handoff summaries that the individual adapters would build.
-It writes nothing and remains audit-only: no workflow outputs, provider
-contacts, downloads, manifest mutation, completion credit, or strict
-deliverable promotion.
+To write the same artifacts to one isolated planning directory:
+
+```bash
+typetreeflow coverage-pipeline build \
+  --checklist-tsv <species.tsv> \
+  --reconciler-audit-tsv <reconciler_audit.tsv> \
+  --completion-gaps-tsv <gaps.tsv> \
+  --archive-candidates-tsv <archive_candidates.tsv> \
+  --write --outdir <isolated-coverage-pipeline-directory>
+```
+
+The pipeline builds the same acquisition worklist, coverage action plan, and
+provider handoff artifacts that the individual adapters would build. `preview`
+writes nothing. `build --write` publishes only isolated `acquisition_worklist/`,
+`coverage_plan/`, `provider_handoff/`, and `coverage_pipeline_summary.json`
+members under the requested directory. It remains audit-only: no workflow
+outputs, provider contacts, downloads, manifest mutation, completion credit, or
+strict deliverable promotion.
 
 Build a denominator-preserving crosswalk for already known counts with:
 
