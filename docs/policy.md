@@ -135,6 +135,14 @@ strain text, and culture-collection token overlap remain candidate evidence
 until strict selected-genome linkage to the species type-strain equivalence set
 is established and conflicts are resolved.
 
+Coverage action plans are derived offline queues from acquisition worklist
+lanes. They may prioritize curator conflict resolution, public archive linkage
+review, public type-linkage review, external registration review, provider
+handoff preparation, local evidence construction, or no-action strict records.
+They must not contact providers, download genomes, write manifests, update
+completion metrics, create `external_genomes.tsv`, or convert candidate
+evidence into strict scientific deliverables.
+
 Offline manual-review decision TSV validation is a curator dry run, not an
 automatic strict-upgrade path. Unknown decisions and incomplete provenance are
 blocked. `curated_strict_confirmed` additionally requires an exact selected

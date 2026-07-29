@@ -985,6 +985,10 @@ def main(
         is_archive_candidates_command,
         run_archive_candidates_command,
     )
+    from typetreeflow.coverage_plan_cli import (
+        is_coverage_plan_command,
+        run_coverage_plan_command,
+    )
     from typetreeflow.providers_cli import (
         is_providers_command,
         run_providers_command,
@@ -1014,6 +1018,8 @@ def main(
         return run_count_crosswalk_command(command_argv)
     if is_archive_candidates_command(command_argv):
         return run_archive_candidates_command(command_argv)
+    if is_coverage_plan_command(command_argv):
+        return run_coverage_plan_command(command_argv)
     if is_providers_command(command_argv):
         return run_providers_command(command_argv)
     if is_curator_packet_command(command_argv):
