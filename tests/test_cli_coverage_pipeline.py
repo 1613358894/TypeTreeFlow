@@ -33,6 +33,7 @@ def _write_inputs(tmp_path):
             {"full_name": "Clostridium alpha"},
             {"full_name": "Clostridium beta"},
             {"full_name": "Clostridium gamma"},
+            {"full_name": "Clostridium delta"},
         ],
     )
     _write_tsv(
@@ -43,6 +44,7 @@ def _write_inputs(tmp_path):
             "reconciled_evidence_tier",
             "strict_usable",
             "conflict_status",
+            "candidate_provider_keys",
         ),
         [
             {
@@ -59,12 +61,23 @@ def _write_inputs(tmp_path):
                 "strict_usable": "false",
                 "conflict_status": "strain_conflict",
             },
+            {
+                "species_name": "Clostridium delta",
+                "assembly_accession": "",
+                "reconciled_evidence_tier": "missing_public_genome",
+                "strict_usable": "false",
+                "conflict_status": "",
+                "candidate_provider_keys": "DSMZ; KCTC",
+            },
         ],
     )
     _write_tsv(
         gaps,
         ("species", "reason_category"),
-        [{"species": "Clostridium gamma", "reason_category": "missing_genome"}],
+        [
+            {"species": "Clostridium gamma", "reason_category": "missing_genome"},
+            {"species": "Clostridium delta", "reason_category": "missing_genome"},
+        ],
     )
     _write_tsv(
         archive,
@@ -103,14 +116,55 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert captured.out.count("\n") == 1
     assert payload["command"] == "coverage-pipeline preview"
     assert payload["status"] == "pass"
-    assert payload["worklist_record_count"] == 3
+    assert payload["worklist_record_count"] == 4
     assert payload["lane_counts"]["curator_conflict_resolution"] == 1
     assert payload["lane_counts"]["public_linkage_review"] == 2
+    assert payload["lane_counts"]["external_fasta_required"] == 1
+    assert payload["worklist_candidate_provider_key_counts"] == {
+        "dsmz": 1,
+        "kctc": 1,
+    }
     assert payload["coverage_action_counts"] == {
+        "prepare_provider_handoff": 1,
         "resolve_curator_conflict": 1,
         "review_public_archive_linkage": 1,
         "review_public_type_linkage": 1,
     }
+    assert payload["provider_handoff_record_count"] == 8
+    assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+    assert "provider_guidance=public_archive_metadata_review" in (
+        payload["provider_handoff_preview"][0]["provider_guidance_notes"]
+    )
+
+
+def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
+    capsys, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+
+    code, payload, _ = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
     assert payload["coverage_next_action_groups"] == [
         {
             "priority": 10,
@@ -139,19 +193,16 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "provider_keys": ["genbank", "refseq"],
             "recommended_next_command": "manual-review validate --input <review.tsv>",
         },
+        {
+            "priority": 50,
+            "action_code": "prepare_provider_handoff",
+            "action_label": "Prepare user-assisted provider handoff or record unresolved gap",
+            "record_count": 1,
+            "source_lanes": ["external_fasta_required"],
+            "provider_keys": ["dsmz", "kctc"],
+            "recommended_next_command": "external-genomes register --input <external_genomes.tsv>",
+        },
     ]
-    assert payload["provider_handoff_record_count"] == 6
-    assert payload["provider_status_counts"] == {"metadata_only": 6}
-    assert payload["downloads_triggered"] == 0
-    assert payload["providers_contacted"] == 0
-    assert payload["network_access"] is False
-    assert payload["writes_outputs"] is False
-    assert payload["writes_workflow_outputs"] is False
-    assert payload["manifest_mutated"] is False
-    assert payload["strict_scientific_deliverable"] is False
-    assert "provider_guidance=public_archive_metadata_review" in (
-        payload["provider_handoff_preview"][0]["provider_guidance_notes"]
-    )
 
 
 def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_path):
@@ -186,7 +237,11 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert (outdir / "provider_handoff" / "provider_handoff.tsv").exists()
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["command"] == "coverage-pipeline build"
-    assert summary["provider_handoff_record_count"] == 6
+    assert summary["provider_handoff_record_count"] == 8
+    assert summary["worklist_candidate_provider_key_counts"] == {
+        "dsmz": 1,
+        "kctc": 1,
+    }
     assert summary["coverage_next_action_groups"][0]["action_code"] == (
         "resolve_curator_conflict"
     )

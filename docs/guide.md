@@ -142,7 +142,10 @@ The pipeline builds the same acquisition worklist, coverage action plan, and
 provider handoff artifacts that the individual adapters would build. `preview`
 writes nothing. Its compact JSON includes `coverage_next_action_groups`, a
 priority-ordered summary of action counts, source lanes, provider keys, and
-recommended next commands for AI/operator routing. `build --write` publishes
+recommended next commands for AI/operator routing. It also carries
+`worklist_candidate_provider_key_counts` from the worklist layer so AI/operator
+handoff pressure is visible before reading the nested artifacts. `build
+--write` publishes
 only isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 and `coverage_pipeline_summary.json` members under the requested directory. It
 remains audit-only: no workflow outputs, provider contacts, downloads,
