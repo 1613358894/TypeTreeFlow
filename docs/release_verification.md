@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.39 / 2.2.39 release verification path uses
+The current v2.2.40 / 2.2.40 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -31,12 +31,27 @@ report-only Manual Review Import Audit section, audit-only package
 inclusion of manual-review import artifacts, the standalone guarded
 strict-gating evaluator and fail-closed blockers, the explicit Strict Gating
 Audit report section, and audit-only package inclusion under `strict_gating/`,
+offline AI-oriented count crosswalks, curator-packet preflight, strict-gate
+state projection, acquisition worklist review signals, isolated archive
+candidate audit triplets, read-only archive-candidate worklist integration,
+static provider registry metadata, the `providers catalog` JSON inventory, and
+command rendering for acquisition-worklist archive candidate inputs,
 clean deployment readiness, provider timeout/error classification, stdout JSON
 isolation, failed-handoff cache boundaries, workspace hygiene, and ensures
 repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`,
 operator-run `barrnap --updatedb`, and `typetreeflow doctor`; server rehearsal
 passed the clean deployment full rerun.
+
+For v2.2.40, the P5 AI-control and coverage-planning surfaces remain offline
+and review-only. `archive-candidates build` writes only an isolated audit
+triplet for public-archive candidate review. Acquisition-worklist integration
+may read that audit table as a review signal, but it does not write
+`external_genomes.tsv`, contact providers, download genomes, change manifests,
+change completion metrics, or promote strict type-strain evidence. Static
+provider registry entries and `providers catalog` expose planning and metadata
+only; they do not automate provider login, scraping, purchase, terms
+acceptance, credential handling, downloads, or live provider validation.
 
 For v2.2.39, the P3f guarded strict-gating workflow remains offline and
 audit-only. `strict-gating evaluate` is a no-write dry run by default and may
@@ -261,6 +276,13 @@ and `--discovery-cache`. Doctor readiness checks prefer `iqtree2`, accept
 keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
+
+The v2.2.40 release record references the bounded offline P5 AI-control,
+archive-candidate, provider registry/catalog, command rendering, and
+acquisition-worklist validation used before release. This evidence does not
+claim live-provider validation, downloads, external bioinformatics-tool
+execution, real curator input validation, applied strict upgrades, or strict
+deliverable materialization.
 
 The v2.2.39 release record references the bounded offline P3f evaluator
 closure at

@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.2.40 - 2026-07-29
+
+v2.2.40 batches the P5 offline AI-control and coverage-planning surfaces
+merged after v2.2.39.
+
+### Added
+
+- Offline AI-oriented control surfaces for count crosswalks, curator-packet
+  preflight, strict-gate state projection, and acquisition worklist review
+  signals.
+- An isolated `archive-candidates build` CLI for public-archive candidate
+  review inputs, including deterministic audit TSV/JSON/diagnostic outputs.
+- Read-only acquisition-worklist integration for archive candidate audit rows,
+  preserving conflict precedence and review-only semantics.
+- Static provider registry entries for culture collections and public archive
+  metadata surfaces, plus a read-only `providers catalog` CLI.
+- Command rendering support for acquisition-worklist archive candidate inputs.
+
+### Scientific boundary
+
+- Public archive and provider registry entries are planning and metadata
+  surfaces only.
+- Archive candidates do not write `external_genomes.tsv`, contact providers,
+  download genomes, change manifests, change completion metrics, or promote
+  strict type-strain evidence.
+- The added AI/control surfaces remain offline and deterministic, with compact
+  JSON stdout and no workflow mutation unless an existing command explicitly
+  owns an output.
+
+### Verification
+
+- PR and CI validation covered the P5 offline AI-control, archive-candidate,
+  provider registry, provider catalog, and command rendering surfaces.
+- Local batch readiness focused tests covered CLI commands, recognizer,
+  provider registry/catalog, archive candidates, count crosswalk,
+  curator-packet preflight, strict gate state projection, and acquisition
+  worklist integration.
+- This release does not claim live provider validation, real curator input
+  validation, broad downloads, external bioinformatics-tool execution, applied
+  strict upgrades, or strict deliverable materialization.
+
 ## v2.2.39 - 2026-07-25
 
 v2.2.39 batches the P3f guarded strict-gating audit-only workflow merged after

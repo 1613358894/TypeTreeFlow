@@ -1,9 +1,35 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.39 integration review as
+These notes consolidate the v2.2.2 through v2.2.40 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.40
+
+v2.2.40 batches the P5 offline AI-control and coverage-planning surfaces
+merged after v2.2.39:
+
+- AI-oriented offline control surfaces cover count crosswalks, curator-packet
+  preflight, strict-gate state projection, and acquisition worklist review
+  signals.
+- `archive-candidates build` creates an isolated public-archive candidate
+  audit triplet for curator review inputs.
+- Acquisition worklists may read archive candidate audit rows without changing
+  conflict precedence or review-only semantics.
+- Static provider registry entries describe planning-only culture-collection
+  surfaces and metadata-only public archive surfaces.
+- `providers catalog` emits a compact read-only JSON inventory of registered
+  provider surfaces.
+- Command rendering supports acquisition-worklist archive candidate inputs.
+
+Public archive and provider registry entries remain planning or metadata
+surfaces only. Archive candidates do not write `external_genomes.tsv`, contact
+providers, download genomes, change manifests, change completion metrics, or
+promote strict type-strain evidence. This release does not claim live provider
+validation, real curator input validation, broad downloads, external
+bioinformatics-tool execution, applied strict upgrades, or strict deliverable
+materialization.
 
 ## v2.2.39
 
