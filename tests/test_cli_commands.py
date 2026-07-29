@@ -198,6 +198,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("acquisition-worklist", "build"),
         ("count-crosswalk", "build"),
         ("archive-candidates", "build"),
+        ("coverage-plan", "build"),
         ("providers", "catalog"),
         ("curator-packet", "preflight"),
         ("strict-gate-state", "project"),
@@ -389,6 +390,39 @@ def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "archive-candidates"
     assert payload["recognized"]["mode"] == "archive_candidates"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_coverage_plan_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"coverage-plan","subcommand":"build",'
+                    '"worklist_tsv":"worklist.tsv","write":true,'
+                    '"outdir":"coverage","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "coverage-plan",
+        "build",
+        "--worklist-tsv",
+        "worklist.tsv",
+        "--write",
+        "--outdir",
+        "coverage",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "coverage-plan"
+    assert payload["recognized"]["mode"] == "coverage_plan"
     assert payload["recognized"]["requires_outdir"] is True
 
 
@@ -856,6 +890,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_acquisition_worklist": False,
         "is_count_crosswalk": False,
         "is_archive_candidates": False,
+        "is_coverage_plan": False,
         "is_providers": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,

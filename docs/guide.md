@@ -91,6 +91,19 @@ operators can prioritize candidate, conflict, gap, archive/INSDC, BioSample,
 BacDive/DSMZ, NCBI, and external-registration review without treating those
 counts as completion or download readiness.
 
+Turn an acquisition worklist into a prioritized offline action plan:
+
+```bash
+typetreeflow coverage-plan build --worklist-tsv <acquisition_worklist.tsv> \
+  [--json] [--write --outdir <isolated-directory> [--force]]
+```
+
+The command is an AI planning aid only. It ranks conflict resolution, public
+archive linkage review, public type-linkage review, external registration
+review, provider handoff preparation, local-evidence construction, and
+already-strict records without contacting providers, downloading genomes,
+mutating manifests, or claiming strict scientific delivery.
+
 Build a denominator-preserving crosswalk for already known counts with:
 
 ```bash

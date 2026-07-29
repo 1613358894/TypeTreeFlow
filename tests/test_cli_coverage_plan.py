@@ -1,0 +1,164 @@
+import csv
+import json
+import os
+import socket
+import subprocess
+from pathlib import Path
+
+from typetreeflow import cli
+
+
+def _run(args, capsys):
+    code = cli.main(["coverage-plan", "build", *args])
+    captured = capsys.readouterr()
+    return code, json.loads(captured.out), captured
+
+
+def _write_worklist(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fields = [
+        "species",
+        "lane",
+        "reason_code",
+        "source_artifacts",
+    ]
+    rows = [
+        {
+            "species": "Clostridium conflictum",
+            "lane": "curator_conflict_resolution",
+            "reason_code": "conflict_blocks_automatic_use",
+            "source_artifacts": "reconciler_audit",
+        },
+        {
+            "species": "Clostridium archiveum",
+            "lane": "public_linkage_review",
+            "reason_code": "public_archive_insdc_candidate_review",
+            "source_artifacts": "archive_candidates",
+        },
+        {
+            "species": "Clostridium gapum",
+            "lane": "external_fasta_required",
+            "reason_code": "no_public_strict_genome_linkage",
+            "source_artifacts": "completion_gaps",
+        },
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t", lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_coverage_plan_dry_run_is_single_json_and_writes_nothing(tmp_path, capsys):
+    worklist = tmp_path / "worklist.tsv"
+    _write_worklist(worklist)
+    before = worklist.read_bytes()
+
+    code, payload, captured = _run(["--worklist-tsv", str(worklist), "--json"], capsys)
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["command"] == "coverage-plan build"
+    assert payload["status"] == "pass"
+    assert payload["record_count"] == 3
+    assert payload["action_counts"]["resolve_curator_conflict"] == 1
+    assert payload["action_counts"]["review_public_archive_linkage"] == 1
+    assert payload["provider_key_counts"]["ena"] == 1
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
+    assert payload["writes_outputs"] is False
+    assert worklist.read_bytes() == before
+
+
+def test_coverage_plan_missing_input_blocks(capsys):
+    code, payload, captured = _run(["--worklist-tsv", "missing.tsv"], capsys)
+
+    assert code == 2
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    codes = {diagnostic["diagnostic_code"] for diagnostic in payload["diagnostics"]}
+    assert "input_unreadable" in codes
+    assert "no_worklist_rows" in codes
+
+
+def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
+    worklist = tmp_path / "worklist.tsv"
+    outdir = tmp_path / "coverage"
+    _write_worklist(worklist)
+
+    code, payload, _ = _run(
+        ["--worklist-tsv", str(worklist), "--write", "--outdir", str(outdir)],
+        capsys,
+    )
+
+    assert code == 0
+    assert payload["dry_run"] is False
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert {path.name for path in outdir.iterdir()} == {
+        "coverage_plan.tsv",
+        "coverage_plan_summary.json",
+    }
+    summary = json.loads((outdir / "coverage_plan_summary.json").read_text(encoding="utf-8"))
+    assert summary["strict_scientific_deliverable"] is False
+
+
+def test_coverage_plan_force_only_replaces_matching_owned_pair(tmp_path, capsys):
+    worklist = tmp_path / "worklist.tsv"
+    outdir = tmp_path / "coverage"
+    _write_worklist(worklist)
+    assert _run(["--worklist-tsv", str(worklist), "--write", "--outdir", str(outdir)], capsys)[0] == 0
+    assert _run(["--worklist-tsv", str(worklist), "--write", "--outdir", str(outdir)], capsys)[0] == 2
+    assert _run(
+        ["--worklist-tsv", str(worklist), "--write", "--outdir", str(outdir), "--force"],
+        capsys,
+    )[0] == 0
+
+    (outdir / "coverage_plan.tsv").write_text("wrong\n", encoding="utf-8")
+    code, payload, _ = _run(
+        ["--worklist-tsv", str(worklist), "--write", "--outdir", str(outdir), "--force"],
+        capsys,
+    )
+    assert code == 2
+    assert payload["writes_outputs"] is False
+
+
+def test_coverage_plan_rejects_protected_or_overlapping_outdir(tmp_path, capsys):
+    worklist = tmp_path / "input" / "worklist.tsv"
+    _write_worklist(worklist)
+    protected = tmp_path / "run" / "coverage"
+    protected.parent.mkdir()
+
+    code, _, _ = _run(
+        ["--worklist-tsv", str(worklist), "--write", "--outdir", str(protected)],
+        capsys,
+    )
+    assert code == 2
+    assert not protected.exists()
+
+    code, _, _ = _run(
+        ["--worklist-tsv", str(worklist), "--write", "--outdir", str(worklist.parent)],
+        capsys,
+    )
+    assert code == 2
+
+
+def test_coverage_plan_cli_does_not_use_env_socket_process_or_workflow_config(
+    monkeypatch, tmp_path, capsys
+):
+    def fail(*args, **kwargs):
+        raise AssertionError("coverage plan CLI must remain isolated")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+    monkeypatch.setattr(subprocess, "run", fail)
+    monkeypatch.setattr(cli, "parse_args", fail)
+    monkeypatch.setattr(cli, "get_output_paths", fail)
+    worklist = tmp_path / "worklist.tsv"
+    _write_worklist(worklist)
+
+    code, payload, _ = _run(["--worklist-tsv", str(worklist)], capsys)
+
+    assert code == 0
+    assert payload["status"] == "pass"

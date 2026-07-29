@@ -1228,6 +1228,23 @@ The optional report/package surfaces are separate from worklist generation:
 pass `--acquisition-worklist-dir <dir>` with `--report-only` to display compact
 audit counts, or with `package-results --include reports|all` to copy the
 validated pair into a delivery package.
+
+The isolated coverage action plan adapter is:
+
+```text
+typetreeflow coverage-plan build --worklist-tsv <acquisition_worklist.tsv> [--json] [--write --outdir <dir> [--force]]
+```
+
+It reads only the explicitly named acquisition worklist TSV and emits exactly
+one compact JSON object. Without `--write`, it writes nothing. With `--write`,
+it writes only `coverage_plan.tsv` and `coverage_plan_summary.json` into the
+explicitly supplied directory. Existing output directories are refused by
+default; `--force` replaces only an owned pair with matching schemas. Missing
+or unreadable input blocks the command with exit code `2`; successful plan
+generation exits `0`; unexpected internal or write failures exit `1`.
+Coverage plans are AI action queues only: they do not contact providers,
+download genomes, mutate manifests, change completion metrics, or promote
+strict scientific deliverables.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the
