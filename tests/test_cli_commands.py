@@ -183,6 +183,19 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--request-json",
         "--allow-write",
     ]
+    external_registration = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"])
+        == ("register-external-genomes", None)
+    )
+    assert [parameter["name"] for parameter in external_registration["parameters"]] == [
+        "external_genomes",
+        "--outdir",
+        "--dry-run",
+        "--force",
+        "--merge-manifest",
+    ]
     assert {
         (entry["command"], entry["subcommand"])
         for entry in catalog
@@ -204,6 +217,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("provider-handoff", "build"),
         ("provider-request", "draft"),
         ("plan-provider-registration", None),
+        ("register-external-genomes", None),
         ("providers", "catalog"),
         ("curator-packet", "preflight"),
         ("strict-gate-state", "project"),
