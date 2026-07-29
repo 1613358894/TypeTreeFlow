@@ -311,6 +311,9 @@ rows with provider keys. They may expand provider keys into registry-backed
 provider status, terms-review, credential, and network-disabled fields, but
 they must not contact providers, download genomes, authenticate, accept terms,
 write manifests, grant completion credit, or promote strict deliverables.
+Common provider labels may be normalized to canonical registry keys for stable
+handoff counts, but alias recognition is metadata cleanup only and does not
+create provider access or download support.
 
 The `provider-handoff build` CLI remains an isolated adapter. It may read only
 an explicit coverage-plan TSV, and in explicit write mode it may publish only
