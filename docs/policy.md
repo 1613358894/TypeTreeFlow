@@ -147,6 +147,13 @@ private export, applying curator decisions, writing import or strict-gating
 audit triplets, running provider/download steps, or creating a strict
 deliverable.
 
+The `curator-packet preflight` CLI is an isolated, no-workflow adapter for
+that same metadata check. It may write only its explicitly requested preflight
+summary/issues pair in an isolated directory. It must not scan workflow
+outputs, load environment credentials, expose curator row values or reviewer
+identities, contact providers, trigger downloads, or evaluate real curator
+data.
+
 The library-only manual-review import mapper adds deterministic audit linkage
 to the exact frozen `reconciler_audit.tsv`. Its decision, summary, and
 diagnostic serializations are independent handoff artifacts, not manifest,
@@ -210,6 +217,12 @@ authorized future work. Invalid flag combinations are blocked rather than
 promoted. The helper cannot create strict deliverables, apply upgrades, mutate
 workflow outputs, or authorize provider/download behavior.
 
+The `strict-gate-state project` CLI is an isolated no-workflow adapter for the
+same interpretation. It may write only its owned projection/summary/diagnostic
+triplet in an isolated directory. It must not run the strict-gating evaluator,
+discover workflow outputs, contact providers, trigger downloads, mutate
+manifests, or convert `gate-passed` into a strict deliverable.
+
 Count crosswalk reports are denominator guards, not completion or coverage
 promotion. They keep checklist species, selection rows, manifest rows,
 reconciler partition rows, diagnostic rows, and download counts in separate
@@ -218,12 +231,21 @@ metric families. The frozen Clostridium plan-only invariants
 reconciliation only. They must not be interpreted as download coverage,
 provider availability, or strict deliverable readiness.
 
+The `count-crosswalk build` CLI is an isolated, no-workflow adapter for that
+same denominator audit. It requires either an explicit metrics TSV or the
+explicit frozen Clostridium plan-only flag. In write mode it may publish only
+its owned crosswalk triplet in an isolated directory. It must not discover
+workflow outputs, load credentials, contact providers, trigger downloads,
+mutate manifests, or convert count consistency into completion credit.
+
 Acquisition worklists are review queues, not acquisition execution. A worklist
 lane may recommend public linkage review, conflict resolution, external FASTA
 review, or no action, but it must not trigger provider contact, downloads,
 manifest merges, completion credit, or strict deliverable promotion. Conflict
 lanes take precedence over candidate and external-ready lanes until curator
-resolution is recorded.
+resolution is recorded. Additive worklist review-signal counts are triage
+hints only; they must not be interpreted as completion, download readiness,
+provider availability, or strict deliverable status.
 
 The `acquisition-worklist build` CLI remains an isolated adapter. It may write
 only its explicitly requested worklist pair and must not scan workflow

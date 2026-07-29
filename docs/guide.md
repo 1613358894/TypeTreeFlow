@@ -68,6 +68,49 @@ typetreeflow acquisition-worklist build --checklist-tsv <species.tsv> \
 
 The command is a planning aid only. It does not contact providers, download
 genomes, merge manifests, or grant strict scientific deliverable status.
+Its summary includes lane counts and review-signal counts so AI or curator
+operators can prioritize candidate, conflict, gap, BioSample, BacDive/DSMZ,
+NCBI, and external-registration review without treating those counts as
+completion or download readiness.
+
+Build a denominator-preserving crosswalk for already known counts with:
+
+```bash
+typetreeflow count-crosswalk build --metrics-tsv <metrics.tsv> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+For the frozen no-live Clostridium plan-only audit, use:
+
+```bash
+typetreeflow count-crosswalk build --clostridium-plan-only [--json]
+```
+
+The command is an audit aid only. It keeps checklist, selection, manifest,
+strict reconciliation, manual-review, diagnostic, and download counts in
+separate metric families so AI operators do not collapse them into one
+coverage number. Explicit write mode publishes only
+`count_crosswalk_metrics.tsv`, `count_crosswalk_summary.json`, and
+`count_crosswalk_issues.tsv` in an isolated directory. It does not scan
+workflow outputs, contact providers, trigger downloads, mutate manifests, or
+grant strict deliverable status.
+
+Preflight a small, repo-external, pre-redacted curator packet before any
+manual-review dry run:
+
+```bash
+typetreeflow curator-packet preflight --packet-dir <packet-dir> \
+  --repo-root <repo-root> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+The command verifies packet membership, custody digests, row bounds, approval
+kinds, redaction attestations, schemas, and forbidden payload markers. It
+reports only member names, counts, digests, and issue codes; it does not echo
+curator rows, reviewer IDs, private notes, evidence summaries, or workflow
+outputs. A PASS means the packet is structurally ready for a later offline
+dry run only; it does not authorize real curator-data evaluation, strict
+upgrades, provider contact, downloads, or workflow mutation.
 
 Validate a local curator decision file without loading workflow configuration:
 
@@ -123,6 +166,22 @@ exit `2`. The command never writes an `evidence/` child, strict deliverable, or
 workflow output. `strict_gate_passed=true` means only that the offline guards
 passed; `strict_deliverable_written` and `strict_upgrade_applied` remain
 `false`.
+
+Project already generated manual-review/strict-gating JSON rows into the
+stable six-state model with:
+
+```bash
+typetreeflow strict-gate-state project --input-json <rows.json> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+The command is interpretive only. It can label rows as `audit-only`,
+`candidate`, `blocked`, or `gate-passed`, and it reserves
+`deliverable-written` and `upgrade-applied` for future separately authorized
+materialization work. Explicit write mode publishes only the isolated
+projection TSV, summary JSON, and diagnostics TSV. It does not evaluate
+evidence, run the strict-gating evaluator, contact providers, mutate workflow
+outputs, write strict deliverables, or apply upgrades.
 
 For clean deployment rehearsal, keep the route minimal:
 

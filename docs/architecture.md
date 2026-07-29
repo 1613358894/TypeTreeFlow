@@ -32,9 +32,10 @@ The maintained command surface includes `verify-genus`, `status`, `next-step`,
 and `package-results`.
 
 Small isolated adapters such as `manual-review`, `strict-gating`, `readiness`,
-and `acquisition-worklist` are dispatched before full workflow configuration
-is loaded. They emit compact JSON for AI operators and remain outside workflow
-mutation, provider access, downloads, and external-tool execution.
+`curator-packet`, `strict-gate-state`, `acquisition-worklist`, and
+`count-crosswalk` are dispatched before full workflow configuration is loaded.
+They emit compact JSON for AI operators and remain outside workflow mutation,
+provider access, downloads, and external-tool execution.
 
 `typetreeflow.cli_recognizer` provides side-effect-free, JSON-serializable
 command metadata for AI/helper-facing tooling. `typetreeflow commands catalog`,

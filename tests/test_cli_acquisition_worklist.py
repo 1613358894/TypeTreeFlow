@@ -106,6 +106,8 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
     assert payload["lane_counts"]["no_action_strict_complete"] == 1
     assert payload["lane_counts"]["curator_conflict_resolution"] == 1
     assert payload["lane_counts"]["external_registration_ready"] == 1
+    assert payload["review_signal_counts"]["selected_accession"] == 2
+    assert payload["review_signal_counts"]["external_registration_ready"] == 1
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
@@ -152,6 +154,7 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
         (outdir / "acquisition_worklist_summary.json").read_text(encoding="utf-8")
     )
     assert summary["downloads_triggered"] == 0
+    assert "review_signal_counts" in summary
 
 
 def test_acquisition_worklist_force_only_replaces_matching_owned_pair(

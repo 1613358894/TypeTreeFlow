@@ -142,6 +142,36 @@ _CATALOG_ENTRIES = (
         "boundary": "planning only; no provider contact or downloads",
     },
     {
+        "command": "count-crosswalk",
+        "subcommand": "build",
+        "mode": "count_crosswalk",
+        "argv_pattern": "typetreeflow count-crosswalk build [--metrics-tsv <tsv>|--clostridium-plan-only]",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_triplet",
+        "requires_outdir": False,
+        "boundary": "denominator audit only; no completion or download promotion",
+    },
+    {
+        "command": "curator-packet",
+        "subcommand": "preflight",
+        "mode": "curator_packet",
+        "argv_pattern": "typetreeflow curator-packet preflight --packet-dir <dir> --repo-root <repo>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_pair",
+        "requires_outdir": False,
+        "boundary": "packet metadata preflight only; no workflow or curator-data evaluation",
+    },
+    {
+        "command": "strict-gate-state",
+        "subcommand": "project",
+        "mode": "strict_gate_state",
+        "argv_pattern": "typetreeflow strict-gate-state project --input-json <rows.json>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_triplet",
+        "requires_outdir": False,
+        "boundary": "state projection only; no strict deliverable or upgrade",
+    },
+    {
         "command": "commands",
         "subcommand": "recognize",
         "mode": "cli_metadata",
@@ -402,6 +432,131 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "isolated worklist output directory",
+        },
+    ],
+    ("count-crosswalk", "build"): [
+        {
+            "name": "--metrics-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit count crosswalk metric TSV input",
+        },
+        {
+            "name": "--clostridium-plan-only",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit frozen Clostridium plan-only denominator crosswalk",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated count crosswalk outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated count crosswalk output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated count crosswalk triplet",
+        },
+    ],
+    ("curator-packet", "preflight"): [
+        {
+            "name": "--packet-dir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "pre-redacted curator packet directory",
+        },
+        {
+            "name": "--repo-root",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "repository root used to prove packet is external",
+        },
+        {
+            "name": "--expected-genus",
+            "kind": "value",
+            "required": False,
+            "repeatable": False,
+            "purpose": "expected genus recorded in packet custody metadata",
+        },
+        {
+            "name": "--min-rows",
+            "kind": "value",
+            "required": False,
+            "repeatable": False,
+            "purpose": "minimum allowed curator-review row count",
+        },
+        {
+            "name": "--max-rows",
+            "kind": "value",
+            "required": False,
+            "repeatable": False,
+            "purpose": "maximum allowed curator-review row count",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated curator packet preflight outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated curator packet preflight output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated curator packet preflight pair",
+        },
+    ],
+    ("strict-gate-state", "project"): [
+        {
+            "name": "--input-json",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "JSON array or object with rows to project",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated strict-gate-state outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated strict-gate-state output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated strict-gate-state triplet",
         },
     ],
     ("commands", "recognize"): [
@@ -880,6 +1035,94 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             _required_string(request, "manual_review_dir"),
             "--reconciler-audit",
             _required_string(request, "reconciler_audit"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "count-crosswalk" and subcommand == "build":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "metrics_tsv",
+                "clostridium_plan_only",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = ["count-crosswalk", "build"]
+        metrics_tsv = _optional_string(request, "metrics_tsv")
+        if metrics_tsv:
+            argv.extend(["--metrics-tsv", metrics_tsv])
+        if _bool_flag(request, "clostridium_plan_only"):
+            argv.append("--clostridium-plan-only")
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "curator-packet" and subcommand == "preflight":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "packet_dir",
+                "repo_root",
+                "expected_genus",
+                "min_rows",
+                "max_rows",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "curator-packet",
+            "preflight",
+            "--packet-dir",
+            _required_string(request, "packet_dir"),
+            "--repo-root",
+            _required_string(request, "repo_root"),
+        ]
+        expected_genus = _optional_string(request, "expected_genus")
+        if expected_genus:
+            argv.extend(["--expected-genus", expected_genus])
+        min_rows = request.get("min_rows")
+        if min_rows is not None:
+            argv.extend(["--min-rows", str(min_rows)])
+        max_rows = request.get("max_rows")
+        if max_rows is not None:
+            argv.extend(["--max-rows", str(max_rows)])
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "strict-gate-state" and subcommand == "project":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input_json",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "strict-gate-state",
+            "project",
+            "--input-json",
+            _required_string(request, "input_json"),
         ]
         if _bool_flag(request, "write"):
             argv.append("--write")

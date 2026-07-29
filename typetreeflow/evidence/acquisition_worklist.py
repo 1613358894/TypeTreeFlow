@@ -77,12 +77,14 @@ class AcquisitionWorklistReport:
     @property
     def summary(self) -> dict[str, object]:
         lane_counts = {lane: 0 for lane in ACQUISITION_WORKLIST_LANES}
+        signal_counts = _review_signal_counts(self.rows)
         for row in self.rows:
             lane_counts[row.lane] += 1
         return {
             "schema_version": self.schema_version,
             "record_count": len(self.rows),
             "lane_counts": lane_counts,
+            "review_signal_counts": signal_counts,
             "audit_only": True,
             "strict_scientific_deliverable": False,
             "downloads_triggered": 0,
@@ -182,7 +184,7 @@ def _classify_species(
             "public_linkage_review",
             selected,
             tier,
-            "public_candidate_needs_type_linkage_review",
+            _public_linkage_reason(reconciler_rows, selected),
             source_artifacts,
         )
     if gap_rows or reconciler_rows:
@@ -232,6 +234,57 @@ def _recommended_action(lane: str) -> str:
         "external_fasta_required": "seek approved external FASTA source or record as unresolved public-genome gap",
         "not_evaluated": "generate reconciler and completion-gap evidence before acquisition planning",
     }[lane]
+
+
+def _review_signal_counts(rows: Iterable[AcquisitionWorklistRow]) -> dict[str, int]:
+    signals = {
+        "selected_accession": 0,
+        "strict_usable": 0,
+        "conflict_blocked": 0,
+        "ncbi_type_material_candidate": 0,
+        "authoritative_type_material_candidate": 0,
+        "bacdive_or_dsmz_candidate": 0,
+        "biosample_linkage_review": 0,
+        "missing_public_genome": 0,
+        "external_registration_ready": 0,
+    }
+    for row in rows:
+        reason = row.reason_code
+        tier = row.reconciled_evidence_tier.casefold()
+        sources = row.source_artifacts.casefold()
+        if row.selected_accession:
+            signals["selected_accession"] += 1
+        if row.lane == "no_action_strict_complete":
+            signals["strict_usable"] += 1
+        if row.lane == "curator_conflict_resolution":
+            signals["conflict_blocked"] += 1
+        if "ncbi" in tier or reason == "public_candidate_ncbi_type_material_review":
+            signals["ncbi_type_material_candidate"] += 1
+        if "authoritative_type_material_candidate" in tier:
+            signals["authoritative_type_material_candidate"] += 1
+        if reason == "public_candidate_bacdive_or_dsmz_review":
+            signals["bacdive_or_dsmz_candidate"] += 1
+        if reason == "public_candidate_biosample_linkage_review":
+            signals["biosample_linkage_review"] += 1
+        if row.reason_code == "no_public_strict_genome_linkage":
+            signals["missing_public_genome"] += 1
+        if row.lane == "external_registration_ready" or "external_genomes" in sources:
+            signals["external_registration_ready"] += 1
+    return signals
+
+
+def _public_linkage_reason(
+    reconciler_rows: tuple[Mapping[str, object], ...], selected_accession: str
+) -> str:
+    if _has_biosample_linkage(reconciler_rows):
+        return "public_candidate_biosample_linkage_review"
+    if _has_bacdive_or_dsmz_signal(reconciler_rows):
+        return "public_candidate_bacdive_or_dsmz_review"
+    if _has_ncbi_type_material_signal(reconciler_rows):
+        return "public_candidate_ncbi_type_material_review"
+    if selected_accession:
+        return "public_selected_accession_type_linkage_review"
+    return "public_candidate_needs_type_linkage_review"
 
 
 def _group_by_species(
@@ -285,6 +338,36 @@ def _has_candidate(rows: Iterable[Mapping[str, object]]) -> bool:
     for row in rows:
         tier = _value(row, "reconciled_evidence_tier", "tier").casefold()
         if "candidate" in tier:
+            return True
+    return False
+
+
+def _has_biosample_linkage(rows: Iterable[Mapping[str, object]]) -> bool:
+    for row in rows:
+        if _value(row, "matched_biosample_accessions", "biosample_accession"):
+            return True
+        if "biosample" in _value(row, "selected_genome_linkage").casefold():
+            return True
+    return False
+
+
+def _has_bacdive_or_dsmz_signal(rows: Iterable[Mapping[str, object]]) -> bool:
+    for row in rows:
+        sources = _value(row, "authority_sources", "source_platform").casefold()
+        if "bacdive" in sources or "dsmz" in sources:
+            return True
+        if _value(row, "matched_bacdive_accessions"):
+            return True
+        if _value(row, "bacdive_row_count") not in {"", "0"}:
+            return True
+    return False
+
+
+def _has_ncbi_type_material_signal(rows: Iterable[Mapping[str, object]]) -> bool:
+    for row in rows:
+        tier = _value(row, "reconciled_evidence_tier", "tier").casefold()
+        sources = _value(row, "authority_sources", "source_platform").casefold()
+        if "ncbi" in tier or "ncbi" in sources:
             return True
     return False
 
