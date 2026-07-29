@@ -105,11 +105,18 @@ def build_acquisition_worklist(
     reconciler_rows: Iterable[Mapping[str, object]] = (),
     completion_gap_rows: Iterable[Mapping[str, object]] = (),
     external_rows: Iterable[Mapping[str, object]] = (),
+    archive_candidate_rows: Iterable[Mapping[str, object]] = (),
 ) -> AcquisitionWorklistReport:
     """Build a one-species-one-lane acquisition review worklist."""
 
     species_names: dict[str, str] = {}
-    for rows in (checklist_rows, reconciler_rows, completion_gap_rows, external_rows):
+    for rows in (
+        checklist_rows,
+        reconciler_rows,
+        completion_gap_rows,
+        external_rows,
+        archive_candidate_rows,
+    ):
         for row in rows:
             species = _species(row)
             key = _species_key(species)
@@ -119,6 +126,7 @@ def build_acquisition_worklist(
     reconciler_by_species = _group_by_species(reconciler_rows)
     gaps_by_species = _group_by_species(completion_gap_rows)
     external_by_species = _group_by_species(external_rows)
+    archive_by_species = _group_by_species(archive_candidate_rows)
     worklist: list[AcquisitionWorklistRow] = []
     for key in sorted(species_names):
         species = species_names[key]
@@ -128,6 +136,7 @@ def build_acquisition_worklist(
                 reconciler_by_species.get(key, ()),
                 gaps_by_species.get(key, ()),
                 external_by_species.get(key, ()),
+                archive_by_species.get(key, ()),
             )
         )
     return AcquisitionWorklistReport(rows=tuple(worklist))
@@ -138,11 +147,13 @@ def _classify_species(
     reconciler_rows: tuple[Mapping[str, object], ...],
     gap_rows: tuple[Mapping[str, object], ...],
     external_rows: tuple[Mapping[str, object], ...],
+    archive_candidate_rows: tuple[Mapping[str, object], ...],
 ) -> AcquisitionWorklistRow:
     source_artifacts = _source_artifacts(
         reconciler_rows=bool(reconciler_rows),
         gap_rows=bool(gap_rows),
         external_rows=bool(external_rows),
+        archive_candidate_rows=bool(archive_candidate_rows),
     )
     selected = _first_nonempty(
         _value(row, "assembly_accession", "selected_accession")
@@ -185,6 +196,15 @@ def _classify_species(
             selected,
             tier,
             _public_linkage_reason(reconciler_rows, selected),
+            source_artifacts,
+        )
+    if _has_archive_candidate(archive_candidate_rows):
+        return _row(
+            species,
+            "public_linkage_review",
+            selected,
+            tier,
+            "public_archive_insdc_candidate_review",
             source_artifacts,
         )
     if gap_rows or reconciler_rows:
@@ -245,6 +265,7 @@ def _review_signal_counts(rows: Iterable[AcquisitionWorklistRow]) -> dict[str, i
         "authoritative_type_material_candidate": 0,
         "bacdive_or_dsmz_candidate": 0,
         "biosample_linkage_review": 0,
+        "archive_candidate_review": 0,
         "missing_public_genome": 0,
         "external_registration_ready": 0,
     }
@@ -266,6 +287,8 @@ def _review_signal_counts(rows: Iterable[AcquisitionWorklistRow]) -> dict[str, i
             signals["bacdive_or_dsmz_candidate"] += 1
         if reason == "public_candidate_biosample_linkage_review":
             signals["biosample_linkage_review"] += 1
+        if reason == "public_archive_insdc_candidate_review":
+            signals["archive_candidate_review"] += 1
         if row.reason_code == "no_public_strict_genome_linkage":
             signals["missing_public_genome"] += 1
         if row.lane == "external_registration_ready" or "external_genomes" in sources:
@@ -385,8 +408,20 @@ def _external_registration_ready(rows: Iterable[Mapping[str, object]]) -> bool:
     return False
 
 
+def _has_archive_candidate(rows: Iterable[Mapping[str, object]]) -> bool:
+    for row in rows:
+        status = _value(row, "candidate_status", "status").casefold()
+        if status == "archive_candidate_for_public_linkage_review":
+            return True
+    return False
+
+
 def _source_artifacts(
-    *, reconciler_rows: bool, gap_rows: bool, external_rows: bool
+    *,
+    reconciler_rows: bool,
+    gap_rows: bool,
+    external_rows: bool,
+    archive_candidate_rows: bool,
 ) -> str:
     labels = []
     if reconciler_rows:
@@ -395,6 +430,8 @@ def _source_artifacts(
         labels.append("completion_gaps")
     if external_rows:
         labels.append("external_genomes")
+    if archive_candidate_rows:
+        labels.append("archive_candidates")
     return "; ".join(labels)
 
 

@@ -152,6 +152,16 @@ _CATALOG_ENTRIES = (
         "boundary": "denominator audit only; no completion or download promotion",
     },
     {
+        "command": "archive-candidates",
+        "subcommand": "build",
+        "mode": "archive_candidates",
+        "argv_pattern": "typetreeflow archive-candidates build --input-tsv <archive_candidates.tsv>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_triplet",
+        "requires_outdir": False,
+        "boundary": "public archive linkage audit only; no download or strict promotion",
+    },
+    {
         "command": "curator-packet",
         "subcommand": "preflight",
         "mode": "curator_packet",
@@ -420,6 +430,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
     ],
     ("acquisition-worklist", "build"): [
         {
+            "name": "--archive-candidates-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "offline archive candidate audit TSV input",
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -469,6 +486,36 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated count crosswalk triplet",
+        },
+    ],
+    ("archive-candidates", "build"): [
+        {
+            "name": "--input-tsv",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "offline archive candidate TSV input",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated archive candidate audit outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated archive candidate output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated archive candidate triplet",
         },
     ],
     ("curator-packet", "preflight"): [
@@ -1061,6 +1108,30 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             argv.extend(["--metrics-tsv", metrics_tsv])
         if _bool_flag(request, "clostridium_plan_only"):
             argv.append("--clostridium-plan-only")
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"force": "--force"})
+    if command == "archive-candidates" and subcommand == "build":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input_tsv",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "archive-candidates",
+            "build",
+            "--input-tsv",
+            _required_string(request, "input_tsv"),
+        ]
         if _bool_flag(request, "write"):
             argv.append("--write")
         outdir = _optional_string(request, "outdir")

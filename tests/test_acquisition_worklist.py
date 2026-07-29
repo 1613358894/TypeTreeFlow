@@ -74,6 +74,7 @@ def test_worklist_assigns_one_lane_per_species_with_conflict_priority():
         "authoritative_type_material_candidate": 1,
         "bacdive_or_dsmz_candidate": 0,
         "biosample_linkage_review": 0,
+        "archive_candidate_review": 0,
         "missing_public_genome": 1,
         "external_registration_ready": 1,
     }
@@ -164,6 +165,49 @@ def test_worklist_public_linkage_reasons_surface_review_signals():
     assert report.summary["review_signal_counts"]["biosample_linkage_review"] == 1
     assert report.summary["review_signal_counts"]["bacdive_or_dsmz_candidate"] == 1
     assert report.summary["review_signal_counts"]["ncbi_type_material_candidate"] == 2
+
+
+def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium archivum"}],
+        completion_gap_rows=[
+            {"species": "Clostridium archivum", "reason_category": "missing_genome"}
+        ],
+        archive_candidate_rows=[
+            {
+                "species": "Clostridium archivum",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "assembly_accession": "GCA_0009.1",
+            }
+        ],
+    )
+
+    assert report.rows[0].lane == "public_linkage_review"
+    assert report.rows[0].reason_code == "public_archive_insdc_candidate_review"
+    assert report.rows[0].source_artifacts == "completion_gaps; archive_candidates"
+    assert report.summary["review_signal_counts"]["archive_candidate_review"] == 1
+
+
+def test_worklist_conflict_overrides_archive_candidate():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium conflictum"}],
+        reconciler_rows=[
+            _row(
+                "Clostridium conflictum",
+                assembly_accession="GCF_0002.1",
+                conflict_status="biosample_conflict",
+            )
+        ],
+        archive_candidate_rows=[
+            {
+                "species": "Clostridium conflictum",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "assembly_accession": "GCA_0009.1",
+            }
+        ],
+    )
+
+    assert report.rows[0].lane == "curator_conflict_resolution"
 
 
 def test_worklist_sanitizes_tsv_text():

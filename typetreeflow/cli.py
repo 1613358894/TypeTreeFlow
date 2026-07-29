@@ -981,6 +981,10 @@ def main(
         is_count_crosswalk_command,
         run_count_crosswalk_command,
     )
+    from typetreeflow.archive_candidates_cli import (
+        is_archive_candidates_command,
+        run_archive_candidates_command,
+    )
     from typetreeflow.curator_packet_cli import (
         is_curator_packet_command,
         run_curator_packet_command,
@@ -1004,6 +1008,8 @@ def main(
         return run_acquisition_worklist_command(command_argv)
     if is_count_crosswalk_command(command_argv):
         return run_count_crosswalk_command(command_argv)
+    if is_archive_candidates_command(command_argv):
+        return run_archive_candidates_command(command_argv)
     if is_curator_packet_command(command_argv):
         return run_curator_packet_command(command_argv)
     if is_strict_gate_state_command(command_argv):

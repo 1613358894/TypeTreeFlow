@@ -54,24 +54,36 @@ files, write outputs, contact providers, or run external tools. They are helper
 metadata only; normal CLI parsing, dispatch, and human or parent-agent approval
 remain authoritative.
 
-For AI-facing offline planning, classify existing local checklist,
-reconciler, completion-gap, and external-genome rows into one review lane per
-species:
+For AI-facing offline planning, first normalize public archive candidates from
+already collected ENA/DDBJ/INSDC/GenBank-style metadata:
+
+```bash
+typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv> \
+  [--json] [--write --outdir <isolated-directory> [--force]]
+```
+
+This is an audit aid only. It does not query archives, download genomes, write
+`external_genomes.tsv`, or make archive type-material signals strict. It
+surfaces public linkage candidates for curator or AI review.
+
+Then classify existing local checklist, reconciler, completion-gap,
+external-genome, and archive-candidate rows into one review lane per species:
 
 ```bash
 typetreeflow acquisition-worklist build --checklist-tsv <species.tsv> \
   --reconciler-audit-tsv <reconciler_audit.tsv> \
   --completion-gaps-tsv <gaps.tsv> \
-  --external-genomes-tsv <external_genomes.tsv> [--json] \
+  --external-genomes-tsv <external_genomes.tsv> \
+  --archive-candidates-tsv <archive_candidates.tsv> [--json] \
   [--write --outdir <isolated-directory> [--force]]
 ```
 
 The command is a planning aid only. It does not contact providers, download
 genomes, merge manifests, or grant strict scientific deliverable status.
 Its summary includes lane counts and review-signal counts so AI or curator
-operators can prioritize candidate, conflict, gap, BioSample, BacDive/DSMZ,
-NCBI, and external-registration review without treating those counts as
-completion or download readiness.
+operators can prioritize candidate, conflict, gap, archive/INSDC, BioSample,
+BacDive/DSMZ, NCBI, and external-registration review without treating those
+counts as completion or download readiness.
 
 Build a denominator-preserving crosswalk for already known counts with:
 
