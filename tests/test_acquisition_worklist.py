@@ -116,6 +116,7 @@ def test_worklist_tsv_and_json_are_stable_and_audit_only():
     assert tuple(parsed[0]) == ACQUISITION_WORKLIST_FIELDS
     assert parsed[0]["audit_only"] == "true"
     assert parsed[0]["strict_scientific_deliverable"] == "false"
+    assert parsed[0]["candidate_provider_keys"] == ""
     assert parsed[0]["source_artifacts"] == "reconciler_audit"
     summary = json.loads(report.summary_json())
     assert summary["audit_only"] is True
@@ -186,6 +187,35 @@ def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
     assert report.rows[0].reason_code == "public_archive_insdc_candidate_review"
     assert report.rows[0].source_artifacts == "completion_gaps; archive_candidates"
     assert report.summary["review_signal_counts"]["archive_candidate_review"] == 1
+
+
+def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium providerum",
+                "type_strain_names": "ATCC 1001; DSM 2002; KCTC 3003; LMG 4004",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium providerum",
+                reconciled_evidence_tier="missing_public_genome",
+                candidate_provider_keys="CIP; CECT; CIP",
+            )
+        ],
+        completion_gap_rows=[
+            {"species": "Clostridium providerum", "reason_category": "missing_genome"}
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == (
+        "atcc_genome_portal; dsmz; kctc; bccm_lmg; cip; cect"
+    )
+    rendered = list(csv.DictReader(io.StringIO(report.rows_tsv()), delimiter="\t"))
+    assert rendered[0]["candidate_provider_keys"] == row.candidate_provider_keys
 
 
 def test_worklist_conflict_overrides_archive_candidate():

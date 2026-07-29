@@ -1237,7 +1237,8 @@ external-genome rows plus optional archive-candidate audit rows and assign at
 most one lane per species. The TSV field order is `schema_version`, `species`,
 `lane`, `selected_accession`,
 `reconciled_evidence_tier`, `reason_code`, `recommended_action`,
-`source_artifacts`, `audit_only`, and `strict_scientific_deliverable`.
+`candidate_provider_keys`, `source_artifacts`, `audit_only`, and
+`strict_scientific_deliverable`.
 Supported lanes are `no_action_strict_complete`,
 `curator_conflict_resolution`, `public_linkage_review`,
 `external_registration_ready`, `external_fasta_required`, and
@@ -1250,6 +1251,11 @@ type-material candidate, BacDive/DSMZ candidate, BioSample linkage review,
 archive candidate review, missing public genome, and external-registration-ready
 rows. These counts are review hints only and do not change lane, completion,
 provider, or download semantics.
+For `external_fasta_required` rows, `candidate_provider_keys` may be derived
+from explicit local provider hints or recognizable culture-collection tokens
+such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, and LMG.
+The field is a provider handoff hint only; it does not confirm type-strain
+status, contact providers, authorize terms, or trigger downloads.
 
 Archive candidate audits built by
 `typetreeflow.evidence.archive_candidates` are isolated public-linkage review
