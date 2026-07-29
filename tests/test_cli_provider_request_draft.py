@@ -126,6 +126,30 @@ def test_provider_request_draft_blocks_invalid_or_empty_inputs(capsys, tmp_path)
     assert payload["diagnostics"][0]["diagnostic_code"] == "no_handoff_rows"
 
 
+def test_provider_request_draft_blocks_handoff_missing_required_row_fields(
+    capsys, tmp_path
+):
+    handoff = tmp_path / "provider_handoff.tsv"
+    _write_provider_handoff(handoff)
+    with handoff.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    rows[0]["provider_key"] = ""
+    with handoff.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=PROVIDER_HANDOFF_FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    code, payload, _ = _run(["--provider-handoff-tsv", str(handoff)], capsys)
+
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert payload["record_count"] == 0
+    assert payload["request_preview"] == []
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "provider_handoff_required_field_missing"
+    )
+
+
 def test_provider_request_draft_refuses_workflow_like_output(capsys, tmp_path):
     handoff = tmp_path / "provider_handoff.tsv"
     _write_provider_handoff(handoff)

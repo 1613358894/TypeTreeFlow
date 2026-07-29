@@ -49,6 +49,12 @@ _PROTECTED_OUTPUT_TERMS = {
     "fastq",
     "evidence",
 }
+_REQUIRED_HANDOFF_ROW_FIELDS = (
+    "provider_key",
+    "provider_name",
+    "provider_status",
+    "species",
+)
 
 
 class _UsageError(Exception):
@@ -168,6 +174,15 @@ def _read_required_provider_handoff(
     ):
         diagnostics.append(
             _diagnostic("provider_request_draft", "provider_handoff_boundary_violation")
+        )
+        return ()
+    if any(
+        not str(row.get(field) or "").strip()
+        for row in rows
+        for field in _REQUIRED_HANDOFF_ROW_FIELDS
+    ):
+        diagnostics.append(
+            _diagnostic("provider_request_draft", "provider_handoff_required_field_missing")
         )
         return ()
     return rows

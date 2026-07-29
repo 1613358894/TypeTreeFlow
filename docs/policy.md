@@ -346,8 +346,10 @@ The `provider-request draft` CLI remains an isolated adapter over an explicit
 `provider_request.tsv` plus a summary JSON in an explicit isolated output
 directory. Draft rows are intentionally incomplete: curator-owned strain,
 type-strain ID, provider record, local FASTA, hash, license, retrieval, and
-curator fields must remain blank until separately reviewed. The command must
-not scan workflow directories, read credentials, contact providers,
+curator fields must remain blank until separately reviewed. Rows missing
+provider key, provider name, provider status, or species must be blocked rather
+than converted into empty provider requests. The command must not scan workflow
+directories, read credentials, contact providers,
 authenticate, accept terms, trigger downloads, mutate manifests, change
 completion metrics, or reinterpret provider handoff rows as strict scientific
 deliverables.

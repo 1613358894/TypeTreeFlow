@@ -1414,9 +1414,10 @@ Without `--write`, it writes nothing. With `--write`, it writes only
 `provider_request.tsv` and `provider_request_draft_summary.json` into the
 explicitly supplied directory. Existing output directories are refused by
 default; `--force` replaces only an owned pair with matching schemas.
-Missing, unreadable, malformed, boundary-violating, or empty input blocks the
-command with exit code `2`; successful draft generation exits `0`; unexpected
-internal or write failures exit `1`.
+Missing, unreadable, malformed, boundary-violating, empty input, or handoff rows
+missing `provider_key`, `provider_name`, `provider_status`, or `species` block
+the command with exit code `2`; successful draft generation exits `0`;
+unexpected internal or write failures exit `1`.
 
 Draft rows are intentionally incomplete. The adapter fills stable provider,
 species, artifact type, request ID, review flags, and audit notes, while
