@@ -12,6 +12,10 @@ import uuid
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
+from typetreeflow.evidence.acquisition_worklist import (
+    ACQUISITION_WORKLIST_FIELDS,
+    ACQUISITION_WORKLIST_SCHEMA_VERSION,
+)
 from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_FIELDS,
     COVERAGE_PLAN_SCHEMA_VERSION,
@@ -138,13 +142,22 @@ def _read_required_tsv(
             raise OSError("input is not a regular file")
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle, delimiter="\t")
-            if not reader.fieldnames:
-                diagnostics.append(_diagnostic("coverage_plan", "missing_header"))
+            if tuple(reader.fieldnames or ()) != ACQUISITION_WORKLIST_FIELDS:
+                diagnostics.append(_diagnostic("coverage_plan", "unexpected_header"))
                 return ()
-            return tuple(dict(row) for row in reader)
+            rows = tuple(dict(row) for row in reader)
     except (OSError, UnicodeError, csv.Error):
         diagnostics.append(_diagnostic("coverage_plan", "input_unreadable"))
         return ()
+    if any(
+        row.get("schema_version") != ACQUISITION_WORKLIST_SCHEMA_VERSION
+        or row.get("audit_only", "").strip().lower() != "true"
+        or row.get("strict_scientific_deliverable", "").strip().lower() != "false"
+        for row in rows
+    ):
+        diagnostics.append(_diagnostic("coverage_plan", "worklist_boundary_violation"))
+        return ()
+    return rows
 
 
 def _payload(plan, *, diagnostics: list[dict[str, object]], dry_run: bool) -> dict[str, object]:
