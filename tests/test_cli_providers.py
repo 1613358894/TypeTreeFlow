@@ -29,6 +29,13 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
     assert {"atcc_genome_portal", "dsmz", "ena", "refseq"} <= set(providers)
     assert providers["ena"]["status"] == "metadata_only"
     assert providers["dsmz"]["status"] == "planning_only"
+    assert "provider_guidance=public_archive_metadata_review" in (
+        providers["ena"]["guidance_notes"]
+    )
+    assert "provider_guidance=culture_collection_user_handoff" in (
+        providers["dsmz"]["guidance_notes"]
+    )
+    assert "download_action=none" in providers["dsmz"]["guidance_notes"]
     assert all(entry["default_network_enabled"] is False for entry in providers.values())
     assert all(entry["supports_network"] is False for entry in providers.values())
 

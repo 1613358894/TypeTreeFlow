@@ -6,8 +6,10 @@ import csv
 import io
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Iterable, Mapping
 
+from typetreeflow.providers.base import ProviderContext
 from typetreeflow.providers.registry import ProviderRegistry, build_default_provider_registry
 
 
@@ -26,6 +28,7 @@ PROVIDER_HANDOFF_FIELDS: tuple[str, ...] = (
     "credentials_required",
     "network_supported",
     "default_network_enabled",
+    "provider_guidance_notes",
     "audit_only",
     "downloads_triggered",
     "providers_contacted",
@@ -47,6 +50,7 @@ class ProviderHandoffRow:
     credentials_required: bool
     network_supported: bool
     default_network_enabled: bool
+    provider_guidance_notes: str = ""
     schema_version: str = PROVIDER_HANDOFF_SCHEMA_VERSION
     audit_only: bool = True
     downloads_triggered: int = 0
@@ -68,6 +72,7 @@ class ProviderHandoffRow:
             "credentials_required": _bool(self.credentials_required),
             "network_supported": _bool(self.network_supported),
             "default_network_enabled": _bool(self.default_network_enabled),
+            "provider_guidance_notes": _clean(self.provider_guidance_notes),
             "audit_only": _bool(self.audit_only),
             "downloads_triggered": str(self.downloads_triggered),
             "providers_contacted": str(self.providers_contacted),
@@ -140,6 +145,7 @@ def build_provider_handoff(
                     credentials_required=capability.requires_credentials,
                     network_supported=capability.supports_network,
                     default_network_enabled=entry.default_network_enabled,
+                    provider_guidance_notes=_provider_guidance_notes(entry),
                 )
             )
     return ProviderHandoff(rows=tuple(sorted(rows, key=_sort_key)))
@@ -151,6 +157,18 @@ def _sort_key(row: ProviderHandoffRow) -> tuple[str, str, str]:
 
 def _split_keys(value: str) -> tuple[str, ...]:
     return tuple(part.strip() for part in value.split(";") if part.strip())
+
+
+def _provider_guidance_notes(entry) -> str:
+    notes: list[str] = []
+    if entry.notes:
+        notes.append(str(entry.notes))
+    if entry.adapter is not None:
+        try:
+            notes.extend(entry.adapter.plan_notes(ProviderContext(outdir=Path("."))))
+        except Exception:
+            notes.append("provider_guidance=unavailable")
+    return "; ".join(_clean(note) for note in notes if str(note).strip())
 
 
 def _value(row: Mapping[str, object], field: str) -> str:

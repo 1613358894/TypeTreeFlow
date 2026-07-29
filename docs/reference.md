@@ -542,9 +542,11 @@ passing them through `commands preflight`.
 
 `providers catalog` is a related isolated metadata command. It emits provider
 keys, names, capability statuses, allowed modes, and fail-closed
-network/download fields as one compact JSON object. It does not contact
-providers, read credentials, write outputs, or enable provider download
-behavior.
+network/download fields as one compact JSON object. It also emits
+`guidance_notes` derived from the static registry adapter; those notes are
+offline planning hints, not provider authorization or executable download
+instructions. It does not contact providers, read credentials, write outputs,
+or enable provider download behavior.
 
 `commands recognize` and `commands preflight` require `--argv-json` as a JSON
 string array or target argv tokens after `--`. Their JSON envelopes include
@@ -1325,6 +1327,12 @@ write failures exit `1`. Provider handoff rows are AI/operator planning
 artifacts only: they do not contact providers, download genomes, mutate
 manifests, change completion metrics, or promote strict scientific
 deliverables.
+`provider_handoff.tsv` includes `provider_guidance_notes`, a compact
+fail-closed note string derived from the static provider registry adapter.
+These notes may describe terms review, credential review, user-assisted local
+FASTA handoff, or public archive metadata review, but they are not provider
+authorization, terms acceptance, download readiness, or strict type-strain
+evidence.
 The optional report/package surfaces are separate from handoff generation:
 pass `--provider-handoff-dir <dir>` with `--report-only` to display compact
 provider-handoff audit counts, or with `package-results --include reports|all`
