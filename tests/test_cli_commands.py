@@ -197,6 +197,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("readiness", "evaluate"),
         ("acquisition-worklist", "build"),
         ("count-crosswalk", "build"),
+        ("curator-packet", "preflight"),
         ("commands", "recognize"),
         ("commands", "catalog"),
         ("commands", "render"),
@@ -307,6 +308,47 @@ def test_commands_render_emits_normalized_count_crosswalk_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "count-crosswalk"
     assert payload["recognized"]["mode"] == "count_crosswalk"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_curator_packet_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"curator-packet","subcommand":"preflight",'
+                    '"packet_dir":"packet","repo_root":"repo",'
+                    '"expected_genus":"Clostridium","min_rows":3,'
+                    '"max_rows":10,"write":true,"outdir":"packet-preflight"}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "curator-packet",
+        "preflight",
+        "--packet-dir",
+        "packet",
+        "--repo-root",
+        "repo",
+        "--expected-genus",
+        "Clostridium",
+        "--min-rows",
+        "3",
+        "--max-rows",
+        "10",
+        "--write",
+        "--outdir",
+        "packet-preflight",
+    ]
+    assert payload["recognized"]["command"] == "curator-packet"
+    assert payload["recognized"]["mode"] == "curator_packet"
     assert payload["recognized"]["requires_outdir"] is True
 
 
@@ -502,6 +544,29 @@ def test_commands_preflight_allows_count_crosswalk_write_with_write_allowance(ca
     assert payload["recognized"]["is_count_crosswalk"] is True
 
 
+def test_commands_preflight_allows_curator_packet_write_with_write_allowance(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--argv-json",
+                (
+                    '["curator-packet","preflight","--packet-dir","packet",'
+                    '"--repo-root","repo","--write","--outdir","preflight"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["risk"]["workflow_outputs_declared"] is False
+    assert payload["recognized"]["is_curator_packet"] is True
+
+
 def test_commands_preflight_blocks_workflow_outputs_without_specific_allowance(capsys):
     assert (
         main(
@@ -610,6 +675,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_readiness": False,
         "is_acquisition_worklist": False,
         "is_count_crosswalk": False,
+        "is_curator_packet": False,
         "writes_outputs_declared": False,
         "requires_outdir": False,
         "unknown": False,

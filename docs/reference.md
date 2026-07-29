@@ -491,8 +491,8 @@ string array or target argv tokens after `--`. Their JSON envelopes include
 `typetreeflow.cli_recognizer.recognize_cli_command()` and contains conservative
 helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_manual_review`, `is_strict_gating`, `is_readiness`,
-`is_acquisition_worklist`, `writes_outputs_declared`, `requires_outdir`,
-`unknown`, and `invalid`.
+`is_acquisition_worklist`, `is_count_crosswalk`, `is_curator_packet`,
+`writes_outputs_declared`, `requires_outdir`, `unknown`, and `invalid`.
 
 `commands render` requires `--request-json` as a JSON object. It accepts a
 conservative, command-specific request such as `{"command":"status",
@@ -521,6 +521,36 @@ authorization. The catalog, recognizer, and preflight gate are not dispatch
 authority; argparse and the existing command dispatch order remain
 authoritative.
 
+### Curator Packet Preflight
+
+`typetreeflow.evidence.curator_packet` provides a preflight for small,
+pre-redacted curator-readiness packets. It checks a repo-external packet
+directory for the required custody manifest, approval records, redaction
+attestation, manual-review TSV, and frozen reconciler audit; it verifies
+SHA-256/byte-length bindings, bounded row counts, exact schemas, and forbidden
+payload markers. The result is JSON-serializable and redaction-safe: it reports
+member names, counts, digests, and issue codes, but does not echo curator rows,
+reviewer IDs, notes, evidence summaries, or workflow outputs.
+
+The isolated CLI adapter is:
+
+```text
+typetreeflow curator-packet preflight --packet-dir <packet-dir> \
+  --repo-root <repo-root> [--expected-genus <genus>] \
+  [--min-rows <n>] [--max-rows <n>] [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+Stdout is always a single compact JSON object. Valid packet metadata returns
+exit code `0`; invalid usage, unavailable input, schema, custody, approval,
+redaction, row-bound, forbidden-payload, or safety issues return `2`;
+unexpected internal or write failures return `1`. Optional write mode
+atomically publishes `curator_packet_preflight_summary.json` and
+`curator_packet_preflight_issues.tsv` under the requested isolated directory.
+It records `real_curator_data_evaluated=false`,
+`writes_workflow_outputs=false`, `downloads_triggered=0`,
+`providers_contacted=0`, and `manifest_mutated=false`.
+
 ### Offline Manual-Review Decision Validation
 
 `typetreeflow.evidence.manual_review` reads curator-supplied TSV decisions and
@@ -546,15 +576,6 @@ and the target cannot be the input, a symlink path, or a protected workflow
 artifact name. Existing targets are refused by default. `--force` is accepted
 only with `--out` and replaces only a regular, non-symlink file whose header
 exactly matches the issues schema.
-
-`typetreeflow.evidence.curator_packet` provides a library-only preflight for
-small, pre-redacted curator-readiness packets. It checks a repo-external packet
-directory for the required custody manifest, approval records, redaction
-attestation, manual-review TSV, and frozen reconciler audit; it verifies
-SHA-256/byte-length bindings, bounded row counts, exact schemas, and forbidden
-payload markers. The result is JSON-serializable and redaction-safe: it reports
-member names, counts, digests, and issue codes, but does not echo curator rows,
-reviewer IDs, notes, evidence summaries, or workflow outputs.
 
 Exit code `0` reports valid input and any requested write success. Exit code
 `2` reports command usage, unreadable input, schema, or row-validation issues;

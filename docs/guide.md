@@ -95,6 +95,23 @@ coverage number. Explicit write mode publishes only
 workflow outputs, contact providers, trigger downloads, mutate manifests, or
 grant strict deliverable status.
 
+Preflight a small, repo-external, pre-redacted curator packet before any
+manual-review dry run:
+
+```bash
+typetreeflow curator-packet preflight --packet-dir <packet-dir> \
+  --repo-root <repo-root> [--json] \
+  [--write --outdir <isolated-directory> [--force]]
+```
+
+The command verifies packet membership, custody digests, row bounds, approval
+kinds, redaction attestations, schemas, and forbidden payload markers. It
+reports only member names, counts, digests, and issue codes; it does not echo
+curator rows, reviewer IDs, private notes, evidence summaries, or workflow
+outputs. A PASS means the packet is structurally ready for a later offline
+dry run only; it does not authorize real curator-data evaluation, strict
+upgrades, provider contact, downloads, or workflow mutation.
+
 Validate a local curator decision file without loading workflow configuration:
 
 ```bash

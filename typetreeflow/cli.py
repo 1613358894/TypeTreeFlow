@@ -981,6 +981,10 @@ def main(
         is_count_crosswalk_command,
         run_count_crosswalk_command,
     )
+    from typetreeflow.curator_packet_cli import (
+        is_curator_packet_command,
+        run_curator_packet_command,
+    )
     from typetreeflow.commands_cli import (
         is_commands_command,
         run_commands_command,
@@ -996,6 +1000,8 @@ def main(
         return run_acquisition_worklist_command(command_argv)
     if is_count_crosswalk_command(command_argv):
         return run_count_crosswalk_command(command_argv)
+    if is_curator_packet_command(command_argv):
+        return run_curator_packet_command(command_argv)
     if is_readiness_command(command_argv):
         return run_readiness_command(command_argv)
     if is_strict_gating_command(command_argv):

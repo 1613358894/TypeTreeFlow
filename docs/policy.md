@@ -147,6 +147,13 @@ private export, applying curator decisions, writing import or strict-gating
 audit triplets, running provider/download steps, or creating a strict
 deliverable.
 
+The `curator-packet preflight` CLI is an isolated, no-workflow adapter for
+that same metadata check. It may write only its explicitly requested preflight
+summary/issues pair in an isolated directory. It must not scan workflow
+outputs, load environment credentials, expose curator row values or reviewer
+identities, contact providers, trigger downloads, or evaluate real curator
+data.
+
 The library-only manual-review import mapper adds deterministic audit linkage
 to the exact frozen `reconciler_audit.tsv`. Its decision, summary, and
 diagnostic serializations are independent handoff artifacts, not manifest,
