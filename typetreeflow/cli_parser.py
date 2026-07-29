@@ -551,6 +551,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--coverage-plan-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing coverage action plan audit "
+            "outputs for --report-only audit reporting or package-results; "
+            "no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--offline-readiness-dir",
         type=Path,
         help=(

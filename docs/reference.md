@@ -362,6 +362,32 @@ Partial or malformed input copies only valid members and adds a compact
 warning to the README, handoff index, and compact JSON envelope.
 Failed-handoff packages exclude these artifacts and rows.
 
+`--coverage-plan-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is an explicit read-only input and is never
+automatically discovered under the workflow outdir. Report generation reads
+only `coverage_plan.tsv` and `coverage_plan_summary.json` from that directory.
+A missing or empty directory omits `## Coverage Action Plan Audit`. Partial or
+malformed input keeps report generation successful and shows a compact
+warning. Valid summary counts show `record_count`, `downloads_triggered`,
+`providers_contacted`, `manifest_mutated`, `audit_only`, and
+`strict_scientific_deliverable`, plus up to five nonzero coverage action
+counts and provider-key counts. Row-level species, action labels, required
+input, commands, or source details are not displayed. Report inclusion does
+not contact providers, trigger downloads, mutate manifests, create workflow
+outputs, or create strict scientific deliverables.
+
+For `package-results --include reports` or `--include all`, each validated
+member is copied under `coverage_plan/`. Each copied member gets one row in
+package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
+`scope=audit`, `evidence_policy=coverage_plan_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=AI/operator coverage action planning`,
+`not_for=provider contact or strict deliverable gating`, and
+`source_artifact=coverage_plan_builder`. Missing input is omitted. Partial or
+malformed input copies only valid members and adds a compact warning to the
+README, handoff index, and compact JSON envelope. Failed-handoff packages
+exclude these artifacts and rows.
+
 `--offline-readiness-dir <dir>` is accepted with `--report-only`. It is an
 explicit read-only input and is never automatically discovered under the
 workflow outdir. The same option is accepted with `package-results`. Report
@@ -1245,6 +1271,12 @@ generation exits `0`; unexpected internal or write failures exit `1`.
 Coverage plans are AI action queues only: they do not contact providers,
 download genomes, mutate manifests, change completion metrics, or promote
 strict scientific deliverables.
+The optional report/package surfaces are separate from plan generation: pass
+`--coverage-plan-dir <dir>` with `--report-only` to display compact audit
+counts, or with `package-results --include reports|all` to copy the validated
+pair into a delivery package under `coverage_plan/` with
+`evidence_policy=coverage_plan_audit` and
+`strict_scientific_deliverable=false` artifact-scope rows.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the

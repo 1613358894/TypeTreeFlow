@@ -20,6 +20,7 @@ from typetreeflow.evidence.manual_review_import import (
 )
 from tests.test_report_summary import (
     _write_acquisition_worklist_pair,
+    _write_coverage_plan_pair,
     _write_offline_readiness_pair,
     _write_strict_gating_triplet,
 )
@@ -216,6 +217,61 @@ def test_acquisition_worklist_dir_requires_report_only(tmp_path, capsys):
                 str(tmp_path / "out"),
                 "--acquisition-worklist-dir",
                 str(tmp_path / "acquisition-worklist"),
+            ]
+        )
+
+
+def test_report_only_explicit_coverage_plan_dir_is_read_only_and_compact(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    plan_dir = tmp_path / "coverage-plan"
+    _write_coverage_plan_pair(plan_dir)
+    plan_before = {path.name: path.read_bytes() for path in plan_dir.iterdir()}
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--coverage-plan-dir",
+            str(plan_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert stdout.count("\n") <= 1
+    assert json.loads(stdout)["command"] == "verify-genus"
+    assert "## Coverage Action Plan Audit" in summary
+    assert "review_public_archive_linkage" in summary
+    assert "private action detail" not in summary
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {path.name: path.read_bytes() for path in plan_dir.iterdir()} == plan_before
+    assert not paths.completion_dir.exists()
+    assert not paths.reconciler_audit_path.exists()
+    assert not paths.reconciler_summary_path.exists()
+    assert not paths.reconciler_diagnostics_path.exists()
+
+
+def test_coverage_plan_dir_requires_report_only(tmp_path, capsys):
+    with pytest.raises(
+        ValueError,
+        match="--coverage-plan-dir is only supported with --report-only",
+    ):
+        main(
+            [
+                "--outdir",
+                str(tmp_path / "out"),
+                "--coverage-plan-dir",
+                str(tmp_path / "coverage-plan"),
             ]
         )
 
