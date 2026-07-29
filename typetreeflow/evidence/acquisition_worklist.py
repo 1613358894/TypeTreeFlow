@@ -82,6 +82,7 @@ class AcquisitionWorklistReport:
     def summary(self) -> dict[str, object]:
         lane_counts = {lane: 0 for lane in ACQUISITION_WORKLIST_LANES}
         signal_counts = _review_signal_counts(self.rows)
+        provider_key_counts = _candidate_provider_key_counts(self.rows)
         for row in self.rows:
             lane_counts[row.lane] += 1
         return {
@@ -89,6 +90,7 @@ class AcquisitionWorklistReport:
             "record_count": len(self.rows),
             "lane_counts": lane_counts,
             "review_signal_counts": signal_counts,
+            "candidate_provider_key_counts": provider_key_counts,
             "audit_only": True,
             "strict_scientific_deliverable": False,
             "downloads_triggered": 0,
@@ -316,6 +318,18 @@ def _review_signal_counts(rows: Iterable[AcquisitionWorklistRow]) -> dict[str, i
         if row.lane == "external_registration_ready" or "external_genomes" in sources:
             signals["external_registration_ready"] += 1
     return signals
+
+
+def _candidate_provider_key_counts(
+    rows: Iterable[AcquisitionWorklistRow],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        for provider_key in row.candidate_provider_keys.split(";"):
+            provider_key = provider_key.strip()
+            if provider_key:
+                counts[provider_key] = counts.get(provider_key, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _public_linkage_reason(

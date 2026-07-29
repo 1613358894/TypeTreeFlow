@@ -150,7 +150,9 @@ manifest mutation, completion credit, or strict deliverable promotion.
 When missing-public-genome rows contain explicit provider hints or recognizable
 culture-collection tokens, the worklist may carry `candidate_provider_keys` so
 the coverage plan can route provider handoff more precisely. Those keys remain
-review hints only.
+review hints only. The worklist summary also reports
+`candidate_provider_key_counts` so an AI/operator can see likely handoff
+pressure before running the full coverage plan.
 Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 `--report-only` or `package-results --include reports|all` to hand off that
 directory as one explicit read-only input. TypeTreeFlow derives only its

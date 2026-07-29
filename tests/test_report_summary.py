@@ -363,6 +363,10 @@ def _write_acquisition_worklist_pair(directory: Path) -> None:
                 "schema_version": "1",
                 "record_count": 3,
                 "lane_counts": lanes,
+                "candidate_provider_key_counts": {
+                    "atcc_genome_portal": 2,
+                    "dsmz": 1,
+                },
                 "audit_only": True,
                 "strict_scientific_deliverable": False,
                 "downloads_triggered": 0,
@@ -393,6 +397,7 @@ def _write_acquisition_worklist_pair(directory: Path) -> None:
                     "reconciled_evidence_tier": "",
                     "reason_code": "fixture",
                     "recommended_action": "private action detail",
+                    "candidate_provider_keys": "atcc_genome_portal; dsmz",
                     "source_artifacts": "fixture",
                     "audit_only": "true",
                     "strict_scientific_deliverable": "false",
@@ -423,6 +428,8 @@ def test_acquisition_worklist_audit_section_is_explicit_bounded_and_audit_only(
     assert "`strict_scientific_deliverable=false`" in markdown
     assert "| external_registration_ready | 2 |" in markdown
     assert "| curator_conflict_resolution | 1 |" in markdown
+    assert "| atcc_genome_portal | 2 |" in markdown
+    assert "| dsmz | 1 |" in markdown
     assert "private action detail" not in markdown
     assert "Clostridium alpha" not in markdown
 
