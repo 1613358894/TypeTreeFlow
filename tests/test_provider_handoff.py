@@ -64,7 +64,7 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
 def test_build_provider_handoff_canonicalizes_provider_aliases():
     rows = _coverage_rows()
     rows[0]["provider_keys"] = "RefSeq; NCBI GenBank"
-    rows[1]["provider_keys"] = "DSMZ; BCCM-LMG"
+    rows[1]["provider_keys"] = "DSMZ; BCCM-LMG; Korean Collection for Type Cultures"
 
     handoff = build_provider_handoff(rows)
 
@@ -72,12 +72,14 @@ def test_build_provider_handoff_canonicalizes_provider_aliases():
         "bccm_lmg",
         "dsmz",
         "genbank",
+        "kctc",
         "refseq",
     ]
     assert handoff.summary["provider_key_counts"] == {
         "bccm_lmg": 1,
         "dsmz": 1,
         "genbank": 1,
+        "kctc": 1,
         "refseq": 1,
     }
     assert handoff.summary["downloads_triggered"] == 0

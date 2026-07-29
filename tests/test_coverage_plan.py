@@ -51,6 +51,7 @@ def test_coverage_plan_orders_actions_and_preserves_audit_boundaries():
     assert summary["manifest_mutated"] is False
     assert summary["strict_scientific_deliverable"] is False
     assert summary["provider_key_counts"]["ena"] == 1
+    assert summary["provider_key_counts"]["atcc_genome_portal"] == 1
     assert summary["provider_key_counts"]["dsmz"] == 1
 
 
@@ -72,6 +73,36 @@ def test_coverage_plan_serializers_are_stable():
     assert parsed[0]["provider_keys"] == "ddbj; ena; genbank; refseq"
     summary = json.loads(plan.summary_json())
     assert summary["action_counts"] == {"review_public_archive_linkage": 1}
+
+
+def test_coverage_plan_uses_canonical_provider_hints_when_present():
+    plan = build_coverage_plan(
+        [
+            _row(
+                "Clostridium hintedum",
+                "external_fasta_required",
+                provider_keys="KCTC, DSMZ; RefSeq | KCTC",
+            ),
+            _row(
+                "Clostridium archiveum",
+                "public_linkage_review",
+                reason_code="public_archive_insdc_candidate_review",
+                preferred_provider_keys="European Nucleotide Archive; DDBJ",
+            ),
+        ]
+    )
+
+    by_species = {action.species: action for action in plan.actions}
+    assert by_species["Clostridium hintedum"].provider_keys == "kctc; dsmz; refseq"
+    assert by_species["Clostridium archiveum"].provider_keys == "ena; ddbj"
+    summary = json.loads(plan.summary_json())
+    assert summary["provider_key_counts"] == {
+        "ddbj": 1,
+        "dsmz": 1,
+        "ena": 1,
+        "kctc": 1,
+        "refseq": 1,
+    }
 
 
 def test_coverage_plan_sanitizes_text():

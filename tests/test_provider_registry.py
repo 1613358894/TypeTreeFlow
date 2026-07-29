@@ -5,7 +5,18 @@ from typetreeflow.providers.registry import build_default_provider_registry
 def test_default_registry_contains_planning_only_culture_collections():
     registry = build_default_provider_registry()
 
-    for key in ("dsmz", "jcm", "nctc", "cgmcc", "nbrc", "bccm_lmg"):
+    for key in (
+        "dsmz",
+        "jcm",
+        "nctc",
+        "cgmcc",
+        "nbrc",
+        "kctc",
+        "cect",
+        "cip",
+        "ccug",
+        "bccm_lmg",
+    ):
         entry = registry.get(key)
         assert entry.provider_key == key
         assert entry.capability.status == ProviderStatus.PLANNING_ONLY
@@ -41,6 +52,10 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "ATCC": "atcc_genome_portal",
         "ATCC Genome Portal": "atcc_genome_portal",
         "BCCM-LMG": "bccm_lmg",
+        "Korean Collection for Type Cultures": "kctc",
+        "Spanish Type Culture Collection": "cect",
+        "Collection de l'Institut Pasteur": "cip",
+        "Culture Collection University of Gothenburg": "ccug",
         "European Nucleotide Archive": "ena",
     }
 
