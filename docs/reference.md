@@ -1383,12 +1383,12 @@ planning-only rows under the supplied value. Without `--write`, it writes nothin
 `provider_handoff.tsv` and `provider_handoff_summary.json` into the explicitly
 supplied directory. Existing output directories are refused by default;
 `--force` replaces only an owned pair with matching schemas. Missing,
-unreadable, malformed, or provider-key-empty input blocks the command with exit
-code `2`; successful handoff generation exits `0`; unexpected internal or
-write failures exit `1`. Provider handoff rows are AI/operator planning
-artifacts only: they do not contact providers, download genomes, mutate
-manifests, change completion metrics, or promote strict scientific
-deliverables.
+unreadable, malformed, provider-key-empty input, or rows missing `species`,
+`source_lane`, or `action_code` block the command with exit code `2`;
+successful handoff generation exits `0`; unexpected internal or write failures
+exit `1`. Provider handoff rows are AI/operator planning artifacts only: they
+do not contact providers, download genomes, mutate manifests, change completion
+metrics, or promote strict scientific deliverables.
 `provider_handoff.tsv` includes `provider_guidance_notes`, a compact
 fail-closed note string derived from the static provider registry adapter.
 These notes may describe terms review, credential review, user-assisted local

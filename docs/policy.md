@@ -323,10 +323,11 @@ create provider access or download support.
 
 The `provider-handoff build` CLI remains an isolated adapter. It may read only
 an explicit coverage-plan TSV, and in explicit write mode it may publish only
-its isolated provider-handoff pair. It must not scan workflow directories,
-read environment credentials, execute provider adapters, package raw
-curator/provider data, or convert a recommended action into an executed
-provider/download action.
+its isolated provider-handoff pair. Rows missing species, source lane, or action
+code must be blocked rather than converted into provider handoff rows. It must
+not scan workflow directories, read environment credentials, execute provider
+adapters, package raw curator/provider data, or convert a recommended action
+into an executed provider/download action.
 The optional report-only `--provider-handoff-dir` surface is a passive reader
 over that pair. It may display compact counts, provider-key totals,
 provider-status totals, source-action totals, and readiness totals for terms,
