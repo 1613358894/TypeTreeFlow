@@ -1209,6 +1209,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "optional dry-run external-genome registration result directory",
         },
         {
+            "name": "--require-complete",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "exit nonzero unless every operator-chain stage is available",
+        },
+        {
             "name": "--json",
             "kind": "flag",
             "required": False,
@@ -2394,6 +2401,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "provider_request_external_genomes_dir",
                     "external_genomes_install_plan_dir",
                     "registration_run_dir",
+                    "require_complete",
                     "json",
                 },
             )
@@ -2419,7 +2427,14 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 value = _optional_string(request, key)
                 if value:
                     argv.extend([flag, value])
-            return _with_flags(argv, request, {"json": "--json"})
+            return _with_flags(
+                argv,
+                request,
+                {
+                    "require_complete": "--require-complete",
+                    "json": "--json",
+                },
+            )
         allowed = {
             "command",
             "subcommand",

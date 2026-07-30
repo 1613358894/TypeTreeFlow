@@ -265,6 +265,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--provider-request-external-genomes-dir",
         "--external-genomes-install-plan-dir",
         "--registration-run-dir",
+        "--require-complete",
         "--json",
     } <= parameter_names[("coverage-pipeline", "status")]
     audit_dir_flags = {
@@ -881,7 +882,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                     '"provider_request_validation_dir":"validation",'
                     '"provider_request_external_genomes_dir":"external",'
                     '"external_genomes_install_plan_dir":"install_plan",'
-                    '"registration_run_dir":"registration","json":true}'
+                    '"registration_run_dir":"registration",'
+                    '"require_complete":true,"json":true}'
                 ),
             ]
         )
@@ -902,6 +904,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "install_plan",
         "--registration-run-dir",
         "registration",
+        "--require-complete",
         "--json",
     ]
     assert payload["recognized"]["command"] == "coverage-pipeline"

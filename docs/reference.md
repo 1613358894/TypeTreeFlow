@@ -1641,7 +1641,7 @@ The isolated coverage pipeline adapter is:
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
 typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json] [--write --outdir <dir> [--force]]
-typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--json]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
@@ -1677,9 +1677,11 @@ directory, and optional downstream directory overrides. It then re-emits
 next command as compact JSON. The payload also includes
 `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
-re-parsing every stage row. It never discovers workflow output directories,
-writes files, contacts providers, downloads genomes, copies FASTA, mutates
-manifests, or changes completion metrics.
+re-parsing every stage row. By default, an incomplete chain remains a readable
+status result. Add `--require-complete` to make incomplete chains fail closed
+with exit code `2` and `diagnostic_code=chain_incomplete`. It never discovers
+workflow output directories, writes files, contacts providers, downloads
+genomes, copies FASTA, mutates manifests, or changes completion metrics.
 Missing, unreadable, or empty inputs block with exit code `2`; successful
 previews/builds exit `0`; unexpected internal or write failures exit `1`. The
 pipeline is an AI/operator planning shortcut only: it does not contact

@@ -241,6 +241,7 @@ def _build_parser() -> argparse.ArgumentParser:
     status.add_argument("--provider-request-external-genomes-dir")
     status.add_argument("--external-genomes-install-plan-dir")
     status.add_argument("--registration-run-dir")
+    status.add_argument("--require-complete", action="store_true")
     status.add_argument("--json", action="store_true")
     return parser
 
@@ -343,6 +344,8 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     unavailable_stage_names = [
         str(stage.get("stage", "")) for stage in stages if not stage.get("available")
     ]
+    if args.require_complete and unavailable_stage_names:
+        diagnostics.append(_diagnostic("coverage_pipeline_status", "chain_incomplete"))
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -355,6 +358,7 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         },
         "available_stage_names": available_stage_names,
         "unavailable_stage_names": unavailable_stage_names,
+        "require_complete": bool(args.require_complete),
         "next_stage": next_stage,
         "recommended_next_command": (
             str(next_stage.get("recommended_next_command", ""))
