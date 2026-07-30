@@ -696,6 +696,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
         ),
+        "coverage_action_queue": _optional_summary_list(
+            coverage_summary, "coverage_action_queue"
+        ),
         "provider_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_automation_level_counts"
         ),
@@ -1100,6 +1103,7 @@ def _payload(
         coverage_next_action_groups,
         provider_handoff.rows,
     )
+    coverage_action_queue = _coverage_action_queue(coverage_opportunity_summary)
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
         if coverage_next_action_groups
@@ -1145,6 +1149,7 @@ def _payload(
         "coverage_provider_key_counts": coverage_summary["provider_key_counts"],
         "coverage_next_action_groups": coverage_next_action_groups,
         "coverage_opportunity_summary": coverage_opportunity_summary,
+        "coverage_action_queue": coverage_action_queue,
         "primary_next_action_group": primary_next_action_group,
         "primary_action_required_inputs": primary_action_required_inputs,
         "primary_action_recommended_request": primary_action_recommended_request,
@@ -1589,6 +1594,45 @@ def _coverage_action_route(action_code: str) -> dict[str, str]:
     )
 
 
+def _coverage_action_queue(
+    opportunity_summary: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    queue: list[dict[str, object]] = []
+    for index, opportunity in enumerate(opportunity_summary, start=1):
+        operator_route = str(opportunity.get("operator_route", ""))
+        automation_boundary = str(opportunity.get("automation_boundary", ""))
+        raw_automation_counts = opportunity.get("provider_automation_level_counts")
+        automation_counts = (
+            dict(sorted(raw_automation_counts.items()))
+            if isinstance(raw_automation_counts, Mapping)
+            else {}
+        )
+        queue.append(
+            {
+                "queue_position": index,
+                "action_code": str(opportunity.get("action_code", "")),
+                "operator_route": operator_route,
+                "next_input_class": str(opportunity.get("next_input_class", "")),
+                "automation_boundary": automation_boundary,
+                "record_count": _safe_int(opportunity.get("record_count", 0)),
+                "provider_automation_level_counts": automation_counts,
+                "requires_curator_input": operator_route == "curator_decision",
+                "requires_public_metadata_review": (
+                    operator_route == "public_metadata_review"
+                ),
+                "requires_provider_handoff": operator_route == "provider_handoff",
+                "requires_external_registration_review": (
+                    operator_route == "external_registration_review"
+                ),
+                "safe_for_unattended_download": False,
+                "recommended_next_command": str(
+                    opportunity.get("recommended_next_command", "")
+                ),
+            }
+        )
+    return queue
+
+
 def _coverage_action_recommended_request(
     action_code: str,
 ) -> dict[str, object] | None:
@@ -1615,6 +1659,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_provider_key_counts": {},
         "coverage_next_action_groups": [],
         "coverage_opportunity_summary": [],
+        "coverage_action_queue": [],
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
         "primary_action_recommended_request": None,
@@ -1745,6 +1790,7 @@ def _rendered_outputs(
             "coverage_provider_key_counts",
             "coverage_next_action_groups",
             "coverage_opportunity_summary",
+            "coverage_action_queue",
             "primary_next_action_group",
             "primary_action_required_inputs",
             "primary_action_recommended_request",
