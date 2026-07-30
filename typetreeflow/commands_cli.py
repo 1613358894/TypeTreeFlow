@@ -1175,6 +1175,16 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             ),
         },
         {
+            "name": "--external-genomes-install-target-outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": (
+                "optional target run directory used only to plan external-genomes "
+                "installation paths in isolated coverage-pipeline outputs"
+            ),
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -2479,6 +2489,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "validate_provider_request",
                     "provider_request_validation_base_dir",
                     "curated_provider_request_tsv",
+                    "external_genomes_install_target_outdir",
                 }
             )
         _reject_unknown_fields(request, allowed)
@@ -2516,6 +2527,17 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             if curated_provider_request:
                 argv.extend(
                     ["--curated-provider-request-tsv", curated_provider_request]
+                )
+            install_target_outdir = _optional_string(
+                request,
+                "external_genomes_install_target_outdir",
+            )
+            if install_target_outdir:
+                argv.extend(
+                    [
+                        "--external-genomes-install-target-outdir",
+                        install_target_outdir,
+                    ]
                 )
             if _bool_flag(request, "write"):
                 argv.append("--write")

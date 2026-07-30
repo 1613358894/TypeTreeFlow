@@ -224,6 +224,7 @@ typetreeflow coverage-pipeline build \
   --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
   --manual-supplement-hints-tsv <manual_supplement_hints.tsv> \
   --curated-provider-request-tsv <curated_provider_request.tsv> \
+  --external-genomes-install-target-outdir <future-registration-run> \
   --validate-provider-request \
   --write --outdir <isolated-coverage-pipeline-directory>
 ```
@@ -257,13 +258,17 @@ curator supplies accepted local FASTA paths and checksums. `build --write`
 publishes only isolated `acquisition_worklist/`, `coverage_plan/`,
 `provider_handoff/`, `provider_request/`, optional
 `provider_request_validation/`, optional `provider_request_external_genomes/`,
-and `coverage_pipeline_summary.json` members under the requested directory. If
-`--curated-provider-request-tsv` is supplied, the pipeline validates that
-explicit curator-completed TSV and writes `provider_request_external_genomes/`
-only when the local validation passes; it does not infer curator completion
-from the generated `provider_request/` draft. They remain audit-only: no
-workflow outputs, provider contacts, downloads, FASTA copying, manifest
-mutation, registration, completion credit, or strict deliverable promotion.
+optional `external_genomes_install_plan/`, and `coverage_pipeline_summary.json`
+members under the requested directory. If `--curated-provider-request-tsv` is
+supplied, the pipeline validates that explicit curator-completed TSV and writes
+`provider_request_external_genomes/` only when the local validation passes; it
+does not infer curator completion from the generated `provider_request/` draft.
+When `--external-genomes-install-target-outdir` is also supplied, the same
+isolated build writes `external_genomes_install_plan/` as an audit-only plan
+for the future registration run. It does not create that target run directory
+or copy FASTA files. They remain audit-only: no workflow outputs, provider
+contacts, downloads, FASTA copying, manifest mutation, registration,
+completion credit, or strict deliverable promotion.
 
 To inspect the current local operator chain without writing anything:
 
