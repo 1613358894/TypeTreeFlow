@@ -335,6 +335,13 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         ),
         summary_name=PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES["summary"],
         count_field="ready_count",
+        detail_fields=(
+            "status",
+            "record_count",
+            "ready_count",
+            "blocked_count",
+            "diagnostic_count",
+        ),
         diagnostics=diagnostics,
     )
     _apply_optional_stage(
@@ -347,6 +354,7 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         ),
         summary_name=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["summary"],
         count_field="exported_count",
+        detail_fields=("status", "record_count", "exported_count", "diagnostic_count"),
         diagnostics=diagnostics,
         required_member=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[
             "external_genomes"
@@ -362,6 +370,12 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         ),
         summary_name=INSTALL_PLAN_OUTPUT_NAMES["summary"],
         count_field="install_planned_count",
+        detail_fields=(
+            "status",
+            "record_count",
+            "install_planned_count",
+            "diagnostic_count",
+        ),
         diagnostics=diagnostics,
         required_member=INSTALL_PLAN_OUTPUT_NAMES["install_plan"],
     )
@@ -483,6 +497,7 @@ def _apply_optional_stage(
     diagnostics: list[dict[str, object]],
     required_member: str | None = None,
     tsv_record_count: bool = False,
+    detail_fields: tuple[str, ...] = (),
 ) -> None:
     stage = _find_stage(stages, stage_name)
     if stage is None or not directory:
@@ -501,8 +516,19 @@ def _apply_optional_stage(
             required=True,
         )
         count = _safe_int(summary.get(count_field or "record_count", 0))
+        _copy_stage_summary_details(stage, summary, detail_fields)
     stage["available"] = count > 0
     stage["record_count"] = count
+
+
+def _copy_stage_summary_details(
+    stage: dict[str, object],
+    summary: dict[str, object],
+    detail_fields: tuple[str, ...],
+) -> None:
+    for field in detail_fields:
+        if field in summary:
+            stage[f"summary_{field}"] = summary[field]
 
 
 def _find_stage(
