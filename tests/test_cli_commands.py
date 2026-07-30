@@ -259,6 +259,14 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "--expanded-discovery-results-tsv",
             "--manual-supplement-hints-tsv",
         } <= parameter_names[key]
+    assert {
+        "--coverage-pipeline-dir",
+        "--provider-request-validation-dir",
+        "--provider-request-external-genomes-dir",
+        "--external-genomes-install-plan-dir",
+        "--registration-run-dir",
+        "--json",
+    } <= parameter_names[("coverage-pipeline", "status")]
     audit_dir_flags = {
         "--manual-review-import-dir",
         "--acquisition-worklist-dir",
@@ -320,6 +328,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("acquisition-worklist", "build"),
         ("coverage-pipeline", "preview"),
         ("coverage-pipeline", "build"),
+        ("coverage-pipeline", "status"),
         ("count-crosswalk", "build"),
         ("archive-candidates", "build"),
         ("coverage-plan", "build"),
@@ -857,6 +866,49 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
     assert payload["recognized"]["command"] == "coverage-pipeline"
     assert payload["recognized"]["mode"] == "coverage_pipeline"
     assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"coverage-pipeline","subcommand":"status",'
+                    '"coverage_pipeline_dir":"pipeline",'
+                    '"provider_request_validation_dir":"validation",'
+                    '"provider_request_external_genomes_dir":"external",'
+                    '"external_genomes_install_plan_dir":"install_plan",'
+                    '"registration_run_dir":"registration","json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "status",
+        "--coverage-pipeline-dir",
+        "pipeline",
+        "--provider-request-validation-dir",
+        "validation",
+        "--provider-request-external-genomes-dir",
+        "external",
+        "--external-genomes-install-plan-dir",
+        "install_plan",
+        "--registration-run-dir",
+        "registration",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert payload["recognized"]["subcommand"] == "status"
+    assert payload["recognized"]["mode"] == "coverage_pipeline"
+    assert payload["recognized"]["writes_outputs_declared"] is False
+    assert payload["recognized"]["requires_outdir"] is False
 
 
 def test_commands_render_emits_normalized_archive_candidates_argv(capsys):

@@ -257,6 +257,23 @@ report/package handoff, and a later `provider-request external-genomes-draft
 the same explicit handoff. They remain audit-only: no workflow outputs,
 provider contacts, downloads, FASTA copying, manifest mutation, registration,
 completion credit, or strict deliverable promotion.
+
+To inspect the current local operator chain without writing anything:
+
+```bash
+typetreeflow coverage-pipeline status \
+  --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
+  --provider-request-validation-dir <isolated-provider-request-validation-directory> \
+  --provider-request-external-genomes-dir <isolated-provider-request-external-genomes-directory> \
+  --external-genomes-install-plan-dir <isolated-external-genomes-install-plan-directory> \
+  --registration-run-dir <dry-run-registration-directory> [--json]
+```
+
+The status command only reads explicitly supplied isolated artifact
+directories. It reports `operator_chain_stages`, the first unavailable stage,
+and the recommended next command; it does not scan workflow outputs, contact
+providers, download genomes, copy FASTA, mutate manifests, or grant completion
+credit.
 When missing-public-genome rows contain explicit provider hints or recognizable
 culture-collection tokens, the worklist may carry `candidate_provider_keys` so
 the coverage plan can route provider handoff more precisely. Those keys remain

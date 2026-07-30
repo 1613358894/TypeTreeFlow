@@ -193,6 +193,16 @@ _CATALOG_ENTRIES = (
         "boundary": "isolated coverage planning artifacts only; no provider contact or downloads",
     },
     {
+        "command": "coverage-pipeline",
+        "subcommand": "status",
+        "mode": "coverage_pipeline",
+        "argv_pattern": "typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "explicit local coverage chain status only; no provider contact or downloads",
+    },
+    {
         "command": "count-crosswalk",
         "subcommand": "build",
         "mode": "count_crosswalk",
@@ -1160,6 +1170,50 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated coverage pipeline outputs",
+        },
+    ],
+    ("coverage-pipeline", "status"): [
+        {
+            "name": "--coverage-pipeline-dir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "explicit isolated coverage pipeline output directory",
+        },
+        {
+            "name": "--provider-request-validation-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional isolated provider request validation directory",
+        },
+        {
+            "name": "--provider-request-external-genomes-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional isolated provider request external-genomes directory",
+        },
+        {
+            "name": "--external-genomes-install-plan-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional isolated external-genomes install-plan directory",
+        },
+        {
+            "name": "--registration-run-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional dry-run external-genome registration result directory",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
         },
     ],
     ("count-crosswalk", "build"): [
@@ -2328,7 +2382,44 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if outdir:
             argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force"})
-    if command == "coverage-pipeline" and subcommand in {"build", "preview"}:
+    if command == "coverage-pipeline" and subcommand in {"build", "preview", "status"}:
+        if subcommand == "status":
+            _reject_unknown_fields(
+                request,
+                {
+                    "command",
+                    "subcommand",
+                    "coverage_pipeline_dir",
+                    "provider_request_validation_dir",
+                    "provider_request_external_genomes_dir",
+                    "external_genomes_install_plan_dir",
+                    "registration_run_dir",
+                    "json",
+                },
+            )
+            coverage_dir = _required_string(request, "coverage_pipeline_dir")
+            argv = [
+                "coverage-pipeline",
+                "status",
+                "--coverage-pipeline-dir",
+                coverage_dir,
+            ]
+            for key, flag in (
+                ("provider_request_validation_dir", "--provider-request-validation-dir"),
+                (
+                    "provider_request_external_genomes_dir",
+                    "--provider-request-external-genomes-dir",
+                ),
+                (
+                    "external_genomes_install_plan_dir",
+                    "--external-genomes-install-plan-dir",
+                ),
+                ("registration_run_dir", "--registration-run-dir"),
+            ):
+                value = _optional_string(request, key)
+                if value:
+                    argv.extend([flag, value])
+            return _with_flags(argv, request, {"json": "--json"})
         allowed = {
             "command",
             "subcommand",

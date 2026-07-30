@@ -32,19 +32,24 @@ from typetreeflow.evidence.provider_request_draft import (
     PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
     build_provider_request_draft,
 )
+from typetreeflow.external_genomes_cli import INSTALL_PLAN_OUTPUT_NAMES
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
 )
 from typetreeflow.provider_request_validation import (
+    PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
     PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
 )
 
 
 COMMAND_PREVIEW = "coverage-pipeline preview"
 COMMAND_BUILD = "coverage-pipeline build"
+COMMAND_STATUS = "coverage-pipeline status"
+STATUS_SCHEMA_VERSION = "coverage_pipeline_status.v1"
 _PREVIEW_LIMIT = 10
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -101,6 +106,8 @@ def run_coverage_pipeline_command(
     except _UsageError:
         _emit(_failure("invalid_command_usage", "Invalid coverage-pipeline usage"), output)
         return 2
+    if args.action == "status":
+        return _run_status(args, output)
     outdir = Path(args.outdir) if getattr(args, "outdir", None) else None
     if (
         (args.write and outdir is None)
@@ -228,6 +235,13 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
     build.add_argument("--force", action="store_true")
+    status = actions.add_parser("status", add_help=False)
+    status.add_argument("--coverage-pipeline-dir", required=True)
+    status.add_argument("--provider-request-validation-dir")
+    status.add_argument("--provider-request-external-genomes-dir")
+    status.add_argument("--external-genomes-install-plan-dir")
+    status.add_argument("--registration-run-dir")
+    status.add_argument("--json", action="store_true")
     return parser
 
 
@@ -251,6 +265,196 @@ def _read_optional_tsv(
     except (OSError, UnicodeError, csv.Error):
         diagnostics.append(_diagnostic(component, "input_unreadable"))
         return ()
+
+
+def _run_status(args: argparse.Namespace, output: TextIO) -> int:
+    diagnostics: list[dict[str, object]] = []
+    coverage_dir = Path(args.coverage_pipeline_dir)
+    coverage_summary = _read_json_artifact(
+        coverage_dir / OUTPUT_PATHS["pipeline_summary"],
+        component="coverage_pipeline_status",
+        diagnostics=diagnostics,
+        required=True,
+    )
+    stages = list(coverage_summary.get("operator_chain_stages", ()))
+    if not isinstance(stages, list) or not all(isinstance(stage, dict) for stage in stages):
+        diagnostics.append(_diagnostic("coverage_pipeline_status", "missing_operator_chain_stages"))
+        stages = []
+    stages = [dict(stage) for stage in stages]
+
+    _apply_optional_stage(
+        stages,
+        stage_name="provider_request_validation",
+        directory=args.provider_request_validation_dir,
+        summary_name=PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES["summary"],
+        count_field="ready_count",
+        diagnostics=diagnostics,
+    )
+    _apply_optional_stage(
+        stages,
+        stage_name="provider_request_external_genomes",
+        directory=args.provider_request_external_genomes_dir,
+        summary_name=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["summary"],
+        count_field="exported_count",
+        diagnostics=diagnostics,
+        required_member=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[
+            "external_genomes"
+        ],
+    )
+    _apply_optional_stage(
+        stages,
+        stage_name="external_genomes_install_plan",
+        directory=args.external_genomes_install_plan_dir,
+        summary_name=INSTALL_PLAN_OUTPUT_NAMES["summary"],
+        count_field="install_planned_count",
+        diagnostics=diagnostics,
+        required_member=INSTALL_PLAN_OUTPUT_NAMES["install_plan"],
+    )
+    _apply_optional_stage(
+        stages,
+        stage_name="external_genomes_registration_dry_run",
+        directory=args.registration_run_dir,
+        summary_name="external_genome_registration_results.tsv",
+        count_field=None,
+        diagnostics=diagnostics,
+        required_member="external_genome_install_plan.tsv",
+        tsv_record_count=True,
+    )
+    next_stage = _next_unavailable_stage(stages)
+    payload = {
+        "schema_version": STATUS_SCHEMA_VERSION,
+        "status": "pass" if not diagnostics else "blocked",
+        "command": COMMAND_STATUS,
+        "stage_count": len(stages),
+        "completed_stage_count": sum(1 for stage in stages if stage.get("available")),
+        "next_stage": next_stage,
+        "recommended_next_command": (
+            str(next_stage.get("recommended_next_command", ""))
+            if next_stage
+            else ""
+        ),
+        "operator_chain_stages": stages,
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "summary": (
+            "Coverage pipeline status passed"
+            if not diagnostics
+            else "Coverage pipeline status blocked"
+        ),
+    }
+    _emit(payload, output)
+    return 0 if not diagnostics else 2
+
+
+def _read_json_artifact(
+    path: Path,
+    *,
+    component: str,
+    diagnostics: list[dict[str, object]],
+    required: bool,
+) -> dict[str, object]:
+    try:
+        if not path.is_file() or path.is_symlink():
+            raise OSError("missing artifact")
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        if required:
+            diagnostics.append(_diagnostic(component, "artifact_unreadable"))
+        return {}
+    if not isinstance(data, dict):
+        if required:
+            diagnostics.append(_diagnostic(component, "artifact_malformed"))
+        return {}
+    return data
+
+
+def _apply_optional_stage(
+    stages: list[dict[str, object]],
+    *,
+    stage_name: str,
+    directory: str | None,
+    summary_name: str,
+    count_field: str | None,
+    diagnostics: list[dict[str, object]],
+    required_member: str | None = None,
+    tsv_record_count: bool = False,
+) -> None:
+    stage = _find_stage(stages, stage_name)
+    if stage is None or not directory:
+        return
+    base = Path(directory)
+    if required_member is not None and not (base / required_member).is_file():
+        diagnostics.append(_diagnostic(stage_name, "artifact_missing"))
+        return
+    if tsv_record_count:
+        count = _tsv_record_count(base / summary_name, stage_name, diagnostics)
+    else:
+        summary = _read_json_artifact(
+            base / summary_name,
+            component=stage_name,
+            diagnostics=diagnostics,
+            required=True,
+        )
+        count = _safe_int(summary.get(count_field or "record_count", 0))
+    stage["available"] = count > 0
+    stage["record_count"] = count
+
+
+def _find_stage(
+    stages: list[dict[str, object]],
+    stage_name: str,
+) -> dict[str, object] | None:
+    for stage in stages:
+        if stage.get("stage") == stage_name:
+            return stage
+    return None
+
+
+def _tsv_record_count(
+    path: Path,
+    component: str,
+    diagnostics: list[dict[str, object]],
+) -> int:
+    try:
+        if not path.is_file() or path.is_symlink():
+            raise OSError("missing artifact")
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.reader(handle, delimiter="\t")
+            try:
+                next(reader)
+            except StopIteration:
+                diagnostics.append(_diagnostic(component, "artifact_malformed"))
+                return 0
+            return sum(1 for row in reader if row)
+    except (OSError, UnicodeError, csv.Error):
+        diagnostics.append(_diagnostic(component, "artifact_unreadable"))
+        return 0
+
+
+def _safe_int(value: object) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _next_unavailable_stage(
+    stages: list[dict[str, object]],
+) -> dict[str, object] | None:
+    for stage in stages:
+        if not stage.get("available"):
+            return stage
+    return None
 
 
 def _payload(
@@ -405,6 +609,15 @@ def _operator_chain_stages(
             record_count=provider_request_count,
             recommended_next_command=PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
             boundary="curator-completed local evidence validation only",
+        ),
+        _operator_stage(
+            stage="provider_request_validation",
+            artifact="provider_request_validation/provider_request_validation_summary.json",
+            record_count=0,
+            recommended_next_command=(
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
+            ),
+            boundary="local readiness validation only; no provider contact",
         ),
         _operator_stage(
             stage="provider_request_external_genomes",
