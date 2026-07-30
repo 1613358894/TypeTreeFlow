@@ -310,6 +310,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("provider-handoff", "build"),
         ("provider-request", "draft"),
         ("provider-request", "external-genomes-draft"),
+        ("provider-request", "external-genomes-handoff"),
         ("plan-provider-registration", None),
         ("register-external-genomes", None),
         ("providers", "catalog"),
@@ -1048,6 +1049,86 @@ def test_commands_render_emits_normalized_provider_request_external_genomes_argv
     assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["writes_outputs_declared"] is True
     assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_provider_request_external_genomes_handoff_argv(
+    capsys,
+):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"provider-request",'
+                    '"subcommand":"external-genomes-handoff",'
+                    '"input":"provider_request.tsv","base_dir":"evidence",'
+                    '"json":true,"write":true,"outdir":"handoff","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "provider-request",
+        "external-genomes-handoff",
+        "--input",
+        "provider_request.tsv",
+        "--base-dir",
+        "evidence",
+        "--write",
+        "--outdir",
+        "handoff",
+        "--json",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "provider-request"
+    assert payload["recognized"]["subcommand"] == "external-genomes-handoff"
+    assert payload["recognized"]["mode"] == "provider_request"
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_plan_allows_provider_request_external_genomes_handoff_with_write_allowance(
+    capsys,
+):
+    request = (
+        '{"command":"provider-request","subcommand":"external-genomes-handoff",'
+        '"input":"provider_request.tsv","write":true,"outdir":"handoff"}'
+    )
+    assert main(["commands", "plan", "--request-json", request]) == 2
+    blocked, _output = _stdout_payload(capsys)
+    assert blocked["decision"] == "block"
+    assert blocked["blocking"][0]["id"] == "write_not_allowed"
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--request-json",
+                request,
+            ]
+        )
+        == 0
+    )
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "provider-request",
+        "external-genomes-handoff",
+        "--input",
+        "provider_request.tsv",
+        "--write",
+        "--outdir",
+        "handoff",
+    ]
+    assert payload["preflight"]["risk"]["workflow_outputs_declared"] is False
+    assert payload["preflight"]["risk"]["network_declared"] is False
 
 
 def test_commands_render_emits_normalized_external_genomes_validate_argv(capsys):
