@@ -506,7 +506,8 @@ Missing input is omitted. Partial or malformed input copies only valid members
 and adds a compact warning to the README, handoff index, and compact JSON
 envelope. Failed-handoff packages exclude these artifacts and rows.
 
-For `coverage-pipeline build` outputs containing `external_genomes_install_plan/`,
+For explicit `--external-genomes-install-plan-dir <dir>` inputs or
+`coverage-pipeline build` outputs containing `external_genomes_install_plan/`,
 `package-results --include reports` and `--include all` may copy
 `external_genome_registration_results.tsv`, `external_genome_install_plan.tsv`,
 and `external_genome_install_plan_summary.json` under

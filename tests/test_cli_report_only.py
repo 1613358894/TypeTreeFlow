@@ -402,6 +402,73 @@ def test_report_only_coverage_pipeline_dir_reads_install_plan_surface(
     assert not paths.reconciler_diagnostics_path.exists()
 
 
+def test_report_only_explicit_external_genomes_install_plan_dir_is_read_only(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    install_plan_dir = tmp_path / "external-genomes-install-plan"
+    _write_external_genomes_install_plan_triplet(install_plan_dir)
+    install_plan_before = {
+        path.name: path.read_bytes()
+        for path in install_plan_dir.iterdir()
+        if path.is_file()
+    }
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--external-genomes-install-plan-dir",
+            str(install_plan_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert result == 0
+    assert stdout.count("\n") <= 1
+    assert "## External Genomes Install Plan Audit" in summary
+    assert "external_genome_registered" in summary
+    assert "external_genome_install_planned" in summary
+    assert "install_executed=false" in summary
+    assert "external_genomes_registration_applied=false" in summary
+    assert "target_outdir_mutated=false" in summary
+    assert "private message" not in summary
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {
+        path.name: path.read_bytes()
+        for path in install_plan_dir.iterdir()
+        if path.is_file()
+    } == install_plan_before
+
+
+def test_external_genomes_install_plan_dir_requires_report_only_or_package_results(
+    tmp_path, capsys
+):
+    with pytest.raises(
+        ValueError,
+        match=(
+            "--external-genomes-install-plan-dir is only supported with "
+            "--report-only"
+        ),
+    ):
+        main(
+            [
+                "--outdir",
+                str(tmp_path / "out"),
+                "--external-genomes-install-plan-dir",
+                str(tmp_path / "install-plan"),
+            ]
+        )
+
+
 def test_coverage_pipeline_dir_requires_report_only_or_package_results(
     tmp_path, capsys
 ):
