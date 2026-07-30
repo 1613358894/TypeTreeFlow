@@ -294,23 +294,53 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["primary_action_recommended_next_command"] == (
         "manual-review validate --input <review.tsv>"
     )
+    assert payload["provider_request_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+    }
     assert payload["provider_request_recommended_next_command"] == (
         "typetreeflow --plan-provider-registration "
         "<provider_request.tsv> --outdir <run>"
     )
+    assert payload["provider_request_validation_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "input": "provider_request/provider_request.tsv",
+    }
     assert payload["provider_request_validation_recommended_next_command"] == (
         "review ready rows before copying accepted local FASTA evidence into "
         "external_genomes.tsv for --register-external-genomes"
     )
+    assert payload["provider_request_external_genomes_recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "validate",
+        "input": "provider_request_external_genomes/external_genomes.tsv",
+    }
     assert payload["provider_request_external_genomes_recommended_next_command"] == (
         "typetreeflow external-genomes validate --input <external_genomes.tsv>"
     )
+    assert payload[
+        "provider_request_external_genomes_install_plan_recommended_request"
+    ] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": "provider_request_external_genomes/external_genomes.tsv",
+        "target_outdir": "<run>",
+    }
     assert payload[
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
+    assert payload["provider_request_external_genomes_handoff_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": "provider_request/provider_request.tsv",
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
     assert payload[
         "provider_request_external_genomes_handoff_recommended_next_command"
     ] == (
@@ -568,23 +598,61 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["provider_request_record_count"] == 8
     assert summary["provider_terms_review_required_count"] == 8
     assert summary["provider_network_supported_count"] == 0
+    assert summary["primary_next_action_group"]["action_code"] == (
+        "resolve_curator_conflict"
+    )
+    assert summary["primary_action_recommended_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    }
+    assert summary["provider_request_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+    }
     assert summary["provider_request_recommended_next_command"] == (
         "typetreeflow --plan-provider-registration "
         "<provider_request.tsv> --outdir <run>"
     )
+    assert summary["provider_request_validation_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "input": "provider_request/provider_request.tsv",
+    }
     assert summary["provider_request_validation_recommended_next_command"] == (
         "review ready rows before copying accepted local FASTA evidence into "
         "external_genomes.tsv for --register-external-genomes"
     )
+    assert summary["provider_request_external_genomes_recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "validate",
+        "input": "provider_request_external_genomes/external_genomes.tsv",
+    }
     assert summary["provider_request_external_genomes_recommended_next_command"] == (
         "typetreeflow external-genomes validate --input <external_genomes.tsv>"
     )
+    assert summary[
+        "provider_request_external_genomes_install_plan_recommended_request"
+    ] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": "provider_request_external_genomes/external_genomes.tsv",
+        "target_outdir": "<run>",
+    }
     assert summary[
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
+    assert summary["provider_request_external_genomes_handoff_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": "provider_request/provider_request.tsv",
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
     assert summary[
         "provider_request_external_genomes_handoff_recommended_next_command"
     ] == (

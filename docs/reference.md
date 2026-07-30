@@ -1712,7 +1712,8 @@ provider-status, and provider-request draft counts plus
 `provider_request_external_genomes_recommended_next_command` plus
 `provider_request_external_genomes_install_plan_recommended_next_command` plus
 `provider_request_external_genomes_handoff_recommended_next_command` plus
-`provider_request_recommended_next_command`, and bounded previews. Action
+`provider_request_recommended_next_command`, their matching
+`*_recommended_request` structured request drafts, and bounded previews. Action
 groups are sorted by priority and summarize action code, record count, source
 lanes, provider keys, required inputs, a structured `recommended_request` draft,
 and the recommended next command for AI/operator routing. Required inputs are
