@@ -29,6 +29,16 @@ PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND = (
     "review ready rows before copying accepted local FASTA evidence into "
     "external_genomes.tsv for --register-external-genomes"
 )
+PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS: tuple[str, ...] = (
+    "provider_request.tsv",
+)
+PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST: dict[str, object] = {
+    "command": "provider-request",
+    "subcommand": "external-genomes-handoff",
+    "input": "provider_request.tsv",
+    "write": True,
+    "outdir": "<isolated-provider-request-external-genomes-directory>",
+}
 PROVIDER_REQUEST_READY_STATUS = "provider_request_ready_for_external_genome_review"
 PROVIDER_REQUEST_BLOCKED_STATUS = "provider_request_blocked"
 _PREVIEW_LIMIT = 20
@@ -103,6 +113,10 @@ class ProviderRequestValidation:
             "external_tools": False,
             "manifest_mutated": False,
             "strict_scientific_deliverable": False,
+            "required_inputs": list(PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS),
+            "recommended_request": dict(
+                PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST
+            ),
             "recommended_next_command": (
                 PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
             ),
@@ -174,6 +188,8 @@ def provider_request_validation_payload(
         "external_tools": False,
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
+        "required_inputs": summary["required_inputs"],
+        "recommended_request": summary["recommended_request"],
         "recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
         ),

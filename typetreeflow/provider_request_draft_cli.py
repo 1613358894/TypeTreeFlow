@@ -32,7 +32,9 @@ from typetreeflow.provider_request_external_genomes import (
 from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
     PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
+    PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST,
     PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS,
     PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
     provider_request_validation_diagnostics_tsv,
     provider_request_validation_payload,
@@ -816,6 +818,8 @@ def _validate_failure(code: str) -> dict[str, object]:
         "external_tools": False,
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
+        "required_inputs": list(PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS),
+        "recommended_request": dict(PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST),
         "recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
         ),

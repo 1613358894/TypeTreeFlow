@@ -1625,7 +1625,9 @@ object with `ready_count`, `blocked_count`, `blocker_counts`,
 `local_fasta_checked_count`, and `local_sha256_matched_count`; row previews
 include only request ID, species, provider, readiness status, blocker codes,
 and boolean local evidence checks. They do not echo local FASTA paths, hashes,
-provider notes, curator values, or sequence contents.
+provider notes, curator values, or sequence contents. The JSON and summary also
+include `required_inputs` plus a structured `recommended_request` for the next
+offline `provider-request external-genomes-handoff` step.
 
 Successful fully ready validation exits `0`; schema/input/readiness blockers
 exit `2`; unexpected internal or write failures exit `1`. Without `--write`,

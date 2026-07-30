@@ -160,7 +160,8 @@ The validator checks required provider request fields, terms review,
 curator-owned completion fields, type-material/manual-review flags, local
 FASTA existence, and SHA-256 match. It emits compact JSON with ready/blocked
 counts and blocker counts, but it does not echo local FASTA paths, hashes,
-provider notes, or sequence contents. With `--write`, it publishes only
+provider notes, or sequence contents. It also includes the next offline
+`provider-request external-genomes-handoff` request. With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated
 directory. Passing validation only means the rows are ready for
