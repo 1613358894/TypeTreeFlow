@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import csv
 
 from typetreeflow import cli
 from typetreeflow.external_genomes import (
@@ -7,8 +8,11 @@ from typetreeflow.external_genomes import (
     read_external_genome_install_plan,
     read_external_genome_registration_results,
 )
+from typetreeflow.manifest import write_manifest
+from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
+from tests.test_cli_coverage_pipeline import _write_inputs
 
 
 def _write(path: Path, text: str) -> Path:
@@ -55,6 +59,78 @@ def _write_provider_request(path: Path, **overrides: str) -> Path:
         + "\n"
         + "\t".join(values[field] for field in PROVIDER_REQUEST_FIELDS)
         + "\n",
+    )
+
+
+def _read_tsv(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _write_ready_provider_request_from_template(
+    path: Path,
+    template: dict[str, str],
+    *,
+    fasta: Path,
+    base_dir: Path,
+) -> Path:
+    row = {field: "" for field in PROVIDER_REQUEST_FIELDS}
+    row.update(template)
+    row.update(
+        {
+            "request_id": "REQ-READY-001",
+            "species": "Clostridium alpha",
+            "strain": "DSM 1",
+            "type_strain_id": "DSM 1",
+            "provider": "dsmz",
+            "provider_name": "DSMZ",
+            "provider_record_id": "DSM-1",
+            "provider_record_url": "https://example.org/dsmz/1",
+            "provider_artifact_id": "",
+            "provider_artifact_version": "2026-07-30",
+            "artifact_type": "genome_fasta",
+            "local_fasta_path": fasta.relative_to(base_dir).as_posix(),
+            "local_sha256": calculate_sha256(fasta),
+            "terms_review_status": "reviewed_allowed",
+            "license_notes": "Curator confirmed local analysis.",
+            "retrieval_date": "2026-07-30",
+            "is_type_material": "true",
+            "requires_manual_review": "false",
+            "curator": "curator-a",
+            "notes": "local handoff",
+        }
+    )
+    return _write(
+        path,
+        "\t".join(PROVIDER_REQUEST_FIELDS)
+        + "\n"
+        + "\t".join(row[field] for field in PROVIDER_REQUEST_FIELDS)
+        + "\n",
+    )
+
+
+def _write_package_manifest(run_dir: Path) -> None:
+    paths = get_output_paths(run_dir)
+    genome = paths.genomes_references_dir / "rec-1.fna"
+    genome.parent.mkdir(parents=True, exist_ok=True)
+    genome.write_text(">rec-1\nACGT\n", encoding="utf-8")
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="rec-1",
+                canonical_name="Clostridium alpha",
+                display_name="Clostridium alpha DSM 1",
+                genus="Clostridium",
+                species="alpha",
+                strain="DSM 1",
+                is_type_material=True,
+                has_genome=True,
+                genome_path="genomes/references/rec-1.fna",
+                normalized_id="rec-1",
+                status="selected",
+            )
+        ],
+        paths.manifest,
     )
 
 
@@ -163,3 +239,112 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert results[0].computed_sha256 == calculate_sha256(fasta)
     assert install_plan[0].status == "external_genome_install_planned"
     assert not Path(install_plan[0].installed_genome_path).exists()
+
+
+def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
+    tmp_path,
+    capsys,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+
+    assert (
+        cli.main(
+            [
+                "coverage-pipeline",
+                "build",
+                "--checklist-tsv",
+                str(checklist),
+                "--reconciler-audit-tsv",
+                str(reconciler),
+                "--completion-gaps-tsv",
+                str(gaps),
+                "--archive-candidates-tsv",
+                str(archive),
+                "--write",
+                "--outdir",
+                str(pipeline_dir),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    pipeline_payload = json.loads(capsys.readouterr().out)
+    assert pipeline_payload[
+        "provider_request_external_genomes_handoff_recommended_next_command"
+    ] == (
+        "typetreeflow provider-request external-genomes-handoff "
+        "--input <provider_request.tsv> --write "
+        "--outdir <isolated-handoff-directory>"
+    )
+
+    generated_request = pipeline_dir / "provider_request" / "provider_request.tsv"
+    template_row = _read_tsv(generated_request)[0]
+    fasta = _write(tmp_path / "local" / "provider" / "DSM-1.fna", ">seq\nACGT\n")
+    ready_request = _write_ready_provider_request_from_template(
+        tmp_path / "curated_provider_request.tsv",
+        template_row,
+        fasta=fasta,
+        base_dir=tmp_path,
+    )
+    handoff_dir = tmp_path / "external_handoff_bundle"
+
+    assert (
+        cli.main(
+            [
+                "provider-request",
+                "external-genomes-handoff",
+                "--input",
+                str(ready_request),
+                "--base-dir",
+                str(tmp_path),
+                "--write",
+                "--outdir",
+                str(handoff_dir),
+            ]
+        )
+        == 0
+    )
+    handoff_stdout = capsys.readouterr().out
+    handoff_payload = json.loads(handoff_stdout)
+    assert handoff_payload["status"] == "pass"
+    assert handoff_payload["ready_count"] == 1
+    assert handoff_payload["exported_count"] == 1
+    assert str(fasta) not in handoff_stdout
+    assert calculate_sha256(fasta) not in handoff_stdout
+
+    run_dir = tmp_path / "run_dir"
+    _write_package_manifest(run_dir)
+    assert (
+        cli.main(
+            [
+                "package-results",
+                "--outdir",
+                str(run_dir),
+                "--include",
+                "reports",
+                "--coverage-pipeline-dir",
+                str(handoff_dir),
+            ]
+        )
+        == 0
+    )
+    package_stdout = capsys.readouterr().out
+    package_payload = json.loads(package_stdout)
+    delivery_dir = run_dir / "delivery"
+    scope = (delivery_dir / "artifact_scope.tsv").read_text(encoding="utf-8")
+    assert package_payload["command"] == "package-results"
+    assert (
+        delivery_dir
+        / "provider_request_validation"
+        / "provider_request_validation_summary.json"
+    ).exists()
+    assert (
+        delivery_dir
+        / "provider_request_external_genomes"
+        / "external_genomes.tsv"
+    ).exists()
+    assert "provider_request_validation_audit" in scope
+    assert "provider_request_external_genomes_audit" in scope
+    assert str(fasta) not in package_stdout
+    assert calculate_sha256(fasta) not in package_stdout

@@ -156,6 +156,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["provider_request_external_genomes_recommended_next_command"] == (
         "typetreeflow external-genomes validate --input <external_genomes.tsv>"
     )
+    assert payload[
+        "provider_request_external_genomes_handoff_recommended_next_command"
+    ] == (
+        "typetreeflow provider-request external-genomes-handoff "
+        "--input <provider_request.tsv> --write "
+        "--outdir <isolated-handoff-directory>"
+    )
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
@@ -348,6 +355,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     )
     assert summary["provider_request_external_genomes_recommended_next_command"] == (
         "typetreeflow external-genomes validate --input <external_genomes.tsv>"
+    )
+    assert summary[
+        "provider_request_external_genomes_handoff_recommended_next_command"
+    ] == (
+        "typetreeflow provider-request external-genomes-handoff "
+        "--input <provider_request.tsv> --write "
+        "--outdir <isolated-handoff-directory>"
     )
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,

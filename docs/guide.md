@@ -237,9 +237,11 @@ handoff pressure is visible before reading the nested artifacts. It also
 reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
+`provider_request_external_genomes_handoff_recommended_next_command` plus
 `provider_request_recommended_next_command` so the local validation,
-external-genomes draft, and later `plan-provider-registration` handoffs are
-visible in one compact JSON object.
+one-step external-genomes handoff bundle, external-genomes draft validation,
+and later `plan-provider-registration` handoffs are visible in one compact JSON
+object.
 `build --write` publishes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, and `coverage_pipeline_summary.json` members under the
