@@ -145,6 +145,7 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     )
     validation_dir = tmp_path / "validation_audit"
     external_draft_dir = tmp_path / "external_draft"
+    install_plan_audit_dir = tmp_path / "install_plan_audit"
     register_outdir = tmp_path / "register_run"
 
     assert (
@@ -208,6 +209,46 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     external_payload = json.loads(capsys.readouterr().out)
     assert external_payload["valid_count"] == 1
     assert external_payload["writes_outputs"] is False
+
+    assert (
+        cli.main(
+            [
+                "external-genomes",
+                "install-plan",
+                "--input",
+                str(external_genomes),
+                "--target-outdir",
+                str(register_outdir),
+                "--write",
+                "--outdir",
+                str(install_plan_audit_dir),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    install_plan_stdout = capsys.readouterr().out
+    install_plan_payload = json.loads(install_plan_stdout)
+    isolated_registration_results = read_external_genome_registration_results(
+        install_plan_audit_dir / "external_genome_registration_results.tsv"
+    )
+    isolated_install_plan = read_external_genome_install_plan(
+        install_plan_audit_dir / "external_genome_install_plan.tsv"
+    )
+    assert install_plan_payload["status"] == "pass"
+    assert install_plan_payload["install_planned_count"] == 1
+    assert install_plan_payload["writes_outputs"] is True
+    assert install_plan_payload["writes_workflow_outputs"] is False
+    assert install_plan_payload["install_executed"] is False
+    assert install_plan_payload["target_outdir_mutated"] is False
+    assert install_plan_payload["manifest_mutated"] is False
+    assert install_plan_payload["external_genomes_registration_applied"] is False
+    assert str(fasta) not in install_plan_stdout
+    assert calculate_sha256(fasta) not in install_plan_stdout
+    assert isolated_registration_results[0].status == "external_genome_registered"
+    assert isolated_install_plan[0].status == "external_genome_install_planned"
+    assert not register_outdir.exists()
+    assert not Path(isolated_install_plan[0].installed_genome_path).exists()
 
     assert (
         cli.main(
