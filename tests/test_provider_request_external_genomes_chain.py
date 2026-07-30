@@ -253,6 +253,27 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert (
         cli.main(
             [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(install_plan_payload["recommended_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "--register-external-genomes",
+        external_genomes.as_posix(),
+        "--outdir",
+        "<run>",
+        "--dry-run",
+    ]
+    assert render_payload["recognized"]["command"] == "register-external-genomes"
+
+    assert (
+        cli.main(
+            [
                 "--register-external-genomes",
                 str(external_genomes),
                 "--outdir",
@@ -366,6 +387,31 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
         handoff_payload["install_plan_recommended_request"]["input"]
         == handoff_external_genomes
     )
+    assert (
+        cli.main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(handoff_payload["install_plan_recommended_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        handoff_external_genomes,
+        "--target-outdir",
+        "<run>",
+        "--write",
+        "--outdir",
+        "<isolated-install-plan-directory>",
+    ]
+    assert render_payload["recognized"]["command"] == "external-genomes"
+    assert render_payload["recognized"]["subcommand"] == "install-plan"
     assert handoff_payload["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         f"--input {handoff_external_genomes} --target-outdir <run> "
