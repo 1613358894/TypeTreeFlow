@@ -148,17 +148,21 @@ readiness without writing workflow outputs:
 
 ```bash
 typetreeflow provider-request validate --input <provider_request.tsv> \
-  [--base-dir <local-fasta-base-dir>] [--json]
+  [--base-dir <local-fasta-base-dir>] [--json] \
+  [--write --outdir <isolated-validation-directory> [--force]]
 ```
 
 The validator checks required provider request fields, terms review,
 curator-owned completion fields, type-material/manual-review flags, local
 FASTA existence, and SHA-256 match. It emits compact JSON with ready/blocked
 counts and blocker counts, but it does not echo local FASTA paths, hashes,
-provider notes, or sequence contents. Passing validation only means the rows
-are ready for external-genome handoff review; it does not contact providers,
-download genomes, mutate manifests, write `external_genomes.tsv`, or create
-strict scientific deliverables.
+provider notes, or sequence contents. With `--write`, it publishes only
+`provider_request_validation_summary.json` and
+`provider_request_validation_diagnostics.tsv` in the explicit isolated
+directory. Passing validation only means the rows are ready for
+external-genome handoff review; it does not contact providers, download
+genomes, mutate manifests, write workflow outputs, write
+`external_genomes.tsv`, or create strict scientific deliverables.
 
 Preview the full offline coverage planning chain in one no-write command:
 
@@ -201,7 +205,9 @@ reports provider request draft counts and
 `build --write` publishes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, and `coverage_pipeline_summary.json` members under the
-requested directory. It remains audit-only: no workflow outputs, provider
+requested directory. A later `provider-request validate --write` result can be
+placed under `provider_request_validation/` in the same isolated directory for
+report/package handoff. It remains audit-only: no workflow outputs, provider
 contacts, downloads, manifest mutation, completion credit, or strict
 deliverable promotion.
 When missing-public-genome rows contain explicit provider hints or recognizable
@@ -591,10 +597,21 @@ request draft rows mean curator review availability, not provider contact,
 authentication, terms acceptance, download execution, manifest mutation,
 completion credit, or strict deliverable promotion. `--failed-handoff`
 excludes provider-request artifacts.
+With an explicit `--provider-request-validation-dir`, `--include reports` and
+`--include all` copy each validated provider-request validation member under
+`provider_request_validation/` and add one `scope=audit`,
+`evidence_policy=provider_request_validation_audit` artifact-scope row per
+copied member. Missing input is omitted; partial or malformed input copies
+only validated members and records a compact warning. These files are
+audit-only: ready rows mean local provider request readiness for review, not
+provider contact, download execution, external-genome registration, manifest
+mutation, completion credit, or strict deliverable promotion.
+`--failed-handoff` excludes provider-request validation artifacts.
 With an explicit `--coverage-pipeline-dir`, `--include reports` and
 `--include all` derive `acquisition_worklist/`, `coverage_plan/`, and
-`provider_handoff/`, and `provider_request/` under the isolated pipeline
-directory, then apply the same copy and artifact-scope contracts as the four
+`provider_handoff/`, `provider_request/`, and
+`provider_request_validation/` under the isolated pipeline directory when
+present, then apply the same copy and artifact-scope contracts as the
 individual directory options. This is a convenience handoff only; it does not
 scan workflow outputs, rerun the pipeline, contact providers, trigger
 downloads, or change scientific status.
@@ -684,13 +701,27 @@ downloads. A missing or empty directory omits
 `## Provider Request Draft Audit`; partial or malformed input keeps report
 generation successful and shows a compact warning.
 
-If all four artifacts were generated together by `coverage-pipeline build`,
+To include a previously generated provider request validation audit in the
+refreshed report, pass
+`--provider-request-validation-dir <isolated-validation-directory>` together
+with `--report-only`. This is an explicit read-only input: TypeTreeFlow reads
+only `provider_request_validation_summary.json` and
+`provider_request_validation_diagnostics.tsv`, without scanning the workflow
+outdir, contacting providers, copying FASTA files, registering external
+genomes, or triggering downloads. A missing or empty directory omits
+`## Provider Request Validation Audit`; partial or malformed input keeps
+report generation successful and shows a compact warning.
+
+If the audit artifacts were generated together under one isolated coverage
+pipeline directory, plus an optional `provider_request_validation/` child
+directory,
 pass `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
-`--report-only` instead of naming the four component directories separately.
+`--report-only` instead of naming the component directories separately.
 The command derives only `acquisition_worklist/`, `coverage_plan/`,
-`provider_handoff/`, and `provider_request/` under that explicit directory.
-Individually supplied component directories take precedence when both forms
-are present.
+`provider_handoff/`, `provider_request/`, and
+`provider_request_validation/` under that explicit directory when present.
+Individually supplied component directories take precedence when both forms are
+present.
 
 To include a previously generated offline readiness projection in the
 refreshed report, pass `--offline-readiness-dir <isolated-readiness-directory>`

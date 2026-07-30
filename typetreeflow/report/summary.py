@@ -78,6 +78,11 @@ from typetreeflow.provider_plan import (
     PROVIDER_REQUEST_FIELDS,
     PROVIDER_REGISTRATION_PLAN_FIELDS,
 )
+from typetreeflow.provider_request_validation import (
+    PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
+    PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
+    PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
+)
 from typetreeflow.selection.evidence import (
     LIKELY_TYPE_MATERIAL_COUNT,
     REPRESENTATIVE_ONLY_COUNT,
@@ -186,6 +191,18 @@ PROVIDER_REQUEST_MEMBERS = (
     "provider_request.tsv",
 )
 PROVIDER_REQUEST_MAX_BYTES = 5 * 1024 * 1024
+PROVIDER_REQUEST_VALIDATION_MEMBERS = tuple(
+    PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES.values()
+)
+PROVIDER_REQUEST_VALIDATION_COUNT_FIELDS = (
+    "record_count",
+    "ready_count",
+    "blocked_count",
+    "diagnostic_count",
+    "local_fasta_checked_count",
+    "local_sha256_matched_count",
+)
+PROVIDER_REQUEST_VALIDATION_MAX_BYTES = 5 * 1024 * 1024
 OFFLINE_READINESS_MEMBERS = (
     "offline_readiness_summary.json",
     "offline_readiness_diagnostics.tsv",
@@ -306,6 +323,17 @@ class ProviderRequestDraftAuditSummary:
     warnings: list[str]
     provider_counts: list[tuple[str, int]]
     status_counts: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class ProviderRequestValidationAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    provider_counts: list[tuple[str, int]]
+    status_counts: list[tuple[str, int]]
+    blocker_counts: list[tuple[str, int]]
+    top_diagnostics: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -1151,6 +1179,129 @@ def read_optional_provider_request_draft_audit(
     )
 
 
+def read_optional_provider_request_validation_audit(
+    directory: str | Path | None,
+) -> ProviderRequestValidationAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name for name in PROVIDER_REQUEST_VALIDATION_MEMBERS if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    provider_counts: list[tuple[str, int]] = []
+    status_counts: list[tuple[str, int]] = []
+    blocker_counts: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    diagnostic_codes: Counter[str] = Counter()
+
+    missing = [name for name in PROVIDER_REQUEST_VALIDATION_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_name = PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES["summary"]
+    summary_path = input_dir / summary_name
+    if summary_path.exists():
+        try:
+            _validate_provider_request_validation_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            for field in PROVIDER_REQUEST_VALIDATION_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            parsed_provider_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "provider_counts")
+            )
+            parsed_status_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "status_counts")
+            )
+            parsed_blocker_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "blocker_counts")
+            )
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            if loaded.get("writes_workflow_outputs") is not False:
+                raise ValueError("writes_workflow_outputs boundary violation")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("network_access") is not False:
+                raise ValueError("network_access boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            summary_data = loaded
+            counts = {
+                **{
+                    field: loaded[field]
+                    for field in PROVIDER_REQUEST_VALIDATION_COUNT_FIELDS
+                },
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "manifest_mutated": False,
+                "writes_workflow_outputs": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+            provider_counts = _sorted_nonzero_counts(parsed_provider_counts)
+            status_counts = _sorted_nonzero_counts(parsed_status_counts)
+            blocker_counts = _sorted_nonzero_counts(parsed_blocker_counts)
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append(f"{summary_name} malformed")
+
+    diagnostics_name = PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES["diagnostics"]
+    diagnostics_path = input_dir / diagnostics_name
+    if diagnostics_path.exists():
+        try:
+            rows = _read_provider_request_validation_tsv(diagnostics_path)
+            if any(
+                row.get("schema_version") != PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION
+                for row in rows
+            ):
+                raise ValueError("unsupported schema_version")
+            for row in rows:
+                code = row.get("diagnostic_code", "").strip()
+                raw_count = row.get("count", "").strip()
+                if not code or not raw_count.isdigit():
+                    raise ValueError("invalid diagnostic row")
+                diagnostic_codes[code] += int(raw_count)
+            valid_files.append(diagnostics_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{diagnostics_name} malformed")
+
+    if summary_data is not None and diagnostic_codes:
+        if summary_data["diagnostic_count"] != sum(diagnostic_codes.values()):
+            warnings.append("diagnostic_count does not match diagnostics rows")
+
+    displayed_diagnostics = diagnostic_codes or Counter(dict(blocker_counts))
+    return ProviderRequestValidationAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        provider_counts=provider_counts,
+        status_counts=status_counts,
+        blocker_counts=blocker_counts,
+        top_diagnostics=sorted(
+            displayed_diagnostics.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+    )
+
+
 def _required_dict(value: dict[str, object], field: str) -> dict[object, object]:
     loaded = value.get(field)
     if not isinstance(loaded, dict):
@@ -1189,6 +1340,25 @@ def _validate_provider_request_member(path: Path) -> None:
         raise ValueError("member is not a regular file")
     if path.stat().st_size > PROVIDER_REQUEST_MAX_BYTES:
         raise ValueError("member exceeds size limit")
+
+
+def _validate_provider_request_validation_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > PROVIDER_REQUEST_VALIDATION_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_provider_request_validation_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_provider_request_validation_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
 
 
 def _read_provider_request_tsv(path: Path) -> list[dict[str, str]]:
@@ -2370,6 +2540,13 @@ def build_run_summary_markdown(
             args, "provider_request_dir", "provider_request"
         )
     )
+    provider_request_validation_audit = read_optional_provider_request_validation_audit(
+        _coverage_pipeline_component_dir(
+            args,
+            "provider_request_validation_dir",
+            "provider_request_validation",
+        )
+    )
     offline_readiness_audit = read_optional_offline_readiness_audit(
         getattr(args, "offline_readiness_dir", None)
     )
@@ -2949,6 +3126,83 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(status)} | {count} |"
                         for status, count in provider_request_audit.status_counts[:5]
+                    ],
+                ]
+            )
+
+    if provider_request_validation_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Provider Request Validation Audit",
+                "",
+                (
+                    "The provider request validation audit is a local, "
+                    "audit-only readiness check for curator-completed provider "
+                    "request rows. Report inclusion does not contact providers, "
+                    "trigger downloads, copy FASTA files, mutate the manifest, "
+                    "or register external genomes."
+                ),
+                (
+                    "`strict_scientific_deliverable=false` means ready rows are "
+                    "not strict deliverable rows; they remain review input until "
+                    "a separate external-genomes registration step is run."
+                ),
+            ]
+        )
+        if provider_request_validation_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in provider_request_validation_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if provider_request_validation_audit.warnings:
+            lines.append(
+                "- Warning: "
+                + "; ".join(provider_request_validation_audit.warnings)
+            )
+        if provider_request_validation_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(provider_request_validation_audit.present_files)
+            )
+        if provider_request_validation_audit.status_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Readiness Status | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(status)} | {count} |"
+                        for status, count in provider_request_validation_audit.status_counts[:5]
+                    ],
+                ]
+            )
+        if provider_request_validation_audit.blocker_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Blocking Reason | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(reason)} | {count} |"
+                        for reason, count in provider_request_validation_audit.blocker_counts[:5]
+                    ],
+                ]
+            )
+        if provider_request_validation_audit.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in provider_request_validation_audit.top_diagnostics
                     ],
                 ]
             )

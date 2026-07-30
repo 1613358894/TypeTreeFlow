@@ -14,6 +14,17 @@ from typetreeflow.provider_plan import (
 
 
 PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION = "1"
+PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS = (
+    "schema_version",
+    "component",
+    "severity",
+    "diagnostic_code",
+    "count",
+)
+PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES = {
+    "summary": "provider_request_validation_summary.json",
+    "diagnostics": "provider_request_validation_diagnostics.tsv",
+}
 PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND = (
     "review ready rows before copying accepted local FASTA evidence into "
     "external_genomes.tsv for --register-external-genomes"

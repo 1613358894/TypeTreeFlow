@@ -21,6 +21,7 @@ from typetreeflow.report.summary import (
     OfflineReadinessAuditSummary,
     ProviderHandoffAuditSummary,
     ProviderRequestDraftAuditSummary,
+    ProviderRequestValidationAuditSummary,
     StrictGatingAuditSummary,
     bacdive_compact_counts_summary,
     bacdive_compact_source_audit_summary,
@@ -33,6 +34,7 @@ from typetreeflow.report.summary import (
     read_optional_offline_readiness_audit,
     read_optional_provider_handoff_audit,
     read_optional_provider_request_draft_audit,
+    read_optional_provider_request_validation_audit,
     read_optional_sequence_source_audit,
     read_optional_strict_gating_audit,
     summarize_16s_coverage,
@@ -65,6 +67,7 @@ class DeliveryResult:
     coverage_plan_warnings: list[str] = field(default_factory=list)
     provider_handoff_warnings: list[str] = field(default_factory=list)
     provider_request_warnings: list[str] = field(default_factory=list)
+    provider_request_validation_warnings: list[str] = field(default_factory=list)
     offline_readiness_warnings: list[str] = field(default_factory=list)
     strict_gating_warnings: list[str] = field(default_factory=list)
 
@@ -98,6 +101,7 @@ def package_results(
     coverage_plan_dir: str | Path | None = None,
     provider_handoff_dir: str | Path | None = None,
     provider_request_dir: str | Path | None = None,
+    provider_request_validation_dir: str | Path | None = None,
     coverage_pipeline_dir: str | Path | None = None,
     offline_readiness_dir: str | Path | None = None,
     strict_gating_dir: str | Path | None = None,
@@ -161,6 +165,15 @@ def package_results(
     )
     provider_request_outputs_copied: list[Path] = []
     provider_request_audit: ProviderRequestDraftAuditSummary | None = None
+    provider_request_validation_dir = _coverage_pipeline_component_dir(
+        provider_request_validation_dir,
+        coverage_pipeline_dir,
+        "provider_request_validation",
+    )
+    provider_request_validation_outputs_copied: list[Path] = []
+    provider_request_validation_audit: (
+        ProviderRequestValidationAuditSummary | None
+    ) = None
     offline_readiness_outputs_copied: list[Path] = []
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None
     strict_gating_outputs_copied: list[Path] = []
@@ -272,6 +285,19 @@ def package_results(
             output_dir,
             copied,
         )
+        provider_request_validation_audit = (
+            read_optional_provider_request_validation_audit(
+                provider_request_validation_dir
+            )
+        )
+        provider_request_validation_outputs_copied = (
+            _copy_provider_request_validation_outputs(
+                provider_request_validation_dir,
+                provider_request_validation_audit,
+                output_dir,
+                copied,
+            )
+        )
         offline_readiness_audit = read_optional_offline_readiness_audit(
             offline_readiness_dir
         )
@@ -306,6 +332,10 @@ def package_results(
         provider_handoff_audit=provider_handoff_audit,
         provider_request_outputs_copied=provider_request_outputs_copied,
         provider_request_audit=provider_request_audit,
+        provider_request_validation_outputs_copied=(
+            provider_request_validation_outputs_copied
+        ),
+        provider_request_validation_audit=provider_request_validation_audit,
         offline_readiness_outputs_copied=offline_readiness_outputs_copied,
         offline_readiness_audit=offline_readiness_audit,
         strict_gating_outputs_copied=strict_gating_outputs_copied,
@@ -370,6 +400,7 @@ def package_results(
             coverage_plan_audit=coverage_plan_audit,
             provider_handoff_audit=provider_handoff_audit,
             provider_request_audit=provider_request_audit,
+            provider_request_validation_audit=provider_request_validation_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
@@ -395,6 +426,7 @@ def package_results(
             coverage_plan_audit=coverage_plan_audit,
             provider_handoff_audit=provider_handoff_audit,
             provider_request_audit=provider_request_audit,
+            provider_request_validation_audit=provider_request_validation_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
@@ -433,6 +465,11 @@ def package_results(
         provider_request_warnings=(
             list(provider_request_audit.warnings)
             if provider_request_audit is not None
+            else []
+        ),
+        provider_request_validation_warnings=(
+            list(provider_request_validation_audit.warnings)
+            if provider_request_validation_audit is not None
             else []
         ),
         offline_readiness_warnings=(
@@ -624,6 +661,9 @@ def build_delivery_readme(
     coverage_plan_audit: CoveragePlanAuditSummary | None = None,
     provider_handoff_audit: ProviderHandoffAuditSummary | None = None,
     provider_request_audit: ProviderRequestDraftAuditSummary | None = None,
+    provider_request_validation_audit: (
+        ProviderRequestValidationAuditSummary | None
+    ) = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
@@ -720,6 +760,12 @@ def build_delivery_readme(
         lines.extend(_provider_handoff_readme_lines(provider_handoff_audit))
     if provider_request_audit is not None:
         lines.extend(_provider_request_readme_lines(provider_request_audit))
+    if provider_request_validation_audit is not None:
+        lines.extend(
+            _provider_request_validation_readme_lines(
+                provider_request_validation_audit
+            )
+        )
     if offline_readiness_audit is not None:
         lines.extend(_offline_readiness_readme_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
@@ -821,6 +867,9 @@ def build_handoff_index(
     coverage_plan_audit: CoveragePlanAuditSummary | None = None,
     provider_handoff_audit: ProviderHandoffAuditSummary | None = None,
     provider_request_audit: ProviderRequestDraftAuditSummary | None = None,
+    provider_request_validation_audit: (
+        ProviderRequestValidationAuditSummary | None
+    ) = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
@@ -931,6 +980,12 @@ def build_handoff_index(
         lines.extend(_provider_handoff_handoff_lines(provider_handoff_audit))
     if provider_request_audit is not None:
         lines.extend(_provider_request_handoff_lines(provider_request_audit))
+    if provider_request_validation_audit is not None:
+        lines.extend(
+            _provider_request_validation_handoff_lines(
+                provider_request_validation_audit
+            )
+        )
     if offline_readiness_audit is not None:
         lines.extend(_offline_readiness_handoff_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
@@ -1380,6 +1435,26 @@ def _copy_provider_request_outputs(
     return copied_requests
 
 
+def _copy_provider_request_validation_outputs(
+    directory: str | Path | None,
+    audit: ProviderRequestValidationAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_validation: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "provider_request_validation" / name,
+        )
+        copied.append(copied_path)
+        copied_validation.append(copied_path)
+    return copied_validation
+
+
 def _copy_offline_readiness_outputs(
     directory: str | Path | None,
     audit: OfflineReadinessAuditSummary | None,
@@ -1438,6 +1513,8 @@ def _write_package_artifact_scope(
     provider_handoff_audit: ProviderHandoffAuditSummary | None,
     provider_request_outputs_copied: list[Path],
     provider_request_audit: ProviderRequestDraftAuditSummary | None,
+    provider_request_validation_outputs_copied: list[Path],
+    provider_request_validation_audit: ProviderRequestValidationAuditSummary | None,
     offline_readiness_outputs_copied: list[Path],
     offline_readiness_audit: OfflineReadinessAuditSummary | None,
     strict_gating_outputs_copied: list[Path],
@@ -1488,6 +1565,13 @@ def _write_package_artifact_scope(
             delivery_dir,
             provider_request_outputs_copied,
             provider_request_audit,
+        )
+    )
+    rows.extend(
+        _provider_request_validation_artifact_scope_rows(
+            delivery_dir,
+            provider_request_validation_outputs_copied,
+            provider_request_validation_audit,
         )
     )
     rows.extend(
@@ -2001,6 +2085,71 @@ def _provider_request_artifact_scope_rows(
                     "does not contact providers, authenticate, accept terms, "
                     "trigger downloads, mutate manifests, or promote strict "
                     "deliverables."
+                ),
+            }
+        )
+    return rows
+
+
+def _provider_request_validation_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: ProviderRequestValidationAuditSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    diagnostic_count = 0
+    if audit is not None:
+        value = audit.counts.get("diagnostic_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            diagnostic_count = value
+    specifications = (
+        (
+            "provider_request_validation/provider_request_validation_summary.json",
+            "provider_request_validation_summary",
+            "Provider request validation compact audit summary",
+            95,
+            1,
+        ),
+        (
+            "provider_request_validation/provider_request_validation_diagnostics.tsv",
+            "provider_request_validation_diagnostics",
+            "Provider request validation diagnostics",
+            96,
+            diagnostic_count,
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority, count in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        record_count = count if path.suffix == ".json" else _safe_tsv_row_count(path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "provider_request_validation_audit",
+                "record_count": str(record_count),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "local provider request readiness review",
+                "not_for": (
+                    "provider contact, downloads, registration, or strict "
+                    "deliverable gating"
+                ),
+                "source_artifact": "provider_request_validator",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Audit-only provider request validation output; ready rows "
+                    "are not registered external genomes or strict deliverables."
                 ),
             }
         )
@@ -2784,6 +2933,40 @@ def _provider_request_readme_lines(
     return lines
 
 
+def _provider_request_validation_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Provider request validation artifacts are audit-only local "
+            "readiness outputs. Package inclusion means review availability, "
+            "not provider contact, download execution, external-genome "
+            "registration, or strict deliverable gating."
+        ),
+        (
+            "- A passed validation means the local request rows satisfied the "
+            "offline validator; it does not copy FASTA files, mutate the "
+            "manifest, or change completion metrics."
+        ),
+        (
+            "- `downloads_triggered=0`, `providers_contacted=0`, "
+            "`network_access=false`, `writes_workflow_outputs=false`, "
+            "`manifest_mutated=false`, and "
+            "`strict_scientific_deliverable=false` remain package boundaries."
+        ),
+    ]
+
+
+def _provider_request_validation_readme_lines(
+    audit: ProviderRequestValidationAuditSummary,
+) -> list[str]:
+    lines = ["", "## Provider Request Validation Audit", ""]
+    lines.extend(_provider_request_validation_boundary_lines())
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
 def _offline_readiness_boundary_lines() -> list[str]:
     return [
         (
@@ -2921,6 +3104,23 @@ def _provider_request_handoff_lines(
         lines.append("- Provider request files copied: " + ", ".join(audit.present_files))
     if audit.warnings:
         lines.append("- Provider request warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _provider_request_validation_handoff_lines(
+    audit: ProviderRequestValidationAuditSummary,
+) -> list[str]:
+    lines = ["", "## Provider Request Validation Audit", ""]
+    lines.extend(_provider_request_validation_boundary_lines())
+    if audit.present_files:
+        lines.append(
+            "- Provider request validation files copied: "
+            + ", ".join(audit.present_files)
+        )
+    if audit.warnings:
+        lines.append(
+            "- Provider request validation warning: " + "; ".join(audit.warnings)
+        )
     return lines
 
 

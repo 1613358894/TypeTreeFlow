@@ -974,7 +974,7 @@ def test_commands_render_emits_normalized_provider_request_validate_argv(capsys)
                 (
                     '{"command":"provider-request","subcommand":"validate",'
                     '"input":"provider_request.tsv","base_dir":"evidence",'
-                    '"json":true}'
+                    '"json":true,"write":true,"outdir":"validation","force":true}'
                 ),
             ]
         )
@@ -989,13 +989,17 @@ def test_commands_render_emits_normalized_provider_request_validate_argv(capsys)
         "provider_request.tsv",
         "--base-dir",
         "evidence",
+        "--write",
+        "--outdir",
+        "validation",
         "--json",
+        "--force",
     ]
     assert payload["recognized"]["command"] == "provider-request"
     assert payload["recognized"]["subcommand"] == "validate"
     assert payload["recognized"]["mode"] == "provider_request"
-    assert payload["recognized"]["writes_outputs_declared"] is False
-    assert payload["recognized"]["requires_outdir"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is True
 
 
 def test_commands_render_emits_normalized_external_genomes_validate_argv(capsys):

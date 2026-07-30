@@ -90,6 +90,52 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert calculate_sha256(fasta) not in stdout
 
 
+def test_provider_request_validate_write_outputs_audit_pair(tmp_path, capsys):
+    fasta = _write(tmp_path / "local.fna", ">seq\nACGT\n")
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_sha256=calculate_sha256(fasta),
+    )
+    outdir = tmp_path / "validation_audit"
+
+    result = cli.main(
+        [
+            "provider-request",
+            "validate",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    summary = json.loads(
+        (outdir / "provider_request_validation_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    diagnostics = (
+        outdir / "provider_request_validation_diagnostics.tsv"
+    ).read_text(encoding="utf-8")
+    assert result == 0
+    assert stdout.count("\n") == 1
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["output_paths"]["summary"].endswith(
+        "provider_request_validation_summary.json"
+    )
+    assert summary["writes_outputs"] is True
+    assert summary["ready_count"] == 1
+    assert diagnostics == (
+        "schema_version\tcomponent\tseverity\tdiagnostic_code\tcount\n"
+    )
+    assert str(fasta) not in stdout
+    assert calculate_sha256(fasta) not in stdout
+
+
 def test_provider_request_validate_blocked_returns_two(tmp_path, capsys):
     request = _write_provider_request(
         tmp_path / "provider_request.tsv",
@@ -112,6 +158,111 @@ def test_provider_request_validate_blocked_returns_two(tmp_path, capsys):
     assert payload["blocker_counts"]["manual_review_required"] == 1
     assert not (tmp_path / "manifest.tsv").exists()
     assert not (tmp_path / "external_genomes.tsv").exists()
+
+
+def test_provider_request_validate_write_invalid_outputs_diagnostics(
+    tmp_path,
+    capsys,
+):
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_fasta_path="missing.fna",
+        local_sha256="0" * 64,
+        requires_manual_review="true",
+    )
+    outdir = tmp_path / "validation_audit"
+
+    result = cli.main(
+        [
+            "provider-request",
+            "validate",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    diagnostics = (
+        outdir / "provider_request_validation_diagnostics.tsv"
+    ).read_text(encoding="utf-8")
+    assert result == 2
+    assert payload["status"] == "blocked"
+    assert payload["writes_outputs"] is True
+    assert "local_fasta_missing" in diagnostics
+    assert "manual_review_required" in diagnostics
+    assert not (tmp_path / "manifest.tsv").exists()
+    assert not (tmp_path / "external_genomes.tsv").exists()
+
+
+def test_provider_request_validate_outdir_requires_write(tmp_path, capsys):
+    fasta = _write(tmp_path / "local.fna", ">seq\nACGT\n")
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_sha256=calculate_sha256(fasta),
+    )
+
+    result = cli.main(
+        [
+            "provider-request",
+            "validate",
+            "--input",
+            str(request),
+            "--outdir",
+            str(tmp_path / "validation_audit"),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 2
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "invalid_command_usage"
+    assert not (tmp_path / "validation_audit").exists()
+
+
+def test_provider_request_validate_force_replaces_owned_audit_pair(
+    tmp_path,
+    capsys,
+):
+    fasta = _write(tmp_path / "local.fna", ">seq\nACGT\n")
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_sha256=calculate_sha256(fasta),
+    )
+    outdir = tmp_path / "validation_audit"
+    result = cli.main(
+        [
+            "provider-request",
+            "validate",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+    assert result == 0
+    capsys.readouterr()
+
+    result = cli.main(
+        [
+            "provider-request",
+            "validate",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--force",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 0
+    assert payload["writes_outputs"] is True
+    assert (outdir / "provider_request_validation_summary.json").exists()
 
 
 def test_provider_request_validate_invalid_input_returns_two(tmp_path, capsys):

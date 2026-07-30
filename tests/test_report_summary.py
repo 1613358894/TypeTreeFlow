@@ -64,6 +64,7 @@ from typetreeflow.report.summary import (
     read_optional_offline_readiness_audit,
     read_optional_provider_handoff_audit,
     read_optional_provider_request_draft_audit,
+    read_optional_provider_request_validation_audit,
     read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
@@ -835,6 +836,79 @@ def _write_provider_request_pair(directory: Path) -> None:
             )
 
 
+def _write_provider_request_validation_pair(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "provider_request_validation_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "status": "blocked",
+                "command": "provider-request validate",
+                "record_count": 2,
+                "ready_count": 1,
+                "blocked_count": 1,
+                "status_counts": {
+                    "provider_request_blocked": 1,
+                    "provider_request_ready_for_external_genome_review": 1,
+                },
+                "provider_counts": {"dsmz": 2},
+                "blocker_counts": {"manual_review_required": 1},
+                "local_fasta_checked_count": 1,
+                "local_sha256_matched_count": 1,
+                "diagnostic_count": 1,
+                "diagnostics": [
+                    {
+                        "schema_version": "1",
+                        "component": "provider_request_validation",
+                        "severity": "error",
+                        "diagnostic_code": "manual_review_required",
+                    }
+                ],
+                "request_preview": [
+                    {
+                        "request_id": "REQ-001",
+                        "species": "Clostridium alpha",
+                        "provider": "dsmz",
+                        "readiness_status": (
+                            "provider_request_ready_for_external_genome_review"
+                        ),
+                        "blocking_reasons": [],
+                        "local_fasta_checked": True,
+                        "local_sha256_matches": True,
+                    }
+                ],
+                "request_truncated": False,
+                "audit_only": True,
+                "dry_run": True,
+                "writes_outputs": True,
+                "writes_workflow_outputs": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "recommended_next_command": "review ready rows",
+                "output_paths": {
+                    "summary": "validation/provider_request_validation_summary.json",
+                    "diagnostics": (
+                        "validation/provider_request_validation_diagnostics.tsv"
+                    ),
+                },
+                "summary": "Provider request validation blocked",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (directory / "provider_request_validation_diagnostics.tsv").write_text(
+        (
+            "schema_version\tcomponent\tseverity\tdiagnostic_code\tcount\n"
+            "1\tprovider_request_validation\terror\tmanual_review_required\t1\n"
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_provider_request_audit_section_is_explicit_bounded_and_audit_only(
     tmp_path,
 ):
@@ -894,6 +968,74 @@ def test_provider_request_audit_reader_does_not_access_env_or_socket(
     monkeypatch.setattr(socket, "create_connection", fail)
 
     audit = read_optional_provider_request_draft_audit(request_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
+
+
+def test_provider_request_validation_audit_section_is_bounded_and_audit_only(
+    tmp_path,
+):
+    validation_dir = tmp_path / "provider-request-validation"
+    _write_provider_request_validation_pair(validation_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_request_validation_dir=validation_dir),
+    )
+
+    assert "## Provider Request Validation Audit" in markdown
+    assert (
+        "- Counts: record_count=2; ready_count=1; blocked_count=1; "
+        "diagnostic_count=1; local_fasta_checked_count=1; "
+        "local_sha256_matched_count=1; downloads_triggered=0; "
+        "providers_contacted=0; network_access=false; manifest_mutated=false; "
+        "writes_workflow_outputs=false; audit_only=true; "
+        "strict_scientific_deliverable=false"
+    ) in markdown
+    assert "does not contact providers" in markdown
+    assert "register external genomes" in markdown
+    assert "| provider_request_ready_for_external_genome_review | 1 |" in markdown
+    assert "| manual_review_required | 1 |" in markdown
+    assert "local.fna" not in markdown
+    assert "validation/provider_request_validation_summary.json" not in markdown
+
+
+def test_provider_request_validation_partial_malformed_summary_warns(tmp_path):
+    validation_dir = tmp_path / "provider-request-validation"
+    validation_dir.mkdir()
+    (validation_dir / "provider_request_validation_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_request_validation_dir=validation_dir),
+    )
+
+    assert "## Provider Request Validation Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "provider_request_validation_summary.json malformed" in markdown
+    assert "missing members: provider_request_validation_diagnostics.tsv" in markdown
+
+
+def test_provider_request_validation_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    validation_dir = tmp_path / "provider-request-validation"
+    _write_provider_request_validation_pair(validation_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError(
+            "provider request validation reader must remain local and offline"
+        )
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_provider_request_validation_audit(validation_dir)
 
     assert audit is not None
     assert audit.counts["audit_only"] is True

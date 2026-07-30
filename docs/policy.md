@@ -383,10 +383,17 @@ The `provider-request validate` CLI is the only provider-request surface that
 may read curator-referenced local FASTA files, and it may do so only to confirm
 regular-file presence, nonempty size, and SHA-256 match. It must not display
 local FASTA paths, hashes, provider notes, curator values, or sequence
-contents. A ready validation row means local provider-request evidence is ready
-for external-genome handoff review only; it is not provider execution,
-download completion, manifest mutation, registration, or strict scientific
-delivery.
+contents. Optional `--write` mode may publish only
+`provider_request_validation_summary.json` and
+`provider_request_validation_diagnostics.tsv` in an explicit isolated output
+directory. The optional report/package
+`--provider-request-validation-dir` surface may read and copy only that pair,
+package it under `provider_request_validation/`, and mark copied members with
+audit-only artifact-scope rows. A ready validation row means local
+provider-request evidence is ready for external-genome handoff review only; it
+is not provider execution, download completion, manifest mutation,
+registration, completion credit, or strict scientific delivery.
+Failed-handoff packages exclude provider-request validation artifacts.
 
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
@@ -403,9 +410,10 @@ review queues. It does not execute discovery, contact providers, auto-select
 public accessions, or make any candidate download-ready.
 The optional `--coverage-pipeline-dir` report/package surface is only a
 convenience handoff for that isolated directory. It may derive the four
-known component subdirectories under the explicitly supplied path, but it must
-not scan workflow outputs, rerun planning, contact providers, trigger
-downloads, or change any scientific status.
+known planning component subdirectories and an optional
+`provider_request_validation/` subdirectory under the explicitly supplied path,
+but it must not scan workflow outputs, rerun planning, contact providers,
+trigger downloads, register external genomes, or change any scientific status.
 
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
