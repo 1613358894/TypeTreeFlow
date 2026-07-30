@@ -558,6 +558,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         ],
     )
     outdir = tmp_path / "pipeline_outputs"
+    install_target = tmp_path / "future_registration_run"
 
     code, payload, captured = _run(
         [
@@ -571,6 +572,8 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
             str(archive),
             "--curated-provider-request-tsv",
             str(curated_request),
+            "--external-genomes-install-target-outdir",
+            str(install_target),
             "--write",
             "--outdir",
             str(outdir),
@@ -586,8 +589,12 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["provider_request_validation_ready_count"] == 1
     assert payload["provider_request_external_genomes_status"] == "pass"
     assert payload["provider_request_external_genomes_exported_count"] == 1
+    assert payload["external_genomes_install_plan_status"] == "pass"
+    assert payload["external_genomes_install_plan_install_planned_count"] == 1
     assert payload["operator_chain_stages"][4]["available"] is True
     assert payload["operator_chain_stages"][5]["available"] is True
+    assert payload["operator_chain_stages"][6]["available"] is True
+    assert payload["operator_chain_stages"][6]["record_count"] == 1
     assert (
         outdir
         / "provider_request_validation"
@@ -601,6 +608,17 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert external_rows[0]["external_source"] == "dsmz"
     assert external_rows[0]["status"] == "external_genome_registered"
     assert external_rows[0]["sha256"] == calculate_sha256(fasta)
+    install_dir = outdir / "external_genomes_install_plan"
+    registration_results = install_dir / "external_genome_registration_results.tsv"
+    install_plan = install_dir / "external_genome_install_plan.tsv"
+    install_summary = install_dir / "external_genome_install_plan_summary.json"
+    assert registration_results.exists()
+    assert install_plan.exists()
+    assert install_summary.exists()
+    install_rows = _read_tsv(install_plan)
+    assert install_rows[0]["status"] == "external_genome_install_planned"
+    assert install_rows[0]["installed_genome_path"].startswith(str(install_target))
+    assert not install_target.exists()
     assert str(fasta) not in captured.out
     assert calculate_sha256(fasta) not in captured.out
     pipeline_summary = json.loads(
@@ -608,6 +626,8 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     )
     assert pipeline_summary["provider_request_external_genomes_status"] == "pass"
     assert pipeline_summary["operator_chain_stages"][5]["record_count"] == 1
+    assert pipeline_summary["external_genomes_install_plan_status"] == "pass"
+    assert pipeline_summary["operator_chain_stages"][6]["record_count"] == 1
 
     code, status_payload, _ = _run(
         ["--coverage-pipeline-dir", str(outdir), "--json"],
@@ -617,6 +637,10 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert code == 0
     assert status_payload["operator_chain_stages"][4]["summary_ready_count"] == 1
     assert status_payload["operator_chain_stages"][5]["summary_exported_count"] == 1
+    assert (
+        status_payload["operator_chain_stages"][6]["summary_install_planned_count"]
+        == 1
+    )
 
 
 def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_path):

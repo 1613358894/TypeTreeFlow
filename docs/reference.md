@@ -1646,7 +1646,7 @@ The isolated coverage pipeline adapter is:
 
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--json] [--write --outdir <dir> [--force]]
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
 ```
 
@@ -1681,12 +1681,18 @@ instead validates the explicit curator-completed provider request TSV and, when
 all rows pass, writes `provider_request_external_genomes/` as the local draft
 for later `external-genomes validate` / `external-genomes install-plan`. It
 still writes the generated `provider_request/` draft for traceability, and it
-does not treat that draft as curator-completed. `build --write` writes only
+does not treat that draft as curator-completed.
+`build --external-genomes-install-target-outdir <dir>` can then write
+`external_genomes_install_plan/` from the same validated external-genomes draft
+inside the isolated pipeline directory. The target directory is used only to
+compute future installed paths; the pipeline does not create it, copy FASTA, or
+register genomes. `build --write` writes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, optional `provider_request_validation/`, optional
-`provider_request_external_genomes/`, and `coverage_pipeline_summary.json`
-members under the explicitly supplied directory. Existing output directories
-are refused by default; `--force` replaces only an owned coverage-pipeline
+`provider_request_external_genomes/`, optional
+`external_genomes_install_plan/`, and `coverage_pipeline_summary.json` members
+under the explicitly supplied directory. Existing output directories are
+refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline

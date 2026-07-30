@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import os
 import shutil
 import sys
 import uuid
+from collections import Counter
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
@@ -32,8 +34,17 @@ from typetreeflow.evidence.provider_request_draft import (
     PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
     build_provider_request_draft,
 )
-from typetreeflow.external_genomes_cli import INSTALL_PLAN_OUTPUT_NAMES
-from typetreeflow.external_genomes import EXTERNAL_GENOME_FIELDS
+from typetreeflow.external_genomes_cli import (
+    INSTALL_PLAN_OUTPUT_NAMES,
+    INSTALL_PLAN_SCHEMA_VERSION,
+)
+from typetreeflow.external_genomes import (
+    EXTERNAL_GENOME_FIELDS,
+    EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
+    EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
+    build_external_genome_install_plan,
+    validate_external_genome_records,
+)
 from typetreeflow.provider_plan import (
     PROVIDER_REQUEST_FIELDS,
     ProviderRequestRecord,
@@ -87,6 +98,15 @@ OPTIONAL_OUTPUT_PATHS = {
     "provider_request_external_genomes_summary": (
         "provider_request_external_genomes/"
         "provider_request_external_genomes_summary.json"
+    ),
+    "external_genomes_install_plan_registration_results": (
+        "external_genomes_install_plan/external_genome_registration_results.tsv"
+    ),
+    "external_genomes_install_plan": (
+        "external_genomes_install_plan/external_genome_install_plan.tsv"
+    ),
+    "external_genomes_install_plan_summary": (
+        "external_genomes_install_plan/external_genome_install_plan_summary.json"
     ),
 }
 _PROTECTED_OUTPUT_TERMS = {
@@ -189,6 +209,7 @@ def run_coverage_pipeline_command(
         )
         validation_payload = None
         external_genomes_payload = None
+        external_genomes_install_plan_payload = None
         if (
             getattr(args, "validate_provider_request", False)
             or curated_provider_request_records is not None
@@ -217,6 +238,28 @@ def run_coverage_pipeline_command(
                     external_genomes,
                     dry_run=not args.write,
                 )
+                if (
+                    args.external_genomes_install_target_outdir
+                    and external_genomes_payload.get("status") == "pass"
+                ):
+                    registration_results = validate_external_genome_records(
+                        external_genomes.records
+                    )
+                    install_plan = build_external_genome_install_plan(
+                        external_genomes.records,
+                        registration_results,
+                        args.external_genomes_install_target_outdir,
+                    )
+                    external_genomes_install_plan_payload = (
+                        _external_genomes_install_plan_payload(
+                            registration_results,
+                            install_plan,
+                            target_outdir=Path(
+                                args.external_genomes_install_target_outdir
+                            ),
+                            dry_run=not args.write,
+                        )
+                    )
     except Exception:
         _emit(_failure("internal_error", "Coverage pipeline build failed unexpectedly"), output)
         return 1
@@ -230,6 +273,7 @@ def run_coverage_pipeline_command(
         provider_request,
         provider_request_validation=validation_payload,
         provider_request_external_genomes=external_genomes_payload,
+        external_genomes_install_plan=external_genomes_install_plan_payload,
         diagnostics=diagnostics,
         command=COMMAND_BUILD if args.action == "build" else COMMAND_PREVIEW,
         dry_run=not args.write,
@@ -248,6 +292,7 @@ def run_coverage_pipeline_command(
                         args.expanded_discovery_results_tsv,
                         args.manual_supplement_hints_tsv,
                         args.curated_provider_request_tsv,
+                        args.external_genomes_install_target_outdir,
                     )
                     if value is not None
                 ),
@@ -259,6 +304,7 @@ def run_coverage_pipeline_command(
                     provider_request,
                     validation_payload,
                     external_genomes_payload,
+                    external_genomes_install_plan_payload,
                     payload,
                     outdir=outdir,
                 ),
@@ -283,6 +329,7 @@ def run_coverage_pipeline_command(
                 {
                     key: str(outdir / Path(relative_path))
                     for key, relative_path in OPTIONAL_OUTPUT_PATHS.items()
+                    if key.startswith("provider_request_validation")
                 }
             )
             payload["provider_request_validation_output_paths"] = (
@@ -304,6 +351,21 @@ def run_coverage_pipeline_command(
                 )
             payload["provider_request_external_genomes_output_paths"] = (
                 external_genomes_output_paths
+            )
+        if external_genomes_install_plan_payload is not None:
+            install_plan_written = (
+                external_genomes_install_plan_payload.get("status") == "pass"
+            )
+            if install_plan_written:
+                payload["output_paths"].update(
+                    {
+                        key: str(outdir / Path(relative_path))
+                        for key, relative_path in OPTIONAL_OUTPUT_PATHS.items()
+                        if key.startswith("external_genomes_install_plan")
+                    }
+                )
+            payload["external_genomes_install_plan_output_paths"] = (
+                _install_plan_output_paths(outdir, written=install_plan_written)
             )
     _emit(payload, output)
     return 0 if not diagnostics else 2
@@ -330,6 +392,7 @@ def _build_parser() -> argparse.ArgumentParser:
         validate_provider_request=False,
         provider_request_validation_base_dir=None,
         curated_provider_request_tsv=None,
+        external_genomes_install_target_outdir=None,
     )
     build = actions.add_parser("build", add_help=False)
     build.add_argument("--checklist-tsv")
@@ -342,6 +405,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--validate-provider-request", action="store_true")
     build.add_argument("--provider-request-validation-base-dir")
     build.add_argument("--curated-provider-request-tsv")
+    build.add_argument("--external-genomes-install-target-outdir")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -712,6 +776,7 @@ def _payload(
     *,
     provider_request_validation: dict[str, object] | None = None,
     provider_request_external_genomes: dict[str, object] | None = None,
+    external_genomes_install_plan: dict[str, object] | None = None,
     diagnostics: list[dict[str, object]],
     command: str,
     dry_run: bool,
@@ -732,6 +797,10 @@ def _payload(
         provider_request_external_genomes_count=_payload_int(
             provider_request_external_genomes,
             "exported_count",
+        ),
+        external_genomes_install_plan_count=_payload_int(
+            external_genomes_install_plan,
+            "install_planned_count",
         ),
     )
     validation_output_paths = (
@@ -831,6 +900,28 @@ def _payload(
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
+        "external_genomes_install_plan_status": _payload_value(
+            external_genomes_install_plan,
+            "status",
+            "not_run",
+        ),
+        "external_genomes_install_plan_record_count": _payload_int(
+            external_genomes_install_plan,
+            "record_count",
+        ),
+        "external_genomes_install_plan_install_planned_count": _payload_int(
+            external_genomes_install_plan,
+            "install_planned_count",
+        ),
+        "external_genomes_install_plan_diagnostic_count": _payload_int(
+            external_genomes_install_plan,
+            "diagnostic_count",
+        ),
+        "external_genomes_install_plan_output_paths": (
+            {key: None for key in INSTALL_PLAN_OUTPUT_NAMES}
+            if external_genomes_install_plan is None
+            else external_genomes_install_plan["output_paths"]
+        ),
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
         ),
@@ -900,6 +991,7 @@ def _operator_chain_stages(
     provider_request_count: int,
     provider_request_validation_ready_count: int,
     provider_request_external_genomes_count: int,
+    external_genomes_install_plan_count: int,
 ) -> list[dict[str, object]]:
     return [
         _operator_stage(
@@ -953,8 +1045,8 @@ def _operator_chain_stages(
         ),
         _operator_stage(
             stage="external_genomes_install_plan",
-            artifact="external_genome_install_plan/external_genome_install_plan.tsv",
-            record_count=0,
+            artifact="external_genomes_install_plan/external_genome_install_plan.tsv",
+            record_count=external_genomes_install_plan_count,
             recommended_next_command=(
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
             ),
@@ -1073,6 +1165,13 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
+        "external_genomes_install_plan_status": "not_run",
+        "external_genomes_install_plan_record_count": 0,
+        "external_genomes_install_plan_install_planned_count": 0,
+        "external_genomes_install_plan_diagnostic_count": 0,
+        "external_genomes_install_plan_output_paths": {
+            key: None for key in INSTALL_PLAN_OUTPUT_NAMES
+        },
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
         ),
@@ -1109,6 +1208,7 @@ def _rendered_outputs(
     provider_request,
     provider_request_validation: dict[str, object] | None,
     provider_request_external_genomes: dict[str, object] | None,
+    external_genomes_install_plan: dict[str, object] | None,
     payload: dict[str, object],
     *,
     outdir: Path,
@@ -1152,6 +1252,11 @@ def _rendered_outputs(
             "provider_request_external_genomes_diagnostic_count",
             "provider_request_external_genomes_output_paths",
             "provider_request_external_genomes_install_plan_recommended_next_command",
+            "external_genomes_install_plan_status",
+            "external_genomes_install_plan_record_count",
+            "external_genomes_install_plan_install_planned_count",
+            "external_genomes_install_plan_diagnostic_count",
+            "external_genomes_install_plan_output_paths",
             "provider_request_external_genomes_handoff_recommended_next_command",
             "operator_chain_stages",
             "diagnostic_count",
@@ -1177,6 +1282,13 @@ def _rendered_outputs(
             _external_genomes_output_paths(
                 outdir,
                 written=provider_request_external_genomes.get("status") == "pass",
+            )
+        )
+    if external_genomes_install_plan is not None:
+        summary["external_genomes_install_plan_output_paths"] = (
+            _install_plan_output_paths(
+                outdir,
+                written=external_genomes_install_plan.get("status") == "pass",
             )
         )
     rendered = {
@@ -1235,6 +1347,32 @@ def _rendered_outputs(
                     + "\n",
                 }
             )
+    if external_genomes_install_plan is not None:
+        written_payload = {
+            **external_genomes_install_plan,
+            "writes_outputs": external_genomes_install_plan.get("status") == "pass",
+            "output_paths": _install_plan_output_paths(
+                outdir,
+                written=external_genomes_install_plan.get("status") == "pass",
+            ),
+        }
+        if external_genomes_install_plan.get("status") == "pass":
+            rendered.update(
+                {
+                    "external_genomes_install_plan_registration_results": (
+                        external_genomes_install_plan["registration_results_tsv"]
+                    ),
+                    "external_genomes_install_plan": (
+                        external_genomes_install_plan["install_plan_tsv"]
+                    ),
+                    "external_genomes_install_plan_summary": json.dumps(
+                        _without_internal_render_fields(written_payload),
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    + "\n",
+                }
+            )
     return rendered
 
 
@@ -1269,11 +1407,123 @@ def _external_genomes_output_paths(
     }
 
 
+def _install_plan_output_paths(outdir: Path, *, written: bool) -> dict[str, str | None]:
+    if not written:
+        return {key: None for key in INSTALL_PLAN_OUTPUT_NAMES}
+    return {
+        key: str(
+            outdir / "external_genomes_install_plan" / INSTALL_PLAN_OUTPUT_NAMES[key]
+        )
+        for key in INSTALL_PLAN_OUTPUT_NAMES
+    }
+
+
+def _external_genomes_install_plan_payload(
+    registration_results,
+    install_plan,
+    *,
+    target_outdir: Path,
+    dry_run: bool,
+) -> dict[str, object]:
+    diagnostics = [
+        _diagnostic("external_genomes_install_plan", result.status)
+        for result in registration_results
+        if not result.valid
+    ]
+    registration_counts = Counter(result.status for result in registration_results)
+    install_counts = Counter(item.status for item in install_plan)
+    planned_count = install_counts.get("external_genome_install_planned", 0)
+    return {
+        "schema_version": INSTALL_PLAN_SCHEMA_VERSION,
+        "status": "pass" if not diagnostics else "blocked",
+        "command": "coverage-pipeline external-genomes-install-plan",
+        "target_outdir": str(target_outdir),
+        "record_count": len(registration_results),
+        "valid_count": sum(1 for result in registration_results if result.valid),
+        "invalid_count": sum(1 for result in registration_results if not result.valid),
+        "registration_status_counts": dict(sorted(registration_counts.items())),
+        "install_plan_count": len(install_plan),
+        "install_planned_count": planned_count,
+        "install_skipped_count": len(install_plan) - planned_count,
+        "install_plan_status_counts": dict(sorted(install_counts.items())),
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "audit_only": True,
+        "dry_run": dry_run,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "install_executed": False,
+        "external_genomes_registration_applied": False,
+        "strict_scientific_deliverable": False,
+        "target_outdir_mutated": False,
+        "output_paths": {key: None for key in INSTALL_PLAN_OUTPUT_NAMES},
+        "recommended_next_command": (
+            "typetreeflow --register-external-genomes <external_genomes.tsv> "
+            "--outdir <run> --dry-run"
+        ),
+        "expected_registration_result_fields": tuple(
+            EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS
+        ),
+        "expected_install_plan_fields": tuple(EXTERNAL_GENOME_INSTALL_PLAN_FIELDS),
+        "registration_results_tsv": _rows_tsv(
+            EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
+            registration_results,
+        ),
+        "install_plan_tsv": _rows_tsv(
+            EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
+            install_plan,
+        ),
+        "summary": (
+            "Coverage pipeline external-genomes install plan passed"
+            if not diagnostics
+            else "Coverage pipeline external-genomes install plan blocked"
+        ),
+    }
+
+
+def _rows_tsv(fields: Sequence[str], rows) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=fields,
+        delimiter="\t",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in rows:
+        row_dict = row.to_dict()
+        writer.writerow(
+            {
+                field: _format_tsv_value(row_dict.get(field, ""))
+                for field in fields
+            }
+        )
+    return output.getvalue()
+
+
+def _format_tsv_value(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        return ""
+    return str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
 def _without_internal_render_fields(payload: dict[str, object]) -> dict[str, object]:
     return {
         key: value
         for key, value in payload.items()
-        if key not in {"external_genomes_tsv"}
+        if key
+        not in {
+            "external_genomes_tsv",
+            "registration_results_tsv",
+            "install_plan_tsv",
+        }
     }
 
 
@@ -1411,6 +1661,27 @@ def _validate_owned_output_dir(outdir: Path) -> None:
             external_genomes_summary,
             PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
         )
+    install_registration_results = outdir / OPTIONAL_OUTPUT_PATHS[
+        "external_genomes_install_plan_registration_results"
+    ]
+    install_plan = outdir / OPTIONAL_OUTPUT_PATHS["external_genomes_install_plan"]
+    install_summary = outdir / OPTIONAL_OUTPUT_PATHS[
+        "external_genomes_install_plan_summary"
+    ]
+    if (
+        install_registration_results.exists()
+        or install_plan.exists()
+        or install_summary.exists()
+    ):
+        _validate_existing_member(
+            install_registration_results,
+            tuple(EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS),
+        )
+        _validate_existing_member(
+            install_plan,
+            tuple(EXTERNAL_GENOME_INSTALL_PLAN_FIELDS),
+        )
+        _validate_existing_json(install_summary, INSTALL_PLAN_SCHEMA_VERSION)
 
 
 def _validate_existing_member(path: Path, fields: tuple[str, ...]) -> None:
