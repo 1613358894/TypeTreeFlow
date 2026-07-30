@@ -36,6 +36,7 @@ _AUDIT_DIR_RENDER_FIELDS = (
     ("coverage_plan_dir", "--coverage-plan-dir"),
     ("provider_handoff_dir", "--provider-handoff-dir"),
     ("provider_request_dir", "--provider-request-dir"),
+    ("provider_request_validation_dir", "--provider-request-validation-dir"),
     ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
     ("offline_readiness_dir", "--offline-readiness-dir"),
     ("strict_gating_dir", "--strict-gating-dir"),
@@ -243,7 +244,7 @@ _CATALOG_ENTRIES = (
         "mode": "provider_request",
         "argv_pattern": "typetreeflow provider-request validate --input <provider_request.tsv>",
         "json_stdout": True,
-        "write_behavior": "none",
+        "write_behavior": "optional_isolated_validation_pair",
         "requires_outdir": False,
         "boundary": "provider request local evidence validation only; no provider contact or downloads",
     },
@@ -661,6 +662,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "explicit provider-request audit output directory for report-only",
         },
         {
+            "name": "--provider-request-validation-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-request validation audit output directory for report-only",
+        },
+        {
             "name": "--coverage-pipeline-dir",
             "kind": "path",
             "required": False,
@@ -761,6 +769,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicit provider-request audit output directory",
+        },
+        {
+            "name": "--provider-request-validation-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-request validation audit output directory",
         },
         {
             "name": "--coverage-pipeline-dir",
@@ -1277,6 +1292,27 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "emit compact JSON stdout",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated provider request validation audit outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated provider request validation audit output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated provider request validation pair",
         },
     ],
     ("external-genomes", "validate"): [
@@ -2246,7 +2282,16 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
     if command == "provider-request" and subcommand == "validate":
         _reject_unknown_fields(
             request,
-            {"command", "subcommand", "input", "base_dir", "json"},
+            {
+                "command",
+                "subcommand",
+                "input",
+                "base_dir",
+                "json",
+                "write",
+                "outdir",
+                "force",
+            },
         )
         argv = [
             "provider-request",
@@ -2257,7 +2302,12 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         base_dir = _optional_string(request, "base_dir")
         if base_dir:
             argv.extend(["--base-dir", base_dir])
-        return _with_flags(argv, request, {"json": "--json"})
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"json": "--json", "force": "--force"})
     if command == "external-genomes" and subcommand == "validate":
         _reject_unknown_fields(request, {"command", "subcommand", "input", "json"})
         argv = [

@@ -343,7 +343,7 @@ def _writes_outputs_declared(
     if command == "provider-handoff":
         return subcommand == "build" and "--write" in tokens
     if command == "provider-request":
-        return subcommand == "draft" and "--write" in tokens
+        return subcommand in {"draft", "validate"} and "--write" in tokens
     if command == "external-genomes":
         return False
     if command == "plan-provider-registration":
@@ -401,7 +401,7 @@ def _requires_outdir(
     if command == "provider-handoff":
         return subcommand == "build" and writes_outputs_declared
     if command == "provider-request":
-        return subcommand == "draft" and writes_outputs_declared
+        return subcommand in {"draft", "validate"} and writes_outputs_declared
     if command == "external-genomes":
         return False
     if command == "curator-packet":

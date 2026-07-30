@@ -192,6 +192,15 @@ def build_app_config_from_args(
             "or package-results."
         )
     if (
+        args.provider_request_validation_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
+        raise ValueError(
+            "--provider-request-validation-dir is only supported with --report-only "
+            "or package-results."
+        )
+    if (
         args.coverage_pipeline_dir is not None
         and not args.report_only
         and not package_results_command
@@ -321,6 +330,7 @@ def build_app_config_from_args(
         coverage_plan_dir=args.coverage_plan_dir,
         provider_handoff_dir=args.provider_handoff_dir,
         provider_request_dir=args.provider_request_dir,
+        provider_request_validation_dir=args.provider_request_validation_dir,
         coverage_pipeline_dir=args.coverage_pipeline_dir,
         offline_readiness_dir=args.offline_readiness_dir,
         strict_gating_dir=args.strict_gating_dir,

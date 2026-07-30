@@ -369,6 +369,7 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             coverage_plan_dir=config.coverage_plan_dir,
             provider_handoff_dir=config.provider_handoff_dir,
             provider_request_dir=config.provider_request_dir,
+            provider_request_validation_dir=config.provider_request_validation_dir,
             coverage_pipeline_dir=config.coverage_pipeline_dir,
             offline_readiness_dir=config.offline_readiness_dir,
             strict_gating_dir=config.strict_gating_dir,
@@ -448,6 +449,16 @@ def _format_package_results_envelope(
                 "message": (
                     f"{len(result.provider_request_warnings)} provider request "
                     "warning(s); see package README and handoff index"
+                ),
+            }
+        )
+    if result.provider_request_validation_warnings:
+        warnings.append(
+            {
+                "id": "provider_request_validation_warning",
+                "message": (
+                    f"{len(result.provider_request_validation_warnings)} provider "
+                    "request validation warning(s); see package README and handoff index"
                 ),
             }
         )

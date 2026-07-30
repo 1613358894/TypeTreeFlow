@@ -443,17 +443,50 @@ or malformed input copies only valid members and adds a compact warning to the
 README, handoff index, and compact JSON envelope. Failed-handoff packages
 exclude these artifacts and rows.
 
+`--provider-request-validation-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is an explicit read-only input and is never
+automatically discovered under the workflow outdir. Report generation reads
+only `provider_request_validation_summary.json` and
+`provider_request_validation_diagnostics.tsv` from that directory. A missing
+or empty directory omits `## Provider Request Validation Audit`. Partial or
+malformed input keeps report generation successful and shows a compact
+warning. Valid summary counts show `record_count`, `ready_count`,
+`blocked_count`, `diagnostic_count`, `local_fasta_checked_count`,
+`local_sha256_matched_count`, `downloads_triggered`, `providers_contacted`,
+`network_access`, `manifest_mutated`, `writes_workflow_outputs`,
+`audit_only`, and `strict_scientific_deliverable`, plus up to five nonzero
+readiness-status, blocker, and diagnostic-code counts. Row-level local FASTA
+paths, hashes, notes, curator fields, provider record fields, and sequence
+contents are not displayed. Report inclusion does not contact providers,
+accept terms, trigger downloads, copy FASTA files, register external genomes,
+mutate manifests, create workflow outputs, or create strict scientific
+deliverables.
+
+For `package-results --include reports` or `--include all`, each validated
+member is copied under `provider_request_validation/`. Each copied member gets
+one row in package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`)
+with `scope=audit`,
+`evidence_policy=provider_request_validation_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=local provider request readiness review`,
+`not_for=provider contact, downloads, registration, or strict deliverable
+gating`, and `source_artifact=provider_request_validator`. Missing input is
+omitted. Partial or malformed input copies only valid members and adds a
+compact warning to the README, handoff index, and compact JSON envelope.
+Failed-handoff packages exclude these artifacts and rows.
+
 `--coverage-pipeline-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only handoff for the isolated output
 of `coverage-pipeline build` and is never automatically discovered under the
 workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
-`coverage_plan/`, `provider_handoff/`, and `provider_request/` under that
-directory, then applies the same report, package, warning, and audit-only
-artifact-scope contracts as the individual component directory options.
-Explicit
+`coverage_plan/`, `provider_handoff/`, `provider_request/`, and
+`provider_request_validation/` under that directory when present, then applies
+the same report, package, warning, and audit-only artifact-scope contracts as
+the individual component directory options. Explicit
 `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
-`--provider-handoff-dir`, and `--provider-request-dir` values take precedence
-over derived subdirectories.
+`--provider-handoff-dir`, `--provider-request-dir`, and
+`--provider-request-validation-dir` values take precedence over derived
+subdirectories.
 The option does not rerun coverage planning, contact providers, trigger
 downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
@@ -617,7 +650,8 @@ the explicit local TSV flags on `acquisition-worklist build` and
 `coverage-pipeline preview|build`.
 For packaging requests, structured fields `delivery_dir`, `failed_handoff`,
 `manual_review_import_dir`, `acquisition_worklist_dir`, `coverage_plan_dir`,
-`provider_handoff_dir`, `provider_request_dir`, `coverage_pipeline_dir`,
+`provider_handoff_dir`, `provider_request_dir`,
+`provider_request_validation_dir`, `coverage_pipeline_dir`,
 `offline_readiness_dir`, and `strict_gating_dir` render to their explicit
 `package-results` flags. These fields only plan a packaging command over
 explicit local audit inputs; they do not discover workflow outputs, contact
@@ -1478,7 +1512,7 @@ make a draft row eligible for provider execution.
 The isolated provider request validation adapter is:
 
 ```text
-typetreeflow provider-request validate --input <provider_request.tsv> [--base-dir <dir>] [--json]
+typetreeflow provider-request validate --input <provider_request.tsv> [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named `provider_request.tsv` plus local FASTA
@@ -1496,11 +1530,17 @@ and boolean local evidence checks. They do not echo local FASTA paths, hashes,
 provider notes, curator values, or sequence contents.
 
 Successful fully ready validation exits `0`; schema/input/readiness blockers
-exit `2`; unexpected internal errors exit `1`. The command is no-write and
+exit `2`; unexpected internal or write failures exit `1`. Without `--write`,
+the command writes nothing. With `--write`, it writes only
+`provider_request_validation_summary.json` and
+`provider_request_validation_diagnostics.tsv` into the explicitly supplied
+directory. Existing output directories are refused by default; `--force`
+replaces only an owned pair with matching schemas. The command remains
 audit-only: it does not contact providers, accept terms, download genomes,
-write `external_genomes.tsv`, mutate manifests, change completion metrics, or
-promote strict scientific deliverables. A ready row means only that local
-provider-request evidence is ready for external-genome handoff review.
+write workflow outputs, write `external_genomes.tsv`, mutate manifests, change
+completion metrics, or promote strict scientific deliverables. A ready row
+means only that local provider-request evidence is ready for external-genome
+handoff review.
 
 For AI metadata routing, `commands render` accepts
 `{"command":"plan-provider-registration","provider_request":"provider_request.tsv","outdir":"run"}`
