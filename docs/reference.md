@@ -1686,7 +1686,12 @@ directory, and optional downstream directory overrides. It then re-emits
 next command as compact JSON. The payload also includes
 `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
-re-parsing every stage row. It also includes `completion_gate` with `passed`,
+re-parsing every stage row. When an explicit or conventional child stage
+summary is present, the matching `operator_chain_stages` row also carries
+bounded `summary_*` fields such as `summary_status`, `summary_ready_count`,
+`summary_blocked_count`, `summary_exported_count`, or
+`summary_install_planned_count`; these are routing hints only and do not change
+the `available` gate. It also includes `completion_gate` with `passed`,
 `required`, `blocking_stage_count`, `blocking_stage_names`, and
 `blocking_diagnostic_code`. By default, an incomplete chain remains a readable
 status result. Add `--require-complete` to make incomplete chains fail closed

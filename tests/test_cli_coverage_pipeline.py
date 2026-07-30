@@ -636,9 +636,62 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         True,
     ]
     assert payload["operator_chain_stages"][4]["record_count"] == 2
+    assert payload["operator_chain_stages"][4]["summary_ready_count"] == 2
     assert payload["operator_chain_stages"][5]["record_count"] == 1
+    assert payload["operator_chain_stages"][5]["summary_exported_count"] == 1
     assert payload["operator_chain_stages"][6]["record_count"] == 1
+    assert payload["operator_chain_stages"][6]["summary_install_planned_count"] == 1
     assert payload["operator_chain_stages"][7]["record_count"] == 1
+
+
+def test_coverage_pipeline_status_preserves_blocked_validation_stage_details(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    code, _payload, _captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--validate-provider-request",
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+
+    code, payload, captured = _run(
+        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    validation_stage = payload["operator_chain_stages"][4]
+    assert validation_stage["stage"] == "provider_request_validation"
+    assert validation_stage["available"] is False
+    assert validation_stage["record_count"] == 0
+    assert validation_stage["summary_status"] == "blocked"
+    assert validation_stage["summary_record_count"] == 8
+    assert validation_stage["summary_ready_count"] == 0
+    assert validation_stage["summary_blocked_count"] == 8
+    assert validation_stage["summary_diagnostic_count"] > 0
+    assert payload["next_stage"]["stage"] == "provider_request_validation"
+    assert payload["completion_gate"]["blocking_stage_names"][0] == (
+        "provider_request_validation"
+    )
 
 
 def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path):
