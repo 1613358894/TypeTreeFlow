@@ -1744,9 +1744,10 @@ The external-genomes draft recommendation points to the explicit local handoff
 step after provider-request validation, and the install-plan recommendation
 points to the local planning step before registration dry-run. The separate
 `external_genomes_registration_dry_run_recommended_request` and matching next
-command point to a later dry-run `--register-external-genomes` review. None of
-these requests are automatic registration or download execution. `preview`
-never writes files.
+command point to a later dry-run `--register-external-genomes` review. The
+structured request is compatible with `commands render` / `commands plan`, but
+rendering it remains planning metadata only. None of these requests are
+automatic registration or download execution. `preview` never writes files.
 `build --validate-provider-request` runs the same local provider-request
 validation guards on the generated draft. It only checks local TSV fields and
 optional local FASTA paths; it does not contact providers, download genomes, or

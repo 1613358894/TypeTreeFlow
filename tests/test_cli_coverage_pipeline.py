@@ -987,6 +987,32 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         "outdir": "<run>",
         "dry_run": True,
     }
+    assert (
+        cli.main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(
+                    status_payload[
+                        "external_genomes_registration_dry_run_recommended_request"
+                    ],
+                    sort_keys=True,
+                ),
+            ]
+        )
+        == 0
+    )
+    rendered_payload = json.loads(capsys.readouterr().out)
+    assert rendered_payload["target_argv"] == [
+        "--register-external-genomes",
+        "external_genomes.tsv",
+        "--outdir",
+        "<run>",
+        "--dry-run",
+    ]
+    assert rendered_payload["recognized"]["command"] == "register-external-genomes"
+    assert rendered_payload["recognized"]["mode"] == "external_genome_registration"
 
 
 def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
