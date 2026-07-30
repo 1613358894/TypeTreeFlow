@@ -34,6 +34,8 @@ from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
     PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
+    provider_request_validation_diagnostics_tsv,
+    provider_request_validation_payload,
     validate_provider_requests_for_local_handoff,
 )
 
@@ -331,7 +333,7 @@ def _run_external_genomes_handoff(args: argparse.Namespace, output: TextIO) -> i
                         separators=(",", ":"),
                     )
                     + "\n",
-                    "diagnostics": _validation_diagnostics_tsv(
+                    "diagnostics": provider_request_validation_diagnostics_tsv(
                         validation_written_payload["diagnostics"]
                     ),
                 },
@@ -419,7 +421,7 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
                         written_payload, sort_keys=True, separators=(",", ":")
                     )
                     + "\n",
-                    "diagnostics": _validation_diagnostics_tsv(
+                    "diagnostics": provider_request_validation_diagnostics_tsv(
                         written_payload["diagnostics"]
                     ),
                 },
@@ -527,55 +529,12 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
 
 
 def _validate_payload(validation) -> dict[str, object]:
-    summary = validation.summary
-    preview = [row.to_preview_dict() for row in validation.rows[:_PREVIEW_LIMIT]]
-    diagnostics = [
-        _validate_diagnostic("provider_request_validation", code)
-        for code in summary["blocker_counts"]
-    ]
-    if summary["record_count"] == 0:
-        diagnostics.append(
-            _validate_diagnostic(
-                "provider_request_validation",
-                "no_provider_request_rows",
-            )
-        )
-    return {
-        "schema_version": PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
-        "status": "pass" if validation.valid else "blocked",
-        "command": VALIDATE_COMMAND,
-        "record_count": summary["record_count"],
-        "ready_count": summary["ready_count"],
-        "blocked_count": summary["blocked_count"],
-        "status_counts": summary["status_counts"],
-        "provider_counts": summary["provider_counts"],
-        "blocker_counts": summary["blocker_counts"],
-        "local_fasta_checked_count": summary["local_fasta_checked_count"],
-        "local_sha256_matched_count": summary["local_sha256_matched_count"],
-        "diagnostic_count": len(diagnostics),
-        "diagnostics": diagnostics,
-        "request_preview": preview,
-        "request_truncated": len(validation.rows) > len(preview),
-        "audit_only": True,
-        "dry_run": True,
-        "writes_outputs": False,
-        "writes_workflow_outputs": False,
-        "downloads_triggered": 0,
-        "providers_contacted": 0,
-        "network_access": False,
-        "external_tools": False,
-        "manifest_mutated": False,
-        "strict_scientific_deliverable": False,
-        "recommended_next_command": (
-            PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
-        ),
-        "output_paths": {key: None for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES},
-        "summary": (
-            "Provider request validation passed"
-            if validation.valid
-            else "Provider request validation blocked"
-        ),
-    }
+    return provider_request_validation_payload(
+        validation,
+        command=VALIDATE_COMMAND,
+        dry_run=True,
+        preview_limit=_PREVIEW_LIMIT,
+    )
 
 
 def _external_genomes_payload(draft) -> dict[str, object]:
@@ -920,33 +879,6 @@ def _publish(
             os.replace(backup, outdir)
         elif backup.exists() and published:
             shutil.rmtree(backup, ignore_errors=True)
-
-
-def _validation_diagnostics_tsv(
-    diagnostics: Sequence[Mapping[str, object]],
-) -> str:
-    lines = ["\t".join(PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS)]
-    counts: dict[tuple[str, str, str], int] = {}
-    for diagnostic in diagnostics:
-        key = (
-            str(diagnostic.get("component") or ""),
-            str(diagnostic.get("severity") or ""),
-            str(diagnostic.get("diagnostic_code") or ""),
-        )
-        counts[key] = counts.get(key, 0) + 1
-    for component, severity, code in sorted(counts):
-        lines.append(
-            "\t".join(
-                (
-                    PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
-                    component,
-                    severity,
-                    code,
-                    str(counts[(component, severity, code)]),
-                )
-            )
-        )
-    return "\n".join(lines) + "\n"
 
 
 def _publish_validation(

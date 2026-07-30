@@ -33,7 +33,7 @@ from typetreeflow.evidence.provider_request_draft import (
     build_provider_request_draft,
 )
 from typetreeflow.external_genomes_cli import INSTALL_PLAN_OUTPUT_NAMES
-from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
+from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, ProviderRequestRecord
 from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
@@ -41,8 +41,13 @@ from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
 )
 from typetreeflow.provider_request_validation import (
+    PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
     PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
     PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
+    provider_request_validation_diagnostics_tsv,
+    provider_request_validation_payload,
+    validate_provider_requests_for_local_handoff,
 )
 
 
@@ -61,6 +66,14 @@ OUTPUT_PATHS = {
     "provider_request": "provider_request/provider_request.tsv",
     "provider_request_summary": "provider_request/provider_request_draft_summary.json",
     "pipeline_summary": "coverage_pipeline_summary.json",
+}
+OPTIONAL_OUTPUT_PATHS = {
+    "provider_request_validation_summary": (
+        "provider_request_validation/provider_request_validation_summary.json"
+    ),
+    "provider_request_validation_diagnostics": (
+        "provider_request_validation/provider_request_validation_diagnostics.tsv"
+    ),
 }
 _PROTECTED_OUTPUT_TERMS = {
     "manifest",
@@ -150,6 +163,19 @@ def run_coverage_pipeline_command(
         provider_request = build_provider_request_draft(
             row.to_row() for row in provider_handoff.rows
         )
+        validation_payload = None
+        if getattr(args, "validate_provider_request", False):
+            validation_base_dir = _provider_request_validation_base_dir(args, outdir)
+            provider_request_records = _provider_request_records(provider_request)
+            validation = validate_provider_requests_for_local_handoff(
+                provider_request_records,
+                base_dir=validation_base_dir,
+            )
+            validation_payload = provider_request_validation_payload(
+                validation,
+                command="coverage-pipeline provider-request-validation",
+                dry_run=not args.write,
+            )
     except Exception:
         _emit(_failure("internal_error", "Coverage pipeline build failed unexpectedly"), output)
         return 1
@@ -161,6 +187,7 @@ def run_coverage_pipeline_command(
         coverage_plan,
         provider_handoff,
         provider_request,
+        provider_request_validation=validation_payload,
         diagnostics=diagnostics,
         command=COMMAND_BUILD if args.action == "build" else COMMAND_PREVIEW,
         dry_run=not args.write,
@@ -187,7 +214,9 @@ def run_coverage_pipeline_command(
                     coverage_plan,
                     provider_handoff,
                     provider_request,
+                    validation_payload,
                     payload,
+                    outdir=outdir,
                 ),
                 force=args.force,
             )
@@ -204,6 +233,17 @@ def run_coverage_pipeline_command(
             key: str(outdir / Path(relative_path))
             for key, relative_path in OUTPUT_PATHS.items()
         }
+        if validation_payload is not None:
+            validation_output_paths = _validation_output_paths(outdir)
+            payload["output_paths"].update(
+                {
+                    key: str(outdir / Path(relative_path))
+                    for key, relative_path in OPTIONAL_OUTPUT_PATHS.items()
+                }
+            )
+            payload["provider_request_validation_output_paths"] = (
+                validation_output_paths
+            )
     _emit(payload, output)
     return 0 if not diagnostics else 2
 
@@ -231,6 +271,8 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--archive-candidates-tsv")
     build.add_argument("--expanded-discovery-results-tsv")
     build.add_argument("--manual-supplement-hints-tsv")
+    build.add_argument("--validate-provider-request", action="store_true")
+    build.add_argument("--provider-request-validation-base-dir")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -510,12 +552,34 @@ def _next_unavailable_stage(
     return None
 
 
+def _provider_request_validation_base_dir(
+    args: argparse.Namespace,
+    outdir: Path | None,
+) -> Path:
+    if args.provider_request_validation_base_dir:
+        return Path(args.provider_request_validation_base_dir)
+    if outdir is not None:
+        return outdir / "provider_request"
+    return Path.cwd()
+
+
+def _provider_request_records(provider_request) -> tuple[ProviderRequestRecord, ...]:
+    return tuple(
+        ProviderRequestRecord.from_dict(
+            row.to_provider_request_row(),
+            row_number=index,
+        )
+        for index, row in enumerate(provider_request.rows, start=1)
+    )
+
+
 def _payload(
     worklist,
     coverage_plan,
     provider_handoff,
     provider_request,
     *,
+    provider_request_validation: dict[str, object] | None = None,
     diagnostics: list[dict[str, object]],
     command: str,
     dry_run: bool,
@@ -529,6 +593,18 @@ def _payload(
         coverage_action_count=int(coverage_summary["record_count"]),
         provider_handoff_count=int(provider_summary["record_count"]),
         provider_request_count=int(request_summary["record_count"]),
+        provider_request_validation_ready_count=_payload_int(
+            provider_request_validation,
+            "ready_count",
+        ),
+    )
+    validation_output_paths = (
+        {
+            key: None
+            for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES
+        }
+        if provider_request_validation is None
+        else provider_request_validation["output_paths"]
     )
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
@@ -573,6 +649,24 @@ def _payload(
         "provider_request_validation_recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
         ),
+        "provider_request_validation_status": _payload_value(
+            provider_request_validation,
+            "status",
+            "not_run",
+        ),
+        "provider_request_validation_record_count": _payload_int(
+            provider_request_validation,
+            "record_count",
+        ),
+        "provider_request_validation_ready_count": _payload_int(
+            provider_request_validation,
+            "ready_count",
+        ),
+        "provider_request_validation_blocked_count": _payload_int(
+            provider_request_validation,
+            "blocked_count",
+        ),
+        "provider_request_validation_output_paths": validation_output_paths,
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
@@ -624,12 +718,29 @@ def _summary_text(command: str, blocked: bool) -> str:
     )
 
 
+def _payload_value(
+    payload: dict[str, object] | None,
+    key: str,
+    default: object,
+) -> object:
+    if payload is None:
+        return default
+    return payload.get(key, default)
+
+
+def _payload_int(payload: dict[str, object] | None, key: str) -> int:
+    if payload is None:
+        return 0
+    return _safe_int(payload.get(key, 0))
+
+
 def _operator_chain_stages(
     *,
     worklist_count: int,
     coverage_action_count: int,
     provider_handoff_count: int,
     provider_request_count: int,
+    provider_request_validation_ready_count: int,
 ) -> list[dict[str, object]]:
     return [
         _operator_stage(
@@ -666,7 +777,7 @@ def _operator_chain_stages(
         _operator_stage(
             stage="provider_request_validation",
             artifact="provider_request_validation/provider_request_validation_summary.json",
-            record_count=0,
+            record_count=provider_request_validation_ready_count,
             recommended_next_command=(
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
             ),
@@ -823,7 +934,10 @@ def _rendered_outputs(
     coverage_plan,
     provider_handoff,
     provider_request,
+    provider_request_validation: dict[str, object] | None,
     payload: dict[str, object],
+    *,
+    outdir: Path,
 ) -> dict[str, str]:
     summary = {
         key: payload[key]
@@ -852,6 +966,11 @@ def _rendered_outputs(
             "provider_request_status_counts",
             "provider_request_recommended_next_command",
             "provider_request_validation_recommended_next_command",
+            "provider_request_validation_status",
+            "provider_request_validation_record_count",
+            "provider_request_validation_ready_count",
+            "provider_request_validation_blocked_count",
+            "provider_request_validation_output_paths",
             "provider_request_external_genomes_recommended_next_command",
             "provider_request_external_genomes_install_plan_recommended_next_command",
             "provider_request_external_genomes_handoff_recommended_next_command",
@@ -870,7 +989,11 @@ def _rendered_outputs(
             "summary",
         )
     }
-    return {
+    if provider_request_validation is not None:
+        summary["provider_request_validation_output_paths"] = (
+            _validation_output_paths(outdir)
+        )
+    rendered = {
         "acquisition_worklist": worklist.rows_tsv(),
         "acquisition_worklist_summary": worklist.summary_json() + "\n",
         "coverage_plan": coverage_plan.actions_tsv(),
@@ -881,6 +1004,39 @@ def _rendered_outputs(
         "provider_request_summary": provider_request.summary_json() + "\n",
         "pipeline_summary": json.dumps(summary, sort_keys=True, separators=(",", ":"))
         + "\n",
+    }
+    if provider_request_validation is not None:
+        written_payload = {
+            **provider_request_validation,
+            "writes_outputs": True,
+            "output_paths": _validation_output_paths(outdir),
+        }
+        rendered.update(
+            {
+                "provider_request_validation_summary": json.dumps(
+                    written_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                + "\n",
+                "provider_request_validation_diagnostics": (
+                    provider_request_validation_diagnostics_tsv(
+                        written_payload["diagnostics"]
+                    )
+                ),
+            }
+        )
+    return rendered
+
+
+def _validation_output_paths(outdir: Path) -> dict[str, str]:
+    return {
+        key: str(
+            outdir
+            / "provider_request_validation"
+            / PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES[key]
+        )
+        for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES
     }
 
 
@@ -898,11 +1054,13 @@ def _publish(
     backed_up = False
     published = False
     try:
-        for key, relative_path in OUTPUT_PATHS.items():
+        output_paths = {**OUTPUT_PATHS, **OPTIONAL_OUTPUT_PATHS}
+        for key, text in rendered.items():
+            relative_path = output_paths[key]
             path = stage / Path(relative_path)
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("x", encoding="utf-8", newline="") as handle:
-                handle.write(rendered[key])
+                handle.write(text)
                 handle.flush()
                 os.fsync(handle.fileno())
         if outdir.exists():
@@ -950,7 +1108,10 @@ def _validate_outdir(
 
 
 def _validate_owned_output_dir(outdir: Path) -> None:
-    expected = {Path(relative_path) for relative_path in OUTPUT_PATHS.values()}
+    expected = {
+        Path(relative_path)
+        for relative_path in (*OUTPUT_PATHS.values(), *OPTIONAL_OUTPUT_PATHS.values())
+    }
     observed: set[Path] = set()
     for path in outdir.rglob("*"):
         if path.is_symlink():
@@ -986,6 +1147,21 @@ def _validate_owned_output_dir(outdir: Path) -> None:
         outdir / OUTPUT_PATHS["pipeline_summary"],
         ACQUISITION_WORKLIST_SCHEMA_VERSION,
     )
+    validation_summary = outdir / OPTIONAL_OUTPUT_PATHS[
+        "provider_request_validation_summary"
+    ]
+    validation_diagnostics = outdir / OPTIONAL_OUTPUT_PATHS[
+        "provider_request_validation_diagnostics"
+    ]
+    if validation_summary.exists() or validation_diagnostics.exists():
+        _validate_existing_json(
+            validation_summary,
+            PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
+        )
+        _validate_existing_member(
+            validation_diagnostics,
+            PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
+        )
 
 
 def _validate_existing_member(path: Path, fields: tuple[str, ...]) -> None:

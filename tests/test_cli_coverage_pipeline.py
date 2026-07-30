@@ -370,6 +370,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert (outdir / "coverage_plan" / "coverage_plan.tsv").exists()
     assert (outdir / "provider_handoff" / "provider_handoff.tsv").exists()
     assert (outdir / "provider_request" / "provider_request.tsv").exists()
+    assert not (outdir / "provider_request_validation").exists()
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["command"] == "coverage-pipeline build"
     assert summary["provider_handoff_record_count"] == 8
@@ -425,6 +426,91 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     code, payload, _ = _run([*args, "--force"], capsys, action="build")
     assert code == 0
     assert payload["writes_outputs"] is True
+
+
+def test_coverage_pipeline_build_can_write_provider_request_validation_stage(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    outdir = tmp_path / "pipeline_outputs"
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--validate-provider-request",
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["provider_request_validation_status"] == "blocked"
+    assert payload["provider_request_validation_record_count"] == 8
+    assert payload["provider_request_validation_ready_count"] == 0
+    assert payload["provider_request_validation_blocked_count"] == 8
+    assert payload["provider_request_validation_output_paths"] == {
+        "summary": str(
+            outdir
+            / "provider_request_validation"
+            / "provider_request_validation_summary.json"
+        ),
+        "diagnostics": str(
+            outdir
+            / "provider_request_validation"
+            / "provider_request_validation_diagnostics.tsv"
+        ),
+    }
+    assert payload["output_paths"]["provider_request_validation_summary"] == str(
+        outdir
+        / "provider_request_validation"
+        / "provider_request_validation_summary.json"
+    )
+    summary_path = (
+        outdir
+        / "provider_request_validation"
+        / "provider_request_validation_summary.json"
+    )
+    diagnostics_path = (
+        outdir
+        / "provider_request_validation"
+        / "provider_request_validation_diagnostics.tsv"
+    )
+    validation_summary = json.loads(summary_path.read_text())
+    assert validation_summary["command"] == (
+        "coverage-pipeline provider-request-validation"
+    )
+    assert validation_summary["status"] == "blocked"
+    assert validation_summary["writes_outputs"] is True
+    assert validation_summary["writes_workflow_outputs"] is False
+    assert validation_summary["downloads_triggered"] == 0
+    assert validation_summary["providers_contacted"] == 0
+    assert validation_summary["output_paths"] == payload[
+        "provider_request_validation_output_paths"
+    ]
+    diagnostics_lines = diagnostics_path.read_text().splitlines()
+    assert diagnostics_lines[0] == (
+        "schema_version\tcomponent\tseverity\tdiagnostic_code\tcount"
+    )
+    assert any("local_fasta_path_missing" in line for line in diagnostics_lines[1:])
+    pipeline_summary = json.loads(
+        (outdir / "coverage_pipeline_summary.json").read_text()
+    )
+    assert pipeline_summary["provider_request_validation_status"] == "blocked"
+    assert pipeline_summary["operator_chain_stages"][4]["record_count"] == 0
 
 
 def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_path):

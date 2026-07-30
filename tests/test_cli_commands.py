@@ -268,6 +268,10 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--require-complete",
         "--json",
     } <= parameter_names[("coverage-pipeline", "status")]
+    assert {
+        "--validate-provider-request",
+        "--provider-request-validation-base-dir",
+    } <= parameter_names[("coverage-pipeline", "build")]
     audit_dir_flags = {
         "--manual-review-import-dir",
         "--acquisition-worklist-dir",
@@ -834,6 +838,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
                     '"archive_candidates_tsv":"archive.tsv",'
                     '"expanded_discovery_results_tsv":"expanded.tsv",'
                     '"manual_supplement_hints_tsv":"manual_hints.tsv",'
+                    '"validate_provider_request":true,'
+                    '"provider_request_validation_base_dir":"provider_request",'
                     '"write":true,"outdir":"pipeline","force":true}'
                 ),
             ]
@@ -859,6 +865,9 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
         "expanded.tsv",
         "--manual-supplement-hints-tsv",
         "manual_hints.tsv",
+        "--validate-provider-request",
+        "--provider-request-validation-base-dir",
+        "provider_request",
         "--write",
         "--outdir",
         "pipeline",
