@@ -244,6 +244,18 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "--manual-supplement-hints-tsv",
         } <= parameter_names[key]
     assert {
+        "--delivery-dir",
+        "--failed-handoff",
+        "--manual-review-import-dir",
+        "--acquisition-worklist-dir",
+        "--coverage-plan-dir",
+        "--provider-handoff-dir",
+        "--provider-request-dir",
+        "--coverage-pipeline-dir",
+        "--offline-readiness-dir",
+        "--strict-gating-dir",
+    } <= parameter_names[("package-results", None)]
+    assert {
         (entry["command"], entry["subcommand"])
         for entry in catalog
     } >= {
@@ -319,6 +331,91 @@ def test_commands_render_emits_normalized_workflow_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "verify-genus"
     assert payload["recognized"]["mode"] == "report_only"
+
+
+def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"package-results","outdir":"run","include":"reports",'
+                    '"delivery_dir":"delivery",'
+                    '"manual_review_import_dir":"manual_review_import",'
+                    '"acquisition_worklist_dir":"worklist",'
+                    '"coverage_plan_dir":"coverage_plan",'
+                    '"provider_handoff_dir":"provider_handoff",'
+                    '"provider_request_dir":"provider_request",'
+                    '"coverage_pipeline_dir":"coverage_pipeline",'
+                    '"offline_readiness_dir":"readiness",'
+                    '"strict_gating_dir":"strict_gating"}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "package-results",
+        "--outdir",
+        "run",
+        "--include",
+        "reports",
+        "--delivery-dir",
+        "delivery",
+        "--manual-review-import-dir",
+        "manual_review_import",
+        "--acquisition-worklist-dir",
+        "worklist",
+        "--coverage-plan-dir",
+        "coverage_plan",
+        "--provider-handoff-dir",
+        "provider_handoff",
+        "--provider-request-dir",
+        "provider_request",
+        "--coverage-pipeline-dir",
+        "coverage_pipeline",
+        "--offline-readiness-dir",
+        "readiness",
+        "--strict-gating-dir",
+        "strict_gating",
+    ]
+    assert payload["recognized"]["command"] == "package-results"
+    assert payload["recognized"]["mode"] == "packaging"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_failed_handoff_package_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"package-results","outdir":"run",'
+                    '"include":"reports","failed_handoff":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "package-results",
+        "--outdir",
+        "run",
+        "--include",
+        "reports",
+        "--failed-handoff",
+    ]
+    assert payload["recognized"]["command"] == "package-results"
+    assert payload["recognized"]["mode"] == "packaging"
+    assert payload["recognized"]["writes_outputs_declared"] is True
 
 
 def test_commands_render_emits_normalized_preflight_argv(capsys):

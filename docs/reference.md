@@ -615,6 +615,13 @@ For coverage planning requests, structured fields
 `expanded_discovery_results_tsv` and `manual_supplement_hints_tsv` render to
 the explicit local TSV flags on `acquisition-worklist build` and
 `coverage-pipeline preview|build`.
+For packaging requests, structured fields `delivery_dir`, `failed_handoff`,
+`manual_review_import_dir`, `acquisition_worklist_dir`, `coverage_plan_dir`,
+`provider_handoff_dir`, `provider_request_dir`, `coverage_pipeline_dir`,
+`offline_readiness_dir`, and `strict_gating_dir` render to their explicit
+`package-results` flags. These fields only plan a packaging command over
+explicit local audit inputs; they do not discover workflow outputs, contact
+providers, trigger downloads, or authorize strict deliverable promotion.
 
 `commands plan` also requires `--request-json`, renders the request to
 `target_argv`, and immediately applies the same advisory preflight gate. Its

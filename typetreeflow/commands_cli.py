@@ -418,6 +418,76 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "package member set such as reports or all",
         },
+        {
+            "name": "--delivery-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit delivery package output directory",
+        },
+        {
+            "name": "--failed-handoff",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "package failed-run review artifacts only",
+        },
+        {
+            "name": "--manual-review-import-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit manual-review import audit triplet directory",
+        },
+        {
+            "name": "--acquisition-worklist-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit acquisition-worklist audit output directory",
+        },
+        {
+            "name": "--coverage-plan-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit coverage-plan audit output directory",
+        },
+        {
+            "name": "--provider-handoff-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-handoff audit output directory",
+        },
+        {
+            "name": "--provider-request-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-request audit output directory",
+        },
+        {
+            "name": "--coverage-pipeline-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit coverage-pipeline audit output directory",
+        },
+        {
+            "name": "--offline-readiness-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit offline-readiness audit output directory",
+        },
+        {
+            "name": "--strict-gating-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit strict-gating audit triplet directory",
+        },
     ],
     ("manual-review", "validate"): [
         {
@@ -1507,11 +1577,46 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             },
         )
     if command == "package-results":
-        _reject_unknown_fields(request, {"command", "outdir", "include"})
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "outdir",
+                "include",
+                "delivery_dir",
+                "failed_handoff",
+                "manual_review_import_dir",
+                "acquisition_worklist_dir",
+                "coverage_plan_dir",
+                "provider_handoff_dir",
+                "provider_request_dir",
+                "coverage_pipeline_dir",
+                "offline_readiness_dir",
+                "strict_gating_dir",
+            },
+        )
         argv = ["package-results", "--outdir", _required_string(request, "outdir")]
         include = _optional_string(request, "include")
         if include:
             argv.extend(["--include", include])
+        delivery_dir = _optional_string(request, "delivery_dir")
+        if delivery_dir:
+            argv.extend(["--delivery-dir", delivery_dir])
+        if _bool_flag(request, "failed_handoff"):
+            argv.append("--failed-handoff")
+        for key, flag in (
+            ("manual_review_import_dir", "--manual-review-import-dir"),
+            ("acquisition_worklist_dir", "--acquisition-worklist-dir"),
+            ("coverage_plan_dir", "--coverage-plan-dir"),
+            ("provider_handoff_dir", "--provider-handoff-dir"),
+            ("provider_request_dir", "--provider-request-dir"),
+            ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
+            ("offline_readiness_dir", "--offline-readiness-dir"),
+            ("strict_gating_dir", "--strict-gating-dir"),
+        ):
+            value = _optional_string(request, key)
+            if value:
+                argv.extend([flag, value])
         return argv
     if command == "manual-review":
         if subcommand == "validate":
