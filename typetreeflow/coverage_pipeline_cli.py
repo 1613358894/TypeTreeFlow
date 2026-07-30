@@ -33,12 +33,19 @@ from typetreeflow.evidence.provider_request_draft import (
     build_provider_request_draft,
 )
 from typetreeflow.external_genomes_cli import INSTALL_PLAN_OUTPUT_NAMES
-from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, ProviderRequestRecord
+from typetreeflow.external_genomes import EXTERNAL_GENOME_FIELDS
+from typetreeflow.provider_plan import (
+    PROVIDER_REQUEST_FIELDS,
+    ProviderRequestRecord,
+    read_provider_requests,
+)
 from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
+    build_provider_request_external_genomes_draft,
 )
 from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
@@ -73,6 +80,13 @@ OPTIONAL_OUTPUT_PATHS = {
     ),
     "provider_request_validation_diagnostics": (
         "provider_request_validation/provider_request_validation_diagnostics.tsv"
+    ),
+    "provider_request_external_genomes": (
+        "provider_request_external_genomes/external_genomes.tsv"
+    ),
+    "provider_request_external_genomes_summary": (
+        "provider_request_external_genomes/"
+        "provider_request_external_genomes_summary.json"
     ),
 }
 _PROTECTED_OUTPUT_TERMS = {
@@ -146,6 +160,16 @@ def run_coverage_pipeline_command(
         "manual_supplement_hints",
         diagnostics,
     )
+    curated_provider_request_records: tuple[ProviderRequestRecord, ...] | None = None
+    if args.curated_provider_request_tsv:
+        try:
+            curated_provider_request_records = tuple(
+                read_provider_requests(args.curated_provider_request_tsv)
+            )
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            diagnostics.append(
+                _diagnostic("curated_provider_request", "input_invalid")
+            )
     try:
         worklist = build_acquisition_worklist(
             checklist_rows=checklist,
@@ -164,9 +188,17 @@ def run_coverage_pipeline_command(
             row.to_row() for row in provider_handoff.rows
         )
         validation_payload = None
-        if getattr(args, "validate_provider_request", False):
+        external_genomes_payload = None
+        if (
+            getattr(args, "validate_provider_request", False)
+            or curated_provider_request_records is not None
+        ):
             validation_base_dir = _provider_request_validation_base_dir(args, outdir)
-            provider_request_records = _provider_request_records(provider_request)
+            provider_request_records = (
+                tuple(curated_provider_request_records)
+                if curated_provider_request_records is not None
+                else _provider_request_records(provider_request)
+            )
             validation = validate_provider_requests_for_local_handoff(
                 provider_request_records,
                 base_dir=validation_base_dir,
@@ -176,6 +208,15 @@ def run_coverage_pipeline_command(
                 command="coverage-pipeline provider-request-validation",
                 dry_run=not args.write,
             )
+            if curated_provider_request_records is not None:
+                external_genomes = build_provider_request_external_genomes_draft(
+                    provider_request_records,
+                    base_dir=validation_base_dir,
+                )
+                external_genomes_payload = _external_genomes_payload(
+                    external_genomes,
+                    dry_run=not args.write,
+                )
     except Exception:
         _emit(_failure("internal_error", "Coverage pipeline build failed unexpectedly"), output)
         return 1
@@ -188,6 +229,7 @@ def run_coverage_pipeline_command(
         provider_handoff,
         provider_request,
         provider_request_validation=validation_payload,
+        provider_request_external_genomes=external_genomes_payload,
         diagnostics=diagnostics,
         command=COMMAND_BUILD if args.action == "build" else COMMAND_PREVIEW,
         dry_run=not args.write,
@@ -205,6 +247,7 @@ def run_coverage_pipeline_command(
                         args.archive_candidates_tsv,
                         args.expanded_discovery_results_tsv,
                         args.manual_supplement_hints_tsv,
+                        args.curated_provider_request_tsv,
                     )
                     if value is not None
                 ),
@@ -215,6 +258,7 @@ def run_coverage_pipeline_command(
                     provider_handoff,
                     provider_request,
                     validation_payload,
+                    external_genomes_payload,
                     payload,
                     outdir=outdir,
                 ),
@@ -244,6 +288,23 @@ def run_coverage_pipeline_command(
             payload["provider_request_validation_output_paths"] = (
                 validation_output_paths
             )
+        if external_genomes_payload is not None:
+            external_genomes_written = external_genomes_payload.get("status") == "pass"
+            external_genomes_output_paths = _external_genomes_output_paths(
+                outdir,
+                written=external_genomes_written,
+            )
+            if external_genomes_payload.get("status") == "pass":
+                payload["output_paths"].update(
+                    {
+                        key: str(outdir / Path(relative_path))
+                        for key, relative_path in OPTIONAL_OUTPUT_PATHS.items()
+                        if key.startswith("provider_request_external_genomes")
+                    }
+                )
+            payload["provider_request_external_genomes_output_paths"] = (
+                external_genomes_output_paths
+            )
     _emit(payload, output)
     return 0 if not diagnostics else 2
 
@@ -262,7 +323,14 @@ def _build_parser() -> argparse.ArgumentParser:
     preview.add_argument("--expanded-discovery-results-tsv")
     preview.add_argument("--manual-supplement-hints-tsv")
     preview.add_argument("--json", action="store_true")
-    preview.set_defaults(write=False, outdir=None, force=False)
+    preview.set_defaults(
+        write=False,
+        outdir=None,
+        force=False,
+        validate_provider_request=False,
+        provider_request_validation_base_dir=None,
+        curated_provider_request_tsv=None,
+    )
     build = actions.add_parser("build", add_help=False)
     build.add_argument("--checklist-tsv")
     build.add_argument("--reconciler-audit-tsv")
@@ -273,6 +341,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--manual-supplement-hints-tsv")
     build.add_argument("--validate-provider-request", action="store_true")
     build.add_argument("--provider-request-validation-base-dir")
+    build.add_argument("--curated-provider-request-tsv")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -597,6 +666,8 @@ def _provider_request_validation_base_dir(
 ) -> Path:
     if args.provider_request_validation_base_dir:
         return Path(args.provider_request_validation_base_dir)
+    if getattr(args, "curated_provider_request_tsv", None):
+        return Path(args.curated_provider_request_tsv).parent
     if outdir is not None:
         return outdir / "provider_request"
     return Path.cwd()
@@ -612,6 +683,27 @@ def _provider_request_records(provider_request) -> tuple[ProviderRequestRecord, 
     )
 
 
+def _external_genomes_payload(draft, *, dry_run: bool) -> dict[str, object]:
+    summary = draft.summary
+    return {
+        **summary,
+        "status": "pass" if draft.valid else "blocked",
+        "command": "coverage-pipeline provider-request-external-genomes",
+        "dry_run": dry_run,
+        "writes_outputs": False,
+        "output_paths": {
+            key: None
+            for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
+        },
+        "external_genomes_tsv": draft.external_genomes_tsv() if draft.valid else "",
+        "summary": (
+            "Provider request external-genomes draft passed"
+            if draft.valid
+            else "Provider request external-genomes draft blocked"
+        ),
+    }
+
+
 def _payload(
     worklist,
     coverage_plan,
@@ -619,6 +711,7 @@ def _payload(
     provider_request,
     *,
     provider_request_validation: dict[str, object] | None = None,
+    provider_request_external_genomes: dict[str, object] | None = None,
     diagnostics: list[dict[str, object]],
     command: str,
     dry_run: bool,
@@ -635,6 +728,10 @@ def _payload(
         provider_request_validation_ready_count=_payload_int(
             provider_request_validation,
             "ready_count",
+        ),
+        provider_request_external_genomes_count=_payload_int(
+            provider_request_external_genomes,
+            "exported_count",
         ),
     )
     validation_output_paths = (
@@ -709,6 +806,28 @@ def _payload(
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
+        "provider_request_external_genomes_status": _payload_value(
+            provider_request_external_genomes,
+            "status",
+            "not_run",
+        ),
+        "provider_request_external_genomes_record_count": _payload_int(
+            provider_request_external_genomes,
+            "record_count",
+        ),
+        "provider_request_external_genomes_exported_count": _payload_int(
+            provider_request_external_genomes,
+            "exported_count",
+        ),
+        "provider_request_external_genomes_diagnostic_count": _payload_int(
+            provider_request_external_genomes,
+            "diagnostic_count",
+        ),
+        "provider_request_external_genomes_output_paths": (
+            {key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES}
+            if provider_request_external_genomes is None
+            else provider_request_external_genomes["output_paths"]
+        ),
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
@@ -780,6 +899,7 @@ def _operator_chain_stages(
     provider_handoff_count: int,
     provider_request_count: int,
     provider_request_validation_ready_count: int,
+    provider_request_external_genomes_count: int,
 ) -> list[dict[str, object]]:
     return [
         _operator_stage(
@@ -825,7 +945,7 @@ def _operator_chain_stages(
         _operator_stage(
             stage="provider_request_external_genomes",
             artifact="provider_request_external_genomes/external_genomes.tsv",
-            record_count=0,
+            record_count=provider_request_external_genomes_count,
             recommended_next_command=(
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
             ),
@@ -933,9 +1053,23 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_validation_recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
         ),
+        "provider_request_validation_status": "not_run",
+        "provider_request_validation_record_count": 0,
+        "provider_request_validation_ready_count": 0,
+        "provider_request_validation_blocked_count": 0,
+        "provider_request_validation_output_paths": {
+            key: None for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES
+        },
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
+        "provider_request_external_genomes_status": "not_run",
+        "provider_request_external_genomes_record_count": 0,
+        "provider_request_external_genomes_exported_count": 0,
+        "provider_request_external_genomes_diagnostic_count": 0,
+        "provider_request_external_genomes_output_paths": {
+            key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
+        },
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
@@ -974,6 +1108,7 @@ def _rendered_outputs(
     provider_handoff,
     provider_request,
     provider_request_validation: dict[str, object] | None,
+    provider_request_external_genomes: dict[str, object] | None,
     payload: dict[str, object],
     *,
     outdir: Path,
@@ -1011,6 +1146,11 @@ def _rendered_outputs(
             "provider_request_validation_blocked_count",
             "provider_request_validation_output_paths",
             "provider_request_external_genomes_recommended_next_command",
+            "provider_request_external_genomes_status",
+            "provider_request_external_genomes_record_count",
+            "provider_request_external_genomes_exported_count",
+            "provider_request_external_genomes_diagnostic_count",
+            "provider_request_external_genomes_output_paths",
             "provider_request_external_genomes_install_plan_recommended_next_command",
             "provider_request_external_genomes_handoff_recommended_next_command",
             "operator_chain_stages",
@@ -1031,6 +1171,13 @@ def _rendered_outputs(
     if provider_request_validation is not None:
         summary["provider_request_validation_output_paths"] = (
             _validation_output_paths(outdir)
+        )
+    if provider_request_external_genomes is not None:
+        summary["provider_request_external_genomes_output_paths"] = (
+            _external_genomes_output_paths(
+                outdir,
+                written=provider_request_external_genomes.get("status") == "pass",
+            )
         )
     rendered = {
         "acquisition_worklist": worklist.rows_tsv(),
@@ -1065,6 +1212,29 @@ def _rendered_outputs(
                 ),
             }
         )
+    if provider_request_external_genomes is not None:
+        written_payload = {
+            **provider_request_external_genomes,
+            "writes_outputs": provider_request_external_genomes.get("status") == "pass",
+            "output_paths": _external_genomes_output_paths(
+                outdir,
+                written=provider_request_external_genomes.get("status") == "pass",
+            ),
+        }
+        if provider_request_external_genomes.get("status") == "pass":
+            rendered.update(
+                {
+                    "provider_request_external_genomes": (
+                        provider_request_external_genomes["external_genomes_tsv"]
+                    ),
+                    "provider_request_external_genomes_summary": json.dumps(
+                        _without_internal_render_fields(written_payload),
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                    + "\n",
+                }
+            )
     return rendered
 
 
@@ -1076,6 +1246,34 @@ def _validation_output_paths(outdir: Path) -> dict[str, str]:
             / PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES[key]
         )
         for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES
+    }
+
+
+def _external_genomes_output_paths(
+    outdir: Path,
+    *,
+    written: bool,
+) -> dict[str, str | None]:
+    if not written:
+        return {
+            key: None
+            for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
+        }
+    return {
+        key: str(
+            outdir
+            / "provider_request_external_genomes"
+            / PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[key]
+        )
+        for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
+    }
+
+
+def _without_internal_render_fields(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        key: value
+        for key, value in payload.items()
+        if key not in {"external_genomes_tsv"}
     }
 
 
@@ -1200,6 +1398,18 @@ def _validate_owned_output_dir(outdir: Path) -> None:
         _validate_existing_member(
             validation_diagnostics,
             PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
+        )
+    external_genomes = outdir / OPTIONAL_OUTPUT_PATHS[
+        "provider_request_external_genomes"
+    ]
+    external_genomes_summary = outdir / OPTIONAL_OUTPUT_PATHS[
+        "provider_request_external_genomes_summary"
+    ]
+    if external_genomes.exists() or external_genomes_summary.exists():
+        _validate_existing_member(external_genomes, tuple(EXTERNAL_GENOME_FIELDS))
+        _validate_existing_json(
+            external_genomes_summary,
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
         )
 
 

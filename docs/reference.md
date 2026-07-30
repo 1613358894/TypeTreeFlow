@@ -684,6 +684,9 @@ the explicit local TSV flags on `acquisition-worklist build` and
 `provider_request_validation_base_dir` render only for
 `coverage-pipeline build` and enable the optional local provider-request
 validation stage without provider contact or downloads.
+`curated_provider_request_tsv` renders to `--curated-provider-request-tsv` and
+is treated as an explicit curator-completed local handoff, not as provider
+output discovered by the pipeline.
 For packaging requests, structured fields `delivery_dir`, `failed_handoff`,
 `manual_review_import_dir`, `acquisition_worklist_dir`, `coverage_plan_dir`,
 `provider_handoff_dir`, `provider_request_dir`,
@@ -1643,7 +1646,7 @@ The isolated coverage pipeline adapter is:
 
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--json] [--write --outdir <dir> [--force]]
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
 ```
 
@@ -1673,11 +1676,17 @@ optional local FASTA paths; it does not contact providers, download genomes, or
 copy FASTA. With `--write`, the validation audit pair is written under
 `provider_request_validation/` inside the isolated pipeline directory, so
 `coverage-pipeline status` can inspect the next stage without a separate
-adapter run. `build --write` writes only isolated `acquisition_worklist/`,
-`coverage_plan/`, `provider_handoff/`, `provider_request/`, optional
-`provider_request_validation/`, and `coverage_pipeline_summary.json` members
-under the explicitly supplied directory. Existing output directories are
-refused by default; `--force` replaces only an owned coverage-pipeline
+adapter run. `build --curated-provider-request-tsv <provider_request.tsv>`
+instead validates the explicit curator-completed provider request TSV and, when
+all rows pass, writes `provider_request_external_genomes/` as the local draft
+for later `external-genomes validate` / `external-genomes install-plan`. It
+still writes the generated `provider_request/` draft for traceability, and it
+does not treat that draft as curator-completed. `build --write` writes only
+isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
+`provider_request/`, optional `provider_request_validation/`, optional
+`provider_request_external_genomes/`, and `coverage_pipeline_summary.json`
+members under the explicitly supplied directory. Existing output directories
+are refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline

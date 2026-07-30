@@ -5,6 +5,8 @@ import socket
 import subprocess
 
 from typetreeflow import cli
+from typetreeflow.external_genomes import calculate_sha256
+from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 
 
 def _write_tsv(path, fields, rows):
@@ -13,6 +15,11 @@ def _write_tsv(path, fields, rows):
         writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _read_tsv(path):
+    with path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
 
 
 def _run(args, capsys, *, action="preview"):
@@ -511,6 +518,105 @@ def test_coverage_pipeline_build_can_write_provider_request_validation_stage(
     )
     assert pipeline_summary["provider_request_validation_status"] == "blocked"
     assert pipeline_summary["operator_chain_stages"][4]["record_count"] == 0
+
+
+def test_coverage_pipeline_build_can_ingest_curated_provider_request(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    fasta = tmp_path / "local" / "provider" / "DSM-1.fna"
+    fasta.parent.mkdir(parents=True)
+    fasta.write_text(">seq\nACGT\n", encoding="utf-8")
+    curated_request = tmp_path / "curated_provider_request.tsv"
+    _write_tsv(
+        curated_request,
+        PROVIDER_REQUEST_FIELDS,
+        [
+            {
+                "request_id": "CUR-0001",
+                "species": "Clostridium alpha",
+                "strain": "DSM 1",
+                "type_strain_id": "DSM 1",
+                "provider": "dsmz",
+                "provider_name": "DSMZ",
+                "provider_record_id": "DSM-1",
+                "provider_record_url": "",
+                "provider_artifact_id": "",
+                "provider_artifact_version": "",
+                "artifact_type": "genome_fasta",
+                "local_fasta_path": "local/provider/DSM-1.fna",
+                "local_sha256": calculate_sha256(fasta),
+                "terms_review_status": "reviewed_allowed",
+                "license_notes": "allowed for local review",
+                "retrieval_date": "2026-07-30",
+                "is_type_material": "true",
+                "requires_manual_review": "false",
+                "curator": "reviewer-a",
+                "notes": "curated_provider_request=true",
+            }
+        ],
+    )
+    outdir = tmp_path / "pipeline_outputs"
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--curated-provider-request-tsv",
+            str(curated_request),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["provider_request_validation_status"] == "pass"
+    assert payload["provider_request_validation_ready_count"] == 1
+    assert payload["provider_request_external_genomes_status"] == "pass"
+    assert payload["provider_request_external_genomes_exported_count"] == 1
+    assert payload["operator_chain_stages"][4]["available"] is True
+    assert payload["operator_chain_stages"][5]["available"] is True
+    assert (
+        outdir
+        / "provider_request_validation"
+        / "provider_request_validation_summary.json"
+    ).exists()
+    external_genomes = (
+        outdir / "provider_request_external_genomes" / "external_genomes.tsv"
+    )
+    assert external_genomes.exists()
+    external_rows = _read_tsv(external_genomes)
+    assert external_rows[0]["external_source"] == "dsmz"
+    assert external_rows[0]["status"] == "external_genome_registered"
+    assert external_rows[0]["sha256"] == calculate_sha256(fasta)
+    assert str(fasta) not in captured.out
+    assert calculate_sha256(fasta) not in captured.out
+    pipeline_summary = json.loads(
+        (outdir / "coverage_pipeline_summary.json").read_text()
+    )
+    assert pipeline_summary["provider_request_external_genomes_status"] == "pass"
+    assert pipeline_summary["operator_chain_stages"][5]["record_count"] == 1
+
+    code, status_payload, _ = _run(
+        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        capsys,
+        action="status",
+    )
+    assert code == 0
+    assert status_payload["operator_chain_stages"][4]["summary_ready_count"] == 1
+    assert status_payload["operator_chain_stages"][5]["summary_exported_count"] == 1
 
 
 def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_path):

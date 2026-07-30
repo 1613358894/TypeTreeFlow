@@ -1165,6 +1165,16 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "base directory for relative local FASTA paths during optional validation",
         },
         {
+            "name": "--curated-provider-request-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": (
+                "optional curator-completed provider request TSV for downstream "
+                "local validation and external-genomes draft"
+            ),
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -2468,6 +2478,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "force",
                     "validate_provider_request",
                     "provider_request_validation_base_dir",
+                    "curated_provider_request_tsv",
                 }
             )
         _reject_unknown_fields(request, allowed)
@@ -2497,6 +2508,14 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                         "--provider-request-validation-base-dir",
                         validation_base_dir,
                     ]
+                )
+            curated_provider_request = _optional_string(
+                request,
+                "curated_provider_request_tsv",
+            )
+            if curated_provider_request:
+                argv.extend(
+                    ["--curated-provider-request-tsv", curated_provider_request]
                 )
             if _bool_flag(request, "write"):
                 argv.append("--write")

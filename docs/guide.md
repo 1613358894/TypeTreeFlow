@@ -223,6 +223,7 @@ typetreeflow coverage-pipeline build \
   --archive-candidates-tsv <archive_candidates.tsv> \
   --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
   --manual-supplement-hints-tsv <manual_supplement_hints.tsv> \
+  --curated-provider-request-tsv <curated_provider_request.tsv> \
   --validate-provider-request \
   --write --outdir <isolated-coverage-pipeline-directory>
 ```
@@ -255,12 +256,14 @@ isolated directory. This is the same offline readiness check as
 curator supplies accepted local FASTA paths and checksums. `build --write`
 publishes only isolated `acquisition_worklist/`, `coverage_plan/`,
 `provider_handoff/`, `provider_request/`, optional
-`provider_request_validation/`, and `coverage_pipeline_summary.json` members
-under the requested directory. A later `provider-request external-genomes-draft
---write` result can be placed under `provider_request_external_genomes/` for
-the same explicit handoff. They remain audit-only: no workflow outputs,
-provider contacts, downloads, FASTA copying, manifest mutation, registration,
-completion credit, or strict deliverable promotion.
+`provider_request_validation/`, optional `provider_request_external_genomes/`,
+and `coverage_pipeline_summary.json` members under the requested directory. If
+`--curated-provider-request-tsv` is supplied, the pipeline validates that
+explicit curator-completed TSV and writes `provider_request_external_genomes/`
+only when the local validation passes; it does not infer curator completion
+from the generated `provider_request/` draft. They remain audit-only: no
+workflow outputs, provider contacts, downloads, FASTA copying, manifest
+mutation, registration, completion credit, or strict deliverable promotion.
 
 To inspect the current local operator chain without writing anything:
 
