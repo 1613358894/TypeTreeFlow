@@ -697,8 +697,8 @@ loading the full workflow parser. This is metadata only; it does not make the
 catalog a dispatch authority.
 
 `providers catalog` is a related isolated metadata command. It emits provider
-keys, names, capability statuses, allowed modes, and fail-closed
-network/download fields as one compact JSON object. It also emits
+keys, names, common aliases, capability statuses, allowed modes, and
+fail-closed network/download fields as one compact JSON object. It also emits
 `guidance_notes` derived from the static registry adapter; those notes are
 offline planning hints, not provider authorization or executable download
 instructions. It does not contact providers, read credentials, write outputs,

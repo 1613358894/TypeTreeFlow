@@ -81,6 +81,14 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         assert registry.get(value).provider_key == expected_key
 
 
+def test_provider_registry_exposes_stable_aliases_for_catalog_metadata():
+    registry = build_default_provider_registry()
+
+    assert registry.aliases_for("bccm_lmg") == ("BCCM LMG", "BCCM-LMG", "LMG")
+    assert "NCBI RefSeq" in registry.aliases_for("refseq")
+    assert registry.aliases_for("unknown") == ()
+
+
 def test_unknown_provider_still_fails_closed():
     entry = build_default_provider_registry().get("new_provider")
 
