@@ -23,6 +23,7 @@ from typetreeflow.cli_config import (
     build_app_config_from_args,
 )
 from typetreeflow.cli_handlers.package_results import run_package_results_dispatch
+from typetreeflow.cli_handlers.report_only import run_report_only_dispatch
 from typetreeflow.cli_parser import build_parser
 from typetreeflow.config import AppConfig, ensure_real_action_allowed
 from typetreeflow.diagnostics import (
@@ -862,13 +863,16 @@ def main(
                 raise ValueError("--strains-per-species must be at least 1")
             if config.limit_selected is not None and config.limit_selected < 1:
                 raise ValueError("--limit-selected must be at least 1")
-            if config.report_only:
-                records = load_existing_manifest(config.outdir)
-                _write_run_summary(records, paths, config)
-                if not _source_audit_policy_allows_stage(paths, config, "report"):
-                    exit_code = 2
-                    return 2
-                return 0
+            report_only_exit = run_report_only_dispatch(
+                config,
+                paths,
+                load_manifest=load_existing_manifest,
+                write_summary=_write_run_summary,
+                source_audit_policy_allows_stage=_source_audit_policy_allows_stage,
+            )
+            if report_only_exit is not None:
+                exit_code = report_only_exit
+                return report_only_exit
             if config.plan_provider_registration is not None:
                 try:
                     result = run_provider_registration_planning_stage(paths, config)
