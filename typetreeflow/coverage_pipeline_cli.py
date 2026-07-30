@@ -910,6 +910,10 @@ _COVERAGE_ACTION_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
 }
 
 
+def _stage_recommended_request(stage_name: str) -> dict[str, object]:
+    return dict(_DEFAULT_STAGE_RECOMMENDED_REQUESTS[stage_name])
+
+
 def _tsv_record_count(
     path: Path,
     component: str,
@@ -1100,8 +1104,14 @@ def _payload(
         "provider_request_status_counts": request_summary[
             "provider_status_counts"
         ],
+        "provider_request_recommended_request": _stage_recommended_request(
+            "provider_handoff"
+        ),
         "provider_request_recommended_next_command": (
             PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND
+        ),
+        "provider_request_validation_recommended_request": (
+            _stage_recommended_request("provider_request")
         ),
         "provider_request_validation_recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
@@ -1124,6 +1134,9 @@ def _payload(
             "blocked_count",
         ),
         "provider_request_validation_output_paths": validation_output_paths,
+        "provider_request_external_genomes_recommended_request": (
+            _stage_recommended_request("provider_request_external_genomes")
+        ),
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
@@ -1149,6 +1162,9 @@ def _payload(
             if provider_request_external_genomes is None
             else provider_request_external_genomes["output_paths"]
         ),
+        "provider_request_external_genomes_install_plan_recommended_request": (
+            _stage_recommended_request("external_genomes_install_plan")
+        ),
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
@@ -1173,6 +1189,9 @@ def _payload(
             {key: None for key in INSTALL_PLAN_OUTPUT_NAMES}
             if external_genomes_install_plan is None
             else external_genomes_install_plan["output_paths"]
+        ),
+        "provider_request_external_genomes_handoff_recommended_request": (
+            _stage_recommended_request("provider_request_validation")
         ),
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
@@ -1458,8 +1477,14 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_record_count": 0,
         "provider_request_provider_key_counts": {},
         "provider_request_status_counts": {},
+        "provider_request_recommended_request": _stage_recommended_request(
+            "provider_handoff"
+        ),
         "provider_request_recommended_next_command": (
             PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND
+        ),
+        "provider_request_validation_recommended_request": (
+            _stage_recommended_request("provider_request")
         ),
         "provider_request_validation_recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
@@ -1471,6 +1496,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_validation_output_paths": {
             key: None for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES
         },
+        "provider_request_external_genomes_recommended_request": (
+            _stage_recommended_request("provider_request_external_genomes")
+        ),
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
@@ -1481,6 +1509,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_external_genomes_output_paths": {
             key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
         },
+        "provider_request_external_genomes_install_plan_recommended_request": (
+            _stage_recommended_request("external_genomes_install_plan")
+        ),
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
@@ -1491,6 +1522,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "external_genomes_install_plan_output_paths": {
             key: None for key in INSTALL_PLAN_OUTPUT_NAMES
         },
+        "provider_request_external_genomes_handoff_recommended_request": (
+            _stage_recommended_request("provider_request_validation")
+        ),
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
         ),
@@ -1547,6 +1581,10 @@ def _rendered_outputs(
             "coverage_action_counts",
             "coverage_provider_key_counts",
             "coverage_next_action_groups",
+            "primary_next_action_group",
+            "primary_action_required_inputs",
+            "primary_action_recommended_request",
+            "primary_action_recommended_next_command",
             "provider_handoff_record_count",
             "provider_key_counts",
             "provider_status_counts",
@@ -1558,25 +1596,30 @@ def _rendered_outputs(
             "provider_request_record_count",
             "provider_request_provider_key_counts",
             "provider_request_status_counts",
+            "provider_request_recommended_request",
             "provider_request_recommended_next_command",
+            "provider_request_validation_recommended_request",
             "provider_request_validation_recommended_next_command",
             "provider_request_validation_status",
             "provider_request_validation_record_count",
             "provider_request_validation_ready_count",
             "provider_request_validation_blocked_count",
             "provider_request_validation_output_paths",
+            "provider_request_external_genomes_recommended_request",
             "provider_request_external_genomes_recommended_next_command",
             "provider_request_external_genomes_status",
             "provider_request_external_genomes_record_count",
             "provider_request_external_genomes_exported_count",
             "provider_request_external_genomes_diagnostic_count",
             "provider_request_external_genomes_output_paths",
+            "provider_request_external_genomes_install_plan_recommended_request",
             "provider_request_external_genomes_install_plan_recommended_next_command",
             "external_genomes_install_plan_status",
             "external_genomes_install_plan_record_count",
             "external_genomes_install_plan_install_planned_count",
             "external_genomes_install_plan_diagnostic_count",
             "external_genomes_install_plan_output_paths",
+            "provider_request_external_genomes_handoff_recommended_request",
             "provider_request_external_genomes_handoff_recommended_next_command",
             "operator_chain_stages",
             "diagnostic_count",
