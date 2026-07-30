@@ -745,7 +745,8 @@ provider contact, download execution, or external-tool execution.
 For packaging requests, structured fields `delivery_dir`, `failed_handoff`,
 `manual_review_import_dir`, `acquisition_worklist_dir`, `coverage_plan_dir`,
 `provider_handoff_dir`, `provider_request_dir`,
-`provider_request_validation_dir`, `coverage_pipeline_dir`,
+`provider_request_validation_dir`, `provider_request_external_genomes_dir`,
+`external_genomes_install_plan_dir`, `coverage_pipeline_dir`,
 `offline_readiness_dir`, and `strict_gating_dir` render to their explicit
 `package-results` flags. These fields only plan a packaging command over
 explicit local audit inputs; they do not discover workflow outputs, contact

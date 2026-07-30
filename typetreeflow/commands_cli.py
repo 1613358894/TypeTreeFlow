@@ -42,6 +42,10 @@ _AUDIT_DIR_RENDER_FIELDS = (
         "provider_request_external_genomes_dir",
         "--provider-request-external-genomes-dir",
     ),
+    (
+        "external_genomes_install_plan_dir",
+        "--external-genomes-install-plan-dir",
+    ),
     ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
     ("archive_candidates_dir", "--archive-candidates-dir"),
     ("offline_readiness_dir", "--offline-readiness-dir"),
@@ -726,6 +730,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "explicit provider-request external-genomes draft audit output directory for report-only",
         },
         {
+            "name": "--external-genomes-install-plan-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit external-genomes install-plan audit output directory for report-only",
+        },
+        {
             "name": "--coverage-pipeline-dir",
             "kind": "path",
             "required": False,
@@ -847,6 +858,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicit provider-request external-genomes draft audit output directory",
+        },
+        {
+            "name": "--external-genomes-install-plan-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit external-genomes install-plan audit output directory",
         },
         {
             "name": "--coverage-pipeline-dir",
@@ -2316,7 +2334,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "coverage_plan_dir",
                 "provider_handoff_dir",
                 "provider_request_dir",
+                "provider_request_validation_dir",
                 "provider_request_external_genomes_dir",
+                "external_genomes_install_plan_dir",
                 "coverage_pipeline_dir",
                 "offline_readiness_dir",
                 "strict_gating_dir",
