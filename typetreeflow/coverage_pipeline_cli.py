@@ -34,6 +34,7 @@ from typetreeflow.evidence.provider_request_draft import (
 )
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 from typetreeflow.provider_request_external_genomes import (
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
 )
 from typetreeflow.provider_request_validation import (
@@ -311,6 +312,12 @@ def _payload(
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
+        "provider_request_external_genomes_handoff_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
+        ),
+        "provider_request_external_genomes_handoff_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
+        ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -477,6 +484,7 @@ def _rendered_outputs(
             "provider_request_recommended_next_command",
             "provider_request_validation_recommended_next_command",
             "provider_request_external_genomes_recommended_next_command",
+            "provider_request_external_genomes_handoff_recommended_next_command",
             "diagnostic_count",
             "diagnostics",
             "audit_only",

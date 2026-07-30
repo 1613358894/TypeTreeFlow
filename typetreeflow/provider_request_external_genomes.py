@@ -26,6 +26,11 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES = {
 PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow external-genomes validate --input <external_genomes.tsv>"
 )
+PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND = (
+    "typetreeflow provider-request external-genomes-handoff "
+    "--input <provider_request.tsv> --write "
+    "--outdir <isolated-handoff-directory>"
+)
 
 
 @dataclass(frozen=True)
