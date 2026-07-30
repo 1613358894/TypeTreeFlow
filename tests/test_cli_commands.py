@@ -309,6 +309,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("coverage-plan", "build"),
         ("provider-handoff", "build"),
         ("provider-request", "draft"),
+        ("provider-request", "external-genomes-draft"),
         ("plan-provider-registration", None),
         ("register-external-genomes", None),
         ("providers", "catalog"),
@@ -997,6 +998,45 @@ def test_commands_render_emits_normalized_provider_request_validate_argv(capsys)
     ]
     assert payload["recognized"]["command"] == "provider-request"
     assert payload["recognized"]["subcommand"] == "validate"
+    assert payload["recognized"]["mode"] == "provider_request"
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_provider_request_external_genomes_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"provider-request",'
+                    '"subcommand":"external-genomes-draft",'
+                    '"input":"provider_request.tsv","base_dir":"evidence",'
+                    '"json":true,"write":true,"outdir":"external","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "provider-request",
+        "external-genomes-draft",
+        "--input",
+        "provider_request.tsv",
+        "--base-dir",
+        "evidence",
+        "--write",
+        "--outdir",
+        "external",
+        "--json",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "provider-request"
+    assert payload["recognized"]["subcommand"] == "external-genomes-draft"
     assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["writes_outputs_declared"] is True
     assert payload["recognized"]["requires_outdir"] is True

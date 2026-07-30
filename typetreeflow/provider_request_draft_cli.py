@@ -22,6 +22,12 @@ from typetreeflow.evidence.provider_request_draft import (
     build_provider_request_draft,
 )
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, read_provider_requests
+from typetreeflow.provider_request_external_genomes import (
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
+    build_provider_request_external_genomes_draft,
+)
 from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
     PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
@@ -33,6 +39,7 @@ from typetreeflow.provider_request_validation import (
 
 COMMAND = "provider-request draft"
 VALIDATE_COMMAND = "provider-request validate"
+EXTERNAL_GENOMES_DRAFT_COMMAND = "provider-request external-genomes-draft"
 OUTPUT_NAMES = {
     "request": "provider_request.tsv",
     "summary": "provider_request_draft_summary.json",
@@ -89,6 +96,8 @@ def run_provider_request_command(
         return 2
     if args.action == "validate":
         return _run_validate(args, output)
+    if args.action == "external-genomes-draft":
+        return _run_external_genomes_draft(args, output)
     outdir = Path(args.outdir) if args.outdir else None
     if (
         (args.write and outdir is None)
@@ -162,7 +171,83 @@ def _build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--write", action="store_true")
     validate.add_argument("--outdir")
     validate.add_argument("--force", action="store_true")
+    external_genomes = actions.add_parser("external-genomes-draft", add_help=False)
+    external_genomes.add_argument("--input", required=True)
+    external_genomes.add_argument("--base-dir")
+    external_genomes.add_argument("--json", action="store_true")
+    external_genomes.add_argument("--write", action="store_true")
+    external_genomes.add_argument("--outdir")
+    external_genomes.add_argument("--force", action="store_true")
     return parser
+
+
+def _run_external_genomes_draft(args: argparse.Namespace, output: TextIO) -> int:
+    outdir = Path(args.outdir) if args.outdir else None
+    if (
+        (args.write and outdir is None)
+        or (outdir is not None and not args.write)
+        or (args.force and not args.write)
+    ):
+        _emit(_external_genomes_failure("invalid_command_usage"), output)
+        return 2
+    input_path = Path(args.input)
+    base_dir = Path(args.base_dir) if args.base_dir else input_path.parent
+    try:
+        records = read_provider_requests(input_path)
+    except (OSError, UnicodeError, csv.Error, ValueError):
+        _emit(_external_genomes_failure("provider_request_input_invalid"), output)
+        return 2
+    try:
+        draft = build_provider_request_external_genomes_draft(
+            records,
+            base_dir=base_dir,
+        )
+    except Exception:
+        _emit(_external_genomes_failure("internal_error"), output)
+        return 1
+    payload = _external_genomes_payload(draft)
+    if args.write:
+        if not draft.valid:
+            _emit(payload, output)
+            return 2
+        written_payload = {
+            **payload,
+            "writes_outputs": True,
+            "output_paths": {
+                key: str(outdir / name)
+                for key, name in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES.items()
+            },
+        }
+        try:
+            _publish_external_genomes_draft(
+                input_path=input_path,
+                outdir=outdir,
+                rendered={
+                    "external_genomes": draft.external_genomes_tsv(),
+                    "summary": json.dumps(
+                        written_payload, sort_keys=True, separators=(",", ":")
+                    )
+                    + "\n",
+                },
+                force=args.force,
+            )
+        except ValueError:
+            payload.update(
+                status="failed",
+                summary="Provider request external-genomes output path was refused",
+            )
+            _emit(payload, output)
+            return 2
+        except (OSError, UnicodeError):
+            payload.update(
+                status="failed",
+                summary="Provider request external-genomes output write failed",
+            )
+            _emit(payload, output)
+            return 1
+        payload = written_payload
+    _emit(payload, output)
+    return 0 if draft.valid else 2
 
 
 def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
@@ -367,6 +452,54 @@ def _validate_payload(validation) -> dict[str, object]:
     }
 
 
+def _external_genomes_payload(draft) -> dict[str, object]:
+    summary = draft.summary
+    preview = [
+        {
+            "species": record.species,
+            "provider": record.external_source,
+            "external_genome_id": record.external_genome_id,
+            "status": record.status,
+        }
+        for record in draft.records[:_PREVIEW_LIMIT]
+    ]
+    return {
+        "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
+        "status": "pass" if draft.valid else "blocked",
+        "command": EXTERNAL_GENOMES_DRAFT_COMMAND,
+        "record_count": summary["record_count"],
+        "exported_count": summary["exported_count"],
+        "provider_counts": summary["provider_counts"],
+        "diagnostic_counts": summary["diagnostic_counts"],
+        "diagnostic_count": summary["diagnostic_count"],
+        "diagnostics": list(draft.diagnostics),
+        "external_genomes_preview": preview,
+        "external_genomes_truncated": len(draft.records) > len(preview),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+        ),
+        "output_paths": {
+            key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
+        },
+        "summary": (
+            "Provider request external-genomes draft passed"
+            if draft.valid
+            else "Provider request external-genomes draft blocked"
+        ),
+    }
+
+
 def _failure(code: str, message: str) -> dict[str, object]:
     return {
         "schema_version": PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
@@ -396,6 +529,47 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "recommended_next_command": PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "summary": message,
+    }
+
+
+def _external_genomes_failure(code: str) -> dict[str, object]:
+    return {
+        "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
+        "status": "failed",
+        "command": EXTERNAL_GENOMES_DRAFT_COMMAND,
+        "record_count": 0,
+        "exported_count": 0,
+        "provider_counts": {},
+        "diagnostic_counts": {code: 1},
+        "diagnostic_count": 1,
+        "diagnostics": [
+            {
+                "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
+                "component": "provider_request_external_genomes_cli",
+                "severity": "error",
+                "diagnostic_code": code,
+            }
+        ],
+        "external_genomes_preview": [],
+        "external_genomes_truncated": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+        ),
+        "output_paths": {
+            key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
+        },
+        "summary": "Provider request external-genomes draft failed",
     }
 
 
@@ -565,6 +739,49 @@ def _publish_validation(
             shutil.rmtree(backup, ignore_errors=True)
 
 
+def _publish_external_genomes_draft(
+    *,
+    input_path: Path,
+    outdir: Path,
+    rendered: dict[str, str],
+    force: bool,
+) -> None:
+    _validate_external_genomes_outdir(input_path=input_path, outdir=outdir, force=force)
+    parent = outdir.parent
+    stage = parent / f".{outdir.name}.external-genomes-stage-{uuid.uuid4().hex}"
+    backup = parent / f".{outdir.name}.external-genomes-backup-{uuid.uuid4().hex}"
+    backed_up = False
+    published = False
+    try:
+        stage.mkdir()
+        for key, name in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES.items():
+            with (stage / name).open("x", encoding="utf-8", newline="") as handle:
+                handle.write(rendered[key])
+                handle.flush()
+                os.fsync(handle.fileno())
+        if outdir.exists():
+            os.replace(outdir, backup)
+            backed_up = True
+        try:
+            os.replace(stage, outdir)
+            published = True
+        except OSError:
+            if backed_up:
+                os.replace(backup, outdir)
+                backed_up = False
+            raise
+        if backed_up:
+            shutil.rmtree(backup)
+            backed_up = False
+    finally:
+        if stage.exists():
+            shutil.rmtree(stage, ignore_errors=True)
+        if backed_up and not outdir.exists() and backup.exists():
+            os.replace(backup, outdir)
+        elif backup.exists() and published:
+            shutil.rmtree(backup, ignore_errors=True)
+
+
 def _validate_outdir(*, input_path: Path, outdir: Path, force: bool) -> None:
     if not outdir.parent.is_dir() or _has_symlink_component(outdir.parent):
         raise ValueError("output parent is unsafe")
@@ -642,6 +859,53 @@ def _validate_validation_outdir(
             PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS
         ):
             raise ValueError("existing diagnostics schema does not match")
+
+
+def _validate_external_genomes_outdir(
+    *,
+    input_path: Path,
+    outdir: Path,
+    force: bool,
+) -> None:
+    if not outdir.parent.is_dir() or _has_symlink_component(outdir.parent):
+        raise ValueError("output parent is unsafe")
+    if outdir.is_symlink() or _has_symlink_component(outdir):
+        raise ValueError("output directory is unsafe")
+    resolved = outdir.resolve(strict=False)
+    repo_root = Path(__file__).resolve().parents[1]
+    if resolved == repo_root:
+        raise ValueError("output directory cannot be the repository root")
+    source_resolved = input_path.resolve(strict=False)
+    if resolved == source_resolved or _is_relative_to(source_resolved, resolved):
+        raise ValueError("output directory cannot contain an input")
+    if any(part.casefold() in _PROTECTED_OUTPUT_TERMS for part in resolved.parts):
+        raise ValueError("output resembles protected workflow output")
+    if not outdir.exists():
+        return
+    if not force or not outdir.is_dir():
+        raise ValueError("existing output requires --force")
+    entries = {item.name: item for item in outdir.iterdir()}
+    if set(entries) != set(PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES.values()):
+        raise ValueError("existing output is not an owned external-genomes draft")
+    if any(not item.is_file() or item.is_symlink() for item in entries.values()):
+        raise ValueError("existing output contains unsafe artifacts")
+    with entries[
+        PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["external_genomes"]
+    ].open(encoding="utf-8", newline="") as handle:
+        from typetreeflow.external_genomes import EXTERNAL_GENOME_FIELDS
+
+        if handle.readline().rstrip("\r\n") != "\t".join(EXTERNAL_GENOME_FIELDS):
+            raise ValueError("existing external genomes schema does not match")
+    try:
+        summary = json.loads(
+            entries[PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["summary"]].read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("existing summary is malformed") from exc
+    if summary.get("schema_version") != PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION:
+        raise ValueError("existing summary schema does not match")
 
 
 def _has_symlink_component(path: Path) -> bool:

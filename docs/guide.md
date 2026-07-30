@@ -164,6 +164,23 @@ external-genome handoff review; it does not contact providers, download
 genomes, mutate manifests, write workflow outputs, write
 `external_genomes.tsv`, or create strict scientific deliverables.
 
+Convert fully ready provider request rows into an isolated
+`external_genomes.tsv` review draft:
+
+```bash
+typetreeflow provider-request external-genomes-draft \
+  --input <provider_request.tsv> [--base-dir <local-fasta-base-dir>] [--json] \
+  [--write --outdir <isolated-external-genomes-directory> [--force]]
+```
+
+The command reuses the same provider-request validation guards and writes an
+`external_genomes.tsv` only when every row is ready. The draft records resolved
+local FASTA paths for later `external-genomes validate` use, but stdout
+previews omit local paths, hashes, notes, and sequence contents. This is still
+only a handoff input: it does not register external genomes, copy FASTA files,
+mutate manifests, contact providers, download data, or create strict scientific
+deliverables.
+
 Preview the full offline coverage planning chain in one no-write command:
 
 ```bash

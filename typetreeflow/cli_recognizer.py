@@ -39,7 +39,7 @@ _COUNT_CROSSWALK_SUBCOMMANDS = {"build"}
 _ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
 _COVERAGE_PLAN_SUBCOMMANDS = {"build"}
 _PROVIDER_HANDOFF_SUBCOMMANDS = {"build"}
-_PROVIDER_REQUEST_SUBCOMMANDS = {"draft", "validate"}
+_PROVIDER_REQUEST_SUBCOMMANDS = {"draft", "external-genomes-draft", "validate"}
 _EXTERNAL_GENOMES_SUBCOMMANDS = {"validate"}
 _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
@@ -343,7 +343,10 @@ def _writes_outputs_declared(
     if command == "provider-handoff":
         return subcommand == "build" and "--write" in tokens
     if command == "provider-request":
-        return subcommand in {"draft", "validate"} and "--write" in tokens
+        return (
+            subcommand in {"draft", "external-genomes-draft", "validate"}
+            and "--write" in tokens
+        )
     if command == "external-genomes":
         return False
     if command == "plan-provider-registration":
@@ -401,7 +404,10 @@ def _requires_outdir(
     if command == "provider-handoff":
         return subcommand == "build" and writes_outputs_declared
     if command == "provider-request":
-        return subcommand in {"draft", "validate"} and writes_outputs_declared
+        return (
+            subcommand in {"draft", "external-genomes-draft", "validate"}
+            and writes_outputs_declared
+        )
     if command == "external-genomes":
         return False
     if command == "curator-packet":

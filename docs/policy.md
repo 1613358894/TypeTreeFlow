@@ -395,6 +395,19 @@ is not provider execution, download completion, manifest mutation,
 registration, completion credit, or strict scientific delivery.
 Failed-handoff packages exclude provider-request validation artifacts.
 
+The `provider-request external-genomes-draft` CLI is the only provider-request
+surface that may emit an `external_genomes.tsv` handoff draft. It must reuse
+the local validation guards, require every input row to be ready, and publish
+only `external_genomes.tsv` plus
+`provider_request_external_genomes_summary.json` in an explicit isolated output
+directory. The draft may contain resolved local FASTA paths because those are
+the intended inputs for later local external-genomes validation, but compact
+stdout must not display paths, hashes, provider notes, curator values, or
+sequence contents. This command must not register external genomes, copy FASTA
+files, contact providers, accept terms, download data, mutate manifests,
+change completion metrics, or reinterpret provider-request rows as strict
+scientific deliverables.
+
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
 plan, provider handoff, and provider request draft. It may read only explicitly

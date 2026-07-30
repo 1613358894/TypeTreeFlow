@@ -249,6 +249,16 @@ _CATALOG_ENTRIES = (
         "boundary": "provider request local evidence validation only; no provider contact or downloads",
     },
     {
+        "command": "provider-request",
+        "subcommand": "external-genomes-draft",
+        "mode": "provider_request",
+        "argv_pattern": "typetreeflow provider-request external-genomes-draft --input <provider_request.tsv>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_external_genomes_pair",
+        "requires_outdir": False,
+        "boundary": "provider request to external-genomes review draft only; no registration, provider contact, or downloads",
+    },
+    {
         "command": "external-genomes",
         "subcommand": "validate",
         "mode": "external_genomes",
@@ -1315,6 +1325,50 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "overwrite compatible isolated provider request validation pair",
         },
     ],
+    ("provider-request", "external-genomes-draft"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "curator-completed provider_request.tsv input",
+        },
+        {
+            "name": "--base-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "base directory for relative local FASTA paths",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated external_genomes.tsv draft outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated external-genomes draft output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated external-genomes draft pair",
+        },
+    ],
     ("external-genomes", "validate"): [
         {
             "name": "--input",
@@ -2296,6 +2350,35 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         argv = [
             "provider-request",
             "validate",
+            "--input",
+            _required_string(request, "input"),
+        ]
+        base_dir = _optional_string(request, "base_dir")
+        if base_dir:
+            argv.extend(["--base-dir", base_dir])
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"json": "--json", "force": "--force"})
+    if command == "provider-request" and subcommand == "external-genomes-draft":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input",
+                "base_dir",
+                "json",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "provider-request",
+            "external-genomes-draft",
             "--input",
             _required_string(request, "input"),
         ]

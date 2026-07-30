@@ -1542,6 +1542,32 @@ completion metrics, or promote strict scientific deliverables. A ready row
 means only that local provider-request evidence is ready for external-genome
 handoff review.
 
+The isolated provider request to external-genomes draft adapter is:
+
+```text
+typetreeflow provider-request external-genomes-draft --input <provider_request.tsv> [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
+```
+
+It reads only the explicitly named `provider_request.tsv` plus local FASTA
+files needed by the same validation guards used by
+`provider-request validate`. Relative FASTA paths are resolved against
+`--base-dir`, or against the input file parent when `--base-dir` is omitted.
+The command emits one compact JSON object and never echoes local FASTA paths,
+SHA-256 values, provider notes, curator values, or sequence contents. Without
+`--write`, it writes nothing. With `--write`, it writes only
+`external_genomes.tsv` and
+`provider_request_external_genomes_summary.json` into the explicitly supplied
+directory. Existing output directories are refused by default; `--force`
+replaces only an owned pair with matching schemas.
+
+The command exits `0` only when every provider request row is ready and can be
+rendered into the external-genomes schema. Input, schema, or readiness blockers
+exit `2`; unexpected internal or write failures exit `1`. The output
+`external_genomes.tsv` is a local handoff input for
+`external-genomes validate`; it does not register external genomes, copy FASTA
+files, contact providers, trigger downloads, mutate manifests, change
+completion metrics, or promote strict scientific deliverables.
+
 For AI metadata routing, `commands render` accepts
 `{"command":"plan-provider-registration","provider_request":"provider_request.tsv","outdir":"run"}`
 and renders the current compatible argv form:
