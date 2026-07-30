@@ -1711,10 +1711,11 @@ provider-status, and provider-request draft counts plus
 `provider_request_external_genomes_handoff_recommended_next_command` plus
 `provider_request_recommended_next_command`, and bounded previews. Action
 groups are sorted by priority and summarize action code, record count, source
-lanes, provider keys, a structured `recommended_request` draft, and the
-recommended next command for AI/operator routing. The request draft is metadata
-only; operators should still pass it through `commands render`, `commands plan`,
-or `commands preflight` before execution.
+lanes, provider keys, required inputs, a structured `recommended_request` draft,
+and the recommended next command for AI/operator routing. Required inputs are
+metadata-only evidence requirements copied from coverage-plan actions. The
+request draft is also metadata only; operators should still pass it through
+`commands render`, `commands plan`, or `commands preflight` before execution.
 `operator_chain_stages` is a bounded AI/operator checklist for the same local
 chain. Each row reports `stage`, `artifact`, `available`, `record_count`,
 `recommended_next_command`, and `boundary`; it is metadata only and does not
