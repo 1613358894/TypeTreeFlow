@@ -1716,6 +1716,19 @@ stable boundary fields `dry_run=true`, `writes_outputs=false`,
 `writes_workflow_outputs=false`, `downloads_triggered=0`,
 `providers_contacted=0`, `network_access=false`, `external_tools=false`,
 `manifest_mutated=false`, and `strict_scientific_deliverable=false`.
+`external-genomes install-plan --input <external_genomes.tsv> --target-outdir
+<run>` is the AI/operator handoff between validation and workflow
+registration. It validates the same explicit TSV and referenced local FASTA
+files, computes the future `genomes/references/*.fna` install paths for
+`<run>`, and emits a compact JSON plan without copying FASTA, writing the
+target run, installing manifest rows, contacting providers, or downloading
+data. Optional `--write --outdir <dir> [--force]` writes only an isolated
+`external_genome_registration_results.tsv`,
+`external_genome_install_plan.tsv`, and
+`external_genome_install_plan_summary.json`; the target run remains read-only
+for this command. Valid plans exit `0`; schema, input, checksum,
+missing-file, or manual-review diagnostics exit `2`; output-path or write
+failures exit `1`.
 `--register-external-genomes <external_genomes.tsv>` emits one compact JSON
 object on stdout. The payload reports registration-result, valid/invalid,
 install-plan, install-result, and manifest record counts plus the stable

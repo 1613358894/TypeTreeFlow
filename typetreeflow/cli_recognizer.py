@@ -45,7 +45,7 @@ _PROVIDER_REQUEST_SUBCOMMANDS = {
     "external-genomes-handoff",
     "validate",
 }
-_EXTERNAL_GENOMES_SUBCOMMANDS = {"validate"}
+_EXTERNAL_GENOMES_SUBCOMMANDS = {"install-plan", "validate"}
 _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
@@ -359,7 +359,7 @@ def _writes_outputs_declared(
             and "--write" in tokens
         )
     if command == "external-genomes":
-        return False
+        return subcommand == "install-plan" and "--write" in tokens
     if command == "plan-provider-registration":
         return True
     if command == "register-external-genomes":
@@ -426,7 +426,7 @@ def _requires_outdir(
             and writes_outputs_declared
         )
     if command == "external-genomes":
-        return False
+        return subcommand == "install-plan" and writes_outputs_declared
     if command == "curator-packet":
         return subcommand == "preflight" and writes_outputs_declared
     if command == "strict-gate-state":

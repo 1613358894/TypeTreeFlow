@@ -139,3 +139,121 @@ def test_external_genomes_validate_rejects_unknown_action(capsys):
     payload = _payload(capsys)
     assert payload["status"] == "failed"
     assert payload["diagnostics"][0]["diagnostic_code"] == "invalid_command_usage"
+
+
+def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsys):
+    fasta = _fasta(tmp_path / "inputs" / "genomes" / "reference.fna")
+    table = _write_external_genomes(
+        tmp_path / "inputs" / "external_genomes.tsv",
+        [_row(genome_fasta_path="genomes/reference.fna", sha256=calculate_sha256(fasta))],
+    )
+    target_run = tmp_path / "target_run"
+    isolated = tmp_path / "install_plan"
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "install-plan",
+                "--input",
+                str(table),
+                "--target-outdir",
+                str(target_run),
+                "--write",
+                "--outdir",
+                str(isolated),
+            ]
+        )
+        == 0
+    )
+
+    payload = _payload(capsys)
+    assert payload["status"] == "pass"
+    assert payload["command"] == "external-genomes install-plan"
+    assert payload["record_count"] == 1
+    assert payload["valid_count"] == 1
+    assert payload["install_planned_count"] == 1
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["target_outdir_mutated"] is False
+    assert payload["install_executed"] is False
+    assert payload["external_genomes_registration_applied"] is False
+    assert "register-external-genomes" in payload["recommended_next_command"]
+    assert not target_run.exists()
+    assert (isolated / "external_genome_registration_results.tsv").is_file()
+    assert (isolated / "external_genome_install_plan.tsv").is_file()
+    assert (isolated / "external_genome_install_plan_summary.json").is_file()
+
+
+def test_external_genomes_install_plan_blocks_invalid_rows_without_outputs(
+    tmp_path, capsys
+):
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [_row(genome_fasta_path="missing.fna")],
+    )
+    isolated = tmp_path / "install_plan"
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "install-plan",
+                "--input",
+                str(table),
+                "--target-outdir",
+                str(tmp_path / "target_run"),
+                "--json",
+            ]
+        )
+        == 2
+    )
+
+    payload = _payload(capsys)
+    assert payload["status"] == "blocked"
+    assert payload["invalid_count"] == 1
+    assert payload["diagnostics"][0]["diagnostic_code"] == "external_genome_missing_file"
+    assert payload["writes_outputs"] is False
+    assert not isolated.exists()
+    assert not (tmp_path / "target_run").exists()
+
+
+def test_external_genomes_install_plan_requires_force_for_existing_output(
+    tmp_path, capsys
+):
+    fasta = _fasta(tmp_path / "genomes" / "reference.fna")
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [_row(sha256=calculate_sha256(fasta))],
+    )
+    isolated = tmp_path / "install_plan"
+    args = [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        str(table),
+        "--target-outdir",
+        str(tmp_path / "target_run"),
+        "--write",
+        "--outdir",
+        str(isolated),
+    ]
+
+    assert main(args) == 0
+    _payload(capsys)
+    assert main(args) == 1
+
+    payload = _payload(capsys)
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][-1]["diagnostic_code"] == "output_exists"
+
+    assert main([*args, "--force"]) == 0
+    assert _payload(capsys)["status"] == "pass"
+
+
+def test_external_genomes_install_plan_rejects_unknown_action(capsys):
+    assert main(["external-genomes", "install"]) == 2
+
+    payload = _payload(capsys)
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "invalid_command_usage"

@@ -822,6 +822,12 @@ enable TypeTreeFlow network access or downloads.
 typetreeflow external-genomes validate \
   --input <reviewed_external_genomes.tsv>
 
+typetreeflow external-genomes install-plan \
+  --input <reviewed_external_genomes.tsv> \
+  --target-outdir <workspace>/runs/fusobacterium_external \
+  --write \
+  --outdir <workspace>/handoffs/fusobacterium_external_install_plan
+
 typetreeflow register-external-genomes \
   --external-genomes <reviewed_external_genomes.tsv> \
   --outdir <workspace>/runs/fusobacterium_external
@@ -835,6 +841,9 @@ For the internal Fusobacterium external pilot fixture, NCBI Assembly strict comp
 The fixture FASTA is synthetic/local test data and not a real ATCC genome. The
 workflow does not log in to
 ATCC Genome Portal.
+The isolated install-plan command is optional but useful for AI operators: it
+checks local FASTA readiness and planned install destinations before invoking
+the workflow registration surface, while leaving the target run unmodified.
 
 ## Troubleshooting
 
