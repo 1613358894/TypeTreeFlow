@@ -536,6 +536,66 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["operator_chain_stages"][7]["record_count"] == 1
 
 
+def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    code, _payload, _captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+
+    validation_dir = pipeline_dir / "provider_request_validation"
+    validation_dir.mkdir()
+    (validation_dir / "provider_request_validation_summary.json").write_text(
+        json.dumps({"ready_count": 1})
+    )
+    external_dir = pipeline_dir / "provider_request_external_genomes"
+    external_dir.mkdir()
+    (external_dir / "provider_request_external_genomes_summary.json").write_text(
+        json.dumps({"exported_count": 1})
+    )
+    _write_tsv(
+        external_dir / "external_genomes.tsv",
+        ("species", "assembly_accession"),
+        [{"species": "Clostridium alpha", "assembly_accession": "GCF_000001"}],
+    )
+
+    code, payload, captured = _run(
+        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["operator_chain_stages"][4]["available"] is True
+    assert payload["operator_chain_stages"][4]["record_count"] == 1
+    assert payload["operator_chain_stages"][5]["available"] is True
+    assert payload["operator_chain_stages"][5]["record_count"] == 1
+    assert payload["operator_chain_stages"][6]["available"] is False
+    assert payload["next_stage"]["stage"] == "external_genomes_install_plan"
+    assert payload["recommended_next_command"] == (
+        "typetreeflow external-genomes install-plan "
+        "--input <external_genomes.tsv> --target-outdir <run>"
+    )
+
+
 def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
     capsys, tmp_path
 ):

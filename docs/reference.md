@@ -1670,8 +1670,9 @@ writes only isolated `acquisition_worklist/`, `coverage_plan/`,
 members under the explicitly supplied directory. Existing output directories
 are refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
-`status` reads only the explicitly supplied isolated coverage-pipeline summary
-and optional downstream isolated artifact directories, then re-emits
+`status` reads only the explicitly supplied isolated coverage-pipeline summary,
+conventional downstream child directories under that same explicit pipeline
+directory, and optional downstream directory overrides. It then re-emits
 `operator_chain_stages`, the current unavailable stage, and the recommended
 next command as compact JSON. It never discovers workflow output directories,
 writes files, contacts providers, downloads genomes, copies FASTA, mutates
