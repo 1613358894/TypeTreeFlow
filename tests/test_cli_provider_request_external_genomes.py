@@ -101,6 +101,8 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
         "subcommand": "install-plan",
         "input": "external_genomes.tsv",
         "target_outdir": "<run>",
+        "write": True,
+        "outdir": "<isolated-install-plan-directory>",
     }
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
@@ -154,7 +156,8 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
     assert summary["recommended_request"]["subcommand"] == "validate"
     assert summary["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run>"
+        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--write --outdir <isolated-install-plan-directory>"
     )
     assert summary["install_plan_recommended_request"]["subcommand"] == "install-plan"
     assert header == "\t".join(EXTERNAL_GENOME_FIELDS)
@@ -357,10 +360,13 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
         "subcommand": "install-plan",
         "input": "external_genomes.tsv",
         "target_outdir": "<run>",
+        "write": True,
+        "outdir": "<isolated-install-plan-directory>",
     }
     assert payload["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run>"
+        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--write --outdir <isolated-install-plan-directory>"
     )
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
@@ -371,7 +377,8 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
     )
     assert external_summary["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run>"
+        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--write --outdir <isolated-install-plan-directory>"
     )
     assert (
         outdir / "provider_request_external_genomes" / "external_genomes.tsv"

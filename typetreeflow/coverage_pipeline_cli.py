@@ -865,6 +865,8 @@ _DEFAULT_STAGE_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
         "subcommand": "install-plan",
         "input": "provider_request_external_genomes/external_genomes.tsv",
         "target_outdir": "<run>",
+        "write": True,
+        "outdir": "<isolated-install-plan-directory>",
     },
     "external_genomes_registration_dry_run": {
         "command": "register-external-genomes",

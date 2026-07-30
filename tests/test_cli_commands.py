@@ -358,6 +358,17 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("commands", "render"),
         ("commands", "plan"),
     }
+    install_plan_entry = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"]) == (
+            "external-genomes",
+            "install-plan",
+        )
+    )
+    assert "--write --outdir <isolated-install-plan-directory>" in (
+        install_plan_entry["argv_pattern"]
+    )
 
 
 def test_commands_catalog_rejects_extra_tokens(capsys):
