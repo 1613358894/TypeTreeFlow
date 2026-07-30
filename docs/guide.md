@@ -289,8 +289,8 @@ workflow outputs, contact providers, download genomes, copy FASTA, mutate
 manifests, or grant completion credit.
 When a child stage summary is present, status preserves compact `summary_*`
 fields on that stage row, such as provider-request validation ready/blocked
-counts, so AI operators can route the next local review step without opening
-the child artifact.
+counts and bounded blocker/provider/status count dictionaries, so AI operators
+can route the next local review step without opening the child artifact.
 Use `--require-complete` only when an automation gate should fail closed unless
 all operator-chain stages are available.
 When missing-public-genome rows contain explicit provider hints or recognizable

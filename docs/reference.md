@@ -1690,14 +1690,17 @@ re-parsing every stage row. When an explicit or conventional child stage
 summary is present, the matching `operator_chain_stages` row also carries
 bounded `summary_*` fields such as `summary_status`, `summary_ready_count`,
 `summary_blocked_count`, `summary_exported_count`, or
-`summary_install_planned_count`; these are routing hints only and do not change
-the `available` gate. It also includes `completion_gate` with `passed`,
-`required`, `blocking_stage_count`, `blocking_stage_names`, and
-`blocking_diagnostic_code`. By default, an incomplete chain remains a readable
-status result. Add `--require-complete` to make incomplete chains fail closed
-with exit code `2` and `diagnostic_code=chain_incomplete`. It never discovers
-workflow output directories, writes files, contacts providers, downloads
-genomes, copies FASTA, mutates manifests, or changes completion metrics.
+`summary_install_planned_count`; bounded count dictionaries such as
+`summary_blocker_counts`, `summary_provider_counts`, and
+`summary_install_plan_status_counts` may also be included. These are routing
+hints only and do not change the `available` gate. It also includes
+`completion_gate` with `passed`, `required`, `blocking_stage_count`,
+`blocking_stage_names`, and `blocking_diagnostic_code`. By default, an
+incomplete chain remains a readable status result. Add `--require-complete` to
+make incomplete chains fail closed with exit code `2` and
+`diagnostic_code=chain_incomplete`. It never discovers workflow output
+directories, writes files, contacts providers, downloads genomes, copies FASTA,
+mutates manifests, or changes completion metrics.
 Missing, unreadable, or empty inputs block with exit code `2`; successful
 previews/builds exit `0`; unexpected internal or write failures exit `1`. The
 pipeline is an AI/operator planning shortcut only: it does not contact
