@@ -786,9 +786,13 @@ plan is still metadata only; it is not execution authorization.
 `commands preflight` adds an advisory `decision` of `allow` or `block`,
 `allowances`, `risk`, `blocking`, and `warnings`. Declared output writes
 require `--allow-write`; workflow-output mutation additionally requires
-`--allow-workflow-outputs`; non-dry-run real-action flags require
-`--allow-real-actions`; network/download/provider flags require
-`--allow-network`; external-tool flags require `--allow-external-tools`.
+`--allow-workflow-outputs`. Non-dry-run `--register-external-genomes` is
+classified as workflow-output mutation because it can write manifest/name-map
+state; the same command with `--dry-run` still requires `--allow-write` for
+its local result/plan files but does not require `--allow-workflow-outputs`.
+Non-dry-run real-action flags require `--allow-real-actions`;
+network/download/provider flags require `--allow-network`; external-tool flags
+require `--allow-external-tools`.
 Real-action flags under `--dry-run` produce a warning rather than a block. The
 preflight decision is a conservative local planning aid and is not execution
 authorization. The catalog, recognizer, and preflight gate are not dispatch
