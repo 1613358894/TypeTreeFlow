@@ -576,6 +576,20 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "offline archive candidate audit TSV input",
         },
         {
+            "name": "--expanded-discovery-results-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local expanded discovery results TSV input",
+        },
+        {
+            "name": "--manual-supplement-hints-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local manual supplement hints TSV input",
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -633,6 +647,20 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "optional public archive candidates TSV",
         },
+        {
+            "name": "--expanded-discovery-results-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional expanded discovery results TSV",
+        },
+        {
+            "name": "--manual-supplement-hints-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional manual supplement hints TSV",
+        },
     ],
     ("coverage-pipeline", "build"): [
         {
@@ -669,6 +697,20 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "optional public archive candidates TSV",
+        },
+        {
+            "name": "--expanded-discovery-results-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional expanded discovery results TSV",
+        },
+        {
+            "name": "--manual-supplement-hints-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional manual supplement hints TSV",
         },
         {
             "name": "--write",
@@ -1576,6 +1618,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "completion_gaps_tsv",
                 "external_genomes_tsv",
                 "archive_candidates_tsv",
+                "expanded_discovery_results_tsv",
+                "manual_supplement_hints_tsv",
                 "write",
                 "outdir",
                 "force",
@@ -1588,6 +1632,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             ("completion_gaps_tsv", "--completion-gaps-tsv"),
             ("external_genomes_tsv", "--external-genomes-tsv"),
             ("archive_candidates_tsv", "--archive-candidates-tsv"),
+            ("expanded_discovery_results_tsv", "--expanded-discovery-results-tsv"),
+            ("manual_supplement_hints_tsv", "--manual-supplement-hints-tsv"),
         ):
             value = _optional_string(request, key)
             if value:
@@ -1607,6 +1653,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "completion_gaps_tsv",
             "external_genomes_tsv",
             "archive_candidates_tsv",
+            "expanded_discovery_results_tsv",
+            "manual_supplement_hints_tsv",
         }
         if subcommand == "build":
             allowed.update({"write", "outdir", "force"})
@@ -1618,6 +1666,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             ("completion_gaps_tsv", "--completion-gaps-tsv"),
             ("external_genomes_tsv", "--external-genomes-tsv"),
             ("archive_candidates_tsv", "--archive-candidates-tsv"),
+            ("expanded_discovery_results_tsv", "--expanded-discovery-results-tsv"),
+            ("manual_supplement_hints_tsv", "--manual-supplement-hints-tsv"),
         ):
             value = _optional_string(request, key)
             if value:
