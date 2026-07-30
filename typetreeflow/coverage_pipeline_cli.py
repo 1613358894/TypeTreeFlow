@@ -656,6 +656,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             if next_stage
             else ""
         ),
+        "coverage_opportunity_summary": _optional_summary_list(
+            coverage_summary, "coverage_opportunity_summary"
+        ),
         "provider_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_automation_level_counts"
         ),
@@ -1056,6 +1059,10 @@ def _payload(
     coverage_next_action_groups = _coverage_next_action_groups(
         coverage_plan.actions
     )
+    coverage_opportunity_summary = _coverage_opportunity_summary(
+        coverage_next_action_groups,
+        provider_handoff.rows,
+    )
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
         if coverage_next_action_groups
@@ -1100,6 +1107,7 @@ def _payload(
         "coverage_action_counts": coverage_summary["action_counts"],
         "coverage_provider_key_counts": coverage_summary["provider_key_counts"],
         "coverage_next_action_groups": coverage_next_action_groups,
+        "coverage_opportunity_summary": coverage_opportunity_summary,
         "primary_next_action_group": primary_next_action_group,
         "primary_action_required_inputs": primary_action_required_inputs,
         "primary_action_recommended_request": primary_action_recommended_request,
@@ -1298,6 +1306,13 @@ def _optional_summary_map(summary: dict[str, object], key: str) -> dict[str, obj
     return {str(item_key): item_value for item_key, item_value in value.items()}
 
 
+def _optional_summary_list(summary: dict[str, object], key: str) -> list[object]:
+    value = summary.get(key)
+    if not isinstance(value, list):
+        return []
+    return list(value)
+
+
 def _operator_chain_stages(
     *,
     worklist_count: int,
@@ -1486,6 +1501,42 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
     )
 
 
+def _coverage_opportunity_summary(
+    action_groups: list[dict[str, object]],
+    provider_handoff_rows,
+) -> list[dict[str, object]]:
+    automation_by_action: dict[str, dict[str, int]] = {}
+    for row in provider_handoff_rows:
+        action_code = str(row.source_action_code)
+        automation_level = str(row.provider_automation_level)
+        if not action_code or not automation_level:
+            continue
+        counts = automation_by_action.setdefault(action_code, {})
+        counts[automation_level] = counts.get(automation_level, 0) + 1
+
+    summary: list[dict[str, object]] = []
+    for group in action_groups:
+        action_code = str(group.get("action_code", ""))
+        automation_counts = automation_by_action.get(action_code, {})
+        summary.append(
+            {
+                "priority": group.get("priority", 0),
+                "action_code": action_code,
+                "record_count": group.get("record_count", 0),
+                "source_lanes": list(group.get("source_lanes", [])),
+                "provider_keys": list(group.get("provider_keys", [])),
+                "provider_automation_level_counts": dict(
+                    sorted(automation_counts.items())
+                ),
+                "recommended_next_command": group.get(
+                    "recommended_next_command",
+                    "",
+                ),
+            }
+        )
+    return summary
+
+
 def _coverage_action_recommended_request(
     action_code: str,
 ) -> dict[str, object] | None:
@@ -1511,6 +1562,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_action_counts": {},
         "coverage_provider_key_counts": {},
         "coverage_next_action_groups": [],
+        "coverage_opportunity_summary": [],
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
         "primary_action_recommended_request": None,
@@ -1640,6 +1692,7 @@ def _rendered_outputs(
             "coverage_action_counts",
             "coverage_provider_key_counts",
             "coverage_next_action_groups",
+            "coverage_opportunity_summary",
             "primary_next_action_group",
             "primary_action_required_inputs",
             "primary_action_recommended_request",
