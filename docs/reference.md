@@ -1774,7 +1774,11 @@ request draft is also metadata only; operators should still pass it through
 `coverage_opportunity_summary` is a compact derived view of those same action
 groups with per-action provider automation-level counts, so an AI/operator can
 see manual-review, public metadata-review, and planning-handoff pressure
-without joining provider handoff rows manually. It is not execution
+without joining provider handoff rows manually. Each row also includes
+controlled routing metadata: `operator_route`, `next_input_class`, and
+`automation_boundary`. These fields classify the next local input or review
+surface, such as curator decisions, public metadata linkage review, provider
+handoff preparation, or external-registration review. They are not execution
 authorization.
 The payload also exposes `primary_next_action_group`,
 `primary_action_required_inputs`, `primary_action_recommended_request`, and

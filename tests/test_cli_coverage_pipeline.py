@@ -269,6 +269,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         {
             "priority": 10,
             "action_code": "resolve_curator_conflict",
+            "operator_route": "curator_decision",
+            "next_input_class": "curator_conflict_decision",
+            "automation_boundary": "manual_review_required",
             "record_count": 1,
             "source_lanes": ["curator_conflict_resolution"],
             "provider_keys": [],
@@ -278,6 +281,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         {
             "priority": 20,
             "action_code": "review_public_archive_linkage",
+            "operator_route": "public_metadata_review",
+            "next_input_class": "public_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
             "record_count": 1,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
@@ -287,6 +293,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         {
             "priority": 30,
             "action_code": "review_public_type_linkage",
+            "operator_route": "public_metadata_review",
+            "next_input_class": "biosample_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
             "record_count": 1,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["genbank", "refseq"],
@@ -296,6 +305,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         {
             "priority": 50,
             "action_code": "prepare_provider_handoff",
+            "operator_route": "provider_handoff",
+            "next_input_class": "permitted_local_fasta_terms_provenance",
+            "automation_boundary": "planning_handoff_no_provider_contact",
             "record_count": 1,
             "source_lanes": ["external_fasta_required"],
             "provider_keys": ["dsmz", "kctc"],

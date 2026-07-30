@@ -128,6 +128,43 @@ OPTIONAL_OUTPUT_PATHS = {
         "external_genomes_install_plan/external_genome_install_plan_summary.json"
     ),
 }
+_COVERAGE_ACTION_ROUTES = {
+    "resolve_curator_conflict": {
+        "operator_route": "curator_decision",
+        "next_input_class": "curator_conflict_decision",
+        "automation_boundary": "manual_review_required",
+    },
+    "review_public_archive_linkage": {
+        "operator_route": "public_metadata_review",
+        "next_input_class": "public_accession_type_strain_linkage",
+        "automation_boundary": "metadata_review_only_no_download",
+    },
+    "review_public_type_linkage": {
+        "operator_route": "public_metadata_review",
+        "next_input_class": "biosample_accession_type_strain_linkage",
+        "automation_boundary": "metadata_review_only_no_download",
+    },
+    "review_external_registration": {
+        "operator_route": "external_registration_review",
+        "next_input_class": "approved_external_genomes_packet",
+        "automation_boundary": "local_review_only_no_install",
+    },
+    "prepare_provider_handoff": {
+        "operator_route": "provider_handoff",
+        "next_input_class": "permitted_local_fasta_terms_provenance",
+        "automation_boundary": "planning_handoff_no_provider_contact",
+    },
+    "build_local_evidence": {
+        "operator_route": "local_evidence_build",
+        "next_input_class": "local_reconciler_completion_gap_evidence",
+        "automation_boundary": "local_planning_only_no_download",
+    },
+    "retain_strict_audit_record": {
+        "operator_route": "no_acquisition_action",
+        "next_input_class": "none",
+        "automation_boundary": "retain_audit_record_only",
+    },
+}
 _PROTECTED_OUTPUT_TERMS = {
     "manifest",
     "selection",
@@ -1518,10 +1555,14 @@ def _coverage_opportunity_summary(
     for group in action_groups:
         action_code = str(group.get("action_code", ""))
         automation_counts = automation_by_action.get(action_code, {})
+        route = _coverage_action_route(action_code)
         summary.append(
             {
                 "priority": group.get("priority", 0),
                 "action_code": action_code,
+                "operator_route": route["operator_route"],
+                "next_input_class": route["next_input_class"],
+                "automation_boundary": route["automation_boundary"],
                 "record_count": group.get("record_count", 0),
                 "source_lanes": list(group.get("source_lanes", [])),
                 "provider_keys": list(group.get("provider_keys", [])),
@@ -1535,6 +1576,17 @@ def _coverage_opportunity_summary(
             }
         )
     return summary
+
+
+def _coverage_action_route(action_code: str) -> dict[str, str]:
+    return _COVERAGE_ACTION_ROUTES.get(
+        action_code,
+        {
+            "operator_route": "local_evidence_build",
+            "next_input_class": "local_reconciler_completion_gap_evidence",
+            "automation_boundary": "review_only_no_download",
+        },
+    )
 
 
 def _coverage_action_recommended_request(
