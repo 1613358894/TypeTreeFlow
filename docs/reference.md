@@ -1899,7 +1899,10 @@ data. Optional `--write --outdir <dir> [--force]` writes only an isolated
 `external_genome_install_plan_summary.json`; the target run remains read-only
 for this command. The JSON and summary also include `required_inputs` plus a
 structured `recommended_request` for a later dry-run
-`register-external-genomes` command. Valid plans exit `0`; schema, input, checksum,
+`register-external-genomes` command. The recommended request uses the explicit
+`--input` path supplied to `external-genomes install-plan`, so AI/operator
+controllers can render the registration dry-run without reconstructing the TSV
+path from earlier handoffs. Valid plans exit `0`; schema, input, checksum,
 missing-file, or manual-review diagnostics exit `2`; output-path or write
 failures exit `1`.
 `--register-external-genomes <external_genomes.tsv>` emits one compact JSON

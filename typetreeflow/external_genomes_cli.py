@@ -275,8 +275,11 @@ def _install_plan_payload(
     install_counts = Counter(item.status for item in install_plan)
     planned_count = install_counts.get("external_genome_install_planned", 0)
     skipped_count = len(install_plan) - planned_count
+    external_genomes_input = _command_path(args.input, fallback="external_genomes.tsv")
+    recommended_request = dict(INSTALL_PLAN_RECOMMENDED_REQUEST)
+    recommended_request["external_genomes"] = external_genomes_input
     recommended_next = (
-        "typetreeflow --register-external-genomes <external_genomes.tsv> "
+        f"typetreeflow --register-external-genomes {external_genomes_input} "
         "--outdir <run> --dry-run"
     )
     return {
@@ -308,8 +311,8 @@ def _install_plan_payload(
         "external_genomes_registration_applied": False,
         "strict_scientific_deliverable": False,
         "target_outdir_mutated": False,
-        "required_inputs": list(INSTALL_PLAN_REQUIRED_INPUTS),
-        "recommended_request": dict(INSTALL_PLAN_RECOMMENDED_REQUEST),
+        "required_inputs": [external_genomes_input],
+        "recommended_request": recommended_request,
         "recommended_next_command": recommended_next,
         "expected_registration_result_fields": tuple(
             EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS
@@ -329,6 +332,12 @@ def _failure(code: str, message: str) -> dict[str, object]:
     )
     payload.update(status="failed", summary=message)
     return payload
+
+
+def _command_path(value: str | Path, *, fallback: str) -> str:
+    if not str(value or "").strip():
+        return fallback
+    return Path(value).as_posix()
 
 
 def _install_plan_failure(code: str, message: str) -> dict[str, object]:
