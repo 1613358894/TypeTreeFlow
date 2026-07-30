@@ -339,6 +339,28 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         entry["safe_for_unattended_download"] is False
         for entry in payload["coverage_action_queue"]
     )
+    assert payload["coverage_action_queue_summary"] == {
+        "queue_item_count": 4,
+        "operator_route_counts": {
+            "curator_decision": 1,
+            "provider_handoff": 1,
+            "public_metadata_review": 2,
+        },
+        "next_input_class_counts": {
+            "biosample_accession_type_strain_linkage": 1,
+            "curator_conflict_decision": 1,
+            "permitted_local_fasta_terms_provenance": 1,
+            "public_accession_type_strain_linkage": 1,
+        },
+        "manual_or_curator_input_required_count": 1,
+        "provider_handoff_required_count": 1,
+        "public_metadata_review_required_count": 2,
+        "external_registration_review_required_count": 0,
+        "safe_for_unattended_download_count": 0,
+    }
+    assert payload["current_coverage_action_queue_item"]["action_code"] == (
+        "resolve_curator_conflict"
+    )
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
     assert payload["provider_automation_level_counts"] == {
@@ -714,6 +736,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_action_queue"][3]["provider_automation_level_counts"] == {
         "planning_handoff": 2
     }
+    assert summary["coverage_action_queue_summary"][
+        "public_metadata_review_required_count"
+    ] == 2
+    assert summary["current_coverage_action_queue_item"]["operator_route"] == (
+        "curator_decision"
+    )
     assert summary["provider_handoff_record_count"] == 8
     assert summary["provider_automation_level_counts"] == {
         "metadata_review": 6,
@@ -1415,6 +1443,10 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_action_queue"][0]["requires_curator_input"] is True
     assert payload["coverage_action_queue"][3]["requires_provider_handoff"] is True
     assert payload["coverage_action_queue"][3]["safe_for_unattended_download"] is False
+    assert payload["coverage_action_queue_summary"][
+        "safe_for_unattended_download_count"
+    ] == 0
+    assert payload["current_coverage_action_queue_item"]["queue_position"] == 1
     assert payload["provider_automation_level_counts"] == {
         "metadata_review": 6,
         "planning_handoff": 2,

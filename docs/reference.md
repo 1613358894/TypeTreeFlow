@@ -1786,7 +1786,11 @@ a one-based `queue_position`, bounded route booleans such as
 `requires_provider_handoff`, and `requires_external_registration_review`, plus
 `safe_for_unattended_download=false` on every row. The queue is for
 AI/operator prioritization only; it does not grant unattended download or
-provider access.
+provider access. `coverage_action_queue_summary` reports bounded queue counts
+by `operator_route` and `next_input_class`, plus route-specific counts such as
+`manual_or_curator_input_required_count`, `public_metadata_review_required_count`,
+and `provider_handoff_required_count`. `current_coverage_action_queue_item`
+copies the first queued item or an empty object when no coverage action remains.
 The payload also exposes `primary_next_action_group`,
 `primary_action_required_inputs`, `primary_action_recommended_request`, and
 `primary_action_recommended_next_command` as convenience copies from the first
