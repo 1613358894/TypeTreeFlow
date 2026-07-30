@@ -379,6 +379,15 @@ routing diagnostics only. They must not be interpreted as provider readiness,
 terms approval, FASTA availability, checksum validation, completion credit, or
 strict scientific deliverable status.
 
+The `provider-request validate` CLI is the only provider-request surface that
+may read curator-referenced local FASTA files, and it may do so only to confirm
+regular-file presence, nonempty size, and SHA-256 match. It must not display
+local FASTA paths, hashes, provider notes, curator values, or sequence
+contents. A ready validation row means local provider-request evidence is ready
+for external-genome handoff review only; it is not provider execution,
+download completion, manifest mutation, registration, or strict scientific
+delivery.
+
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
 plan, provider handoff, and provider request draft. It may read only explicitly

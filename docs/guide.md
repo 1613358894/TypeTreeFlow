@@ -143,6 +143,23 @@ empty provider request rows. The compact JSON and summary include
 `curator_completion_blocker_counts` so AI/operator routing can see which
 curator-owned fields still block later provider-registration planning.
 
+After curator completion, validate the provider request against local handoff
+readiness without writing workflow outputs:
+
+```bash
+typetreeflow provider-request validate --input <provider_request.tsv> \
+  [--base-dir <local-fasta-base-dir>] [--json]
+```
+
+The validator checks required provider request fields, terms review,
+curator-owned completion fields, type-material/manual-review flags, local
+FASTA existence, and SHA-256 match. It emits compact JSON with ready/blocked
+counts and blocker counts, but it does not echo local FASTA paths, hashes,
+provider notes, or sequence contents. Passing validation only means the rows
+are ready for external-genome handoff review; it does not contact providers,
+download genomes, mutate manifests, write `external_genomes.tsv`, or create
+strict scientific deliverables.
+
 Preview the full offline coverage planning chain in one no-write command:
 
 ```bash

@@ -238,6 +238,16 @@ _CATALOG_ENTRIES = (
         "boundary": "provider request draft only; no provider contact or downloads",
     },
     {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "mode": "provider_request",
+        "argv_pattern": "typetreeflow provider-request validate --input <provider_request.tsv>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "provider request local evidence validation only; no provider contact or downloads",
+    },
+    {
         "command": "external-genomes",
         "subcommand": "validate",
         "mode": "external_genomes",
@@ -1246,6 +1256,29 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "overwrite compatible isolated provider request draft pair",
         },
     ],
+    ("provider-request", "validate"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "curator-completed provider_request.tsv input",
+        },
+        {
+            "name": "--base-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "base directory for relative local FASTA paths",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
     ("external-genomes", "validate"): [
         {
             "name": "--input",
@@ -2210,6 +2243,21 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if outdir:
             argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force"})
+    if command == "provider-request" and subcommand == "validate":
+        _reject_unknown_fields(
+            request,
+            {"command", "subcommand", "input", "base_dir", "json"},
+        )
+        argv = [
+            "provider-request",
+            "validate",
+            "--input",
+            _required_string(request, "input"),
+        ]
+        base_dir = _optional_string(request, "base_dir")
+        if base_dir:
+            argv.extend(["--base-dir", base_dir])
+        return _with_flags(argv, request, {"json": "--json"})
     if command == "external-genomes" and subcommand == "validate":
         _reject_unknown_fields(request, {"command", "subcommand", "input", "json"})
         argv = [

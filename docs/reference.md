@@ -1474,6 +1474,34 @@ missing curator-owned fields such as strain, type-strain ID,
 provider-record/artifact ID, local FASTA path, SHA-256, terms review, license,
 retrieval date, and curator name. They are not completion metrics and do not
 make a draft row eligible for provider execution.
+
+The isolated provider request validation adapter is:
+
+```text
+typetreeflow provider-request validate --input <provider_request.tsv> [--base-dir <dir>] [--json]
+```
+
+It reads only the explicitly named `provider_request.tsv` plus local FASTA
+files referenced by rows. Relative FASTA paths are resolved against
+`--base-dir`, or against the input file parent when `--base-dir` is omitted.
+The command checks required request fields, provider record/artifact ID,
+`terms_review_status=reviewed_allowed`, supported artifact type, license notes,
+valid retrieval date, curator field, `is_type_material=true`,
+`requires_manual_review=false`, local FASTA existence, nonempty file size,
+non-symlink path, SHA-256 shape, and checksum match. It emits one compact JSON
+object with `ready_count`, `blocked_count`, `blocker_counts`,
+`local_fasta_checked_count`, and `local_sha256_matched_count`; row previews
+include only request ID, species, provider, readiness status, blocker codes,
+and boolean local evidence checks. They do not echo local FASTA paths, hashes,
+provider notes, curator values, or sequence contents.
+
+Successful fully ready validation exits `0`; schema/input/readiness blockers
+exit `2`; unexpected internal errors exit `1`. The command is no-write and
+audit-only: it does not contact providers, accept terms, download genomes,
+write `external_genomes.tsv`, mutate manifests, change completion metrics, or
+promote strict scientific deliverables. A ready row means only that local
+provider-request evidence is ready for external-genome handoff review.
+
 For AI metadata routing, `commands render` accepts
 `{"command":"plan-provider-registration","provider_request":"provider_request.tsv","outdir":"run"}`
 and renders the current compatible argv form:
