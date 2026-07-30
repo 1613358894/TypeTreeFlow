@@ -84,6 +84,16 @@ def run_acquisition_worklist_command(
     gaps = _read_optional_tsv(args.completion_gaps_tsv, "completion_gaps", diagnostics)
     external = _read_optional_tsv(args.external_genomes_tsv, "external_genomes", diagnostics)
     archive = _read_optional_tsv(args.archive_candidates_tsv, "archive_candidates", diagnostics)
+    expanded = _read_optional_tsv(
+        args.expanded_discovery_results_tsv,
+        "expanded_discovery_results",
+        diagnostics,
+    )
+    manual_hints = _read_optional_tsv(
+        args.manual_supplement_hints_tsv,
+        "manual_supplement_hints",
+        diagnostics,
+    )
     try:
         report = build_acquisition_worklist(
             checklist_rows=checklist,
@@ -91,6 +101,8 @@ def run_acquisition_worklist_command(
             completion_gap_rows=gaps,
             external_rows=external,
             archive_candidate_rows=archive,
+            expanded_discovery_rows=expanded,
+            manual_supplement_hint_rows=manual_hints,
         )
     except Exception:
         _emit(_failure("internal_error", "Acquisition worklist build failed unexpectedly"), output)
@@ -110,6 +122,8 @@ def run_acquisition_worklist_command(
                         args.completion_gaps_tsv,
                         args.external_genomes_tsv,
                         args.archive_candidates_tsv,
+                        args.expanded_discovery_results_tsv,
+                        args.manual_supplement_hints_tsv,
                     )
                     if value is not None
                 ),
@@ -153,6 +167,8 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--completion-gaps-tsv")
     build.add_argument("--external-genomes-tsv")
     build.add_argument("--archive-candidates-tsv")
+    build.add_argument("--expanded-discovery-results-tsv")
+    build.add_argument("--manual-supplement-hints-tsv")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")

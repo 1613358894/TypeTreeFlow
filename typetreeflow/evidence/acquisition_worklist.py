@@ -112,6 +112,8 @@ def build_acquisition_worklist(
     completion_gap_rows: Iterable[Mapping[str, object]] = (),
     external_rows: Iterable[Mapping[str, object]] = (),
     archive_candidate_rows: Iterable[Mapping[str, object]] = (),
+    expanded_discovery_rows: Iterable[Mapping[str, object]] = (),
+    manual_supplement_hint_rows: Iterable[Mapping[str, object]] = (),
 ) -> AcquisitionWorklistReport:
     """Build a one-species-one-lane acquisition review worklist."""
 
@@ -120,6 +122,8 @@ def build_acquisition_worklist(
     completion_gap_rows = tuple(completion_gap_rows)
     external_rows = tuple(external_rows)
     archive_candidate_rows = tuple(archive_candidate_rows)
+    expanded_discovery_rows = tuple(expanded_discovery_rows)
+    manual_supplement_hint_rows = tuple(manual_supplement_hint_rows)
     species_names: dict[str, str] = {}
     for rows in (
         checklist_rows,
@@ -127,6 +131,8 @@ def build_acquisition_worklist(
         completion_gap_rows,
         external_rows,
         archive_candidate_rows,
+        expanded_discovery_rows,
+        manual_supplement_hint_rows,
     ):
         for row in rows:
             species = _species(row)
@@ -139,6 +145,8 @@ def build_acquisition_worklist(
     gaps_by_species = _group_by_species(completion_gap_rows)
     external_by_species = _group_by_species(external_rows)
     archive_by_species = _group_by_species(archive_candidate_rows)
+    expanded_by_species = _group_by_species(expanded_discovery_rows)
+    manual_hints_by_species = _group_by_species(manual_supplement_hint_rows)
     worklist: list[AcquisitionWorklistRow] = []
     for key in sorted(species_names):
         species = species_names[key]
@@ -150,6 +158,8 @@ def build_acquisition_worklist(
                 gaps_by_species.get(key, ()),
                 external_by_species.get(key, ()),
                 archive_by_species.get(key, ()),
+                expanded_by_species.get(key, ()),
+                manual_hints_by_species.get(key, ()),
             )
         )
     return AcquisitionWorklistReport(rows=tuple(worklist))
@@ -162,12 +172,16 @@ def _classify_species(
     gap_rows: tuple[Mapping[str, object], ...],
     external_rows: tuple[Mapping[str, object], ...],
     archive_candidate_rows: tuple[Mapping[str, object], ...],
+    expanded_discovery_rows: tuple[Mapping[str, object], ...],
+    manual_supplement_hint_rows: tuple[Mapping[str, object], ...],
 ) -> AcquisitionWorklistRow:
     source_artifacts = _source_artifacts(
         reconciler_rows=bool(reconciler_rows),
         gap_rows=bool(gap_rows),
         external_rows=bool(external_rows),
         archive_candidate_rows=bool(archive_candidate_rows),
+        expanded_discovery_rows=bool(expanded_discovery_rows),
+        manual_supplement_hint_rows=bool(manual_supplement_hint_rows),
     )
     selected = _first_nonempty(
         _value(row, "assembly_accession", "selected_accession")
@@ -182,6 +196,8 @@ def _classify_species(
         gap_rows,
         external_rows,
         archive_candidate_rows,
+        expanded_discovery_rows,
+        manual_supplement_hint_rows,
     )
     if _has_conflict(reconciler_rows):
         return _row(
@@ -227,6 +243,27 @@ def _classify_species(
             tier,
             "public_archive_insdc_candidate_review",
             source_artifacts,
+        )
+    if _has_expanded_matched_candidate(
+        expanded_discovery_rows
+    ) or _manual_hint_has_matched_candidate_review(manual_supplement_hint_rows):
+        return _row(
+            species,
+            "public_linkage_review",
+            selected,
+            tier,
+            "expanded_discovery_matched_candidate_review",
+            source_artifacts,
+        )
+    if _manual_hint_requires_external_fasta(manual_supplement_hint_rows):
+        return _row(
+            species,
+            "external_fasta_required",
+            selected,
+            tier,
+            "manual_supplement_external_fasta_required",
+            source_artifacts,
+            candidate_provider_keys,
         )
     if gap_rows or reconciler_rows:
         return _row(
@@ -292,6 +329,8 @@ def _review_signal_counts(rows: Iterable[AcquisitionWorklistRow]) -> dict[str, i
         "archive_candidate_review": 0,
         "missing_public_genome": 0,
         "external_registration_ready": 0,
+        "expanded_discovery_candidate_review": 0,
+        "manual_supplement_external_fasta_required": 0,
     }
     for row in rows:
         reason = row.reason_code
@@ -317,6 +356,10 @@ def _review_signal_counts(rows: Iterable[AcquisitionWorklistRow]) -> dict[str, i
             signals["missing_public_genome"] += 1
         if row.lane == "external_registration_ready" or "external_genomes" in sources:
             signals["external_registration_ready"] += 1
+        if row.reason_code == "expanded_discovery_matched_candidate_review":
+            signals["expanded_discovery_candidate_review"] += 1
+        if row.reason_code == "manual_supplement_external_fasta_required":
+            signals["manual_supplement_external_fasta_required"] += 1
     return signals
 
 
@@ -452,6 +495,34 @@ def _has_archive_candidate(rows: Iterable[Mapping[str, object]]) -> bool:
     return False
 
 
+def _has_expanded_matched_candidate(rows: Iterable[Mapping[str, object]]) -> bool:
+    for row in rows:
+        if _value(row, "decision").casefold() == "matched_candidate":
+            return True
+    return False
+
+
+def _manual_hint_requires_external_fasta(rows: Iterable[Mapping[str, object]]) -> bool:
+    fasta_actions = {"provide_external_genome_fasta", "manual_search_required"}
+    for row in rows:
+        action = _value(row, "recommended_action").casefold()
+        handoff_path = _value(row, "handoff_path").casefold()
+        if action in fasta_actions or "external_genomes.tsv" in handoff_path:
+            return True
+    return False
+
+
+def _manual_hint_has_matched_candidate_review(
+    rows: Iterable[Mapping[str, object]],
+) -> bool:
+    for row in rows:
+        action = _value(row, "recommended_action").casefold()
+        reason = _value(row, "reason").casefold()
+        if action == "review_matched_candidates" or reason == "matched_candidate":
+            return True
+    return False
+
+
 _PROVIDER_TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("ATCC", "atcc_genome_portal"),
     ("DSM", "dsmz"),
@@ -557,6 +628,8 @@ def _extend_provider_keys_from_tokens(
             "ncbi_culture_collection_ids",
             "curator_culture_collection_ids",
             "matched_lpsn_type_strain_ids",
+            "tokens",
+            "token",
         )
     )
     normalized = text.upper()
@@ -578,6 +651,8 @@ def _source_artifacts(
     gap_rows: bool,
     external_rows: bool,
     archive_candidate_rows: bool,
+    expanded_discovery_rows: bool,
+    manual_supplement_hint_rows: bool,
 ) -> str:
     labels = []
     if reconciler_rows:
@@ -588,6 +663,10 @@ def _source_artifacts(
         labels.append("external_genomes")
     if archive_candidate_rows:
         labels.append("archive_candidates")
+    if expanded_discovery_rows:
+        labels.append("expanded_discovery_results")
+    if manual_supplement_hint_rows:
+        labels.append("manual_supplement_hints")
     return "; ".join(labels)
 
 

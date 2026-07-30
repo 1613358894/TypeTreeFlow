@@ -80,7 +80,9 @@ typetreeflow acquisition-worklist build --checklist-tsv <species.tsv> \
   --reconciler-audit-tsv <reconciler_audit.tsv> \
   --completion-gaps-tsv <gaps.tsv> \
   --external-genomes-tsv <external_genomes.tsv> \
-  --archive-candidates-tsv <archive_candidates.tsv> [--json] \
+  --archive-candidates-tsv <archive_candidates.tsv> \
+  --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
+  --manual-supplement-hints-tsv <manual_supplement_hints.tsv> [--json] \
   [--write --outdir <isolated-directory> [--force]]
 ```
 
@@ -88,8 +90,11 @@ The command is a planning aid only. It does not contact providers, download
 genomes, merge manifests, or grant strict scientific deliverable status.
 Its summary includes lane counts and review-signal counts so AI or curator
 operators can prioritize candidate, conflict, gap, archive/INSDC, BioSample,
-BacDive/DSMZ, NCBI, and external-registration review without treating those
-counts as completion or download readiness.
+BacDive/DSMZ, NCBI, expanded-discovery candidate, manual-supplement, and
+external-registration review without treating those counts as completion or
+download readiness. Expanded discovery and manual-supplement inputs are local
+TSV handoffs only; this command does not run discovery, query providers, or
+auto-select any accession.
 
 Turn an acquisition worklist into a prioritized offline action plan:
 
@@ -143,7 +148,9 @@ typetreeflow coverage-pipeline preview \
   --reconciler-audit-tsv <reconciler_audit.tsv> \
   --completion-gaps-tsv <gaps.tsv> \
   --external-genomes-tsv <external_genomes.tsv> \
-  --archive-candidates-tsv <archive_candidates.tsv> [--json]
+  --archive-candidates-tsv <archive_candidates.tsv> \
+  --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
+  --manual-supplement-hints-tsv <manual_supplement_hints.tsv> [--json]
 ```
 
 To write the same artifacts to one isolated planning directory:
@@ -154,6 +161,8 @@ typetreeflow coverage-pipeline build \
   --reconciler-audit-tsv <reconciler_audit.tsv> \
   --completion-gaps-tsv <gaps.tsv> \
   --archive-candidates-tsv <archive_candidates.tsv> \
+  --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
+  --manual-supplement-hints-tsv <manual_supplement_hints.tsv> \
   --write --outdir <isolated-coverage-pipeline-directory>
 ```
 

@@ -163,6 +163,74 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["provider_request_preview"][0]["local_fasta_path"] == ""
 
 
+def test_coverage_pipeline_accepts_expanded_discovery_and_manual_hints(
+    capsys, tmp_path
+):
+    checklist = tmp_path / "checklist.tsv"
+    expanded = tmp_path / "expanded.tsv"
+    hints = tmp_path / "manual_hints.tsv"
+    _write_tsv(
+        checklist,
+        ("full_name", "type_strain_names"),
+        [
+            {"full_name": "Clostridium expandum"},
+            {"full_name": "Clostridium supplementum", "type_strain_names": "DSM 42"},
+        ],
+    )
+    _write_tsv(
+        expanded,
+        ("species", "candidate_accession", "decision"),
+        [
+            {
+                "species": "Clostridium expandum",
+                "candidate_accession": "GCA_123456789.1",
+                "decision": "matched_candidate",
+            }
+        ],
+    )
+    _write_tsv(
+        hints,
+        ("species", "recommended_action", "handoff_path"),
+        [
+            {
+                "species": "Clostridium supplementum",
+                "recommended_action": "provide_external_genome_fasta",
+                "handoff_path": "external_genomes.tsv",
+            }
+        ],
+    )
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--expanded-discovery-results-tsv",
+            str(expanded),
+            "--manual-supplement-hints-tsv",
+            str(hints),
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["review_signal_counts"]["expanded_discovery_candidate_review"] == 1
+    assert payload["review_signal_counts"][
+        "manual_supplement_external_fasta_required"
+    ] == 1
+    assert payload["coverage_action_counts"] == {
+        "prepare_provider_handoff": 1,
+        "review_public_type_linkage": 1,
+    }
+    assert payload["provider_key_counts"]["dsmz"] == 1
+    assert payload["provider_request_provider_key_counts"]["dsmz"] == 1
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["manifest_mutated"] is False
+
+
 def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
     capsys, tmp_path
 ):

@@ -1327,7 +1327,7 @@ type-strain status.
 The isolated CLI adapter is:
 
 ```text
-typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-audit-tsv <tsv>] [--completion-gaps-tsv <tsv>] [--external-genomes-tsv <tsv>] [--archive-candidates-tsv <tsv>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-audit-tsv <tsv>] [--completion-gaps-tsv <tsv>] [--external-genomes-tsv <tsv>] [--archive-candidates-tsv <tsv>] [--expanded-discovery-results-tsv <tsv>] [--manual-supplement-hints-tsv <tsv>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named TSV files and emits exactly one compact
@@ -1335,6 +1335,12 @@ JSON object, including `review_signal_counts` and
 `candidate_provider_key_counts` review hints. Without `--write`, it writes
 nothing. With `--write`, it writes only `acquisition_worklist.tsv` and
 `acquisition_worklist_summary.json` into the explicitly supplied directory.
+Expanded discovery and manual-supplement inputs are local TSV handoffs only:
+`matched_candidate` and `review_matched_candidates` can surface public linkage
+review, while `manual_search_required` or `provide_external_genome_fasta` can
+surface external FASTA/provider handoff pressure. The adapter does not run
+expanded discovery, query NCBI/BioSample/LPSN/provider services, auto-select
+accessions, or mutate workflow outputs.
 Existing output directories are refused by default; `--force` replaces only an
 owned pair with matching schemas. Missing or unreadable input blocks the
 command with exit code `2`; successful worklist generation exits `0`;
@@ -1442,8 +1448,8 @@ recommended next command for reviewing `provider/proposed_external_genomes.tsv`.
 The isolated coverage pipeline adapter is:
 
 ```text
-typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
@@ -1465,6 +1471,10 @@ previews/builds exit `0`; unexpected internal or write failures exit `1`. The
 pipeline is an AI/operator planning shortcut only: it does not contact
 providers, authenticate, accept terms, download genomes, mutate manifests,
 change completion metrics, or promote strict scientific deliverables.
+Expanded discovery and manual-supplement inputs remain explicit local TSV
+handoffs. Supplying them only changes review lanes, review-signal counts, and
+downstream planning pressure; it does not execute discovery or make candidates
+download-ready.
 The written pipeline directory can be supplied later as one explicit
 read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
 `package-results --include reports|all`. TypeTreeFlow derives only
