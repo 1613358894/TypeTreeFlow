@@ -626,6 +626,12 @@ The same audit directory fields, except `delivery_dir` and `failed_handoff`,
 also render to explicit `verify-genus --report-only` flags so AI callers can
 refresh reports from bounded local audit handoff directories without rerunning
 workflow stages.
+For local `verify-genus` planning, structured fields `species_checklist`,
+`lpsn_child_taxa`, `lpsn_cache`, `gtdb_metadata`, `gtdb_release`,
+`evidence_policy`, `source_audit_policy`, `strains_per_species`,
+`limit_selected`, and `allow_genus_change` render to their explicit CLI flags.
+These fields are local/configuration inputs only; rendering them does not enable
+live LPSN, NCBI, Entrez, provider, download, or external-tool actions.
 
 `commands plan` also requires `--request-json`, renders the request to
 `target_argv`, and immediately applies the same advisory preflight gate. Its
