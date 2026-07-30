@@ -221,6 +221,22 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--input",
         "--json",
     ]
+    external_install_plan = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"])
+        == ("external-genomes", "install-plan")
+    )
+    assert external_install_plan["write_behavior"] == "optional_isolated_install_plan"
+    assert external_install_plan["requires_outdir"] is False
+    assert [parameter["name"] for parameter in external_install_plan["parameters"]] == [
+        "--input",
+        "--target-outdir",
+        "--json",
+        "--write",
+        "--outdir",
+        "--force",
+    ]
     parameter_names = {
         (entry["command"], entry["subcommand"]): {
             parameter["name"] for parameter in entry["parameters"]
@@ -311,6 +327,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("provider-request", "draft"),
         ("provider-request", "external-genomes-draft"),
         ("provider-request", "external-genomes-handoff"),
+        ("external-genomes", "install-plan"),
         ("plan-provider-registration", None),
         ("register-external-genomes", None),
         ("providers", "catalog"),
@@ -1159,6 +1176,75 @@ def test_commands_render_emits_normalized_external_genomes_validate_argv(capsys)
     assert payload["recognized"]["mode"] == "external_genomes"
     assert payload["recognized"]["writes_outputs_declared"] is False
     assert payload["recognized"]["requires_outdir"] is False
+
+
+def test_commands_render_emits_normalized_external_genomes_install_plan_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"external-genomes","subcommand":"install-plan",'
+                    '"input":"external_genomes.tsv","target_outdir":"run",'
+                    '"json":true,"write":true,"outdir":"plan","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        "external_genomes.tsv",
+        "--target-outdir",
+        "run",
+        "--write",
+        "--outdir",
+        "plan",
+        "--json",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "external-genomes"
+    assert payload["recognized"]["subcommand"] == "install-plan"
+    assert payload["recognized"]["mode"] == "external_genomes"
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_plan_blocks_external_genomes_install_plan_write_without_allowance(
+    capsys,
+):
+    request = (
+        '{"command":"external-genomes","subcommand":"install-plan",'
+        '"input":"external_genomes.tsv","target_outdir":"run",'
+        '"write":true,"outdir":"plan"}'
+    )
+
+    assert main(["commands", "plan", "--request-json", request]) == 2
+    payload, _output = _stdout_payload(capsys)
+    assert payload["status"] == "blocked"
+    assert payload["preflight"]["blocking"][0]["id"] == "write_not_allowed"
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--request-json",
+                request,
+            ]
+        )
+        == 0
+    )
+    payload, _output = _stdout_payload(capsys)
+    assert payload["status"] == "pass"
+    assert payload["target_argv"][:2] == ["external-genomes", "install-plan"]
 
 
 def test_commands_render_emits_normalized_provider_registration_plan_argv(capsys):

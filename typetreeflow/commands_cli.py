@@ -283,6 +283,16 @@ _CATALOG_ENTRIES = (
         "boundary": "external-genomes preflight only; no install, manifest, or workflow writes",
     },
     {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "mode": "external_genomes",
+        "argv_pattern": "typetreeflow external-genomes install-plan --input <external_genomes.tsv> --target-outdir <run>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_install_plan",
+        "requires_outdir": False,
+        "boundary": "external-genomes local install planning only; no install execution, manifest, provider contact, or downloads",
+    },
+    {
         "command": "plan-provider-registration",
         "subcommand": None,
         "mode": "provider_registration_plan",
@@ -1457,6 +1467,50 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "emit compact JSON stdout",
         },
     ],
+    ("external-genomes", "install-plan"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "reviewed external_genomes.tsv input",
+        },
+        {
+            "name": "--target-outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "future workflow run directory used only to calculate local install paths",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated registration-result and install-plan audit files",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated install-plan audit output directory",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite compatible isolated install-plan audit outputs",
+        },
+    ],
     ("plan-provider-registration", None): [
         {
             "name": "provider_request",
@@ -2502,6 +2556,34 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             _required_string(request, "input"),
         ]
         return _with_flags(argv, request, {"json": "--json"})
+    if command == "external-genomes" and subcommand == "install-plan":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input",
+                "target_outdir",
+                "json",
+                "write",
+                "outdir",
+                "force",
+            },
+        )
+        argv = [
+            "external-genomes",
+            "install-plan",
+            "--input",
+            _required_string(request, "input"),
+            "--target-outdir",
+            _required_string(request, "target_outdir"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"json": "--json", "force": "--force"})
     if command == "plan-provider-registration":
         _reject_unknown_fields(request, {"command", "provider_request", "outdir"})
         return [
