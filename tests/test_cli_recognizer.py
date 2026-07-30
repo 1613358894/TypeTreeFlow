@@ -4,6 +4,10 @@ import json
 
 import pytest
 
+from typetreeflow.cli_handlers.early_commands import (
+    EARLY_COMMAND_DISPATCH_ORDER,
+    _early_command_dispatchers,
+)
 from typetreeflow.cli_recognizer import recognize_cli_command
 
 
@@ -115,6 +119,30 @@ def test_strict_gating_precedes_manual_review_tokens_like_main_dispatch():
     assert result["command"] == "strict-gating"
     assert result["is_strict_gating"] is True
     assert result["is_manual_review"] is False
+
+
+def test_main_early_dispatch_order_is_explicit_and_stable():
+    assert EARLY_COMMAND_DISPATCH_ORDER == (
+        "commands",
+        "coverage-pipeline",
+        "acquisition-worklist",
+        "count-crosswalk",
+        "archive-candidates",
+        "coverage-plan",
+        "provider-handoff",
+        "provider-request",
+        "external-genomes",
+        "providers",
+        "curator-packet",
+        "strict-gate-state",
+        "readiness",
+        "strict-gating",
+        "manual-review",
+    )
+    assert (
+        tuple(name for name, _predicate, _runner in _early_command_dispatchers())
+        == EARLY_COMMAND_DISPATCH_ORDER
+    )
 
 
 def test_empty_argv_contract_is_exact():

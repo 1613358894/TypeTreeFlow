@@ -22,6 +22,7 @@ from typetreeflow.cli_config import (
     _normalize_command_argv,
     build_app_config_from_args,
 )
+from typetreeflow.cli_handlers.early_commands import run_early_command_dispatch
 from typetreeflow.cli_handlers.package_results import run_package_results_dispatch
 from typetreeflow.cli_handlers.report_only import run_report_only_dispatch
 from typetreeflow.cli_parser import build_parser
@@ -732,97 +733,9 @@ def main(
     lpsn_client=None,
 ) -> int:
     command_argv = list(sys.argv[1:] if argv is None else argv)
-    from typetreeflow.strict_gating_cli import (
-        is_strict_gating_command,
-        run_strict_gating_command,
-    )
-    from typetreeflow.readiness_cli import (
-        is_readiness_command,
-        run_readiness_command,
-    )
-    from typetreeflow.acquisition_worklist_cli import (
-        is_acquisition_worklist_command,
-        run_acquisition_worklist_command,
-    )
-    from typetreeflow.count_crosswalk_cli import (
-        is_count_crosswalk_command,
-        run_count_crosswalk_command,
-    )
-    from typetreeflow.archive_candidates_cli import (
-        is_archive_candidates_command,
-        run_archive_candidates_command,
-    )
-    from typetreeflow.coverage_plan_cli import (
-        is_coverage_plan_command,
-        run_coverage_plan_command,
-    )
-    from typetreeflow.providers_cli import (
-        is_providers_command,
-        run_providers_command,
-    )
-    from typetreeflow.provider_handoff_cli import (
-        is_provider_handoff_command,
-        run_provider_handoff_command,
-    )
-    from typetreeflow.provider_request_draft_cli import (
-        is_provider_request_command,
-        run_provider_request_command,
-    )
-    from typetreeflow.curator_packet_cli import (
-        is_curator_packet_command,
-        run_curator_packet_command,
-    )
-    from typetreeflow.strict_gate_state_cli import (
-        is_strict_gate_state_command,
-        run_strict_gate_state_command,
-    )
-    from typetreeflow.commands_cli import (
-        is_commands_command,
-        run_commands_command,
-    )
-    from typetreeflow.coverage_pipeline_cli import (
-        is_coverage_pipeline_command,
-        run_coverage_pipeline_command,
-    )
-    from typetreeflow.external_genomes_cli import (
-        is_external_genomes_command,
-        run_external_genomes_command,
-    )
-    from typetreeflow.manual_review_cli import (
-        is_manual_review_command,
-        run_manual_review_command,
-    )
-
-    if is_commands_command(command_argv):
-        return run_commands_command(command_argv)
-    if is_coverage_pipeline_command(command_argv):
-        return run_coverage_pipeline_command(command_argv)
-    if is_acquisition_worklist_command(command_argv):
-        return run_acquisition_worklist_command(command_argv)
-    if is_count_crosswalk_command(command_argv):
-        return run_count_crosswalk_command(command_argv)
-    if is_archive_candidates_command(command_argv):
-        return run_archive_candidates_command(command_argv)
-    if is_coverage_plan_command(command_argv):
-        return run_coverage_plan_command(command_argv)
-    if is_provider_handoff_command(command_argv):
-        return run_provider_handoff_command(command_argv)
-    if is_provider_request_command(command_argv):
-        return run_provider_request_command(command_argv)
-    if is_external_genomes_command(command_argv):
-        return run_external_genomes_command(command_argv)
-    if is_providers_command(command_argv):
-        return run_providers_command(command_argv)
-    if is_curator_packet_command(command_argv):
-        return run_curator_packet_command(command_argv)
-    if is_strict_gate_state_command(command_argv):
-        return run_strict_gate_state_command(command_argv)
-    if is_readiness_command(command_argv):
-        return run_readiness_command(command_argv)
-    if is_strict_gating_command(command_argv):
-        return run_strict_gating_command(command_argv)
-    if is_manual_review_command(command_argv):
-        return run_manual_review_command(command_argv)
+    early_command_exit = run_early_command_dispatch(command_argv)
+    if early_command_exit is not None:
+        return early_command_exit
     config = parse_args(argv)
     setup_logging(config.log_level)
     paths = get_output_paths(config.outdir)
