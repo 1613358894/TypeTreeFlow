@@ -611,6 +611,10 @@ metadata. Unsupported commands, missing required fields, unknown request fields,
 or wrong value types fail with exit code `2`. Rendering is a string-planning
 step only; the returned argv must still be checked with `commands preflight`
 before any executor considers running it.
+For coverage planning requests, structured fields
+`expanded_discovery_results_tsv` and `manual_supplement_hints_tsv` render to
+the explicit local TSV flags on `acquisition-worklist build` and
+`coverage-pipeline preview|build`.
 
 `commands plan` also requires `--request-json`, renders the request to
 `target_argv`, and immediately applies the same advisory preflight gate. Its

@@ -234,6 +234,15 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("strict-gating", "evaluate"),
     ):
         assert {"--write", "--outdir", "--force"} <= parameter_names[key]
+    for key in (
+        ("acquisition-worklist", "build"),
+        ("coverage-pipeline", "preview"),
+        ("coverage-pipeline", "build"),
+    ):
+        assert {
+            "--expanded-discovery-results-tsv",
+            "--manual-supplement-hints-tsv",
+        } <= parameter_names[key]
     assert {
         (entry["command"], entry["subcommand"])
         for entry in catalog
@@ -386,6 +395,8 @@ def test_commands_render_emits_normalized_acquisition_worklist_argv(capsys):
                     '"completion_gaps_tsv":"gaps.tsv",'
                     '"external_genomes_tsv":"external.tsv",'
                     '"archive_candidates_tsv":"archive.tsv",'
+                    '"expanded_discovery_results_tsv":"expanded.tsv",'
+                    '"manual_supplement_hints_tsv":"manual_hints.tsv",'
                     '"write":true,"outdir":"worklist","force":true}'
                 ),
             ]
@@ -407,6 +418,10 @@ def test_commands_render_emits_normalized_acquisition_worklist_argv(capsys):
         "external.tsv",
         "--archive-candidates-tsv",
         "archive.tsv",
+        "--expanded-discovery-results-tsv",
+        "expanded.tsv",
+        "--manual-supplement-hints-tsv",
+        "manual_hints.tsv",
         "--write",
         "--outdir",
         "worklist",
@@ -431,6 +446,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
                     '"completion_gaps_tsv":"gaps.tsv",'
                     '"external_genomes_tsv":"external.tsv",'
                     '"archive_candidates_tsv":"archive.tsv",'
+                    '"expanded_discovery_results_tsv":"expanded.tsv",'
+                    '"manual_supplement_hints_tsv":"manual_hints.tsv",'
                     '"write":true,"outdir":"pipeline","force":true}'
                 ),
             ]
@@ -452,6 +469,10 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
         "external.tsv",
         "--archive-candidates-tsv",
         "archive.tsv",
+        "--expanded-discovery-results-tsv",
+        "expanded.tsv",
+        "--manual-supplement-hints-tsv",
+        "manual_hints.tsv",
         "--write",
         "--outdir",
         "pipeline",
