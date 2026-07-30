@@ -40,6 +40,15 @@ _AUDIT_DIR_RENDER_FIELDS = (
     ("offline_readiness_dir", "--offline-readiness-dir"),
     ("strict_gating_dir", "--strict-gating-dir"),
 )
+_VERIFY_GENUS_LOCAL_RENDER_FIELDS = (
+    ("species_checklist", "--species-checklist"),
+    ("lpsn_child_taxa", "--lpsn-child-taxa"),
+    ("lpsn_cache", "--lpsn-cache"),
+    ("gtdb_metadata", "--gtdb-metadata"),
+    ("gtdb_release", "--gtdb-release"),
+    ("evidence_policy", "--evidence-policy"),
+    ("source_audit_policy", "--source-audit-policy"),
+)
 _CATALOG_ENTRIES = (
     {
         "command": "doctor",
@@ -395,6 +404,76 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicitly permit real download actions",
+        },
+        {
+            "name": "--species-checklist",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local species checklist TSV input",
+        },
+        {
+            "name": "--lpsn-child-taxa",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local LPSN child taxa TSV input",
+        },
+        {
+            "name": "--lpsn-cache",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "offline LPSN species cache TSV input",
+        },
+        {
+            "name": "--gtdb-metadata",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local GTDB metadata TSV input",
+        },
+        {
+            "name": "--gtdb-release",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "GTDB release identifier for audit metadata",
+        },
+        {
+            "name": "--evidence-policy",
+            "kind": "choice",
+            "required": False,
+            "repeatable": False,
+            "purpose": "metadata evidence policy label",
+        },
+        {
+            "name": "--source-audit-policy",
+            "kind": "choice",
+            "required": False,
+            "repeatable": False,
+            "purpose": "sequence source audit policy",
+        },
+        {
+            "name": "--strains-per-species",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "preselected strains per species",
+        },
+        {
+            "name": "--limit-selected",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "cap total selected reference genomes",
+        },
+        {
+            "name": "--allow-genus-change",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "allow rebuilding an existing outdir for a different genus",
         },
         {
             "name": "--manual-review-import-dir",
@@ -1626,6 +1705,10 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "enable_downloads",
         }
         if command == "verify-genus":
+            allowed.update(key for key, _flag in _VERIFY_GENUS_LOCAL_RENDER_FIELDS)
+            allowed.update(
+                {"strains_per_species", "limit_selected", "allow_genus_change"}
+            )
             allowed.update(key for key, _flag in _AUDIT_DIR_RENDER_FIELDS)
         _reject_unknown_fields(request, allowed)
         argv = [
@@ -1642,9 +1725,21 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "resume": "--resume",
                 "report_only": "--report-only",
                 "enable_downloads": "--enable-downloads",
+                "allow_genus_change": "--allow-genus-change",
             },
         )
         if command == "verify-genus":
+            for key, flag in _VERIFY_GENUS_LOCAL_RENDER_FIELDS:
+                value = _optional_string(request, key)
+                if value:
+                    argv.extend([flag, value])
+            for key, flag in (
+                ("strains_per_species", "--strains-per-species"),
+                ("limit_selected", "--limit-selected"),
+            ):
+                value = _optional_int(request, key)
+                if value is not None:
+                    argv.extend([flag, str(value)])
             for key, flag in _AUDIT_DIR_RENDER_FIELDS:
                 value = _optional_string(request, key)
                 if value:
@@ -2105,6 +2200,15 @@ def _optional_string(request: dict[str, object], field: str) -> str | None:
         return None
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"Request field {field!r} must be a non-empty string")
+    return value
+
+
+def _optional_int(request: dict[str, object], field: str) -> int | None:
+    value = request.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"Request field {field!r} must be an integer")
     return value
 
 

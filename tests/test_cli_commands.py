@@ -254,6 +254,18 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--strict-gating-dir",
     }
     assert audit_dir_flags <= parameter_names[("verify-genus", None)]
+    assert {
+        "--species-checklist",
+        "--lpsn-child-taxa",
+        "--lpsn-cache",
+        "--gtdb-metadata",
+        "--gtdb-release",
+        "--evidence-policy",
+        "--source-audit-policy",
+        "--strains-per-species",
+        "--limit-selected",
+        "--allow-genus-change",
+    } <= parameter_names[("verify-genus", None)]
     assert audit_dir_flags | {
         "--delivery-dir",
         "--failed-handoff",
@@ -387,6 +399,64 @@ def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "verify-genus"
     assert payload["recognized"]["mode"] == "report_only"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_verify_genus_local_options(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","dry_run":true,'
+                    '"species_checklist":"species.tsv",'
+                    '"lpsn_child_taxa":"child_taxa.tsv",'
+                    '"lpsn_cache":"lpsn_cache.tsv",'
+                    '"gtdb_metadata":"gtdb.tsv",'
+                    '"gtdb_release":"R220",'
+                    '"evidence_policy":"strict",'
+                    '"source_audit_policy":"warn",'
+                    '"strains_per_species":2,'
+                    '"limit_selected":20,'
+                    '"allow_genus_change":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "verify-genus",
+        "Clostridium",
+        "--outdir",
+        "run",
+        "--dry-run",
+        "--allow-genus-change",
+        "--species-checklist",
+        "species.tsv",
+        "--lpsn-child-taxa",
+        "child_taxa.tsv",
+        "--lpsn-cache",
+        "lpsn_cache.tsv",
+        "--gtdb-metadata",
+        "gtdb.tsv",
+        "--gtdb-release",
+        "R220",
+        "--evidence-policy",
+        "strict",
+        "--source-audit-policy",
+        "warn",
+        "--strains-per-species",
+        "2",
+        "--limit-selected",
+        "20",
+    ]
+    assert payload["recognized"]["command"] == "verify-genus"
+    assert payload["recognized"]["mode"] == "workflow"
     assert payload["recognized"]["requires_outdir"] is True
 
 
@@ -993,6 +1063,49 @@ def test_commands_render_rejects_report_audit_dirs_for_release_verification(caps
     payload, _output = _stdout_payload(capsys)
     assert payload["blocking"][0]["id"] == "invalid_request"
     assert "coverage_pipeline_dir" in payload["blocking"][0]["message"]
+
+
+def test_commands_render_rejects_local_verify_options_for_release_verification(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-release-genus","genus":"Clostridium",'
+                    '"outdir":"run","species_checklist":"species.tsv"}'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "species_checklist" in payload["blocking"][0]["message"]
+
+
+def test_commands_render_rejects_non_integer_verify_genus_limits(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","limit_selected":true}'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "limit_selected" in payload["blocking"][0]["message"]
+    assert "integer" in payload["blocking"][0]["message"]
 
 
 def test_commands_render_rejects_missing_required_field(capsys):
