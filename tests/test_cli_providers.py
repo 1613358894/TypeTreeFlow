@@ -32,9 +32,27 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
     assert providers["ena"]["automation_level"] == "metadata_review"
     assert providers["dsmz"]["automation_level"] == "planning_handoff"
     assert providers["atcc_genome_portal"]["automation_level"] == "planning_handoff"
+    assert providers["ena"]["operator_route"] == "public_metadata_review"
+    assert providers["ena"]["next_input_class"] == (
+        "public_accession_type_strain_linkage"
+    )
+    assert providers["ena"]["automation_boundary"] == (
+        "metadata_review_only_no_download"
+    )
+    assert providers["dsmz"]["operator_route"] == "provider_handoff"
+    assert providers["dsmz"]["next_input_class"] == (
+        "permitted_local_fasta_terms_provenance"
+    )
+    assert providers["dsmz"]["automation_boundary"] == (
+        "planning_handoff_no_provider_contact"
+    )
     assert payload["automation_level_counts"] == {
         "metadata_review": 4,
         "planning_handoff": payload["provider_count"] - 4,
+    }
+    assert payload["operator_route_counts"] == {
+        "provider_handoff": payload["provider_count"] - 4,
+        "public_metadata_review": 4,
     }
     assert payload["metadata_review_provider_keys"] == [
         "ddbj",

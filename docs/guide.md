@@ -907,8 +907,11 @@ Portal and common culture collections including DSMZ, JCM, NCTC, CGMCC, NBRC,
 KCTC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR,
 CICC, and IFO, plus metadata-only public archive entries for ENA, DDBJ,
 GenBank, and NCBI RefSeq. Coverage planning can carry explicit provider hints
-from local rows into provider handoff. These entries and hints still do not
-enable TypeTreeFlow network access or downloads.
+from local rows into provider handoff. `providers catalog` also reports
+`operator_route`, `next_input_class`, `automation_boundary`, and
+`operator_route_counts`, matching the coverage-pipeline queue vocabulary.
+These entries and hints still do not enable TypeTreeFlow network access or
+downloads.
 
 ```bash
 typetreeflow external-genomes validate \
