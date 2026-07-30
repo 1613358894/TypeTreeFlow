@@ -21,10 +21,16 @@ from typetreeflow.evidence.provider_request_draft import (
     PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
     build_provider_request_draft,
 )
-from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
+from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, read_provider_requests
+from typetreeflow.provider_request_validation import (
+    PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
+    validate_provider_requests_for_local_handoff,
+)
 
 
 COMMAND = "provider-request draft"
+VALIDATE_COMMAND = "provider-request validate"
 OUTPUT_NAMES = {
     "request": "provider_request.tsv",
     "summary": "provider_request_draft_summary.json",
@@ -79,6 +85,8 @@ def run_provider_request_command(
     except _UsageError:
         _emit(_failure("invalid_command_usage", "Invalid provider-request usage"), output)
         return 2
+    if args.action == "validate":
+        return _run_validate(args, output)
     outdir = Path(args.outdir) if args.outdir else None
     if (
         (args.write and outdir is None)
@@ -145,7 +153,32 @@ def _build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--write", action="store_true")
     draft.add_argument("--outdir")
     draft.add_argument("--force", action="store_true")
+    validate = actions.add_parser("validate", add_help=False)
+    validate.add_argument("--input", required=True)
+    validate.add_argument("--base-dir")
+    validate.add_argument("--json", action="store_true")
     return parser
+
+
+def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
+    input_path = Path(args.input)
+    base_dir = Path(args.base_dir) if args.base_dir else input_path.parent
+    try:
+        records = read_provider_requests(input_path)
+    except (OSError, UnicodeError, csv.Error, ValueError):
+        _emit(_validate_failure("provider_request_input_invalid"), output)
+        return 2
+    try:
+        validation = validate_provider_requests_for_local_handoff(
+            records,
+            base_dir=base_dir,
+        )
+    except Exception:
+        _emit(_validate_failure("internal_error"), output)
+        return 1
+    payload = _validate_payload(validation)
+    _emit(payload, output)
+    return 0 if validation.valid else 2
 
 
 def _read_required_provider_handoff(
@@ -230,6 +263,57 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
     }
 
 
+def _validate_payload(validation) -> dict[str, object]:
+    summary = validation.summary
+    preview = [row.to_preview_dict() for row in validation.rows[:_PREVIEW_LIMIT]]
+    diagnostics = [
+        _validate_diagnostic("provider_request_validation", code)
+        for code in summary["blocker_counts"]
+    ]
+    if summary["record_count"] == 0:
+        diagnostics.append(
+            _validate_diagnostic(
+                "provider_request_validation",
+                "no_provider_request_rows",
+            )
+        )
+    return {
+        "schema_version": PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
+        "status": "pass" if validation.valid else "blocked",
+        "command": VALIDATE_COMMAND,
+        "record_count": summary["record_count"],
+        "ready_count": summary["ready_count"],
+        "blocked_count": summary["blocked_count"],
+        "status_counts": summary["status_counts"],
+        "provider_counts": summary["provider_counts"],
+        "blocker_counts": summary["blocker_counts"],
+        "local_fasta_checked_count": summary["local_fasta_checked_count"],
+        "local_sha256_matched_count": summary["local_sha256_matched_count"],
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "request_preview": preview,
+        "request_truncated": len(validation.rows) > len(preview),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "recommended_next_command": (
+            PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
+        ),
+        "summary": (
+            "Provider request validation passed"
+            if validation.valid
+            else "Provider request validation blocked"
+        ),
+    }
+
+
 def _failure(code: str, message: str) -> dict[str, object]:
     return {
         "schema_version": PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
@@ -262,9 +346,52 @@ def _failure(code: str, message: str) -> dict[str, object]:
     }
 
 
+def _validate_failure(code: str) -> dict[str, object]:
+    return {
+        "schema_version": PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
+        "status": "failed",
+        "command": VALIDATE_COMMAND,
+        "record_count": 0,
+        "ready_count": 0,
+        "blocked_count": 0,
+        "status_counts": {},
+        "provider_counts": {},
+        "blocker_counts": {},
+        "local_fasta_checked_count": 0,
+        "local_sha256_matched_count": 0,
+        "diagnostic_count": 1,
+        "diagnostics": [_validate_diagnostic("provider_request_validation_cli", code)],
+        "request_preview": [],
+        "request_truncated": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "recommended_next_command": (
+            PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
+        ),
+        "summary": "Provider request validation failed",
+    }
+
+
 def _diagnostic(component: str, code: str) -> dict[str, object]:
     return {
         "schema_version": PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
+        "component": component,
+        "severity": "error",
+        "diagnostic_code": code,
+    }
+
+
+def _validate_diagnostic(component: str, code: str) -> dict[str, object]:
+    return {
+        "schema_version": PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
         "component": component,
         "severity": "error",
         "diagnostic_code": code,
