@@ -1830,7 +1830,10 @@ directory, and optional downstream directory overrides. When
 only; it does not query public archives, download genomes, create
 `external_genomes.tsv`, or change strict evidence. It then re-emits
 `operator_chain_stages`, the current unavailable stage, and the recommended
-next command as compact JSON. Each stage row and the derived `next_stage`
+next command as compact JSON. It also preserves top-level provider automation
+counts from `coverage_pipeline_summary.json` as
+`provider_automation_level_counts` and
+`provider_request_automation_level_counts`. Each stage row and the derived `next_stage`
 include `required_inputs`, a bounded list of local artifact paths or
 curator-supplied input categories needed before that stage can be treated as
 available. Stage rows also include `recommended_request`, a structured

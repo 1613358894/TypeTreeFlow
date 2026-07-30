@@ -656,6 +656,12 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             if next_stage
             else ""
         ),
+        "provider_automation_level_counts": _optional_summary_map(
+            coverage_summary, "provider_automation_level_counts"
+        ),
+        "provider_request_automation_level_counts": _optional_summary_map(
+            coverage_summary, "provider_request_automation_level_counts"
+        ),
         "external_genomes_registration_dry_run_recommended_request": (
             _stage_recommended_request("external_genomes_registration_dry_run")
         ),
@@ -1285,6 +1291,13 @@ def _payload_int(payload: dict[str, object] | None, key: str) -> int:
     return _safe_int(payload.get(key, 0))
 
 
+def _optional_summary_map(summary: dict[str, object], key: str) -> dict[str, object]:
+    value = summary.get(key)
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(item_key): item_value for item_key, item_value in value.items()}
+
+
 def _operator_chain_stages(
     *,
     worklist_count: int,
@@ -1634,6 +1647,7 @@ def _rendered_outputs(
             "provider_handoff_record_count",
             "provider_key_counts",
             "provider_status_counts",
+            "provider_automation_level_counts",
             "source_action_counts",
             "provider_terms_review_required_count",
             "provider_credentials_required_count",
@@ -1642,6 +1656,7 @@ def _rendered_outputs(
             "provider_request_record_count",
             "provider_request_provider_key_counts",
             "provider_request_status_counts",
+            "provider_request_automation_level_counts",
             "provider_request_recommended_request",
             "provider_request_recommended_next_command",
             "provider_request_validation_recommended_request",
