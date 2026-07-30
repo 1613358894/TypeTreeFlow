@@ -1117,6 +1117,8 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "blocking_diagnostic_code": "",
     }
     assert payload["next_stage"] is None
+    assert payload["required_inputs"] == []
+    assert payload["recommended_request"] is None
     assert payload["recommended_next_command"] == ""
     assert [stage["available"] for stage in payload["operator_chain_stages"]] == [
         True,
@@ -1283,7 +1285,17 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
         "provider_request_external_genomes/external_genomes.tsv",
         "target workflow run outdir",
     ]
+    assert payload["required_inputs"] == [
+        "provider_request_external_genomes/external_genomes.tsv",
+        "target workflow run outdir",
+    ]
     assert payload["next_stage"]["recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": "provider_request_external_genomes/external_genomes.tsv",
+        "target_outdir": "<run>",
+    }
+    assert payload["recommended_request"] == {
         "command": "external-genomes",
         "subcommand": "install-plan",
         "input": "provider_request_external_genomes/external_genomes.tsv",
