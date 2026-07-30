@@ -1272,6 +1272,9 @@ def test_package_results_includes_explicit_provider_handoff_pair_and_scope(
     )
     assert "Provider handoff artifacts are audit-only" in package_text
     assert "AI/operator provider planning availability" in package_text
+    assert "Provider automation levels: metadata_review=2; planning_handoff=1" in (
+        package_text
+    )
     assert "`network_access=false`" in package_text
     assert "private provider detail" not in package_text
 
@@ -1478,6 +1481,9 @@ def test_package_results_includes_explicit_provider_request_pair_and_scope(
     )
     assert "Provider request draft artifacts are audit-only" in package_text
     assert "curator review availability" in package_text
+    assert "Provider automation levels: metadata_review=1; planning_handoff=1" in (
+        package_text
+    )
     assert "`network_access=false`" in package_text
     assert "private provider detail" not in package_text
 

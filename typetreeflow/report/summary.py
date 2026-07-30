@@ -368,6 +368,7 @@ class ProviderHandoffAuditSummary:
     warnings: list[str]
     provider_counts: list[tuple[str, int]]
     status_counts: list[tuple[str, int]]
+    automation_level_counts: list[tuple[str, int]]
     action_counts: list[tuple[str, int]]
 
 
@@ -378,6 +379,7 @@ class ProviderRequestDraftAuditSummary:
     warnings: list[str]
     provider_counts: list[tuple[str, int]]
     status_counts: list[tuple[str, int]]
+    automation_level_counts: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -1045,6 +1047,7 @@ def read_optional_provider_handoff_audit(
     counts: dict[str, object] = {}
     provider_counts: list[tuple[str, int]] = []
     status_counts: list[tuple[str, int]] = []
+    automation_level_counts: list[tuple[str, int]] = []
     action_counts: list[tuple[str, int]] = []
     summary_data: dict[str, object] | None = None
     observed_rows: int | None = None
@@ -1074,6 +1077,9 @@ def read_optional_provider_handoff_audit(
             )
             parsed_status_counts = _parse_nonnegative_int_map(
                 _required_dict(loaded, "provider_status_counts")
+            )
+            parsed_automation_level_counts = _parse_nonnegative_int_map(
+                _optional_dict(loaded, "provider_automation_level_counts")
             )
             parsed_action_counts = _parse_nonnegative_int_map(
                 _required_dict(loaded, "source_action_counts")
@@ -1118,6 +1124,9 @@ def read_optional_provider_handoff_audit(
             }
             provider_counts = _sorted_nonzero_counts(parsed_provider_counts)
             status_counts = _sorted_nonzero_counts(parsed_status_counts)
+            automation_level_counts = _sorted_nonzero_counts(
+                parsed_automation_level_counts
+            )
             action_counts = _sorted_nonzero_counts(parsed_action_counts)
             valid_files.append(summary_path.name)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
@@ -1152,6 +1161,7 @@ def read_optional_provider_handoff_audit(
         warnings=warnings,
         provider_counts=provider_counts,
         status_counts=status_counts,
+        automation_level_counts=automation_level_counts,
         action_counts=action_counts,
     )
 
@@ -1173,6 +1183,7 @@ def read_optional_provider_request_draft_audit(
     counts: dict[str, object] = {}
     provider_counts: list[tuple[str, int]] = []
     status_counts: list[tuple[str, int]] = []
+    automation_level_counts: list[tuple[str, int]] = []
     summary_data: dict[str, object] | None = None
     observed_rows: int | None = None
 
@@ -1202,6 +1213,9 @@ def read_optional_provider_request_draft_audit(
             parsed_status_counts = _parse_nonnegative_int_map(
                 _required_dict(loaded, "provider_status_counts")
             )
+            parsed_automation_level_counts = _parse_nonnegative_int_map(
+                _optional_dict(loaded, "provider_automation_level_counts")
+            )
             if loaded.get("audit_only") is not True:
                 raise ValueError("audit_only boundary violation")
             if loaded.get("strict_scientific_deliverable") is not False:
@@ -1229,6 +1243,9 @@ def read_optional_provider_request_draft_audit(
             }
             provider_counts = _sorted_nonzero_counts(parsed_provider_counts)
             status_counts = _sorted_nonzero_counts(parsed_status_counts)
+            automation_level_counts = _sorted_nonzero_counts(
+                parsed_automation_level_counts
+            )
             valid_files.append(summary_path.name)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
             warnings.append("provider_request_draft_summary.json malformed")
@@ -1259,6 +1276,7 @@ def read_optional_provider_request_draft_audit(
         warnings=warnings,
         provider_counts=provider_counts,
         status_counts=status_counts,
+        automation_level_counts=automation_level_counts,
     )
 
 
@@ -1777,6 +1795,13 @@ def read_optional_archive_candidates_audit(
 
 def _required_dict(value: dict[str, object], field: str) -> dict[object, object]:
     loaded = value.get(field)
+    if not isinstance(loaded, dict):
+        raise ValueError(f"invalid {field}")
+    return loaded
+
+
+def _optional_dict(value: dict[str, object], field: str) -> dict[object, object]:
+    loaded = value.get(field, {})
     if not isinstance(loaded, dict):
         raise ValueError(f"invalid {field}")
     return loaded
@@ -3657,6 +3682,18 @@ def build_run_summary_markdown(
                     ],
                 ]
             )
+        if provider_handoff_audit.automation_level_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Provider Automation Level | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(level)} | {count} |"
+                        for level, count in provider_handoff_audit.automation_level_counts[:5]
+                    ],
+                ]
+            )
         if provider_handoff_audit.action_counts:
             lines.extend(
                 [
@@ -3728,6 +3765,18 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(status)} | {count} |"
                         for status, count in provider_request_audit.status_counts[:5]
+                    ],
+                ]
+            )
+        if provider_request_audit.automation_level_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Provider Automation Level | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(level)} | {count} |"
+                        for level, count in provider_request_audit.automation_level_counts[:5]
                     ],
                 ]
             )

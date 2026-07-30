@@ -709,7 +709,9 @@ malformed input copies only validated members and records a compact warning.
 These files are audit-only: provider handoff rows mean AI/operator provider
 planning availability, not provider contact, authentication, terms acceptance,
 download execution, manifest mutation, completion credit, or strict deliverable
-promotion. `--failed-handoff` excludes provider-handoff artifacts.
+promotion. When summary data is valid, the package README and handoff index
+also include compact provider automation-level counts for AI/operator triage.
+`--failed-handoff` excludes provider-handoff artifacts.
 With an explicit `--provider-request-dir`, `--include reports` and
 `--include all` copy each validated provider-request draft member under
 `provider_request/` and add one `scope=audit`,
@@ -718,8 +720,10 @@ Missing input is omitted; partial or malformed input copies only validated
 members and records a compact warning. These files are audit-only: provider
 request draft rows mean curator review availability, not provider contact,
 authentication, terms acceptance, download execution, manifest mutation,
-completion credit, or strict deliverable promotion. `--failed-handoff`
-excludes provider-request artifacts.
+completion credit, or strict deliverable promotion. When summary data is valid,
+the package README and handoff index also include compact provider
+automation-level counts from the draft summary. `--failed-handoff` excludes
+provider-request artifacts.
 With an explicit `--provider-request-validation-dir`, `--include reports` and
 `--include all` copy each validated provider-request validation member under
 `provider_request_validation/` and add one `scope=audit`,

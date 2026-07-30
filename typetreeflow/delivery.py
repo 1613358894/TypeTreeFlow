@@ -3381,6 +3381,11 @@ def _provider_handoff_readme_lines(
     lines.extend(_provider_handoff_boundary_lines())
     if audit.present_files:
         lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.automation_level_counts:
+        lines.append(
+            "- Provider automation levels: "
+            + _provider_automation_level_counts_summary(audit.automation_level_counts)
+        )
     if audit.warnings:
         lines.append("- Warning: " + "; ".join(audit.warnings))
     return lines
@@ -3412,6 +3417,11 @@ def _provider_request_readme_lines(
     lines.extend(_provider_request_boundary_lines())
     if audit.present_files:
         lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.automation_level_counts:
+        lines.append(
+            "- Provider automation levels: "
+            + _provider_automation_level_counts_summary(audit.automation_level_counts)
+        )
     if audit.warnings:
         lines.append("- Warning: " + "; ".join(audit.warnings))
     return lines
@@ -3690,6 +3700,11 @@ def _provider_handoff_handoff_lines(
     lines.extend(_provider_handoff_boundary_lines())
     if audit.present_files:
         lines.append("- Provider handoff files copied: " + ", ".join(audit.present_files))
+    if audit.automation_level_counts:
+        lines.append(
+            "- Provider automation levels: "
+            + _provider_automation_level_counts_summary(audit.automation_level_counts)
+        )
     if audit.warnings:
         lines.append("- Provider handoff warning: " + "; ".join(audit.warnings))
     return lines
@@ -3702,9 +3717,20 @@ def _provider_request_handoff_lines(
     lines.extend(_provider_request_boundary_lines())
     if audit.present_files:
         lines.append("- Provider request files copied: " + ", ".join(audit.present_files))
+    if audit.automation_level_counts:
+        lines.append(
+            "- Provider automation levels: "
+            + _provider_automation_level_counts_summary(audit.automation_level_counts)
+        )
     if audit.warnings:
         lines.append("- Provider request warning: " + "; ".join(audit.warnings))
     return lines
+
+
+def _provider_automation_level_counts_summary(
+    counts: list[tuple[str, int]],
+) -> str:
+    return "; ".join(f"{level}={count}" for level, count in counts[:5])
 
 
 def _provider_request_validation_handoff_lines(
