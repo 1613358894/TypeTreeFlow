@@ -2686,7 +2686,10 @@ def test_package_results_stdout_stays_json_when_package_code_prints_banner(
             missing_optional_files=[],
         )
 
-    monkeypatch.setattr("typetreeflow.cli.package_results", noisy_package_results)
+    monkeypatch.setattr(
+        "typetreeflow.cli_handlers.package_results.package_results",
+        noisy_package_results,
+    )
 
     assert main(["package-results", "--outdir", str(tmp_path)]) == 0
 
