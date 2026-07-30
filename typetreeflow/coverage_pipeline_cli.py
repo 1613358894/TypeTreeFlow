@@ -1575,6 +1575,12 @@ def _coverage_opportunity_summary(
         action_code = str(group.get("action_code", ""))
         automation_counts = automation_by_action.get(action_code, {})
         route = _coverage_action_route(action_code)
+        raw_recommended_request = group.get("recommended_request")
+        recommended_request = (
+            dict(raw_recommended_request)
+            if isinstance(raw_recommended_request, Mapping)
+            else None
+        )
         summary.append(
             {
                 "priority": group.get("priority", 0),
@@ -1592,6 +1598,7 @@ def _coverage_opportunity_summary(
                     "recommended_next_command",
                     "",
                 ),
+                "recommended_request": recommended_request,
             }
         )
     return summary
@@ -1621,6 +1628,12 @@ def _coverage_action_queue(
             if isinstance(raw_automation_counts, Mapping)
             else {}
         )
+        raw_recommended_request = opportunity.get("recommended_request")
+        recommended_request = (
+            dict(raw_recommended_request)
+            if isinstance(raw_recommended_request, Mapping)
+            else None
+        )
         queue.append(
             {
                 "queue_position": index,
@@ -1642,6 +1655,7 @@ def _coverage_action_queue(
                 "recommended_next_command": str(
                     opportunity.get("recommended_next_command", "")
                 ),
+                "recommended_request": recommended_request,
             }
         )
     return queue

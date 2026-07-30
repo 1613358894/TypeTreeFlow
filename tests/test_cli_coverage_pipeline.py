@@ -277,6 +277,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "provider_keys": [],
             "provider_automation_level_counts": {},
             "recommended_next_command": "manual-review validate --input <review.tsv>",
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
         },
         {
             "priority": 20,
@@ -289,6 +294,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
             "provider_automation_level_counts": {"metadata_review": 4},
             "recommended_next_command": "manual-review validate --input <review.tsv>",
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
         },
         {
             "priority": 30,
@@ -301,6 +311,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "provider_keys": ["genbank", "refseq"],
             "provider_automation_level_counts": {"metadata_review": 2},
             "recommended_next_command": "manual-review validate --input <review.tsv>",
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
         },
         {
             "priority": 50,
@@ -315,6 +330,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "recommended_next_command": (
                 "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
             ),
+            "recommended_request": {
+                "command": "provider-request",
+                "subcommand": "draft",
+                "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+            },
         },
     ]
     assert [entry["queue_position"] for entry in payload["coverage_action_queue"]] == [
@@ -335,6 +355,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         is True
     )
     assert payload["coverage_action_queue"][3]["requires_provider_handoff"] is True
+    assert payload["coverage_action_queue"][3]["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+    }
     assert all(
         entry["safe_for_unattended_download"] is False
         for entry in payload["coverage_action_queue"]
@@ -361,6 +386,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["current_coverage_action_queue_item"]["action_code"] == (
         "resolve_curator_conflict"
     )
+    assert payload["current_coverage_action_queue_item"]["recommended_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    }
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
     assert payload["provider_automation_level_counts"] == {
@@ -735,6 +765,11 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_action_queue"][3]["requires_provider_handoff"] is True
     assert summary["coverage_action_queue"][3]["provider_automation_level_counts"] == {
         "planning_handoff": 2
+    }
+    assert summary["coverage_action_queue"][3]["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
     }
     assert summary["coverage_action_queue_summary"][
         "public_metadata_review_required_count"
@@ -1443,6 +1478,11 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_action_queue"][0]["requires_curator_input"] is True
     assert payload["coverage_action_queue"][3]["requires_provider_handoff"] is True
     assert payload["coverage_action_queue"][3]["safe_for_unattended_download"] is False
+    assert payload["coverage_action_queue"][3]["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+    }
     assert payload["coverage_action_queue_summary"][
         "safe_for_unattended_download_count"
     ] == 0

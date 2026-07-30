@@ -249,7 +249,9 @@ flags such as `requires_curator_input`, `requires_public_metadata_review`, and
 `requires_provider_handoff` for AI/operator queueing. The
 `coverage_action_queue_summary` and `current_coverage_action_queue_item` fields
 let an AI controller read queue pressure and the first queued item without
-recomputing counts. It also carries
+recomputing counts. Opportunity and queue rows carry the same structured
+`recommended_request` objects used by `commands render` / `commands plan`, but
+they still require normal planning or preflight before execution. It also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
 AI/operator handoff pressure is visible before reading the nested artifacts. It
