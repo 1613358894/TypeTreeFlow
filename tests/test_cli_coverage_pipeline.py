@@ -6,7 +6,10 @@ import subprocess
 
 from typetreeflow import cli
 from typetreeflow.external_genomes import calculate_sha256
+from typetreeflow.manifest import write_manifest
+from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
+from typetreeflow.workflow.paths import get_output_paths
 
 
 def _write_tsv(path, fields, rows):
@@ -98,6 +101,60 @@ def _write_inputs(tmp_path):
         ],
     )
     return checklist, reconciler, gaps, archive
+
+
+def _write_curated_provider_request(tmp_path):
+    fasta = tmp_path / "local" / "provider" / "DSM-1.fna"
+    fasta.parent.mkdir(parents=True)
+    fasta.write_text(">seq\nACGT\n", encoding="utf-8")
+    curated_request = tmp_path / "curated_provider_request.tsv"
+    fasta_hash = calculate_sha256(fasta)
+    _write_tsv(
+        curated_request,
+        PROVIDER_REQUEST_FIELDS,
+        [
+            {
+                "request_id": "CUR-0001",
+                "species": "Clostridium alpha",
+                "strain": "DSM 1",
+                "type_strain_id": "DSM 1",
+                "provider": "dsmz",
+                "provider_name": "DSMZ",
+                "provider_record_id": "DSM-1",
+                "provider_record_url": "",
+                "provider_artifact_id": "",
+                "provider_artifact_version": "",
+                "artifact_type": "genome_fasta",
+                "local_fasta_path": "local/provider/DSM-1.fna",
+                "local_sha256": fasta_hash,
+                "terms_review_status": "reviewed_allowed",
+                "license_notes": "allowed for local review",
+                "retrieval_date": "2026-07-30",
+                "is_type_material": "true",
+                "requires_manual_review": "false",
+                "curator": "reviewer-a",
+                "notes": "curated_provider_request=true",
+            }
+        ],
+    )
+    return curated_request, fasta, fasta_hash
+
+
+def _manifest_record() -> StrainRecord:
+    return StrainRecord(
+        record_id="rec-1",
+        canonical_name="Clostridium alpha",
+        display_name="Clostridium alpha DSM 1",
+        genus="Clostridium",
+        species="alpha",
+        strain="DSM 1",
+        is_type_material=True,
+        has_16s=False,
+        normalized_id="rec-1",
+        source="fixture",
+        status="manual_review_required",
+        notes="fixture row",
+    )
 
 
 def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_path):
@@ -525,38 +582,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     tmp_path,
 ):
     checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
-    fasta = tmp_path / "local" / "provider" / "DSM-1.fna"
-    fasta.parent.mkdir(parents=True)
-    fasta.write_text(">seq\nACGT\n", encoding="utf-8")
-    curated_request = tmp_path / "curated_provider_request.tsv"
-    _write_tsv(
-        curated_request,
-        PROVIDER_REQUEST_FIELDS,
-        [
-            {
-                "request_id": "CUR-0001",
-                "species": "Clostridium alpha",
-                "strain": "DSM 1",
-                "type_strain_id": "DSM 1",
-                "provider": "dsmz",
-                "provider_name": "DSMZ",
-                "provider_record_id": "DSM-1",
-                "provider_record_url": "",
-                "provider_artifact_id": "",
-                "provider_artifact_version": "",
-                "artifact_type": "genome_fasta",
-                "local_fasta_path": "local/provider/DSM-1.fna",
-                "local_sha256": calculate_sha256(fasta),
-                "terms_review_status": "reviewed_allowed",
-                "license_notes": "allowed for local review",
-                "retrieval_date": "2026-07-30",
-                "is_type_material": "true",
-                "requires_manual_review": "false",
-                "curator": "reviewer-a",
-                "notes": "curated_provider_request=true",
-            }
-        ],
-    )
+    curated_request, fasta, fasta_hash = _write_curated_provider_request(tmp_path)
     outdir = tmp_path / "pipeline_outputs"
     install_target = tmp_path / "future_registration_run"
 
@@ -607,7 +633,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     external_rows = _read_tsv(external_genomes)
     assert external_rows[0]["external_source"] == "dsmz"
     assert external_rows[0]["status"] == "external_genome_registered"
-    assert external_rows[0]["sha256"] == calculate_sha256(fasta)
+    assert external_rows[0]["sha256"] == fasta_hash
     install_dir = outdir / "external_genomes_install_plan"
     registration_results = install_dir / "external_genome_registration_results.tsv"
     install_plan = install_dir / "external_genome_install_plan.tsv"
@@ -620,7 +646,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert install_rows[0]["installed_genome_path"].startswith(str(install_target))
     assert not install_target.exists()
     assert str(fasta) not in captured.out
-    assert calculate_sha256(fasta) not in captured.out
+    assert fasta_hash not in captured.out
     pipeline_summary = json.loads(
         (outdir / "coverage_pipeline_summary.json").read_text()
     )
@@ -641,6 +667,135 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         status_payload["operator_chain_stages"][6]["summary_install_planned_count"]
         == 1
     )
+
+
+def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    curated_request, fasta, fasta_hash = _write_curated_provider_request(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    install_target = tmp_path / "future_registration_run"
+    run_dir = tmp_path / "run"
+    paths = get_output_paths(run_dir)
+    write_manifest([_manifest_record()], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+
+    code, build_payload, build_captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--curated-provider-request-tsv",
+            str(curated_request),
+            "--external-genomes-install-target-outdir",
+            str(install_target),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+    assert build_captured.out.count("\n") == 1
+    assert build_payload["external_genomes_install_plan_status"] == "pass"
+    assert build_payload["downloads_triggered"] == 0
+    assert build_payload["providers_contacted"] == 0
+    assert str(fasta) not in build_captured.out
+    assert fasta_hash not in build_captured.out
+    assert not install_target.exists()
+
+    code, status_payload, status_captured = _run(
+        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        capsys,
+        action="status",
+    )
+    assert code == 0
+    assert status_captured.out.count("\n") == 1
+    assert status_payload["operator_chain_stages"][6]["available"] is True
+    assert (
+        status_payload["operator_chain_stages"][6]["summary_install_planned_count"]
+        == 1
+    )
+    assert status_payload["operator_chain_stages"][7]["available"] is False
+
+    assert (
+        cli.main(
+            [
+                "verify-genus",
+                "Clostridium",
+                "--outdir",
+                str(run_dir),
+                "--resume",
+                "--report-only",
+                "--coverage-pipeline-dir",
+                str(pipeline_dir),
+            ]
+        )
+        == 0
+    )
+    report_stdout = capsys.readouterr().out
+    report_summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert report_stdout.count("\n") <= 1
+    assert json.loads(report_stdout)["command"] == "verify-genus"
+    assert "## Provider Request External Genomes Draft Audit" in report_summary
+    assert "## External Genomes Install Plan Audit" in report_summary
+    assert "external_genome_install_planned" in report_summary
+    assert "private" not in report_summary
+    assert "DSM-1.fna" not in report_summary
+    assert paths.manifest.read_bytes() == manifest_before
+    assert not install_target.exists()
+
+    assert (
+        cli.main(
+            [
+                "package-results",
+                "--outdir",
+                str(run_dir),
+                "--include",
+                "reports",
+                "--coverage-pipeline-dir",
+                str(pipeline_dir),
+            ]
+        )
+        == 0
+    )
+    package_payload = json.loads(capsys.readouterr().out)
+    assert package_payload["command"] == "package-results"
+    delivery = run_dir / "delivery"
+    assert (
+        delivery
+        / "external_genomes_install_plan"
+        / "external_genome_install_plan.tsv"
+    ).exists()
+    assert (
+        delivery
+        / "external_genomes_install_plan"
+        / "external_genome_install_plan_summary.json"
+    ).exists()
+    scope_rows = _read_tsv(delivery / "artifact_scope.tsv")
+    install_scope = [
+        row
+        for row in scope_rows
+        if row["artifact_path"].startswith("external_genomes_install_plan/")
+    ]
+    assert len(install_scope) == 3
+    assert {row["scope"] for row in install_scope} == {"audit"}
+    assert {row["evidence_policy"] for row in install_scope} == {
+        "external_genomes_install_plan_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in install_scope} == {
+        "false"
+    }
+    assert not install_target.exists()
 
 
 def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_path):
