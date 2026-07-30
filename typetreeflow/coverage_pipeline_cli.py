@@ -649,6 +649,13 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             if next_stage
             else ""
         ),
+        "external_genomes_registration_dry_run_recommended_request": (
+            _stage_recommended_request("external_genomes_registration_dry_run")
+        ),
+        "external_genomes_registration_dry_run_recommended_next_command": (
+            "typetreeflow --register-external-genomes "
+            "<external_genomes.tsv> --outdir <run> --dry-run"
+        ),
         "operator_chain_stages": stages,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -1190,6 +1197,13 @@ def _payload(
             if external_genomes_install_plan is None
             else external_genomes_install_plan["output_paths"]
         ),
+        "external_genomes_registration_dry_run_recommended_request": (
+            _stage_recommended_request("external_genomes_registration_dry_run")
+        ),
+        "external_genomes_registration_dry_run_recommended_next_command": (
+            "typetreeflow --register-external-genomes "
+            "<external_genomes.tsv> --outdir <run> --dry-run"
+        ),
         "provider_request_external_genomes_handoff_recommended_request": (
             _stage_recommended_request("provider_request_validation")
         ),
@@ -1526,6 +1540,13 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "external_genomes_install_plan_output_paths": {
             key: None for key in INSTALL_PLAN_OUTPUT_NAMES
         },
+        "external_genomes_registration_dry_run_recommended_request": (
+            _stage_recommended_request("external_genomes_registration_dry_run")
+        ),
+        "external_genomes_registration_dry_run_recommended_next_command": (
+            "typetreeflow --register-external-genomes "
+            "<external_genomes.tsv> --outdir <run> --dry-run"
+        ),
         "provider_request_external_genomes_handoff_recommended_request": (
             _stage_recommended_request("provider_request_validation")
         ),
@@ -1623,6 +1644,8 @@ def _rendered_outputs(
             "external_genomes_install_plan_install_planned_count",
             "external_genomes_install_plan_diagnostic_count",
             "external_genomes_install_plan_output_paths",
+            "external_genomes_registration_dry_run_recommended_request",
+            "external_genomes_registration_dry_run_recommended_next_command",
             "provider_request_external_genomes_handoff_recommended_request",
             "provider_request_external_genomes_handoff_recommended_next_command",
             "operator_chain_stages",
@@ -1850,6 +1873,9 @@ def _external_genomes_install_plan_payload(
         "strict_scientific_deliverable": False,
         "target_outdir_mutated": False,
         "output_paths": {key: None for key in INSTALL_PLAN_OUTPUT_NAMES},
+        "recommended_request": _stage_recommended_request(
+            "external_genomes_registration_dry_run"
+        ),
         "recommended_next_command": (
             "typetreeflow --register-external-genomes <external_genomes.tsv> "
             "--outdir <run> --dry-run"

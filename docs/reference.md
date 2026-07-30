@@ -1722,6 +1722,7 @@ provider-status, and provider-request draft counts plus
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
 `provider_request_external_genomes_install_plan_recommended_next_command` plus
+`external_genomes_registration_dry_run_recommended_next_command` plus
 `provider_request_external_genomes_handoff_recommended_next_command` plus
 `provider_request_recommended_next_command`, their matching
 `*_recommended_request` structured request drafts, and bounded previews. Action
@@ -1741,8 +1742,11 @@ chain. Each row reports `stage`, `artifact`, `available`, `record_count`,
 discover files outside the explicit pipeline inputs or output directory.
 The external-genomes draft recommendation points to the explicit local handoff
 step after provider-request validation, and the install-plan recommendation
-points to the local planning step before registration dry-run; neither is
-automatic registration or download execution. `preview` never writes files.
+points to the local planning step before registration dry-run. The separate
+`external_genomes_registration_dry_run_recommended_request` and matching next
+command point to a later dry-run `--register-external-genomes` review. None of
+these requests are automatic registration or download execution. `preview`
+never writes files.
 `build --validate-provider-request` runs the same local provider-request
 validation guards on the generated draft. It only checks local TSV fields and
 optional local FASTA paths; it does not contact providers, download genomes, or

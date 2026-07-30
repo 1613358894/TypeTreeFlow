@@ -334,6 +334,18 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
+    assert payload["external_genomes_registration_dry_run_recommended_request"] == {
+        "command": "register-external-genomes",
+        "external_genomes": "external_genomes.tsv",
+        "outdir": "<run>",
+        "dry_run": True,
+    }
+    assert payload[
+        "external_genomes_registration_dry_run_recommended_next_command"
+    ] == (
+        "typetreeflow --register-external-genomes "
+        "<external_genomes.tsv> --outdir <run> --dry-run"
+    )
     assert payload["provider_request_external_genomes_handoff_recommended_request"] == {
         "command": "provider-request",
         "subcommand": "external-genomes-handoff",
@@ -646,6 +658,18 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
+    assert summary["external_genomes_registration_dry_run_recommended_request"] == {
+        "command": "register-external-genomes",
+        "external_genomes": "external_genomes.tsv",
+        "outdir": "<run>",
+        "dry_run": True,
+    }
+    assert summary[
+        "external_genomes_registration_dry_run_recommended_next_command"
+    ] == (
+        "typetreeflow --register-external-genomes "
+        "<external_genomes.tsv> --outdir <run> --dry-run"
+    )
     assert summary["provider_request_external_genomes_handoff_recommended_request"] == {
         "command": "provider-request",
         "subcommand": "external-genomes-handoff",
@@ -880,6 +904,12 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["provider_request_external_genomes_exported_count"] == 1
     assert payload["external_genomes_install_plan_status"] == "pass"
     assert payload["external_genomes_install_plan_install_planned_count"] == 1
+    assert payload["external_genomes_registration_dry_run_recommended_request"] == {
+        "command": "register-external-genomes",
+        "external_genomes": "external_genomes.tsv",
+        "outdir": "<run>",
+        "dry_run": True,
+    }
     assert payload["operator_chain_stages"][4]["available"] is True
     assert payload["operator_chain_stages"][5]["available"] is True
     assert payload["operator_chain_stages"][6]["available"] is True
@@ -907,6 +937,17 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     install_rows = _read_tsv(install_plan)
     assert install_rows[0]["status"] == "external_genome_install_planned"
     assert install_rows[0]["installed_genome_path"].startswith(str(install_target))
+    install_summary_payload = json.loads(install_summary.read_text())
+    assert install_summary_payload["recommended_request"] == {
+        "command": "register-external-genomes",
+        "external_genomes": "external_genomes.tsv",
+        "outdir": "<run>",
+        "dry_run": True,
+    }
+    assert install_summary_payload["recommended_next_command"] == (
+        "typetreeflow --register-external-genomes "
+        "<external_genomes.tsv> --outdir <run> --dry-run"
+    )
     assert not install_target.exists()
     assert str(fasta) not in captured.out
     assert fasta_hash not in captured.out
@@ -916,6 +957,14 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert pipeline_summary["provider_request_external_genomes_status"] == "pass"
     assert pipeline_summary["operator_chain_stages"][5]["record_count"] == 1
     assert pipeline_summary["external_genomes_install_plan_status"] == "pass"
+    assert pipeline_summary[
+        "external_genomes_registration_dry_run_recommended_request"
+    ] == {
+        "command": "register-external-genomes",
+        "external_genomes": "external_genomes.tsv",
+        "outdir": "<run>",
+        "dry_run": True,
+    }
     assert pipeline_summary["operator_chain_stages"][6]["record_count"] == 1
 
     code, status_payload, _ = _run(
@@ -930,6 +979,14 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         status_payload["operator_chain_stages"][6]["summary_install_planned_count"]
         == 1
     )
+    assert status_payload[
+        "external_genomes_registration_dry_run_recommended_request"
+    ] == {
+        "command": "register-external-genomes",
+        "external_genomes": "external_genomes.tsv",
+        "outdir": "<run>",
+        "dry_run": True,
+    }
 
 
 def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
