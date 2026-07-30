@@ -864,6 +864,41 @@ _DEFAULT_STAGE_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
 }
 
 
+_COVERAGE_ACTION_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
+    "resolve_curator_conflict": {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    },
+    "review_public_archive_linkage": {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    },
+    "review_public_type_linkage": {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    },
+    "review_external_registration": {
+        "command": "package-results",
+        "outdir": "<run>",
+        "include": "reports",
+    },
+    "prepare_provider_handoff": {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": OUTPUT_PATHS["provider_handoff"],
+    },
+    "build_local_evidence": {
+        "command": "verify-genus",
+        "genus": "<genus>",
+        "outdir": "<run>",
+        "dry_run": True,
+    },
+}
+
+
 def _tsv_record_count(
     path: Path,
     component: str,
@@ -1317,6 +1352,9 @@ def _operator_stage(
 def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
     grouped: dict[str, dict[str, object]] = {}
     for action in actions:
+        recommended_request = _coverage_action_recommended_request(
+            action.action_code
+        )
         group = grouped.setdefault(
             action.action_code,
             {
@@ -1326,6 +1364,7 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
                 "record_count": 0,
                 "source_lanes": [],
                 "provider_keys": [],
+                "recommended_request": recommended_request,
                 "recommended_next_command": action.recommended_next_command,
             },
         )
@@ -1339,6 +1378,13 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
         grouped.values(),
         key=lambda group: (int(group["priority"]), str(group["action_code"])),
     )
+
+
+def _coverage_action_recommended_request(
+    action_code: str,
+) -> dict[str, object] | None:
+    request = _COVERAGE_ACTION_RECOMMENDED_REQUESTS.get(action_code)
+    return dict(request) if request else None
 
 
 def _append_unique(values: list[str], value: str) -> None:
