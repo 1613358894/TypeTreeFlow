@@ -767,10 +767,13 @@ flags and is not implied by these structured fields.
 
 `commands plan` also requires `--request-json`, renders the request to
 `target_argv`, and immediately applies the same advisory preflight gate. Its
-JSON envelope includes `decision`, `recognized`, `preflight`, `blocking`, and
-`warnings`. It returns exit code `0` when the rendered argv is allowed and exit
-code `2` when rendering fails or preflight blocks. A successful plan is still
-metadata only; it is not execution authorization.
+JSON envelope includes `decision`, `recognized`, `preflight`, `target_risk`,
+`target_allowances`, `target_*_declared` booleans, `blocking`, and `warnings`.
+The plan command itself is always dry-run and no-write; use the `target_*`
+fields to judge the rendered command's output, workflow, network, real-action,
+and external-tool risk. It returns exit code `0` when the rendered argv is
+allowed and exit code `2` when rendering fails or preflight blocks. A successful
+plan is still metadata only; it is not execution authorization.
 
 `commands preflight` adds an advisory `decision` of `allow` or `block`,
 `allowances`, `risk`, `blocking`, and `warnings`. Declared output writes
