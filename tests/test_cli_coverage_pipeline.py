@@ -631,7 +631,15 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["command"] == "coverage-pipeline build"
     assert summary["provider_handoff_record_count"] == 8
+    assert summary["provider_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 2,
+    }
     assert summary["provider_request_record_count"] == 8
+    assert summary["provider_request_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 2,
+    }
     assert summary["provider_terms_review_required_count"] == 8
     assert summary["provider_network_supported_count"] == 0
     assert summary["primary_next_action_group"]["action_code"] == (
@@ -1317,6 +1325,14 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["required_inputs"] == []
     assert payload["recommended_request"] is None
     assert payload["recommended_next_command"] == ""
+    assert payload["provider_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 2,
+    }
+    assert payload["provider_request_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 2,
+    }
     assert [stage["available"] for stage in payload["operator_chain_stages"]] == [
         True,
         True,
