@@ -606,11 +606,27 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
         "external_genomes_install_plan",
         "external_genomes_registration_dry_run",
     ]
+    assert payload["require_complete"] is False
     assert payload["next_stage"]["stage"] == "external_genomes_install_plan"
     assert payload["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
+
+    code, payload, _captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--require-complete",
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert payload["require_complete"] is True
+    assert payload["diagnostics"][0]["diagnostic_code"] == "chain_incomplete"
 
 
 def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
