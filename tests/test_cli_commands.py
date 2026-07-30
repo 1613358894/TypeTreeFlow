@@ -373,6 +373,49 @@ def test_commands_catalog_rejects_extra_tokens(capsys):
     ]
 
 
+def test_providers_catalog_emits_top_level_ai_summary_metadata(capsys):
+    assert main(["providers", "catalog", "--json"]) == 0
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["command"] == "providers catalog"
+    assert payload["status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["provider_count"] == len(payload["providers"])
+    assert payload["provider_status_counts"]["planning_only"] >= 1
+    assert payload["provider_status_counts"]["metadata_only"] >= 1
+    assert payload["allowed_mode_counts"]["planning"] == payload["provider_count"]
+    assert "dsmz" in payload["planning_only_provider_keys"]
+    assert "genbank" in payload["metadata_only_provider_keys"]
+    assert "atcc_genome_portal" in payload["adapter_present_provider_keys"]
+    assert payload["network_supported_provider_keys"] == []
+    assert payload["default_network_enabled_provider_keys"] == []
+
+
+def test_providers_catalog_failure_keeps_stable_summary_shape(capsys):
+    assert main(["providers", "catalog", "extra"]) == 2
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["command"] == "providers catalog"
+    assert payload["status"] == "failed"
+    assert payload["provider_count"] == 0
+    assert payload["providers"] == []
+    assert payload["provider_status_counts"] == {}
+    assert payload["allowed_mode_counts"] == {}
+    assert payload["planning_only_provider_keys"] == []
+    assert payload["metadata_only_provider_keys"] == []
+    assert payload["network_supported_provider_keys"] == []
+    assert payload["credentials_required_provider_keys"] == []
+    assert payload["terms_review_required_provider_keys"] == []
+    assert payload["default_network_enabled_provider_keys"] == []
+    assert payload["adapter_present_provider_keys"] == []
+
+
 def test_commands_render_emits_normalized_workflow_argv(capsys):
     assert (
         main(
