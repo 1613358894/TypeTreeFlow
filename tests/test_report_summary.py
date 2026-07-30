@@ -656,6 +656,10 @@ def _write_provider_handoff_pair(directory: Path) -> None:
                 "record_count": 3,
                 "provider_key_counts": {"genbank": 2, "dsmz": 1},
                 "provider_status_counts": {"metadata_only": 2, "planning_only": 1},
+                "provider_automation_level_counts": {
+                    "metadata_review": 2,
+                    "planning_handoff": 1,
+                },
                 "source_action_counts": {
                     "review_public_archive_linkage": 2,
                     "prepare_provider_handoff": 1,
@@ -681,23 +685,26 @@ def _write_provider_handoff_pair(directory: Path) -> None:
             handle, fieldnames=PROVIDER_HANDOFF_FIELDS, delimiter="\t"
         )
         writer.writeheader()
-        for species, provider, status, action in (
+        for species, provider, status, automation_level, action in (
             (
                 "Clostridium alpha",
                 "genbank",
                 "metadata_only",
+                "metadata_review",
                 "review_public_archive_linkage",
             ),
             (
                 "Clostridium beta",
                 "genbank",
                 "metadata_only",
+                "metadata_review",
                 "review_public_archive_linkage",
             ),
             (
                 "Clostridium gamma",
                 "dsmz",
                 "planning_only",
+                "planning_handoff",
                 "prepare_provider_handoff",
             ),
         ):
@@ -707,6 +714,7 @@ def _write_provider_handoff_pair(directory: Path) -> None:
                     "provider_key": provider,
                     "provider_name": "private provider detail",
                     "provider_status": status,
+                    "provider_automation_level": automation_level,
                     "species": species,
                     "source_action_code": action,
                     "source_lane": "public_linkage_review",
@@ -748,6 +756,7 @@ def test_provider_handoff_audit_section_is_explicit_bounded_and_audit_only(
     assert "does not contact providers, authenticate, accept terms" in markdown
     assert "| genbank | 2 |" in markdown
     assert "| metadata_only | 2 |" in markdown
+    assert "| metadata_review | 2 |" in markdown
     assert "| review_public_archive_linkage | 2 |" in markdown
     assert "private provider detail" not in markdown
     assert "Clostridium alpha" not in markdown
@@ -799,6 +808,10 @@ def _write_provider_request_pair(directory: Path) -> None:
                 "record_count": 2,
                 "provider_key_counts": {"dsmz": 1, "genbank": 1},
                 "provider_status_counts": {"metadata_only": 1, "planning_only": 1},
+                "provider_automation_level_counts": {
+                    "metadata_review": 1,
+                    "planning_handoff": 1,
+                },
                 "source_action_counts": {"prepare_provider_handoff": 2},
                 "audit_only": True,
                 "writes_workflow_outputs": False,
@@ -1156,6 +1169,7 @@ def test_provider_request_audit_section_is_explicit_bounded_and_audit_only(
     assert "does not contact providers, authenticate, accept terms" in markdown
     assert "| dsmz | 1 |" in markdown
     assert "| planning_only | 1 |" in markdown
+    assert "| planning_handoff | 1 |" in markdown
     assert "private provider detail" not in markdown
     assert "private notes" not in markdown
 

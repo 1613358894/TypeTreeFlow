@@ -397,11 +397,12 @@ Partial or malformed input keeps report generation successful and shows a
 compact warning. Valid summary counts show `record_count`,
 `downloads_triggered`, `providers_contacted`, `network_access`,
 `manifest_mutated`, `audit_only`, and `strict_scientific_deliverable`, plus up
-to five nonzero provider-key, provider-status, and source-action counts.
-Row-level species, provider names, required input, command text, terms details,
-credential details, or source details are not displayed. Report inclusion does
-not contact providers, authenticate, accept terms, trigger downloads, mutate
-manifests, create workflow outputs, or create strict scientific deliverables.
+to five nonzero provider-key, provider-status, provider automation-level, and
+source-action counts. Row-level species, provider names, required input,
+command text, terms details, credential details, or source details are not
+displayed. Report inclusion does not contact providers, authenticate, accept
+terms, trigger downloads, mutate manifests, create workflow outputs, or create
+strict scientific deliverables.
 
 For `package-results --include reports` or `--include all`, each validated
 member is copied under `provider_handoff/`. Each copied member gets one row in
@@ -413,7 +414,10 @@ package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
 `source_artifact=provider_handoff_builder`. Missing input is omitted. Partial
 or malformed input copies only valid members and adds a compact warning to the
 README, handoff index, and compact JSON envelope. Failed-handoff packages
-exclude these artifacts and rows.
+exclude these artifacts and rows. When present, README and handoff-index text
+include compact provider automation-level counts so AI/operator review can see
+planning-handoff versus metadata-review pressure without opening the summary
+JSON.
 
 `--provider-request-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only input and is never
@@ -425,11 +429,12 @@ generation successful and shows a compact warning. Valid summary counts show
 `record_count`, `downloads_triggered`, `providers_contacted`,
 `network_access`, `manifest_mutated`, `writes_workflow_outputs`,
 `audit_only`, and `strict_scientific_deliverable`, plus up to five nonzero
-provider-key and provider-status counts. Row-level species, provider names,
-notes, curator fields, provider record fields, local FASTA paths, hashes, and
-license details are not displayed. Report inclusion does not contact
-providers, authenticate, accept terms, trigger downloads, mutate manifests,
-create workflow outputs, or create strict scientific deliverables.
+provider-key, provider-status, and provider automation-level counts. Row-level
+species, provider names, notes, curator fields, provider record fields, local
+FASTA paths, hashes, and license details are not displayed. Report inclusion
+does not contact providers, authenticate, accept terms, trigger downloads,
+mutate manifests, create workflow outputs, or create strict scientific
+deliverables.
 
 For `package-results --include reports` or `--include all`, each validated
 member is copied under `provider_request/`. Each copied member gets one row in
@@ -441,7 +446,8 @@ package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
 `source_artifact=provider_request_draft`. Missing input is omitted. Partial
 or malformed input copies only valid members and adds a compact warning to the
 README, handoff index, and compact JSON envelope. Failed-handoff packages
-exclude these artifacts and rows.
+exclude these artifacts and rows. When present, README and handoff-index text
+include compact provider automation-level counts from the draft summary.
 
 `--provider-request-validation-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only input and is never
