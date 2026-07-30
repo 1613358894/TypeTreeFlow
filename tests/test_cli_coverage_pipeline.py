@@ -328,6 +328,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
+    assert payload["operator_chain_stages"][6]["required_inputs"] == [
+        "provider_request_external_genomes/external_genomes.tsv",
+        "target workflow run outdir",
+    ]
     assert "no FASTA copy" in payload["operator_chain_stages"][6]["boundary"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
@@ -545,6 +549,10 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "typetreeflow --register-external-genomes "
         "<external_genomes.tsv> --outdir <run> --dry-run"
     )
+    assert summary["operator_chain_stages"][7]["required_inputs"] == [
+        "external_genomes.tsv",
+        "target workflow run outdir",
+    ]
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
         "kctc": 1,
@@ -1227,6 +1235,10 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
     }
     assert payload["require_complete"] is False
     assert payload["next_stage"]["stage"] == "external_genomes_install_plan"
+    assert payload["next_stage"]["required_inputs"] == [
+        "provider_request_external_genomes/external_genomes.tsv",
+        "target workflow run outdir",
+    ]
     assert payload["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"

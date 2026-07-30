@@ -1759,7 +1759,10 @@ directory, and optional downstream directory overrides. When
 only; it does not query public archives, download genomes, create
 `external_genomes.tsv`, or change strict evidence. It then re-emits
 `operator_chain_stages`, the current unavailable stage, and the recommended
-next command as compact JSON. The payload also includes
+next command as compact JSON. Each stage row and the derived `next_stage`
+include `required_inputs`, a bounded list of local artifact paths or
+curator-supplied input categories needed before that stage can be treated as
+available. The payload also includes
 `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
 re-parsing every stage row. When an explicit or conventional child stage

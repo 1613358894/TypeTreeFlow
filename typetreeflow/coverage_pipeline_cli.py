@@ -479,7 +479,7 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     if not isinstance(stages, list) or not all(isinstance(stage, dict) for stage in stages):
         diagnostics.append(_diagnostic("coverage_pipeline_status", "missing_operator_chain_stages"))
         stages = []
-    stages = [dict(stage) for stage in stages]
+    stages = [_with_required_inputs(dict(stage)) for stage in stages]
 
     _apply_optional_stage(
         stages,
@@ -504,6 +504,7 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         required_member="archive_candidates.tsv",
         add_if_directory=True,
         artifact="archive_candidates/archive_candidates.tsv",
+        required_inputs=("archive_candidates/archive_candidates.tsv",),
         recommended_next_command=(
             "typetreeflow coverage-pipeline build "
             "--archive-candidates-tsv <archive_candidates.tsv> "
@@ -699,6 +700,7 @@ def _apply_optional_stage(
     detail_fields: tuple[str, ...] = (),
     add_if_directory: bool = False,
     artifact: str = "",
+    required_inputs: tuple[str, ...] = (),
     recommended_next_command: str = "",
     boundary: str = "",
 ) -> None:
@@ -709,6 +711,7 @@ def _apply_optional_stage(
                 stage=stage_name,
                 artifact=artifact,
                 record_count=0,
+                required_inputs=required_inputs,
                 recommended_next_command=recommended_next_command,
                 boundary=boundary,
             )
@@ -752,6 +755,46 @@ def _find_stage(
         if stage.get("stage") == stage_name:
             return stage
     return None
+
+
+def _with_required_inputs(stage: dict[str, object]) -> dict[str, object]:
+    if isinstance(stage.get("required_inputs"), list):
+        return stage
+    stage["required_inputs"] = list(
+        _DEFAULT_STAGE_REQUIRED_INPUTS.get(str(stage.get("stage", "")), ())
+    )
+    return stage
+
+
+_DEFAULT_STAGE_REQUIRED_INPUTS: dict[str, tuple[str, ...]] = {
+    "acquisition_worklist": (
+        "local checklist/reconciler/gap evidence inputs",
+        (
+            "optional expanded discovery, manual supplement, archive, "
+            "or external-genomes TSV inputs"
+        ),
+    ),
+    "coverage_plan": (OUTPUT_PATHS["acquisition_worklist"],),
+    "provider_handoff": (OUTPUT_PATHS["coverage_plan"],),
+    "provider_request": (OUTPUT_PATHS["provider_handoff"],),
+    "provider_request_validation": (
+        OUTPUT_PATHS["provider_request"],
+        "curator-completed local FASTA path, SHA-256, terms, and provenance fields",
+    ),
+    "provider_request_external_genomes": (
+        OUTPUT_PATHS["provider_request"],
+        "provider request rows that passed local handoff validation",
+    ),
+    "external_genomes_install_plan": (
+        "provider_request_external_genomes/external_genomes.tsv",
+        "target workflow run outdir",
+    ),
+    "external_genomes_registration_dry_run": (
+        "external_genomes.tsv",
+        "target workflow run outdir",
+    ),
+    "archive_candidates": ("archive_candidates/archive_candidates.tsv",),
+}
 
 
 def _tsv_record_count(
@@ -1065,6 +1108,13 @@ def _operator_chain_stages(
             stage="acquisition_worklist",
             artifact=OUTPUT_PATHS["acquisition_worklist"],
             record_count=worklist_count,
+            required_inputs=(
+                "local checklist/reconciler/gap evidence inputs",
+                (
+                    "optional expanded discovery, manual supplement, archive, "
+                    "or external-genomes TSV inputs"
+                ),
+            ),
             recommended_next_command=(
                 "typetreeflow coverage-pipeline build "
                 "--write --outdir <isolated-coverage-pipeline-directory>"
@@ -1075,6 +1125,7 @@ def _operator_chain_stages(
             stage="coverage_plan",
             artifact=OUTPUT_PATHS["coverage_plan"],
             record_count=coverage_action_count,
+            required_inputs=(OUTPUT_PATHS["acquisition_worklist"],),
             recommended_next_command="review coverage_next_action_groups",
             boundary="review-only action planning; no strict completion change",
         ),
@@ -1082,6 +1133,7 @@ def _operator_chain_stages(
             stage="provider_handoff",
             artifact=OUTPUT_PATHS["provider_handoff"],
             record_count=provider_handoff_count,
+            required_inputs=(OUTPUT_PATHS["coverage_plan"],),
             recommended_next_command=PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
             boundary="provider planning handoff only; no provider contact",
         ),
@@ -1089,6 +1141,7 @@ def _operator_chain_stages(
             stage="provider_request",
             artifact=OUTPUT_PATHS["provider_request"],
             record_count=provider_request_count,
+            required_inputs=(OUTPUT_PATHS["provider_handoff"],),
             recommended_next_command=PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
             boundary="curator-completed local evidence validation only",
         ),
@@ -1096,6 +1149,10 @@ def _operator_chain_stages(
             stage="provider_request_validation",
             artifact="provider_request_validation/provider_request_validation_summary.json",
             record_count=provider_request_validation_ready_count,
+            required_inputs=(
+                OUTPUT_PATHS["provider_request"],
+                "curator-completed local FASTA path, SHA-256, terms, and provenance fields",
+            ),
             recommended_next_command=(
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
             ),
@@ -1105,6 +1162,10 @@ def _operator_chain_stages(
             stage="provider_request_external_genomes",
             artifact="provider_request_external_genomes/external_genomes.tsv",
             record_count=provider_request_external_genomes_count,
+            required_inputs=(
+                OUTPUT_PATHS["provider_request"],
+                "provider request rows that passed local handoff validation",
+            ),
             recommended_next_command=(
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
             ),
@@ -1114,6 +1175,10 @@ def _operator_chain_stages(
             stage="external_genomes_install_plan",
             artifact="external_genomes_install_plan/external_genome_install_plan.tsv",
             record_count=external_genomes_install_plan_count,
+            required_inputs=(
+                "provider_request_external_genomes/external_genomes.tsv",
+                "target workflow run outdir",
+            ),
             recommended_next_command=(
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
             ),
@@ -1123,6 +1188,10 @@ def _operator_chain_stages(
             stage="external_genomes_registration_dry_run",
             artifact="run/external_genome_install_plan.tsv",
             record_count=0,
+            required_inputs=(
+                "external_genomes.tsv",
+                "target workflow run outdir",
+            ),
             recommended_next_command=(
                 "typetreeflow --register-external-genomes "
                 "<external_genomes.tsv> --outdir <run> --dry-run"
@@ -1137,6 +1206,7 @@ def _operator_stage(
     stage: str,
     artifact: str,
     record_count: int,
+    required_inputs: tuple[str, ...],
     recommended_next_command: str,
     boundary: str,
 ) -> dict[str, object]:
@@ -1145,6 +1215,7 @@ def _operator_stage(
         "artifact": artifact,
         "available": record_count > 0,
         "record_count": record_count,
+        "required_inputs": list(required_inputs),
         "recommended_next_command": recommended_next_command,
         "boundary": boundary,
     }
