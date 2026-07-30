@@ -1791,6 +1791,10 @@ by `operator_route` and `next_input_class`, plus route-specific counts such as
 `manual_or_curator_input_required_count`, `public_metadata_review_required_count`,
 and `provider_handoff_required_count`. `current_coverage_action_queue_item`
 copies the first queued item or an empty object when no coverage action remains.
+Opportunity summary rows and queue rows also carry `recommended_request`, the
+same structured request draft used by `commands render` and `commands plan`;
+controllers must still run normal planning or preflight before executing any
+rendered argv.
 The payload also exposes `primary_next_action_group`,
 `primary_action_required_inputs`, `primary_action_recommended_request`, and
 `primary_action_recommended_next_command` as convenience copies from the first
