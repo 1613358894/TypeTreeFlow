@@ -87,7 +87,13 @@ from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
 )
-from typetreeflow.external_genomes import EXTERNAL_GENOME_FIELDS
+from typetreeflow.external_genomes import (
+    EXTERNAL_GENOME_FIELDS,
+    EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
+    EXTERNAL_GENOME_INSTALL_PLAN_STATUSES,
+    EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
+    EXTERNAL_GENOME_STATUSES,
+)
 from typetreeflow.selection.evidence import (
     LIKELY_TYPE_MATERIAL_COUNT,
     REPRESENTATIVE_ONLY_COUNT,
@@ -217,6 +223,21 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_COUNT_FIELDS = (
     "diagnostic_count",
 )
 PROVIDER_REQUEST_EXTERNAL_GENOMES_MAX_BYTES = 5 * 1024 * 1024
+EXTERNAL_GENOMES_INSTALL_PLAN_MEMBERS = (
+    "external_genome_registration_results.tsv",
+    "external_genome_install_plan.tsv",
+    "external_genome_install_plan_summary.json",
+)
+EXTERNAL_GENOMES_INSTALL_PLAN_COUNT_FIELDS = (
+    "record_count",
+    "valid_count",
+    "invalid_count",
+    "install_plan_count",
+    "install_planned_count",
+    "install_skipped_count",
+    "diagnostic_count",
+)
+EXTERNAL_GENOMES_INSTALL_PLAN_MAX_BYTES = 5 * 1024 * 1024
 OFFLINE_READINESS_MEMBERS = (
     "offline_readiness_summary.json",
     "offline_readiness_diagnostics.tsv",
@@ -357,6 +378,16 @@ class ProviderRequestExternalGenomesAuditSummary:
     warnings: list[str]
     provider_counts: list[tuple[str, int]]
     diagnostic_counts: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class ExternalGenomesInstallPlanAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    registration_status_counts: list[tuple[str, int]]
+    install_plan_status_counts: list[tuple[str, int]]
+    top_diagnostics: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -1449,6 +1480,151 @@ def read_optional_provider_request_external_genomes_audit(
     )
 
 
+def read_optional_external_genomes_install_plan_audit(
+    directory: str | Path | None,
+) -> ExternalGenomesInstallPlanAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name
+        for name in EXTERNAL_GENOMES_INSTALL_PLAN_MEMBERS
+        if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    registration_status_counts: list[tuple[str, int]] = []
+    install_plan_status_counts: list[tuple[str, int]] = []
+    top_diagnostics: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    observed_registration_rows: int | None = None
+    observed_install_rows: int | None = None
+
+    missing = [
+        name for name in EXTERNAL_GENOMES_INSTALL_PLAN_MEMBERS if name not in present
+    ]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_name = "external_genome_install_plan_summary.json"
+    summary_path = input_dir / summary_name
+    if summary_path.exists():
+        try:
+            _validate_external_genomes_install_plan_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != "external_genomes_install_plan.v1":
+                raise ValueError("unsupported schema_version")
+            for field in EXTERNAL_GENOMES_INSTALL_PLAN_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            parsed_registration_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "registration_status_counts")
+            )
+            parsed_install_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "install_plan_status_counts")
+            )
+            displayed_diagnostics = _diagnostic_counts_from_summary(loaded)
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            if loaded.get("writes_workflow_outputs") is not False:
+                raise ValueError("writes_workflow_outputs boundary violation")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("network_access") is not False:
+                raise ValueError("network_access boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            if loaded.get("install_executed") is not False:
+                raise ValueError("install_executed boundary violation")
+            if loaded.get("external_genomes_registration_applied") is not False:
+                raise ValueError("external_genomes_registration_applied violation")
+            if loaded.get("target_outdir_mutated") is not False:
+                raise ValueError("target_outdir_mutated boundary violation")
+            summary_data = loaded
+            counts = {
+                **{
+                    field: loaded[field]
+                    for field in EXTERNAL_GENOMES_INSTALL_PLAN_COUNT_FIELDS
+                },
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "manifest_mutated": False,
+                "writes_workflow_outputs": False,
+                "install_executed": False,
+                "external_genomes_registration_applied": False,
+                "target_outdir_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+            registration_status_counts = _sorted_nonzero_counts(
+                parsed_registration_counts
+            )
+            install_plan_status_counts = _sorted_nonzero_counts(parsed_install_counts)
+            top_diagnostics = sorted(
+                displayed_diagnostics.items(), key=lambda item: (-item[1], item[0])
+            )[:5]
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append(f"{summary_name} malformed")
+
+    registration_name = "external_genome_registration_results.tsv"
+    registration_path = input_dir / registration_name
+    if registration_path.exists():
+        try:
+            rows = _read_external_genome_registration_results_tsv(registration_path)
+            if any(row.get("status") not in EXTERNAL_GENOME_STATUSES for row in rows):
+                raise ValueError("invalid registration status")
+            observed_registration_rows = len(rows)
+            valid_files.append(registration_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{registration_name} malformed")
+
+    install_plan_name = "external_genome_install_plan.tsv"
+    install_plan_path = input_dir / install_plan_name
+    if install_plan_path.exists():
+        try:
+            rows = _read_external_genome_install_plan_tsv(install_plan_path)
+            if any(
+                row.get("status") not in EXTERNAL_GENOME_INSTALL_PLAN_STATUSES
+                for row in rows
+            ):
+                raise ValueError("invalid install plan status")
+            observed_install_rows = len(rows)
+            valid_files.append(install_plan_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{install_plan_name} malformed")
+
+    if summary_data is not None and observed_registration_rows is not None:
+        if summary_data["record_count"] != observed_registration_rows:
+            warnings.append("record_count does not match registration result rows")
+    if summary_data is not None and observed_install_rows is not None:
+        if summary_data["install_plan_count"] != observed_install_rows:
+            warnings.append("install_plan_count does not match install plan rows")
+
+    return ExternalGenomesInstallPlanAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        registration_status_counts=registration_status_counts,
+        install_plan_status_counts=install_plan_status_counts,
+        top_diagnostics=top_diagnostics,
+    )
+
+
 def _required_dict(value: dict[str, object], field: str) -> dict[object, object]:
     loaded = value.get(field)
     if not isinstance(loaded, dict):
@@ -1539,6 +1715,56 @@ def _read_provider_request_tsv(path: Path) -> list[dict[str, str]]:
     if any(None in row for row in rows):
         raise ValueError("unexpected extra TSV fields")
     return rows
+
+
+def _read_external_genome_registration_results_tsv(
+    path: Path,
+) -> list[dict[str, str]]:
+    _validate_external_genomes_install_plan_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != tuple(
+            EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS
+        ):
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def _read_external_genome_install_plan_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_external_genomes_install_plan_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != tuple(EXTERNAL_GENOME_INSTALL_PLAN_FIELDS):
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def _validate_external_genomes_install_plan_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > EXTERNAL_GENOMES_INSTALL_PLAN_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _diagnostic_counts_from_summary(loaded: dict[str, object]) -> Counter[str]:
+    diagnostics = loaded.get("diagnostics", [])
+    if not isinstance(diagnostics, list):
+        raise ValueError("invalid diagnostics")
+    counts: Counter[str] = Counter()
+    for diagnostic in diagnostics:
+        if not isinstance(diagnostic, dict):
+            raise ValueError("invalid diagnostic row")
+        code = str(diagnostic.get("diagnostic_code") or "").strip()
+        if not code:
+            raise ValueError("invalid diagnostic code")
+        counts[code] += 1
+    return counts
 
 
 def read_optional_offline_readiness_audit(
@@ -2724,6 +2950,15 @@ def build_run_summary_markdown(
             )
         )
     )
+    external_genomes_install_plan_audit = (
+        read_optional_external_genomes_install_plan_audit(
+            _coverage_pipeline_component_dir(
+                args,
+                "external_genomes_install_plan_dir",
+                "external_genomes_install_plan",
+            )
+        )
+    )
     offline_readiness_audit = read_optional_offline_readiness_audit(
         getattr(args, "offline_readiness_dir", None)
     )
@@ -3446,6 +3681,85 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(code)} | {count} |"
                         for code, count in provider_request_external_genomes_audit.diagnostic_counts
+                    ],
+                ]
+            )
+
+    if external_genomes_install_plan_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## External Genomes Install Plan Audit",
+                "",
+                (
+                    "The external-genomes install-plan audit is local, "
+                    "audit-only planning for a future registration run. "
+                    "Report inclusion does not copy FASTA files, create the "
+                    "target run directory, register external genomes, mutate "
+                    "the manifest, contact providers, or trigger downloads."
+                ),
+                (
+                    "`install_executed=false`, "
+                    "`external_genomes_registration_applied=false`, and "
+                    "`target_outdir_mutated=false` mean install-plan rows are "
+                    "routing artifacts only, not workflow outputs or strict "
+                    "deliverables."
+                ),
+            ]
+        )
+        if external_genomes_install_plan_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in external_genomes_install_plan_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if external_genomes_install_plan_audit.warnings:
+            lines.append(
+                "- Warning: "
+                + "; ".join(external_genomes_install_plan_audit.warnings)
+            )
+        if external_genomes_install_plan_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(external_genomes_install_plan_audit.present_files)
+            )
+        if external_genomes_install_plan_audit.registration_status_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Registration Status | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(status)} | {count} |"
+                        for status, count in external_genomes_install_plan_audit.registration_status_counts[:5]
+                    ],
+                ]
+            )
+        if external_genomes_install_plan_audit.install_plan_status_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Install Plan Status | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(status)} | {count} |"
+                        for status, count in external_genomes_install_plan_audit.install_plan_status_counts[:5]
+                    ],
+                ]
+            )
+        if external_genomes_install_plan_audit.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in external_genomes_install_plan_audit.top_diagnostics
                     ],
                 ]
             )
