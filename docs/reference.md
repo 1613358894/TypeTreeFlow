@@ -1677,7 +1677,9 @@ directory, and optional downstream directory overrides. It then re-emits
 next command as compact JSON. The payload also includes
 `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
-re-parsing every stage row. By default, an incomplete chain remains a readable
+re-parsing every stage row. It also includes `completion_gate` with `passed`,
+`required`, `blocking_stage_count`, `blocking_stage_names`, and
+`blocking_diagnostic_code`. By default, an incomplete chain remains a readable
 status result. Add `--require-complete` to make incomplete chains fail closed
 with exit code `2` and `diagnostic_code=chain_incomplete`. It never discovers
 workflow output directories, writes files, contacts providers, downloads
