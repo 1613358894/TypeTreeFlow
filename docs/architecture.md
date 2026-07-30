@@ -26,11 +26,12 @@ flowchart TD
 
 `typetreeflow.cli` remains the stable public entry point for parser
 construction, command normalization, argument validation, and dispatch. Focused
-handlers under `typetreeflow.cli_handlers` may own bounded dispatch surfaces
-while preserving the `typetreeflow.cli.main` compatibility contract. Real
-actions are opt-in through explicit gates such as `--enable-downloads`,
-`--enable-barrnap`, `--enable-entrez`, `--enable-ncbi-discovery`,
-`--enable-fastani`, and `--enable-phylo`.
+handlers under `typetreeflow.cli_handlers` own bounded dispatch surfaces such
+as `package-results` and report-only refresh while preserving the
+`typetreeflow.cli.main` compatibility contract. Real actions are opt-in through
+explicit gates such as `--enable-downloads`, `--enable-barrnap`,
+`--enable-entrez`, `--enable-ncbi-discovery`, `--enable-fastani`, and
+`--enable-phylo`.
 The maintained command surface includes `verify-genus`, `status`, `next-step`,
 and `package-results`.
 
