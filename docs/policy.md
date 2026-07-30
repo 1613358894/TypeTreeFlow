@@ -275,6 +275,13 @@ They may guide later provider handoff planning for missing-public-genome rows,
 but they do not authorize provider contact, terms acceptance, downloads, FASTA
 installation, manifest mutation, completion credit, or strict deliverable
 promotion.
+Explicit expanded-discovery result and manual-supplement hint inputs may add
+review lanes and review-signal counts to an acquisition worklist. Matched
+candidates remain public-linkage review only, and manual-supplement hints may
+only surface external FASTA/provider handoff pressure. These local TSV inputs
+must not trigger expanded discovery execution, live NCBI/BioSample/LPSN or
+provider lookup, automatic accession selection, manifest mutation, completion
+credit, or strict deliverable promotion.
 The optional `--report-only --acquisition-worklist-dir` surface is a passive
 reader over that same pair. It may display compact counts and lane totals in
 `report/summary.md`, but it must not display raw row-level action details,
@@ -376,6 +383,10 @@ directory. It must not write workflow outputs, discover workflow outputs, read
 credentials, contact providers, authenticate, accept terms, trigger downloads,
 mutate manifests, change completion metrics, or reinterpret planning rows as
 strict scientific deliverables.
+Supplying expanded-discovery result or manual-supplement hint TSVs to the
+pipeline only changes the worklist-derived planning pressure and downstream
+review queues. It does not execute discovery, contact providers, auto-select
+public accessions, or make any candidate download-ready.
 The optional `--coverage-pipeline-dir` report/package surface is only a
 convenience handoff for that isolated directory. It may derive the four
 known component subdirectories under the explicitly supplied path, but it must

@@ -108,6 +108,16 @@ def run_coverage_pipeline_command(
     gaps = _read_optional_tsv(args.completion_gaps_tsv, "completion_gaps", diagnostics)
     external = _read_optional_tsv(args.external_genomes_tsv, "external_genomes", diagnostics)
     archive = _read_optional_tsv(args.archive_candidates_tsv, "archive_candidates", diagnostics)
+    expanded = _read_optional_tsv(
+        args.expanded_discovery_results_tsv,
+        "expanded_discovery_results",
+        diagnostics,
+    )
+    manual_hints = _read_optional_tsv(
+        args.manual_supplement_hints_tsv,
+        "manual_supplement_hints",
+        diagnostics,
+    )
     try:
         worklist = build_acquisition_worklist(
             checklist_rows=checklist,
@@ -115,6 +125,8 @@ def run_coverage_pipeline_command(
             completion_gap_rows=gaps,
             external_rows=external,
             archive_candidate_rows=archive,
+            expanded_discovery_rows=expanded,
+            manual_supplement_hint_rows=manual_hints,
         )
         coverage_plan = build_coverage_plan(row.to_row() for row in worklist.rows)
         provider_handoff = build_provider_handoff(
@@ -149,6 +161,8 @@ def run_coverage_pipeline_command(
                         args.completion_gaps_tsv,
                         args.external_genomes_tsv,
                         args.archive_candidates_tsv,
+                        args.expanded_discovery_results_tsv,
+                        args.manual_supplement_hints_tsv,
                     )
                     if value is not None
                 ),
@@ -190,6 +204,8 @@ def _build_parser() -> argparse.ArgumentParser:
     preview.add_argument("--completion-gaps-tsv")
     preview.add_argument("--external-genomes-tsv")
     preview.add_argument("--archive-candidates-tsv")
+    preview.add_argument("--expanded-discovery-results-tsv")
+    preview.add_argument("--manual-supplement-hints-tsv")
     preview.add_argument("--json", action="store_true")
     preview.set_defaults(write=False, outdir=None, force=False)
     build = actions.add_parser("build", add_help=False)
@@ -198,6 +214,8 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--completion-gaps-tsv")
     build.add_argument("--external-genomes-tsv")
     build.add_argument("--archive-candidates-tsv")
+    build.add_argument("--expanded-discovery-results-tsv")
+    build.add_argument("--manual-supplement-hints-tsv")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")

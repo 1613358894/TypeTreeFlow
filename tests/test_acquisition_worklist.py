@@ -77,6 +77,8 @@ def test_worklist_assigns_one_lane_per_species_with_conflict_priority():
         "archive_candidate_review": 0,
         "missing_public_genome": 1,
         "external_registration_ready": 1,
+        "expanded_discovery_candidate_review": 0,
+        "manual_supplement_external_fasta_required": 0,
     }
 
 
@@ -188,6 +190,74 @@ def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
     assert report.rows[0].reason_code == "public_archive_insdc_candidate_review"
     assert report.rows[0].source_artifacts == "completion_gaps; archive_candidates"
     assert report.summary["review_signal_counts"]["archive_candidate_review"] == 1
+
+
+def test_worklist_expanded_discovery_matched_candidate_surfaces_review_lane():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium expandum"}],
+        completion_gap_rows=[
+            {"species": "Clostridium expandum", "reason_category": "missing_genome"}
+        ],
+        expanded_discovery_rows=[
+            {
+                "species": "Clostridium expandum",
+                "candidate_accession": "GCA_123456789.1",
+                "decision": "matched_candidate",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "public_linkage_review"
+    assert row.reason_code == "expanded_discovery_matched_candidate_review"
+    assert row.selected_accession == ""
+    assert row.source_artifacts == "completion_gaps; expanded_discovery_results"
+    assert report.summary["review_signal_counts"][
+        "expanded_discovery_candidate_review"
+    ] == 1
+    assert report.summary["downloads_triggered"] == 0
+    assert report.summary["providers_contacted"] == 0
+
+
+def test_worklist_manual_supplement_hints_can_drive_external_fasta_lane():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium supplementum"}],
+        manual_supplement_hint_rows=[
+            {
+                "species": "Clostridium supplementum",
+                "recommended_action": "provide_external_genome_fasta",
+                "handoff_path": "external_genomes.tsv",
+                "tokens": "DSM 42",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.reason_code == "manual_supplement_external_fasta_required"
+    assert row.source_artifacts == "manual_supplement_hints"
+    assert row.candidate_provider_keys == "dsmz"
+    assert report.summary["review_signal_counts"][
+        "manual_supplement_external_fasta_required"
+    ] == 1
+    assert report.summary["candidate_provider_key_counts"] == {"dsmz": 1}
+
+
+def test_worklist_manual_supplement_matched_candidate_surfaces_review_lane():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium hintum"}],
+        manual_supplement_hint_rows=[
+            {
+                "species": "Clostridium hintum",
+                "recommended_action": "review_matched_candidates",
+                "reason": "matched_candidate",
+            }
+        ],
+    )
+
+    assert report.rows[0].lane == "public_linkage_review"
+    assert report.rows[0].reason_code == "expanded_discovery_matched_candidate_review"
+    assert report.rows[0].source_artifacts == "manual_supplement_hints"
 
 
 def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
