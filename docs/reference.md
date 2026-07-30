@@ -638,6 +638,12 @@ Additional local steering fields `candidate_tsv`, `selection_tsv`,
 `outgroup`, `skip_ani`, and `skip_tree` render to their matching
 `verify-genus` flags. `query_genomes` is an array and renders one
 `--query-genome` flag per path.
+Offline coverage-audit fields `audit_culture_collections`,
+`write_completion_audit`, `discover_assembly_candidates`, `discovery_cache`,
+`enable_synonym_discovery`, `enrich_biosample`, and `biosample_cache` also
+render to `verify-genus` flags. They are intended for local/cache-backed audit
+planning; live NCBI/Entrez access remains gated by separate explicit enable
+flags and is not implied by these structured fields.
 
 `commands plan` also requires `--request-json`, renders the request to
 `target_argv`, and immediately applies the same advisory preflight gate. Its

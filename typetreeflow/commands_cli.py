@@ -53,6 +53,8 @@ _VERIFY_GENUS_LOCAL_RENDER_FIELDS = (
     ("selection_policy", "--selection-policy"),
     ("query_16s", "--query-16s"),
     ("outgroup", "--outgroup"),
+    ("discovery_cache", "--discovery-cache"),
+    ("biosample_cache", "--biosample-cache"),
 )
 _CATALOG_ENTRIES = (
     {
@@ -563,6 +565,55 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "skip 16S tree workflow stages",
+        },
+        {
+            "name": "--audit-culture-collections",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write offline culture-collection source audit",
+        },
+        {
+            "name": "--write-completion-audit",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write offline completion audit from local inputs",
+        },
+        {
+            "name": "--discover-assembly-candidates",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "generate assembly candidates from local cache unless live discovery is separately enabled",
+        },
+        {
+            "name": "--discovery-cache",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local assembly discovery records TSV cache",
+        },
+        {
+            "name": "--enable-synonym-discovery",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "expand candidate discovery to checklist synonyms",
+        },
+        {
+            "name": "--enrich-biosample",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "enrich candidates from local BioSample metadata cache unless Entrez is separately enabled",
+        },
+        {
+            "name": "--biosample-cache",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local BioSample metadata TSV cache",
         },
         {
             "name": "--manual-review-import-dir",
@@ -1807,6 +1858,11 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "query_genomes",
                     "skip_ani",
                     "skip_tree",
+                    "audit_culture_collections",
+                    "write_completion_audit",
+                    "discover_assembly_candidates",
+                    "enable_synonym_discovery",
+                    "enrich_biosample",
                 }
             )
             allowed.update(key for key, _flag in _AUDIT_DIR_RENDER_FIELDS)
@@ -1832,6 +1888,11 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "auto_accept_selection": "--auto-accept-selection",
                 "skip_ani": "--skip-ani",
                 "skip_tree": "--skip-tree",
+                "audit_culture_collections": "--audit-culture-collections",
+                "write_completion_audit": "--write-completion-audit",
+                "discover_assembly_candidates": "--discover-assembly-candidates",
+                "enable_synonym_discovery": "--enable-synonym-discovery",
+                "enrich_biosample": "--enrich-biosample",
             },
         )
         if command == "verify-genus":
