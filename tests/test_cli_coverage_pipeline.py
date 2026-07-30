@@ -1520,6 +1520,25 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
     assert payload["diagnostics"][0]["diagnostic_code"] == "input_unreadable"
 
 
+def test_coverage_pipeline_invalid_usage_keeps_routing_metadata(capsys):
+    code, payload, captured = _run(["--force"], capsys)
+
+    assert code == 2
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "invalid_command_usage"
+    assert payload["coverage_next_action_groups"] == []
+    assert payload["primary_next_action_group"] is None
+    assert payload["primary_action_required_inputs"] == []
+    assert payload["primary_action_recommended_request"] is None
+    assert payload["primary_action_recommended_next_command"] == ""
+    assert payload["provider_request_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+    }
+
+
 def test_coverage_pipeline_preview_is_isolated_from_env_socket_and_process(
     monkeypatch, capsys, tmp_path
 ):
