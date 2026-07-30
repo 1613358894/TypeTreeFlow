@@ -3069,11 +3069,18 @@ def _preflight_risk(
         and recognized.get("command")
         in {"verify-genus", "verify-release-genus", "workflow"}
     )
+    external_registration_workflow_outputs = bool(
+        recognized.get("writes_outputs_declared")
+        and recognized.get("command") == "register-external-genomes"
+        and not dry_run_declared
+    )
     return {
         "unknown": bool(recognized.get("unknown")),
         "invalid": bool(recognized.get("invalid")),
         "writes_outputs_declared": bool(recognized.get("writes_outputs_declared")),
-        "workflow_outputs_declared": workflow_outputs_declared,
+        "workflow_outputs_declared": (
+            workflow_outputs_declared or external_registration_workflow_outputs
+        ),
         "dry_run_declared": dry_run_declared,
         "real_action_flags": real_action_flags,
         "network_flags": network_flags,

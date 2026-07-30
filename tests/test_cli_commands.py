@@ -1491,6 +1491,96 @@ def test_commands_render_emits_normalized_register_external_genomes_argv(capsys)
     assert payload["recognized"]["requires_outdir"] is True
 
 
+def test_commands_plan_register_external_genomes_dry_run_requires_only_write_allowance(
+    capsys,
+):
+    request = (
+        '{"command":"register-external-genomes",'
+        '"external_genomes":"external_genomes.tsv",'
+        '"outdir":"run","dry_run":true}'
+    )
+
+    assert main(["commands", "plan", "--request-json", request]) == 2
+    blocked, _output = _stdout_payload(capsys)
+    assert blocked["decision"] == "block"
+    assert [item["id"] for item in blocked["blocking"]] == ["write_not_allowed"]
+    assert blocked["target_workflow_outputs_declared"] is False
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--request-json",
+                request,
+            ]
+        )
+        == 0
+    )
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "--register-external-genomes",
+        "external_genomes.tsv",
+        "--outdir",
+        "run",
+        "--dry-run",
+    ]
+    assert payload["target_workflow_outputs_declared"] is False
+
+
+def test_commands_plan_register_external_genomes_real_run_requires_workflow_allowance(
+    capsys,
+):
+    request = (
+        '{"command":"register-external-genomes",'
+        '"external_genomes":"external_genomes.tsv","outdir":"run"}'
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--request-json",
+                request,
+            ]
+        )
+        == 2
+    )
+    blocked, _output = _stdout_payload(capsys)
+    assert blocked["decision"] == "block"
+    assert [item["id"] for item in blocked["blocking"]] == [
+        "workflow_outputs_not_allowed"
+    ]
+    assert blocked["target_workflow_outputs_declared"] is True
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--allow-workflow-outputs",
+                "--request-json",
+                request,
+            ]
+        )
+        == 0
+    )
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "--register-external-genomes",
+        "external_genomes.tsv",
+        "--outdir",
+        "run",
+    ]
+    assert payload["target_workflow_outputs_declared"] is True
+
+
 def test_commands_render_emits_normalized_providers_catalog_argv(capsys):
     assert (
         main(
