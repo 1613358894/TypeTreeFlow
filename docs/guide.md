@@ -226,9 +226,11 @@ isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, and `coverage_pipeline_summary.json` members under the
 requested directory. A later `provider-request validate --write` result can be
 placed under `provider_request_validation/` in the same isolated directory for
-report/package handoff. It remains audit-only: no workflow outputs, provider
-contacts, downloads, manifest mutation, completion credit, or strict
-deliverable promotion.
+report/package handoff, and a later `provider-request external-genomes-draft
+--write` result can be placed under `provider_request_external_genomes/` for
+the same explicit handoff. They remain audit-only: no workflow outputs,
+provider contacts, downloads, FASTA copying, manifest mutation, registration,
+completion credit, or strict deliverable promotion.
 When missing-public-genome rows contain explicit provider hints or recognizable
 culture-collection tokens, the worklist may carry `candidate_provider_keys` so
 the coverage plan can route provider handoff more precisely. Those keys remain
@@ -239,10 +241,14 @@ Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 `--report-only` or `package-results --include reports|all` to hand off that
 directory as one explicit read-only input. TypeTreeFlow derives only its
 `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
-`provider_request/` subdirectories; it does not scan workflow outputs or rerun
-the pipeline. The generated `provider_request/` member is a draft input for
-`plan-provider-registration`; report/package inclusion only surfaces draft
-availability and remains separate from provider contact or downloads.
+`provider_request/`, `provider_request_validation/`, and
+`provider_request_external_genomes/` subdirectories when present; it does not
+scan workflow outputs or rerun the pipeline. The generated `provider_request/`
+member is a draft input for `plan-provider-registration`; the optional
+`provider_request_external_genomes/` member is only a draft input for later
+local `external-genomes validate`. Report/package inclusion only surfaces
+review availability and remains separate from provider contact, downloads,
+FASTA copying, registration, or completion credit.
 
 Build a denominator-preserving crosswalk for already known counts with:
 
@@ -542,6 +548,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --provider-request-external-genomes-dir <isolated-external-genomes-directory>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory>
 
 typetreeflow package-results \
@@ -626,14 +637,25 @@ audit-only: ready rows mean local provider request readiness for review, not
 provider contact, download execution, external-genome registration, manifest
 mutation, completion credit, or strict deliverable promotion.
 `--failed-handoff` excludes provider-request validation artifacts.
+With an explicit `--provider-request-external-genomes-dir`, `--include
+reports` and `--include all` copy each validated external-genomes draft member
+under `provider_request_external_genomes/` and add one `scope=audit`,
+`evidence_policy=provider_request_external_genomes_audit` artifact-scope row
+per copied member. Missing input is omitted; partial or malformed input copies
+only valid members and records a compact warning. These files are audit-only:
+draft rows mean local external-genome handoff review availability, not provider
+contact, download execution, FASTA copying, external-genome registration,
+manifest mutation, completion credit, or strict deliverable promotion.
+`--failed-handoff` excludes provider-request external-genomes artifacts.
 With an explicit `--coverage-pipeline-dir`, `--include reports` and
 `--include all` derive `acquisition_worklist/`, `coverage_plan/`, and
 `provider_handoff/`, `provider_request/`, and
-`provider_request_validation/` under the isolated pipeline directory when
-present, then apply the same copy and artifact-scope contracts as the
-individual directory options. This is a convenience handoff only; it does not
-scan workflow outputs, rerun the pipeline, contact providers, trigger
-downloads, or change scientific status.
+`provider_request_validation/`, and `provider_request_external_genomes/` under
+the isolated pipeline directory when present, then apply the same copy and
+artifact-scope contracts as the individual directory options. This is a
+convenience handoff only; it does not scan workflow outputs, rerun the
+pipeline, contact providers, trigger downloads, register external genomes, or
+change scientific status.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,

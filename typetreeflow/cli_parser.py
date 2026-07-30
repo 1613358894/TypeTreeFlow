@@ -587,14 +587,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--provider-request-external-genomes-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing provider request "
+            "external-genomes draft audit outputs for --report-only audit "
+            "reporting or package-results; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--coverage-pipeline-dir",
         type=Path,
         help=(
             "Explicit read-only directory containing coverage-pipeline "
             "acquisition_worklist, coverage_plan, provider_handoff, "
-            "provider_request, and provider_request_validation subdirectories "
-            "for --report-only audit reporting or package-results; no automatic "
-            "discovery."
+            "provider_request, provider_request_validation, and "
+            "provider_request_external_genomes subdirectories for --report-only "
+            "audit reporting or package-results; no automatic discovery."
         ),
     )
     parser.add_argument(

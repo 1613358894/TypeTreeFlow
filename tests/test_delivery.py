@@ -35,6 +35,7 @@ from tests.test_report_summary import (
     _write_offline_readiness_pair,
     _write_provider_handoff_pair,
     _write_provider_request_pair,
+    _write_provider_request_external_genomes_pair,
     _write_provider_request_validation_pair,
 )
 
@@ -1654,6 +1655,113 @@ def test_package_results_cli_accepts_provider_request_validation_and_json(
         / "delivery"
         / "provider_request_validation"
         / "provider_request_validation_summary.json"
+    ).exists()
+
+
+def test_package_results_includes_provider_request_external_genomes_pair_and_scope(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    external_dir = tmp_path / "provider-request-external-genomes"
+    _write_provider_request_external_genomes_pair(external_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        provider_request_external_genomes_dir=external_dir,
+    )
+
+    delivered = result.delivery_dir / "provider_request_external_genomes"
+    assert {path.name for path in delivered.iterdir()} == {
+        "external_genomes.tsv",
+        "provider_request_external_genomes_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    external_rows = [
+        row
+        for row in scope_rows
+        if row["artifact_path"].startswith("provider_request_external_genomes/")
+    ]
+    assert len(external_rows) == 2
+    assert {row["evidence_policy"] for row in external_rows} == {
+        "provider_request_external_genomes_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in external_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in external_rows} == {
+        "external genome handoff review"
+    }
+    assert {row["not_for"] for row in external_rows} == {
+        "provider contact, downloads, registration, or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in external_rows} == {
+        "provider_request_external_genomes_draft"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Provider Request External Genomes Draft Audit" in package_text
+    assert "does not copy FASTA files" in package_text
+    assert "not provider contact, download execution, external-genome registration" in (
+        package_text
+    )
+
+
+def test_package_results_failed_handoff_excludes_provider_request_external_genomes(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    external_dir = tmp_path / "provider-request-external-genomes"
+    _write_provider_request_external_genomes_pair(external_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        provider_request_external_genomes_dir=external_dir,
+    )
+
+    assert not (result.delivery_dir / "provider_request_external_genomes").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Provider Request External Genomes Draft Audit" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_provider_request_external_genomes_and_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    external_dir = tmp_path / "provider-request-external-genomes"
+    _write_provider_request_external_genomes_pair(external_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--provider-request-external-genomes-dir",
+            str(external_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["status"] == "warning"
+    assert payload["warnings"][0]["id"] == "missing_optional_files"
+    assert (
+        tmp_path
+        / "delivery"
+        / "provider_request_external_genomes"
+        / "provider_request_external_genomes_summary.json"
     ).exists()
 
 

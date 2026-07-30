@@ -43,6 +43,7 @@ from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
 )
+from typetreeflow.external_genomes import EXTERNAL_GENOME_FIELDS
 from typetreeflow.genomes.preflight import (
     DownloadPreflightSummary,
     write_download_preflight_summary,
@@ -64,6 +65,7 @@ from typetreeflow.report.summary import (
     read_optional_offline_readiness_audit,
     read_optional_provider_handoff_audit,
     read_optional_provider_request_draft_audit,
+    read_optional_provider_request_external_genomes_audit,
     read_optional_provider_request_validation_audit,
     read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
@@ -909,6 +911,95 @@ def _write_provider_request_validation_pair(directory: Path) -> None:
     )
 
 
+def _write_provider_request_external_genomes_pair(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "provider_request_external_genomes_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "status": "pass",
+                "command": "provider-request external-genomes-draft",
+                "record_count": 2,
+                "exported_count": 2,
+                "provider_counts": {"dsmz": 2},
+                "diagnostic_counts": {},
+                "diagnostic_count": 0,
+                "diagnostics": [],
+                "external_genomes_preview": [
+                    {
+                        "species": "Clostridium alpha",
+                        "provider": "dsmz",
+                        "external_genome_id": "DSM-1",
+                        "status": "external_genome_registered",
+                    }
+                ],
+                "external_genomes_truncated": False,
+                "audit_only": True,
+                "dry_run": True,
+                "writes_outputs": True,
+                "writes_workflow_outputs": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "external_genomes_registration_applied": False,
+                "recommended_next_command": (
+                    "typetreeflow external-genomes validate "
+                    "--input <external_genomes.tsv>"
+                ),
+                "output_paths": {
+                    "external_genomes": "external/external_genomes.tsv",
+                    "summary": (
+                        "external/provider_request_external_genomes_summary.json"
+                    ),
+                },
+                "summary": "Provider request external-genomes draft passed",
+            }
+        ),
+        encoding="utf-8",
+    )
+    rows = [
+        {
+            "species": "Clostridium alpha",
+            "strain": "DSM 1",
+            "type_strain_id": "DSM 1",
+            "external_source": "dsmz",
+            "external_source_name": "DSMZ",
+            "external_genome_id": "DSM-1",
+            "external_source_url": "https://example.invalid/provider/private",
+            "genome_fasta_path": r"D:\private\provider\local.fna",
+            "sha256": "a" * 64,
+            "is_type_material": "true",
+            "requires_manual_review": "false",
+            "status": "external_genome_registered",
+            "notes": "private notes must not render",
+        },
+        {
+            "species": "Clostridium beta",
+            "strain": "DSM 2",
+            "type_strain_id": "DSM 2",
+            "external_source": "dsmz",
+            "external_source_name": "DSMZ",
+            "external_genome_id": "DSM-2",
+            "external_source_url": "https://example.invalid/provider/private-2",
+            "genome_fasta_path": r"D:\private\provider\local2.fna",
+            "sha256": "b" * 64,
+            "is_type_material": "true",
+            "requires_manual_review": "false",
+            "status": "external_genome_registered",
+            "notes": "private notes must not render",
+        },
+    ]
+    with (directory / "external_genomes.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=EXTERNAL_GENOME_FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def test_provider_request_audit_section_is_explicit_bounded_and_audit_only(
     tmp_path,
 ):
@@ -1036,6 +1127,77 @@ def test_provider_request_validation_reader_does_not_access_env_or_socket(
     monkeypatch.setattr(socket, "create_connection", fail)
 
     audit = read_optional_provider_request_validation_audit(validation_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
+
+
+def test_provider_request_external_genomes_audit_section_is_bounded_and_audit_only(
+    tmp_path,
+):
+    external_dir = tmp_path / "provider-request-external-genomes"
+    _write_provider_request_external_genomes_pair(external_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_request_external_genomes_dir=external_dir),
+    )
+
+    assert "## Provider Request External Genomes Draft Audit" in markdown
+    assert (
+        "- Counts: record_count=2; exported_count=2; diagnostic_count=0; "
+        "downloads_triggered=0; providers_contacted=0; network_access=false; "
+        "manifest_mutated=false; writes_workflow_outputs=false; "
+        "external_genomes_registration_applied=false; audit_only=true; "
+        "strict_scientific_deliverable=false"
+    ) in markdown
+    assert "does not contact providers" in markdown
+    assert "register external genomes" in markdown
+    assert "| dsmz | 2 |" in markdown
+    assert "local.fna" not in markdown
+    assert "local2.fna" not in markdown
+    assert "aaaaaaaa" not in markdown
+    assert "private notes" not in markdown
+    assert "external/provider_request_external_genomes_summary.json" not in markdown
+
+
+def test_provider_request_external_genomes_partial_malformed_summary_warns(
+    tmp_path,
+):
+    external_dir = tmp_path / "provider-request-external-genomes"
+    external_dir.mkdir()
+    (external_dir / "provider_request_external_genomes_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(provider_request_external_genomes_dir=external_dir),
+    )
+
+    assert "## Provider Request External Genomes Draft Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "provider_request_external_genomes_summary.json malformed" in markdown
+    assert "missing members: external_genomes.tsv" in markdown
+
+
+def test_provider_request_external_genomes_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    external_dir = tmp_path / "provider-request-external-genomes"
+    _write_provider_request_external_genomes_pair(external_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError(
+            "provider request external-genomes reader must remain local and offline"
+        )
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_provider_request_external_genomes_audit(external_dir)
 
     assert audit is not None
     assert audit.counts["audit_only"] is True
