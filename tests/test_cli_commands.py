@@ -277,6 +277,13 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--outgroup",
         "--skip-ani",
         "--skip-tree",
+        "--audit-culture-collections",
+        "--write-completion-audit",
+        "--discover-assembly-candidates",
+        "--discovery-cache",
+        "--enable-synonym-discovery",
+        "--enrich-biosample",
+        "--biosample-cache",
     } <= parameter_names[("verify-genus", None)]
     assert audit_dir_flags | {
         "--delivery-dir",
@@ -527,6 +534,51 @@ def test_commands_render_emits_normalized_verify_genus_selection_options(capsys)
         "query1.fna",
         "--query-genome",
         "query2.fna",
+    ]
+    assert payload["recognized"]["command"] == "verify-genus"
+    assert payload["recognized"]["mode"] == "workflow"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_verify_genus_offline_audit_options(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","dry_run":true,'
+                    '"audit_culture_collections":true,'
+                    '"write_completion_audit":true,'
+                    '"discover_assembly_candidates":true,'
+                    '"discovery_cache":"assembly_cache.tsv",'
+                    '"enable_synonym_discovery":true,'
+                    '"enrich_biosample":true,'
+                    '"biosample_cache":"biosample_cache.tsv"}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "verify-genus",
+        "Clostridium",
+        "--outdir",
+        "run",
+        "--dry-run",
+        "--audit-culture-collections",
+        "--write-completion-audit",
+        "--discover-assembly-candidates",
+        "--enable-synonym-discovery",
+        "--enrich-biosample",
+        "--discovery-cache",
+        "assembly_cache.tsv",
+        "--biosample-cache",
+        "biosample_cache.tsv",
     ]
     assert payload["recognized"]["command"] == "verify-genus"
     assert payload["recognized"]["mode"] == "workflow"
@@ -1178,6 +1230,29 @@ def test_commands_render_rejects_selection_options_for_release_verification(caps
     payload, _output = _stdout_payload(capsys)
     assert payload["blocking"][0]["id"] == "invalid_request"
     assert "query_genomes" in payload["blocking"][0]["message"]
+
+
+def test_commands_render_rejects_offline_audit_options_for_release_verification(
+    capsys,
+):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-release-genus","genus":"Clostridium",'
+                    '"outdir":"run","audit_culture_collections":true}'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "audit_culture_collections" in payload["blocking"][0]["message"]
 
 
 def test_commands_render_rejects_non_integer_verify_genus_limits(capsys):
