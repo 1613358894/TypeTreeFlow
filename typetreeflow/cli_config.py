@@ -210,6 +210,15 @@ def build_app_config_from_args(
             "--report-only or package-results."
         )
     if (
+        args.external_genomes_install_plan_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
+        raise ValueError(
+            "--external-genomes-install-plan-dir is only supported with "
+            "--report-only or package-results."
+        )
+    if (
         args.coverage_pipeline_dir is not None
         and not args.report_only
         and not package_results_command
@@ -352,6 +361,7 @@ def build_app_config_from_args(
         provider_request_external_genomes_dir=(
             args.provider_request_external_genomes_dir
         ),
+        external_genomes_install_plan_dir=args.external_genomes_install_plan_dir,
         coverage_pipeline_dir=args.coverage_pipeline_dir,
         archive_candidates_dir=args.archive_candidates_dir,
         offline_readiness_dir=args.offline_readiness_dir,

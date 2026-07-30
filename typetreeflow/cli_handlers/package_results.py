@@ -32,6 +32,9 @@ def run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             provider_request_external_genomes_dir=(
                 config.provider_request_external_genomes_dir
             ),
+            external_genomes_install_plan_dir=(
+                config.external_genomes_install_plan_dir
+            ),
             coverage_pipeline_dir=config.coverage_pipeline_dir,
             archive_candidates_dir=config.archive_candidates_dir,
             offline_readiness_dir=config.offline_readiness_dir,

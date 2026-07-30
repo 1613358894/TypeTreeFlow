@@ -596,6 +596,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--external-genomes-install-plan-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing external-genomes "
+            "install-plan audit outputs for --report-only audit reporting or "
+            "package-results; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--coverage-pipeline-dir",
         type=Path,
         help=(

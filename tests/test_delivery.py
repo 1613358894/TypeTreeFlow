@@ -1915,6 +1915,72 @@ def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
     assert "private archive note" not in package_text
 
 
+def test_package_results_explicit_external_genomes_install_plan_dir_copies_triplet(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    install_plan_dir = tmp_path / "external-genomes-install-plan"
+    _write_external_genomes_install_plan_triplet(install_plan_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        external_genomes_install_plan_dir=install_plan_dir,
+    )
+
+    delivered = result.delivery_dir / "external_genomes_install_plan"
+    assert {path.name for path in delivered.iterdir() if path.is_file()} == {
+        "external_genome_registration_results.tsv",
+        "external_genome_install_plan.tsv",
+        "external_genome_install_plan_summary.json",
+    }
+    scope_rows = [
+        row
+        for row in _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+        if row["artifact_path"].startswith("external_genomes_install_plan/")
+    ]
+    assert len(scope_rows) == 3
+    assert {row["scope"] for row in scope_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in scope_rows} == {
+        "external_genomes_install_plan_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in scope_rows} == {
+        "false"
+    }
+
+
+def test_package_results_cli_accepts_explicit_external_genomes_install_plan_dir(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    install_plan_dir = tmp_path / "external-genomes-install-plan"
+    _write_external_genomes_install_plan_triplet(install_plan_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--external-genomes-install-plan-dir",
+            str(install_plan_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "external_genomes_install_plan"
+        / "external_genome_install_plan_summary.json"
+    ).exists()
+
+
 def test_package_results_coverage_pipeline_dir_is_missing_safe(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)

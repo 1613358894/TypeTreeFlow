@@ -112,6 +112,7 @@ def package_results(
     provider_request_dir: str | Path | None = None,
     provider_request_validation_dir: str | Path | None = None,
     provider_request_external_genomes_dir: str | Path | None = None,
+    external_genomes_install_plan_dir: str | Path | None = None,
     coverage_pipeline_dir: str | Path | None = None,
     archive_candidates_dir: str | Path | None = None,
     offline_readiness_dir: str | Path | None = None,
@@ -195,7 +196,7 @@ def package_results(
         ProviderRequestExternalGenomesAuditSummary | None
     ) = None
     external_genomes_install_plan_dir = _coverage_pipeline_component_dir(
-        None,
+        external_genomes_install_plan_dir,
         coverage_pipeline_dir,
         "external_genomes_install_plan",
     )
