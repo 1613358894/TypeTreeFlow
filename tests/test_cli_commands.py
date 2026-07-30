@@ -981,6 +981,57 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
     assert payload["recognized"]["requires_outdir"] is False
 
 
+def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_allowance(
+    capsys,
+):
+    request = (
+        '{"command":"coverage-pipeline","subcommand":"build",'
+        '"curated_provider_request_tsv":"curated_provider_request.tsv",'
+        '"external_genomes_install_target_outdir":"register_run",'
+        '"write":true,"outdir":"pipeline"}'
+    )
+
+    assert main(["commands", "plan", "--request-json", request]) == 2
+    blocked, _output = _stdout_payload(capsys)
+    assert blocked["decision"] == "block"
+    assert blocked["blocking"][0]["id"] == "write_not_allowed"
+    assert blocked["target_workflow_outputs_declared"] is False
+    assert blocked["target_network_declared"] is False
+    assert blocked["target_external_tools_declared"] is False
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--request-json",
+                request,
+            ]
+        )
+        == 0
+    )
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "build",
+        "--curated-provider-request-tsv",
+        "curated_provider_request.tsv",
+        "--external-genomes-install-target-outdir",
+        "register_run",
+        "--write",
+        "--outdir",
+        "pipeline",
+    ]
+    assert payload["preflight"]["risk"]["writes_outputs_declared"] is True
+    assert payload["preflight"]["risk"]["workflow_outputs_declared"] is False
+    assert payload["preflight"]["risk"]["network_declared"] is False
+    assert payload["preflight"]["risk"]["external_tools_declared"] is False
+    assert payload["target_allowances"]["allow_write"] is True
+    assert payload["target_allowances"]["allow_workflow_outputs"] is False
+
+
 def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
     assert (
         main(
