@@ -437,6 +437,11 @@ directory. It must not write workflow outputs, discover workflow outputs, read
 credentials, contact providers, authenticate, accept terms, trigger downloads,
 mutate manifests, change completion metrics, or reinterpret planning rows as
 strict scientific deliverables.
+If `coverage-pipeline build` receives a complete archive-candidates audit TSV,
+it may republish that audit triplet under its isolated output directory for
+later explicit handoff. This remains passive audit visibility only and must not
+query archives, create `external_genomes.tsv`, or make public accessions
+download-ready.
 If `coverage-pipeline build` receives `--curated-provider-request-tsv`, that
 file is an explicit local curator handoff only. The pipeline may validate it
 and, if all rows pass, render `provider_request_external_genomes/` as an

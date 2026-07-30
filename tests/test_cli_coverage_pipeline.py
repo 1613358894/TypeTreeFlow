@@ -563,6 +563,64 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert payload["writes_outputs"] is True
 
 
+def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, _ = _write_inputs(tmp_path)
+    archive_source = tmp_path / "archive-source"
+    _write_archive_candidates_output(archive_source)
+    outdir = tmp_path / "pipeline_outputs"
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive_source / "archive_candidates.tsv"),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["output_paths"]["archive_candidates"] == str(
+        outdir / "archive_candidates" / "archive_candidates.tsv"
+    )
+    assert (outdir / "archive_candidates" / "archive_candidates.tsv").exists()
+    assert (
+        outdir / "archive_candidates" / "archive_candidates_summary.json"
+    ).exists()
+    assert (
+        outdir / "archive_candidates" / "archive_candidates_diagnostics.tsv"
+    ).exists()
+
+    code, payload, _ = _run(
+        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert "archive_candidates" in payload["available_stage_names"]
+    archive_stage = next(
+        stage
+        for stage in payload["operator_chain_stages"]
+        if stage["stage"] == "archive_candidates"
+    )
+    assert archive_stage["available"] is True
+    assert archive_stage["record_count"] == 1
+
+
 def test_coverage_pipeline_build_can_write_provider_request_validation_stage(
     capsys,
     tmp_path,

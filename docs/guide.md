@@ -253,6 +253,10 @@ handoffs are visible in one compact JSON object.
 coverage chain, including the current artifact name, whether that stage has
 records in the present payload, its recommended next command, and the
 no-provider/no-download boundary for that stage.
+When `build --write` receives a complete archive-candidates audit TSV, it also
+publishes `archive_candidates/` under the isolated coverage-pipeline directory
+for later report and package handoff. This is only public-archive linkage
+review visibility; it does not query archives or make rows download-ready.
 `build --validate-provider-request --write` also writes the local provider
 request validation audit pair under `provider_request_validation/` in the same
 isolated directory. This is the same offline readiness check as
