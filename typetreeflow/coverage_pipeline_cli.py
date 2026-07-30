@@ -1364,12 +1364,14 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
                 "record_count": 0,
                 "source_lanes": [],
                 "provider_keys": [],
+                "required_inputs": [],
                 "recommended_request": recommended_request,
                 "recommended_next_command": action.recommended_next_command,
             },
         )
         group["record_count"] = int(group["record_count"]) + 1
         _append_unique(group["source_lanes"], action.source_lane)
+        _append_unique(group["required_inputs"], action.required_input)
         for provider_key in str(action.provider_keys).split(";"):
             _append_unique(group["provider_keys"], provider_key.strip())
         if not group["recommended_next_command"] and action.recommended_next_command:

@@ -450,6 +450,9 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["curator_conflict_resolution"],
             "provider_keys": [],
+            "required_inputs": [
+                "curator conflict decision with independent review",
+            ],
             "recommended_request": {
                 "command": "manual-review",
                 "subcommand": "validate",
@@ -464,6 +467,9 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
+            "required_inputs": [
+                "public accession to type-strain direct evidence chain",
+            ],
             "recommended_request": {
                 "command": "manual-review",
                 "subcommand": "validate",
@@ -478,6 +484,9 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["genbank", "refseq"],
+            "required_inputs": [
+                "BioSample/accession to type-strain direct evidence chain",
+            ],
             "recommended_request": {
                 "command": "manual-review",
                 "subcommand": "validate",
@@ -492,6 +501,9 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["external_fasta_required"],
             "provider_keys": ["dsmz", "kctc"],
+            "required_inputs": [
+                "permitted local FASTA plus terms/license/provenance evidence",
+            ],
             "recommended_request": {
                 "command": "provider-request",
                 "subcommand": "draft",
