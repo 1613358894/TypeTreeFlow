@@ -404,11 +404,16 @@ def test_providers_catalog_emits_top_level_ai_summary_metadata(capsys):
     assert payload["provider_status_counts"]["planning_only"] >= 1
     assert payload["provider_status_counts"]["metadata_only"] >= 1
     assert payload["allowed_mode_counts"]["planning"] == payload["provider_count"]
+    assert payload["automation_level_counts"]["planning_handoff"] >= 1
+    assert payload["automation_level_counts"]["metadata_review"] >= 1
     assert "dsmz" in payload["planning_only_provider_keys"]
+    assert "dsmz" in payload["planning_handoff_provider_keys"]
     assert "genbank" in payload["metadata_only_provider_keys"]
+    assert "genbank" in payload["metadata_review_provider_keys"]
     assert "atcc_genome_portal" in payload["adapter_present_provider_keys"]
     assert payload["network_supported_provider_keys"] == []
     assert payload["default_network_enabled_provider_keys"] == []
+    assert payload["download_enabled_provider_keys"] == []
 
 
 def test_providers_catalog_failure_keeps_stable_summary_shape(capsys):
@@ -420,9 +425,13 @@ def test_providers_catalog_failure_keeps_stable_summary_shape(capsys):
     assert payload["provider_count"] == 0
     assert payload["providers"] == []
     assert payload["provider_status_counts"] == {}
+    assert payload["automation_level_counts"] == {}
     assert payload["allowed_mode_counts"] == {}
     assert payload["planning_only_provider_keys"] == []
     assert payload["metadata_only_provider_keys"] == []
+    assert payload["planning_handoff_provider_keys"] == []
+    assert payload["metadata_review_provider_keys"] == []
+    assert payload["download_enabled_provider_keys"] == []
     assert payload["network_supported_provider_keys"] == []
     assert payload["credentials_required_provider_keys"] == []
     assert payload["terms_review_required_provider_keys"] == []

@@ -29,6 +29,21 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
     assert {"atcc_genome_portal", "dsmz", "ena", "refseq"} <= set(providers)
     assert providers["ena"]["status"] == "metadata_only"
     assert providers["dsmz"]["status"] == "planning_only"
+    assert providers["ena"]["automation_level"] == "metadata_review"
+    assert providers["dsmz"]["automation_level"] == "planning_handoff"
+    assert providers["atcc_genome_portal"]["automation_level"] == "planning_handoff"
+    assert payload["automation_level_counts"] == {
+        "metadata_review": 4,
+        "planning_handoff": payload["provider_count"] - 4,
+    }
+    assert payload["metadata_review_provider_keys"] == [
+        "ddbj",
+        "ena",
+        "genbank",
+        "refseq",
+    ]
+    assert "dsmz" in payload["planning_handoff_provider_keys"]
+    assert payload["download_enabled_provider_keys"] == []
     assert providers["refseq"]["aliases"] == ["RefSeq", "NCBI RefSeq"]
     assert providers["bccm_lmg"]["aliases"] == ["BCCM LMG", "BCCM-LMG", "LMG"]
     assert "provider_guidance=public_archive_metadata_review" in (

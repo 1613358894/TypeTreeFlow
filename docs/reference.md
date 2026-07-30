@@ -700,11 +700,16 @@ catalog a dispatch authority.
 `providers catalog` is a related isolated metadata command. It emits provider
 keys, names, common aliases, capability statuses, allowed modes, and
 fail-closed network/download fields as one compact JSON object. It also emits
-top-level provider status counts, allowed-mode counts, and provider-key lists
-for planning-only, metadata-only, network-supported, credential-gated,
-terms-review-gated, default-network-enabled, and adapter-present entries so AI
-operators can route provider handoffs without scanning every row. It also
-emits `guidance_notes` derived from the static registry adapter; those notes
+top-level provider status counts, `automation_level_counts`,
+allowed-mode counts, and provider-key lists for planning-only, metadata-only,
+planning-handoff, metadata-review, download-enabled, network-supported,
+credential-gated, terms-review-gated, default-network-enabled, and
+adapter-present entries so AI operators can route provider handoffs without
+scanning every row. Per-provider `automation_level` is AI planning metadata:
+`planning_handoff` means user-assisted or curator-assisted handoff only,
+`metadata_review` means public archive metadata review only, and
+`download_enabled` is reserved for future gated adapters. It also emits
+`guidance_notes` derived from the static registry adapter; those notes
 are offline planning hints, not provider authorization or executable download
 instructions. It does not contact providers, read credentials, write outputs,
 or enable provider download behavior.

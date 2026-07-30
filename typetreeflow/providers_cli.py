@@ -94,6 +94,7 @@ def _entry_payload(entry, *, aliases: tuple[str, ...]) -> dict[str, object]:
         "policy_document": entry.policy_document,
         "gate_review_document": entry.gate_review_document,
         "adapter_present": entry.adapter is not None,
+        "automation_level": _automation_level(entry),
         "notes": _clean(entry.notes),
         "guidance_notes": _guidance_notes(entry),
     }
@@ -122,9 +123,13 @@ def _failure(code: str, message: str) -> dict[str, object]:
 
 def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
     status_counts: Counter[str] = Counter()
+    automation_level_counts: Counter[str] = Counter()
     mode_counts: Counter[str] = Counter()
     planning_only_keys: list[str] = []
     metadata_only_keys: list[str] = []
+    planning_handoff_keys: list[str] = []
+    metadata_review_keys: list[str] = []
+    download_enabled_keys: list[str] = []
     network_supported_keys: list[str] = []
     credentials_required_keys: list[str] = []
     terms_review_required_keys: list[str] = []
@@ -134,13 +139,21 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
     for entry in entries:
         key = str(entry["provider_key"])
         status = str(entry["status"])
+        automation_level = str(entry["automation_level"])
         status_counts[status] += 1
+        automation_level_counts[automation_level] += 1
         for mode in entry["allowed_modes"]:
             mode_counts[str(mode)] += 1
         if status == "planning_only":
             planning_only_keys.append(key)
         if status == "metadata_only":
             metadata_only_keys.append(key)
+        if automation_level == "planning_handoff":
+            planning_handoff_keys.append(key)
+        if automation_level == "metadata_review":
+            metadata_review_keys.append(key)
+        if automation_level == "download_enabled":
+            download_enabled_keys.append(key)
         if entry["supports_network"]:
             network_supported_keys.append(key)
         if entry["requires_credentials"]:
@@ -154,9 +167,13 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
 
     return {
         "provider_status_counts": dict(sorted(status_counts.items())),
+        "automation_level_counts": dict(sorted(automation_level_counts.items())),
         "allowed_mode_counts": dict(sorted(mode_counts.items())),
         "planning_only_provider_keys": sorted(planning_only_keys),
         "metadata_only_provider_keys": sorted(metadata_only_keys),
+        "planning_handoff_provider_keys": sorted(planning_handoff_keys),
+        "metadata_review_provider_keys": sorted(metadata_review_keys),
+        "download_enabled_provider_keys": sorted(download_enabled_keys),
         "network_supported_provider_keys": sorted(network_supported_keys),
         "credentials_required_provider_keys": sorted(credentials_required_keys),
         "terms_review_required_provider_keys": sorted(terms_review_required_keys),
@@ -168,9 +185,13 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
 def _empty_catalog_summary() -> dict[str, object]:
     return {
         "provider_status_counts": {},
+        "automation_level_counts": {},
         "allowed_mode_counts": {},
         "planning_only_provider_keys": [],
         "metadata_only_provider_keys": [],
+        "planning_handoff_provider_keys": [],
+        "metadata_review_provider_keys": [],
+        "download_enabled_provider_keys": [],
         "network_supported_provider_keys": [],
         "credentials_required_provider_keys": [],
         "terms_review_required_provider_keys": [],
@@ -181,6 +202,15 @@ def _empty_catalog_summary() -> dict[str, object]:
 
 def _clean(value: str) -> str:
     return str(value or "").replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+
+def _automation_level(entry) -> str:
+    capability = entry.capability
+    if capability.status.value == "download_enabled":
+        return "download_enabled"
+    if "metadata_review" in capability.allowed_modes:
+        return "metadata_review"
+    return "planning_handoff"
 
 
 def _guidance_notes(entry) -> list[str]:
