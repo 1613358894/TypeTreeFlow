@@ -632,6 +632,12 @@ For local `verify-genus` planning, structured fields `species_checklist`,
 `limit_selected`, and `allow_genus_change` render to their explicit CLI flags.
 These fields are local/configuration inputs only; rendering them does not enable
 live LPSN, NCBI, Entrez, provider, download, or external-tool actions.
+Additional local steering fields `candidate_tsv`, `selection_tsv`,
+`selection_policy`, `prepare_selection`, `write_manual_review_template`,
+`review_required`, `auto_accept_selection`, `query_genomes`, `query_16s`,
+`outgroup`, `skip_ani`, and `skip_tree` render to their matching
+`verify-genus` flags. `query_genomes` is an array and renders one
+`--query-genome` flag per path.
 
 `commands plan` also requires `--request-json`, renders the request to
 `target_argv`, and immediately applies the same advisory preflight gate. Its
