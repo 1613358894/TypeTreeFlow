@@ -280,6 +280,20 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "kctc": 1,
         "refseq": 2,
     }
+    assert payload["primary_next_action_group"]["action_code"] == (
+        "resolve_curator_conflict"
+    )
+    assert payload["primary_action_required_inputs"] == [
+        "curator conflict decision with independent review",
+    ]
+    assert payload["primary_action_recommended_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    }
+    assert payload["primary_action_recommended_next_command"] == (
+        "manual-review validate --input <review.tsv>"
+    )
     assert payload["provider_request_recommended_next_command"] == (
         "typetreeflow --plan-provider-registration "
         "<provider_request.tsv> --outdir <run>"
@@ -1427,6 +1441,10 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
     assert captured.out.count("\n") == 1
     assert payload["status"] == "blocked"
     assert payload["diagnostics"][0]["diagnostic_code"] == "no_species_rows"
+    assert payload["primary_next_action_group"] is None
+    assert payload["primary_action_required_inputs"] == []
+    assert payload["primary_action_recommended_request"] is None
+    assert payload["primary_action_recommended_next_command"] == ""
 
     code, payload, _ = _run(["--checklist-tsv", str(tmp_path / "missing.tsv")], capsys)
     assert code == 2

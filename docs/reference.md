@@ -1719,6 +1719,10 @@ and the recommended next command for AI/operator routing. Required inputs are
 metadata-only evidence requirements copied from coverage-plan actions. The
 request draft is also metadata only; operators should still pass it through
 `commands render`, `commands plan`, or `commands preflight` before execution.
+The payload also exposes `primary_next_action_group`,
+`primary_action_required_inputs`, `primary_action_recommended_request`, and
+`primary_action_recommended_next_command` as convenience copies from the first
+sorted action group.
 `operator_chain_stages` is a bounded AI/operator checklist for the same local
 chain. Each row reports `stage`, `artifact`, `available`, `record_count`,
 `recommended_next_command`, and `boundary`; it is metadata only and does not
