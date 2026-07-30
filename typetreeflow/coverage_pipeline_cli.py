@@ -337,12 +337,24 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         tsv_record_count=True,
     )
     next_stage = _next_unavailable_stage(stages)
+    available_stage_names = [
+        str(stage.get("stage", "")) for stage in stages if stage.get("available")
+    ]
+    unavailable_stage_names = [
+        str(stage.get("stage", "")) for stage in stages if not stage.get("available")
+    ]
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
         "command": COMMAND_STATUS,
         "stage_count": len(stages),
-        "completed_stage_count": sum(1 for stage in stages if stage.get("available")),
+        "completed_stage_count": len(available_stage_names),
+        "stage_status_counts": {
+            "available": len(available_stage_names),
+            "unavailable": len(unavailable_stage_names),
+        },
+        "available_stage_names": available_stage_names,
+        "unavailable_stage_names": unavailable_stage_names,
         "next_stage": next_stage,
         "recommended_next_command": (
             str(next_stage.get("recommended_next_command", ""))
