@@ -267,6 +267,12 @@ def _payload(
     coverage_summary = coverage_plan.summary
     provider_summary = provider_handoff.summary
     request_summary = provider_request.summary
+    operator_chain_stages = _operator_chain_stages(
+        worklist_count=int(worklist_summary["record_count"]),
+        coverage_action_count=int(coverage_summary["record_count"]),
+        provider_handoff_count=int(provider_summary["record_count"]),
+        provider_request_count=int(request_summary["record_count"]),
+    )
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -319,6 +325,7 @@ def _payload(
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
         ),
+        "operator_chain_stages": operator_chain_stages,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -358,6 +365,94 @@ def _summary_text(command: str, blocked: bool) -> str:
         if blocked
         else f"Coverage pipeline {action} passed"
     )
+
+
+def _operator_chain_stages(
+    *,
+    worklist_count: int,
+    coverage_action_count: int,
+    provider_handoff_count: int,
+    provider_request_count: int,
+) -> list[dict[str, object]]:
+    return [
+        _operator_stage(
+            stage="acquisition_worklist",
+            artifact=OUTPUT_PATHS["acquisition_worklist"],
+            record_count=worklist_count,
+            recommended_next_command=(
+                "typetreeflow coverage-pipeline build "
+                "--write --outdir <isolated-coverage-pipeline-directory>"
+            ),
+            boundary="local planning only; no provider contact or downloads",
+        ),
+        _operator_stage(
+            stage="coverage_plan",
+            artifact=OUTPUT_PATHS["coverage_plan"],
+            record_count=coverage_action_count,
+            recommended_next_command="review coverage_next_action_groups",
+            boundary="review-only action planning; no strict completion change",
+        ),
+        _operator_stage(
+            stage="provider_handoff",
+            artifact=OUTPUT_PATHS["provider_handoff"],
+            record_count=provider_handoff_count,
+            recommended_next_command=PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
+            boundary="provider planning handoff only; no provider contact",
+        ),
+        _operator_stage(
+            stage="provider_request",
+            artifact=OUTPUT_PATHS["provider_request"],
+            record_count=provider_request_count,
+            recommended_next_command=PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+            boundary="curator-completed local evidence validation only",
+        ),
+        _operator_stage(
+            stage="provider_request_external_genomes",
+            artifact="provider_request_external_genomes/external_genomes.tsv",
+            record_count=0,
+            recommended_next_command=(
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+            ),
+            boundary="external-genomes draft review only; no registration",
+        ),
+        _operator_stage(
+            stage="external_genomes_install_plan",
+            artifact="external_genome_install_plan/external_genome_install_plan.tsv",
+            record_count=0,
+            recommended_next_command=(
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+            ),
+            boundary="isolated install planning only; no FASTA copy or manifest write",
+        ),
+        _operator_stage(
+            stage="external_genomes_registration_dry_run",
+            artifact="run/external_genome_install_plan.tsv",
+            record_count=0,
+            recommended_next_command=(
+                "typetreeflow --register-external-genomes "
+                "<external_genomes.tsv> --outdir <run> --dry-run"
+            ),
+            boundary="workflow dry-run review only; no install execution",
+        ),
+    ]
+
+
+def _operator_stage(
+    *,
+    stage: str,
+    artifact: str,
+    record_count: int,
+    recommended_next_command: str,
+    boundary: str,
+) -> dict[str, object]:
+    return {
+        "stage": stage,
+        "artifact": artifact,
+        "available": record_count > 0,
+        "record_count": record_count,
+        "recommended_next_command": recommended_next_command,
+        "boundary": boundary,
+    }
 
 
 def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
@@ -431,6 +526,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
         ),
+        "operator_chain_stages": [],
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -493,6 +589,7 @@ def _rendered_outputs(
             "provider_request_external_genomes_recommended_next_command",
             "provider_request_external_genomes_install_plan_recommended_next_command",
             "provider_request_external_genomes_handoff_recommended_next_command",
+            "operator_chain_stages",
             "diagnostic_count",
             "diagnostics",
             "audit_only",
