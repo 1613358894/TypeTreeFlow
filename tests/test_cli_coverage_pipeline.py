@@ -169,6 +169,29 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "--input <provider_request.tsv> --write "
         "--outdir <isolated-handoff-directory>"
     )
+    assert [stage["stage"] for stage in payload["operator_chain_stages"]] == [
+        "acquisition_worklist",
+        "coverage_plan",
+        "provider_handoff",
+        "provider_request",
+        "provider_request_external_genomes",
+        "external_genomes_install_plan",
+        "external_genomes_registration_dry_run",
+    ]
+    assert [stage["available"] for stage in payload["operator_chain_stages"]] == [
+        True,
+        True,
+        True,
+        True,
+        False,
+        False,
+        False,
+    ]
+    assert payload["operator_chain_stages"][5]["recommended_next_command"] == (
+        "typetreeflow external-genomes install-plan "
+        "--input <external_genomes.tsv> --target-outdir <run>"
+    )
+    assert "no FASTA copy" in payload["operator_chain_stages"][5]["boundary"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
@@ -374,6 +397,15 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "typetreeflow provider-request external-genomes-handoff "
         "--input <provider_request.tsv> --write "
         "--outdir <isolated-handoff-directory>"
+    )
+    assert summary["operator_chain_stages"][0]["artifact"] == (
+        "acquisition_worklist/acquisition_worklist.tsv"
+    )
+    assert summary["operator_chain_stages"][3]["record_count"] == 8
+    assert summary["operator_chain_stages"][4]["available"] is False
+    assert summary["operator_chain_stages"][6]["recommended_next_command"] == (
+        "typetreeflow --register-external-genomes "
+        "<external_genomes.tsv> --outdir <run> --dry-run"
     )
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,

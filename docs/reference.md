@@ -1655,6 +1655,10 @@ provider-status, and provider-request draft counts plus
 `provider_request_recommended_next_command`, and bounded previews. Action
 groups are sorted by priority and summarize action code, record count, source
 lanes, provider keys, and the recommended next command for AI/operator routing.
+`operator_chain_stages` is a bounded AI/operator checklist for the same local
+chain. Each row reports `stage`, `artifact`, `available`, `record_count`,
+`recommended_next_command`, and `boundary`; it is metadata only and does not
+discover files outside the explicit pipeline inputs or output directory.
 The external-genomes draft recommendation points to the explicit local handoff
 step after provider-request validation, and the install-plan recommendation
 points to the local planning step before registration dry-run; neither is

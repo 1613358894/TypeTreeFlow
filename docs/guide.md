@@ -243,6 +243,10 @@ reports provider request draft counts and
 one-step external-genomes handoff bundle, external-genomes draft validation,
 external-genomes install planning, and later `plan-provider-registration`
 handoffs are visible in one compact JSON object.
+`operator_chain_stages` gives AI operators a bounded checklist of the local
+coverage chain, including the current artifact name, whether that stage has
+records in the present payload, its recommended next command, and the
+no-provider/no-download boundary for that stage.
 `build --write` publishes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, and `coverage_pipeline_summary.json` members under the
