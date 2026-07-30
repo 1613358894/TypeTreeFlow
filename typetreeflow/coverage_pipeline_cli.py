@@ -59,9 +59,7 @@ from typetreeflow.provider_plan import (
 )
 from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
-    PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
-    PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
     build_provider_request_external_genomes_draft,
 )
@@ -92,6 +90,15 @@ OUTPUT_PATHS = {
     "provider_request_summary": "provider_request/provider_request_draft_summary.json",
     "pipeline_summary": "coverage_pipeline_summary.json",
 }
+PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND = (
+    "typetreeflow external-genomes validate "
+    "--input provider_request_external_genomes/external_genomes.tsv"
+)
+PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_NEXT_COMMAND = (
+    "typetreeflow external-genomes install-plan "
+    "--input provider_request_external_genomes/external_genomes.tsv "
+    "--target-outdir <run> --write --outdir <isolated-install-plan-directory>"
+)
 OPTIONAL_OUTPUT_PATHS = {
     "archive_candidates": "archive_candidates/archive_candidates.tsv",
     "archive_candidates_summary": "archive_candidates/archive_candidates_summary.json",
@@ -1148,7 +1155,7 @@ def _payload(
             _stage_recommended_request("provider_request_external_genomes")
         ),
         "provider_request_external_genomes_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND
         ),
         "provider_request_external_genomes_status": _payload_value(
             provider_request_external_genomes,
@@ -1176,7 +1183,7 @@ def _payload(
             _stage_recommended_request("external_genomes_install_plan")
         ),
         "provider_request_external_genomes_install_plan_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_NEXT_COMMAND
         ),
         "external_genomes_install_plan_status": _payload_value(
             external_genomes_install_plan,
@@ -1362,7 +1369,7 @@ def _operator_chain_stages(
                 "provider_request_external_genomes"
             ],
             recommended_next_command=(
-                PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND
             ),
             boundary="external-genomes draft review only; no registration",
         ),
@@ -1378,7 +1385,7 @@ def _operator_chain_stages(
                 "external_genomes_install_plan"
             ],
             recommended_next_command=(
-                PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_NEXT_COMMAND
             ),
             boundary="isolated install planning only; no FASTA copy or manifest write",
         ),
@@ -1523,7 +1530,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             _stage_recommended_request("provider_request_external_genomes")
         ),
         "provider_request_external_genomes_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND
         ),
         "provider_request_external_genomes_status": "not_run",
         "provider_request_external_genomes_record_count": 0,
@@ -1536,7 +1543,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             _stage_recommended_request("external_genomes_install_plan")
         ),
         "provider_request_external_genomes_install_plan_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_NEXT_COMMAND
         ),
         "external_genomes_install_plan_status": "not_run",
         "external_genomes_install_plan_record_count": 0,

@@ -336,7 +336,8 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--input provider_request_external_genomes/external_genomes.tsv "
+        "--target-outdir <run> "
         "--write --outdir <isolated-install-plan-directory>"
     )
     assert pipeline_payload[

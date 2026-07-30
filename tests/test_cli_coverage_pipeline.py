@@ -318,7 +318,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "input": "provider_request_external_genomes/external_genomes.tsv",
     }
     assert payload["provider_request_external_genomes_recommended_next_command"] == (
-        "typetreeflow external-genomes validate --input <external_genomes.tsv>"
+        "typetreeflow external-genomes validate "
+        "--input provider_request_external_genomes/external_genomes.tsv"
     )
     assert payload[
         "provider_request_external_genomes_install_plan_recommended_request"
@@ -334,7 +335,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--input provider_request_external_genomes/external_genomes.tsv "
+        "--target-outdir <run> "
         "--write --outdir <isolated-install-plan-directory>"
     )
     assert payload["external_genomes_registration_dry_run_recommended_request"] == {
@@ -386,7 +388,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     ]
     assert payload["operator_chain_stages"][6]["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--input provider_request_external_genomes/external_genomes.tsv "
+        "--target-outdir <run> "
         "--write --outdir <isolated-install-plan-directory>"
     )
     assert payload["operator_chain_stages"][6]["required_inputs"] == [
@@ -649,7 +652,8 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "input": "provider_request_external_genomes/external_genomes.tsv",
     }
     assert summary["provider_request_external_genomes_recommended_next_command"] == (
-        "typetreeflow external-genomes validate --input <external_genomes.tsv>"
+        "typetreeflow external-genomes validate "
+        "--input provider_request_external_genomes/external_genomes.tsv"
     )
     assert summary[
         "provider_request_external_genomes_install_plan_recommended_request"
@@ -665,7 +669,8 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--input provider_request_external_genomes/external_genomes.tsv "
+        "--target-outdir <run> "
         "--write --outdir <isolated-install-plan-directory>"
     )
     assert summary["external_genomes_registration_dry_run_recommended_request"] == {
@@ -1485,7 +1490,8 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
     }
     assert payload["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--input provider_request_external_genomes/external_genomes.tsv "
+        "--target-outdir <run> "
         "--write --outdir <isolated-install-plan-directory>"
     )
 

@@ -1765,11 +1765,12 @@ step after provider-request validation, and the install-plan recommendation
 points to the local planning step before registration dry-run. The separate
 `external_genomes_registration_dry_run_recommended_request` and matching next
 command point to a later dry-run `--register-external-genomes` review. The
-coverage-pipeline request uses
+coverage-pipeline external-genomes validate, install-plan, and registration
+dry-run requests use
 `provider_request_external_genomes/external_genomes.tsv`, the explicit child
-artifact path from the same isolated pipeline directory. The structured request
-is compatible with `commands render` / `commands plan`, but rendering it
-remains planning metadata only. None of these requests are automatic
+artifact path from the same isolated pipeline directory. The structured
+requests are compatible with `commands render` / `commands plan`, but rendering
+them remains planning metadata only. None of these requests are automatic
 registration or download execution. `preview` never writes files.
 `build --validate-provider-request` runs the same local provider-request
 validation guards on the generated draft. It only checks local TSV fields and
