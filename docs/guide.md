@@ -279,8 +279,10 @@ typetreeflow coverage-pipeline status \
 
 It reports `operator_chain_stages`, `stage_status_counts`, available and
 unavailable stage names, the first unavailable stage, and the recommended next
-command; it does not scan workflow outputs, contact providers, download
-genomes, copy FASTA, mutate manifests, or grant completion credit.
+command. It also reports `completion_gate` so automation can read whether any
+stage remains blocking without parsing all stage rows. It does not scan
+workflow outputs, contact providers, download genomes, copy FASTA, mutate
+manifests, or grant completion credit.
 Use `--require-complete` only when an automation gate should fail closed unless
 all operator-chain stages are available.
 When missing-public-genome rows contain explicit provider hints or recognizable

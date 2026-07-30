@@ -346,6 +346,15 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     ]
     if args.require_complete and unavailable_stage_names:
         diagnostics.append(_diagnostic("coverage_pipeline_status", "chain_incomplete"))
+    completion_gate = {
+        "passed": not unavailable_stage_names,
+        "required": bool(args.require_complete),
+        "blocking_stage_count": len(unavailable_stage_names),
+        "blocking_stage_names": unavailable_stage_names,
+        "blocking_diagnostic_code": (
+            "chain_incomplete" if unavailable_stage_names else ""
+        ),
+    }
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -358,6 +367,7 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         },
         "available_stage_names": available_stage_names,
         "unavailable_stage_names": unavailable_stage_names,
+        "completion_gate": completion_gate,
         "require_complete": bool(args.require_complete),
         "next_stage": next_stage,
         "recommended_next_command": (

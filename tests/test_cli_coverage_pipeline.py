@@ -530,6 +530,13 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "external_genomes_registration_dry_run",
     ]
     assert payload["unavailable_stage_names"] == []
+    assert payload["completion_gate"] == {
+        "passed": True,
+        "required": False,
+        "blocking_stage_count": 0,
+        "blocking_stage_names": [],
+        "blocking_diagnostic_code": "",
+    }
     assert payload["next_stage"] is None
     assert payload["recommended_next_command"] == ""
     assert [stage["available"] for stage in payload["operator_chain_stages"]] == [
@@ -606,6 +613,16 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
         "external_genomes_install_plan",
         "external_genomes_registration_dry_run",
     ]
+    assert payload["completion_gate"] == {
+        "passed": False,
+        "required": False,
+        "blocking_stage_count": 2,
+        "blocking_stage_names": [
+            "external_genomes_install_plan",
+            "external_genomes_registration_dry_run",
+        ],
+        "blocking_diagnostic_code": "chain_incomplete",
+    }
     assert payload["require_complete"] is False
     assert payload["next_stage"]["stage"] == "external_genomes_install_plan"
     assert payload["recommended_next_command"] == (
@@ -626,6 +643,8 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
     assert code == 2
     assert payload["status"] == "blocked"
     assert payload["require_complete"] is True
+    assert payload["completion_gate"]["required"] is True
+    assert payload["completion_gate"]["passed"] is False
     assert payload["diagnostics"][0]["diagnostic_code"] == "chain_incomplete"
 
 
