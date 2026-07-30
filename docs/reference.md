@@ -1575,12 +1575,15 @@ successful handoff generation exits `0`; unexpected internal or write failures
 exit `1`. Provider handoff rows are AI/operator planning artifacts only: they
 do not contact providers, download genomes, mutate manifests, change completion
 metrics, or promote strict scientific deliverables.
-`provider_handoff.tsv` includes `provider_guidance_notes`, a compact
-fail-closed note string derived from the static provider registry adapter.
-These notes may describe terms review, credential review, user-assisted local
-FASTA handoff, or public archive metadata review, but they are not provider
-authorization, terms acceptance, download readiness, or strict type-strain
-evidence.
+`provider_handoff.tsv` includes `provider_automation_level` plus
+`provider_guidance_notes`. The automation level is AI planning metadata derived
+from the static provider registry, using the same `planning_handoff`,
+`metadata_review`, and `download_enabled` labels as `providers catalog`.
+Guidance notes are compact fail-closed strings derived from the provider
+registry adapter. These fields may describe terms review, credential review,
+user-assisted local FASTA handoff, public archive metadata review, or current
+adapter capability, but they are not provider authorization, terms acceptance,
+download readiness, or strict type-strain evidence.
 The optional report/package surfaces are separate from handoff generation:
 pass `--provider-handoff-dir <dir>` with `--report-only` to display compact
 provider-handoff audit counts, or with `package-results --include reports|all`
@@ -1612,12 +1615,14 @@ SHA-256, license, retrieval date, and curator fields blank. These rows do not
 contact providers, accept terms, download genomes, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
 The compact JSON and `provider_request_draft_summary.json` include
-`curator_completion_required_count`, `curator_completion_template_counts`,
-`curator_completion_field_counts`, and `curator_completion_blocker_counts`.
-The row notes include `curator_completion_template` and
+`provider_automation_level_counts`, `curator_completion_required_count`,
+`curator_completion_template_counts`, `curator_completion_field_counts`, and
+`curator_completion_blocker_counts`. The row notes include
+`provider_automation_level`, `curator_completion_template`, and
 `required_curator_fields` so an AI/operator can distinguish provider/local
-FASTA handoff from public-archive linkage review. These counts and templates
-are planning diagnostics for missing curator-owned fields such as strain,
+FASTA handoff from public-archive linkage review without losing the provider
+automation boundary from the handoff step. These counts and templates are
+planning diagnostics for missing curator-owned fields such as strain,
 type-strain ID, provider-record/artifact ID, local FASTA path, SHA-256, terms
 review, license, retrieval date, and curator name. They are not completion
 metrics and do not make a draft row eligible for provider execution.
@@ -1744,8 +1749,9 @@ typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-c
 It reads only explicitly named local TSV files, builds an in-memory acquisition
 worklist, coverage action plan, provider handoff, and provider request draft,
 then emits one compact JSON object with lane, action, provider-key,
-provider-status, and provider-request draft counts plus
-`worklist_candidate_provider_key_counts`, `coverage_next_action_groups`, and
+provider-status, provider automation-level, and provider-request draft counts
+plus `worklist_candidate_provider_key_counts`,
+`coverage_next_action_groups`, and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
 `provider_request_external_genomes_install_plan_recommended_next_command` plus

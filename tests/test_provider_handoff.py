@@ -59,6 +59,10 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
         "metadata_only": 2,
         "planning_only": 1,
     }
+    assert summary["provider_automation_level_counts"] == {
+        "metadata_review": 2,
+        "planning_handoff": 1,
+    }
     assert summary["provider_key_counts"] == {"dsmz": 1, "genbank": 1, "refseq": 1}
     assert summary["terms_review_required_count"] == 3
     assert summary["credentials_required_count"] == 0
@@ -115,6 +119,10 @@ def test_provider_handoff_serializers_are_stable_and_json_serializable():
     assert {row["downloads_triggered"] for row in rows} == {"0"}
     dsmz = next(row for row in rows if row["provider_key"] == "dsmz")
     genbank = next(row for row in rows if row["provider_key"] == "genbank")
+    refseq = next(row for row in rows if row["provider_key"] == "refseq")
+    assert dsmz["provider_automation_level"] == "planning_handoff"
+    assert genbank["provider_automation_level"] == "metadata_review"
+    assert refseq["provider_automation_level"] == "metadata_review"
     assert "provider_guidance=public_archive_metadata_review" in (
         genbank["provider_guidance_notes"]
     )
