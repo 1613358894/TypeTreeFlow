@@ -1026,6 +1026,31 @@ def _payload(
             "install_planned_count",
         ),
     )
+    coverage_next_action_groups = _coverage_next_action_groups(
+        coverage_plan.actions
+    )
+    primary_next_action_group = (
+        dict(coverage_next_action_groups[0])
+        if coverage_next_action_groups
+        else None
+    )
+    primary_action_required_inputs: list[str] = []
+    primary_action_recommended_request: dict[str, object] | None = None
+    primary_action_recommended_next_command = ""
+    if primary_next_action_group:
+        raw_required_inputs = primary_next_action_group.get("required_inputs")
+        if isinstance(raw_required_inputs, list):
+            primary_action_required_inputs = [
+                str(value) for value in raw_required_inputs
+            ]
+        raw_recommended_request = primary_next_action_group.get(
+            "recommended_request"
+        )
+        if isinstance(raw_recommended_request, Mapping):
+            primary_action_recommended_request = dict(raw_recommended_request)
+        primary_action_recommended_next_command = str(
+            primary_next_action_group.get("recommended_next_command", "")
+        )
     validation_output_paths = (
         {
             key: None
@@ -1047,8 +1072,12 @@ def _payload(
         "coverage_action_count": coverage_summary["record_count"],
         "coverage_action_counts": coverage_summary["action_counts"],
         "coverage_provider_key_counts": coverage_summary["provider_key_counts"],
-        "coverage_next_action_groups": _coverage_next_action_groups(
-            coverage_plan.actions
+        "coverage_next_action_groups": coverage_next_action_groups,
+        "primary_next_action_group": primary_next_action_group,
+        "primary_action_required_inputs": primary_action_required_inputs,
+        "primary_action_recommended_request": primary_action_recommended_request,
+        "primary_action_recommended_next_command": (
+            primary_action_recommended_next_command
         ),
         "provider_handoff_record_count": provider_summary["record_count"],
         "provider_key_counts": provider_summary["provider_key_counts"],
