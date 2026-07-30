@@ -42,6 +42,12 @@ from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_LANES,
     ACQUISITION_WORKLIST_SCHEMA_VERSION,
 )
+from typetreeflow.evidence.archive_candidates import (
+    ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
+    ARCHIVE_CANDIDATE_FIELDS,
+    ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+    ARCHIVE_CANDIDATE_STATUSES,
+)
 from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_FIELDS,
     COVERAGE_PLAN_SCHEMA_VERSION,
@@ -238,6 +244,20 @@ EXTERNAL_GENOMES_INSTALL_PLAN_COUNT_FIELDS = (
     "diagnostic_count",
 )
 EXTERNAL_GENOMES_INSTALL_PLAN_MAX_BYTES = 5 * 1024 * 1024
+ARCHIVE_CANDIDATE_MEMBERS = (
+    "archive_candidates.tsv",
+    "archive_candidates_summary.json",
+    "archive_candidates_diagnostics.tsv",
+)
+ARCHIVE_CANDIDATE_COUNT_FIELDS = (
+    "record_count",
+    "species_count",
+    "candidate_count",
+    "conflict_count",
+    "manual_review_count",
+    "diagnostic_count",
+)
+ARCHIVE_CANDIDATE_MAX_BYTES = 5 * 1024 * 1024
 OFFLINE_READINESS_MEMBERS = (
     "offline_readiness_summary.json",
     "offline_readiness_diagnostics.tsv",
@@ -387,6 +407,15 @@ class ExternalGenomesInstallPlanAuditSummary:
     warnings: list[str]
     registration_status_counts: list[tuple[str, int]]
     install_plan_status_counts: list[tuple[str, int]]
+    top_diagnostics: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class ArchiveCandidatesAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    status_counts: list[tuple[str, int]]
     top_diagnostics: list[tuple[str, int]]
 
 
@@ -1625,6 +1654,127 @@ def read_optional_external_genomes_install_plan_audit(
     )
 
 
+def read_optional_archive_candidates_audit(
+    directory: str | Path | None,
+) -> ArchiveCandidatesAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name for name in ARCHIVE_CANDIDATE_MEMBERS if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    status_counts: list[tuple[str, int]] = []
+    top_diagnostics: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    observed_rows: int | None = None
+    diagnostic_codes: Counter[str] = Counter()
+
+    missing = [name for name in ARCHIVE_CANDIDATE_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_name = "archive_candidates_summary.json"
+    summary_path = input_dir / summary_name
+    if summary_path.exists():
+        try:
+            _validate_archive_candidates_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != ARCHIVE_CANDIDATE_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            for field in ARCHIVE_CANDIDATE_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            parsed_status_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "status_counts")
+            )
+            if set(parsed_status_counts) - ARCHIVE_CANDIDATE_STATUSES:
+                raise ValueError("invalid status_counts")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            summary_data = loaded
+            counts = {
+                **{field: loaded[field] for field in ARCHIVE_CANDIDATE_COUNT_FIELDS},
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+            status_counts = _sorted_nonzero_counts(parsed_status_counts)
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append(f"{summary_name} malformed")
+
+    candidates_name = "archive_candidates.tsv"
+    candidates_path = input_dir / candidates_name
+    if candidates_path.exists():
+        try:
+            rows = _read_archive_candidates_tsv(candidates_path)
+            if any(
+                row.get("schema_version") != ARCHIVE_CANDIDATE_SCHEMA_VERSION
+                or row.get("candidate_status") not in ARCHIVE_CANDIDATE_STATUSES
+                or row.get("audit_only") != "true"
+                or row.get("strict_scientific_deliverable") != "false"
+                for row in rows
+            ):
+                raise ValueError("candidate row boundary violation")
+            observed_rows = len(rows)
+            valid_files.append(candidates_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{candidates_name} malformed")
+
+    diagnostics_name = "archive_candidates_diagnostics.tsv"
+    diagnostics_path = input_dir / diagnostics_name
+    if diagnostics_path.exists():
+        try:
+            rows = _read_archive_candidates_diagnostics_tsv(diagnostics_path)
+            for row in rows:
+                code = row.get("diagnostic_code", "").strip()
+                if not code:
+                    raise ValueError("invalid diagnostic code")
+                diagnostic_codes[code] += 1
+            valid_files.append(diagnostics_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{diagnostics_name} malformed")
+
+    if summary_data is not None and observed_rows is not None:
+        if summary_data["record_count"] != observed_rows:
+            warnings.append("record_count does not match archive candidate rows")
+    if summary_data is not None and diagnostic_codes:
+        if summary_data["diagnostic_count"] != sum(diagnostic_codes.values()):
+            warnings.append("diagnostic_count does not match diagnostics rows")
+    top_diagnostics = sorted(
+        diagnostic_codes.items(), key=lambda item: (-item[1], item[0])
+    )[:5]
+
+    return ArchiveCandidatesAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        status_counts=status_counts,
+        top_diagnostics=top_diagnostics,
+    )
+
+
 def _required_dict(value: dict[str, object], field: str) -> dict[object, object]:
     loaded = value.get(field)
     if not isinstance(loaded, dict):
@@ -1750,6 +1900,39 @@ def _validate_external_genomes_install_plan_member(path: Path) -> None:
         raise ValueError("member is not a regular file")
     if path.stat().st_size > EXTERNAL_GENOMES_INSTALL_PLAN_MAX_BYTES:
         raise ValueError("member exceeds size limit")
+
+
+def _validate_archive_candidates_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > ARCHIVE_CANDIDATE_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_archive_candidates_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_archive_candidates_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != ARCHIVE_CANDIDATE_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def _read_archive_candidates_diagnostics_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_archive_candidates_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    if any(row.get("schema_version") != ARCHIVE_CANDIDATE_SCHEMA_VERSION for row in rows):
+        raise ValueError("unsupported schema_version")
+    return rows
 
 
 def _diagnostic_counts_from_summary(loaded: dict[str, object]) -> Counter[str]:
@@ -2959,6 +3142,13 @@ def build_run_summary_markdown(
             )
         )
     )
+    archive_candidates_audit = read_optional_archive_candidates_audit(
+        _coverage_pipeline_component_dir(
+            args,
+            "archive_candidates_dir",
+            "archive_candidates",
+        )
+    )
     offline_readiness_audit = read_optional_offline_readiness_audit(
         getattr(args, "offline_readiness_dir", None)
     )
@@ -3760,6 +3950,71 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(code)} | {count} |"
                         for code, count in external_genomes_install_plan_audit.top_diagnostics
+                    ],
+                ]
+            )
+
+    if archive_candidates_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Archive Candidates Audit",
+                "",
+                (
+                    "The archive-candidates audit is local and audit-only. "
+                    "Report inclusion does not query GenBank, RefSeq, ENA, "
+                    "DDBJ, or provider archives, trigger downloads, create "
+                    "external_genomes.tsv, mutate the manifest, contact "
+                    "providers, or promote strict scientific deliverables."
+                ),
+                (
+                    "`strict_scientific_deliverable=false` means public "
+                    "archive candidate rows are review targets only; accepted "
+                    "strict evidence requires a separate curator/external "
+                    "genome registration and strict-gating path."
+                ),
+            ]
+        )
+        if archive_candidates_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in archive_candidates_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if archive_candidates_audit.warnings:
+            lines.append(
+                "- Warning: " + "; ".join(archive_candidates_audit.warnings)
+            )
+        if archive_candidates_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(archive_candidates_audit.present_files)
+            )
+        if archive_candidates_audit.status_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Archive Candidate Status | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(status)} | {count} |"
+                        for status, count in archive_candidates_audit.status_counts[:5]
+                    ],
+                ]
+            )
+        if archive_candidates_audit.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in archive_candidates_audit.top_diagnostics
                     ],
                 ]
             )

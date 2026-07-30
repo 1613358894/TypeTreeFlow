@@ -374,10 +374,13 @@ review availability, not provider execution, download readiness, completion
 credit, manifest mutation, or strict deliverable promotion. Failed-handoff
 packages exclude these provider-request artifacts.
 Provider request draft summaries may count missing curator-owned fields and
-blocker categories for later registration planning. Those counts are AI
-routing diagnostics only. They must not be interpreted as provider readiness,
-terms approval, FASTA availability, checksum validation, completion credit, or
-strict scientific deliverable status.
+blocker categories for later registration planning. They may also report
+`curator_completion_template_counts` and row-level fill-in templates such as
+`provider_local_fasta_handoff` or `public_archive_linkage_review`. Those
+counts and templates are AI routing diagnostics only. They must not be
+interpreted as provider readiness, terms approval, FASTA availability,
+checksum validation, completion credit, or strict scientific deliverable
+status.
 
 The `provider-request validate` CLI is the only provider-request surface that
 may read curator-referenced local FASTA files, and it may do so only to confirm
@@ -446,11 +449,18 @@ review queues. It does not execute discovery, contact providers, auto-select
 public accessions, or make any candidate download-ready.
 The optional `--coverage-pipeline-dir` report/package surface is only a
 convenience handoff for that isolated directory. It may derive the four
-known planning component subdirectories and an optional
-`provider_request_validation/` subdirectory plus an optional
-`provider_request_external_genomes/` subdirectory under the explicitly supplied path,
+known planning component subdirectories, optional
+`provider_request_validation/`, optional `provider_request_external_genomes/`,
+optional `external_genomes_install_plan/`, and optional
+`archive_candidates/` audit subdirectories under the explicitly supplied path,
 but it must not scan workflow outputs, rerun planning, contact providers,
-trigger downloads, register external genomes, or change any scientific status.
+trigger downloads, register external genomes, copy FASTA files, or change any
+scientific status.
+Coverage-pipeline status, report-only, and package-results may also read an
+explicitly supplied `--archive-candidates-dir`. This is passive public-archive
+audit visibility only; it does not query ENA, DDBJ, GenBank, RefSeq, or other
+archives, create `external_genomes.tsv`, or convert archive candidates into
+strict completion.
 
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic

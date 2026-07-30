@@ -19,6 +19,11 @@ from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_SCHEMA_VERSION,
     build_acquisition_worklist,
 )
+from typetreeflow.evidence.archive_candidates import (
+    ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
+    ARCHIVE_CANDIDATE_FIELDS,
+    ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+)
 from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_FIELDS,
     COVERAGE_PLAN_SCHEMA_VERSION,
@@ -86,6 +91,11 @@ OUTPUT_PATHS = {
     "pipeline_summary": "coverage_pipeline_summary.json",
 }
 OPTIONAL_OUTPUT_PATHS = {
+    "archive_candidates": "archive_candidates/archive_candidates.tsv",
+    "archive_candidates_summary": "archive_candidates/archive_candidates_summary.json",
+    "archive_candidates_diagnostics": (
+        "archive_candidates/archive_candidates_diagnostics.tsv"
+    ),
     "provider_request_validation_summary": (
         "provider_request_validation/provider_request_validation_summary.json"
     ),
@@ -412,6 +422,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--force", action="store_true")
     status = actions.add_parser("status", add_help=False)
     status.add_argument("--coverage-pipeline-dir", required=True)
+    status.add_argument("--archive-candidates-dir")
     status.add_argument("--provider-request-validation-dir")
     status.add_argument("--provider-request-external-genomes-dir")
     status.add_argument("--external-genomes-install-plan-dir")
@@ -458,6 +469,36 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         stages = []
     stages = [dict(stage) for stage in stages]
 
+    _apply_optional_stage(
+        stages,
+        stage_name="archive_candidates",
+        directory=_status_stage_dir(
+            args.archive_candidates_dir,
+            coverage_dir,
+            "archive_candidates",
+        ),
+        summary_name="archive_candidates_summary.json",
+        count_field="record_count",
+        detail_fields=(
+            "valid",
+            "record_count",
+            "candidate_count",
+            "conflict_count",
+            "manual_review_count",
+            "diagnostic_count",
+            "status_counts",
+        ),
+        diagnostics=diagnostics,
+        required_member="archive_candidates.tsv",
+        add_if_directory=True,
+        artifact="archive_candidates/archive_candidates.tsv",
+        recommended_next_command=(
+            "typetreeflow coverage-pipeline build "
+            "--archive-candidates-tsv <archive_candidates.tsv> "
+            "--write --outdir <isolated-coverage-pipeline-directory>"
+        ),
+        boundary="public archive audit review only; no archive query or download",
+    )
     _apply_optional_stage(
         stages,
         stage_name="provider_request_validation",
@@ -644,10 +685,24 @@ def _apply_optional_stage(
     required_member: str | None = None,
     tsv_record_count: bool = False,
     detail_fields: tuple[str, ...] = (),
+    add_if_directory: bool = False,
+    artifact: str = "",
+    recommended_next_command: str = "",
+    boundary: str = "",
 ) -> None:
     stage = _find_stage(stages, stage_name)
     if stage is None or not directory:
-        return
+        if stage is None and directory and add_if_directory:
+            stage = _operator_stage(
+                stage=stage_name,
+                artifact=artifact,
+                record_count=0,
+                recommended_next_command=recommended_next_command,
+                boundary=boundary,
+            )
+            stages.append(stage)
+        else:
+            return
     base = Path(directory)
     if required_member is not None and not (base / required_member).is_file():
         diagnostics.append(_diagnostic(stage_name, "artifact_missing"))
@@ -1660,6 +1715,27 @@ def _validate_owned_output_dir(outdir: Path) -> None:
         _validate_existing_json(
             external_genomes_summary,
             PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
+        )
+    archive_candidates = outdir / OPTIONAL_OUTPUT_PATHS["archive_candidates"]
+    archive_candidates_summary = outdir / OPTIONAL_OUTPUT_PATHS[
+        "archive_candidates_summary"
+    ]
+    archive_candidates_diagnostics = outdir / OPTIONAL_OUTPUT_PATHS[
+        "archive_candidates_diagnostics"
+    ]
+    if (
+        archive_candidates.exists()
+        or archive_candidates_summary.exists()
+        or archive_candidates_diagnostics.exists()
+    ):
+        _validate_existing_member(archive_candidates, ARCHIVE_CANDIDATE_FIELDS)
+        _validate_existing_json(
+            archive_candidates_summary,
+            ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+        )
+        _validate_existing_member(
+            archive_candidates_diagnostics,
+            ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
         )
     install_registration_results = outdir / OPTIONAL_OUTPUT_PATHS[
         "external_genomes_install_plan_registration_results"

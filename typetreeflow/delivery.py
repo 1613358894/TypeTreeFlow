@@ -15,6 +15,7 @@ from typetreeflow.manifest import read_manifest, resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
     AcquisitionWorklistAuditSummary,
+    ArchiveCandidatesAuditSummary,
     BacDiveCandidateReviewSummary,
     CoveragePlanAuditSummary,
     ExternalGenomesInstallPlanAuditSummary,
@@ -29,6 +30,7 @@ from typetreeflow.report.summary import (
     bacdive_compact_source_audit_summary,
     bacdive_normalized_outputs_available,
     read_optional_acquisition_worklist_audit,
+    read_optional_archive_candidates_audit,
     read_optional_bacdive_candidate_review,
     read_optional_coverage_plan_audit,
     read_optional_external_genomes_install_plan_audit,
@@ -74,6 +76,7 @@ class DeliveryResult:
     provider_request_validation_warnings: list[str] = field(default_factory=list)
     provider_request_external_genomes_warnings: list[str] = field(default_factory=list)
     external_genomes_install_plan_warnings: list[str] = field(default_factory=list)
+    archive_candidates_warnings: list[str] = field(default_factory=list)
     offline_readiness_warnings: list[str] = field(default_factory=list)
     strict_gating_warnings: list[str] = field(default_factory=list)
 
@@ -110,6 +113,7 @@ def package_results(
     provider_request_validation_dir: str | Path | None = None,
     provider_request_external_genomes_dir: str | Path | None = None,
     coverage_pipeline_dir: str | Path | None = None,
+    archive_candidates_dir: str | Path | None = None,
     offline_readiness_dir: str | Path | None = None,
     strict_gating_dir: str | Path | None = None,
 ) -> DeliveryResult:
@@ -199,6 +203,13 @@ def package_results(
     external_genomes_install_plan_audit: (
         ExternalGenomesInstallPlanAuditSummary | None
     ) = None
+    archive_candidates_dir = _coverage_pipeline_component_dir(
+        archive_candidates_dir,
+        coverage_pipeline_dir,
+        "archive_candidates",
+    )
+    archive_candidates_outputs_copied: list[Path] = []
+    archive_candidates_audit: ArchiveCandidatesAuditSummary | None = None
     offline_readiness_outputs_copied: list[Path] = []
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None
     strict_gating_outputs_copied: list[Path] = []
@@ -349,6 +360,15 @@ def package_results(
                 copied,
             )
         )
+        archive_candidates_audit = read_optional_archive_candidates_audit(
+            archive_candidates_dir
+        )
+        archive_candidates_outputs_copied = _copy_archive_candidates_outputs(
+            archive_candidates_dir,
+            archive_candidates_audit,
+            output_dir,
+            copied,
+        )
         offline_readiness_audit = read_optional_offline_readiness_audit(
             offline_readiness_dir
         )
@@ -397,6 +417,8 @@ def package_results(
             external_genomes_install_plan_outputs_copied
         ),
         external_genomes_install_plan_audit=external_genomes_install_plan_audit,
+        archive_candidates_outputs_copied=archive_candidates_outputs_copied,
+        archive_candidates_audit=archive_candidates_audit,
         offline_readiness_outputs_copied=offline_readiness_outputs_copied,
         offline_readiness_audit=offline_readiness_audit,
         strict_gating_outputs_copied=strict_gating_outputs_copied,
@@ -468,6 +490,7 @@ def package_results(
             external_genomes_install_plan_audit=(
                 external_genomes_install_plan_audit
             ),
+            archive_candidates_audit=archive_candidates_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
@@ -500,6 +523,7 @@ def package_results(
             external_genomes_install_plan_audit=(
                 external_genomes_install_plan_audit
             ),
+            archive_candidates_audit=archive_candidates_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
@@ -553,6 +577,11 @@ def package_results(
         external_genomes_install_plan_warnings=(
             list(external_genomes_install_plan_audit.warnings)
             if external_genomes_install_plan_audit is not None
+            else []
+        ),
+        archive_candidates_warnings=(
+            list(archive_candidates_audit.warnings)
+            if archive_candidates_audit is not None
             else []
         ),
         offline_readiness_warnings=(
@@ -753,6 +782,7 @@ def build_delivery_readme(
     external_genomes_install_plan_audit: (
         ExternalGenomesInstallPlanAuditSummary | None
     ) = None,
+    archive_candidates_audit: ArchiveCandidatesAuditSummary | None = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
@@ -867,6 +897,8 @@ def build_delivery_readme(
                 external_genomes_install_plan_audit
             )
         )
+    if archive_candidates_audit is not None:
+        lines.extend(_archive_candidates_readme_lines(archive_candidates_audit))
     if offline_readiness_audit is not None:
         lines.extend(_offline_readiness_readme_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
@@ -977,6 +1009,7 @@ def build_handoff_index(
     external_genomes_install_plan_audit: (
         ExternalGenomesInstallPlanAuditSummary | None
     ) = None,
+    archive_candidates_audit: ArchiveCandidatesAuditSummary | None = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
@@ -1105,6 +1138,8 @@ def build_handoff_index(
                 external_genomes_install_plan_audit
             )
         )
+    if archive_candidates_audit is not None:
+        lines.extend(_archive_candidates_handoff_lines(archive_candidates_audit))
     if offline_readiness_audit is not None:
         lines.extend(_offline_readiness_handoff_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
@@ -1614,6 +1649,26 @@ def _copy_external_genomes_install_plan_outputs(
     return copied_plan
 
 
+def _copy_archive_candidates_outputs(
+    directory: str | Path | None,
+    audit: ArchiveCandidatesAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_archive: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "archive_candidates" / name,
+        )
+        copied.append(copied_path)
+        copied_archive.append(copied_path)
+    return copied_archive
+
+
 def _copy_offline_readiness_outputs(
     directory: str | Path | None,
     audit: OfflineReadinessAuditSummary | None,
@@ -1680,6 +1735,8 @@ def _write_package_artifact_scope(
     ),
     external_genomes_install_plan_outputs_copied: list[Path],
     external_genomes_install_plan_audit: ExternalGenomesInstallPlanAuditSummary | None,
+    archive_candidates_outputs_copied: list[Path],
+    archive_candidates_audit: ArchiveCandidatesAuditSummary | None,
     offline_readiness_outputs_copied: list[Path],
     offline_readiness_audit: OfflineReadinessAuditSummary | None,
     strict_gating_outputs_copied: list[Path],
@@ -1754,6 +1811,13 @@ def _write_package_artifact_scope(
         )
     )
     rows.extend(
+        _archive_candidates_artifact_scope_rows(
+            delivery_dir,
+            archive_candidates_outputs_copied,
+            archive_candidates_audit,
+        )
+    )
+    rows.extend(
         _offline_readiness_artifact_scope_rows(
             delivery_dir,
             offline_readiness_outputs_copied,
@@ -1775,6 +1839,7 @@ def _write_package_artifact_scope(
         or provider_request_validation_outputs_copied
         or provider_request_external_genomes_outputs_copied
         or external_genomes_install_plan_outputs_copied
+        or archive_candidates_outputs_copied
         or offline_readiness_outputs_copied
         or strict_gating_outputs_copied
         or not paths.artifact_scope_path.exists()
@@ -1797,6 +1862,7 @@ def _write_package_artifact_scope(
             or provider_request_validation_outputs_copied
             or provider_request_external_genomes_outputs_copied
             or external_genomes_install_plan_outputs_copied
+            or archive_candidates_outputs_copied
             or offline_readiness_outputs_copied
             or strict_gating_outputs_copied
             or not paths.artifact_scope_path.exists()
@@ -2489,6 +2555,84 @@ def _external_genomes_install_plan_artifact_scope_rows(
                     "inclusion does not create the target run directory, copy "
                     "FASTA files, register external genomes, mutate manifests, "
                     "or promote strict deliverables."
+                ),
+            }
+        )
+    return rows
+
+
+def _archive_candidates_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: ArchiveCandidatesAuditSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    candidate_count = 0
+    diagnostic_count = 0
+    if audit is not None:
+        value = audit.counts.get("candidate_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            candidate_count = value
+        value = audit.counts.get("diagnostic_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            diagnostic_count = value
+    specifications = (
+        (
+            "archive_candidates/archive_candidates.tsv",
+            "archive_candidates_rows",
+            "Public archive candidate rows",
+            102,
+            candidate_count,
+        ),
+        (
+            "archive_candidates/archive_candidates_summary.json",
+            "archive_candidates_summary",
+            "Public archive candidate compact audit summary",
+            103,
+            1,
+        ),
+        (
+            "archive_candidates/archive_candidates_diagnostics.tsv",
+            "archive_candidates_diagnostics",
+            "Public archive candidate diagnostics",
+            104,
+            diagnostic_count,
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority, count in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        record_count = count if path.suffix == ".json" else _safe_tsv_row_count(path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "archive_candidates_audit",
+                "record_count": str(record_count),
+                "strict_usable_count": "0",
+                "candidate_count": str(candidate_count if path.suffix == ".tsv" else 0),
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "public archive linkage review",
+                "not_for": (
+                    "archive querying, downloads, external genome registration, "
+                    "or strict deliverable gating"
+                ),
+                "source_artifact": "archive_candidates",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Audit-only public archive candidate output; package "
+                    "inclusion does not query archives, download genomes, "
+                    "write external_genomes.tsv, mutate manifests, or promote "
+                    "strict deliverables."
                 ),
             }
         )
@@ -3377,6 +3521,38 @@ def _external_genomes_install_plan_readme_lines(
     return lines
 
 
+def _archive_candidates_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Archive-candidates artifacts are audit-only public archive "
+            "linkage review outputs. Package inclusion means review "
+            "availability, not archive querying or download execution."
+        ),
+        (
+            "- Candidate rows do not create external_genomes.tsv, copy FASTA "
+            "files, register external genomes, mutate the manifest, or change "
+            "completion metrics."
+        ),
+        (
+            "- `downloads_triggered=0`, `providers_contacted=0`, "
+            "`manifest_mutated=false`, `audit_only=true`, and "
+            "`strict_scientific_deliverable=false` remain package boundaries."
+        ),
+    ]
+
+
+def _archive_candidates_readme_lines(
+    audit: ArchiveCandidatesAuditSummary,
+) -> list[str]:
+    lines = ["", "## Archive Candidates Audit", ""]
+    lines.extend(_archive_candidates_boundary_lines())
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
 def _offline_readiness_boundary_lines() -> list[str]:
     return [
         (
@@ -3444,6 +3620,19 @@ def _strict_gating_handoff_lines(
         lines.append("- Strict-gating files copied: " + ", ".join(audit.present_files))
     if audit.warnings:
         lines.append("- Strict-gating warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _archive_candidates_handoff_lines(
+    audit: ArchiveCandidatesAuditSummary,
+) -> list[str]:
+    lines = _archive_candidates_boundary_lines()
+    if audit.present_files:
+        lines.append(
+            "- Archive-candidates files copied: " + ", ".join(audit.present_files)
+        )
+    if audit.warnings:
+        lines.append("- Archive-candidates warning: " + "; ".join(audit.warnings))
     return lines
 
 

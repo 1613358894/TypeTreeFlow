@@ -497,6 +497,9 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "provider_key_counts": summary["provider_key_counts"],
         "provider_status_counts": summary["provider_status_counts"],
         "source_action_counts": summary["source_action_counts"],
+        "curator_completion_template_counts": summary[
+            "curator_completion_template_counts"
+        ],
         "curator_completion_required_count": summary[
             "curator_completion_required_count"
         ],
@@ -673,6 +676,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_key_counts": {},
         "provider_status_counts": {},
         "source_action_counts": {},
+        "curator_completion_template_counts": {},
         "curator_completion_required_count": 0,
         "curator_completion_field_counts": {},
         "curator_completion_blocker_counts": {},

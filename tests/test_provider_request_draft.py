@@ -45,6 +45,11 @@ def test_provider_request_draft_builds_review_only_provider_request_rows():
     assert "draft_from_provider_handoff=true" in rows[0]["notes"]
     assert "provider_contacted=false" in rows[0]["notes"]
     assert "downloads_triggered=0" in rows[0]["notes"]
+    assert "curator_completion_template=provider_local_fasta_handoff" in rows[0]["notes"]
+    assert "recipe=obtain_permitted_provider_or_local_type_material_fasta" in rows[0]["notes"]
+    assert "required_curator_fields=strain,type_strain_id" in rows[0]["notes"]
+    assert "curator_completion_template=public_archive_linkage_review" in rows[1]["notes"]
+    assert "recipe=review_public_archive_type_linkage_then_supply_local_fasta" in rows[1]["notes"]
 
 
 def test_provider_request_draft_summary_and_serializers_are_stable():
@@ -58,6 +63,10 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
         "source_action_counts": {
             "prepare_provider_handoff": 1,
             "review_public_archive_linkage": 1,
+        },
+        "curator_completion_template_counts": {
+            "provider_local_fasta_handoff": 1,
+            "public_archive_linkage_review": 1,
         },
         "curator_completion_required_count": 2,
         "curator_completion_field_counts": {

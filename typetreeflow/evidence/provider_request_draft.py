@@ -36,6 +36,22 @@ CURATOR_COMPLETION_BLOCKER_KEYS = (
     "local_fasta_path_missing",
     "local_sha256_missing",
 )
+CURATOR_COMPLETION_TEMPLATES = (
+    "provider_local_fasta_handoff",
+    "public_archive_linkage_review",
+    "provider_request_completion",
+)
+CURATOR_COMPLETION_REQUIRED_FIELDS = (
+    "strain",
+    "type_strain_id",
+    "provider_record_id_or_provider_artifact_id",
+    "local_fasta_path",
+    "local_sha256",
+    "terms_review_status",
+    "license_notes",
+    "retrieval_date",
+    "curator",
+)
 
 
 @dataclass(frozen=True)
@@ -85,6 +101,7 @@ class ProviderRequestDraft:
         provider_counts: dict[str, int] = {}
         status_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
+        template_counts = {template: 0 for template in CURATOR_COMPLETION_TEMPLATES}
         field_counts = {field: 0 for field in CURATOR_COMPLETION_FIELD_KEYS}
         blocker_counts = {field: 0 for field in CURATOR_COMPLETION_BLOCKER_KEYS}
         for row in self.rows:
@@ -95,6 +112,7 @@ class ProviderRequestDraft:
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
             )
+            template_counts[_curator_completion_template(row)] += 1
             request_row = row.to_provider_request_row()
             _add_curator_completion_counts(
                 request_row,
@@ -107,6 +125,9 @@ class ProviderRequestDraft:
             "provider_key_counts": dict(sorted(provider_counts.items())),
             "provider_status_counts": dict(sorted(status_counts.items())),
             "source_action_counts": dict(sorted(action_counts.items())),
+            "curator_completion_template_counts": {
+                key: value for key, value in template_counts.items() if value
+            },
             "curator_completion_required_count": len(self.rows),
             "curator_completion_field_counts": field_counts,
             "curator_completion_blocker_counts": blocker_counts,
@@ -151,6 +172,7 @@ def build_provider_request_draft(
 
 
 def _notes(row: ProviderRequestDraftRow) -> str:
+    template = _curator_completion_template(row)
     parts = [
         "draft_from_provider_handoff=true",
         "audit_only=true",
@@ -158,7 +180,20 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         "downloads_triggered=0",
         "strict_scientific_deliverable=false",
         "requires_curator_completion=true",
+        f"curator_completion_template={template}",
+        (
+            "required_curator_fields="
+            + ",".join(CURATOR_COMPLETION_REQUIRED_FIELDS)
+        ),
     ]
+    if template == "public_archive_linkage_review":
+        parts.append(
+            "recipe=review_public_archive_type_linkage_then_supply_local_fasta"
+        )
+    elif template == "provider_local_fasta_handoff":
+        parts.append("recipe=obtain_permitted_provider_or_local_type_material_fasta")
+    else:
+        parts.append("recipe=complete_provider_request_fields_for_review")
     optional_parts = [
         ("source_action_code", row.source_action_code),
         ("source_lane", row.source_lane),
@@ -170,6 +205,19 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         if cleaned:
             parts.append(f"{key}={cleaned}")
     return _clean("; ".join(parts))
+
+
+def _curator_completion_template(row: ProviderRequestDraftRow) -> str:
+    action = row.source_action_code.strip()
+    lane = row.source_lane.strip()
+    provider_status = row.provider_status.strip()
+    if action == "review_public_archive_linkage" or lane == "public_linkage_review":
+        return "public_archive_linkage_review"
+    if action == "prepare_provider_handoff" or lane == "external_fasta_required":
+        return "provider_local_fasta_handoff"
+    if provider_status in {"planning_only", "metadata_only"}:
+        return "provider_request_completion"
+    return "provider_request_completion"
 
 
 def _add_curator_completion_counts(

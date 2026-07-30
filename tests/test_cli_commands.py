@@ -261,6 +261,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         } <= parameter_names[key]
     assert {
         "--coverage-pipeline-dir",
+        "--archive-candidates-dir",
         "--provider-request-validation-dir",
         "--provider-request-external-genomes-dir",
         "--external-genomes-install-plan-dir",
@@ -281,6 +282,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--provider-handoff-dir",
         "--provider-request-dir",
         "--coverage-pipeline-dir",
+        "--archive-candidates-dir",
         "--offline-readiness-dir",
         "--strict-gating-dir",
     }
@@ -896,6 +898,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                 (
                     '{"command":"coverage-pipeline","subcommand":"status",'
                     '"coverage_pipeline_dir":"pipeline",'
+                    '"archive_candidates_dir":"archive",'
                     '"provider_request_validation_dir":"validation",'
                     '"provider_request_external_genomes_dir":"external",'
                     '"external_genomes_install_plan_dir":"install_plan",'
@@ -913,6 +916,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "status",
         "--coverage-pipeline-dir",
         "pipeline",
+        "--archive-candidates-dir",
+        "archive",
         "--provider-request-validation-dir",
         "validation",
         "--provider-request-external-genomes-dir",

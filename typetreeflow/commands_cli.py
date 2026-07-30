@@ -42,6 +42,7 @@ _AUDIT_DIR_RENDER_FIELDS = (
         "--provider-request-external-genomes-dir",
     ),
     ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
+    ("archive_candidates_dir", "--archive-candidates-dir"),
     ("offline_readiness_dir", "--offline-readiness-dir"),
     ("strict_gating_dir", "--strict-gating-dir"),
 )
@@ -727,6 +728,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "explicit coverage-pipeline audit output directory for report-only",
         },
         {
+            "name": "--archive-candidates-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit archive-candidates audit output directory for report-only",
+        },
+        {
             "name": "--offline-readiness-dir",
             "kind": "path",
             "required": False,
@@ -841,6 +849,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicit coverage-pipeline audit output directory",
+        },
+        {
+            "name": "--archive-candidates-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit archive-candidates audit output directory",
         },
         {
             "name": "--offline-readiness-dir",
@@ -1220,6 +1235,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "optional isolated provider request validation directory",
+        },
+        {
+            "name": "--archive-candidates-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional isolated archive-candidates audit directory",
         },
         {
             "name": "--provider-request-external-genomes-dir",
@@ -2431,6 +2453,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "command",
                     "subcommand",
                     "coverage_pipeline_dir",
+                    "archive_candidates_dir",
                     "provider_request_validation_dir",
                     "provider_request_external_genomes_dir",
                     "external_genomes_install_plan_dir",
@@ -2447,6 +2470,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 coverage_dir,
             ]
             for key, flag in (
+                ("archive_candidates_dir", "--archive-candidates-dir"),
                 ("provider_request_validation_dir", "--provider-request-validation-dir"),
                 (
                     "provider_request_external_genomes_dir",

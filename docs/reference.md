@@ -519,20 +519,50 @@ does not create the target run directory, copy FASTA files, register external
 genomes, mutate the manifest, contact providers, trigger downloads, or grant
 completion credit.
 
+`--archive-candidates-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is an explicit read-only input and is never
+automatically discovered under the workflow outdir. Report generation reads
+only `archive_candidates.tsv`, `archive_candidates_summary.json`, and
+`archive_candidates_diagnostics.tsv` from that directory. A missing or empty
+directory omits `## Archive Candidates Audit`. Partial or malformed input keeps
+report generation successful and shows a compact warning. Valid summary counts
+show `record_count`, `species_count`, `candidate_count`, `conflict_count`,
+`manual_review_count`, `diagnostic_count`, `downloads_triggered`,
+`providers_contacted`, `manifest_mutated`, `audit_only`, and
+`strict_scientific_deliverable`, plus up to five nonzero candidate-status and
+diagnostic-code counts. Row-level accessions, source URLs, evidence notes, and
+strain details are not displayed. Report inclusion does not query GenBank,
+RefSeq, ENA, DDBJ, or provider archives, trigger downloads, create
+`external_genomes.tsv`, mutate manifests, contact providers, or create strict
+scientific deliverables.
+
+For `package-results --include reports` or `--include all`, each validated
+member is copied under `archive_candidates/`. Each copied member gets one row
+in package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
+`scope=audit`, `evidence_policy=archive_candidates_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=public archive linkage review`,
+`not_for=archive querying, downloads, external genome registration, or strict
+deliverable gating`, and `source_artifact=archive_candidates`. Missing input
+is omitted. Partial or malformed input copies only valid members and adds a
+compact warning to the README, handoff index, and compact JSON envelope.
+Failed-handoff packages exclude these artifacts and rows.
+
 `--coverage-pipeline-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only handoff for the isolated output
 of `coverage-pipeline build` and is never automatically discovered under the
 workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
 `coverage_plan/`, `provider_handoff/`, `provider_request/`, and
 `provider_request_validation/`, `provider_request_external_genomes/`, and
-`external_genomes_install_plan/` under that directory when present, then
-applies the same report, package, warning, and audit-only artifact-scope
-contracts as the individual component directory options. Explicit
+`external_genomes_install_plan/`, and `archive_candidates/` under that
+directory when present, then applies the same report, package, warning, and
+audit-only artifact-scope contracts as the individual component directory
+options. Explicit
 `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
 `--provider-handoff-dir`, `--provider-request-dir`, and
 `--provider-request-validation-dir`, and
-`--provider-request-external-genomes-dir` values take precedence over derived
-subdirectories.
+`--provider-request-external-genomes-dir`, and `--archive-candidates-dir`
+values take precedence over derived subdirectories.
 The option does not rerun coverage planning, contact providers, trigger
 downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
@@ -1554,12 +1584,15 @@ SHA-256, license, retrieval date, and curator fields blank. These rows do not
 contact providers, accept terms, download genomes, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
 The compact JSON and `provider_request_draft_summary.json` include
-`curator_completion_required_count`, `curator_completion_field_counts`, and
-`curator_completion_blocker_counts`. These counts are planning diagnostics for
-missing curator-owned fields such as strain, type-strain ID,
-provider-record/artifact ID, local FASTA path, SHA-256, terms review, license,
-retrieval date, and curator name. They are not completion metrics and do not
-make a draft row eligible for provider execution.
+`curator_completion_required_count`, `curator_completion_template_counts`,
+`curator_completion_field_counts`, and `curator_completion_blocker_counts`.
+The row notes include `curator_completion_template` and
+`required_curator_fields` so an AI/operator can distinguish provider/local
+FASTA handoff from public-archive linkage review. These counts and templates
+are planning diagnostics for missing curator-owned fields such as strain,
+type-strain ID, provider-record/artifact ID, local FASTA path, SHA-256, terms
+review, license, retrieval date, and curator name. They are not completion
+metrics and do not make a draft row eligible for provider execution.
 
 The isolated provider request validation adapter is:
 
@@ -1660,7 +1693,7 @@ The isolated coverage pipeline adapter is:
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
 typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--json] [--write --outdir <dir> [--force]]
-typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
@@ -1709,7 +1742,14 @@ refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline
-directory, and optional downstream directory overrides. It then re-emits
+directory, and optional downstream directory overrides. When
+`archive_candidates/` exists under the explicit coverage-pipeline directory or
+`--archive-candidates-dir <dir>` is supplied, it may add a passive
+`archive_candidates` operator-chain stage from the existing
+`archive_candidates.tsv`, `archive_candidates_summary.json`, and
+`archive_candidates_diagnostics.tsv` triplet. The stage carries bounded counts
+only; it does not query public archives, download genomes, create
+`external_genomes.tsv`, or change strict evidence. It then re-emits
 `operator_chain_stages`, the current unavailable stage, and the recommended
 next command as compact JSON. The payload also includes
 `stage_status_counts`, `available_stage_names`, and
@@ -1742,11 +1782,12 @@ The written pipeline directory can be supplied later as one explicit
 read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
 `package-results --include reports|all`. TypeTreeFlow derives only
 `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
-`provider_request/` under that directory and then applies the same audit-only
-report/package contracts as the individual `--acquisition-worklist-dir`,
-`--coverage-plan-dir`, `--provider-handoff-dir`, and
-`--provider-request-dir` options. Explicit component directories take
-precedence over the derived pipeline subdirectories.
+`provider_request/`, `provider_request_validation/`,
+`provider_request_external_genomes/`, `external_genomes_install_plan/`, and
+`archive_candidates/` under that directory and then applies the same
+audit-only report/package contracts as the individual component directory
+options. Explicit component directories take precedence over the derived
+pipeline subdirectories.
 The generated `provider_request/` member is an offline draft for
 `plan-provider-registration`; report/package inclusion means draft
 availability only and does not authorize provider contact or downloads.

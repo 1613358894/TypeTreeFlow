@@ -139,9 +139,12 @@ contact, terms acceptance, download execution, manifest mutation, completion
 credit, or strict scientific delivery. Input rows with missing provider key,
 provider name, provider status, or species are blocked instead of producing
 empty provider request rows. The compact JSON and summary include
-`curator_completion_field_counts` and
+`curator_completion_template_counts`, `curator_completion_field_counts`, and
 `curator_completion_blocker_counts` so AI/operator routing can see which
-curator-owned fields still block later provider-registration planning.
+curator-owned fields still block later provider-registration planning. Each
+draft row note also carries a `curator_completion_template` such as
+`provider_local_fasta_handoff` or `public_archive_linkage_review`; the template
+is only a fill-in recipe and does not make the row provider-ready.
 
 After curator completion, validate the provider request against local handoff
 readiness without writing workflow outputs:
@@ -283,13 +286,18 @@ isolated pipeline directory when present. To override those locations, pass:
 ```bash
 typetreeflow coverage-pipeline status \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
+  --archive-candidates-dir <isolated-archive-candidates-directory> \
   --provider-request-validation-dir <isolated-provider-request-validation-directory> \
   --provider-request-external-genomes-dir <isolated-provider-request-external-genomes-directory> \
   --external-genomes-install-plan-dir <isolated-external-genomes-install-plan-directory> \
   --registration-run-dir <dry-run-registration-directory> [--json]
 ```
 
-It reports `operator_chain_stages`, `stage_status_counts`, available and
+The archive-candidates directory is optional and is read only as an existing
+public-archive audit triplet. It adds compact archive-candidate counts for
+operator routing but does not query archives, download genomes, create
+`external_genomes.tsv`, register files, or change strict evidence. The status
+payload reports `operator_chain_stages`, `stage_status_counts`, available and
 unavailable stage names, the first unavailable stage, and the recommended next
 command. It also reports `completion_gate` so automation can read whether any
 stage remains blocking without parsing all stage rows. It does not scan
@@ -312,15 +320,17 @@ Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 directory as one explicit read-only input. TypeTreeFlow derives only its
 `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
 `provider_request/`, `provider_request_validation/`, and
-`provider_request_external_genomes/`, and `external_genomes_install_plan/`
-subdirectories when present; it does not scan workflow outputs or rerun the
-pipeline. The generated `provider_request/` member is a draft input for
-`plan-provider-registration`; the optional `provider_request_external_genomes/`
-member is only a draft input for later local `external-genomes validate`; the
-optional `external_genomes_install_plan/` member is only an installation path
-planning audit. Report/package inclusion only surfaces review availability and
-remains separate from provider contact, downloads, FASTA copying,
-registration, or completion credit.
+`provider_request_external_genomes/`, `external_genomes_install_plan/`, and
+`archive_candidates/` subdirectories when present; it does not scan workflow
+outputs or rerun the pipeline. The generated `provider_request/` member is a
+draft input for `plan-provider-registration`; the optional
+`provider_request_external_genomes/` member is only a draft input for later
+local `external-genomes validate`; the optional
+`external_genomes_install_plan/` member is only an installation path planning
+audit; the optional `archive_candidates/` member is only public-archive
+linkage review. Report/package inclusion only surfaces review availability and
+remains separate from archive queries, provider contact, downloads, FASTA
+copying, registration, or completion credit.
 
 Build a denominator-preserving crosswalk for already known counts with:
 
@@ -723,11 +733,12 @@ With an explicit `--coverage-pipeline-dir`, `--include reports` and
 `--include all` derive `acquisition_worklist/`, `coverage_plan/`, and
 `provider_handoff/`, `provider_request/`, and
 `provider_request_validation/`, and `provider_request_external_genomes/` under
-the isolated pipeline directory when present, then apply the same copy and
-artifact-scope contracts as the individual directory options. This is a
-convenience handoff only; it does not scan workflow outputs, rerun the
-pipeline, contact providers, trigger downloads, register external genomes, or
-change scientific status.
+the isolated pipeline directory when present. They also derive
+`external_genomes_install_plan/` and `archive_candidates/` when present, then
+apply the same copy and artifact-scope contracts as the individual directory
+options. This is a convenience handoff only; it does not scan workflow outputs,
+rerun the pipeline, query archives, contact providers, trigger downloads,
+register external genomes, or change scientific status.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,

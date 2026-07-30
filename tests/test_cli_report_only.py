@@ -20,6 +20,7 @@ from typetreeflow.evidence.manual_review_import import (
 )
 from tests.test_report_summary import (
     _write_acquisition_worklist_pair,
+    _write_archive_candidates_triplet,
     _write_coverage_plan_pair,
     _write_external_genomes_install_plan_triplet,
     _write_offline_readiness_pair,
@@ -349,6 +350,7 @@ def test_report_only_coverage_pipeline_dir_reads_install_plan_surface(
     _write_external_genomes_install_plan_triplet(
         pipeline_dir / "external_genomes_install_plan"
     )
+    _write_archive_candidates_triplet(pipeline_dir / "archive_candidates")
     pipeline_before = {
         str(path.relative_to(pipeline_dir)): path.read_bytes()
         for path in pipeline_dir.rglob("*")
@@ -377,14 +379,17 @@ def test_report_only_coverage_pipeline_dir_reads_install_plan_surface(
     assert "## Coverage Action Plan Audit" in summary
     assert "## Provider Handoff Audit" in summary
     assert "## External Genomes Install Plan Audit" in summary
+    assert "## Archive Candidates Audit" in summary
     assert "external_registration_ready" in summary
     assert "review_public_archive_linkage" in summary
     assert "metadata_only" in summary
     assert "external_genome_install_planned" in summary
+    assert "archive_candidate_for_public_linkage_review" in summary
     assert "private action detail" not in summary
     assert "private provider detail" not in summary
     assert "private message" not in summary
     assert "private notes" not in summary
+    assert "private archive note" not in summary
     assert paths.manifest.read_bytes() == manifest_before
     assert {
         str(path.relative_to(pipeline_dir)): path.read_bytes()
