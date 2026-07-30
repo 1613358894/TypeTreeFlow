@@ -26,6 +26,7 @@ class ProviderRegistry:
     def __init__(self, entries: list[ProviderRegistryEntry] | None = None) -> None:
         self._entries = {entry.provider_key: entry for entry in entries or []}
         self._aliases = _build_aliases(self._entries)
+        self._entry_aliases = _build_entry_aliases(self._entries)
 
     def get(self, provider_key: str) -> ProviderRegistryEntry:
         normalized = provider_key.strip()
@@ -34,6 +35,10 @@ class ProviderRegistry:
 
     def entries(self) -> list[ProviderRegistryEntry]:
         return [self._entries[key] for key in sorted(self._entries)]
+
+    def aliases_for(self, provider_key: str) -> tuple[str, ...]:
+        canonical = self.get(provider_key).provider_key
+        return self._entry_aliases.get(canonical, ())
 
 
 def unknown_provider_entry(provider_key: str) -> ProviderRegistryEntry:
@@ -69,55 +74,68 @@ def _build_aliases(
         aliases[_alias_key(key)] = key
         aliases[_alias_key(entry.provider_name)] = key
     aliases.update(
-        {
-            _alias_key("ATCC"): "atcc_genome_portal",
-            _alias_key("ATCC Genome Portal"): "atcc_genome_portal",
-            _alias_key("DSMZ"): "dsmz",
-            _alias_key("German Collection of Microorganisms and Cell Cultures"): "dsmz",
-            _alias_key("JCM"): "jcm",
-            _alias_key("Japan Collection of Microorganisms"): "jcm",
-            _alias_key("NCTC"): "nctc",
-            _alias_key("National Collection of Type Cultures"): "nctc",
-            _alias_key("CGMCC"): "cgmcc",
-            _alias_key("China General Microbiological Culture Collection Center"): "cgmcc",
-            _alias_key("NBRC"): "nbrc",
-            _alias_key("NITE Biological Resource Center"): "nbrc",
-            _alias_key("KCTC"): "kctc",
-            _alias_key("Korean Collection for Type Cultures"): "kctc",
-            _alias_key("CECT"): "cect",
-            _alias_key("Spanish Type Culture Collection"): "cect",
-            _alias_key("CIP"): "cip",
-            _alias_key("Collection de l'Institut Pasteur"): "cip",
-            _alias_key("CCUG"): "ccug",
-            _alias_key("Culture Collection University of Gothenburg"): "ccug",
-            _alias_key("CCM"): "ccm",
-            _alias_key("Czech Collection of Microorganisms"): "ccm",
-            _alias_key("BCCM LMG"): "bccm_lmg",
-            _alias_key("BCCM-LMG"): "bccm_lmg",
-            _alias_key("LMG"): "bccm_lmg",
-            _alias_key("NCIMB"): "ncimb",
-            _alias_key("NCIB"): "ncib",
-            _alias_key("BCRC"): "bcrc",
-            _alias_key("CCRC"): "ccrc",
-            _alias_key("NCCB"): "nccb",
-            _alias_key("CSUR"): "csur",
-            _alias_key("CICC"): "cicc",
-            _alias_key("IFO"): "ifo",
-            _alias_key("ENA"): "ena",
-            _alias_key("European Nucleotide Archive"): "ena",
-            _alias_key("DDBJ"): "ddbj",
-            _alias_key("DNA Data Bank of Japan"): "ddbj",
-            _alias_key("GenBank"): "genbank",
-            _alias_key("NCBI GenBank"): "genbank",
-            _alias_key("RefSeq"): "refseq",
-            _alias_key("NCBI RefSeq"): "refseq",
-        }
+        {_alias_key(alias): canonical for alias, canonical in _EXPLICIT_ALIASES}
     )
     return {
         alias: canonical
         for alias, canonical in aliases.items()
         if alias and canonical in entries
     }
+
+
+def _build_entry_aliases(
+    entries: dict[str, ProviderRegistryEntry],
+) -> dict[str, tuple[str, ...]]:
+    aliases: dict[str, list[str]] = {key: [] for key in entries}
+    for alias, canonical in _EXPLICIT_ALIASES:
+        if canonical in entries and alias not in aliases[canonical]:
+            aliases[canonical].append(alias)
+    return {key: tuple(values) for key, values in aliases.items()}
+
+
+_EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
+    ("ATCC", "atcc_genome_portal"),
+    ("ATCC Genome Portal", "atcc_genome_portal"),
+    ("DSMZ", "dsmz"),
+    ("German Collection of Microorganisms and Cell Cultures", "dsmz"),
+    ("JCM", "jcm"),
+    ("Japan Collection of Microorganisms", "jcm"),
+    ("NCTC", "nctc"),
+    ("National Collection of Type Cultures", "nctc"),
+    ("CGMCC", "cgmcc"),
+    ("China General Microbiological Culture Collection Center", "cgmcc"),
+    ("NBRC", "nbrc"),
+    ("NITE Biological Resource Center", "nbrc"),
+    ("KCTC", "kctc"),
+    ("Korean Collection for Type Cultures", "kctc"),
+    ("CECT", "cect"),
+    ("Spanish Type Culture Collection", "cect"),
+    ("CIP", "cip"),
+    ("Collection de l'Institut Pasteur", "cip"),
+    ("CCUG", "ccug"),
+    ("Culture Collection University of Gothenburg", "ccug"),
+    ("CCM", "ccm"),
+    ("Czech Collection of Microorganisms", "ccm"),
+    ("BCCM LMG", "bccm_lmg"),
+    ("BCCM-LMG", "bccm_lmg"),
+    ("LMG", "bccm_lmg"),
+    ("NCIMB", "ncimb"),
+    ("NCIB", "ncib"),
+    ("BCRC", "bcrc"),
+    ("CCRC", "ccrc"),
+    ("NCCB", "nccb"),
+    ("CSUR", "csur"),
+    ("CICC", "cicc"),
+    ("IFO", "ifo"),
+    ("ENA", "ena"),
+    ("European Nucleotide Archive", "ena"),
+    ("DDBJ", "ddbj"),
+    ("DNA Data Bank of Japan", "ddbj"),
+    ("GenBank", "genbank"),
+    ("NCBI GenBank", "genbank"),
+    ("RefSeq", "refseq"),
+    ("NCBI RefSeq", "refseq"),
+)
 
 
 def build_default_provider_registry() -> ProviderRegistry:

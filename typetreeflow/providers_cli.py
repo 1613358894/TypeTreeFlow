@@ -40,7 +40,11 @@ def run_providers_command(argv: Sequence[str], *, stdout: TextIO | None = None) 
         _emit(_failure("invalid_command_usage", "Invalid providers usage"), output)
         return 2
 
-    entries = [_entry_payload(entry) for entry in build_default_provider_registry().entries()]
+    registry = build_default_provider_registry()
+    entries = [
+        _entry_payload(entry, aliases=registry.aliases_for(entry.provider_key))
+        for entry in registry.entries()
+    ]
     payload = {
         "schema_version": "1",
         "status": "pass",
@@ -71,11 +75,12 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _entry_payload(entry) -> dict[str, object]:
+def _entry_payload(entry, *, aliases: tuple[str, ...]) -> dict[str, object]:
     capability = entry.capability
     return {
         "provider_key": entry.provider_key,
         "provider_name": entry.provider_name,
+        "aliases": list(aliases),
         "status": capability.status.value,
         "supports_network": capability.supports_network,
         "default_network_enabled": entry.default_network_enabled,
