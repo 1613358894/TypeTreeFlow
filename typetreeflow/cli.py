@@ -374,6 +374,7 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
                 config.provider_request_external_genomes_dir
             ),
             coverage_pipeline_dir=config.coverage_pipeline_dir,
+            archive_candidates_dir=config.archive_candidates_dir,
             offline_readiness_dir=config.offline_readiness_dir,
             strict_gating_dir=config.strict_gating_dir,
         )
@@ -473,6 +474,16 @@ def _format_package_results_envelope(
                     f"{len(result.provider_request_external_genomes_warnings)} "
                     "provider request external-genomes warning(s); see package "
                     "README and handoff index"
+                ),
+            }
+        )
+    if result.archive_candidates_warnings:
+        warnings.append(
+            {
+                "id": "archive_candidates_warning",
+                "message": (
+                    f"{len(result.archive_candidates_warnings)} archive "
+                    "candidate warning(s); see package README and handoff index"
                 ),
             }
         )

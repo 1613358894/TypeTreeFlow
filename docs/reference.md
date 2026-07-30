@@ -519,20 +519,50 @@ does not create the target run directory, copy FASTA files, register external
 genomes, mutate the manifest, contact providers, trigger downloads, or grant
 completion credit.
 
+`--archive-candidates-dir <dir>` is accepted with `--report-only` or
+`package-results`. It is an explicit read-only input and is never
+automatically discovered under the workflow outdir. Report generation reads
+only `archive_candidates.tsv`, `archive_candidates_summary.json`, and
+`archive_candidates_diagnostics.tsv` from that directory. A missing or empty
+directory omits `## Archive Candidates Audit`. Partial or malformed input keeps
+report generation successful and shows a compact warning. Valid summary counts
+show `record_count`, `species_count`, `candidate_count`, `conflict_count`,
+`manual_review_count`, `diagnostic_count`, `downloads_triggered`,
+`providers_contacted`, `manifest_mutated`, `audit_only`, and
+`strict_scientific_deliverable`, plus up to five nonzero candidate-status and
+diagnostic-code counts. Row-level accessions, source URLs, evidence notes, and
+strain details are not displayed. Report inclusion does not query GenBank,
+RefSeq, ENA, DDBJ, or provider archives, trigger downloads, create
+`external_genomes.tsv`, mutate manifests, contact providers, or create strict
+scientific deliverables.
+
+For `package-results --include reports` or `--include all`, each validated
+member is copied under `archive_candidates/`. Each copied member gets one row
+in package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
+`scope=audit`, `evidence_policy=archive_candidates_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=public archive linkage review`,
+`not_for=archive querying, downloads, external genome registration, or strict
+deliverable gating`, and `source_artifact=archive_candidates`. Missing input
+is omitted. Partial or malformed input copies only valid members and adds a
+compact warning to the README, handoff index, and compact JSON envelope.
+Failed-handoff packages exclude these artifacts and rows.
+
 `--coverage-pipeline-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only handoff for the isolated output
 of `coverage-pipeline build` and is never automatically discovered under the
 workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
 `coverage_plan/`, `provider_handoff/`, `provider_request/`, and
 `provider_request_validation/`, `provider_request_external_genomes/`, and
-`external_genomes_install_plan/` under that directory when present, then
-applies the same report, package, warning, and audit-only artifact-scope
-contracts as the individual component directory options. Explicit
+`external_genomes_install_plan/`, and `archive_candidates/` under that
+directory when present, then applies the same report, package, warning, and
+audit-only artifact-scope contracts as the individual component directory
+options. Explicit
 `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
 `--provider-handoff-dir`, `--provider-request-dir`, and
 `--provider-request-validation-dir`, and
-`--provider-request-external-genomes-dir` values take precedence over derived
-subdirectories.
+`--provider-request-external-genomes-dir`, and `--archive-candidates-dir`
+values take precedence over derived subdirectories.
 The option does not rerun coverage planning, contact providers, trigger
 downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
@@ -1749,11 +1779,12 @@ The written pipeline directory can be supplied later as one explicit
 read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
 `package-results --include reports|all`. TypeTreeFlow derives only
 `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
-`provider_request/` under that directory and then applies the same audit-only
-report/package contracts as the individual `--acquisition-worklist-dir`,
-`--coverage-plan-dir`, `--provider-handoff-dir`, and
-`--provider-request-dir` options. Explicit component directories take
-precedence over the derived pipeline subdirectories.
+`provider_request/`, `provider_request_validation/`,
+`provider_request_external_genomes/`, `external_genomes_install_plan/`, and
+`archive_candidates/` under that directory and then applies the same
+audit-only report/package contracts as the individual component directory
+options. Explicit component directories take precedence over the derived
+pipeline subdirectories.
 The generated `provider_request/` member is an offline draft for
 `plan-provider-registration`; report/package inclusion means draft
 availability only and does not authorize provider contact or downloads.

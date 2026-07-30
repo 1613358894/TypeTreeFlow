@@ -42,6 +42,7 @@ _AUDIT_DIR_RENDER_FIELDS = (
         "--provider-request-external-genomes-dir",
     ),
     ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
+    ("archive_candidates_dir", "--archive-candidates-dir"),
     ("offline_readiness_dir", "--offline-readiness-dir"),
     ("strict_gating_dir", "--strict-gating-dir"),
 )
@@ -727,6 +728,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "explicit coverage-pipeline audit output directory for report-only",
         },
         {
+            "name": "--archive-candidates-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit archive-candidates audit output directory for report-only",
+        },
+        {
             "name": "--offline-readiness-dir",
             "kind": "path",
             "required": False,
@@ -841,6 +849,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicit coverage-pipeline audit output directory",
+        },
+        {
+            "name": "--archive-candidates-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit archive-candidates audit output directory",
         },
         {
             "name": "--offline-readiness-dir",

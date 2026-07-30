@@ -37,6 +37,10 @@ from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_FIELDS,
     ACQUISITION_WORKLIST_LANES,
 )
+from typetreeflow.evidence.archive_candidates import (
+    ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
+    ARCHIVE_CANDIDATE_FIELDS,
+)
 from typetreeflow.evidence.coverage_plan import COVERAGE_PLAN_FIELDS
 from typetreeflow.evidence.provider_handoff import PROVIDER_HANDOFF_FIELDS
 from typetreeflow.evidence.strict_gating import (
@@ -64,6 +68,7 @@ from typetreeflow.report.summary import (
     build_run_review_markdown,
     build_run_summary_markdown,
     read_optional_acquisition_worklist_audit,
+    read_optional_archive_candidates_audit,
     read_optional_coverage_plan_audit,
     read_optional_external_genomes_install_plan_audit,
     read_optional_manual_review_import_audit,
@@ -1155,6 +1160,116 @@ def test_provider_request_audit_section_is_explicit_bounded_and_audit_only(
     assert "private notes" not in markdown
 
 
+def _write_archive_candidates_triplet(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "archive_candidates_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "valid": True,
+                "record_count": 2,
+                "species_count": 2,
+                "candidate_count": 1,
+                "conflict_count": 1,
+                "manual_review_count": 2,
+                "diagnostic_count": 1,
+                "status_counts": {
+                    "archive_candidate_for_public_linkage_review": 1,
+                    "archive_candidate_conflict": 1,
+                    "archive_candidate_insufficient_type_linkage": 0,
+                    "archive_candidate_malformed": 0,
+                    "archive_candidate_missing_accession": 0,
+                },
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    rows = [
+        {
+            "schema_version": "1",
+            "species": "Clostridium alpha",
+            "strain": "DSM 1",
+            "type_strain_id": "DSM 1",
+            "archive_source": "ena",
+            "archive_source_name": "ENA",
+            "assembly_accession": "GCA_000000001.1",
+            "biosample_accession": "SAMN00000001",
+            "nuccore_accession": "",
+            "wgs_accession": "",
+            "organism_name": "Clostridium alpha",
+            "strain_designation": "DSM 1",
+            "culture_collection_tokens": "DSM 1",
+            "archive_type_material_signal": "assembly_type_material",
+            "lpsn_token_overlap": "DSM 1",
+            "source_url": "https://example.invalid/archive/private-alpha",
+            "evidence_notes": "private archive note must not render",
+            "candidate_status": "archive_candidate_for_public_linkage_review",
+            "requires_manual_review": "true",
+            "recommended_action": "review_public_archive_linkage",
+            "audit_only": "true",
+            "strict_scientific_deliverable": "false",
+        },
+        {
+            "schema_version": "1",
+            "species": "Clostridium beta",
+            "strain": "DSM 2",
+            "type_strain_id": "DSM 2",
+            "archive_source": "ddbj",
+            "archive_source_name": "DDBJ",
+            "assembly_accession": "GCA_000000002.1",
+            "biosample_accession": "SAMN00000002",
+            "nuccore_accession": "",
+            "wgs_accession": "",
+            "organism_name": "Clostridium beta",
+            "strain_designation": "DSM 2",
+            "culture_collection_tokens": "DSM 2",
+            "archive_type_material_signal": "biosample_type_material",
+            "lpsn_token_overlap": "",
+            "source_url": "https://example.invalid/archive/private-beta",
+            "evidence_notes": "private conflict note must not render",
+            "candidate_status": "archive_candidate_conflict",
+            "requires_manual_review": "true",
+            "recommended_action": "review_conflict",
+            "audit_only": "true",
+            "strict_scientific_deliverable": "false",
+        },
+    ]
+    with (directory / "archive_candidates.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=ARCHIVE_CANDIDATE_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    with (directory / "archive_candidates_diagnostics.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "schema_version": "1",
+                "severity": "warning",
+                "diagnostic_code": "manual_review_required",
+                "row_number": "3",
+                "species": "Clostridium beta",
+                "archive_source": "ddbj",
+            }
+        )
+
+
 def test_external_genomes_install_plan_section_is_bounded_and_audit_only(
     tmp_path,
 ):
@@ -1206,6 +1321,71 @@ def test_external_genomes_install_plan_reader_warns_on_partial_malformed(
     assert audit.present_files == []
     assert "external_genome_install_plan_summary.json malformed" in audit.warnings
     assert "missing members: external_genome_registration_results.tsv, external_genome_install_plan.tsv" in audit.warnings
+
+
+def test_archive_candidates_audit_section_is_bounded_and_audit_only(tmp_path):
+    archive_dir = tmp_path / "archive-candidates"
+    _write_archive_candidates_triplet(archive_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(archive_candidates_dir=archive_dir),
+    )
+
+    assert "## Archive Candidates Audit" in markdown
+    assert (
+        "- Counts: record_count=2; species_count=2; candidate_count=1; "
+        "conflict_count=1; manual_review_count=2; diagnostic_count=1; "
+        "downloads_triggered=0; providers_contacted=0; "
+        "manifest_mutated=false; audit_only=true; "
+        "strict_scientific_deliverable=false"
+    ) in markdown
+    assert "does not query GenBank, RefSeq, ENA, DDBJ" in markdown
+    assert "create external_genomes.tsv" in markdown
+    assert "| archive_candidate_for_public_linkage_review | 1 |" in markdown
+    assert "| archive_candidate_conflict | 1 |" in markdown
+    assert "| manual_review_required | 1 |" in markdown
+    assert "private-alpha" not in markdown
+    assert "private archive note" not in markdown
+    assert "GCA_000000001.1" not in markdown
+
+
+def test_archive_candidates_partial_malformed_summary_warns(tmp_path):
+    archive_dir = tmp_path / "archive-candidates"
+    archive_dir.mkdir()
+    (archive_dir / "archive_candidates_summary.json").write_text(
+        "{broken", encoding="utf-8"
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(archive_candidates_dir=archive_dir),
+    )
+
+    assert "## Archive Candidates Audit" in markdown
+    assert "- Counts: not_recorded" in markdown
+    assert "archive_candidates_summary.json malformed" in markdown
+    assert "missing members: archive_candidates.tsv, archive_candidates_diagnostics.tsv" in markdown
+
+
+def test_archive_candidates_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    archive_dir = tmp_path / "archive-candidates"
+    _write_archive_candidates_triplet(archive_dir)
+
+    def fail(*args, **kwargs):
+        raise AssertionError("archive candidate reader must remain local and offline")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+
+    audit = read_optional_archive_candidates_audit(archive_dir)
+
+    assert audit is not None
+    assert audit.counts["audit_only"] is True
 
 
 def test_provider_request_audit_partial_malformed_summary_warns(tmp_path):

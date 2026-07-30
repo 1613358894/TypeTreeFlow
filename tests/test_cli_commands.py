@@ -282,6 +282,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--provider-handoff-dir",
         "--provider-request-dir",
         "--coverage-pipeline-dir",
+        "--archive-candidates-dir",
         "--offline-readiness-dir",
         "--strict-gating-dir",
     }
