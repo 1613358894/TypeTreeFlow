@@ -283,7 +283,10 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--coverage-plan-dir",
         "--provider-handoff-dir",
         "--provider-request-dir",
+        "--provider-request-validation-dir",
+        "--provider-request-external-genomes-dir",
         "--coverage-pipeline-dir",
+        "--external-genomes-install-plan-dir",
         "--archive-candidates-dir",
         "--offline-readiness-dir",
         "--strict-gating-dir",
@@ -475,8 +478,11 @@ def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
                     '"coverage_plan_dir":"coverage_plan",'
                     '"provider_handoff_dir":"provider_handoff",'
                     '"provider_request_dir":"provider_request",'
+                    '"provider_request_validation_dir":"provider_request_validation",'
                     '"provider_request_external_genomes_dir":'
                     '"provider_request_external_genomes",'
+                    '"external_genomes_install_plan_dir":'
+                    '"external_genomes_install_plan",'
                     '"coverage_pipeline_dir":"coverage_pipeline",'
                     '"offline_readiness_dir":"readiness",'
                     '"strict_gating_dir":"strict_gating"}'
@@ -504,8 +510,12 @@ def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
         "provider_handoff",
         "--provider-request-dir",
         "provider_request",
+        "--provider-request-validation-dir",
+        "provider_request_validation",
         "--provider-request-external-genomes-dir",
         "provider_request_external_genomes",
+        "--external-genomes-install-plan-dir",
+        "external_genomes_install_plan",
         "--coverage-pipeline-dir",
         "coverage_pipeline",
         "--offline-readiness-dir",
@@ -697,8 +707,11 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
                     '"coverage_plan_dir":"coverage_plan",'
                     '"provider_handoff_dir":"provider_handoff",'
                     '"provider_request_dir":"provider_request",'
+                    '"provider_request_validation_dir":"provider_request_validation",'
                     '"provider_request_external_genomes_dir":'
                     '"provider_request_external_genomes",'
+                    '"external_genomes_install_plan_dir":'
+                    '"external_genomes_install_plan",'
                     '"coverage_pipeline_dir":"coverage_pipeline",'
                     '"offline_readiness_dir":"readiness",'
                     '"strict_gating_dir":"strict_gating"}'
@@ -727,8 +740,12 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
         "provider_handoff",
         "--provider-request-dir",
         "provider_request",
+        "--provider-request-validation-dir",
+        "provider_request_validation",
         "--provider-request-external-genomes-dir",
         "provider_request_external_genomes",
+        "--external-genomes-install-plan-dir",
+        "external_genomes_install_plan",
         "--coverage-pipeline-dir",
         "coverage_pipeline",
         "--offline-readiness-dir",
