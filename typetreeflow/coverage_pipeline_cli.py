@@ -699,6 +699,12 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         "coverage_action_queue": _optional_summary_list(
             coverage_summary, "coverage_action_queue"
         ),
+        "coverage_action_queue_summary": _optional_summary_map(
+            coverage_summary, "coverage_action_queue_summary"
+        ),
+        "current_coverage_action_queue_item": _optional_summary_map(
+            coverage_summary, "current_coverage_action_queue_item"
+        ),
         "provider_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_automation_level_counts"
         ),
@@ -1104,6 +1110,12 @@ def _payload(
         provider_handoff.rows,
     )
     coverage_action_queue = _coverage_action_queue(coverage_opportunity_summary)
+    coverage_action_queue_summary = _coverage_action_queue_summary(
+        coverage_action_queue
+    )
+    current_coverage_action_queue_item = (
+        dict(coverage_action_queue[0]) if coverage_action_queue else {}
+    )
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
         if coverage_next_action_groups
@@ -1150,6 +1162,8 @@ def _payload(
         "coverage_next_action_groups": coverage_next_action_groups,
         "coverage_opportunity_summary": coverage_opportunity_summary,
         "coverage_action_queue": coverage_action_queue,
+        "coverage_action_queue_summary": coverage_action_queue_summary,
+        "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "primary_next_action_group": primary_next_action_group,
         "primary_action_required_inputs": primary_action_required_inputs,
         "primary_action_recommended_request": primary_action_recommended_request,
@@ -1633,6 +1647,45 @@ def _coverage_action_queue(
     return queue
 
 
+def _coverage_action_queue_summary(
+    coverage_action_queue: list[dict[str, object]],
+) -> dict[str, object]:
+    route_counts: dict[str, int] = {}
+    input_counts: dict[str, int] = {}
+    manual_or_curator_count = 0
+    provider_handoff_count = 0
+    public_metadata_count = 0
+    external_registration_count = 0
+    unattended_download_count = 0
+    for item in coverage_action_queue:
+        route = str(item.get("operator_route", ""))
+        input_class = str(item.get("next_input_class", ""))
+        if route:
+            route_counts[route] = route_counts.get(route, 0) + 1
+        if input_class:
+            input_counts[input_class] = input_counts.get(input_class, 0) + 1
+        if item.get("requires_curator_input"):
+            manual_or_curator_count += 1
+        if item.get("requires_provider_handoff"):
+            provider_handoff_count += 1
+        if item.get("requires_public_metadata_review"):
+            public_metadata_count += 1
+        if item.get("requires_external_registration_review"):
+            external_registration_count += 1
+        if item.get("safe_for_unattended_download"):
+            unattended_download_count += 1
+    return {
+        "queue_item_count": len(coverage_action_queue),
+        "operator_route_counts": dict(sorted(route_counts.items())),
+        "next_input_class_counts": dict(sorted(input_counts.items())),
+        "manual_or_curator_input_required_count": manual_or_curator_count,
+        "provider_handoff_required_count": provider_handoff_count,
+        "public_metadata_review_required_count": public_metadata_count,
+        "external_registration_review_required_count": external_registration_count,
+        "safe_for_unattended_download_count": unattended_download_count,
+    }
+
+
 def _coverage_action_recommended_request(
     action_code: str,
 ) -> dict[str, object] | None:
@@ -1660,6 +1713,17 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_next_action_groups": [],
         "coverage_opportunity_summary": [],
         "coverage_action_queue": [],
+        "coverage_action_queue_summary": {
+            "queue_item_count": 0,
+            "operator_route_counts": {},
+            "next_input_class_counts": {},
+            "manual_or_curator_input_required_count": 0,
+            "provider_handoff_required_count": 0,
+            "public_metadata_review_required_count": 0,
+            "external_registration_review_required_count": 0,
+            "safe_for_unattended_download_count": 0,
+        },
+        "current_coverage_action_queue_item": {},
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
         "primary_action_recommended_request": None,
@@ -1791,6 +1855,8 @@ def _rendered_outputs(
             "coverage_next_action_groups",
             "coverage_opportunity_summary",
             "coverage_action_queue",
+            "coverage_action_queue_summary",
+            "current_coverage_action_queue_item",
             "primary_next_action_group",
             "primary_action_required_inputs",
             "primary_action_recommended_request",
