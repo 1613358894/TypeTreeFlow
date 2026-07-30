@@ -26,10 +26,24 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES = {
 PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow external-genomes validate --input <external_genomes.tsv>"
 )
+PROVIDER_REQUEST_EXTERNAL_GENOMES_REQUIRED_INPUTS: tuple[str, ...] = (
+    "external_genomes.tsv",
+)
+PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_REQUEST: dict[str, object] = {
+    "command": "external-genomes",
+    "subcommand": "validate",
+    "input": "external_genomes.tsv",
+}
 PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow external-genomes install-plan "
     "--input <external_genomes.tsv> --target-outdir <run>"
 )
+PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST: dict[str, object] = {
+    "command": "external-genomes",
+    "subcommand": "install-plan",
+    "input": "external_genomes.tsv",
+    "target_outdir": "<run>",
+}
 PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow provider-request external-genomes-handoff "
     "--input <provider_request.tsv> --write "
@@ -76,8 +90,15 @@ class ProviderRequestExternalGenomesDraft:
             "manifest_mutated": False,
             "strict_scientific_deliverable": False,
             "external_genomes_registration_applied": False,
+            "required_inputs": list(PROVIDER_REQUEST_EXTERNAL_GENOMES_REQUIRED_INPUTS),
+            "recommended_request": dict(
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_REQUEST
+            ),
             "recommended_next_command": (
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+            ),
+            "install_plan_recommended_request": dict(
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST
             ),
             "install_plan_recommended_next_command": (
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND

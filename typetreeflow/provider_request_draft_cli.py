@@ -24,8 +24,11 @@ from typetreeflow.evidence.provider_request_draft import (
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, read_provider_requests
 from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_REQUEST,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_REQUIRED_INPUTS,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
     build_provider_request_external_genomes_draft,
 )
@@ -576,9 +579,14 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "external_genomes_registration_applied": False,
+        "required_inputs": summary["required_inputs"],
+        "recommended_request": summary["recommended_request"],
         "recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
+        "install_plan_recommended_request": summary[
+            "install_plan_recommended_request"
+        ],
         "install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
@@ -637,10 +645,25 @@ def _external_genomes_handoff_payload(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "external_genomes_registration_applied": False,
+        "required_inputs": (
+            external_payload.get("required_inputs")
+            if passed
+            else validation_payload.get("required_inputs", [])
+        ),
+        "recommended_request": (
+            external_payload.get("recommended_request")
+            if passed
+            else validation_payload.get("recommended_request")
+        ),
         "recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
             if passed
             else PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
+        ),
+        "install_plan_recommended_request": (
+            external_payload.get("install_plan_recommended_request")
+            if passed
+            else None
         ),
         "install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
@@ -733,8 +756,15 @@ def _external_genomes_failure(code: str) -> dict[str, object]:
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "external_genomes_registration_applied": False,
+        "required_inputs": list(PROVIDER_REQUEST_EXTERNAL_GENOMES_REQUIRED_INPUTS),
+        "recommended_request": dict(
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_REQUEST
+        ),
         "recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+        ),
+        "install_plan_recommended_request": dict(
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST
         ),
         "install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
@@ -780,7 +810,10 @@ def _external_genomes_handoff_failure(code: str) -> dict[str, object]:
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "external_genomes_registration_applied": False,
+        "required_inputs": list(PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS),
+        "recommended_request": dict(PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST),
         "recommended_next_command": PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+        "install_plan_recommended_request": None,
         "output_paths": {
             "provider_request_validation_summary": None,
             "provider_request_validation_diagnostics": None,
