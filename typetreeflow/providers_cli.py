@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
@@ -50,6 +51,7 @@ def run_providers_command(argv: Sequence[str], *, stdout: TextIO | None = None) 
         "status": "pass",
         "command": COMMAND,
         "provider_count": len(entries),
+        **_catalog_summary(entries),
         "providers": entries,
         "dry_run": True,
         "writes_outputs": False,
@@ -103,6 +105,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "status": "failed",
         "command": COMMAND,
         "provider_count": 0,
+        **_empty_catalog_summary(),
         "providers": [],
         "diagnostics": [{"severity": "error", "diagnostic_code": code}],
         "dry_run": True,
@@ -114,6 +117,65 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "external_tools": False,
         "manifest_mutated": False,
         "summary": message,
+    }
+
+
+def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
+    status_counts: Counter[str] = Counter()
+    mode_counts: Counter[str] = Counter()
+    planning_only_keys: list[str] = []
+    metadata_only_keys: list[str] = []
+    network_supported_keys: list[str] = []
+    credentials_required_keys: list[str] = []
+    terms_review_required_keys: list[str] = []
+    default_network_enabled_keys: list[str] = []
+    adapter_present_keys: list[str] = []
+
+    for entry in entries:
+        key = str(entry["provider_key"])
+        status = str(entry["status"])
+        status_counts[status] += 1
+        for mode in entry["allowed_modes"]:
+            mode_counts[str(mode)] += 1
+        if status == "planning_only":
+            planning_only_keys.append(key)
+        if status == "metadata_only":
+            metadata_only_keys.append(key)
+        if entry["supports_network"]:
+            network_supported_keys.append(key)
+        if entry["requires_credentials"]:
+            credentials_required_keys.append(key)
+        if entry["requires_terms_review"]:
+            terms_review_required_keys.append(key)
+        if entry["default_network_enabled"]:
+            default_network_enabled_keys.append(key)
+        if entry["adapter_present"]:
+            adapter_present_keys.append(key)
+
+    return {
+        "provider_status_counts": dict(sorted(status_counts.items())),
+        "allowed_mode_counts": dict(sorted(mode_counts.items())),
+        "planning_only_provider_keys": sorted(planning_only_keys),
+        "metadata_only_provider_keys": sorted(metadata_only_keys),
+        "network_supported_provider_keys": sorted(network_supported_keys),
+        "credentials_required_provider_keys": sorted(credentials_required_keys),
+        "terms_review_required_provider_keys": sorted(terms_review_required_keys),
+        "default_network_enabled_provider_keys": sorted(default_network_enabled_keys),
+        "adapter_present_provider_keys": sorted(adapter_present_keys),
+    }
+
+
+def _empty_catalog_summary() -> dict[str, object]:
+    return {
+        "provider_status_counts": {},
+        "allowed_mode_counts": {},
+        "planning_only_provider_keys": [],
+        "metadata_only_provider_keys": [],
+        "network_supported_provider_keys": [],
+        "credentials_required_provider_keys": [],
+        "terms_review_required_provider_keys": [],
+        "default_network_enabled_provider_keys": [],
+        "adapter_present_provider_keys": [],
     }
 
 
