@@ -450,6 +450,11 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["curator_conflict_resolution"],
             "provider_keys": [],
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
             "recommended_next_command": "manual-review validate --input <review.tsv>",
         },
         {
@@ -459,6 +464,11 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
             "recommended_next_command": "manual-review validate --input <review.tsv>",
         },
         {
@@ -468,6 +478,11 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["genbank", "refseq"],
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
             "recommended_next_command": "manual-review validate --input <review.tsv>",
         },
         {
@@ -477,6 +492,11 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "source_lanes": ["external_fasta_required"],
             "provider_keys": ["dsmz", "kctc"],
+            "recommended_request": {
+                "command": "provider-request",
+                "subcommand": "draft",
+                "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+            },
             "recommended_next_command": (
                 "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
             ),
