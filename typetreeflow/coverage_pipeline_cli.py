@@ -654,7 +654,8 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         ),
         "external_genomes_registration_dry_run_recommended_next_command": (
             "typetreeflow --register-external-genomes "
-            "<external_genomes.tsv> --outdir <run> --dry-run"
+            "provider_request_external_genomes/external_genomes.tsv "
+            "--outdir <run> --dry-run"
         ),
         "operator_chain_stages": stages,
         "diagnostic_count": len(diagnostics),
@@ -824,7 +825,7 @@ _DEFAULT_STAGE_REQUIRED_INPUTS: dict[str, tuple[str, ...]] = {
         "target workflow run outdir",
     ),
     "external_genomes_registration_dry_run": (
-        "external_genomes.tsv",
+        "provider_request_external_genomes/external_genomes.tsv",
         "target workflow run outdir",
     ),
     "archive_candidates": ("archive_candidates/archive_candidates.tsv",),
@@ -870,7 +871,7 @@ _DEFAULT_STAGE_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
     },
     "external_genomes_registration_dry_run": {
         "command": "register-external-genomes",
-        "external_genomes": "external_genomes.tsv",
+        "external_genomes": "provider_request_external_genomes/external_genomes.tsv",
         "outdir": "<run>",
         "dry_run": True,
     },
@@ -1204,7 +1205,8 @@ def _payload(
         ),
         "external_genomes_registration_dry_run_recommended_next_command": (
             "typetreeflow --register-external-genomes "
-            "<external_genomes.tsv> --outdir <run> --dry-run"
+            "provider_request_external_genomes/external_genomes.tsv "
+            "--outdir <run> --dry-run"
         ),
         "provider_request_external_genomes_handoff_recommended_request": (
             _stage_recommended_request("provider_request_validation")
@@ -1385,7 +1387,7 @@ def _operator_chain_stages(
             artifact="run/external_genome_install_plan.tsv",
             record_count=0,
             required_inputs=(
-                "external_genomes.tsv",
+                "provider_request_external_genomes/external_genomes.tsv",
                 "target workflow run outdir",
             ),
             recommended_request=_DEFAULT_STAGE_RECOMMENDED_REQUESTS[
@@ -1393,7 +1395,8 @@ def _operator_chain_stages(
             ],
             recommended_next_command=(
                 "typetreeflow --register-external-genomes "
-                "<external_genomes.tsv> --outdir <run> --dry-run"
+                "provider_request_external_genomes/external_genomes.tsv "
+                "--outdir <run> --dry-run"
             ),
             boundary="workflow dry-run review only; no install execution",
         ),
@@ -1547,7 +1550,8 @@ def _failure(code: str, message: str) -> dict[str, object]:
         ),
         "external_genomes_registration_dry_run_recommended_next_command": (
             "typetreeflow --register-external-genomes "
-            "<external_genomes.tsv> --outdir <run> --dry-run"
+            "provider_request_external_genomes/external_genomes.tsv "
+            "--outdir <run> --dry-run"
         ),
         "provider_request_external_genomes_handoff_recommended_request": (
             _stage_recommended_request("provider_request_validation")
@@ -1879,7 +1883,8 @@ def _external_genomes_install_plan_payload(
             "external_genomes_registration_dry_run"
         ),
         "recommended_next_command": (
-            "typetreeflow --register-external-genomes <external_genomes.tsv> "
+            "typetreeflow --register-external-genomes "
+            "provider_request_external_genomes/external_genomes.tsv "
             "--outdir <run> --dry-run"
         ),
         "expected_registration_result_fields": tuple(
