@@ -317,6 +317,28 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             ),
         },
     ]
+    assert [entry["queue_position"] for entry in payload["coverage_action_queue"]] == [
+        1,
+        2,
+        3,
+        4,
+    ]
+    assert [entry["operator_route"] for entry in payload["coverage_action_queue"]] == [
+        "curator_decision",
+        "public_metadata_review",
+        "public_metadata_review",
+        "provider_handoff",
+    ]
+    assert payload["coverage_action_queue"][0]["requires_curator_input"] is True
+    assert (
+        payload["coverage_action_queue"][1]["requires_public_metadata_review"]
+        is True
+    )
+    assert payload["coverage_action_queue"][3]["requires_provider_handoff"] is True
+    assert all(
+        entry["safe_for_unattended_download"] is False
+        for entry in payload["coverage_action_queue"]
+    )
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
     assert payload["provider_automation_level_counts"] == {
@@ -685,6 +707,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_opportunity_summary"][1][
         "provider_automation_level_counts"
     ] == {"metadata_review": 4}
+    assert summary["coverage_action_queue"][3]["operator_route"] == (
+        "provider_handoff"
+    )
+    assert summary["coverage_action_queue"][3]["requires_provider_handoff"] is True
+    assert summary["coverage_action_queue"][3]["provider_automation_level_counts"] == {
+        "planning_handoff": 2
+    }
     assert summary["provider_handoff_record_count"] == 8
     assert summary["provider_automation_level_counts"] == {
         "metadata_review": 6,
@@ -1383,6 +1412,9 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_opportunity_summary"][3][
         "provider_automation_level_counts"
     ] == {"planning_handoff": 2}
+    assert payload["coverage_action_queue"][0]["requires_curator_input"] is True
+    assert payload["coverage_action_queue"][3]["requires_provider_handoff"] is True
+    assert payload["coverage_action_queue"][3]["safe_for_unattended_download"] is False
     assert payload["provider_automation_level_counts"] == {
         "metadata_review": 6,
         "planning_handoff": 2,

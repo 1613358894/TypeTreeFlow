@@ -1780,6 +1780,13 @@ controlled routing metadata: `operator_route`, `next_input_class`, and
 surface, such as curator decisions, public metadata linkage review, provider
 handoff preparation, or external-registration review. They are not execution
 authorization.
+`coverage_action_queue` is the same opportunity set in stable queue order with
+a one-based `queue_position`, bounded route booleans such as
+`requires_curator_input`, `requires_public_metadata_review`,
+`requires_provider_handoff`, and `requires_external_registration_review`, plus
+`safe_for_unattended_download=false` on every row. The queue is for
+AI/operator prioritization only; it does not grant unattended download or
+provider access.
 The payload also exposes `primary_next_action_group`,
 `primary_action_required_inputs`, `primary_action_recommended_request`, and
 `primary_action_recommended_next_command` as convenience copies from the first
