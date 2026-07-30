@@ -1762,7 +1762,11 @@ only; it does not query public archives, download genomes, create
 next command as compact JSON. Each stage row and the derived `next_stage`
 include `required_inputs`, a bounded list of local artifact paths or
 curator-supplied input categories needed before that stage can be treated as
-available. The payload also includes
+available. Stage rows also include `recommended_request`, a structured
+`commands render`/`commands plan` request object when a deterministic next CLI
+request exists; otherwise the value is `null`. These request objects are
+metadata only and must still pass `commands plan` or `commands preflight`
+before an operator runs the rendered argv. The payload also includes
 `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
 re-parsing every stage row. When an explicit or conventional child stage
