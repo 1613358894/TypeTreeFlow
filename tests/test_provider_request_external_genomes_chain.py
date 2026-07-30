@@ -315,7 +315,8 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run>"
+        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--write --outdir <isolated-install-plan-directory>"
     )
     assert pipeline_payload[
         "provider_request_external_genomes_handoff_recommended_next_command"
@@ -359,7 +360,8 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
     assert handoff_payload["exported_count"] == 1
     assert handoff_payload["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
-        "--input <external_genomes.tsv> --target-outdir <run>"
+        "--input <external_genomes.tsv> --target-outdir <run> "
+        "--write --outdir <isolated-install-plan-directory>"
     )
     assert str(fasta) not in handoff_stdout
     assert calculate_sha256(fasta) not in handoff_stdout

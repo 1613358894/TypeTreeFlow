@@ -1663,9 +1663,13 @@ SHA-256 values, provider notes, curator values, or sequence contents. Without
 `provider_request_external_genomes_summary.json` into the explicitly supplied
 directory. The JSON and summary include `recommended_request` for
 `external-genomes validate` plus `install_plan_recommended_request` for the
-offline `external-genomes install-plan` step. Existing output directories are
-refused by default; `--force` replaces only an owned pair with matching
-schemas.
+offline `external-genomes install-plan` step. The install-plan recommended
+request includes `write=true` and
+`outdir=<isolated-install-plan-directory>` so AI/operator controllers can
+materialize the next audit directory explicitly; this is still only an
+isolated-output write, not workflow-output mutation or download execution.
+Existing output directories are refused by default; `--force` replaces only an
+owned pair with matching schemas.
 
 The command exits `0` only when every provider request row is ready and can be
 rendered into the external-genomes schema. Input, schema, or readiness blockers

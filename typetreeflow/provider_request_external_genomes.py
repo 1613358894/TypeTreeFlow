@@ -36,13 +36,16 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_REQUEST: dict[str, object] = {
 }
 PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow external-genomes install-plan "
-    "--input <external_genomes.tsv> --target-outdir <run>"
+    "--input <external_genomes.tsv> --target-outdir <run> "
+    "--write --outdir <isolated-install-plan-directory>"
 )
 PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST: dict[str, object] = {
     "command": "external-genomes",
     "subcommand": "install-plan",
     "input": "external_genomes.tsv",
     "target_outdir": "<run>",
+    "write": True,
+    "outdir": "<isolated-install-plan-directory>",
 }
 PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow provider-request external-genomes-handoff "

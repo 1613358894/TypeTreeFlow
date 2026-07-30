@@ -298,7 +298,11 @@ _CATALOG_ENTRIES = (
         "command": "external-genomes",
         "subcommand": "install-plan",
         "mode": "external_genomes",
-        "argv_pattern": "typetreeflow external-genomes install-plan --input <external_genomes.tsv> --target-outdir <run>",
+        "argv_pattern": (
+            "typetreeflow external-genomes install-plan "
+            "--input <external_genomes.tsv> --target-outdir <run> "
+            "[--write --outdir <isolated-install-plan-directory>]"
+        ),
         "json_stdout": True,
         "write_behavior": "optional_isolated_install_plan",
         "requires_outdir": False,
