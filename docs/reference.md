@@ -622,6 +622,10 @@ For packaging requests, structured fields `delivery_dir`, `failed_handoff`,
 `package-results` flags. These fields only plan a packaging command over
 explicit local audit inputs; they do not discover workflow outputs, contact
 providers, trigger downloads, or authorize strict deliverable promotion.
+The same audit directory fields, except `delivery_dir` and `failed_handoff`,
+also render to explicit `verify-genus --report-only` flags so AI callers can
+refresh reports from bounded local audit handoff directories without rerunning
+workflow stages.
 
 `commands plan` also requires `--request-json`, renders the request to
 `target_argv`, and immediately applies the same advisory preflight gate. Its

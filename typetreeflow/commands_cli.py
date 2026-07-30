@@ -30,6 +30,16 @@ _EXTERNAL_TOOL_FLAGS = {
     "--enable-phylo",
 }
 _REAL_ACTION_FLAGS = set(REAL_ACTION_FLAGS.values()) | {"--enable-bacdive-enrichment"}
+_AUDIT_DIR_RENDER_FIELDS = (
+    ("manual_review_import_dir", "--manual-review-import-dir"),
+    ("acquisition_worklist_dir", "--acquisition-worklist-dir"),
+    ("coverage_plan_dir", "--coverage-plan-dir"),
+    ("provider_handoff_dir", "--provider-handoff-dir"),
+    ("provider_request_dir", "--provider-request-dir"),
+    ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
+    ("offline_readiness_dir", "--offline-readiness-dir"),
+    ("strict_gating_dir", "--strict-gating-dir"),
+)
 _CATALOG_ENTRIES = (
     {
         "command": "doctor",
@@ -385,6 +395,62 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicitly permit real download actions",
+        },
+        {
+            "name": "--manual-review-import-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit manual-review import audit triplet directory for report-only",
+        },
+        {
+            "name": "--acquisition-worklist-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit acquisition-worklist audit output directory for report-only",
+        },
+        {
+            "name": "--coverage-plan-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit coverage-plan audit output directory for report-only",
+        },
+        {
+            "name": "--provider-handoff-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-handoff audit output directory for report-only",
+        },
+        {
+            "name": "--provider-request-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-request audit output directory for report-only",
+        },
+        {
+            "name": "--coverage-pipeline-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit coverage-pipeline audit output directory for report-only",
+        },
+        {
+            "name": "--offline-readiness-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit offline-readiness audit output directory for report-only",
+        },
+        {
+            "name": "--strict-gating-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit strict-gating audit triplet directory for report-only",
         },
     ],
     ("verify-release-genus", None): [
@@ -1559,6 +1625,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "report_only",
             "enable_downloads",
         }
+        if command == "verify-genus":
+            allowed.update(key for key, _flag in _AUDIT_DIR_RENDER_FIELDS)
         _reject_unknown_fields(request, allowed)
         argv = [
             command,
@@ -1566,7 +1634,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--outdir",
             _required_string(request, "outdir"),
         ]
-        return _with_flags(
+        argv = _with_flags(
             argv,
             request,
             {
@@ -1576,6 +1644,12 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "enable_downloads": "--enable-downloads",
             },
         )
+        if command == "verify-genus":
+            for key, flag in _AUDIT_DIR_RENDER_FIELDS:
+                value = _optional_string(request, key)
+                if value:
+                    argv.extend([flag, value])
+        return argv
     if command == "package-results":
         _reject_unknown_fields(
             request,
@@ -1604,16 +1678,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             argv.extend(["--delivery-dir", delivery_dir])
         if _bool_flag(request, "failed_handoff"):
             argv.append("--failed-handoff")
-        for key, flag in (
-            ("manual_review_import_dir", "--manual-review-import-dir"),
-            ("acquisition_worklist_dir", "--acquisition-worklist-dir"),
-            ("coverage_plan_dir", "--coverage-plan-dir"),
-            ("provider_handoff_dir", "--provider-handoff-dir"),
-            ("provider_request_dir", "--provider-request-dir"),
-            ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
-            ("offline_readiness_dir", "--offline-readiness-dir"),
-            ("strict_gating_dir", "--strict-gating-dir"),
-        ):
+        for key, flag in _AUDIT_DIR_RENDER_FIELDS:
             value = _optional_string(request, key)
             if value:
                 argv.extend([flag, value])
