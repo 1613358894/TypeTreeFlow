@@ -195,8 +195,9 @@ recommended next commands for AI/operator routing. It also carries
 `worklist_candidate_provider_key_counts` from the worklist layer so AI/operator
 handoff pressure is visible before reading the nested artifacts. It also
 reports provider request draft counts and
-`provider_request_recommended_next_command` so the next
-`plan-provider-registration` handoff is visible in one compact JSON object.
+`provider_request_validation_recommended_next_command` plus
+`provider_request_recommended_next_command` so the local validation and later
+`plan-provider-registration` handoffs are visible in one compact JSON object.
 `build --write` publishes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, and `coverage_pipeline_summary.json` members under the
