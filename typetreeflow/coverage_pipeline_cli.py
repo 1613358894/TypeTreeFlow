@@ -22,7 +22,9 @@ from typetreeflow.evidence.acquisition_worklist import (
 from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
     ARCHIVE_CANDIDATE_FIELDS,
+    ARCHIVE_CANDIDATE_INPUT_FIELDS,
     ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+    build_archive_candidate_report,
 )
 from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_FIELDS,
@@ -180,6 +182,7 @@ def run_coverage_pipeline_command(
     gaps = _read_optional_tsv(args.completion_gaps_tsv, "completion_gaps", diagnostics)
     external = _read_optional_tsv(args.external_genomes_tsv, "external_genomes", diagnostics)
     archive = _read_optional_tsv(args.archive_candidates_tsv, "archive_candidates", diagnostics)
+    archive_candidate_report = _archive_candidate_report_for_output(archive)
     expanded = _read_optional_tsv(
         args.expanded_discovery_results_tsv,
         "expanded_discovery_results",
@@ -315,6 +318,7 @@ def run_coverage_pipeline_command(
                     validation_payload,
                     external_genomes_payload,
                     external_genomes_install_plan_payload,
+                    archive_candidate_report,
                     payload,
                     outdir=outdir,
                 ),
@@ -376,6 +380,14 @@ def run_coverage_pipeline_command(
                 )
             payload["external_genomes_install_plan_output_paths"] = (
                 _install_plan_output_paths(outdir, written=install_plan_written)
+            )
+        if archive_candidate_report is not None:
+            payload["output_paths"].update(
+                {
+                    key: str(outdir / Path(relative_path))
+                    for key, relative_path in OPTIONAL_OUTPUT_PATHS.items()
+                    if key.startswith("archive_candidates")
+                }
             )
     _emit(payload, output)
     return 0 if not diagnostics else 2
@@ -1264,6 +1276,7 @@ def _rendered_outputs(
     provider_request_validation: dict[str, object] | None,
     provider_request_external_genomes: dict[str, object] | None,
     external_genomes_install_plan: dict[str, object] | None,
+    archive_candidate_report,
     payload: dict[str, object],
     *,
     outdir: Path,
@@ -1428,7 +1441,28 @@ def _rendered_outputs(
                     + "\n",
                 }
             )
+    if archive_candidate_report is not None:
+        rendered.update(
+            {
+                "archive_candidates": archive_candidate_report.candidates_tsv(),
+                "archive_candidates_summary": (
+                    archive_candidate_report.summary_json()
+                ),
+                "archive_candidates_diagnostics": (
+                    archive_candidate_report.diagnostics_tsv()
+                ),
+            }
+        )
     return rendered
+
+
+def _archive_candidate_report_for_output(rows: Sequence[Mapping[str, object]]):
+    if not rows:
+        return None
+    first = rows[0]
+    if not all(field in first for field in ARCHIVE_CANDIDATE_INPUT_FIELDS):
+        return None
+    return build_archive_candidate_report(rows)
 
 
 def _validation_output_paths(outdir: Path) -> dict[str, str]:

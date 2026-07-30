@@ -1740,6 +1740,10 @@ isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 under the explicitly supplied directory. Existing output directories are
 refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
+When `--archive-candidates-tsv` points at a complete archive-candidates audit
+TSV, `build --write` also publishes the standard `archive_candidates/` triplet
+inside the isolated coverage-pipeline directory so later
+`--coverage-pipeline-dir` handoffs can see it without an extra path.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline
 directory, and optional downstream directory overrides. When
