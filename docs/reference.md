@@ -737,7 +737,11 @@ the explicit local TSV flags on `acquisition-worklist build` and
 validation stage without provider contact or downloads.
 `curated_provider_request_tsv` renders to `--curated-provider-request-tsv` and
 is treated as an explicit curator-completed local handoff, not as provider
-output discovered by the pipeline.
+output discovered by the pipeline. `external_genomes_install_target_outdir`
+renders to `--external-genomes-install-target-outdir` for
+`coverage-pipeline build`; `commands plan` treats this as an isolated-output
+write when `write=true`, not as workflow-output mutation, network access,
+provider contact, download execution, or external-tool execution.
 For packaging requests, structured fields `delivery_dir`, `failed_handoff`,
 `manual_review_import_dir`, `acquisition_worklist_dir`, `coverage_plan_dir`,
 `provider_handoff_dir`, `provider_request_dir`,
