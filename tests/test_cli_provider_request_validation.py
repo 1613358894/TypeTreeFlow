@@ -86,6 +86,14 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
     assert payload["strict_scientific_deliverable"] is False
+    assert payload["required_inputs"] == ["provider_request.tsv"]
+    assert payload["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": "provider_request.tsv",
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
 
@@ -129,6 +137,8 @@ def test_provider_request_validate_write_outputs_audit_pair(tmp_path, capsys):
     )
     assert summary["writes_outputs"] is True
     assert summary["ready_count"] == 1
+    assert summary["required_inputs"] == ["provider_request.tsv"]
+    assert summary["recommended_request"]["subcommand"] == "external-genomes-handoff"
     assert diagnostics == (
         "schema_version\tcomponent\tseverity\tdiagnostic_code\tcount\n"
     )

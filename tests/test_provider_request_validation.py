@@ -80,6 +80,14 @@ def test_provider_request_ready_when_local_fasta_and_curator_fields_match(
     assert result.summary["downloads_triggered"] == 0
     assert result.summary["providers_contacted"] == 0
     assert result.summary["strict_scientific_deliverable"] is False
+    assert result.summary["required_inputs"] == ["provider_request.tsv"]
+    assert result.summary["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": "provider_request.tsv",
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
 
 
 def test_provider_request_blocks_incomplete_curator_handoff(tmp_path):
