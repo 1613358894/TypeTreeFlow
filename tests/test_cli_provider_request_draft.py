@@ -59,6 +59,24 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["status"] == "pass"
     assert payload["record_count"] == 1
     assert payload["provider_key_counts"] == {"dsmz": 1}
+    assert payload["curator_completion_required_count"] == 1
+    assert payload["curator_completion_field_counts"] == {
+        "strain": 1,
+        "type_strain_id": 1,
+        "provider_record_id_or_provider_artifact_id": 1,
+        "local_fasta_path": 1,
+        "local_sha256": 1,
+        "terms_review_status_reviewed_allowed": 1,
+        "license_notes": 1,
+        "retrieval_date": 1,
+        "curator": 1,
+    }
+    assert payload["curator_completion_blocker_counts"] == {
+        "missing_required_field": 1,
+        "terms_review_required": 1,
+        "local_fasta_path_missing": 1,
+        "local_sha256_missing": 1,
+    }
     assert payload["request_preview"][0]["request_id"] == "PH-0001"
     assert payload["request_preview"][0]["terms_review_status"] == "not_reviewed"
     assert payload["writes_outputs"] is False
@@ -95,6 +113,8 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     summary = json.loads((outdir / "provider_request_draft_summary.json").read_text())
     assert summary["record_count"] == 1
     assert summary["providers_contacted"] == 0
+    assert summary["curator_completion_required_count"] == 1
+    assert summary["curator_completion_blocker_counts"]["missing_required_field"] == 1
 
     assert _run(
         ["--provider-handoff-tsv", str(handoff), "--write", "--outdir", str(outdir)],

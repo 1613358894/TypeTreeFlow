@@ -1434,6 +1434,13 @@ leaving curator-owned strain, type-strain ID, provider record, local FASTA,
 SHA-256, license, retrieval date, and curator fields blank. These rows do not
 contact providers, accept terms, download genomes, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
+The compact JSON and `provider_request_draft_summary.json` include
+`curator_completion_required_count`, `curator_completion_field_counts`, and
+`curator_completion_blocker_counts`. These counts are planning diagnostics for
+missing curator-owned fields such as strain, type-strain ID,
+provider-record/artifact ID, local FASTA path, SHA-256, terms review, license,
+retrieval date, and curator name. They are not completion metrics and do not
+make a draft row eligible for provider execution.
 For AI metadata routing, `commands render` accepts
 `{"command":"plan-provider-registration","provider_request":"provider_request.tsv","outdir":"run"}`
 and renders the current compatible argv form:
