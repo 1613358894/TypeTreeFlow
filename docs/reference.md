@@ -1771,7 +1771,8 @@ available. Stage rows also include `recommended_request`, a structured
 request exists; otherwise the value is `null`. These request objects are
 metadata only and must still pass `commands plan` or `commands preflight`
 before an operator runs the rendered argv. The payload also includes
-`stage_status_counts`, `available_stage_names`, and
+`required_inputs` and `recommended_request` as convenience copies from the
+current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
 re-parsing every stage row. When an explicit or conventional child stage
 summary is present, the matching `operator_chain_stages` row also carries

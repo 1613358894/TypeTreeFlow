@@ -618,6 +618,15 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             "chain_incomplete" if unavailable_stage_names else ""
         ),
     }
+    next_required_inputs: list[str] = []
+    next_recommended_request: dict[str, object] | None = None
+    if next_stage:
+        raw_required_inputs = next_stage.get("required_inputs")
+        if isinstance(raw_required_inputs, list):
+            next_required_inputs = [str(value) for value in raw_required_inputs]
+        raw_recommended_request = next_stage.get("recommended_request")
+        if isinstance(raw_recommended_request, Mapping):
+            next_recommended_request = dict(raw_recommended_request)
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -633,6 +642,8 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         "completion_gate": completion_gate,
         "require_complete": bool(args.require_complete),
         "next_stage": next_stage,
+        "required_inputs": next_required_inputs,
+        "recommended_request": next_recommended_request,
         "recommended_next_command": (
             str(next_stage.get("recommended_next_command", ""))
             if next_stage
