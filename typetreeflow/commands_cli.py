@@ -7,6 +7,7 @@ import sys
 from collections.abc import Sequence
 from typing import TextIO
 
+from typetreeflow.cli_handlers.early_commands import EARLY_COMMAND_DISPATCH_ORDER
 from typetreeflow.cli_recognizer import recognize_cli_command
 from typetreeflow.config import REAL_ACTION_FLAGS
 
@@ -2115,6 +2116,7 @@ def _catalog_payload() -> dict[str, object]:
         "writes_workflow_outputs": False,
         "network_access": False,
         "external_tools": False,
+        "early_dispatch_order": list(EARLY_COMMAND_DISPATCH_ORDER),
         "catalog": [_catalog_entry(entry) for entry in _CATALOG_ENTRIES],
         "blocking": [],
         "warnings": [],

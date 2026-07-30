@@ -5,6 +5,7 @@ import os
 import socket
 
 from typetreeflow.cli import main
+from typetreeflow.cli_handlers.early_commands import EARLY_COMMAND_DISPATCH_ORDER
 from typetreeflow.cli_recognizer import recognize_cli_command
 
 
@@ -135,6 +136,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert payload["writes_workflow_outputs"] is False
     assert payload["network_access"] is False
     assert payload["external_tools"] is False
+    assert payload["early_dispatch_order"] == list(EARLY_COMMAND_DISPATCH_ORDER)
     catalog = payload["catalog"]
     assert all(
         set(entry) == {
