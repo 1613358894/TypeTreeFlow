@@ -21,6 +21,7 @@ from typetreeflow.evidence.manual_review_import import (
 from tests.test_report_summary import (
     _write_acquisition_worklist_pair,
     _write_coverage_plan_pair,
+    _write_external_genomes_install_plan_triplet,
     _write_offline_readiness_pair,
     _write_provider_handoff_pair,
     _write_strict_gating_triplet,
@@ -334,7 +335,7 @@ def test_provider_handoff_dir_requires_report_only(tmp_path, capsys):
         )
 
 
-def test_report_only_coverage_pipeline_dir_reads_three_surfaces(
+def test_report_only_coverage_pipeline_dir_reads_install_plan_surface(
     tmp_path, capsys
 ):
     outdir = tmp_path / "out"
@@ -345,6 +346,9 @@ def test_report_only_coverage_pipeline_dir_reads_three_surfaces(
     _write_acquisition_worklist_pair(pipeline_dir / "acquisition_worklist")
     _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
     _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
+    _write_external_genomes_install_plan_triplet(
+        pipeline_dir / "external_genomes_install_plan"
+    )
     pipeline_before = {
         str(path.relative_to(pipeline_dir)): path.read_bytes()
         for path in pipeline_dir.rglob("*")
@@ -372,11 +376,15 @@ def test_report_only_coverage_pipeline_dir_reads_three_surfaces(
     assert "## Acquisition Worklist Audit" in summary
     assert "## Coverage Action Plan Audit" in summary
     assert "## Provider Handoff Audit" in summary
+    assert "## External Genomes Install Plan Audit" in summary
     assert "external_registration_ready" in summary
     assert "review_public_archive_linkage" in summary
     assert "metadata_only" in summary
+    assert "external_genome_install_planned" in summary
     assert "private action detail" not in summary
     assert "private provider detail" not in summary
+    assert "private message" not in summary
+    assert "private notes" not in summary
     assert paths.manifest.read_bytes() == manifest_before
     assert {
         str(path.relative_to(pipeline_dir)): path.read_bytes()

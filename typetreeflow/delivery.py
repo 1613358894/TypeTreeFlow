@@ -17,6 +17,7 @@ from typetreeflow.report.summary import (
     AcquisitionWorklistAuditSummary,
     BacDiveCandidateReviewSummary,
     CoveragePlanAuditSummary,
+    ExternalGenomesInstallPlanAuditSummary,
     ManualReviewImportAuditSummary,
     OfflineReadinessAuditSummary,
     ProviderHandoffAuditSummary,
@@ -30,6 +31,7 @@ from typetreeflow.report.summary import (
     read_optional_acquisition_worklist_audit,
     read_optional_bacdive_candidate_review,
     read_optional_coverage_plan_audit,
+    read_optional_external_genomes_install_plan_audit,
     read_optional_gtdb_metadata_audit,
     read_optional_manual_review_import_audit,
     read_optional_offline_readiness_audit,
@@ -71,6 +73,7 @@ class DeliveryResult:
     provider_request_warnings: list[str] = field(default_factory=list)
     provider_request_validation_warnings: list[str] = field(default_factory=list)
     provider_request_external_genomes_warnings: list[str] = field(default_factory=list)
+    external_genomes_install_plan_warnings: list[str] = field(default_factory=list)
     offline_readiness_warnings: list[str] = field(default_factory=list)
     strict_gating_warnings: list[str] = field(default_factory=list)
 
@@ -186,6 +189,15 @@ def package_results(
     provider_request_external_genomes_outputs_copied: list[Path] = []
     provider_request_external_genomes_audit: (
         ProviderRequestExternalGenomesAuditSummary | None
+    ) = None
+    external_genomes_install_plan_dir = _coverage_pipeline_component_dir(
+        None,
+        coverage_pipeline_dir,
+        "external_genomes_install_plan",
+    )
+    external_genomes_install_plan_outputs_copied: list[Path] = []
+    external_genomes_install_plan_audit: (
+        ExternalGenomesInstallPlanAuditSummary | None
     ) = None
     offline_readiness_outputs_copied: list[Path] = []
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None
@@ -324,6 +336,19 @@ def package_results(
                 copied,
             )
         )
+        external_genomes_install_plan_audit = (
+            read_optional_external_genomes_install_plan_audit(
+                external_genomes_install_plan_dir
+            )
+        )
+        external_genomes_install_plan_outputs_copied = (
+            _copy_external_genomes_install_plan_outputs(
+                external_genomes_install_plan_dir,
+                external_genomes_install_plan_audit,
+                output_dir,
+                copied,
+            )
+        )
         offline_readiness_audit = read_optional_offline_readiness_audit(
             offline_readiness_dir
         )
@@ -368,6 +393,10 @@ def package_results(
         provider_request_external_genomes_audit=(
             provider_request_external_genomes_audit
         ),
+        external_genomes_install_plan_outputs_copied=(
+            external_genomes_install_plan_outputs_copied
+        ),
+        external_genomes_install_plan_audit=external_genomes_install_plan_audit,
         offline_readiness_outputs_copied=offline_readiness_outputs_copied,
         offline_readiness_audit=offline_readiness_audit,
         strict_gating_outputs_copied=strict_gating_outputs_copied,
@@ -436,6 +465,9 @@ def package_results(
             provider_request_external_genomes_audit=(
                 provider_request_external_genomes_audit
             ),
+            external_genomes_install_plan_audit=(
+                external_genomes_install_plan_audit
+            ),
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
         ),
@@ -464,6 +496,9 @@ def package_results(
             provider_request_validation_audit=provider_request_validation_audit,
             provider_request_external_genomes_audit=(
                 provider_request_external_genomes_audit
+            ),
+            external_genomes_install_plan_audit=(
+                external_genomes_install_plan_audit
             ),
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
@@ -513,6 +548,11 @@ def package_results(
         provider_request_external_genomes_warnings=(
             list(provider_request_external_genomes_audit.warnings)
             if provider_request_external_genomes_audit is not None
+            else []
+        ),
+        external_genomes_install_plan_warnings=(
+            list(external_genomes_install_plan_audit.warnings)
+            if external_genomes_install_plan_audit is not None
             else []
         ),
         offline_readiness_warnings=(
@@ -710,6 +750,9 @@ def build_delivery_readme(
     provider_request_external_genomes_audit: (
         ProviderRequestExternalGenomesAuditSummary | None
     ) = None,
+    external_genomes_install_plan_audit: (
+        ExternalGenomesInstallPlanAuditSummary | None
+    ) = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
 ) -> str:
@@ -818,6 +861,12 @@ def build_delivery_readme(
                 provider_request_external_genomes_audit
             )
         )
+    if external_genomes_install_plan_audit is not None:
+        lines.extend(
+            _external_genomes_install_plan_readme_lines(
+                external_genomes_install_plan_audit
+            )
+        )
     if offline_readiness_audit is not None:
         lines.extend(_offline_readiness_readme_lines(offline_readiness_audit))
     if strict_gating_audit is not None:
@@ -924,6 +973,9 @@ def build_handoff_index(
     ) = None,
     provider_request_external_genomes_audit: (
         ProviderRequestExternalGenomesAuditSummary | None
+    ) = None,
+    external_genomes_install_plan_audit: (
+        ExternalGenomesInstallPlanAuditSummary | None
     ) = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
@@ -1045,6 +1097,12 @@ def build_handoff_index(
         lines.extend(
             _provider_request_external_genomes_handoff_lines(
                 provider_request_external_genomes_audit
+            )
+        )
+    if external_genomes_install_plan_audit is not None:
+        lines.extend(
+            _external_genomes_install_plan_handoff_lines(
+                external_genomes_install_plan_audit
             )
         )
     if offline_readiness_audit is not None:
@@ -1536,6 +1594,26 @@ def _copy_provider_request_external_genomes_outputs(
     return copied_draft
 
 
+def _copy_external_genomes_install_plan_outputs(
+    directory: str | Path | None,
+    audit: ExternalGenomesInstallPlanAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_plan: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "external_genomes_install_plan" / name,
+        )
+        copied.append(copied_path)
+        copied_plan.append(copied_path)
+    return copied_plan
+
+
 def _copy_offline_readiness_outputs(
     directory: str | Path | None,
     audit: OfflineReadinessAuditSummary | None,
@@ -1600,6 +1678,8 @@ def _write_package_artifact_scope(
     provider_request_external_genomes_audit: (
         ProviderRequestExternalGenomesAuditSummary | None
     ),
+    external_genomes_install_plan_outputs_copied: list[Path],
+    external_genomes_install_plan_audit: ExternalGenomesInstallPlanAuditSummary | None,
     offline_readiness_outputs_copied: list[Path],
     offline_readiness_audit: OfflineReadinessAuditSummary | None,
     strict_gating_outputs_copied: list[Path],
@@ -1667,6 +1747,13 @@ def _write_package_artifact_scope(
         )
     )
     rows.extend(
+        _external_genomes_install_plan_artifact_scope_rows(
+            delivery_dir,
+            external_genomes_install_plan_outputs_copied,
+            external_genomes_install_plan_audit,
+        )
+    )
+    rows.extend(
         _offline_readiness_artifact_scope_rows(
             delivery_dir,
             offline_readiness_outputs_copied,
@@ -1687,6 +1774,7 @@ def _write_package_artifact_scope(
         or provider_request_outputs_copied
         or provider_request_validation_outputs_copied
         or provider_request_external_genomes_outputs_copied
+        or external_genomes_install_plan_outputs_copied
         or offline_readiness_outputs_copied
         or strict_gating_outputs_copied
         or not paths.artifact_scope_path.exists()
@@ -1708,6 +1796,7 @@ def _write_package_artifact_scope(
             or provider_request_outputs_copied
             or provider_request_validation_outputs_copied
             or provider_request_external_genomes_outputs_copied
+            or external_genomes_install_plan_outputs_copied
             or offline_readiness_outputs_copied
             or strict_gating_outputs_copied
             or not paths.artifact_scope_path.exists()
@@ -2316,6 +2405,90 @@ def _provider_request_external_genomes_artifact_scope_rows(
                     "package inclusion does not copy FASTA files, register "
                     "external genomes, mutate manifests, or promote strict "
                     "deliverables."
+                ),
+            }
+        )
+    return rows
+
+
+def _external_genomes_install_plan_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: ExternalGenomesInstallPlanAuditSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    record_count = 0
+    install_plan_count = 0
+    if audit is not None:
+        value = audit.counts.get("record_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            record_count = value
+        value = audit.counts.get("install_plan_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            install_plan_count = value
+    specifications = (
+        (
+            (
+                "external_genomes_install_plan/"
+                "external_genome_registration_results.tsv"
+            ),
+            "external_genomes_registration_results",
+            "External genomes registration validation results",
+            99,
+            record_count,
+        ),
+        (
+            "external_genomes_install_plan/external_genome_install_plan.tsv",
+            "external_genomes_install_plan_rows",
+            "External genomes install-plan rows",
+            100,
+            install_plan_count,
+        ),
+        (
+            (
+                "external_genomes_install_plan/"
+                "external_genome_install_plan_summary.json"
+            ),
+            "external_genomes_install_plan_summary",
+            "External genomes install-plan summary",
+            101,
+            1,
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority, count in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        artifact_count = count if path.suffix == ".json" else _safe_tsv_row_count(path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "external_genomes_install_plan_audit",
+                "record_count": str(artifact_count),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "external genome install planning review",
+                "not_for": (
+                    "FASTA copying, registration, manifest mutation, "
+                    "downloads, provider contact, or strict deliverable gating"
+                ),
+                "source_artifact": "external_genomes_install_plan",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Audit-only external-genomes install-plan output; package "
+                    "inclusion does not create the target run directory, copy "
+                    "FASTA files, register external genomes, mutate manifests, "
+                    "or promote strict deliverables."
                 ),
             }
         )
@@ -3168,6 +3341,42 @@ def _provider_request_external_genomes_readme_lines(
     return lines
 
 
+def _external_genomes_install_plan_boundary_lines() -> list[str]:
+    return [
+        (
+            "- External-genomes install-plan artifacts are audit-only local "
+            "planning outputs. Package inclusion means review availability, "
+            "not FASTA copying, external-genome registration, or strict "
+            "deliverable gating."
+        ),
+        (
+            "- The target run directory is used only to plan future installed "
+            "paths. Packaging the plan does not create that run directory, "
+            "copy FASTA files, mutate the manifest, or change completion metrics."
+        ),
+        (
+            "- `downloads_triggered=0`, `providers_contacted=0`, "
+            "`network_access=false`, `writes_workflow_outputs=false`, "
+            "`manifest_mutated=false`, `install_executed=false`, "
+            "`external_genomes_registration_applied=false`, "
+            "`target_outdir_mutated=false`, and "
+            "`strict_scientific_deliverable=false` remain package boundaries."
+        ),
+    ]
+
+
+def _external_genomes_install_plan_readme_lines(
+    audit: ExternalGenomesInstallPlanAuditSummary,
+) -> list[str]:
+    lines = ["", "## External Genomes Install Plan Audit", ""]
+    lines.extend(_external_genomes_install_plan_boundary_lines())
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
 def _offline_readiness_boundary_lines() -> list[str]:
     return [
         (
@@ -3338,6 +3547,24 @@ def _provider_request_external_genomes_handoff_lines(
     if audit.warnings:
         lines.append(
             "- Provider request external-genomes warning: "
+            + "; ".join(audit.warnings)
+        )
+    return lines
+
+
+def _external_genomes_install_plan_handoff_lines(
+    audit: ExternalGenomesInstallPlanAuditSummary,
+) -> list[str]:
+    lines = ["", "## External Genomes Install Plan Audit", ""]
+    lines.extend(_external_genomes_install_plan_boundary_lines())
+    if audit.present_files:
+        lines.append(
+            "- External-genomes install-plan files copied: "
+            + ", ".join(audit.present_files)
+        )
+    if audit.warnings:
+        lines.append(
+            "- External-genomes install-plan warning: "
             + "; ".join(audit.warnings)
         )
     return lines

@@ -602,8 +602,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Explicit read-only directory containing coverage-pipeline "
             "acquisition_worklist, coverage_plan, provider_handoff, "
             "provider_request, provider_request_validation, and "
-            "provider_request_external_genomes subdirectories for --report-only "
-            "audit reporting or package-results; no automatic discovery."
+            "provider_request_external_genomes, and "
+            "external_genomes_install_plan subdirectories for --report-only audit "
+            "reporting or package-results; no automatic discovery."
         ),
     )
     parser.add_argument(

@@ -506,15 +506,28 @@ Missing input is omitted. Partial or malformed input copies only valid members
 and adds a compact warning to the README, handoff index, and compact JSON
 envelope. Failed-handoff packages exclude these artifacts and rows.
 
+For `coverage-pipeline build` outputs containing `external_genomes_install_plan/`,
+`package-results --include reports` and `--include all` may copy
+`external_genome_registration_results.tsv`, `external_genome_install_plan.tsv`,
+and `external_genome_install_plan_summary.json` under
+`external_genomes_install_plan/`. Each copied member receives one audit-only
+artifact-scope row with `scope=audit`,
+`evidence_policy=external_genomes_install_plan_audit`,
+`strict_scientific_deliverable=false`, and
+`recommended_use=external genome install planning review`. Package inclusion
+does not create the target run directory, copy FASTA files, register external
+genomes, mutate the manifest, contact providers, trigger downloads, or grant
+completion credit.
+
 `--coverage-pipeline-dir <dir>` is accepted with `--report-only` or
 `package-results`. It is an explicit read-only handoff for the isolated output
 of `coverage-pipeline build` and is never automatically discovered under the
 workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
 `coverage_plan/`, `provider_handoff/`, `provider_request/`, and
-`provider_request_validation/`, and `provider_request_external_genomes/` under
-that directory when present, then applies the same report, package, warning,
-and audit-only artifact-scope contracts as the individual component directory
-options. Explicit
+`provider_request_validation/`, `provider_request_external_genomes/`, and
+`external_genomes_install_plan/` under that directory when present, then
+applies the same report, package, warning, and audit-only artifact-scope
+contracts as the individual component directory options. Explicit
 `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
 `--provider-handoff-dir`, `--provider-request-dir`, and
 `--provider-request-validation-dir`, and

@@ -32,6 +32,7 @@ from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
 from tests.test_report_summary import (
     _write_coverage_plan_pair,
+    _write_external_genomes_install_plan_triplet,
     _write_offline_readiness_pair,
     _write_provider_handoff_pair,
     _write_provider_request_pair,
@@ -1797,7 +1798,7 @@ def test_package_results_cli_accepts_provider_request_and_keeps_compact_json(
 
 
 @pytest.mark.parametrize("include", ["reports", "all"])
-def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
+def test_package_results_coverage_pipeline_dir_copies_five_audit_surfaces(
     tmp_path, include
 ):
     paths = get_output_paths(tmp_path)
@@ -1807,6 +1808,9 @@ def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
     _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
     _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
     _write_provider_request_pair(pipeline_dir / "provider_request")
+    _write_external_genomes_install_plan_triplet(
+        pipeline_dir / "external_genomes_install_plan"
+    )
 
     result = package_results(
         tmp_path,
@@ -1827,6 +1831,12 @@ def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
         "provider_handoff/provider_handoff_summary.json",
         "provider_request/provider_request.tsv",
         "provider_request/provider_request_draft_summary.json",
+        "external_genomes_install_plan/external_genome_registration_results.tsv",
+        "external_genomes_install_plan/external_genome_install_plan.tsv",
+        (
+            "external_genomes_install_plan/"
+            "external_genome_install_plan_summary.json"
+        ),
     }
     scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
     grouped = {
@@ -1838,6 +1848,7 @@ def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
             "coverage_plan/",
             "provider_handoff/",
             "provider_request/",
+            "external_genomes_install_plan/",
         )
     }
     assert {prefix: len(rows) for prefix, rows in grouped.items()} == {
@@ -1845,6 +1856,7 @@ def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
         "coverage_plan/": 2,
         "provider_handoff/": 2,
         "provider_request/": 2,
+        "external_genomes_install_plan/": 3,
     }
     assert {row["scope"] for rows in grouped.values() for row in rows} == {"audit"}
     assert {
@@ -1864,6 +1876,14 @@ def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
     assert {row["evidence_policy"] for row in grouped["provider_request/"]} == {
         "provider_request_audit"
     }
+    assert {
+        row["evidence_policy"]
+        for row in grouped["external_genomes_install_plan/"]
+    } == {"external_genomes_install_plan_audit"}
+    assert {
+        row["strict_scientific_deliverable"]
+        for row in grouped["external_genomes_install_plan/"]
+    } == {"false"}
     package_text = (
         (result.delivery_dir / "README.md").read_text(encoding="utf-8")
         + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
@@ -1872,8 +1892,11 @@ def test_package_results_coverage_pipeline_dir_copies_four_audit_surfaces(
     assert "Coverage action plan artifacts are audit-only" in package_text
     assert "Provider handoff artifacts are audit-only" in package_text
     assert "Provider request draft artifacts are audit-only" in package_text
+    assert "External-genomes install-plan artifacts are audit-only" in package_text
     assert "private action detail" not in package_text
     assert "private provider detail" not in package_text
+    assert "private message" not in package_text
+    assert "private notes" not in package_text
 
 
 def test_package_results_coverage_pipeline_dir_is_missing_safe(tmp_path):
@@ -1890,6 +1913,7 @@ def test_package_results_coverage_pipeline_dir_is_missing_safe(tmp_path):
     assert not (result.delivery_dir / "coverage_plan").exists()
     assert not (result.delivery_dir / "provider_handoff").exists()
     assert not (result.delivery_dir / "provider_request").exists()
+    assert not (result.delivery_dir / "external_genomes_install_plan").exists()
     assert not (result.delivery_dir / "artifact_scope.tsv").exists()
     assert result.acquisition_worklist_warnings == []
     assert result.coverage_plan_warnings == []
