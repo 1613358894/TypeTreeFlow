@@ -149,6 +149,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "typetreeflow --plan-provider-registration "
         "<provider_request.tsv> --outdir <run>"
     )
+    assert payload["provider_request_validation_recommended_next_command"] == (
+        "review ready rows before copying accepted local FASTA evidence into "
+        "external_genomes.tsv for --register-external-genomes"
+    )
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
@@ -331,6 +335,14 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["provider_request_record_count"] == 8
     assert summary["provider_terms_review_required_count"] == 8
     assert summary["provider_network_supported_count"] == 0
+    assert summary["provider_request_recommended_next_command"] == (
+        "typetreeflow --plan-provider-registration "
+        "<provider_request.tsv> --outdir <run>"
+    )
+    assert summary["provider_request_validation_recommended_next_command"] == (
+        "review ready rows before copying accepted local FASTA evidence into "
+        "external_genomes.tsv for --register-external-genomes"
+    )
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
         "kctc": 1,

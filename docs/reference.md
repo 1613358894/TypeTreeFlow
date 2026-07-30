@@ -1525,7 +1525,8 @@ worklist, coverage action plan, provider handoff, and provider request draft,
 then emits one compact JSON object with lane, action, provider-key,
 provider-status, and provider-request draft counts plus
 `worklist_candidate_provider_key_counts`, `coverage_next_action_groups`, and
-`provider_request_recommended_next_command`, plus bounded previews. Action
+`provider_request_validation_recommended_next_command` plus
+`provider_request_recommended_next_command`, and bounded previews. Action
 groups are sorted by priority and summarize action code, record count, source
 lanes, provider keys, and the recommended next command for AI/operator
 routing. `preview` never writes files. `build --write`
