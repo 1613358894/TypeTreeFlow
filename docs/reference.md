@@ -1641,6 +1641,7 @@ The isolated coverage pipeline adapter is:
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
 typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--json]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
@@ -1669,6 +1670,12 @@ writes only isolated `acquisition_worklist/`, `coverage_plan/`,
 members under the explicitly supplied directory. Existing output directories
 are refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
+`status` reads only the explicitly supplied isolated coverage-pipeline summary
+and optional downstream isolated artifact directories, then re-emits
+`operator_chain_stages`, the current unavailable stage, and the recommended
+next command as compact JSON. It never discovers workflow output directories,
+writes files, contacts providers, downloads genomes, copies FASTA, mutates
+manifests, or changes completion metrics.
 Missing, unreadable, or empty inputs block with exit code `2`; successful
 previews/builds exit `0`; unexpected internal or write failures exit `1`. The
 pipeline is an AI/operator planning shortcut only: it does not contact

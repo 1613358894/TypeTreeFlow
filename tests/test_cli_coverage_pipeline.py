@@ -174,6 +174,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "coverage_plan",
         "provider_handoff",
         "provider_request",
+        "provider_request_validation",
         "provider_request_external_genomes",
         "external_genomes_install_plan",
         "external_genomes_registration_dry_run",
@@ -186,12 +187,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         False,
         False,
         False,
+        False,
     ]
-    assert payload["operator_chain_stages"][5]["recommended_next_command"] == (
+    assert payload["operator_chain_stages"][6]["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
-    assert "no FASTA copy" in payload["operator_chain_stages"][5]["boundary"]
+    assert "no FASTA copy" in payload["operator_chain_stages"][6]["boundary"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
@@ -403,7 +405,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     )
     assert summary["operator_chain_stages"][3]["record_count"] == 8
     assert summary["operator_chain_stages"][4]["available"] is False
-    assert summary["operator_chain_stages"][6]["recommended_next_command"] == (
+    assert summary["operator_chain_stages"][7]["recommended_next_command"] == (
         "typetreeflow --register-external-genomes "
         "<external_genomes.tsv> --outdir <run> --dry-run"
     )
@@ -423,6 +425,133 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     code, payload, _ = _run([*args, "--force"], capsys, action="build")
     assert code == 0
     assert payload["writes_outputs"] is True
+
+
+def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_path):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    code, _payload, _captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+
+    validation_dir = tmp_path / "provider_request_validation"
+    validation_dir.mkdir()
+    (validation_dir / "provider_request_validation_summary.json").write_text(
+        json.dumps({"ready_count": 2})
+    )
+
+    external_dir = tmp_path / "provider_request_external_genomes"
+    external_dir.mkdir()
+    (external_dir / "provider_request_external_genomes_summary.json").write_text(
+        json.dumps({"exported_count": 1})
+    )
+    _write_tsv(
+        external_dir / "external_genomes.tsv",
+        ("species", "assembly_accession"),
+        [{"species": "Clostridium alpha", "assembly_accession": "GCF_000001"}],
+    )
+
+    install_dir = tmp_path / "external_genomes_install_plan"
+    install_dir.mkdir()
+    (install_dir / "external_genome_install_plan_summary.json").write_text(
+        json.dumps({"install_planned_count": 1})
+    )
+    _write_tsv(
+        install_dir / "external_genome_install_plan.tsv",
+        ("species", "planned_path"),
+        [{"species": "Clostridium alpha", "planned_path": "genomes/a.fna"}],
+    )
+
+    registration_dir = tmp_path / "registration_dry_run"
+    registration_dir.mkdir()
+    _write_tsv(
+        registration_dir / "external_genome_install_plan.tsv",
+        ("species", "planned_path"),
+        [{"species": "Clostridium alpha", "planned_path": "genomes/a.fna"}],
+    )
+    _write_tsv(
+        registration_dir / "external_genome_registration_results.tsv",
+        ("species", "status"),
+        [{"species": "Clostridium alpha", "status": "planned"}],
+    )
+
+    code, payload, captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--provider-request-validation-dir",
+            str(validation_dir),
+            "--provider-request-external-genomes-dir",
+            str(external_dir),
+            "--external-genomes-install-plan-dir",
+            str(install_dir),
+            "--registration-run-dir",
+            str(registration_dir),
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["command"] == "coverage-pipeline status"
+    assert payload["status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["network_access"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["completed_stage_count"] == payload["stage_count"]
+    assert payload["next_stage"] is None
+    assert payload["recommended_next_command"] == ""
+    assert [stage["available"] for stage in payload["operator_chain_stages"]] == [
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+        True,
+    ]
+    assert payload["operator_chain_stages"][4]["record_count"] == 2
+    assert payload["operator_chain_stages"][5]["record_count"] == 1
+    assert payload["operator_chain_stages"][6]["record_count"] == 1
+    assert payload["operator_chain_stages"][7]["record_count"] == 1
+
+
+def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
+    capsys, tmp_path
+):
+    code, payload, captured = _run(
+        ["--coverage-pipeline-dir", str(tmp_path / "missing"), "--json"],
+        capsys,
+        action="status",
+    )
+
+    assert code == 2
+    assert captured.out.count("\n") == 1
+    assert payload["command"] == "coverage-pipeline status"
+    assert payload["status"] == "blocked"
+    assert payload["writes_outputs"] is False
+    assert payload["diagnostics"][0]["component"] == "coverage_pipeline_status"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "artifact_unreadable"
 
 
 def test_coverage_pipeline_build_rejects_unsafe_write_usage(capsys, tmp_path):
