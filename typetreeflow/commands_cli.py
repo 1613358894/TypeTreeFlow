@@ -1151,6 +1151,20 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "optional manual supplement hints TSV",
         },
         {
+            "name": "--validate-provider-request",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "run local provider request validation on the generated draft",
+        },
+        {
+            "name": "--provider-request-validation-base-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "base directory for relative local FASTA paths during optional validation",
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -2447,7 +2461,15 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "manual_supplement_hints_tsv",
         }
         if subcommand == "build":
-            allowed.update({"write", "outdir", "force"})
+            allowed.update(
+                {
+                    "write",
+                    "outdir",
+                    "force",
+                    "validate_provider_request",
+                    "provider_request_validation_base_dir",
+                }
+            )
         _reject_unknown_fields(request, allowed)
         argv = ["coverage-pipeline", subcommand]
         for key, flag in (
@@ -2463,6 +2485,19 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             if value:
                 argv.extend([flag, value])
         if subcommand == "build":
+            if _bool_flag(request, "validate_provider_request"):
+                argv.append("--validate-provider-request")
+            validation_base_dir = _optional_string(
+                request,
+                "provider_request_validation_base_dir",
+            )
+            if validation_base_dir:
+                argv.extend(
+                    [
+                        "--provider-request-validation-base-dir",
+                        validation_base_dir,
+                    ]
+                )
             if _bool_flag(request, "write"):
                 argv.append("--write")
             outdir = _optional_string(request, "outdir")

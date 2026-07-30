@@ -223,6 +223,7 @@ typetreeflow coverage-pipeline build \
   --archive-candidates-tsv <archive_candidates.tsv> \
   --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
   --manual-supplement-hints-tsv <manual_supplement_hints.tsv> \
+  --validate-provider-request \
   --write --outdir <isolated-coverage-pipeline-directory>
 ```
 
@@ -247,12 +248,15 @@ handoffs are visible in one compact JSON object.
 coverage chain, including the current artifact name, whether that stage has
 records in the present payload, its recommended next command, and the
 no-provider/no-download boundary for that stage.
-`build --write` publishes only
-isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
-`provider_request/`, and `coverage_pipeline_summary.json` members under the
-requested directory. A later `provider-request validate --write` result can be
-placed under `provider_request_validation/` in the same isolated directory for
-report/package handoff, and a later `provider-request external-genomes-draft
+`build --validate-provider-request --write` also writes the local provider
+request validation audit pair under `provider_request_validation/` in the same
+isolated directory. This is the same offline readiness check as
+`provider-request validate`; blocked validation rows remain expected until a
+curator supplies accepted local FASTA paths and checksums. `build --write`
+publishes only isolated `acquisition_worklist/`, `coverage_plan/`,
+`provider_handoff/`, `provider_request/`, optional
+`provider_request_validation/`, and `coverage_pipeline_summary.json` members
+under the requested directory. A later `provider-request external-genomes-draft
 --write` result can be placed under `provider_request_external_genomes/` for
 the same explicit handoff. They remain audit-only: no workflow outputs,
 provider contacts, downloads, FASTA copying, manifest mutation, registration,

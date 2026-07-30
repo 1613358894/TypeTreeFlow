@@ -680,7 +680,10 @@ before any executor considers running it.
 For coverage planning requests, structured fields
 `expanded_discovery_results_tsv` and `manual_supplement_hints_tsv` render to
 the explicit local TSV flags on `acquisition-worklist build` and
-`coverage-pipeline preview|build`.
+`coverage-pipeline preview|build`. `validate_provider_request` and
+`provider_request_validation_base_dir` render only for
+`coverage-pipeline build` and enable the optional local provider-request
+validation stage without provider contact or downloads.
 For packaging requests, structured fields `delivery_dir`, `failed_handoff`,
 `manual_review_import_dir`, `acquisition_worklist_dir`, `coverage_plan_dir`,
 `provider_handoff_dir`, `provider_request_dir`,
@@ -1640,7 +1643,7 @@ The isolated coverage pipeline adapter is:
 
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--json] [--write --outdir <dir> [--force]]
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
 ```
 
@@ -1664,11 +1667,17 @@ The external-genomes draft recommendation points to the explicit local handoff
 step after provider-request validation, and the install-plan recommendation
 points to the local planning step before registration dry-run; neither is
 automatic registration or download execution. `preview` never writes files.
-`build --write`
-writes only isolated `acquisition_worklist/`, `coverage_plan/`,
-`provider_handoff/`, `provider_request/`, and `coverage_pipeline_summary.json`
-members under the explicitly supplied directory. Existing output directories
-are refused by default; `--force` replaces only an owned coverage-pipeline
+`build --validate-provider-request` runs the same local provider-request
+validation guards on the generated draft. It only checks local TSV fields and
+optional local FASTA paths; it does not contact providers, download genomes, or
+copy FASTA. With `--write`, the validation audit pair is written under
+`provider_request_validation/` inside the isolated pipeline directory, so
+`coverage-pipeline status` can inspect the next stage without a separate
+adapter run. `build --write` writes only isolated `acquisition_worklist/`,
+`coverage_plan/`, `provider_handoff/`, `provider_request/`, optional
+`provider_request_validation/`, and `coverage_pipeline_summary.json` members
+under the explicitly supplied directory. Existing output directories are
+refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline
