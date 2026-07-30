@@ -1660,7 +1660,7 @@ The isolated coverage pipeline adapter is:
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
 typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--json] [--write --outdir <dir> [--force]]
-typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
@@ -1709,7 +1709,14 @@ refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline
-directory, and optional downstream directory overrides. It then re-emits
+directory, and optional downstream directory overrides. When
+`archive_candidates/` exists under the explicit coverage-pipeline directory or
+`--archive-candidates-dir <dir>` is supplied, it may add a passive
+`archive_candidates` operator-chain stage from the existing
+`archive_candidates.tsv`, `archive_candidates_summary.json`, and
+`archive_candidates_diagnostics.tsv` triplet. The stage carries bounded counts
+only; it does not query public archives, download genomes, create
+`external_genomes.tsv`, or change strict evidence. It then re-emits
 `operator_chain_stages`, the current unavailable stage, and the recommended
 next command as compact JSON. The payload also includes
 `stage_status_counts`, `available_stage_names`, and

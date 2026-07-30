@@ -283,13 +283,18 @@ isolated pipeline directory when present. To override those locations, pass:
 ```bash
 typetreeflow coverage-pipeline status \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
+  --archive-candidates-dir <isolated-archive-candidates-directory> \
   --provider-request-validation-dir <isolated-provider-request-validation-directory> \
   --provider-request-external-genomes-dir <isolated-provider-request-external-genomes-directory> \
   --external-genomes-install-plan-dir <isolated-external-genomes-install-plan-directory> \
   --registration-run-dir <dry-run-registration-directory> [--json]
 ```
 
-It reports `operator_chain_stages`, `stage_status_counts`, available and
+The archive-candidates directory is optional and is read only as an existing
+public-archive audit triplet. It adds compact archive-candidate counts for
+operator routing but does not query archives, download genomes, create
+`external_genomes.tsv`, register files, or change strict evidence. The status
+payload reports `operator_chain_stages`, `stage_status_counts`, available and
 unavailable stage names, the first unavailable stage, and the recommended next
 command. It also reports `completion_gate` so automation can read whether any
 stage remains blocking without parsing all stage rows. It does not scan

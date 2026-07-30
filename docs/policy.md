@@ -447,10 +447,15 @@ public accessions, or make any candidate download-ready.
 The optional `--coverage-pipeline-dir` report/package surface is only a
 convenience handoff for that isolated directory. It may derive the four
 known planning component subdirectories and an optional
+`archive_candidates/` audit subdirectory, an optional
 `provider_request_validation/` subdirectory plus an optional
 `provider_request_external_genomes/` subdirectory under the explicitly supplied path,
 but it must not scan workflow outputs, rerun planning, contact providers,
 trigger downloads, register external genomes, or change any scientific status.
+Coverage-pipeline status may also read an explicitly supplied
+`--archive-candidates-dir`. This is passive public-archive audit visibility
+only; it does not query ENA, DDBJ, GenBank, RefSeq, or other archives, create
+`external_genomes.tsv`, or convert archive candidates into strict completion.
 
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic

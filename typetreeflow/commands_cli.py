@@ -1222,6 +1222,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "optional isolated provider request validation directory",
         },
         {
+            "name": "--archive-candidates-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional isolated archive-candidates audit directory",
+        },
+        {
             "name": "--provider-request-external-genomes-dir",
             "kind": "path",
             "required": False,
@@ -2431,6 +2438,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "command",
                     "subcommand",
                     "coverage_pipeline_dir",
+                    "archive_candidates_dir",
                     "provider_request_validation_dir",
                     "provider_request_external_genomes_dir",
                     "external_genomes_install_plan_dir",
@@ -2447,6 +2455,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 coverage_dir,
             ]
             for key, flag in (
+                ("archive_candidates_dir", "--archive-candidates-dir"),
                 ("provider_request_validation_dir", "--provider-request-validation-dir"),
                 (
                     "provider_request_external_genomes_dir",

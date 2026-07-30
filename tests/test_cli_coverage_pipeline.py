@@ -5,6 +5,11 @@ import socket
 import subprocess
 
 from typetreeflow import cli
+from typetreeflow.evidence.archive_candidates import (
+    ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
+    ARCHIVE_CANDIDATE_FIELDS,
+    ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+)
 from typetreeflow.external_genomes import calculate_sha256
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
@@ -138,6 +143,72 @@ def _write_curated_provider_request(tmp_path):
         ],
     )
     return curated_request, fasta, fasta_hash
+
+
+def _write_archive_candidates_output(outdir):
+    outdir.mkdir()
+    _write_tsv(
+        outdir / "archive_candidates.tsv",
+        ARCHIVE_CANDIDATE_FIELDS,
+        [
+            {
+                "schema_version": ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+                "species": "Clostridium gamma",
+                "strain": "DSM 3",
+                "type_strain_id": "DSM 3",
+                "archive_source": "ena",
+                "archive_source_name": "European Nucleotide Archive",
+                "assembly_accession": "GCA_000003.1",
+                "biosample_accession": "SAMN000003",
+                "nuccore_accession": "",
+                "wgs_accession": "",
+                "organism_name": "Clostridium gamma DSM 3",
+                "strain_designation": "DSM 3",
+                "culture_collection_tokens": "DSM 3",
+                "archive_type_material_signal": "assembly_type_material",
+                "lpsn_token_overlap": "DSM 3",
+                "source_url": "",
+                "evidence_notes": "fixture archive candidate",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "requires_manual_review": "true",
+                "recommended_action": (
+                    "review public archive linkage against species type-strain "
+                    "equivalence set"
+                ),
+                "audit_only": "true",
+                "strict_scientific_deliverable": "false",
+            }
+        ],
+    )
+    (outdir / "archive_candidates_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+                "valid": True,
+                "record_count": 1,
+                "species_count": 1,
+                "candidate_count": 1,
+                "conflict_count": 0,
+                "manual_review_count": 1,
+                "diagnostic_count": 0,
+                "status_counts": {
+                    "archive_candidate_for_public_linkage_review": 1,
+                },
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _write_tsv(
+        outdir / "archive_candidates_diagnostics.tsv",
+        ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
+        [],
+    )
 
 
 def _manifest_record() -> StrainRecord:
@@ -1119,6 +1190,58 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
     assert payload["completion_gate"]["required"] is True
     assert payload["completion_gate"]["passed"] is False
     assert payload["diagnostics"][0]["diagnostic_code"] == "chain_incomplete"
+
+
+def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
+    capsys, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    code, _payload, _captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+    _write_archive_candidates_output(pipeline_dir / "archive_candidates")
+
+    code, payload, captured = _run(
+        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    archive_stage = payload["operator_chain_stages"][-1]
+    assert archive_stage["stage"] == "archive_candidates"
+    assert archive_stage["available"] is True
+    assert archive_stage["record_count"] == 1
+    assert archive_stage["summary_valid"] is True
+    assert archive_stage["summary_candidate_count"] == 1
+    assert archive_stage["summary_conflict_count"] == 0
+    assert archive_stage["summary_manual_review_count"] == 1
+    assert archive_stage["summary_diagnostic_count"] == 0
+    assert archive_stage["summary_status_counts"] == {
+        "archive_candidate_for_public_linkage_review": 1,
+    }
+    assert "archive_candidates" in payload["available_stage_names"]
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
 
 
 def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
