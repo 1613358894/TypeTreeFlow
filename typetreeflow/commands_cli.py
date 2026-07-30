@@ -2169,6 +2169,7 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
         )
     )
     decision = str(preflight["decision"])
+    target_risk = dict(preflight["risk"])
     return {
         "command": COMMAND_PLAN,
         "schema_version": "1",
@@ -2184,6 +2185,21 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
         "writes_workflow_outputs": False,
         "network_access": False,
         "external_tools": False,
+        "target_risk": target_risk,
+        "target_allowances": dict(preflight["allowances"]),
+        "target_writes_outputs_declared": bool(
+            target_risk["writes_outputs_declared"]
+        ),
+        "target_workflow_outputs_declared": bool(
+            target_risk["workflow_outputs_declared"]
+        ),
+        "target_real_actions_declared": bool(
+            target_risk["real_actions_declared"]
+        ),
+        "target_network_declared": bool(target_risk["network_declared"]),
+        "target_external_tools_declared": bool(
+            target_risk["external_tools_declared"]
+        ),
         "request": request,
         "target_argv": target_argv,
         "recognized": preflight["recognized"],

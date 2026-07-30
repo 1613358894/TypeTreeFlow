@@ -1669,6 +1669,10 @@ def test_commands_plan_allows_rendered_read_only_command(capsys):
     assert payload["target_argv"] == ["status", "--outdir", "run"]
     assert payload["preflight"]["decision"] == "allow"
     assert payload["writes_outputs"] is False
+    assert payload["target_writes_outputs_declared"] is False
+    assert payload["target_workflow_outputs_declared"] is False
+    assert payload["target_risk"] == payload["preflight"]["risk"]
+    assert payload["target_allowances"] == payload["preflight"]["allowances"]
 
 
 def test_commands_plan_blocks_rendered_workflow_without_allowances(capsys):
@@ -1690,6 +1694,10 @@ def test_commands_plan_blocks_rendered_workflow_without_allowances(capsys):
     payload, _output = _stdout_payload(capsys)
     assert payload["status"] == "blocked"
     assert payload["decision"] == "block"
+    assert payload["target_writes_outputs_declared"] is True
+    assert payload["target_workflow_outputs_declared"] is True
+    assert payload["target_network_declared"] is False
+    assert payload["target_external_tools_declared"] is False
     assert [item["id"] for item in payload["blocking"]] == [
         "write_not_allowed",
         "workflow_outputs_not_allowed",
