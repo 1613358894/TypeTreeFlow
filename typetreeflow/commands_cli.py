@@ -48,6 +48,11 @@ _VERIFY_GENUS_LOCAL_RENDER_FIELDS = (
     ("gtdb_release", "--gtdb-release"),
     ("evidence_policy", "--evidence-policy"),
     ("source_audit_policy", "--source-audit-policy"),
+    ("candidate_tsv", "--candidate-tsv"),
+    ("selection_tsv", "--selection-tsv"),
+    ("selection_policy", "--selection-policy"),
+    ("query_16s", "--query-16s"),
+    ("outgroup", "--outgroup"),
 )
 _CATALOG_ENTRIES = (
     {
@@ -474,6 +479,90 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "allow rebuilding an existing outdir for a different genus",
+        },
+        {
+            "name": "--candidate-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local assembly candidate TSV input",
+        },
+        {
+            "name": "--selection-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local user selection TSV input",
+        },
+        {
+            "name": "--selection-policy",
+            "kind": "choice",
+            "required": False,
+            "repeatable": False,
+            "purpose": "selection preparation or validation policy",
+        },
+        {
+            "name": "--prepare-selection",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "prepare selection/user_selection.tsv from local candidates",
+        },
+        {
+            "name": "--write-manual-review-template",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write offline manual review templates",
+        },
+        {
+            "name": "--review-required",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "stop after planning for selection review",
+        },
+        {
+            "name": "--auto-accept-selection",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "accept generated selection without manual editing",
+        },
+        {
+            "name": "--query-genome",
+            "kind": "path",
+            "required": False,
+            "repeatable": True,
+            "purpose": "local query genome FASTA path",
+        },
+        {
+            "name": "--query-16s",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "local query 16S FASTA path",
+        },
+        {
+            "name": "--outgroup",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional outgroup taxon or strain label",
+        },
+        {
+            "name": "--skip-ani",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "skip ANI workflow stages",
+        },
+        {
+            "name": "--skip-tree",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "skip 16S tree workflow stages",
         },
         {
             "name": "--manual-review-import-dir",
@@ -1707,7 +1796,18 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if command == "verify-genus":
             allowed.update(key for key, _flag in _VERIFY_GENUS_LOCAL_RENDER_FIELDS)
             allowed.update(
-                {"strains_per_species", "limit_selected", "allow_genus_change"}
+                {
+                    "strains_per_species",
+                    "limit_selected",
+                    "allow_genus_change",
+                    "prepare_selection",
+                    "write_manual_review_template",
+                    "review_required",
+                    "auto_accept_selection",
+                    "query_genomes",
+                    "skip_ani",
+                    "skip_tree",
+                }
             )
             allowed.update(key for key, _flag in _AUDIT_DIR_RENDER_FIELDS)
         _reject_unknown_fields(request, allowed)
@@ -1726,6 +1826,12 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "report_only": "--report-only",
                 "enable_downloads": "--enable-downloads",
                 "allow_genus_change": "--allow-genus-change",
+                "prepare_selection": "--prepare-selection",
+                "write_manual_review_template": "--write-manual-review-template",
+                "review_required": "--review-required",
+                "auto_accept_selection": "--auto-accept-selection",
+                "skip_ani": "--skip-ani",
+                "skip_tree": "--skip-tree",
             },
         )
         if command == "verify-genus":
@@ -1740,6 +1846,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 value = _optional_int(request, key)
                 if value is not None:
                     argv.extend([flag, str(value)])
+            for query_genome in _optional_string_array(request, "query_genomes"):
+                argv.extend(["--query-genome", query_genome])
             for key, flag in _AUDIT_DIR_RENDER_FIELDS:
                 value = _optional_string(request, key)
                 if value:
@@ -2214,6 +2322,17 @@ def _optional_int(request: dict[str, object], field: str) -> int | None:
 
 def _required_string_array(request: dict[str, object], field: str) -> list[str]:
     value = request.get(field)
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"Request field {field!r} must be a non-empty string array")
+    if not all(isinstance(item, str) and item for item in value):
+        raise ValueError(f"Request field {field!r} must be a non-empty string array")
+    return list(value)
+
+
+def _optional_string_array(request: dict[str, object], field: str) -> list[str]:
+    value = request.get(field)
+    if value is None:
+        return []
     if not isinstance(value, list) or not value:
         raise ValueError(f"Request field {field!r} must be a non-empty string array")
     if not all(isinstance(item, str) and item for item in value):

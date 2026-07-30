@@ -265,6 +265,18 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--strains-per-species",
         "--limit-selected",
         "--allow-genus-change",
+        "--candidate-tsv",
+        "--selection-tsv",
+        "--selection-policy",
+        "--prepare-selection",
+        "--write-manual-review-template",
+        "--review-required",
+        "--auto-accept-selection",
+        "--query-genome",
+        "--query-16s",
+        "--outgroup",
+        "--skip-ani",
+        "--skip-tree",
     } <= parameter_names[("verify-genus", None)]
     assert audit_dir_flags | {
         "--delivery-dir",
@@ -454,6 +466,67 @@ def test_commands_render_emits_normalized_verify_genus_local_options(capsys):
         "2",
         "--limit-selected",
         "20",
+    ]
+    assert payload["recognized"]["command"] == "verify-genus"
+    assert payload["recognized"]["mode"] == "workflow"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
+def test_commands_render_emits_normalized_verify_genus_selection_options(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","dry_run":true,'
+                    '"candidate_tsv":"candidates.tsv",'
+                    '"selection_tsv":"selection.tsv",'
+                    '"selection_policy":"balanced",'
+                    '"prepare_selection":true,'
+                    '"write_manual_review_template":true,'
+                    '"review_required":true,'
+                    '"auto_accept_selection":true,'
+                    '"query_genomes":["query1.fna","query2.fna"],'
+                    '"query_16s":"query16s.fna",'
+                    '"outgroup":"Bacillus subtilis",'
+                    '"skip_ani":true,'
+                    '"skip_tree":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "verify-genus",
+        "Clostridium",
+        "--outdir",
+        "run",
+        "--dry-run",
+        "--prepare-selection",
+        "--write-manual-review-template",
+        "--review-required",
+        "--auto-accept-selection",
+        "--skip-ani",
+        "--skip-tree",
+        "--candidate-tsv",
+        "candidates.tsv",
+        "--selection-tsv",
+        "selection.tsv",
+        "--selection-policy",
+        "balanced",
+        "--query-16s",
+        "query16s.fna",
+        "--outgroup",
+        "Bacillus subtilis",
+        "--query-genome",
+        "query1.fna",
+        "--query-genome",
+        "query2.fna",
     ]
     assert payload["recognized"]["command"] == "verify-genus"
     assert payload["recognized"]["mode"] == "workflow"
@@ -1086,6 +1159,27 @@ def test_commands_render_rejects_local_verify_options_for_release_verification(c
     assert "species_checklist" in payload["blocking"][0]["message"]
 
 
+def test_commands_render_rejects_selection_options_for_release_verification(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-release-genus","genus":"Clostridium",'
+                    '"outdir":"run","query_genomes":["query.fna"]}'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "query_genomes" in payload["blocking"][0]["message"]
+
+
 def test_commands_render_rejects_non_integer_verify_genus_limits(capsys):
     assert (
         main(
@@ -1106,6 +1200,28 @@ def test_commands_render_rejects_non_integer_verify_genus_limits(capsys):
     assert payload["blocking"][0]["id"] == "invalid_request"
     assert "limit_selected" in payload["blocking"][0]["message"]
     assert "integer" in payload["blocking"][0]["message"]
+
+
+def test_commands_render_rejects_invalid_query_genomes_array(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","query_genomes":[]}'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "query_genomes" in payload["blocking"][0]["message"]
+    assert "string array" in payload["blocking"][0]["message"]
 
 
 def test_commands_render_rejects_missing_required_field(capsys):
