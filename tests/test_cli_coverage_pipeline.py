@@ -265,6 +265,46 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "review_public_archive_linkage": 1,
         "review_public_type_linkage": 1,
     }
+    assert payload["coverage_opportunity_summary"] == [
+        {
+            "priority": 10,
+            "action_code": "resolve_curator_conflict",
+            "record_count": 1,
+            "source_lanes": ["curator_conflict_resolution"],
+            "provider_keys": [],
+            "provider_automation_level_counts": {},
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        },
+        {
+            "priority": 20,
+            "action_code": "review_public_archive_linkage",
+            "record_count": 1,
+            "source_lanes": ["public_linkage_review"],
+            "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
+            "provider_automation_level_counts": {"metadata_review": 4},
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        },
+        {
+            "priority": 30,
+            "action_code": "review_public_type_linkage",
+            "record_count": 1,
+            "source_lanes": ["public_linkage_review"],
+            "provider_keys": ["genbank", "refseq"],
+            "provider_automation_level_counts": {"metadata_review": 2},
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        },
+        {
+            "priority": 50,
+            "action_code": "prepare_provider_handoff",
+            "record_count": 1,
+            "source_lanes": ["external_fasta_required"],
+            "provider_keys": ["dsmz", "kctc"],
+            "provider_automation_level_counts": {"planning_handoff": 2},
+            "recommended_next_command": (
+                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+            ),
+        },
+    ]
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
     assert payload["provider_automation_level_counts"] == {
@@ -630,6 +670,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert not (outdir / "provider_request_validation").exists()
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["command"] == "coverage-pipeline build"
+    assert summary["coverage_opportunity_summary"][1][
+        "provider_automation_level_counts"
+    ] == {"metadata_review": 4}
     assert summary["provider_handoff_record_count"] == 8
     assert summary["provider_automation_level_counts"] == {
         "metadata_review": 6,
@@ -1325,6 +1368,9 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["required_inputs"] == []
     assert payload["recommended_request"] is None
     assert payload["recommended_next_command"] == ""
+    assert payload["coverage_opportunity_summary"][3][
+        "provider_automation_level_counts"
+    ] == {"planning_handoff": 2}
     assert payload["provider_automation_level_counts"] == {
         "metadata_review": 6,
         "planning_handoff": 2,

@@ -1757,7 +1757,7 @@ worklist, coverage action plan, provider handoff, and provider request draft,
 then emits one compact JSON object with lane, action, provider-key,
 provider-status, provider automation-level, and provider-request draft counts
 plus `worklist_candidate_provider_key_counts`,
-`coverage_next_action_groups`, and
+`coverage_next_action_groups`, `coverage_opportunity_summary`, and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
 `provider_request_external_genomes_install_plan_recommended_next_command` plus
@@ -1771,6 +1771,11 @@ and the recommended next command for AI/operator routing. Required inputs are
 metadata-only evidence requirements copied from coverage-plan actions. The
 request draft is also metadata only; operators should still pass it through
 `commands render`, `commands plan`, or `commands preflight` before execution.
+`coverage_opportunity_summary` is a compact derived view of those same action
+groups with per-action provider automation-level counts, so an AI/operator can
+see manual-review, public metadata-review, and planning-handoff pressure
+without joining provider handoff rows manually. It is not execution
+authorization.
 The payload also exposes `primary_next_action_group`,
 `primary_action_required_inputs`, `primary_action_recommended_request`, and
 `primary_action_recommended_next_command` as convenience copies from the first
@@ -1833,7 +1838,8 @@ only; it does not query public archives, download genomes, create
 next command as compact JSON. It also preserves top-level provider automation
 counts from `coverage_pipeline_summary.json` as
 `provider_automation_level_counts` and
-`provider_request_automation_level_counts`. Each stage row and the derived `next_stage`
+`provider_request_automation_level_counts`, and preserves
+`coverage_opportunity_summary` for routing. Each stage row and the derived `next_stage`
 include `required_inputs`, a bounded list of local artifact paths or
 curator-supplied input categories needed before that stage can be treated as
 available. Stage rows also include `recommended_request`, a structured

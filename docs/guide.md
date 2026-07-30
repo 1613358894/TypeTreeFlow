@@ -240,7 +240,9 @@ provider handoff, and provider request draft artifacts that the individual
 adapters would build. `preview`
 writes nothing. Its compact JSON includes `coverage_next_action_groups`, a
 priority-ordered summary of action counts, source lanes, provider keys, and
-recommended next commands for AI/operator routing. It also carries
+recommended next commands for AI/operator routing. It also includes
+`coverage_opportunity_summary`, a compact derived view that adds provider
+automation-level counts to each action group. It also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
 AI/operator handoff pressure is visible before reading the nested artifacts. It
@@ -312,11 +314,12 @@ payload reports `operator_chain_stages`, `stage_status_counts`, available and
 unavailable stage names, the first unavailable stage, and the recommended next
 command. It also reports `completion_gate`,
 `provider_automation_level_counts`, and
-`provider_request_automation_level_counts` so automation can read whether any
-stage remains blocking and how much provider handoff is planning-only versus
-metadata-review without parsing all stage rows. It does not scan workflow
-outputs, contact providers, download genomes, copy FASTA, mutate manifests, or
-grant completion credit.
+`provider_request_automation_level_counts`, and preserves
+`coverage_opportunity_summary` so automation can read whether any stage remains
+blocking and how much provider handoff is planning-only versus metadata-review
+without parsing all stage rows. It does not scan workflow outputs, contact
+providers, download genomes, copy FASTA, mutate manifests, or grant completion
+credit.
 When a child stage summary is present, status preserves compact `summary_*`
 fields on that stage row, such as provider-request validation ready/blocked
 counts and bounded blocker/provider/status count dictionaries, so AI operators
