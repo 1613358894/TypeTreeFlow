@@ -9,6 +9,7 @@ from typetreeflow.external_genomes import (
 )
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, read_provider_requests
 from typetreeflow.provider_request_external_genomes import (
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
     build_provider_request_external_genomes_draft,
 )
@@ -83,6 +84,9 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     assert draft.summary["external_genomes_registration_applied"] is False
     assert draft.summary["recommended_next_command"] == (
         PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+    )
+    assert draft.summary["install_plan_recommended_next_command"] == (
+        PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
     )
     record = draft.records[0]
     assert record.species == "Clostridium alpha"

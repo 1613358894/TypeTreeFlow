@@ -1650,13 +1650,16 @@ provider-status, and provider-request draft counts plus
 `worklist_candidate_provider_key_counts`, `coverage_next_action_groups`, and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
+`provider_request_external_genomes_install_plan_recommended_next_command` plus
 `provider_request_external_genomes_handoff_recommended_next_command` plus
 `provider_request_recommended_next_command`, and bounded previews. Action
 groups are sorted by priority and summarize action code, record count, source
 lanes, provider keys, and the recommended next command for AI/operator routing.
 The external-genomes draft recommendation points to the explicit local handoff
-step after provider-request validation; it is not automatic registration or
-download execution. `preview` never writes files. `build --write`
+step after provider-request validation, and the install-plan recommendation
+points to the local planning step before registration dry-run; neither is
+automatic registration or download execution. `preview` never writes files.
+`build --write`
 writes only isolated `acquisition_worklist/`, `coverage_plan/`,
 `provider_handoff/`, `provider_request/`, and `coverage_pipeline_summary.json`
 members under the explicitly supplied directory. Existing output directories

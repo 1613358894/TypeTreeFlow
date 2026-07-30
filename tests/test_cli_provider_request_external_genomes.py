@@ -135,6 +135,13 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
     assert payload["output_paths"]["external_genomes"].endswith("external_genomes.tsv")
     assert summary["writes_outputs"] is True
     assert summary["external_genomes_registration_applied"] is False
+    assert summary["recommended_next_command"] == (
+        "typetreeflow external-genomes validate --input <external_genomes.tsv>"
+    )
+    assert summary["install_plan_recommended_next_command"] == (
+        "typetreeflow external-genomes install-plan "
+        "--input <external_genomes.tsv> --target-outdir <run>"
+    )
     assert header == "\t".join(EXTERNAL_GENOME_FIELDS)
     assert records[0].external_source == "dsmz"
     assert not (tmp_path / "manifest.tsv").exists()
@@ -323,10 +330,18 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["external_genomes_registration_applied"] is False
+    assert payload["install_plan_recommended_next_command"] == (
+        "typetreeflow external-genomes install-plan "
+        "--input <external_genomes.tsv> --target-outdir <run>"
+    )
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
     assert validation_summary["status"] == "pass"
     assert external_summary["status"] == "pass"
+    assert external_summary["install_plan_recommended_next_command"] == (
+        "typetreeflow external-genomes install-plan "
+        "--input <external_genomes.tsv> --target-outdir <run>"
+    )
     assert (
         outdir / "provider_request_external_genomes" / "external_genomes.tsv"
     ).exists()

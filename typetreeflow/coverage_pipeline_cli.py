@@ -35,6 +35,7 @@ from typetreeflow.evidence.provider_request_draft import (
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
 )
 from typetreeflow.provider_request_validation import (
@@ -312,8 +313,8 @@ def _payload(
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
-        "provider_request_external_genomes_handoff_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
+        "provider_request_external_genomes_install_plan_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
@@ -424,6 +425,12 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
+        "provider_request_external_genomes_install_plan_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+        ),
+        "provider_request_external_genomes_handoff_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
+        ),
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -484,6 +491,7 @@ def _rendered_outputs(
             "provider_request_recommended_next_command",
             "provider_request_validation_recommended_next_command",
             "provider_request_external_genomes_recommended_next_command",
+            "provider_request_external_genomes_install_plan_recommended_next_command",
             "provider_request_external_genomes_handoff_recommended_next_command",
             "diagnostic_count",
             "diagnostics",

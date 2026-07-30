@@ -23,6 +23,7 @@ from typetreeflow.evidence.provider_request_draft import (
 )
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, read_provider_requests
 from typetreeflow.provider_request_external_genomes import (
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
@@ -614,6 +615,9 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         "recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
         ),
+        "install_plan_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+        ),
         "output_paths": {
             key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
         },
@@ -673,6 +677,11 @@ def _external_genomes_handoff_payload(
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
             if passed
             else PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
+        ),
+        "install_plan_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+            if passed
+            else ""
         ),
         "output_paths": {
             "provider_request_validation_summary": validation_payload[
@@ -761,6 +770,9 @@ def _external_genomes_failure(code: str) -> dict[str, object]:
         "external_genomes_registration_applied": False,
         "recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+        ),
+        "install_plan_recommended_next_command": (
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
         ),
         "output_paths": {
             key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
