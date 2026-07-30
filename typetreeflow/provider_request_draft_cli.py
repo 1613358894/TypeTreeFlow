@@ -199,6 +199,13 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "provider_key_counts": summary["provider_key_counts"],
         "provider_status_counts": summary["provider_status_counts"],
         "source_action_counts": summary["source_action_counts"],
+        "curator_completion_required_count": summary[
+            "curator_completion_required_count"
+        ],
+        "curator_completion_field_counts": summary["curator_completion_field_counts"],
+        "curator_completion_blocker_counts": summary[
+            "curator_completion_blocker_counts"
+        ],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "request_preview": preview,
@@ -232,6 +239,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_key_counts": {},
         "provider_status_counts": {},
         "source_action_counts": {},
+        "curator_completion_required_count": 0,
+        "curator_completion_field_counts": {},
+        "curator_completion_blocker_counts": {},
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("provider_request_draft_cli", code)],
         "request_preview": [],

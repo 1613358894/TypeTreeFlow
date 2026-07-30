@@ -8,13 +8,33 @@ import json
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
-from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
+from typetreeflow.provider_plan import (
+    PROVIDER_REQUEST_FIELDS,
+    REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS,
+)
 from typetreeflow.providers.policy import redact_secret_like_text
 
 
 PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION = "1"
 PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow --plan-provider-registration <provider_request.tsv> --outdir <run>"
+)
+CURATOR_COMPLETION_FIELD_KEYS = (
+    "strain",
+    "type_strain_id",
+    "provider_record_id_or_provider_artifact_id",
+    "local_fasta_path",
+    "local_sha256",
+    "terms_review_status_reviewed_allowed",
+    "license_notes",
+    "retrieval_date",
+    "curator",
+)
+CURATOR_COMPLETION_BLOCKER_KEYS = (
+    "missing_required_field",
+    "terms_review_required",
+    "local_fasta_path_missing",
+    "local_sha256_missing",
 )
 
 
@@ -65,6 +85,8 @@ class ProviderRequestDraft:
         provider_counts: dict[str, int] = {}
         status_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
+        field_counts = {field: 0 for field in CURATOR_COMPLETION_FIELD_KEYS}
+        blocker_counts = {field: 0 for field in CURATOR_COMPLETION_BLOCKER_KEYS}
         for row in self.rows:
             provider_counts[row.provider] = provider_counts.get(row.provider, 0) + 1
             status_counts[row.provider_status] = (
@@ -73,12 +95,21 @@ class ProviderRequestDraft:
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
             )
+            request_row = row.to_provider_request_row()
+            _add_curator_completion_counts(
+                request_row,
+                field_counts=field_counts,
+                blocker_counts=blocker_counts,
+            )
         return {
             "schema_version": self.schema_version,
             "record_count": len(self.rows),
             "provider_key_counts": dict(sorted(provider_counts.items())),
             "provider_status_counts": dict(sorted(status_counts.items())),
             "source_action_counts": dict(sorted(action_counts.items())),
+            "curator_completion_required_count": len(self.rows),
+            "curator_completion_field_counts": field_counts,
+            "curator_completion_blocker_counts": blocker_counts,
             "audit_only": True,
             "writes_workflow_outputs": False,
             "downloads_triggered": 0,
@@ -139,6 +170,44 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         if cleaned:
             parts.append(f"{key}={cleaned}")
     return _clean("; ".join(parts))
+
+
+def _add_curator_completion_counts(
+    request_row: Mapping[str, str],
+    *,
+    field_counts: dict[str, int],
+    blocker_counts: dict[str, int],
+) -> None:
+    missing_required = False
+    for field in REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS:
+        if not request_row.get(field, "").strip():
+            missing_required = True
+            if field in field_counts:
+                field_counts[field] += 1
+    if not (
+        request_row.get("provider_record_id", "").strip()
+        or request_row.get("provider_artifact_id", "").strip()
+    ):
+        missing_required = True
+        field_counts["provider_record_id_or_provider_artifact_id"] += 1
+    for field in (
+        "local_fasta_path",
+        "local_sha256",
+        "license_notes",
+        "retrieval_date",
+        "curator",
+    ):
+        if not request_row.get(field, "").strip():
+            field_counts[field] += 1
+    if request_row.get("terms_review_status") != "reviewed_allowed":
+        field_counts["terms_review_status_reviewed_allowed"] += 1
+        blocker_counts["terms_review_required"] += 1
+    if not request_row.get("local_fasta_path", "").strip():
+        blocker_counts["local_fasta_path_missing"] += 1
+    if not request_row.get("local_sha256", "").strip():
+        blocker_counts["local_sha256_missing"] += 1
+    if missing_required:
+        blocker_counts["missing_required_field"] += 1
 
 
 def _value(row: Mapping[str, object], field: str) -> str:

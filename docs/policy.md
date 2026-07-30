@@ -373,6 +373,11 @@ or derived coverage-pipeline subdirectory. They are packaged under
 review availability, not provider execution, download readiness, completion
 credit, manifest mutation, or strict deliverable promotion. Failed-handoff
 packages exclude these provider-request artifacts.
+Provider request draft summaries may count missing curator-owned fields and
+blocker categories for later registration planning. Those counts are AI
+routing diagnostics only. They must not be interpreted as provider readiness,
+terms approval, FASTA availability, checksum validation, completion credit, or
+strict scientific deliverable status.
 
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action

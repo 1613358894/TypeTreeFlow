@@ -138,7 +138,10 @@ blank for review. It is a bridge to `plan-provider-registration`, not provider
 contact, terms acceptance, download execution, manifest mutation, completion
 credit, or strict scientific delivery. Input rows with missing provider key,
 provider name, provider status, or species are blocked instead of producing
-empty provider request rows.
+empty provider request rows. The compact JSON and summary include
+`curator_completion_field_counts` and
+`curator_completion_blocker_counts` so AI/operator routing can see which
+curator-owned fields still block later provider-registration planning.
 
 Preview the full offline coverage planning chain in one no-write command:
 
