@@ -242,7 +242,8 @@ writes nothing. Its compact JSON includes `coverage_next_action_groups`, a
 priority-ordered summary of action counts, source lanes, provider keys, and
 recommended next commands for AI/operator routing. It also includes
 `coverage_opportunity_summary`, a compact derived view that adds provider
-automation-level counts to each action group. It also carries
+automation-level counts and controlled `operator_route`, `next_input_class`,
+and `automation_boundary` routing fields to each action group. It also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
 AI/operator handoff pressure is visible before reading the nested artifacts. It
