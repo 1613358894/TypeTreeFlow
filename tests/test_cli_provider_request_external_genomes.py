@@ -90,6 +90,18 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
     assert payload["external_genomes_registration_applied"] is False
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
+    assert payload["required_inputs"] == ["external_genomes.tsv"]
+    assert payload["recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "validate",
+        "input": "external_genomes.tsv",
+    }
+    assert payload["install_plan_recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": "external_genomes.tsv",
+        "target_outdir": "<run>",
+    }
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
     assert not (tmp_path / "external_genomes.tsv").exists()
@@ -138,10 +150,13 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
     assert summary["recommended_next_command"] == (
         "typetreeflow external-genomes validate --input <external_genomes.tsv>"
     )
+    assert summary["recommended_request"]["command"] == "external-genomes"
+    assert summary["recommended_request"]["subcommand"] == "validate"
     assert summary["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
     )
+    assert summary["install_plan_recommended_request"]["subcommand"] == "install-plan"
     assert header == "\t".join(EXTERNAL_GENOME_FIELDS)
     assert records[0].external_source == "dsmz"
     assert not (tmp_path / "manifest.tsv").exists()
@@ -176,6 +191,7 @@ def test_provider_request_external_genomes_draft_blocked_does_not_write(
     assert payload["status"] == "blocked"
     assert payload["writes_outputs"] is False
     assert payload["diagnostic_counts"]["provider_request_not_ready"] == 1
+    assert payload["recommended_request"]["subcommand"] == "validate"
     assert not outdir.exists()
     assert not (tmp_path / "external_genomes.tsv").exists()
 
@@ -330,6 +346,18 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["external_genomes_registration_applied"] is False
+    assert payload["required_inputs"] == ["external_genomes.tsv"]
+    assert payload["recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "validate",
+        "input": "external_genomes.tsv",
+    }
+    assert payload["install_plan_recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": "external_genomes.tsv",
+        "target_outdir": "<run>",
+    }
     assert payload["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
@@ -338,6 +366,9 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
     assert calculate_sha256(fasta) not in stdout
     assert validation_summary["status"] == "pass"
     assert external_summary["status"] == "pass"
+    assert external_summary["install_plan_recommended_request"]["command"] == (
+        "external-genomes"
+    )
     assert external_summary["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input <external_genomes.tsv> --target-outdir <run>"
@@ -385,6 +416,9 @@ def test_provider_request_external_genomes_handoff_blocked_writes_validation_onl
     assert payload["writes_outputs"] is True
     assert payload["validation_status"] == "blocked"
     assert payload["external_genomes_status"] == "blocked"
+    assert payload["required_inputs"] == ["provider_request.tsv"]
+    assert payload["recommended_request"]["subcommand"] == "external-genomes-handoff"
+    assert payload["install_plan_recommended_request"] is None
     assert validation_summary["blocked_count"] == 1
     assert not (outdir / "provider_request_external_genomes").exists()
     assert payload["output_paths"]["external_genomes"] is None

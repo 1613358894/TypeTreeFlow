@@ -10,7 +10,9 @@ from typetreeflow.external_genomes import (
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS, read_provider_requests
 from typetreeflow.provider_request_external_genomes import (
     PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST,
     PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_REQUEST,
     build_provider_request_external_genomes_draft,
 )
 
@@ -85,8 +87,15 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     assert draft.summary["recommended_next_command"] == (
         PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
     )
+    assert draft.summary["required_inputs"] == ["external_genomes.tsv"]
+    assert draft.summary["recommended_request"] == (
+        PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_REQUEST
+    )
     assert draft.summary["install_plan_recommended_next_command"] == (
         PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+    )
+    assert draft.summary["install_plan_recommended_request"] == (
+        PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST
     )
     record = draft.records[0]
     assert record.species == "Clostridium alpha"

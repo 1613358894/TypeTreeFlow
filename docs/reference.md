@@ -1657,8 +1657,11 @@ SHA-256 values, provider notes, curator values, or sequence contents. Without
 `--write`, it writes nothing. With `--write`, it writes only
 `external_genomes.tsv` and
 `provider_request_external_genomes_summary.json` into the explicitly supplied
-directory. Existing output directories are refused by default; `--force`
-replaces only an owned pair with matching schemas.
+directory. The JSON and summary include `recommended_request` for
+`external-genomes validate` plus `install_plan_recommended_request` for the
+offline `external-genomes install-plan` step. Existing output directories are
+refused by default; `--force` replaces only an owned pair with matching
+schemas.
 
 The command exits `0` only when every provider request row is ready and can be
 rendered into the external-genomes schema. Input, schema, or readiness blockers

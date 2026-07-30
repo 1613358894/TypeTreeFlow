@@ -181,10 +181,11 @@ typetreeflow provider-request external-genomes-draft \
 The command reuses the same provider-request validation guards and writes an
 `external_genomes.tsv` only when every row is ready. The draft records resolved
 local FASTA paths for later `external-genomes validate` use, but stdout
-previews omit local paths, hashes, notes, and sequence contents. This is still
-only a handoff input: it does not register external genomes, copy FASTA files,
-mutate manifests, contact providers, download data, or create strict scientific
-deliverables.
+previews omit local paths, hashes, notes, and sequence contents. Stdout and the
+summary JSON include the next `external-genomes validate` and
+`external-genomes install-plan` requests. This is still only a handoff input:
+it does not register external genomes, copy FASTA files, mutate manifests,
+contact providers, download data, or create strict scientific deliverables.
 
 For AI/operator handoff, the validation and external-genomes draft steps can
 also be bundled into one isolated local command:
