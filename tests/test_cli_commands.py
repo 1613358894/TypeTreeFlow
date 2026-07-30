@@ -243,9 +243,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "--expanded-discovery-results-tsv",
             "--manual-supplement-hints-tsv",
         } <= parameter_names[key]
-    assert {
-        "--delivery-dir",
-        "--failed-handoff",
+    audit_dir_flags = {
         "--manual-review-import-dir",
         "--acquisition-worklist-dir",
         "--coverage-plan-dir",
@@ -254,6 +252,11 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--coverage-pipeline-dir",
         "--offline-readiness-dir",
         "--strict-gating-dir",
+    }
+    assert audit_dir_flags <= parameter_names[("verify-genus", None)]
+    assert audit_dir_flags | {
+        "--delivery-dir",
+        "--failed-handoff",
     } <= parameter_names[("package-results", None)]
     assert {
         (entry["command"], entry["subcommand"])
@@ -331,6 +334,60 @@ def test_commands_render_emits_normalized_workflow_argv(capsys):
     ]
     assert payload["recognized"]["command"] == "verify-genus"
     assert payload["recognized"]["mode"] == "report_only"
+
+
+def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-genus","genus":"Clostridium",'
+                    '"outdir":"run","resume":true,"report_only":true,'
+                    '"manual_review_import_dir":"manual_review_import",'
+                    '"acquisition_worklist_dir":"worklist",'
+                    '"coverage_plan_dir":"coverage_plan",'
+                    '"provider_handoff_dir":"provider_handoff",'
+                    '"provider_request_dir":"provider_request",'
+                    '"coverage_pipeline_dir":"coverage_pipeline",'
+                    '"offline_readiness_dir":"readiness",'
+                    '"strict_gating_dir":"strict_gating"}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "verify-genus",
+        "Clostridium",
+        "--outdir",
+        "run",
+        "--resume",
+        "--report-only",
+        "--manual-review-import-dir",
+        "manual_review_import",
+        "--acquisition-worklist-dir",
+        "worklist",
+        "--coverage-plan-dir",
+        "coverage_plan",
+        "--provider-handoff-dir",
+        "provider_handoff",
+        "--provider-request-dir",
+        "provider_request",
+        "--coverage-pipeline-dir",
+        "coverage_pipeline",
+        "--offline-readiness-dir",
+        "readiness",
+        "--strict-gating-dir",
+        "strict_gating",
+    ]
+    assert payload["recognized"]["command"] == "verify-genus"
+    assert payload["recognized"]["mode"] == "report_only"
+    assert payload["recognized"]["requires_outdir"] is True
 
 
 def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
@@ -914,6 +971,28 @@ def test_commands_render_rejects_unknown_fields(capsys):
     assert payload["status"] == "failed"
     assert payload["blocking"][0]["id"] == "invalid_request"
     assert "Unsupported request fields" in payload["blocking"][0]["message"]
+
+
+def test_commands_render_rejects_report_audit_dirs_for_release_verification(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"verify-release-genus","genus":"Clostridium",'
+                    '"outdir":"run","report_only":true,'
+                    '"coverage_pipeline_dir":"coverage_pipeline"}'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "coverage_pipeline_dir" in payload["blocking"][0]["message"]
 
 
 def test_commands_render_rejects_missing_required_field(capsys):
