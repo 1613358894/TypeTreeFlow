@@ -34,6 +34,17 @@ PROVIDER_HANDOFF_FIELDS: tuple[str, ...] = (
     "providers_contacted",
     "strict_scientific_deliverable",
 )
+PROVIDER_HANDOFF_REQUIRED_INPUTS: tuple[str, ...] = ("provider_handoff.tsv",)
+PROVIDER_HANDOFF_RECOMMENDED_REQUEST: dict[str, object] = {
+    "command": "provider-request",
+    "subcommand": "draft",
+    "provider_handoff_tsv": "provider_handoff.tsv",
+}
+PROVIDER_HANDOFF_RECOMMENDED_NEXT_COMMAND = (
+    "typetreeflow provider-request draft --provider-handoff-tsv "
+    "<provider_handoff.tsv> [--json] [--write --outdir "
+    "<isolated-provider-request-directory> [--force]]"
+)
 
 
 @dataclass(frozen=True)
@@ -118,6 +129,9 @@ class ProviderHandoff:
             "credentials_required_count": credentials_required_count,
             "network_supported_count": network_supported_count,
             "default_network_enabled_count": default_network_enabled_count,
+            "required_inputs": list(PROVIDER_HANDOFF_REQUIRED_INPUTS),
+            "recommended_request": dict(PROVIDER_HANDOFF_RECOMMENDED_REQUEST),
+            "recommended_next_command": PROVIDER_HANDOFF_RECOMMENDED_NEXT_COMMAND,
             "audit_only": True,
             "downloads_triggered": 0,
             "providers_contacted": 0,

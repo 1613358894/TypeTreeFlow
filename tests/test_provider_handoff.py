@@ -64,6 +64,15 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
     assert summary["credentials_required_count"] == 0
     assert summary["network_supported_count"] == 0
     assert summary["default_network_enabled_count"] == 0
+    assert summary["required_inputs"] == ["provider_handoff.tsv"]
+    assert summary["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff.tsv",
+    }
+    assert summary["recommended_next_command"].startswith(
+        "typetreeflow provider-request draft --provider-handoff-tsv"
+    )
     assert summary["providers_contacted"] == 0
 
 

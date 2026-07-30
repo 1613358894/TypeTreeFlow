@@ -18,6 +18,9 @@ from typetreeflow.evidence.coverage_plan import (
 )
 from typetreeflow.evidence.provider_handoff import (
     PROVIDER_HANDOFF_FIELDS,
+    PROVIDER_HANDOFF_RECOMMENDED_NEXT_COMMAND,
+    PROVIDER_HANDOFF_RECOMMENDED_REQUEST,
+    PROVIDER_HANDOFF_REQUIRED_INPUTS,
     PROVIDER_HANDOFF_SCHEMA_VERSION,
     build_provider_handoff,
 )
@@ -191,6 +194,9 @@ def _payload(handoff, *, diagnostics: list[dict[str, object]], dry_run: bool) ->
         "credentials_required_count": summary["credentials_required_count"],
         "network_supported_count": summary["network_supported_count"],
         "default_network_enabled_count": summary["default_network_enabled_count"],
+        "required_inputs": summary["required_inputs"],
+        "recommended_request": summary["recommended_request"],
+        "recommended_next_command": summary["recommended_next_command"],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "handoff_preview": preview,
@@ -227,6 +233,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "credentials_required_count": 0,
         "network_supported_count": 0,
         "default_network_enabled_count": 0,
+        "required_inputs": list(PROVIDER_HANDOFF_REQUIRED_INPUTS),
+        "recommended_request": dict(PROVIDER_HANDOFF_RECOMMENDED_REQUEST),
+        "recommended_next_command": PROVIDER_HANDOFF_RECOMMENDED_NEXT_COMMAND,
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("provider_handoff_cli", code)],
         "handoff_preview": [],
