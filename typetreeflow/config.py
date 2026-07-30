@@ -102,6 +102,7 @@ class AppConfig:
     provider_handoff_dir: Path | None = None
     provider_request_dir: Path | None = None
     provider_request_validation_dir: Path | None = None
+    provider_request_external_genomes_dir: Path | None = None
     coverage_pipeline_dir: Path | None = None
     offline_readiness_dir: Path | None = None
     strict_gating_dir: Path | None = None

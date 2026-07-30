@@ -83,6 +83,11 @@ from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
     PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
 )
+from typetreeflow.provider_request_external_genomes import (
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES,
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
+)
+from typetreeflow.external_genomes import EXTERNAL_GENOME_FIELDS
 from typetreeflow.selection.evidence import (
     LIKELY_TYPE_MATERIAL_COUNT,
     REPRESENTATIVE_ONLY_COUNT,
@@ -203,6 +208,15 @@ PROVIDER_REQUEST_VALIDATION_COUNT_FIELDS = (
     "local_sha256_matched_count",
 )
 PROVIDER_REQUEST_VALIDATION_MAX_BYTES = 5 * 1024 * 1024
+PROVIDER_REQUEST_EXTERNAL_GENOMES_MEMBERS = tuple(
+    PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES.values()
+)
+PROVIDER_REQUEST_EXTERNAL_GENOMES_COUNT_FIELDS = (
+    "record_count",
+    "exported_count",
+    "diagnostic_count",
+)
+PROVIDER_REQUEST_EXTERNAL_GENOMES_MAX_BYTES = 5 * 1024 * 1024
 OFFLINE_READINESS_MEMBERS = (
     "offline_readiness_summary.json",
     "offline_readiness_diagnostics.tsv",
@@ -334,6 +348,15 @@ class ProviderRequestValidationAuditSummary:
     status_counts: list[tuple[str, int]]
     blocker_counts: list[tuple[str, int]]
     top_diagnostics: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class ProviderRequestExternalGenomesAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    provider_counts: list[tuple[str, int]]
+    diagnostic_counts: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -1302,6 +1325,130 @@ def read_optional_provider_request_validation_audit(
     )
 
 
+def read_optional_provider_request_external_genomes_audit(
+    directory: str | Path | None,
+) -> ProviderRequestExternalGenomesAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name
+        for name in PROVIDER_REQUEST_EXTERNAL_GENOMES_MEMBERS
+        if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    provider_counts: list[tuple[str, int]] = []
+    diagnostic_counts: list[tuple[str, int]] = []
+    summary_data: dict[str, object] | None = None
+    observed_rows: int | None = None
+
+    missing = [
+        name
+        for name in PROVIDER_REQUEST_EXTERNAL_GENOMES_MEMBERS
+        if name not in present
+    ]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_name = PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["summary"]
+    summary_path = input_dir / summary_name
+    if summary_path.exists():
+        try:
+            _validate_provider_request_external_genomes_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if (
+                loaded.get("schema_version")
+                != PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION
+            ):
+                raise ValueError("unsupported schema_version")
+            for field in PROVIDER_REQUEST_EXTERNAL_GENOMES_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            parsed_provider_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "provider_counts")
+            )
+            parsed_diagnostic_counts = _parse_nonnegative_int_map(
+                _required_dict(loaded, "diagnostic_counts")
+            )
+            if loaded.get("audit_only") is not True:
+                raise ValueError("audit_only boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            if loaded.get("writes_workflow_outputs") is not False:
+                raise ValueError("writes_workflow_outputs boundary violation")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("network_access") is not False:
+                raise ValueError("network_access boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            if loaded.get("external_genomes_registration_applied") is not False:
+                raise ValueError("external_genomes_registration_applied violation")
+            summary_data = loaded
+            counts = {
+                **{
+                    field: loaded[field]
+                    for field in PROVIDER_REQUEST_EXTERNAL_GENOMES_COUNT_FIELDS
+                },
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "manifest_mutated": False,
+                "writes_workflow_outputs": False,
+                "external_genomes_registration_applied": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+            provider_counts = _sorted_nonzero_counts(parsed_provider_counts)
+            diagnostic_counts = _sorted_nonzero_counts(parsed_diagnostic_counts)
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append(f"{summary_name} malformed")
+
+    external_genomes_name = PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[
+        "external_genomes"
+    ]
+    external_genomes_path = input_dir / external_genomes_name
+    if external_genomes_path.exists():
+        try:
+            rows = _read_provider_request_external_genomes_tsv(external_genomes_path)
+            if any(
+                row.get("is_type_material") != "true"
+                or row.get("requires_manual_review") != "false"
+                or row.get("status") != "external_genome_registered"
+                for row in rows
+            ):
+                raise ValueError("external genomes draft boundary violation")
+            observed_rows = len(rows)
+            valid_files.append(external_genomes_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{external_genomes_name} malformed")
+
+    if summary_data is not None and observed_rows is not None:
+        if summary_data["record_count"] != observed_rows:
+            warnings.append("record_count does not match external genomes rows")
+
+    return ProviderRequestExternalGenomesAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        provider_counts=provider_counts,
+        diagnostic_counts=diagnostic_counts[:5],
+    )
+
+
 def _required_dict(value: dict[str, object], field: str) -> dict[object, object]:
     loaded = value.get(field)
     if not isinstance(loaded, dict):
@@ -1349,11 +1496,32 @@ def _validate_provider_request_validation_member(path: Path) -> None:
         raise ValueError("member exceeds size limit")
 
 
+def _validate_provider_request_external_genomes_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > PROVIDER_REQUEST_EXTERNAL_GENOMES_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
 def _read_provider_request_validation_tsv(path: Path) -> list[dict[str, str]]:
     _validate_provider_request_validation_member(path)
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         if tuple(reader.fieldnames or ()) != PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def _read_provider_request_external_genomes_tsv(
+    path: Path,
+) -> list[dict[str, str]]:
+    _validate_provider_request_external_genomes_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != tuple(EXTERNAL_GENOME_FIELDS):
             raise ValueError("unexpected TSV header")
         rows = list(reader)
     if any(None in row for row in rows):
@@ -2547,6 +2715,15 @@ def build_run_summary_markdown(
             "provider_request_validation",
         )
     )
+    provider_request_external_genomes_audit = (
+        read_optional_provider_request_external_genomes_audit(
+            _coverage_pipeline_component_dir(
+                args,
+                "provider_request_external_genomes_dir",
+                "provider_request_external_genomes",
+            )
+        )
+    )
     offline_readiness_audit = read_optional_offline_readiness_audit(
         getattr(args, "offline_readiness_dir", None)
     )
@@ -3203,6 +3380,72 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(code)} | {count} |"
                         for code, count in provider_request_validation_audit.top_diagnostics
+                    ],
+                ]
+            )
+
+    if provider_request_external_genomes_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Provider Request External Genomes Draft Audit",
+                "",
+                (
+                    "The provider request external-genomes draft audit is a "
+                    "local, audit-only handoff from validator-ready provider "
+                    "request rows into external_genomes.tsv review input. "
+                    "Report inclusion does not contact providers, trigger "
+                    "downloads, copy FASTA files, mutate the manifest, or "
+                    "register external genomes."
+                ),
+                (
+                    "`strict_scientific_deliverable=false` means exported rows "
+                    "are not strict deliverable rows; they remain review input "
+                    "until a separate external-genomes registration step is run."
+                ),
+            ]
+        )
+        if provider_request_external_genomes_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in provider_request_external_genomes_audit.counts.items()
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if provider_request_external_genomes_audit.warnings:
+            lines.append(
+                "- Warning: "
+                + "; ".join(provider_request_external_genomes_audit.warnings)
+            )
+        if provider_request_external_genomes_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(provider_request_external_genomes_audit.present_files)
+            )
+        if provider_request_external_genomes_audit.provider_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Provider | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(provider)} | {count} |"
+                        for provider, count in provider_request_external_genomes_audit.provider_counts[:5]
+                    ],
+                ]
+            )
+        if provider_request_external_genomes_audit.diagnostic_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in provider_request_external_genomes_audit.diagnostic_counts
                     ],
                 ]
             )

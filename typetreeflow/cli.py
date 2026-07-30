@@ -370,6 +370,9 @@ def _run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             provider_handoff_dir=config.provider_handoff_dir,
             provider_request_dir=config.provider_request_dir,
             provider_request_validation_dir=config.provider_request_validation_dir,
+            provider_request_external_genomes_dir=(
+                config.provider_request_external_genomes_dir
+            ),
             coverage_pipeline_dir=config.coverage_pipeline_dir,
             offline_readiness_dir=config.offline_readiness_dir,
             strict_gating_dir=config.strict_gating_dir,
@@ -459,6 +462,17 @@ def _format_package_results_envelope(
                 "message": (
                     f"{len(result.provider_request_validation_warnings)} provider "
                     "request validation warning(s); see package README and handoff index"
+                ),
+            }
+        )
+    if result.provider_request_external_genomes_warnings:
+        warnings.append(
+            {
+                "id": "provider_request_external_genomes_warning",
+                "message": (
+                    f"{len(result.provider_request_external_genomes_warnings)} "
+                    "provider request external-genomes warning(s); see package "
+                    "README and handoff index"
                 ),
             }
         )

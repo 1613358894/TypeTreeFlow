@@ -37,6 +37,10 @@ _AUDIT_DIR_RENDER_FIELDS = (
     ("provider_handoff_dir", "--provider-handoff-dir"),
     ("provider_request_dir", "--provider-request-dir"),
     ("provider_request_validation_dir", "--provider-request-validation-dir"),
+    (
+        "provider_request_external_genomes_dir",
+        "--provider-request-external-genomes-dir",
+    ),
     ("coverage_pipeline_dir", "--coverage-pipeline-dir"),
     ("offline_readiness_dir", "--offline-readiness-dir"),
     ("strict_gating_dir", "--strict-gating-dir"),
@@ -679,6 +683,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "explicit provider-request validation audit output directory for report-only",
         },
         {
+            "name": "--provider-request-external-genomes-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-request external-genomes draft audit output directory for report-only",
+        },
+        {
             "name": "--coverage-pipeline-dir",
             "kind": "path",
             "required": False,
@@ -786,6 +797,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicit provider-request validation audit output directory",
+        },
+        {
+            "name": "--provider-request-external-genomes-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit provider-request external-genomes draft audit output directory",
         },
         {
             "name": "--coverage-pipeline-dir",
@@ -2051,6 +2069,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "coverage_plan_dir",
                 "provider_handoff_dir",
                 "provider_request_dir",
+                "provider_request_external_genomes_dir",
                 "coverage_pipeline_dir",
                 "offline_readiness_dir",
                 "strict_gating_dir",

@@ -383,6 +383,8 @@ def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
                     '"coverage_plan_dir":"coverage_plan",'
                     '"provider_handoff_dir":"provider_handoff",'
                     '"provider_request_dir":"provider_request",'
+                    '"provider_request_external_genomes_dir":'
+                    '"provider_request_external_genomes",'
                     '"coverage_pipeline_dir":"coverage_pipeline",'
                     '"offline_readiness_dir":"readiness",'
                     '"strict_gating_dir":"strict_gating"}'
@@ -410,6 +412,8 @@ def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
         "provider_handoff",
         "--provider-request-dir",
         "provider_request",
+        "--provider-request-external-genomes-dir",
+        "provider_request_external_genomes",
         "--coverage-pipeline-dir",
         "coverage_pipeline",
         "--offline-readiness-dir",
@@ -601,6 +605,8 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
                     '"coverage_plan_dir":"coverage_plan",'
                     '"provider_handoff_dir":"provider_handoff",'
                     '"provider_request_dir":"provider_request",'
+                    '"provider_request_external_genomes_dir":'
+                    '"provider_request_external_genomes",'
                     '"coverage_pipeline_dir":"coverage_pipeline",'
                     '"offline_readiness_dir":"readiness",'
                     '"strict_gating_dir":"strict_gating"}'
@@ -629,6 +635,8 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
         "provider_handoff",
         "--provider-request-dir",
         "provider_request",
+        "--provider-request-external-genomes-dir",
+        "provider_request_external_genomes",
         "--coverage-pipeline-dir",
         "coverage_pipeline",
         "--offline-readiness-dir",

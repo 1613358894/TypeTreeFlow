@@ -407,6 +407,14 @@ sequence contents. This command must not register external genomes, copy FASTA
 files, contact providers, accept terms, download data, mutate manifests,
 change completion metrics, or reinterpret provider-request rows as strict
 scientific deliverables.
+The optional report/package `--provider-request-external-genomes-dir` surface
+may read and copy only that external-genomes draft pair, package it under
+`provider_request_external_genomes/`, and mark copied members with audit-only
+artifact-scope rows. Inclusion means external-genome handoff review
+availability only; it is not provider contact, download execution, FASTA
+copying, external-genome registration, manifest mutation, completion credit,
+or strict scientific delivery. Failed-handoff packages exclude
+provider-request external-genomes artifacts.
 
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
@@ -424,7 +432,8 @@ public accessions, or make any candidate download-ready.
 The optional `--coverage-pipeline-dir` report/package surface is only a
 convenience handoff for that isolated directory. It may derive the four
 known planning component subdirectories and an optional
-`provider_request_validation/` subdirectory under the explicitly supplied path,
+`provider_request_validation/` subdirectory plus an optional
+`provider_request_external_genomes/` subdirectory under the explicitly supplied path,
 but it must not scan workflow outputs, rerun planning, contact providers,
 trigger downloads, register external genomes, or change any scientific status.
 
