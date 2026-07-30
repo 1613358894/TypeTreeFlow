@@ -59,6 +59,9 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["status"] == "pass"
     assert payload["record_count"] == 1
     assert payload["provider_key_counts"] == {"dsmz": 1}
+    assert payload["curator_completion_template_counts"] == {
+        "provider_local_fasta_handoff": 1
+    }
     assert payload["curator_completion_required_count"] == 1
     assert payload["curator_completion_field_counts"] == {
         "strain": 1,
@@ -79,6 +82,14 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     }
     assert payload["request_preview"][0]["request_id"] == "PH-0001"
     assert payload["request_preview"][0]["terms_review_status"] == "not_reviewed"
+    assert (
+        "curator_completion_template=provider_local_fasta_handoff"
+        in payload["request_preview"][0]["notes"]
+    )
+    assert (
+        "required_curator_fields=strain,type_strain_id"
+        in payload["request_preview"][0]["notes"]
+    )
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False
     assert payload["providers_contacted"] == 0
@@ -113,6 +124,9 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     summary = json.loads((outdir / "provider_request_draft_summary.json").read_text())
     assert summary["record_count"] == 1
     assert summary["providers_contacted"] == 0
+    assert summary["curator_completion_template_counts"] == {
+        "provider_local_fasta_handoff": 1
+    }
     assert summary["curator_completion_required_count"] == 1
     assert summary["curator_completion_blocker_counts"]["missing_required_field"] == 1
 

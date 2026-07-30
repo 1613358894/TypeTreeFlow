@@ -139,9 +139,12 @@ contact, terms acceptance, download execution, manifest mutation, completion
 credit, or strict scientific delivery. Input rows with missing provider key,
 provider name, provider status, or species are blocked instead of producing
 empty provider request rows. The compact JSON and summary include
-`curator_completion_field_counts` and
+`curator_completion_template_counts`, `curator_completion_field_counts`, and
 `curator_completion_blocker_counts` so AI/operator routing can see which
-curator-owned fields still block later provider-registration planning.
+curator-owned fields still block later provider-registration planning. Each
+draft row note also carries a `curator_completion_template` such as
+`provider_local_fasta_handoff` or `public_archive_linkage_review`; the template
+is only a fill-in recipe and does not make the row provider-ready.
 
 After curator completion, validate the provider request against local handoff
 readiness without writing workflow outputs:

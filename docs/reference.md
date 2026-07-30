@@ -1584,12 +1584,15 @@ SHA-256, license, retrieval date, and curator fields blank. These rows do not
 contact providers, accept terms, download genomes, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
 The compact JSON and `provider_request_draft_summary.json` include
-`curator_completion_required_count`, `curator_completion_field_counts`, and
-`curator_completion_blocker_counts`. These counts are planning diagnostics for
-missing curator-owned fields such as strain, type-strain ID,
-provider-record/artifact ID, local FASTA path, SHA-256, terms review, license,
-retrieval date, and curator name. They are not completion metrics and do not
-make a draft row eligible for provider execution.
+`curator_completion_required_count`, `curator_completion_template_counts`,
+`curator_completion_field_counts`, and `curator_completion_blocker_counts`.
+The row notes include `curator_completion_template` and
+`required_curator_fields` so an AI/operator can distinguish provider/local
+FASTA handoff from public-archive linkage review. These counts and templates
+are planning diagnostics for missing curator-owned fields such as strain,
+type-strain ID, provider-record/artifact ID, local FASTA path, SHA-256, terms
+review, license, retrieval date, and curator name. They are not completion
+metrics and do not make a draft row eligible for provider execution.
 
 The isolated provider request validation adapter is:
 
