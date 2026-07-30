@@ -1668,6 +1668,10 @@ request includes `write=true` and
 `outdir=<isolated-install-plan-directory>` so AI/operator controllers can
 materialize the next audit directory explicitly; this is still only an
 isolated-output write, not workflow-output mutation or download execution.
+When `--write` succeeds, the recommended validation and install-plan requests
+point to the just-written `<dir>/external_genomes.tsv` artifact instead of the
+generic placeholder so the next local dry-run step can be rendered without
+manual path reconstruction.
 Existing output directories are refused by default; `--force` replaces only an
 owned pair with matching schemas.
 
@@ -1694,6 +1698,10 @@ rendered as an external-genomes handoff draft. Blocked runs therefore preserve
 validation diagnostics without creating a draft external-genomes directory.
 The command emits one compact JSON object and does not echo local FASTA paths,
 SHA-256 values, provider notes, curator values, or sequence contents.
+When `--write` succeeds and the draft directory is created, the returned
+recommended validation and install-plan requests point to
+`<dir>/provider_request_external_genomes/external_genomes.tsv`, the concrete
+child artifact in the isolated handoff bundle.
 
 The command exits `0` only when validation and external-genomes draft
 projection both pass. Validation, schema, readiness, or path-safety blockers

@@ -225,12 +225,16 @@ def _run_external_genomes_draft(args: argparse.Namespace, output: TextIO) -> int
         return 1
     payload = _external_genomes_payload(draft)
     if args.write:
+        external_genomes_path = (
+            outdir / PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["external_genomes"]
+        )
         if not draft.valid:
             _emit(payload, output)
             return 2
         written_payload = {
             **payload,
             "writes_outputs": True,
+            **_external_genomes_recommendation_fields(external_genomes_path),
             "output_paths": {
                 key: str(outdir / name)
                 for key, name in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES.items()
@@ -305,6 +309,11 @@ def _run_external_genomes_handoff(args: argparse.Namespace, output: TextIO) -> i
         dry_run=not args.write,
     )
     if args.write:
+        external_genomes_path = (
+            outdir
+            / "provider_request_external_genomes"
+            / PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["external_genomes"]
+        )
         validation_written_payload = {
             **validation_payload,
             "writes_outputs": True,
@@ -318,6 +327,11 @@ def _run_external_genomes_handoff(args: argparse.Namespace, output: TextIO) -> i
         external_written_payload = {
             **external_payload,
             "writes_outputs": draft.valid,
+            **(
+                _external_genomes_recommendation_fields(external_genomes_path)
+                if draft.valid
+                else {}
+            ),
             "output_paths": {
                 key: (
                     str(outdir / "provider_request_external_genomes" / name)
@@ -579,17 +593,7 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "external_genomes_registration_applied": False,
-        "required_inputs": summary["required_inputs"],
-        "recommended_request": summary["recommended_request"],
-        "recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
-        ),
-        "install_plan_recommended_request": summary[
-            "install_plan_recommended_request"
-        ],
-        "install_plan_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
-        ),
+        **_external_genomes_recommendation_fields("external_genomes.tsv"),
         "output_paths": {
             key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
         },
@@ -656,7 +660,7 @@ def _external_genomes_handoff_payload(
             else validation_payload.get("recommended_request")
         ),
         "recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+            external_payload.get("recommended_next_command", "")
             if passed
             else PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
         ),
@@ -666,7 +670,7 @@ def _external_genomes_handoff_payload(
             else None
         ),
         "install_plan_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
+            external_payload.get("install_plan_recommended_next_command", "")
             if passed
             else ""
         ),
@@ -690,6 +694,37 @@ def _external_genomes_handoff_payload(
             else "Provider request external-genomes handoff blocked"
         ),
     }
+
+
+def _external_genomes_recommendation_fields(input_path: str | Path) -> dict[str, object]:
+    input_value = _command_path(input_path)
+    install_plan_request = dict(
+        PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_REQUEST
+    )
+    install_plan_request["input"] = input_value
+    return {
+        "required_inputs": [input_value],
+        "recommended_request": {
+            "command": "external-genomes",
+            "subcommand": "validate",
+            "input": input_value,
+        },
+        "recommended_next_command": (
+            f"typetreeflow external-genomes validate --input {input_value}"
+        ),
+        "install_plan_recommended_request": install_plan_request,
+        "install_plan_recommended_next_command": (
+            "typetreeflow external-genomes install-plan "
+            f"--input {input_value} --target-outdir <run> "
+            "--write --outdir <isolated-install-plan-directory>"
+        ),
+    }
+
+
+def _command_path(value: str | Path) -> str:
+    if isinstance(value, Path):
+        return value.as_posix()
+    return value
 
 
 def _failure(code: str, message: str) -> dict[str, object]:
