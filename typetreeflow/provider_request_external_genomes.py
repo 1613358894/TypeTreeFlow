@@ -26,6 +26,10 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES = {
 PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow external-genomes validate --input <external_genomes.tsv>"
 )
+PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND = (
+    "typetreeflow external-genomes install-plan "
+    "--input <external_genomes.tsv> --target-outdir <run>"
+)
 PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND = (
     "typetreeflow provider-request external-genomes-handoff "
     "--input <provider_request.tsv> --write "
@@ -74,6 +78,9 @@ class ProviderRequestExternalGenomesDraft:
             "external_genomes_registration_applied": False,
             "recommended_next_command": (
                 PROVIDER_REQUEST_EXTERNAL_GENOMES_RECOMMENDED_NEXT_COMMAND
+            ),
+            "install_plan_recommended_next_command": (
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_RECOMMENDED_NEXT_COMMAND
             ),
         }
 
