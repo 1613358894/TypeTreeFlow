@@ -181,6 +181,25 @@ only a handoff input: it does not register external genomes, copy FASTA files,
 mutate manifests, contact providers, download data, or create strict scientific
 deliverables.
 
+For AI/operator handoff, the validation and external-genomes draft steps can
+also be bundled into one isolated local command:
+
+```bash
+typetreeflow provider-request external-genomes-handoff \
+  --input <provider_request.tsv> [--base-dir <local-fasta-base-dir>] [--json] \
+  [--write --outdir <isolated-handoff-directory> [--force]]
+```
+
+With `--write`, the command always writes
+`provider_request_validation/`. It also writes
+`provider_request_external_genomes/` only when every row passes the local
+readiness guards. The bundle directory can be supplied later with
+`--coverage-pipeline-dir`, or its two child directories can be supplied
+explicitly. This remains an isolated handoff convenience only: no workflow
+outputs, provider contact, downloads, FASTA copying, external-genome
+registration, manifest mutation, completion credit, or strict deliverable
+promotion.
+
 Preview the full offline coverage planning chain in one no-write command:
 
 ```bash

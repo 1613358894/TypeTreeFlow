@@ -1601,6 +1601,30 @@ exit `2`; unexpected internal or write failures exit `1`. The output
 files, contact providers, trigger downloads, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
 
+The isolated provider request external-genomes handoff bundle is:
+
+```text
+typetreeflow provider-request external-genomes-handoff --input <provider_request.tsv> [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
+```
+
+It reads the same explicit provider request TSV and local FASTA files, then
+runs the local readiness validation and external-genomes draft projection in
+one command. Without `--write`, it writes nothing. With `--write`, it writes
+`provider_request_validation/` under the supplied directory. It writes
+`provider_request_external_genomes/` only when every row is ready and can be
+rendered as an external-genomes handoff draft. Blocked runs therefore preserve
+validation diagnostics without creating a draft external-genomes directory.
+The command emits one compact JSON object and does not echo local FASTA paths,
+SHA-256 values, provider notes, curator values, or sequence contents.
+
+The command exits `0` only when validation and external-genomes draft
+projection both pass. Validation, schema, readiness, or path-safety blockers
+exit `2`; unexpected internal or write failures exit `1`. The bundle is an
+AI/operator convenience for isolated handoff directories only. It does not
+register external genomes, copy FASTA files, contact providers, trigger
+downloads, mutate manifests, change completion metrics, create workflow
+outputs, or promote strict scientific deliverables.
+
 For AI metadata routing, `commands render` accepts
 `{"command":"plan-provider-registration","provider_request":"provider_request.tsv","outdir":"run"}`
 and renders the current compatible argv form:

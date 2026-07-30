@@ -271,3 +271,180 @@ def test_provider_request_external_genomes_draft_rejects_workflow_like_outdir(
     assert result == 2
     assert payload["status"] == "failed"
     assert not (tmp_path / "evidence" / "external_draft").exists()
+
+
+def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
+    tmp_path,
+    capsys,
+):
+    fasta = _write(tmp_path / "local.fna", ">seq\nACGT\n")
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_sha256=calculate_sha256(fasta),
+    )
+    outdir = tmp_path / "external_handoff"
+
+    result = cli.main(
+        [
+            "provider-request",
+            "external-genomes-handoff",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    validation_summary = json.loads(
+        (
+            outdir
+            / "provider_request_validation"
+            / "provider_request_validation_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    external_summary = json.loads(
+        (
+            outdir
+            / "provider_request_external_genomes"
+            / "provider_request_external_genomes_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert result == 0
+    assert stdout.count("\n") == 1
+    assert payload["command"] == "provider-request external-genomes-handoff"
+    assert payload["status"] == "pass"
+    assert payload["ready_count"] == 1
+    assert payload["exported_count"] == 1
+    assert payload["writes_outputs"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["external_genomes_registration_applied"] is False
+    assert str(fasta) not in stdout
+    assert calculate_sha256(fasta) not in stdout
+    assert validation_summary["status"] == "pass"
+    assert external_summary["status"] == "pass"
+    assert (
+        outdir / "provider_request_external_genomes" / "external_genomes.tsv"
+    ).exists()
+    assert not (tmp_path / "manifest.tsv").exists()
+
+
+def test_provider_request_external_genomes_handoff_blocked_writes_validation_only(
+    tmp_path,
+    capsys,
+):
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_fasta_path="missing.fna",
+        local_sha256="0" * 64,
+        requires_manual_review="true",
+    )
+    outdir = tmp_path / "external_handoff"
+
+    result = cli.main(
+        [
+            "provider-request",
+            "external-genomes-handoff",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    validation_summary = json.loads(
+        (
+            outdir
+            / "provider_request_validation"
+            / "provider_request_validation_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert result == 2
+    assert payload["status"] == "blocked"
+    assert payload["writes_outputs"] is True
+    assert payload["validation_status"] == "blocked"
+    assert payload["external_genomes_status"] == "blocked"
+    assert validation_summary["blocked_count"] == 1
+    assert not (outdir / "provider_request_external_genomes").exists()
+    assert payload["output_paths"]["external_genomes"] is None
+
+
+def test_provider_request_external_genomes_handoff_force_replaces_owned_bundle(
+    tmp_path,
+    capsys,
+):
+    fasta = _write(tmp_path / "local.fna", ">seq\nACGT\n")
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_sha256=calculate_sha256(fasta),
+    )
+    outdir = tmp_path / "external_handoff"
+    assert (
+        cli.main(
+            [
+                "provider-request",
+                "external-genomes-handoff",
+                "--input",
+                str(request),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    result = cli.main(
+        [
+            "provider-request",
+            "external-genomes-handoff",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--force",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 0
+    assert payload["writes_outputs"] is True
+    assert (
+        outdir / "provider_request_validation" / "provider_request_validation_summary.json"
+    ).exists()
+
+
+def test_provider_request_external_genomes_handoff_rejects_workflow_like_outdir(
+    tmp_path,
+    capsys,
+):
+    fasta = _write(tmp_path / "local.fna", ">seq\nACGT\n")
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        local_sha256=calculate_sha256(fasta),
+    )
+
+    result = cli.main(
+        [
+            "provider-request",
+            "external-genomes-handoff",
+            "--input",
+            str(request),
+            "--write",
+            "--outdir",
+            str(tmp_path / "evidence" / "external_handoff"),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 2
+    assert payload["status"] == "failed"
+    assert not (tmp_path / "evidence" / "external_handoff").exists()

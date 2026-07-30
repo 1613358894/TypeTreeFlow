@@ -415,6 +415,15 @@ availability only; it is not provider contact, download execution, FASTA
 copying, external-genome registration, manifest mutation, completion credit,
 or strict scientific delivery. Failed-handoff packages exclude
 provider-request external-genomes artifacts.
+The `provider-request external-genomes-handoff` CLI may run the local
+validation and external-genomes draft projection in one isolated command. In
+write mode it may publish `provider_request_validation/` and, only when all
+rows are ready, `provider_request_external_genomes/` under the explicit output
+directory. A blocked bundle may preserve validation diagnostics, but it must
+not create an external-genomes draft directory. The bundle remains a local
+handoff convenience and must not register external genomes, copy FASTA files,
+contact providers, accept terms, download data, mutate manifests, change
+completion metrics, or reinterpret rows as strict scientific deliverables.
 
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action
