@@ -271,6 +271,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert {
         "--validate-provider-request",
         "--provider-request-validation-base-dir",
+        "--curated-provider-request-tsv",
     } <= parameter_names[("coverage-pipeline", "build")]
     audit_dir_flags = {
         "--manual-review-import-dir",
@@ -840,6 +841,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
                     '"manual_supplement_hints_tsv":"manual_hints.tsv",'
                     '"validate_provider_request":true,'
                     '"provider_request_validation_base_dir":"provider_request",'
+                    '"curated_provider_request_tsv":"curated_provider_request.tsv",'
                     '"write":true,"outdir":"pipeline","force":true}'
                 ),
             ]
@@ -868,6 +870,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
         "--validate-provider-request",
         "--provider-request-validation-base-dir",
         "provider_request",
+        "--curated-provider-request-tsv",
+        "curated_provider_request.tsv",
         "--write",
         "--outdir",
         "pipeline",
