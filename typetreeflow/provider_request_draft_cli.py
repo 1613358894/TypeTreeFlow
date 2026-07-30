@@ -77,6 +77,7 @@ _REQUIRED_HANDOFF_ROW_FIELDS = (
     "provider_key",
     "provider_name",
     "provider_status",
+    "provider_automation_level",
     "species",
 )
 
@@ -515,6 +516,9 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "record_count": summary["record_count"],
         "provider_key_counts": summary["provider_key_counts"],
         "provider_status_counts": summary["provider_status_counts"],
+        "provider_automation_level_counts": summary[
+            "provider_automation_level_counts"
+        ],
         "source_action_counts": summary["source_action_counts"],
         "curator_completion_template_counts": summary[
             "curator_completion_template_counts"
@@ -735,6 +739,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "record_count": 0,
         "provider_key_counts": {},
         "provider_status_counts": {},
+        "provider_automation_level_counts": {},
         "source_action_counts": {},
         "curator_completion_template_counts": {},
         "curator_completion_required_count": 0,

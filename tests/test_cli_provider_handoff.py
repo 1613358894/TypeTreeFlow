@@ -53,6 +53,7 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["record_count"] == 2
     assert payload["provider_key_counts"] == {"genbank": 1, "refseq": 1}
     assert payload["provider_status_counts"] == {"metadata_only": 2}
+    assert payload["provider_automation_level_counts"] == {"metadata_review": 2}
     assert payload["terms_review_required_count"] == 2
     assert payload["credentials_required_count"] == 0
     assert payload["network_supported_count"] == 0
@@ -89,6 +90,7 @@ def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):
     assert (outdir / "provider_handoff_summary.json").exists()
     summary = json.loads((outdir / "provider_handoff_summary.json").read_text())
     assert summary["provider_status_counts"] == {"planning_only": 1}
+    assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert summary["terms_review_required_count"] == 1
     assert summary["network_supported_count"] == 0
     assert summary["required_inputs"] == ["provider_handoff.tsv"]

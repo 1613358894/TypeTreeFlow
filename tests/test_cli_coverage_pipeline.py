@@ -267,6 +267,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     }
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
+    assert payload["provider_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 2,
+    }
     assert payload["provider_terms_review_required_count"] == 8
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0
@@ -279,6 +283,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "genbank": 2,
         "kctc": 1,
         "refseq": 2,
+    }
+    assert payload["provider_request_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 2,
     }
     assert payload["primary_next_action_group"]["action_code"] == (
         "resolve_curator_conflict"
@@ -415,8 +423,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert "provider_guidance=public_archive_metadata_review" in (
         payload["provider_handoff_preview"][0]["provider_guidance_notes"]
     )
+    assert payload["provider_handoff_preview"][0]["provider_automation_level"] == (
+        "metadata_review"
+    )
     assert payload["provider_request_preview"][0]["requires_manual_review"] == "true"
     assert payload["provider_request_preview"][0]["local_fasta_path"] == ""
+    assert "provider_automation_level=metadata_review" in (
+        payload["provider_request_preview"][0]["notes"]
+    )
 
 
 def test_coverage_pipeline_accepts_expanded_discovery_and_manual_hints(

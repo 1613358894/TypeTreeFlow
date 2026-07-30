@@ -64,6 +64,7 @@ class ProviderRequestDraftRow:
     source_action_code: str = ""
     source_lane: str = ""
     provider_status: str = ""
+    provider_automation_level: str = ""
     provider_guidance_notes: str = ""
 
     def to_provider_request_row(self) -> dict[str, str]:
@@ -100,6 +101,7 @@ class ProviderRequestDraft:
     def summary(self) -> dict[str, object]:
         provider_counts: dict[str, int] = {}
         status_counts: dict[str, int] = {}
+        automation_level_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
         template_counts = {template: 0 for template in CURATOR_COMPLETION_TEMPLATES}
         field_counts = {field: 0 for field in CURATOR_COMPLETION_FIELD_KEYS}
@@ -108,6 +110,9 @@ class ProviderRequestDraft:
             provider_counts[row.provider] = provider_counts.get(row.provider, 0) + 1
             status_counts[row.provider_status] = (
                 status_counts.get(row.provider_status, 0) + 1
+            )
+            automation_level_counts[row.provider_automation_level] = (
+                automation_level_counts.get(row.provider_automation_level, 0) + 1
             )
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
@@ -124,6 +129,9 @@ class ProviderRequestDraft:
             "record_count": len(self.rows),
             "provider_key_counts": dict(sorted(provider_counts.items())),
             "provider_status_counts": dict(sorted(status_counts.items())),
+            "provider_automation_level_counts": dict(
+                sorted(automation_level_counts.items())
+            ),
             "source_action_counts": dict(sorted(action_counts.items())),
             "curator_completion_template_counts": {
                 key: value for key, value in template_counts.items() if value
@@ -165,6 +173,7 @@ def build_provider_request_draft(
                 source_action_code=_value(row, "source_action_code"),
                 source_lane=_value(row, "source_lane"),
                 provider_status=_value(row, "provider_status"),
+                provider_automation_level=_value(row, "provider_automation_level"),
                 provider_guidance_notes=_value(row, "provider_guidance_notes"),
             )
         )
@@ -198,6 +207,7 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         ("source_action_code", row.source_action_code),
         ("source_lane", row.source_lane),
         ("provider_status", row.provider_status),
+        ("provider_automation_level", row.provider_automation_level),
         ("provider_guidance", row.provider_guidance_notes),
     ]
     for key, value in optional_parts:

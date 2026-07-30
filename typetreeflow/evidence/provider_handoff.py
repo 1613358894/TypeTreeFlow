@@ -19,6 +19,7 @@ PROVIDER_HANDOFF_FIELDS: tuple[str, ...] = (
     "provider_key",
     "provider_name",
     "provider_status",
+    "provider_automation_level",
     "species",
     "source_action_code",
     "source_lane",
@@ -52,6 +53,7 @@ class ProviderHandoffRow:
     provider_key: str
     provider_name: str
     provider_status: str
+    provider_automation_level: str
     species: str
     source_action_code: str
     source_lane: str
@@ -74,6 +76,7 @@ class ProviderHandoffRow:
             "provider_key": _clean(self.provider_key),
             "provider_name": _clean(self.provider_name),
             "provider_status": self.provider_status,
+            "provider_automation_level": self.provider_automation_level,
             "species": _clean(self.species),
             "source_action_code": self.source_action_code,
             "source_lane": self.source_lane,
@@ -100,6 +103,7 @@ class ProviderHandoff:
     def summary(self) -> dict[str, object]:
         provider_counts: dict[str, int] = {}
         status_counts: dict[str, int] = {}
+        automation_level_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
         terms_review_required_count = 0
         credentials_required_count = 0
@@ -108,6 +112,9 @@ class ProviderHandoff:
         for row in self.rows:
             provider_counts[row.provider_key] = provider_counts.get(row.provider_key, 0) + 1
             status_counts[row.provider_status] = status_counts.get(row.provider_status, 0) + 1
+            automation_level_counts[row.provider_automation_level] = (
+                automation_level_counts.get(row.provider_automation_level, 0) + 1
+            )
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
             )
@@ -124,6 +131,9 @@ class ProviderHandoff:
             "record_count": len(self.rows),
             "provider_key_counts": dict(sorted(provider_counts.items())),
             "provider_status_counts": dict(sorted(status_counts.items())),
+            "provider_automation_level_counts": dict(
+                sorted(automation_level_counts.items())
+            ),
             "source_action_counts": dict(sorted(action_counts.items())),
             "terms_review_required_count": terms_review_required_count,
             "credentials_required_count": credentials_required_count,
@@ -164,6 +174,7 @@ def build_provider_handoff(
                     provider_key=entry.provider_key,
                     provider_name=entry.provider_name,
                     provider_status=capability.status.value,
+                    provider_automation_level=_provider_automation_level(entry),
                     species=_value(plan_row, "species"),
                     source_action_code=_value(plan_row, "action_code"),
                     source_lane=_value(plan_row, "source_lane"),
@@ -199,6 +210,15 @@ def _provider_guidance_notes(entry) -> str:
         except Exception:
             notes.append("provider_guidance=unavailable")
     return "; ".join(_clean(note) for note in notes if str(note).strip())
+
+
+def _provider_automation_level(entry) -> str:
+    capability = entry.capability
+    if capability.status.value == "download_enabled":
+        return "download_enabled"
+    if "metadata_review" in capability.allowed_modes:
+        return "metadata_review"
+    return "planning_handoff"
 
 
 def _value(row: Mapping[str, object], field: str) -> str:

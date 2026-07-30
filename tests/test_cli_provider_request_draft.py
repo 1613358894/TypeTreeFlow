@@ -20,6 +20,7 @@ def _write_provider_handoff(path) -> None:
                 "provider_key": "dsmz",
                 "provider_name": "DSMZ",
                 "provider_status": "planning_only",
+                "provider_automation_level": "planning_handoff",
                 "species": "Clostridium beta",
                 "source_action_code": "prepare_provider_handoff",
                 "source_lane": "external_fasta_required",
@@ -59,6 +60,7 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["status"] == "pass"
     assert payload["record_count"] == 1
     assert payload["provider_key_counts"] == {"dsmz": 1}
+    assert payload["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert payload["curator_completion_template_counts"] == {
         "provider_local_fasta_handoff": 1
     }
@@ -84,6 +86,10 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["request_preview"][0]["terms_review_status"] == "not_reviewed"
     assert (
         "curator_completion_template=provider_local_fasta_handoff"
+        in payload["request_preview"][0]["notes"]
+    )
+    assert (
+        "provider_automation_level=planning_handoff"
         in payload["request_preview"][0]["notes"]
     )
     assert (
@@ -124,6 +130,7 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     summary = json.loads((outdir / "provider_request_draft_summary.json").read_text())
     assert summary["record_count"] == 1
     assert summary["providers_contacted"] == 0
+    assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert summary["curator_completion_template_counts"] == {
         "provider_local_fasta_handoff": 1
     }

@@ -241,9 +241,10 @@ adapters would build. `preview`
 writes nothing. Its compact JSON includes `coverage_next_action_groups`, a
 priority-ordered summary of action counts, source lanes, provider keys, and
 recommended next commands for AI/operator routing. It also carries
-`worklist_candidate_provider_key_counts` from the worklist layer so AI/operator
-handoff pressure is visible before reading the nested artifacts. It also
-reports provider request draft counts and
+`worklist_candidate_provider_key_counts` from the worklist layer plus provider
+automation-level counts from the handoff and request-draft layers so
+AI/operator handoff pressure is visible before reading the nested artifacts. It
+also reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
 `provider_request_external_genomes_install_plan_recommended_next_command` plus

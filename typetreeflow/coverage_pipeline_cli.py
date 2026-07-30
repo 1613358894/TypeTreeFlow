@@ -1103,6 +1103,9 @@ def _payload(
         "provider_handoff_record_count": provider_summary["record_count"],
         "provider_key_counts": provider_summary["provider_key_counts"],
         "provider_status_counts": provider_summary["provider_status_counts"],
+        "provider_automation_level_counts": provider_summary[
+            "provider_automation_level_counts"
+        ],
         "source_action_counts": provider_summary["source_action_counts"],
         "provider_terms_review_required_count": provider_summary[
             "terms_review_required_count"
@@ -1120,6 +1123,9 @@ def _payload(
         ],
         "provider_request_status_counts": request_summary[
             "provider_status_counts"
+        ],
+        "provider_request_automation_level_counts": request_summary[
+            "provider_automation_level_counts"
         ],
         "provider_request_recommended_request": _stage_recommended_request(
             "provider_handoff"
@@ -1499,6 +1505,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_handoff_record_count": 0,
         "provider_key_counts": {},
         "provider_status_counts": {},
+        "provider_automation_level_counts": {},
         "source_action_counts": {},
         "provider_terms_review_required_count": 0,
         "provider_credentials_required_count": 0,
@@ -1507,6 +1514,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_record_count": 0,
         "provider_request_provider_key_counts": {},
         "provider_request_status_counts": {},
+        "provider_request_automation_level_counts": {},
         "provider_request_recommended_request": _stage_recommended_request(
             "provider_handoff"
         ),

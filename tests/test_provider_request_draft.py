@@ -15,6 +15,7 @@ def _handoff_rows():
             "species": "Clostridium beta",
             "source_action_code": "prepare_provider_handoff",
             "source_lane": "external_fasta_required",
+            "provider_automation_level": "planning_handoff",
             "provider_guidance_notes": "provider_guidance=culture_collection_user_handoff",
         },
         {
@@ -24,6 +25,7 @@ def _handoff_rows():
             "species": "Clostridium gamma",
             "source_action_code": "review_public_archive_linkage",
             "source_lane": "public_linkage_review",
+            "provider_automation_level": "metadata_review",
             "provider_guidance_notes": "provider_guidance=public_archive_metadata_review",
         },
     ]
@@ -45,6 +47,7 @@ def test_provider_request_draft_builds_review_only_provider_request_rows():
     assert "draft_from_provider_handoff=true" in rows[0]["notes"]
     assert "provider_contacted=false" in rows[0]["notes"]
     assert "downloads_triggered=0" in rows[0]["notes"]
+    assert "provider_automation_level=planning_handoff" in rows[0]["notes"]
     assert "curator_completion_template=provider_local_fasta_handoff" in rows[0]["notes"]
     assert "recipe=obtain_permitted_provider_or_local_type_material_fasta" in rows[0]["notes"]
     assert "required_curator_fields=strain,type_strain_id" in rows[0]["notes"]
@@ -60,6 +63,10 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
         "record_count": 2,
         "provider_key_counts": {"dsmz": 1, "genbank": 1},
         "provider_status_counts": {"metadata_only": 1, "planning_only": 1},
+        "provider_automation_level_counts": {
+            "metadata_review": 1,
+            "planning_handoff": 1,
+        },
         "source_action_counts": {
             "prepare_provider_handoff": 1,
             "review_public_archive_linkage": 1,
