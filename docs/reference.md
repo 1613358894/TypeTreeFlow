@@ -691,6 +691,10 @@ environment files, contact providers, run downloads, or invoke external tools.
 Each `parameters` item has `name`, `kind`, `required`, `repeatable`, and
 `purpose` fields so AI operators can construct candidate argv lists before
 passing them through `commands preflight`.
+The same JSON envelope also includes `early_dispatch_order`, the ordered list
+of isolated top-level commands that `typetreeflow.cli.main` checks before
+loading the full workflow parser. This is metadata only; it does not make the
+catalog a dispatch authority.
 
 `providers catalog` is a related isolated metadata command. It emits provider
 keys, names, capability statuses, allowed modes, and fail-closed
