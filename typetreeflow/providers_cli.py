@@ -79,6 +79,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _entry_payload(entry, *, aliases: tuple[str, ...]) -> dict[str, object]:
     capability = entry.capability
+    automation_level = _automation_level(entry)
+    route = _provider_route(automation_level)
     return {
         "provider_key": entry.provider_key,
         "provider_name": entry.provider_name,
@@ -94,7 +96,10 @@ def _entry_payload(entry, *, aliases: tuple[str, ...]) -> dict[str, object]:
         "policy_document": entry.policy_document,
         "gate_review_document": entry.gate_review_document,
         "adapter_present": entry.adapter is not None,
-        "automation_level": _automation_level(entry),
+        "automation_level": automation_level,
+        "operator_route": route["operator_route"],
+        "next_input_class": route["next_input_class"],
+        "automation_boundary": route["automation_boundary"],
         "notes": _clean(entry.notes),
         "guidance_notes": _guidance_notes(entry),
     }
@@ -124,6 +129,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
 def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
     status_counts: Counter[str] = Counter()
     automation_level_counts: Counter[str] = Counter()
+    operator_route_counts: Counter[str] = Counter()
     mode_counts: Counter[str] = Counter()
     planning_only_keys: list[str] = []
     metadata_only_keys: list[str] = []
@@ -140,8 +146,10 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
         key = str(entry["provider_key"])
         status = str(entry["status"])
         automation_level = str(entry["automation_level"])
+        operator_route = str(entry["operator_route"])
         status_counts[status] += 1
         automation_level_counts[automation_level] += 1
+        operator_route_counts[operator_route] += 1
         for mode in entry["allowed_modes"]:
             mode_counts[str(mode)] += 1
         if status == "planning_only":
@@ -168,6 +176,7 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
     return {
         "provider_status_counts": dict(sorted(status_counts.items())),
         "automation_level_counts": dict(sorted(automation_level_counts.items())),
+        "operator_route_counts": dict(sorted(operator_route_counts.items())),
         "allowed_mode_counts": dict(sorted(mode_counts.items())),
         "planning_only_provider_keys": sorted(planning_only_keys),
         "metadata_only_provider_keys": sorted(metadata_only_keys),
@@ -186,6 +195,7 @@ def _empty_catalog_summary() -> dict[str, object]:
     return {
         "provider_status_counts": {},
         "automation_level_counts": {},
+        "operator_route_counts": {},
         "allowed_mode_counts": {},
         "planning_only_provider_keys": [],
         "metadata_only_provider_keys": [],
@@ -211,6 +221,26 @@ def _automation_level(entry) -> str:
     if "metadata_review" in capability.allowed_modes:
         return "metadata_review"
     return "planning_handoff"
+
+
+def _provider_route(automation_level: str) -> dict[str, str]:
+    if automation_level == "metadata_review":
+        return {
+            "operator_route": "public_metadata_review",
+            "next_input_class": "public_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
+        }
+    if automation_level == "download_enabled":
+        return {
+            "operator_route": "provider_download",
+            "next_input_class": "explicit_download_authorization",
+            "automation_boundary": "download_requires_explicit_enable_flags",
+        }
+    return {
+        "operator_route": "provider_handoff",
+        "next_input_class": "permitted_local_fasta_terms_provenance",
+        "automation_boundary": "planning_handoff_no_provider_contact",
+    }
 
 
 def _guidance_notes(entry) -> list[str]:
