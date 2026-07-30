@@ -539,13 +539,30 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     validation_dir = tmp_path / "provider_request_validation"
     validation_dir.mkdir()
     (validation_dir / "provider_request_validation_summary.json").write_text(
-        json.dumps({"ready_count": 2})
+        json.dumps(
+            {
+                "status": "pass",
+                "ready_count": 2,
+                "status_counts": {
+                    "provider_request_ready_for_external_genome_review": 2,
+                },
+                "provider_counts": {"dsmz": 2},
+                "blocker_counts": {},
+            }
+        )
     )
 
     external_dir = tmp_path / "provider_request_external_genomes"
     external_dir.mkdir()
     (external_dir / "provider_request_external_genomes_summary.json").write_text(
-        json.dumps({"exported_count": 1})
+        json.dumps(
+            {
+                "status": "pass",
+                "exported_count": 1,
+                "provider_counts": {"dsmz": 1},
+                "diagnostic_counts": {},
+            }
+        )
     )
     _write_tsv(
         external_dir / "external_genomes.tsv",
@@ -556,7 +573,17 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     install_dir = tmp_path / "external_genomes_install_plan"
     install_dir.mkdir()
     (install_dir / "external_genome_install_plan_summary.json").write_text(
-        json.dumps({"install_planned_count": 1})
+        json.dumps(
+            {
+                "status": "pass",
+                "install_planned_count": 1,
+                "install_skipped_count": 0,
+                "registration_status_counts": {"external_genome_registered": 1},
+                "install_plan_status_counts": {
+                    "external_genome_install_planned": 1,
+                },
+            }
+        )
     )
     _write_tsv(
         install_dir / "external_genome_install_plan.tsv",
@@ -637,10 +664,28 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     ]
     assert payload["operator_chain_stages"][4]["record_count"] == 2
     assert payload["operator_chain_stages"][4]["summary_ready_count"] == 2
+    assert payload["operator_chain_stages"][4]["summary_status_counts"] == {
+        "provider_request_ready_for_external_genome_review": 2,
+    }
+    assert payload["operator_chain_stages"][4]["summary_provider_counts"] == {
+        "dsmz": 2,
+    }
+    assert payload["operator_chain_stages"][4]["summary_blocker_counts"] == {}
     assert payload["operator_chain_stages"][5]["record_count"] == 1
     assert payload["operator_chain_stages"][5]["summary_exported_count"] == 1
+    assert payload["operator_chain_stages"][5]["summary_provider_counts"] == {
+        "dsmz": 1,
+    }
+    assert payload["operator_chain_stages"][5]["summary_diagnostic_counts"] == {}
     assert payload["operator_chain_stages"][6]["record_count"] == 1
     assert payload["operator_chain_stages"][6]["summary_install_planned_count"] == 1
+    assert payload["operator_chain_stages"][6]["summary_install_skipped_count"] == 0
+    assert payload["operator_chain_stages"][6]["summary_registration_status_counts"] == {
+        "external_genome_registered": 1,
+    }
+    assert payload["operator_chain_stages"][6]["summary_install_plan_status_counts"] == {
+        "external_genome_install_planned": 1,
+    }
     assert payload["operator_chain_stages"][7]["record_count"] == 1
 
 
@@ -688,6 +733,10 @@ def test_coverage_pipeline_status_preserves_blocked_validation_stage_details(
     assert validation_stage["summary_ready_count"] == 0
     assert validation_stage["summary_blocked_count"] == 8
     assert validation_stage["summary_diagnostic_count"] > 0
+    assert validation_stage["summary_blocker_counts"]["local_fasta_path_missing"] == 8
+    assert validation_stage["summary_status_counts"] == {
+        "provider_request_blocked": 8,
+    }
     assert payload["next_stage"]["stage"] == "provider_request_validation"
     assert payload["completion_gate"]["blocking_stage_names"][0] == (
         "provider_request_validation"

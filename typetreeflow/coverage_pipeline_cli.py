@@ -341,6 +341,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             "ready_count",
             "blocked_count",
             "diagnostic_count",
+            "status_counts",
+            "provider_counts",
+            "blocker_counts",
         ),
         diagnostics=diagnostics,
     )
@@ -354,7 +357,14 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         ),
         summary_name=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["summary"],
         count_field="exported_count",
-        detail_fields=("status", "record_count", "exported_count", "diagnostic_count"),
+        detail_fields=(
+            "status",
+            "record_count",
+            "exported_count",
+            "diagnostic_count",
+            "provider_counts",
+            "diagnostic_counts",
+        ),
         diagnostics=diagnostics,
         required_member=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[
             "external_genomes"
@@ -374,7 +384,10 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             "status",
             "record_count",
             "install_planned_count",
+            "install_skipped_count",
             "diagnostic_count",
+            "registration_status_counts",
+            "install_plan_status_counts",
         ),
         diagnostics=diagnostics,
         required_member=INSTALL_PLAN_OUTPUT_NAMES["install_plan"],
