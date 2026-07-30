@@ -178,11 +178,23 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert payload["target_outdir_mutated"] is False
     assert payload["install_executed"] is False
     assert payload["external_genomes_registration_applied"] is False
+    assert payload["required_inputs"] == ["external_genomes.tsv"]
+    assert payload["recommended_request"] == {
+        "command": "register-external-genomes",
+        "external_genomes": "external_genomes.tsv",
+        "outdir": "<run>",
+        "dry_run": True,
+    }
     assert "register-external-genomes" in payload["recommended_next_command"]
     assert not target_run.exists()
     assert (isolated / "external_genome_registration_results.tsv").is_file()
     assert (isolated / "external_genome_install_plan.tsv").is_file()
-    assert (isolated / "external_genome_install_plan_summary.json").is_file()
+    summary = json.loads(
+        (isolated / "external_genome_install_plan_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert summary["recommended_request"]["command"] == "register-external-genomes"
 
 
 def test_external_genomes_install_plan_blocks_invalid_rows_without_outputs(
@@ -213,6 +225,7 @@ def test_external_genomes_install_plan_blocks_invalid_rows_without_outputs(
     assert payload["status"] == "blocked"
     assert payload["invalid_count"] == 1
     assert payload["diagnostics"][0]["diagnostic_code"] == "external_genome_missing_file"
+    assert payload["recommended_request"]["command"] == "register-external-genomes"
     assert payload["writes_outputs"] is False
     assert not isolated.exists()
     assert not (tmp_path / "target_run").exists()

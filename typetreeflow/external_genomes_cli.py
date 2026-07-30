@@ -34,6 +34,13 @@ INSTALL_PLAN_OUTPUT_NAMES = {
     "install_plan": "external_genome_install_plan.tsv",
     "summary": "external_genome_install_plan_summary.json",
 }
+INSTALL_PLAN_REQUIRED_INPUTS: tuple[str, ...] = ("external_genomes.tsv",)
+INSTALL_PLAN_RECOMMENDED_REQUEST: dict[str, object] = {
+    "command": "register-external-genomes",
+    "external_genomes": "external_genomes.tsv",
+    "outdir": "<run>",
+    "dry_run": True,
+}
 _PREVIEW_LIMIT = 20
 
 
@@ -301,6 +308,8 @@ def _install_plan_payload(
         "external_genomes_registration_applied": False,
         "strict_scientific_deliverable": False,
         "target_outdir_mutated": False,
+        "required_inputs": list(INSTALL_PLAN_REQUIRED_INPUTS),
+        "recommended_request": dict(INSTALL_PLAN_RECOMMENDED_REQUEST),
         "recommended_next_command": recommended_next,
         "expected_registration_result_fields": tuple(
             EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS
