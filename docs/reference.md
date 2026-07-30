@@ -1674,7 +1674,10 @@ directory with matching schemas.
 conventional downstream child directories under that same explicit pipeline
 directory, and optional downstream directory overrides. It then re-emits
 `operator_chain_stages`, the current unavailable stage, and the recommended
-next command as compact JSON. It never discovers workflow output directories,
+next command as compact JSON. The payload also includes
+`stage_status_counts`, `available_stage_names`, and
+`unavailable_stage_names` so AI/operator controllers can route without
+re-parsing every stage row. It never discovers workflow output directories,
 writes files, contacts providers, downloads genomes, copies FASTA, mutates
 manifests, or changes completion metrics.
 Missing, unreadable, or empty inputs block with exit code `2`; successful

@@ -518,6 +518,18 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["network_access"] is False
     assert payload["downloads_triggered"] == 0
     assert payload["completed_stage_count"] == payload["stage_count"]
+    assert payload["stage_status_counts"] == {"available": 8, "unavailable": 0}
+    assert payload["available_stage_names"] == [
+        "acquisition_worklist",
+        "coverage_plan",
+        "provider_handoff",
+        "provider_request",
+        "provider_request_validation",
+        "provider_request_external_genomes",
+        "external_genomes_install_plan",
+        "external_genomes_registration_dry_run",
+    ]
+    assert payload["unavailable_stage_names"] == []
     assert payload["next_stage"] is None
     assert payload["recommended_next_command"] == ""
     assert [stage["available"] for stage in payload["operator_chain_stages"]] == [
@@ -589,6 +601,11 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
     assert payload["operator_chain_stages"][5]["available"] is True
     assert payload["operator_chain_stages"][5]["record_count"] == 1
     assert payload["operator_chain_stages"][6]["available"] is False
+    assert payload["stage_status_counts"] == {"available": 6, "unavailable": 2}
+    assert payload["unavailable_stage_names"] == [
+        "external_genomes_install_plan",
+        "external_genomes_registration_dry_run",
+    ]
     assert payload["next_stage"]["stage"] == "external_genomes_install_plan"
     assert payload["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "

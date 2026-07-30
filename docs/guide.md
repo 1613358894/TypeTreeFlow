@@ -277,9 +277,10 @@ typetreeflow coverage-pipeline status \
   --registration-run-dir <dry-run-registration-directory> [--json]
 ```
 
-It reports `operator_chain_stages`, the first unavailable stage, and the
-recommended next command; it does not scan workflow outputs, contact providers,
-download genomes, copy FASTA, mutate manifests, or grant completion credit.
+It reports `operator_chain_stages`, `stage_status_counts`, available and
+unavailable stage names, the first unavailable stage, and the recommended next
+command; it does not scan workflow outputs, contact providers, download
+genomes, copy FASTA, mutate manifests, or grant completion credit.
 When missing-public-genome rows contain explicit provider hints or recognizable
 culture-collection tokens, the worklist may carry `candidate_provider_keys` so
 the coverage plan can route provider handoff more precisely. Those keys remain
