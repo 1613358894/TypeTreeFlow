@@ -262,6 +262,14 @@ To inspect the current local operator chain without writing anything:
 
 ```bash
 typetreeflow coverage-pipeline status \
+  --coverage-pipeline-dir <isolated-coverage-pipeline-directory> [--json]
+```
+
+The status command reads standard downstream child directories under the same
+isolated pipeline directory when present. To override those locations, pass:
+
+```bash
+typetreeflow coverage-pipeline status \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
   --provider-request-validation-dir <isolated-provider-request-validation-directory> \
   --provider-request-external-genomes-dir <isolated-provider-request-external-genomes-directory> \
@@ -269,11 +277,9 @@ typetreeflow coverage-pipeline status \
   --registration-run-dir <dry-run-registration-directory> [--json]
 ```
 
-The status command only reads explicitly supplied isolated artifact
-directories. It reports `operator_chain_stages`, the first unavailable stage,
-and the recommended next command; it does not scan workflow outputs, contact
-providers, download genomes, copy FASTA, mutate manifests, or grant completion
-credit.
+It reports `operator_chain_stages`, the first unavailable stage, and the
+recommended next command; it does not scan workflow outputs, contact providers,
+download genomes, copy FASTA, mutate manifests, or grant completion credit.
 When missing-public-genome rows contain explicit provider hints or recognizable
 culture-collection tokens, the worklist may carry `candidate_provider_keys` so
 the coverage plan can route provider handoff more precisely. Those keys remain

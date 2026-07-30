@@ -285,7 +285,11 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     _apply_optional_stage(
         stages,
         stage_name="provider_request_validation",
-        directory=args.provider_request_validation_dir,
+        directory=_status_stage_dir(
+            args.provider_request_validation_dir,
+            coverage_dir,
+            "provider_request_validation",
+        ),
         summary_name=PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES["summary"],
         count_field="ready_count",
         diagnostics=diagnostics,
@@ -293,7 +297,11 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     _apply_optional_stage(
         stages,
         stage_name="provider_request_external_genomes",
-        directory=args.provider_request_external_genomes_dir,
+        directory=_status_stage_dir(
+            args.provider_request_external_genomes_dir,
+            coverage_dir,
+            "provider_request_external_genomes",
+        ),
         summary_name=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES["summary"],
         count_field="exported_count",
         diagnostics=diagnostics,
@@ -304,7 +312,11 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     _apply_optional_stage(
         stages,
         stage_name="external_genomes_install_plan",
-        directory=args.external_genomes_install_plan_dir,
+        directory=_status_stage_dir(
+            args.external_genomes_install_plan_dir,
+            coverage_dir,
+            "external_genomes_install_plan",
+        ),
         summary_name=INSTALL_PLAN_OUTPUT_NAMES["summary"],
         count_field="install_planned_count",
         diagnostics=diagnostics,
@@ -313,7 +325,11 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     _apply_optional_stage(
         stages,
         stage_name="external_genomes_registration_dry_run",
-        directory=args.registration_run_dir,
+        directory=_status_stage_dir(
+            args.registration_run_dir,
+            coverage_dir,
+            "external_genomes_registration_dry_run",
+        ),
         summary_name="external_genome_registration_results.tsv",
         count_field=None,
         diagnostics=diagnostics,
@@ -354,6 +370,17 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     }
     _emit(payload, output)
     return 0 if not diagnostics else 2
+
+
+def _status_stage_dir(
+    explicit_dir: str | None,
+    coverage_dir: Path,
+    child_dir_name: str,
+) -> str | None:
+    if explicit_dir:
+        return explicit_dir
+    conventional_dir = coverage_dir / child_dir_name
+    return str(conventional_dir) if conventional_dir.is_dir() else None
 
 
 def _read_json_artifact(
