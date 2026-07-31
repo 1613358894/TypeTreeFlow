@@ -315,6 +315,11 @@ target argv as a `commands preflight --argv-json ...` request for parent agents
 that need to run the local preflight gate before dispatch. The handoff repeats
 candidate and controller blockers, and keeps
 `target_command_execution_authorized=false`.
+`coverage_parent_controller_packet` is the parent-agent envelope for this same
+surface. It selects the next recommended metadata surface, repeats the selected
+argv and required-review checklist, and keeps target execution, provider
+contact, downloads, workflow-output writes, manifest mutation, registration,
+and strict deliverable promotion disabled.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
 summary for parent orchestration. `controller_digest_guard_summary` repeats the
 queue and operator-chain snapshot guards in one place so parent controllers can
@@ -401,6 +406,11 @@ required-review checklist, or `coverage_controller_step_summary` when it needs
 all candidates as compact triage rows. Use
 `coverage_controller_preflight_handoff_packet` when the next local operation is
 to preflight the first candidate before any target command dispatch. It includes
+`coverage_parent_controller_packet` when the parent agent needs one top-level
+answer for which metadata surface to inspect next, what argv to preflight or
+plan, and which review gates remain before execution can even be considered.
+It is still a metadata-only no-execution handoff.
+The preflight packet includes
 `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata
 changed before resuming a previously inspected item. To resume a specific

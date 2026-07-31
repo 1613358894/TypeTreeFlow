@@ -873,6 +873,127 @@ def _assert_controller_packet(
     assert preflight_handoff["execution_boundary"] == (
         "metadata_only_controller_preflight_handoff_no_execution"
     )
+    parent_packet = payload["coverage_parent_controller_packet"]
+    handoff_next_step = payload["coverage_handoff_next_step_packet"]
+    assert parent_packet["schema_version"] == "coverage_parent_controller_packet.v1"
+    assert parent_packet["available"] is (
+        bool(decision_surfaces) or handoff_next_step["available"]
+    )
+    assert parent_packet["controller_status"] == packet["controller_status"]
+    assert parent_packet["controller_decision"] == packet["controller_decision"]
+    assert parent_packet["controller_has_blockers"] is packet[
+        "controller_has_blockers"
+    ]
+    assert parent_packet["controller_blocking_ids"] == packet[
+        "controller_blocking_ids"
+    ]
+    assert parent_packet["controller_warning_ids"] == packet[
+        "controller_warning_ids"
+    ]
+    assert parent_packet["controller_step_count"] == packet[
+        "controller_step_count"
+    ]
+    assert parent_packet["controller_step_sources"] == step_summary[
+        "step_sources"
+    ]
+    assert parent_packet["first_controller_step_source"] == step_summary[
+        "first_step_source"
+    ]
+    assert parent_packet["first_controller_step_target"] == step_summary[
+        "first_step_target"
+    ]
+    assert parent_packet["first_controller_step_argv"] == step_summary[
+        "first_step_argv"
+    ]
+    assert parent_packet["controller_preflight_available"] is preflight_handoff[
+        "available"
+    ]
+    assert parent_packet["controller_preflight_argv"] == preflight_handoff[
+        "preflight_argv"
+    ]
+    assert parent_packet["handoff_next_step_available"] is handoff_next_step[
+        "available"
+    ]
+    assert parent_packet["handoff_next_stage"] == handoff_next_step["stage"]
+    assert parent_packet["handoff_next_target"] == handoff_next_step[
+        "recommended_request_target"
+    ]
+    assert parent_packet["handoff_next_argv"] == handoff_next_step["target_argv"]
+    if preflight_handoff["available"]:
+        assert (
+            parent_packet["recommended_surface"]
+            == "coverage_controller_preflight_handoff_packet"
+        )
+        assert parent_packet["recommended_action"] == (
+            "run commands preflight for first controller candidate"
+        )
+        assert parent_packet["recommended_argv"] == preflight_handoff[
+            "preflight_argv"
+        ]
+        expected_required = [
+            "verify snapshot and digest guards",
+            "inspect coverage_controller_preflight_handoff_packet",
+            "run commands plan or commands preflight",
+            "operator approval before target command execution",
+        ]
+        if packet["controller_has_blockers"]:
+            expected_required = [
+                "resolve controller_blocking_ids",
+                *expected_required,
+            ]
+        assert parent_packet["required_before_action"] == expected_required
+        assert (
+            parent_packet["recommended_execution_mode"]
+            == "operator_review_required"
+        )
+    elif handoff_next_step["available"]:
+        assert parent_packet["recommended_surface"] == (
+            "coverage_handoff_next_step_packet"
+        )
+        assert parent_packet["recommended_action"] == (
+            "inspect provider/external handoff next step"
+        )
+        assert parent_packet["recommended_argv"] == handoff_next_step[
+            "target_argv"
+        ]
+        expected_required = [
+            "verify snapshot and digest guards",
+            "inspect coverage_handoff_next_step_packet",
+            "run commands plan or commands preflight",
+            "operator approval before target command execution",
+        ]
+        if packet["controller_has_blockers"]:
+            expected_required = [
+                "resolve controller_blocking_ids",
+                *expected_required,
+            ]
+        assert parent_packet["required_before_action"] == expected_required
+        assert (
+            parent_packet["recommended_execution_mode"]
+            == "operator_review_required"
+        )
+    else:
+        assert parent_packet["recommended_surface"] == ""
+        assert parent_packet["recommended_action"] == "no_action"
+        assert parent_packet["recommended_argv"] == []
+        assert parent_packet["required_before_action"] == []
+        assert parent_packet["recommended_execution_mode"] == "no_action"
+    assert parent_packet["target_command_execution_authorized"] is False
+    assert parent_packet["safe_for_unattended_execution"] is False
+    assert parent_packet["audit_only"] is True
+    assert parent_packet["dry_run"] is True
+    assert parent_packet["writes_outputs"] is False
+    assert parent_packet["writes_workflow_outputs"] is False
+    assert parent_packet["downloads_triggered"] == 0
+    assert parent_packet["providers_contacted"] == 0
+    assert parent_packet["network_access"] is False
+    assert parent_packet["external_tools"] is False
+    assert parent_packet["manifest_mutated"] is False
+    assert parent_packet["strict_scientific_deliverable"] is False
+    assert parent_packet["external_genomes_registration_applied"] is False
+    assert parent_packet["execution_boundary"] == (
+        "metadata_only_parent_controller_no_execution"
+    )
     for candidate in packet["controller_step_candidates"]:
         route_context = candidate["route_context"]
         assert route_context["schema_version"] == "coverage_controller_route_context.v1"
