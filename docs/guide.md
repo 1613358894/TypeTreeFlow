@@ -413,8 +413,9 @@ also includes `coverage_provider_route_opportunity_summary`, which groups the
 provider handoff rows by provider key, status, automation level, source action,
 operator route, and next input class. Use it to see which platforms are only
 public metadata review pressure and which platforms need a provider handoff
-package; it is still audit-only and does not authorize provider contact or
-downloads. The payload
+package. Its `priority_provider_route_items` list ranks provider handoff package
+work before metadata-only review pressure; it is still audit-only and does not
+authorize provider contact or downloads. The payload
 also reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus

@@ -1884,9 +1884,11 @@ authorization.
 rows by `provider_key`, provider status, automation level, source action,
 operator route, and next input class. It lists providers that currently require
 `planning_handoff` separately from providers that only need public metadata
-review, includes per-provider bounded species previews, and repeats explicit
-no-download safety fields. It is for platform opportunity triage only and does
-not contact providers or authorize unattended execution.
+review, includes per-provider bounded species previews, and adds
+`priority_provider_route_items`, a stable provider-first route list that ranks
+provider handoff packages before metadata-only review pressure. It repeats
+explicit no-download safety fields. It is for platform opportunity triage only
+and does not contact providers or authorize unattended execution.
 `coverage_action_queue` is the same opportunity set in stable queue order with
 a one-based `queue_position`, deterministic `queue_item_id`, bounded route booleans such as
 `requires_curator_input`, `requires_public_metadata_review`,

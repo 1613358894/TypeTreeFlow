@@ -2985,9 +2985,17 @@ def _coverage_provider_route_opportunity_summary(
         "source_action_counts": _sorted_count_map(source_action_counts),
         "operator_route_counts": _sorted_count_map(operator_route_counts),
         "next_input_class_counts": _sorted_count_map(next_input_class_counts),
+        "planning_handoff_provider_count": len(planning_handoff_provider_keys),
+        "metadata_review_provider_count": len(metadata_review_provider_keys),
+        "metadata_review_only_provider_count": sum(
+            1 for row in route_rows if bool(row.get("metadata_review_only"))
+        ),
         "planning_handoff_provider_keys": planning_handoff_provider_keys,
         "metadata_review_provider_keys": metadata_review_provider_keys,
         "provider_route_rows": route_rows,
+        "priority_provider_route_items": _coverage_provider_priority_items(
+            route_rows
+        ),
         "requires_operator_review": bool(provider_key_counts),
         "safe_for_unattended_execution": False,
         "audit_only": True,
@@ -3000,6 +3008,88 @@ def _coverage_provider_route_opportunity_summary(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_provider_route_opportunity_no_execution",
     }
+
+
+def _coverage_provider_priority_items(
+    provider_route_rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    ranked_rows = sorted(
+        provider_route_rows,
+        key=lambda row: (
+            0 if bool(row.get("needs_provider_request_draft")) else 1,
+            -_safe_int(row.get("record_count", 0)),
+            str(row.get("provider_key", "")),
+        ),
+    )
+    items: list[dict[str, object]] = []
+    for index, row in enumerate(ranked_rows, start=1):
+        automation_counts = (
+            row.get("provider_automation_level_counts")
+            if isinstance(row.get("provider_automation_level_counts"), Mapping)
+            else {}
+        )
+        source_action_counts = (
+            row.get("source_action_counts")
+            if isinstance(row.get("source_action_counts"), Mapping)
+            else {}
+        )
+        operator_route_counts = (
+            row.get("operator_route_counts")
+            if isinstance(row.get("operator_route_counts"), Mapping)
+            else {}
+        )
+        next_input_class_counts = (
+            row.get("next_input_class_counts")
+            if isinstance(row.get("next_input_class_counts"), Mapping)
+            else {}
+        )
+        route_priority = (
+            "provider_handoff"
+            if bool(row.get("needs_provider_request_draft"))
+            else "public_metadata_review"
+            if bool(row.get("metadata_review_only"))
+            else "operator_review"
+        )
+        items.append(
+            {
+                "priority": index,
+                "provider_key": str(row.get("provider_key", "")),
+                "provider_name": str(row.get("provider_name", "")),
+                "route_priority": route_priority,
+                "record_count": _safe_int(row.get("record_count", 0)),
+                "species_count": _safe_int(row.get("species_count", 0)),
+                "species_preview": list(row.get("species_preview", []))
+                if isinstance(row.get("species_preview"), list)
+                else [],
+                "species_truncated": bool(row.get("species_truncated")),
+                "primary_provider_automation_level": _primary_count_key(
+                    automation_counts
+                ),
+                "primary_source_action": _primary_count_key(source_action_counts),
+                "primary_operator_route": _primary_count_key(operator_route_counts),
+                "primary_next_input_class": _primary_count_key(
+                    next_input_class_counts
+                ),
+                "needs_provider_request_draft": bool(
+                    row.get("needs_provider_request_draft")
+                ),
+                "metadata_review_only": bool(row.get("metadata_review_only")),
+                "terms_review_required_count": _safe_int(
+                    row.get("terms_review_required_count", 0)
+                ),
+                "credentials_required_count": _safe_int(
+                    row.get("credentials_required_count", 0)
+                ),
+                "network_supported_count": _safe_int(
+                    row.get("network_supported_count", 0)
+                ),
+                "safe_for_unattended_execution": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "strict_scientific_deliverable": False,
+            }
+        )
+    return items
 
 
 def _coverage_action_route(action_code: str) -> dict[str, str]:
@@ -4659,6 +4749,20 @@ def _count_weighted_value(counts: object, value: str, amount: int) -> None:
 
 def _sorted_count_map(counts: Mapping[str, int]) -> dict[str, int]:
     return {key: counts[key] for key in sorted(counts)}
+
+
+def _primary_count_key(counts: object) -> str:
+    if not isinstance(counts, Mapping):
+        return ""
+    ranked = sorted(
+        (
+            (str(key), _safe_int(value))
+            for key, value in counts.items()
+            if str(key)
+        ),
+        key=lambda item: (-item[1], item[0]),
+    )
+    return ranked[0][0] if ranked else ""
 
 
 def _coverage_queue_item_id(queue_position: int, action_code: str) -> str:
