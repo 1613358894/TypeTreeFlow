@@ -292,6 +292,8 @@ AI handoff with digest guards and no-execution safety fields. Its ordered
 `controller_step_candidates` list lets a controller compare the queue item and
 operator-chain stage candidates without expanding the full queue or stage list;
 the candidates still require normal planning or preflight before execution.
+`controller_status` and aggregate blocker IDs provide a compact fail-closed
+summary for parent orchestration.
 Queue rows also carry `operator_execution_gate` and `review_input_packet` so
 controllers can route required local inputs without first expanding a selected
 packet; the queue and priority summaries count review-input schemas for the

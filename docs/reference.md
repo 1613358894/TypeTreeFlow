@@ -2021,7 +2021,9 @@ targets, snapshot match booleans, and ordered `controller_step_candidates` in
 one object while preserving the same no-execution boundaries. Each controller
 candidate repeats only compact source, target argv, digest guard, blocking, and
 warning metadata from the queue or operator-chain handoff; it is not execution
-authority.
+authority. The packet also exposes `controller_status`, `controller_decision`,
+and aggregate blocker/warning IDs so controllers can fail closed without
+expanding every candidate.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

@@ -2933,6 +2933,17 @@ def _string_list_field(packet: Mapping[str, object], key: str) -> list[str]:
     return [str(item) for item in value]
 
 
+def _dedupe_strings(values: Sequence[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
 def _coverage_controller_packet(
     stage_readiness_summary: Mapping[str, object],
     operator_chain_resume_packet: Mapping[str, object],
@@ -3052,9 +3063,39 @@ def _coverage_controller_packet(
                 ),
             }
         )
+    controller_blocking_ids: list[str] = []
+    controller_warning_ids: list[str] = []
+    for candidate in controller_step_candidates:
+        if candidate.get("snapshot_matches_expected") is False:
+            source = str(candidate.get("source", "controller"))
+            controller_blocking_ids.append(f"{source}_snapshot_mismatch")
+        controller_blocking_ids.extend(_string_list_field(candidate, "blocking_ids"))
+        controller_warning_ids.extend(_string_list_field(candidate, "warning_ids"))
+        if str(candidate.get("preflight_decision", "")) == "block":
+            source = str(candidate.get("source", "controller"))
+            controller_blocking_ids.append(f"{source}_preflight_block")
+    controller_blocking_ids = _dedupe_strings(controller_blocking_ids)
+    controller_warning_ids = _dedupe_strings(controller_warning_ids)
+    if not controller_step_candidates:
+        controller_status = "no_action"
+        controller_decision = "none"
+    elif controller_blocking_ids:
+        controller_status = "blocked"
+        controller_decision = "block"
+    else:
+        controller_status = "ready_for_operator_review"
+        controller_decision = "review"
     return {
         "schema_version": "coverage_controller_packet.v1",
         "available": bool(decision_surfaces),
+        "controller_status": controller_status,
+        "controller_decision": controller_decision,
+        "controller_has_blockers": bool(controller_blocking_ids),
+        "controller_blocking_count": len(controller_blocking_ids),
+        "controller_blocking_ids": controller_blocking_ids,
+        "controller_warning_count": len(controller_warning_ids),
+        "controller_warning_ids": controller_warning_ids,
+        "controller_requires_operator_review": bool(controller_step_candidates),
         "decision_surface_count": len(decision_surfaces),
         "decision_surfaces": decision_surfaces,
         "controller_step_count": len(controller_step_candidates),
