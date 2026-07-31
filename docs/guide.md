@@ -301,6 +301,11 @@ compare the single queue item, operator-chain stage, and provider route-batch
 candidates without expanding the full queue, route list, or stage list. Each
 candidate also carries compact `route_context` metadata for routing explanation;
 the candidates still require normal planning or preflight before execution.
+`coverage_controller_resume_packet` is the compact first-candidate handoff for a
+parent controller or server agent. It repeats the selected source, target argv,
+route context, next input package, digest guard summary, and
+`required_before_resume` checklist, but it remains metadata-only and does not
+authorize dispatch, downloads, provider contact, or workflow mutation.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
 summary for parent orchestration. `controller_digest_guard_summary` repeats the
 queue and operator-chain snapshot guards in one place so parent controllers can
@@ -381,7 +386,9 @@ and warning-item summaries so a controller can triage the queue without
 expanding every item first. Use `coverage_operator_route_summary` when the
 controller needs the same route-level view over the full queue, or
 `coverage_controller_packet` when it needs one combined queue, route-batch, plus
-operator-chain routing object. It includes
+operator-chain routing object. Use `coverage_controller_resume_packet` when the
+controller only needs the first selected candidate plus its digest and
+required-review checklist. It includes
 `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata
 changed before resuming a previously inspected item. To resume a specific

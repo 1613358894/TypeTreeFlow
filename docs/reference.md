@@ -1932,6 +1932,12 @@ guards, current command targets, per-candidate `route_context`, and explicit
 no-execution safety fields. Queue candidates repeat `next_input_package` so a
 controller can choose the next local input surface without expanding the full
 review-input field list.
+`coverage_controller_resume_packet` derives a first-candidate resume guard from
+the controller packet. It repeats the selected source, target argv, route
+context, next input package, digest guard summary, and
+`required_before_resume` checklist in one object for server or AI parent
+controllers; it is metadata only and still requires normal planning, preflight,
+and operator approval before any execution.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -2084,6 +2090,10 @@ The packet also exposes
 `controller_status`, `controller_decision`,
 and aggregate blocker/warning IDs so controllers can fail closed without
 expanding every candidate. Its nested `controller_digest_guard_summary`
+is also repeated by `coverage_controller_resume_packet`, which provides the
+first candidate's resume selector, expected snapshot digest, command target,
+route context, and required-before-resume checklist without authorizing
+dispatch.
 collects queue and operator-chain snapshot fingerprints plus mismatch sources
 so resume automation can reject stale controller context before rendering or
 executing any command.

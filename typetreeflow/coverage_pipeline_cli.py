@@ -877,6 +877,9 @@ def _run_status(
         operator_chain_snapshot_matches_expected=operator_chain_snapshot_matches,
         queue_snapshot_matches_expected=snapshot_matches,
     )
+    coverage_controller_resume_packet = _coverage_controller_resume_packet(
+        coverage_controller_packet
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -941,6 +944,7 @@ def _run_status(
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_operator_route_summary": coverage_operator_route_summary,
         "coverage_controller_packet": coverage_controller_packet,
+        "coverage_controller_resume_packet": coverage_controller_resume_packet,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -2122,6 +2126,9 @@ def _payload(
         operator_chain_snapshot_matches_expected=operator_chain_snapshot_matches,
         queue_snapshot_matches_expected=snapshot_matches,
     )
+    coverage_controller_resume_packet = _coverage_controller_resume_packet(
+        coverage_controller_packet
+    )
     current_coverage_action_queue_item = dict(selected_queue_item or {})
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
@@ -2187,6 +2194,7 @@ def _payload(
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_operator_route_summary": coverage_operator_route_summary,
         "coverage_controller_packet": coverage_controller_packet,
+        "coverage_controller_resume_packet": coverage_controller_resume_packet,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "selected_coverage_queue_item_id": str(queue_item_id or ""),
@@ -4210,6 +4218,88 @@ def _coverage_controller_packet(
     }
 
 
+def _coverage_controller_resume_packet(
+    controller_packet: Mapping[str, object],
+) -> dict[str, object]:
+    candidates = _safe_mapping_list(
+        controller_packet.get("controller_step_candidates", [])
+    )
+    first_candidate = candidates[0] if candidates else {}
+    digest_guard = (
+        dict(controller_packet.get("controller_digest_guard_summary", {}))
+        if isinstance(controller_packet.get("controller_digest_guard_summary"), Mapping)
+        else {}
+    )
+    available = bool(controller_packet.get("available")) and bool(first_candidate)
+    status = str(controller_packet.get("controller_status", "no_action"))
+    decision = str(controller_packet.get("controller_decision", "none"))
+    if not available:
+        status = "no_action"
+        decision = "none"
+        required_before_resume: list[str] = []
+    else:
+        required_before_resume = [
+            "verify controller_digest_guard_summary",
+            "inspect selected controller_step_candidate",
+            "run commands plan or commands preflight",
+            "operator approval",
+        ]
+        if controller_packet.get("controller_has_blockers"):
+            required_before_resume.insert(0, "resolve controller_blocking_ids")
+    return {
+        "schema_version": "coverage_controller_resume_packet.v1",
+        "available": available,
+        "status": status,
+        "decision": decision,
+        "source": str(first_candidate.get("source", "")),
+        "handoff_kind": str(first_candidate.get("handoff_kind", "")),
+        "resume_selector": str(first_candidate.get("resume_selector", "")),
+        "resume_expected_snapshot_sha256": str(
+            first_candidate.get("resume_expected_snapshot_sha256", "")
+        ),
+        "recommended_request_target": str(
+            first_candidate.get("recommended_request_target", "")
+        ),
+        "target_argv": _string_list_field(first_candidate, "target_argv"),
+        "preflight_decision": str(first_candidate.get("preflight_decision", "")),
+        "blocking_ids": _string_list_field(first_candidate, "blocking_ids"),
+        "warning_ids": _string_list_field(first_candidate, "warning_ids"),
+        "controller_blocking_ids": _string_list_field(
+            controller_packet, "controller_blocking_ids"
+        ),
+        "controller_warning_ids": _string_list_field(
+            controller_packet, "controller_warning_ids"
+        ),
+        "route_context": (
+            dict(first_candidate.get("route_context", {}))
+            if isinstance(first_candidate.get("route_context", {}), Mapping)
+            else {}
+        ),
+        "next_input_package": (
+            dict(first_candidate.get("next_input_package", {}))
+            if isinstance(first_candidate.get("next_input_package", {}), Mapping)
+            else {}
+        ),
+        "digest_guard_summary": digest_guard,
+        "required_before_resume": required_before_resume,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": (
+            "operator_review_required" if available else "no_action"
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_controller_resume_packet_no_execution",
+    }
+
+
 def _coverage_next_task_packet(
     coverage_action_queue: list[dict[str, object]],
 ) -> dict[str, object]:
@@ -5336,6 +5426,33 @@ def _failure(code: str, message: str) -> dict[str, object]:
             operator_chain_snapshot_matches_expected=True,
             queue_snapshot_matches_expected=True,
         ),
+        "coverage_controller_resume_packet": _coverage_controller_resume_packet(
+            _coverage_controller_packet(
+                _coverage_stage_readiness_summary(
+                    [],
+                    _empty_operator_chain_next_step_packet(
+                        operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
+                    ),
+                ),
+                _operator_chain_resume_packet(
+                    _empty_operator_chain_next_step_packet(
+                        operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
+                    )
+                ),
+                _coverage_operator_route_summary([]),
+                _coverage_queue_resume_packet(
+                    empty_packet,
+                    empty_command_plan,
+                    empty_recipe,
+                    queue_snapshot_sha256=empty_queue_snapshot_sha256,
+                    expected_queue_snapshot_sha256=None,
+                    queue_snapshot_matches_expected=True,
+                ),
+                _coverage_route_next_batch_packet({}),
+                operator_chain_snapshot_matches_expected=True,
+                queue_snapshot_matches_expected=True,
+            )
+        ),
         "current_coverage_action_queue_item": {},
         "selected_coverage_queue_item_id": "",
         "selected_coverage_queue_item_found": False,
@@ -5582,6 +5699,7 @@ def _rendered_outputs(
             "coverage_operator_queue_preview",
             "coverage_operator_route_summary",
             "coverage_controller_packet",
+            "coverage_controller_resume_packet",
             "current_coverage_action_queue_item",
             "selected_coverage_queue_item_id",
             "selected_coverage_queue_item_found",
