@@ -371,10 +371,11 @@ malformed input keeps report generation successful and shows a compact
 warning. Valid summary counts show `record_count`, `downloads_triggered`,
 `providers_contacted`, `manifest_mutated`, `audit_only`, and
 `strict_scientific_deliverable`, plus up to five nonzero coverage action
-counts and provider-key counts. Row-level species, action labels, required
-input, commands, or source details are not displayed. Report inclusion does
-not contact providers, trigger downloads, mutate manifests, create workflow
-outputs, or create strict scientific deliverables.
+counts, provider-key counts, provider automation-level counts, and operator
+route counts. Row-level species, action labels, required input, commands, or
+source details are not displayed. Report inclusion does not contact providers,
+trigger downloads, mutate manifests, create workflow outputs, or create strict
+scientific deliverables.
 
 For `package-results --include reports` or `--include all`, each validated
 member is copied under `coverage_plan/`. Each copied member gets one row in
