@@ -1741,6 +1741,10 @@ def _assert_controller_packet(
         expected_surface_names.append(
             "coverage_handoff_server_validation_result_template_artifact_packet"
         )
+    if "coverage_handoff_server_validation_result_artifact_packet" in payload:
+        expected_surface_names.append(
+            "coverage_handoff_server_validation_result_artifact_packet"
+        )
     expected_surface_names.append("coverage_route_next_batch_packet")
     assert inspection_summary["surface_count"] == len(expected_surface_names)
     assert [
@@ -4890,6 +4894,51 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_artifact["writes_outputs"] is False
     assert result_artifact["downloads_triggered"] == 0
     assert result_artifact["providers_contacted"] == 0
+    result_status_parent = result_status_payload["coverage_parent_controller_packet"]
+    assert (
+        result_status_parent["handoff_server_validation_result_artifact_available"]
+        is True
+    )
+    assert (
+        result_status_parent["handoff_server_validation_result_artifact_status"]
+        == "pass"
+    )
+    assert (
+        result_status_parent["handoff_server_validation_result_artifact_path"]
+        == str(result_template_path)
+    )
+    assert (
+        result_status_parent["handoff_server_validation_result_artifact_sha256"]
+        == result_artifact["artifact_sha256"]
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_result_artifact_result_status"
+        ]
+        == "pass"
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_result_artifact_validation_status"
+        ]
+        == "pass"
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_result_artifact_diagnostic_count"
+        ]
+        == 0
+    )
+    result_status_surfaces = result_status_payload[
+        "coverage_controller_inspection_summary"
+    ]["surfaces"]
+    result_surface_by_name = {item["name"]: item for item in result_status_surfaces}
+    result_artifact_surface = result_surface_by_name[
+        "coverage_handoff_server_validation_result_artifact_packet"
+    ]
+    assert result_artifact_surface["available"] is True
+    assert result_artifact_surface["status"] == "pass"
+    assert result_artifact_surface["target_argv"] == []
     assert summary["command"] == "coverage-pipeline build"
     assert summary["coverage_opportunity_summary"][1][
         "provider_automation_level_counts"
