@@ -325,8 +325,13 @@ typetreeflow coverage-pipeline build \
 
 The pipeline builds the same acquisition worklist, coverage action plan,
 provider handoff, and provider request draft artifacts that the individual
-adapters would build. `preview`
-writes nothing. Its compact JSON includes `coverage_next_action_groups`, a
+adapters would build. When `build --write` receives
+`--expanded-discovery-results-tsv` without `--archive-candidates-tsv`, it also
+publishes the derived audit-only `archive_candidates/` triplet for matched
+public-accession candidates. This is the same local review surface produced by
+`archive-candidates build`; it does not query archives, download genomes, or
+grant strict completion. `preview` writes nothing. Its compact JSON includes
+`coverage_next_action_groups`, a
 priority-ordered summary of action counts, source lanes, provider keys, and
 recommended next commands for AI/operator routing. It also includes
 `coverage_opportunity_summary`, a compact derived view that adds provider

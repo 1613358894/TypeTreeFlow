@@ -4715,12 +4715,26 @@ def test_coverage_pipeline_accepts_expanded_discovery_and_manual_hints(
     )
     _write_tsv(
         expanded,
-        ("species", "candidate_accession", "decision"),
+        (
+            "species",
+            "token",
+            "query_database",
+            "candidate_accession",
+            "candidate_biosample",
+            "candidate_strain",
+            "decision",
+            "decision_reason",
+        ),
         [
             {
                 "species": "Clostridium expandum",
+                "token": "DSM 42",
+                "query_database": "NCBI Assembly",
                 "candidate_accession": "GCA_123456789.1",
+                "candidate_biosample": "SAMN123456789",
+                "candidate_strain": "DSM 42",
                 "decision": "matched_candidate",
+                "decision_reason": "Candidate species and token evidence both match.",
             }
         ],
     )
@@ -4765,6 +4779,43 @@ def test_coverage_pipeline_accepts_expanded_discovery_and_manual_hints(
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
     assert payload["manifest_mutated"] is False
+
+    outdir = tmp_path / "pipeline_outputs"
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--expanded-discovery-results-tsv",
+            str(expanded),
+            "--manual-supplement-hints-tsv",
+            str(hints),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["output_paths"]["archive_candidates"] == str(
+        outdir / "archive_candidates" / "archive_candidates.tsv"
+    )
+    archive_summary = json.loads(
+        (
+            outdir / "archive_candidates" / "archive_candidates_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert archive_summary["source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert archive_summary["expanded_discovery_candidate_count"] == 1
+    assert archive_summary["candidate_count"] == 1
+    assert archive_summary["downloads_triggered"] == 0
+    assert archive_summary["providers_contacted"] == 0
+    assert archive_summary["manifest_mutated"] is False
 
 
 def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(

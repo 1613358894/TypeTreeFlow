@@ -26,6 +26,7 @@ from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_FIELDS,
     ARCHIVE_CANDIDATE_INPUT_FIELDS,
     ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+    archive_candidate_rows_from_expanded_discovery_results,
     build_archive_candidate_report,
 )
 from typetreeflow.evidence.coverage_plan import (
@@ -291,12 +292,20 @@ def run_coverage_pipeline_command(
     gaps = _read_optional_tsv(args.completion_gaps_tsv, "completion_gaps", diagnostics)
     external = _read_optional_tsv(args.external_genomes_tsv, "external_genomes", diagnostics)
     archive = _read_optional_tsv(args.archive_candidates_tsv, "archive_candidates", diagnostics)
-    archive_candidate_report = _archive_candidate_report_for_output(archive)
     expanded = _read_optional_tsv(
         args.expanded_discovery_results_tsv,
         "expanded_discovery_results",
         diagnostics,
     )
+    archive_candidate_report = _archive_candidate_report_for_output(archive)
+    if archive_candidate_report is None and expanded:
+        expanded_archive_rows = archive_candidate_rows_from_expanded_discovery_results(
+            expanded
+        )
+        if expanded_archive_rows:
+            archive_candidate_report = build_archive_candidate_report(
+                expanded_archive_rows
+            )
     manual_hints = _read_optional_tsv(
         args.manual_supplement_hints_tsv,
         "manual_supplement_hints",
