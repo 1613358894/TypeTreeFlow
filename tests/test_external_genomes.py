@@ -19,6 +19,7 @@ from typetreeflow.external_genomes import (
     read_external_genome_install_results,
     read_external_genome_registration_results,
     read_external_genomes,
+    summarize_external_genome_action_summary,
     summarize_external_genome_packet_readiness,
     validate_external_genome_records,
     write_external_genome_install_plan,
@@ -346,6 +347,137 @@ def test_external_genome_packet_readiness_summary_is_controlled(tmp_path):
             "manual_review_required": 1,
         },
     }
+
+
+def test_external_genome_action_summary_groups_local_next_steps(tmp_path):
+    good_fasta = _fasta(tmp_path / "good.fna")
+    bad_fasta = _fasta(tmp_path / "bad.fna", ">seq1\nTTTT\n")
+    records = [
+        _record(
+            tmp_path,
+            species="Clostridium readyum",
+            external_source="ATCC_Genome_Portal",
+            external_genome_id="ready",
+            genome_fasta_path=str(good_fasta),
+            sha256=calculate_sha256(good_fasta),
+        ),
+        _record(
+            tmp_path,
+            species="Clostridium missingum",
+            external_source="dsmz",
+            external_genome_id="missing",
+            genome_fasta_path=str(tmp_path / "missing.fna"),
+        ),
+        _record(
+            tmp_path,
+            species="Clostridium mismatchum",
+            external_source="dsmz",
+            external_genome_id="mismatch",
+            genome_fasta_path=str(bad_fasta),
+            sha256="0" * 64,
+        ),
+        _record(
+            tmp_path,
+            species="Clostridium reviewum",
+            external_source="",
+            external_genome_id="review",
+            genome_fasta_path=str(good_fasta),
+            requires_manual_review=True,
+        ),
+    ]
+    results = validate_external_genome_records(records)
+
+    assert summarize_external_genome_action_summary(results, stage="validate") == [
+        {
+            "priority": 10,
+            "stage": "validate",
+            "status": "external_genome_registered",
+            "next_input_class": "external_genomes install-plan",
+            "recommended_action": "build local install plan for validated FASTA rows",
+            "automation_boundary": "local_install_plan_review_no_execution",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium readyum"],
+            "species_truncated": False,
+            "external_source_counts": {"atcc_genome_portal": 1},
+            "recommended_next_command": (
+                "external-genomes install-plan --input <external_genomes.tsv> "
+                "--target-outdir <run>"
+            ),
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 20,
+            "stage": "validate",
+            "status": "external_genome_missing_file",
+            "next_input_class": "external_genomes.tsv",
+            "recommended_action": "supply an existing local FASTA path",
+            "automation_boundary": "local_fasta_required_no_download",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium missingum"],
+            "species_truncated": False,
+            "external_source_counts": {"dsmz": 1},
+            "recommended_next_command": (
+                "external-genomes validate --input <external_genomes.tsv>"
+            ),
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 30,
+            "stage": "validate",
+            "status": "external_genome_checksum_mismatch",
+            "next_input_class": "external_genomes.tsv",
+            "recommended_action": "fix FASTA checksum or replace the local file",
+            "automation_boundary": "local_checksum_review_no_download",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium mismatchum"],
+            "species_truncated": False,
+            "external_source_counts": {"dsmz": 1},
+            "recommended_next_command": (
+                "external-genomes validate --input <external_genomes.tsv>"
+            ),
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 40,
+            "stage": "validate",
+            "status": "external_genome_manual_review_required",
+            "next_input_class": "external_genomes.tsv",
+            "recommended_action": "complete manual review before install planning",
+            "automation_boundary": "manual_review_required_no_execution",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium reviewum"],
+            "species_truncated": False,
+            "external_source_counts": {"missing": 1},
+            "recommended_next_command": (
+                "external-genomes validate --input <external_genomes.tsv>"
+            ),
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+    ]
 
 
 def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):

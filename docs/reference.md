@@ -2585,7 +2585,10 @@ includes local packet-readiness maps: `external_source_counts`,
 `checksum_input_counts`, `type_material_counts`, and
 `manual_review_flag_counts`. These compact counts describe the supplied
 `external_genomes.tsv` packet and do not validate provider terms, query
-providers, install FASTA, or mark strict completion.
+providers, install FASTA, or mark strict completion. The payload also includes
+`external_genomes_action_summary`, which groups validation statuses into local
+repair or next-step actions with bounded species previews and fixed
+`safe_for_unattended_execution=false`.
 The validate payload also includes `external_genomes_readiness_packet`. When
 every row is valid, that packet reports `status=ready_for_next_stage`,
 `next_stage=external_genomes_install_plan`, and a structured request for
@@ -2630,6 +2633,9 @@ present. Its
 `external_genomes_readiness_packet` reports
 `next_stage=external_genomes_registration_dry_run` only when all install-plan
 rows are planned; otherwise it remains blocked and omits the next request.
+The install-plan payload also includes `external_genomes_action_summary`,
+grouping planned, skipped-existing, and skipped-invalid rows into local review
+actions without changing install or registration behavior.
 Ready packets include a `recommended_command_plan` for the registration dry-run
 request; because registration dry-run still declares isolated output writes,
 the companion remains blocked until explicit write allowance is supplied.

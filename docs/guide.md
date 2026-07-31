@@ -1363,7 +1363,10 @@ stage and, when ready, carries the structured next request, compact
 `install-plan` uses the reviewed external-genomes TSV path and target workflow
 outdir in its registration dry-run recommendation, so AI operators do not need
 to reconstruct those values from placeholders.
-blocked packets leave those next-step fields empty. Successful validate payloads
+Both commands also emit `external_genomes_action_summary`, grouping validation
+or install-plan statuses into local repair and next-step actions with bounded
+species previews; it is still not execution authorization. Blocked packets leave
+those next-step fields empty. Successful validate payloads
 also expose an `install_plan_recommended_command_plan` for the optional
 `external-genomes install-plan --write --outdir <isolated-directory>` audit
 triplet; that write-oriented plan remains blocked until writes are explicitly

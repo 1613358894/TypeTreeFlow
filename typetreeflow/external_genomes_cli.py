@@ -23,6 +23,7 @@ from typetreeflow.external_genomes import (
     read_external_genome_install_plan,
     read_external_genome_registration_results,
     read_external_genomes,
+    summarize_external_genome_action_summary,
     summarize_external_genome_packet_readiness,
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
@@ -332,6 +333,9 @@ def _validate_payload(
         "checksum_input_counts": packet_counts["checksum_input_counts"],
         "type_material_counts": packet_counts["type_material_counts"],
         "manual_review_flag_counts": packet_counts["manual_review_flag_counts"],
+        "external_genomes_action_summary": (
+            summarize_external_genome_action_summary(results, stage="validate")
+        ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "result_preview": preview,
@@ -430,6 +434,12 @@ def _install_plan_payload(
         "checksum_input_counts": packet_counts["checksum_input_counts"],
         "type_material_counts": packet_counts["type_material_counts"],
         "manual_review_flag_counts": packet_counts["manual_review_flag_counts"],
+        "external_genomes_action_summary": (
+            summarize_external_genome_action_summary(
+                install_plan,
+                stage="install_plan",
+            )
+        ),
         "install_plan_count": len(install_plan),
         "install_planned_count": planned_count,
         "install_skipped_count": skipped_count,

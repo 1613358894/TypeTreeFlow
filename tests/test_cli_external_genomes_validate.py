@@ -127,6 +127,31 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     assert payload["checksum_input_counts"] == {"provided": 1}
     assert payload["type_material_counts"] == {"type_material": 1}
     assert payload["manual_review_flag_counts"] == {"manual_review_cleared": 1}
+    assert payload["external_genomes_action_summary"] == [
+        {
+            "priority": 10,
+            "stage": "validate",
+            "status": "external_genome_registered",
+            "next_input_class": "external_genomes install-plan",
+            "recommended_action": "build local install plan for validated FASTA rows",
+            "automation_boundary": "local_install_plan_review_no_execution",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Fusobacterium mortiferum"],
+            "species_truncated": False,
+            "external_source_counts": {"atcc_genome_portal": 1},
+            "recommended_next_command": (
+                "external-genomes install-plan --input <external_genomes.tsv> "
+                "--target-outdir <run>"
+            ),
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        }
+    ]
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False
     assert payload["manifest_mutated"] is False
@@ -207,6 +232,19 @@ def test_external_genomes_validate_blocks_mixed_invalid_rows(tmp_path, capsys):
         "manual_review_cleared": 3,
         "manual_review_required": 1,
     }
+    assert [
+        (item["priority"], item["status"], item["record_count"])
+        for item in payload["external_genomes_action_summary"]
+    ] == [
+        (10, "external_genome_registered", 1),
+        (20, "external_genome_missing_file", 1),
+        (30, "external_genome_checksum_mismatch", 1),
+        (40, "external_genome_manual_review_required", 1),
+    ]
+    assert all(
+        item["safe_for_unattended_execution"] is False
+        for item in payload["external_genomes_action_summary"]
+    )
     assert [diagnostic["diagnostic_code"] for diagnostic in payload["diagnostics"]] == [
         "external_genome_missing_file",
         "external_genome_checksum_mismatch",
@@ -307,6 +345,16 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert payload["checksum_input_counts"] == {"provided": 1}
     assert payload["type_material_counts"] == {"type_material": 1}
     assert payload["manual_review_flag_counts"] == {"manual_review_cleared": 1}
+    assert payload["external_genomes_action_summary"][0]["stage"] == "install_plan"
+    assert payload["external_genomes_action_summary"][0]["status"] == (
+        "external_genome_install_planned"
+    )
+    assert payload["external_genomes_action_summary"][0]["next_input_class"] == (
+        "register-external-genomes dry-run"
+    )
+    assert payload["external_genomes_action_summary"][0][
+        "safe_for_unattended_execution"
+    ] is False
     assert payload["writes_outputs"] is True
     assert payload["writes_workflow_outputs"] is False
     assert payload["target_outdir_mutated"] is False
@@ -342,6 +390,9 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert summary["provider_route_groups"] == payload["provider_route_groups"]
     assert summary["checksum_input_counts"] == {"provided": 1}
     assert summary["manual_review_flag_counts"] == {"manual_review_cleared": 1}
+    assert summary["external_genomes_action_summary"] == payload[
+        "external_genomes_action_summary"
+    ]
 
 
 def test_external_genomes_install_plan_blocks_invalid_rows_without_outputs(
