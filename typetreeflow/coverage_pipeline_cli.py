@@ -2926,6 +2926,13 @@ def _coverage_operator_route_summary(
     }
 
 
+def _string_list_field(packet: Mapping[str, object], key: str) -> list[str]:
+    value = packet.get(key, [])
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
 def _coverage_controller_packet(
     stage_readiness_summary: Mapping[str, object],
     operator_chain_resume_packet: Mapping[str, object],
@@ -2944,11 +2951,129 @@ def _coverage_controller_packet(
         decision_surfaces.append("coverage_action_queue")
     if operator_chain_handoff_available:
         decision_surfaces.append("operator_chain_stage")
+    controller_step_candidates: list[dict[str, object]] = []
+    if queue_handoff_available:
+        controller_step_candidates.append(
+            {
+                "source": "coverage_action_queue",
+                "priority": 1,
+                "handoff_kind": "queue_item",
+                "status": str(coverage_queue_resume_packet.get("status", "")),
+                "queue_item_id": str(
+                    coverage_queue_resume_packet.get("queue_item_id", "")
+                ),
+                "operator_route": str(
+                    coverage_queue_resume_packet.get("operator_route", "")
+                ),
+                "recommended_request_target": str(
+                    coverage_queue_resume_packet.get(
+                        "recommended_request_target", ""
+                    )
+                ),
+                "target_argv": _string_list_field(
+                    coverage_queue_resume_packet, "target_argv"
+                ),
+                "snapshot_sha256": str(
+                    coverage_queue_resume_packet.get("queue_snapshot_sha256", "")
+                ),
+                "snapshot_matches_expected": queue_snapshot_matches_expected,
+                "resume_selector": str(
+                    coverage_queue_resume_packet.get("resume_with_queue_item_id", "")
+                ),
+                "resume_expected_snapshot_sha256": str(
+                    coverage_queue_resume_packet.get(
+                        "resume_with_expected_queue_snapshot_sha256",
+                        "",
+                    )
+                ),
+                "preflight_decision": str(
+                    coverage_queue_resume_packet.get("preflight_decision", "")
+                ),
+                "blocking_ids": _string_list_field(
+                    coverage_queue_resume_packet, "blocking_ids"
+                ),
+                "warning_ids": _string_list_field(
+                    coverage_queue_resume_packet, "warning_ids"
+                ),
+                "safe_for_unattended_execution": False,
+                "audit_only": True,
+                "dry_run": True,
+                "execution_boundary": str(
+                    coverage_queue_resume_packet.get("execution_boundary", "")
+                ),
+            }
+        )
+    if operator_chain_handoff_available:
+        controller_step_candidates.append(
+            {
+                "source": "operator_chain_stage",
+                "priority": 2,
+                "handoff_kind": "stage",
+                "status": str(operator_chain_resume_packet.get("status", "")),
+                "stage": str(operator_chain_resume_packet.get("stage", "")),
+                "artifact": str(operator_chain_resume_packet.get("artifact", "")),
+                "recommended_request_target": str(
+                    operator_chain_resume_packet.get(
+                        "recommended_request_target", ""
+                    )
+                ),
+                "target_argv": _string_list_field(
+                    operator_chain_resume_packet, "target_argv"
+                ),
+                "snapshot_sha256": str(
+                    operator_chain_resume_packet.get(
+                        "operator_chain_snapshot_sha256", ""
+                    )
+                ),
+                "snapshot_matches_expected": operator_chain_snapshot_matches_expected,
+                "resume_selector": str(
+                    operator_chain_resume_packet.get("resume_with_stage", "")
+                ),
+                "resume_expected_snapshot_sha256": str(
+                    operator_chain_resume_packet.get(
+                        "resume_with_expected_operator_chain_snapshot_sha256",
+                        "",
+                    )
+                ),
+                "preflight_decision": str(
+                    operator_chain_resume_packet.get("preflight_decision", "")
+                ),
+                "blocking_ids": _string_list_field(
+                    operator_chain_resume_packet, "blocking_ids"
+                ),
+                "warning_ids": _string_list_field(
+                    operator_chain_resume_packet, "warning_ids"
+                ),
+                "safe_for_unattended_execution": False,
+                "audit_only": True,
+                "dry_run": True,
+                "execution_boundary": str(
+                    operator_chain_resume_packet.get("execution_boundary", "")
+                ),
+            }
+        )
     return {
         "schema_version": "coverage_controller_packet.v1",
         "available": bool(decision_surfaces),
         "decision_surface_count": len(decision_surfaces),
         "decision_surfaces": decision_surfaces,
+        "controller_step_count": len(controller_step_candidates),
+        "controller_step_candidates": controller_step_candidates,
+        "first_controller_step_source": str(
+            controller_step_candidates[0].get("source", "")
+        )
+        if controller_step_candidates
+        else "",
+        "first_controller_step_target": str(
+            controller_step_candidates[0].get("recommended_request_target", "")
+        )
+        if controller_step_candidates
+        else "",
+        "first_controller_step_argv": _string_list_field(
+            controller_step_candidates[0], "target_argv"
+        )
+        if controller_step_candidates
+        else [],
         "coverage_queue_handoff_available": queue_handoff_available,
         "coverage_queue_status": str(coverage_queue_resume_packet.get("status", "")),
         "coverage_queue_item_count": _safe_int(
