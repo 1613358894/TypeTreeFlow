@@ -459,6 +459,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "purpose": "operator-route grouped coverage queue summary for AI routing",
         },
         {
+            "name": "coverage_controller_packet",
+            "schema_version": "coverage_controller_packet.v1",
+            "purpose": "compact combined queue and operator-chain controller handoff",
+        },
+        {
             "name": "operator_chain_next_step_packet",
             "schema_version": "operator_chain_next_step_packet.v1",
             "purpose": "metadata-only next operator-chain command preview",
@@ -509,6 +514,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_operator_route_summary",
             "schema_version": "coverage_operator_route_summary.v1",
             "purpose": "operator-route grouped coverage queue summary for AI routing",
+        },
+        {
+            "name": "coverage_controller_packet",
+            "schema_version": "coverage_controller_packet.v1",
+            "purpose": "compact combined queue and operator-chain controller handoff",
         },
         {
             "name": "operator_chain_next_step_packet",
@@ -566,6 +576,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_operator_route_summary",
             "schema_version": "coverage_operator_route_summary.v1",
             "purpose": "operator-route grouped coverage queue summary for AI routing",
+        },
+        {
+            "name": "coverage_controller_packet",
+            "schema_version": "coverage_controller_packet.v1",
+            "purpose": "compact combined queue and operator-chain controller handoff",
         },
         {
             "name": "operator_chain_next_step_packet",

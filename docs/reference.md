@@ -1882,6 +1882,11 @@ preserving first queue item IDs, first recommended request targets, per-route
 record counts, next-input class counts, automation-boundary counts, and route
 booleans for curator, public-metadata, provider-handoff, and external-registration
 review. It is for AI routing and does not authorize unattended execution.
+`coverage_controller_packet` combines the queue route summary, selected queue
+resume packet, operator-chain stage readiness summary, and operator-chain resume
+packet into one compact controller handoff. It reports which decision surfaces
+are available, the first queue route and item, queue and operator-chain digest
+guards, current command targets, and explicit no-execution safety fields.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -1926,8 +1931,8 @@ the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
 `coverage_next_command_plan`, `coverage_stage_command_plans`,
 `coverage_stage_readiness_summary`, `coverage_next_operator_recipe`,
 `coverage_queue_resume_packet`, `coverage_operator_queue_preview`, and
-`coverage_operator_route_summary`, plus operator-chain packets when present.
-`operator_chain_resume_packet` is the
+`coverage_operator_route_summary`, plus the controller packet and
+operator-chain packets when present. `operator_chain_resume_packet` is the
 compact counterpart to `operator_chain_next_step_packet`: it carries the next
 stage, command target, rendered argv, command-plan/preflight decisions, blocker
 IDs, and `resume_with_expected_operator_chain_snapshot_sha256` digest guard for
@@ -2010,6 +2015,10 @@ queue runner.
 it groups records by route and keeps compact first-item and target metadata so
 an AI/controller can decide which review surface to handle next without
 scanning every queue row.
+`coverage_controller_packet` is the shortest combined handoff: it lists
+available decision surfaces, queue and operator-chain statuses, current command
+targets, and snapshot match booleans in one object while preserving the same
+no-execution boundaries.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

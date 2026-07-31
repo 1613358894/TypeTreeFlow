@@ -333,6 +333,82 @@ def _assert_operator_route_summary(payload):
     assert summary["strict_scientific_deliverable"] is False
 
 
+def _assert_controller_packet(
+    payload,
+    *,
+    decision_surfaces,
+    queue_status,
+    operator_chain_status,
+    operator_chain_complete,
+):
+    packet = payload["coverage_controller_packet"]
+    assert packet["schema_version"] == "coverage_controller_packet.v1"
+    assert packet["available"] is bool(decision_surfaces)
+    assert packet["decision_surface_count"] == len(decision_surfaces)
+    assert packet["decision_surfaces"] == decision_surfaces
+    assert packet["coverage_queue_handoff_available"] is (
+        "coverage_action_queue" in decision_surfaces
+    )
+    assert packet["coverage_queue_status"] == queue_status
+    assert packet["coverage_queue_item_count"] == payload[
+        "coverage_operator_route_summary"
+    ]["queue_item_count"]
+    assert packet["coverage_queue_record_count"] == payload[
+        "coverage_operator_route_summary"
+    ]["record_count"]
+    assert packet["coverage_queue_route_count"] == payload[
+        "coverage_operator_route_summary"
+    ]["route_count"]
+    assert packet["coverage_queue_first_operator_route"] == payload[
+        "coverage_operator_route_summary"
+    ]["first_operator_route"]
+    assert packet["coverage_queue_first_queue_item_id"] == payload[
+        "coverage_operator_route_summary"
+    ]["first_queue_item_id"]
+    assert packet["coverage_queue_recommended_request_target"] == payload[
+        "coverage_queue_resume_packet"
+    ]["recommended_request_target"]
+    assert packet["coverage_queue_target_argv"] == payload[
+        "coverage_queue_resume_packet"
+    ]["target_argv"]
+    assert packet["coverage_queue_snapshot_sha256"] == payload[
+        "coverage_queue_resume_packet"
+    ]["queue_snapshot_sha256"]
+    assert packet["coverage_queue_snapshot_matches_expected"] == payload[
+        "queue_snapshot_matches_expected"
+    ]
+    assert packet["operator_chain_handoff_available"] is (
+        "operator_chain_stage" in decision_surfaces
+    )
+    assert packet["operator_chain_status"] == operator_chain_status
+    assert packet["operator_chain_stage_count"] == payload[
+        "coverage_stage_readiness_summary"
+    ]["stage_count"]
+    assert packet["operator_chain_complete"] is operator_chain_complete
+    assert packet["operator_chain_next_stage"] == payload[
+        "operator_chain_resume_packet"
+    ]["stage"]
+    assert packet["operator_chain_recommended_request_target"] == payload[
+        "operator_chain_resume_packet"
+    ]["recommended_request_target"]
+    assert packet["operator_chain_target_argv"] == payload[
+        "operator_chain_resume_packet"
+    ]["target_argv"]
+    assert packet["operator_chain_snapshot_sha256"] == payload[
+        "operator_chain_resume_packet"
+    ]["operator_chain_snapshot_sha256"]
+    assert packet["operator_chain_snapshot_matches_expected"] == payload[
+        "operator_chain_snapshot_matches_expected"
+    ]
+    assert packet["safe_for_unattended_execution"] is False
+    assert packet["audit_only"] is True
+    assert packet["dry_run"] is True
+    assert packet["downloads_triggered"] == 0
+    assert packet["providers_contacted"] == 0
+    assert packet["network_access"] is False
+    assert packet["strict_scientific_deliverable"] is False
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -1466,6 +1542,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         target="provider-request external-genomes-handoff",
         decision="block",
     )
+    _assert_controller_packet(
+        payload,
+        decision_surfaces=["coverage_action_queue", "operator_chain_stage"],
+        queue_status="ready_for_operator_review",
+        operator_chain_status="blocked",
+        operator_chain_complete=False,
+    )
     assert payload["operator_chain_stages"][6]["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input provider_request_external_genomes/external_genomes.tsv "
@@ -2462,6 +2545,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         target="provider-request external-genomes-handoff",
         decision="block",
     )
+    _assert_controller_packet(
+        summary,
+        decision_surfaces=["coverage_action_queue", "operator_chain_stage"],
+        queue_status="ready_for_operator_review",
+        operator_chain_status="blocked",
+        operator_chain_complete=False,
+    )
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
         "kctc": 1,
@@ -3276,6 +3366,13 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         target="",
         decision="none",
     )
+    _assert_controller_packet(
+        payload,
+        decision_surfaces=["coverage_action_queue"],
+        queue_status="ready_for_operator_review",
+        operator_chain_status="no_action",
+        operator_chain_complete=True,
+    )
     assert payload["coverage_opportunity_summary"][3][
         "provider_automation_level_counts"
     ] == {"planning_handoff": 2}
@@ -3837,6 +3934,13 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_route_summary_no_execution",
     }
+    _assert_controller_packet(
+        payload,
+        decision_surfaces=[],
+        queue_status="no_action",
+        operator_chain_status="no_action",
+        operator_chain_complete=False,
+    )
     assert payload["diagnostics"][0]["component"] == "coverage_pipeline_status"
     assert payload["diagnostics"][0]["diagnostic_code"] == "artifact_unreadable"
 
