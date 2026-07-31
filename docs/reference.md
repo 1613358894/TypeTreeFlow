@@ -2018,7 +2018,13 @@ child stages may also carry `summary_operator_route_counts`,
 when controlled route metadata is available. Registration dry-run stages may
 also carry `summary_valid_count`, `summary_invalid_count`, and
 `summary_registration_status_counts` from
-`external_genome_registration_results.tsv`. These are routing
+`external_genome_registration_results.tsv`. Provider-request validation and
+external-genomes handoff child summaries can also contribute
+`summary_provider_request_readiness_packet`; external-genomes install-plan
+summaries can contribute `summary_external_genomes_readiness_packet`.
+`operator_chain_readiness_packets` collects those bounded packets by stage so
+an AI/operator controller can inspect child-stage readiness without opening the
+child summary files. These are routing
 hints only and do not change the `available` gate. It also includes
 `completion_gate` with `passed`, `required`, `blocking_stage_count`,
 `blocking_stage_names`, and `blocking_diagnostic_code`. By default, an
