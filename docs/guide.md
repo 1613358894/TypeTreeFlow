@@ -526,6 +526,13 @@ execution.
 expected result shape for that bounded server handoff. It lists required result
 fields, checked surfaces, accepted status labels, and boundary confirmations
 without writing result files, validating artifacts, or authorizing dispatch.
+`coverage_handoff_server_validation_result_template_packet` provides a
+schema-shaped, fail-closed JSON template for that contract. It defaults the
+embedded result to `status=blocked` and repeats the no-execution boundary
+confirmations so a server agent can fill an authorized bounded-validation
+result without inventing field names. It remains metadata-only and does not
+write files, validate artifacts, dispatch target commands, contact providers,
+or download genomes.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage

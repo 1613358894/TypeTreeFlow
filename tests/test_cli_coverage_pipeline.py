@@ -850,6 +850,117 @@ def _assert_handoff_next_step_packet(
     assert result_contract["execution_boundary"] == (
         "metadata_only_handoff_server_validation_result_contract_no_execution"
     )
+    result_template = payload[
+        "coverage_handoff_server_validation_result_template_packet"
+    ]
+    assert (
+        result_template["schema_version"]
+        == "coverage_handoff_server_validation_result_template_packet.v1"
+    )
+    assert result_template["available"] is server_validation["available"]
+    assert result_template["template_status"] == (
+        "operator_review_required" if server_validation["available"] else "no_action"
+    )
+    assert (
+        result_template["result_filename"]
+        == "coverage_handoff_server_validation_result.json"
+    )
+    assert result_template["expected_result_schema_version"] == (
+        result_contract["expected_result_schema_version"]
+    )
+    assert result_template["expected_result_statuses"] == (
+        result_contract["expected_result_statuses"]
+    )
+    assert result_template["required_result_fields"] == (
+        result_contract["required_result_fields"]
+    )
+    assert result_template["required_result_field_count"] == (
+        result_contract["required_result_field_count"]
+    )
+    assert result_template["checked_surface_names"] == (
+        result_contract["checked_surface_names"]
+    )
+    assert result_template["checked_surface_count"] == (
+        result_contract["checked_surface_count"]
+    )
+    assert result_template["boundary_confirmation_keys"] == [
+        "filesystem_probe_performed",
+        "artifact_validation_performed",
+        "target_command_execution_authorized",
+        "provider_contact_allowed",
+        "downloads_triggered",
+        "providers_contacted",
+        "network_access",
+        "external_tools",
+        "manifest_mutated",
+        "strict_scientific_deliverable",
+        "external_genomes_registration_applied",
+    ]
+    assert result_template["boundary_confirmation_count"] == len(
+        result_template["boundary_confirmation_keys"]
+    )
+    assert result_template["result_template_default_status"] == "blocked"
+    assert result_template["result_template_requires_operator_completion"] is True
+    assert result_template["result_template_is_schema_shape_only"] is True
+    assert result_template["result_template_may_be_used_without_execution"] is True
+    assert (
+        result_template["source_contract_schema_version"]
+        == result_contract["schema_version"]
+    )
+    assert result_template["recommended_request_target"] == (
+        result_contract["recommended_request_target"]
+    )
+    assert result_template["recommended_argv"] == result_contract[
+        "recommended_argv"
+    ]
+    rendered_template = result_template["result_template"]
+    assert rendered_template == {
+        "schema_version": result_contract["expected_result_schema_version"],
+        "status": "blocked",
+        "validation_status": result_contract["validation_status"],
+        "checked_surface_names": result_contract["checked_surface_names"],
+        "input_readiness_status": result_contract["input_readiness_status"],
+        "blocking_ids": [],
+        "warning_ids": [],
+        "boundary_confirmations": {
+            "filesystem_probe_performed": False,
+            "artifact_validation_performed": False,
+            "target_command_execution_authorized": False,
+            "provider_contact_allowed": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "external_genomes_registration_applied": False,
+        },
+        "diagnostics": [],
+        "summary": (
+            "Fill after an explicitly authorized bounded server-validation "
+            "inspection; keep blocked until evidence proves otherwise."
+        ),
+    }
+    assert result_template["target_command_execution_authorized"] is False
+    assert result_template["provider_contact_allowed"] is False
+    assert result_template["safe_for_unattended_execution"] is False
+    assert result_template["recommended_execution_mode"] == (
+        "operator_review_required" if server_validation["available"] else "no_action"
+    )
+    assert result_template["audit_only"] is True
+    assert result_template["dry_run"] is True
+    assert result_template["writes_outputs"] is False
+    assert result_template["writes_workflow_outputs"] is False
+    assert result_template["downloads_triggered"] == 0
+    assert result_template["providers_contacted"] == 0
+    assert result_template["network_access"] is False
+    assert result_template["external_tools"] is False
+    assert result_template["manifest_mutated"] is False
+    assert result_template["strict_scientific_deliverable"] is False
+    assert result_template["external_genomes_registration_applied"] is False
+    assert result_template["execution_boundary"] == (
+        "metadata_only_handoff_server_validation_result_template_no_execution"
+    )
 
 
 def _assert_operator_chain_resume_packet(
@@ -1510,6 +1621,7 @@ def _assert_controller_packet(
         "coverage_handoff_server_validation_packet",
         "coverage_handoff_server_validation_runbook_packet",
         "coverage_handoff_server_validation_result_contract_packet",
+        "coverage_handoff_server_validation_result_template_packet",
         "coverage_route_next_batch_packet",
     ]
     assert inspection_summary["surface_count"] == len(expected_surface_names)
@@ -1593,6 +1705,11 @@ def _assert_controller_packet(
         "coverage_handoff_server_validation_result_contract_packet"
     ]["target_argv"] == payload[
         "coverage_handoff_server_validation_result_contract_packet"
+    ]["recommended_argv"]
+    assert surface_by_name[
+        "coverage_handoff_server_validation_result_template_packet"
+    ]["target_argv"] == payload[
+        "coverage_handoff_server_validation_result_template_packet"
     ]["recommended_argv"]
     assert surface_by_name["coverage_route_next_batch_packet"]["target_argv"] == (
         payload["coverage_route_next_batch_packet"].get("first_target_argv", [])

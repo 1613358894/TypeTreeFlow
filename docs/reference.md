@@ -1958,7 +1958,7 @@ workflow-output writes, manifest mutation, external-genomes registration, and
 strict deliverable promotion remain disabled.
 `coverage_controller_inspection_summary` is the bounded index over the parent
 controller, controller, step-summary, preflight, handoff-next-step, handoff
-server-validation packet/runbook/result-contract, and route-batch packets. It
+server-validation packet/runbook/result-contract/result-template, and route-batch packets. It
 lists each surface's availability, schema version, target argv, blocker IDs,
 warning IDs, and execution boundary so a parent process can inspect one compact
 table before expanding nested packets. It is also metadata only and does not
@@ -2278,6 +2278,13 @@ expected bounded-validation result shape for a parent/server handoff. It lists
 required result fields, checked surfaces, accepted status labels, and boundary
 confirmations, but it does not write a result, validate artifacts, dispatch the
 target command, or authorize server execution.
+`coverage_handoff_server_validation_result_template_packet` adds a
+schema-shaped, fail-closed `coverage_handoff_server_validation_result.json`
+template for that result contract. The embedded template defaults to
+`status=blocked` and repeats the no-execution boundary confirmations so a
+server agent can fill an authorized bounded-validation result without guessing
+field names. It remains metadata-only and does not validate artifacts, write
+files, dispatch target commands, contact providers, or download genomes.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
