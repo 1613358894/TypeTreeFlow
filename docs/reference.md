@@ -2259,6 +2259,12 @@ preflight` metadata gate. Its stop conditions require fail-closed behavior for
 a complete chain, unavailable next stage, missing local input, blocked metadata
 gate, missing operator approval, or any target command that would contact
 providers or download genomes.
+`coverage_handoff_server_validation_packet` combines the handoff next-step,
+input-readiness, and runbook packets for parent/server controllers. It reports
+whether the handoff is blocked, still needs operator input, or is ready for
+bounded local validation, and lists only metadata-gate actions. It does not
+probe the filesystem, validate artifacts, execute the target command, contact
+providers, download genomes, or authorize strict deliverables.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without

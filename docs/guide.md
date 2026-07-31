@@ -509,6 +509,11 @@ inspect handoff readiness, inspect input readiness, inspect the next-step
 packet, then run only a `commands plan` or `commands preflight` metadata gate.
 It stops before any provider contact, download, registration, FASTA copy,
 manifest mutation, or strict promotion.
+`coverage_handoff_server_validation_packet` is the parent/server-facing summary
+over those handoff packets. It reports blocked, operator-input-required, or
+bounded-local-validation-ready status and lists only offline metadata-gate
+actions. It performs no filesystem probe or artifact validation and does not
+authorize target command execution.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
