@@ -100,6 +100,28 @@ def test_archive_candidate_tsv_and_json_are_stable():
     }
 
 
+def test_archive_candidate_source_aliases_are_canonicalized():
+    report = build_archive_candidate_report(
+        [
+            _row(archive_source="European Nucleotide Archive"),
+            _row(
+                species="Clostridium genbankum",
+                archive_source="NCBI GenBank",
+                assembly_accession="GCA_000002.1",
+                biosample_accession="SAMN000002",
+            ),
+        ]
+    )
+
+    assert [row.archive_source for row in report.rows] == ["ena", "genbank"]
+    parsed = list(csv.DictReader(io.StringIO(report.candidates_tsv()), delimiter="\t"))
+    assert [row["archive_source"] for row in parsed] == ["ena", "genbank"]
+    assert report.summary["archive_source_counts"] == {
+        "ena": 1,
+        "genbank": 1,
+    }
+
+
 def test_archive_candidate_duplicate_is_conflict():
     report = build_archive_candidate_report([_row(), _row()])
 
