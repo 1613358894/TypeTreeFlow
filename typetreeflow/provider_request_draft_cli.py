@@ -21,6 +21,8 @@ from typetreeflow.evidence.provider_handoff import (
     PROVIDER_HANDOFF_SCHEMA_VERSION,
 )
 from typetreeflow.evidence.provider_request_draft import (
+    PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST,
+    PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST_TARGET,
     PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
     PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
     build_provider_request_draft,
@@ -171,6 +173,16 @@ def run_provider_request_command(
         payload["output_paths"] = {
             key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
         }
+        payload["recommended_request"] = _provider_request_validation_request(
+            str(outdir / OUTPUT_NAMES["request"])
+        )
+        payload["recommended_request_target"] = (
+            PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST_TARGET
+        )
+        payload["recommended_next_command"] = (
+            f"typetreeflow provider-request validate --input "
+            f"{outdir / OUTPUT_NAMES['request']}"
+        )
     _emit(payload, output)
     return 0 if not diagnostics else 2
 
@@ -558,6 +570,8 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "external_tools": False,
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
+        "recommended_request": dict(PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST),
+        "recommended_request_target": PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST_TARGET,
         "recommended_next_command": PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "summary": (
@@ -916,6 +930,8 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "external_tools": False,
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
+        "recommended_request": dict(PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST),
+        "recommended_request_target": PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST_TARGET,
         "recommended_next_command": PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "summary": message,
@@ -1091,6 +1107,14 @@ def _validate_diagnostic(component: str, code: str) -> dict[str, object]:
         "component": component,
         "severity": "error",
         "diagnostic_code": code,
+    }
+
+
+def _provider_request_validation_request(provider_request_tsv: str) -> dict[str, object]:
+    return {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "input": provider_request_tsv,
     }
 
 

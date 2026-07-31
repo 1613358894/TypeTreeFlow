@@ -3631,8 +3631,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         decision="allow",
     )
     assert payload["provider_request_recommended_next_command"] == (
-        "typetreeflow --plan-provider-registration "
-        "<provider_request.tsv> --outdir <run>"
+        "typetreeflow provider-request validate --input <provider_request.tsv>"
     )
     assert payload["provider_request_validation_recommended_request"] == {
         "command": "provider-request",
@@ -5029,8 +5028,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         decision="allow",
     )
     assert summary["provider_request_recommended_next_command"] == (
-        "typetreeflow --plan-provider-registration "
-        "<provider_request.tsv> --outdir <run>"
+        "typetreeflow provider-request validate --input <provider_request.tsv>"
     )
     assert summary["provider_request_validation_recommended_request"] == {
         "command": "provider-request",

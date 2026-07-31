@@ -74,6 +74,8 @@ PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS = [
     "curator_completion_required_count",
     "curator_completion_field_counts",
     "curator_completion_blocker_counts",
+    "recommended_request",
+    "recommended_request_target",
     "recommended_next_command",
 ]
 PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS = [
