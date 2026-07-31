@@ -533,6 +533,37 @@ def test_worklist_type_strain_kacc_token_routes_to_kacc_handoff():
     assert report.summary["candidate_provider_key_counts"] == {"kacc": 1}
 
 
+def test_worklist_type_strain_evidence_tokens_route_to_provider_handoff():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium evidenceum",
+                "type_strain_names": "VKM B-1787; MCCC 1K07510; GDMCC 1.2529",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium evidenceum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {"species": "Clostridium evidenceum", "reason_category": "missing_genome"}
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.candidate_provider_keys == "vkm; mccc; gdmcc"
+    assert row.candidate_provider_statuses == (
+        "vkm=planning_only; mccc=planning_only; gdmcc=planning_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "gdmcc": 1,
+        "mccc": 1,
+        "vkm": 1,
+    }
+
+
 def test_worklist_conflict_overrides_archive_candidate():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium conflictum"}],
