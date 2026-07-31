@@ -350,6 +350,34 @@ def _assert_controller_packet(
     assert [
         candidate["source"] for candidate in packet["controller_step_candidates"]
     ] == decision_surfaces
+    expected_blocking_ids = []
+    expected_warning_ids = []
+    for candidate in packet["controller_step_candidates"]:
+        if candidate["snapshot_matches_expected"] is False:
+            expected_blocking_ids.append(f"{candidate['source']}_snapshot_mismatch")
+        expected_blocking_ids.extend(candidate["blocking_ids"])
+        if candidate["preflight_decision"] == "block":
+            expected_blocking_ids.append(f"{candidate['source']}_preflight_block")
+        expected_warning_ids.extend(candidate["warning_ids"])
+    expected_blocking_ids = list(dict.fromkeys(expected_blocking_ids))
+    expected_warning_ids = list(dict.fromkeys(expected_warning_ids))
+    if not decision_surfaces:
+        expected_controller_status = "no_action"
+        expected_controller_decision = "none"
+    elif expected_blocking_ids:
+        expected_controller_status = "blocked"
+        expected_controller_decision = "block"
+    else:
+        expected_controller_status = "ready_for_operator_review"
+        expected_controller_decision = "review"
+    assert packet["controller_status"] == expected_controller_status
+    assert packet["controller_decision"] == expected_controller_decision
+    assert packet["controller_has_blockers"] is bool(expected_blocking_ids)
+    assert packet["controller_blocking_count"] == len(expected_blocking_ids)
+    assert packet["controller_blocking_ids"] == expected_blocking_ids
+    assert packet["controller_warning_count"] == len(expected_warning_ids)
+    assert packet["controller_warning_ids"] == expected_warning_ids
+    assert packet["controller_requires_operator_review"] is bool(decision_surfaces)
     if decision_surfaces:
         first_candidate = packet["controller_step_candidates"][0]
         assert packet["first_controller_step_source"] == first_candidate["source"]
