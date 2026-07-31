@@ -18,6 +18,7 @@ from typetreeflow.command_plan_packets import (
 from typetreeflow.evidence.archive_candidates import (
     build_archive_candidate_report,
     read_archive_candidate_input,
+    read_expanded_discovery_archive_candidate_input,
 )
 
 
@@ -86,7 +87,13 @@ def run_archive_candidates_command(
         )
         return 2
 
-    rows, input_diagnostics = read_archive_candidate_input(args.input_tsv)
+    input_path, input_paths = _selected_input_paths(args)
+    if args.expanded_discovery_results_tsv:
+        rows, input_diagnostics = read_expanded_discovery_archive_candidate_input(
+            args.expanded_discovery_results_tsv
+        )
+    else:
+        rows, input_diagnostics = read_archive_candidate_input(args.input_tsv)
     report = build_archive_candidate_report(rows, input_diagnostics=input_diagnostics)
     payload = {
         **report.summary,
@@ -98,7 +105,7 @@ def run_archive_candidates_command(
         "downloads_triggered": 0,
         "providers_contacted": 0,
         "manifest_mutated": False,
-        "input_paths": {"input_tsv": str(Path(args.input_tsv))},
+        "input_paths": input_paths,
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "recommended_request": None,
         "recommended_request_target": "",
@@ -137,7 +144,7 @@ def run_archive_candidates_command(
         }
         try:
             _publish(
-                input_paths=(Path(args.input_tsv),),
+                input_paths=(input_path,),
                 outdir=outdir,
                 rendered={
                     "candidates": report.candidates_tsv(),
@@ -186,7 +193,9 @@ def _build_parser() -> argparse.ArgumentParser:
     archive = commands.add_parser("archive-candidates", add_help=False)
     actions = archive.add_subparsers(dest="action", required=True)
     build = actions.add_parser("build", add_help=False)
-    build.add_argument("--input-tsv", required=True)
+    input_group = build.add_mutually_exclusive_group(required=True)
+    input_group.add_argument("--input-tsv")
+    input_group.add_argument("--expanded-discovery-results-tsv")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -224,7 +233,10 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "dry_run": True,
         "writes_outputs": False,
         "writes_workflow_outputs": False,
-        "input_paths": {"input_tsv": None},
+        "input_paths": {
+            "input_tsv": None,
+            "expanded_discovery_results_tsv": None,
+        },
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "recommended_request": None,
         "recommended_request_target": "",
@@ -232,6 +244,23 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "recommended_command_plan": None,
         "summary": message,
     }
+
+
+def _selected_input_paths(args) -> tuple[Path, dict[str, str | None]]:
+    input_tsv = Path(args.input_tsv) if args.input_tsv else None
+    expanded = (
+        Path(args.expanded_discovery_results_tsv)
+        if args.expanded_discovery_results_tsv
+        else None
+    )
+    selected = input_tsv or expanded
+    return (
+        selected,
+        {
+            "input_tsv": str(input_tsv) if input_tsv else None,
+            "expanded_discovery_results_tsv": str(expanded) if expanded else None,
+        },
+    )
 
 
 def _publish(

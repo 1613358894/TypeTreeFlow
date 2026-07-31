@@ -1741,6 +1741,38 @@ def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
     assert payload["recognized"]["requires_outdir"] is True
 
 
+def test_commands_render_emits_expanded_discovery_archive_candidates_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"archive-candidates","subcommand":"build",'
+                    '"expanded_discovery_results_tsv":"expanded.tsv",'
+                    '"write":true,"outdir":"archive"}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "archive-candidates",
+        "build",
+        "--expanded-discovery-results-tsv",
+        "expanded.tsv",
+        "--write",
+        "--outdir",
+        "archive",
+    ]
+    assert payload["recognized"]["command"] == "archive-candidates"
+    assert payload["recognized"]["mode"] == "archive_candidates"
+    assert payload["recognized"]["requires_outdir"] is True
+
+
 def test_commands_render_emits_normalized_coverage_plan_argv(capsys):
     assert (
         main(

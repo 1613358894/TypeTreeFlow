@@ -5,9 +5,12 @@ import json
 from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_FIELDS,
     ARCHIVE_CANDIDATE_INPUT_FIELDS,
+    archive_candidate_rows_from_expanded_discovery_results,
     build_archive_candidate_report,
+    read_expanded_discovery_archive_candidate_input,
     read_archive_candidate_input,
 )
+from typetreeflow.expanded_discovery import EXPANDED_DISCOVERY_RESULT_FIELDS
 
 
 def _row(**updates):
@@ -155,3 +158,79 @@ def test_archive_candidate_reader_rejects_schema_mismatch(tmp_path):
 
     assert rows == ()
     assert diagnostics[0].diagnostic_code == "schema_mismatch"
+
+
+def test_expanded_discovery_results_map_to_archive_candidate_input():
+    rows = archive_candidate_rows_from_expanded_discovery_results(
+        [
+            {
+                "species": "Clostridium expandum",
+                "token": "DSM 42",
+                "query_database": "NCBI Assembly",
+                "candidate_accession": "GCF_000001.1",
+                "candidate_biosample": "SAMN000001",
+                "candidate_organism": "Clostridium expandum",
+                "candidate_strain": "DSM 42",
+                "decision": "matched_candidate",
+                "decision_reason": "Candidate species and token evidence both match.",
+                "notes": "raw expanded discovery note must not be copied",
+            },
+            {
+                "species": "Clostridium rejectum",
+                "token": "DSM 99",
+                "candidate_accession": "GCA_000002.1",
+                "decision": "rejected_species_mismatch",
+            },
+        ]
+    )
+
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["species"] == "Clostridium expandum"
+    assert row["archive_source"] == "refseq"
+    assert row["archive_source_name"] == "NCBI RefSeq"
+    assert row["assembly_accession"] == "GCF_000001.1"
+    assert row["biosample_accession"] == "SAMN000001"
+    assert row["archive_type_material_signal"] == "direct_type_strain_linkage_unreviewed"
+    assert row["lpsn_token_overlap"] == "DSM 42"
+    assert "raw expanded discovery note" not in row["evidence_notes"]
+    report = build_archive_candidate_report(rows)
+    assert report.valid is True
+    assert report.summary["archive_source_counts"] == {"refseq": 1}
+
+
+def test_expanded_discovery_archive_candidate_reader_is_strict(tmp_path):
+    path = _write(
+        tmp_path / "expanded.tsv",
+        EXPANDED_DISCOVERY_RESULT_FIELDS,
+        [
+            {
+                "species": "Clostridium expandum",
+                "token": "DSM 42",
+                "query_database": "NCBI BioSample",
+                "candidate_accession": "",
+                "candidate_biosample": "SAMN000001",
+                "candidate_organism": "Clostridium expandum",
+                "candidate_strain": "DSM 42",
+                "candidate_assembly_level": "",
+                "decision": "matched_candidate",
+                "decision_reason": "Candidate species and token evidence both match.",
+                "suggested_next_action": "review",
+                "notes": "not copied",
+                "token_kind": "culture_collection_id",
+                "query": "Clostridium expandum DSM 42",
+            }
+        ],
+    )
+
+    rows, diagnostics = read_expanded_discovery_archive_candidate_input(str(path))
+
+    assert diagnostics == ()
+    assert rows[0]["archive_source"] == "genbank"
+    assert rows[0]["archive_source_name"] == "NCBI BioSample"
+    assert rows[0]["biosample_accession"] == "SAMN000001"
+
+    bad = _write(tmp_path / "bad.tsv", ["species", "decision"], [])
+    rows, diagnostics = read_expanded_discovery_archive_candidate_input(str(bad))
+    assert rows == ()
+    assert diagnostics[0].diagnostic_code == "expanded_discovery_schema_mismatch"
