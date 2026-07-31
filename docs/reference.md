@@ -1561,9 +1561,13 @@ typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv>
 Without `--write`, it writes nothing. With `--write`, it writes only
 `archive_candidates.tsv`, `archive_candidates_summary.json`, and
 `archive_candidates_diagnostics.tsv` into the explicitly supplied isolated
-directory. It does not query public archives, write `external_genomes.tsv`,
-mutate workflow outputs, contact providers, trigger downloads, or grant strict
-type-strain status.
+directory. Successful writes also include `recommended_request`,
+`recommended_request_target=coverage-pipeline build`, and
+`recommended_next_command` fields that point a later local coverage-pipeline run
+at the written `archive_candidates.tsv`. The adapter does not run that next
+command, query public archives, write `external_genomes.tsv`, mutate workflow
+outputs, contact providers, trigger downloads, or grant strict type-strain
+status.
 
 The isolated CLI adapter is:
 

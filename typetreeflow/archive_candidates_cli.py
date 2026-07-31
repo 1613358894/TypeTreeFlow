@@ -11,6 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Sequence, TextIO
 
+from typetreeflow.command_plan_packets import recommended_request_target
 from typetreeflow.evidence.archive_candidates import (
     build_archive_candidate_report,
     read_archive_candidate_input,
@@ -18,6 +19,7 @@ from typetreeflow.evidence.archive_candidates import (
 
 
 COMMAND = "archive-candidates build"
+RECOMMENDED_REQUEST_TARGET = "coverage-pipeline build"
 OUTPUT_NAMES = {
     "candidates": "archive_candidates.tsv",
     "summary": "archive_candidates_summary.json",
@@ -95,6 +97,9 @@ def run_archive_candidates_command(
         "manifest_mutated": False,
         "input_paths": {"input_tsv": str(Path(args.input_tsv))},
         "output_paths": {key: None for key in OUTPUT_NAMES},
+        "recommended_request": None,
+        "recommended_request_target": "",
+        "recommended_next_command": "",
         "summary": (
             "Archive candidate audit passed"
             if report.valid
@@ -102,12 +107,25 @@ def run_archive_candidates_command(
         ),
     }
     if args.write:
+        candidates_path = outdir / OUTPUT_NAMES["candidates"]
+        recommended_request = _coverage_pipeline_recommended_request(
+            str(candidates_path)
+        )
         written_payload = {
             **payload,
             "writes_outputs": True,
             "output_paths": {
                 key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
             },
+            "recommended_request": recommended_request,
+            "recommended_request_target": recommended_request_target(
+                recommended_request
+            ),
+            "recommended_next_command": (
+                "typetreeflow coverage-pipeline build --archive-candidates-tsv "
+                f"{candidates_path} --write "
+                "--outdir <isolated-coverage-pipeline-directory>"
+            ),
         }
         try:
             _publish(
@@ -140,6 +158,18 @@ def run_archive_candidates_command(
         payload = written_payload
     _emit(payload, output)
     return 0 if report.valid else 2
+
+
+def _coverage_pipeline_recommended_request(
+    archive_candidates_tsv: str,
+) -> dict[str, object]:
+    return {
+        "command": "coverage-pipeline",
+        "subcommand": "build",
+        "archive_candidates_tsv": archive_candidates_tsv,
+        "write": True,
+        "outdir": "<isolated-coverage-pipeline-directory>",
+    }
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -188,6 +218,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "writes_workflow_outputs": False,
         "input_paths": {"input_tsv": None},
         "output_paths": {key: None for key in OUTPUT_NAMES},
+        "recommended_request": None,
+        "recommended_request_target": "",
+        "recommended_next_command": "",
         "summary": message,
     }
 

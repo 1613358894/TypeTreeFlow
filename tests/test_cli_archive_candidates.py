@@ -66,6 +66,9 @@ def test_archive_candidates_dry_run_single_json_and_no_writes(tmp_path, capsys):
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
     assert payload["writes_outputs"] is False
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
     assert before == {
         path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()
     }
@@ -90,10 +93,28 @@ def test_archive_candidates_write_publishes_owned_triplet(tmp_path, capsys):
     }
     assert not (outdir / "evidence").exists()
     assert not (outdir / "external_genomes.tsv").exists()
+    candidates_path = outdir / "archive_candidates.tsv"
+    assert payload["recommended_request"] == {
+        "command": "coverage-pipeline",
+        "subcommand": "build",
+        "archive_candidates_tsv": str(candidates_path),
+        "write": True,
+        "outdir": "<isolated-coverage-pipeline-directory>",
+    }
+    assert payload["recommended_request_target"] == "coverage-pipeline build"
+    assert payload["recommended_next_command"] == (
+        "typetreeflow coverage-pipeline build --archive-candidates-tsv "
+        f"{candidates_path} --write "
+        "--outdir <isolated-coverage-pipeline-directory>"
+    )
     summary = json.loads(
         (outdir / "archive_candidates_summary.json").read_text(encoding="utf-8")
     )
     assert summary["strict_scientific_deliverable"] is False
+    assert summary["recommended_request"] == payload["recommended_request"]
+    assert summary["recommended_request_target"] == payload[
+        "recommended_request_target"
+    ]
 
 
 def test_archive_candidates_malformed_input_exits_two_and_writes_diagnostics(
