@@ -151,8 +151,11 @@ of producing empty provider request rows. The compact JSON and summary include
 `automation_boundary_counts`, `curator_completion_template_counts`,
 `curator_completion_field_counts`, and `curator_completion_blocker_counts` so
 AI/operator routing can see both the inherited route and the curator-owned
-fields still blocking later provider-registration planning. Each draft row note
-also carries a `curator_completion_template` such as
+fields still blocking later provider-registration planning. Command metadata
+surfaces report the target output contract as
+`provider_request_draft_packet.v1`, so controllers can route the draft pair
+without executing the command first. Each draft row note also carries a
+`curator_completion_template` such as
 `provider_local_fasta_handoff` or `public_archive_linkage_review`; the template
 is only a fill-in recipe and does not make the row provider-ready.
 
@@ -281,7 +284,9 @@ It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` so an AI/operator can see the current local
 input requirement, rendered argv, preflight decision, output contracts, and
-review-only recipe without executing the target command.
+review-only recipe without executing the target command. The recipe repeats the
+same `review_input_packet` as the selected task packet, so it can be handed to a
+controller as a complete no-execution operator checklist.
 The selected task packet also carries `review_input_packet`, which names the
 local review schema and required TSV fields for the queued action. For public
 archive linkage actions this points to the manual-review TSV contract and the

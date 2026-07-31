@@ -44,16 +44,16 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
         "queue_position": 1,
-        "queue_item_id": "cq001_validate_provider_request",
-        "action_code": "validate_provider_request",
+        "queue_item_id": "cq001_prepare_provider_handoff",
+        "action_code": "prepare_provider_handoff",
         "operator_route": "provider_handoff",
-        "next_input_class": "provider_request_validation",
+        "next_input_class": "permitted_local_fasta_terms_provenance",
         "record_count": 1,
         "species_count": 1,
         "recommended_request": {
             "command": "provider-request",
-            "subcommand": "validate",
-            "input": "provider_request.tsv",
+            "subcommand": "draft",
+            "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
         },
     }
 
@@ -63,28 +63,33 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
     assert plan["decision"] == "allow"
     assert plan["output_contracts"] == [
         {
-            "name": "provider_request_readiness_packet",
-            "schema_version": "provider_request_readiness_packet.v1",
-            "purpose": "provider-request validation readiness handoff",
+            "name": "provider_request_draft_packet",
+            "schema_version": "provider_request_draft_packet.v1",
+            "purpose": "provider request draft handoff",
         }
     ]
     assert recipe["output_contracts"] == plan["output_contracts"]
+    assert recipe["review_input_packet"]["available"] is True
+    assert recipe["review_input_packet"]["input_schema"] == "provider_handoff.v1"
+    assert recipe["review_input_packet"]["recommended_request"] == (
+        packet["recommended_request"]
+    )
     preview = _coverage_operator_queue_preview([packet])
     assert preview["items"][0]["output_contracts"] == plan["output_contracts"]
     assert preview["items"][0]["output_contract_names"] == [
-        "provider_request_readiness_packet"
+        "provider_request_draft_packet"
     ]
     assert preview["items"][0]["output_contract_count"] == 1
     assert preview["preview_output_contract_names"] == [
-        "provider_request_readiness_packet"
+        "provider_request_draft_packet"
     ]
     assert preview["preview_output_contract_counts"] == {
-        "provider_request_readiness_packet": 1
+        "provider_request_draft_packet": 1
     }
     assert preview["preview_output_contract_count"] == 1
     assert preview["preview_operator_route_counts"] == {"provider_handoff": 1}
     assert preview["preview_next_input_class_counts"] == {
-        "provider_request_validation": 1
+        "permitted_local_fasta_terms_provenance": 1
     }
     assert preview["preview_command_plan_status_counts"] == {"pass": 1}
     assert preview["preview_command_plan_decision_counts"] == {"allow": 1}
@@ -103,9 +108,10 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
     )
     assert resume_packet["output_contracts"] == plan["output_contracts"]
     assert resume_packet["output_contract_names"] == [
-        "provider_request_readiness_packet"
+        "provider_request_draft_packet"
     ]
     assert resume_packet["output_contract_count"] == 1
+    assert resume_packet["review_input_packet"] == recipe["review_input_packet"]
     assert recipe["downloads_triggered"] == 0
     assert recipe["providers_contacted"] == 0
     assert recipe["manifest_mutated"] is False
@@ -666,6 +672,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     )
     assert payload["coverage_next_operator_recipe"]["queue_item_id"] == (
         "cq001_resolve_curator_conflict"
+    )
+    assert payload["coverage_next_operator_recipe"]["review_input_packet"] == (
+        payload["coverage_next_task_packet"]["review_input_packet"]
     )
     assert payload["coverage_next_operator_recipe"]["command_plan_decision"] == "allow"
     assert payload["coverage_next_operator_recipe"]["target_argv"] == [
@@ -3152,6 +3161,34 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "species_preview": [],
         "species_truncated": False,
         "required_inputs": [],
+        "review_input_packet": {
+            "schema_version": "coverage_review_input_packet.v1",
+            "available": False,
+            "action_code": "",
+            "operator_route": "local_evidence_build",
+            "next_input_class": "local_reconciler_completion_gap_evidence",
+            "record_count": 0,
+            "input_artifact": "",
+            "input_schema": "",
+            "required_fields": [],
+            "allowed_statuses": [],
+            "evidence_focus": "",
+            "recommended_request": None,
+            "review_only": True,
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_review_input_packet_no_execution"
+            ),
+        },
         "command_plan_decision": "none",
         "target_argv": [],
         "output_contracts": [],

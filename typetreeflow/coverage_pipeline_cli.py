@@ -2629,6 +2629,18 @@ def _coverage_next_operator_recipe(
         if isinstance(raw_output_contracts, list)
         else []
     )
+    action_code = str(packet.get("action_code", ""))
+    record_count = _safe_int(packet.get("record_count", 0))
+    recommended_request = (
+        packet.get("recommended_request")
+        if isinstance(packet.get("recommended_request"), Mapping)
+        else None
+    )
+    review_input_packet = _coverage_review_input_packet(
+        action_code,
+        record_count=record_count,
+        recommended_request=recommended_request,
+    )
     available = bool(packet.get("available")) and bool(command_plan.get("available"))
     decision = str(command_plan.get("decision", "none"))
     if not available:
@@ -2673,16 +2685,17 @@ def _coverage_next_operator_recipe(
         "status": status,
         "queue_position": _safe_int(packet.get("queue_position", 0)),
         "queue_item_id": str(packet.get("queue_item_id", "")),
-        "action_code": str(packet.get("action_code", "")),
+        "action_code": action_code,
         "operator_route": str(packet.get("operator_route", "")),
         "next_input_class": str(packet.get("next_input_class", "")),
-        "record_count": _safe_int(packet.get("record_count", 0)),
+        "record_count": record_count,
         "species_count": _safe_int(packet.get("species_count", 0)),
         "species_preview": list(packet.get("species_preview", []))
         if isinstance(packet.get("species_preview"), list)
         else [],
         "species_truncated": bool(packet.get("species_truncated")),
         "required_inputs": required_inputs,
+        "review_input_packet": review_input_packet,
         "command_plan_decision": decision,
         "target_argv": target_argv,
         "output_contracts": output_contracts,
@@ -2722,6 +2735,17 @@ def _coverage_queue_resume_packet(
     blocking_ids = _diagnostic_ids(recipe.get("blocking", []))
     warning_ids = _diagnostic_ids(recipe.get("warnings", []))
     output_contracts = _safe_output_contracts(recipe.get("output_contracts", []))
+    review_input_packet = (
+        dict(recipe.get("review_input_packet", {}))
+        if isinstance(recipe.get("review_input_packet"), Mapping)
+        else _coverage_review_input_packet(
+            str(packet.get("action_code", "")),
+            record_count=_safe_int(packet.get("record_count", 0)),
+            recommended_request=packet.get("recommended_request")
+            if isinstance(packet.get("recommended_request"), Mapping)
+            else None,
+        )
+    )
     available = bool(packet.get("available")) and bool(recipe.get("available"))
     if not available:
         status = "no_action"
@@ -2747,13 +2771,7 @@ def _coverage_queue_resume_packet(
         "required_inputs": list(recipe.get("required_inputs", []))
         if isinstance(recipe.get("required_inputs"), list)
         else [],
-        "review_input_packet": _coverage_review_input_packet(
-            str(packet.get("action_code", "")),
-            record_count=_safe_int(packet.get("record_count", 0)),
-            recommended_request=packet.get("recommended_request")
-            if isinstance(packet.get("recommended_request"), Mapping)
-            else None,
-        ),
+        "review_input_packet": review_input_packet,
         "target_argv": list(recipe.get("target_argv", []))
         if isinstance(recipe.get("target_argv"), list)
         else [],

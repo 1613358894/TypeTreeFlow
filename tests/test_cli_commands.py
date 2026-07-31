@@ -76,6 +76,34 @@ def test_commands_recognize_echoes_target_output_contracts(capsys):
     ]
 
 
+def test_commands_recognize_provider_request_draft_output_contract(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "recognize",
+                "--argv-json",
+                (
+                    '["provider-request","draft","--provider-handoff-tsv",'
+                    '"provider_handoff.tsv"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["recognized"]["command"] == "provider-request"
+    assert payload["recognized"]["subcommand"] == "draft"
+    assert payload["output_contracts"] == [
+        {
+            "name": "provider_request_draft_packet",
+            "schema_version": "provider_request_draft_packet.v1",
+            "purpose": "provider request draft handoff",
+        }
+    ]
+
+
 def test_commands_recognize_accepts_remainder_argv(capsys):
     assert main(["commands", "recognize", "--", "doctor", "--json"]) == 0
 
@@ -310,6 +338,9 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     }
     assert "provider_request_readiness_packet" in contract_names[
         ("provider-request", "validate")
+    ]
+    assert "provider_request_draft_packet" in contract_names[
+        ("provider-request", "draft")
     ]
     assert "provider_request_readiness_packet" in contract_names[
         ("provider-request", "external-genomes-draft")
