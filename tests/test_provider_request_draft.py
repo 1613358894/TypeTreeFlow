@@ -157,9 +157,14 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
         "network_access": False,
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
+        "recommended_request": {
+            "command": "provider-request",
+            "subcommand": "validate",
+            "input": "provider_request.tsv",
+        },
+        "recommended_request_target": "provider-request validate",
         "recommended_next_command": (
-            "typetreeflow --plan-provider-registration "
-            "<provider_request.tsv> --outdir <run>"
+            "typetreeflow provider-request validate --input <provider_request.tsv>"
         ),
     }
     assert json.loads(draft.summary_json()) == draft.summary

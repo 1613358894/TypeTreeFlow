@@ -172,9 +172,9 @@ typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv
 
 The draft fills only deterministic planning fields and leaves curator-owned
 provider record, strain, local FASTA, hash, license, and retrieval fields
-blank for review. It is a bridge to `plan-provider-registration`, not provider
-contact, terms acceptance, download execution, manifest mutation, completion
-credit, or strict scientific delivery. Input rows with missing provider key,
+blank for review. It is a bridge to local `provider-request validate`, not
+provider contact, terms acceptance, download execution, manifest mutation,
+completion credit, or strict scientific delivery. Input rows with missing provider key,
 provider name, provider status, route metadata, or species are blocked instead
 of producing empty provider request rows. The compact JSON and summary include
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`,
@@ -188,6 +188,8 @@ without executing the command first. Each draft row note also carries a
 `curator_completion_template` such as
 `provider_local_fasta_handoff` or `public_archive_linkage_review`; the template
 is only a fill-in recipe and does not make the row provider-ready.
+When `--write` succeeds, stdout's `recommended_request` points to the written
+`provider_request.tsv` for a later local `provider-request validate` command.
 
 After curator completion, validate the provider request against local handoff
 readiness without writing workflow outputs:
@@ -716,7 +718,7 @@ directory as one explicit read-only input. TypeTreeFlow derives only its
 `provider_request_external_genomes/`, `external_genomes_install_plan/`, and
 `archive_candidates/` subdirectories when present; it does not scan workflow
 outputs or rerun the pipeline. The generated `provider_request/` member is a
-draft input for `plan-provider-registration`; the optional
+draft input for local `provider-request validate`; the optional
 `provider_request_external_genomes/` member is only a draft input for later
 local `external-genomes validate`; the optional
 `external_genomes_install_plan/` member is only an installation path planning
@@ -1294,9 +1296,10 @@ typetreeflow register-external-genomes \
   --external-genomes <reviewed_external_genomes.tsv> \
   --outdir <workspace>/runs/fusobacterium_external
 
-typetreeflow plan-provider-registration \
-  --provider-request provider_request.tsv \
-  --outdir <workspace>/runs/provider_review
+typetreeflow provider-request validate \
+  --input provider_request.tsv \
+  --write \
+  --outdir <workspace>/handoffs/provider_request_validation
 ```
 
 For the internal Fusobacterium external pilot fixture, NCBI Assembly strict completion remains `16/17`; External-inclusive strict completion is `17/17`.

@@ -1686,7 +1686,8 @@ typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv
 ```
 
 It reads only the explicitly named `provider_handoff.tsv` and converts valid
-handoff rows into a deterministic review draft for `plan-provider-registration`.
+handoff rows into a deterministic review draft for local
+`provider-request validate`.
 Without `--write`, it writes nothing. With `--write`, it writes only
 `provider_request.tsv` and `provider_request_draft_summary.json` into the
 explicitly supplied directory. Existing output directories are refused by
@@ -1706,7 +1707,12 @@ The compact JSON and `provider_request_draft_summary.json` include
 `provider_automation_level_counts`, `operator_route_counts`,
 `provider_route_groups`, `next_input_class_counts`, `automation_boundary_counts`,
 `curator_completion_required_count`, `curator_completion_template_counts`,
-`curator_completion_field_counts`, and `curator_completion_blocker_counts`.
+`curator_completion_field_counts`, `curator_completion_blocker_counts`,
+`recommended_request`, `recommended_request_target`, and
+`recommended_next_command`. Dry-run output keeps a generic
+`provider-request validate` request. On successful writes, stdout's
+`recommended_request` and `recommended_next_command` point to the written
+`provider_request.tsv` for the later local validation command.
 `commands recognize`, `commands plan`, and `commands preflight` report the
 target output contract as `provider_request_draft_packet.v1`, so AI/operator
 controllers can route the draft pair without running the command first.
@@ -2465,8 +2471,9 @@ audit-only report/package contracts as the individual component directory
 options. Explicit component directories take precedence over the derived
 pipeline subdirectories.
 The generated `provider_request/` member is an offline draft for
-`plan-provider-registration`; report/package inclusion means draft
-availability only and does not authorize provider contact or downloads.
+local `provider-request validate`; report/package inclusion means draft
+availability only and does not authorize provider contact, validation,
+downloads, or registration.
 For offline readiness, pass `--offline-readiness-dir <dir>` with
 `--report-only` to display compact audit status from a previously generated
 readiness pair, or with `package-results --include reports|all` to copy the

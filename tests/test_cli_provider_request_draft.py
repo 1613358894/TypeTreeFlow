@@ -140,9 +140,14 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["downloads_triggered"] == 0
     assert payload["manifest_mutated"] is False
     assert payload["strict_scientific_deliverable"] is False
+    assert payload["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "input": "provider_request.tsv",
+    }
+    assert payload["recommended_request_target"] == "provider-request validate"
     assert payload["recommended_next_command"] == (
-        "typetreeflow --plan-provider-registration "
-        "<provider_request.tsv> --outdir <run>"
+        "typetreeflow provider-request validate --input <provider_request.tsv>"
     )
 
 
@@ -158,6 +163,7 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
 
     assert code == 0
     assert payload["writes_outputs"] is True
+    provider_request_path = outdir / "provider_request.tsv"
     assert (outdir / "provider_request.tsv").exists()
     assert (outdir / "provider_request_draft_summary.json").exists()
     with (outdir / "provider_request.tsv").open(encoding="utf-8", newline="") as handle:
@@ -170,6 +176,12 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     assert summary["providers_contacted"] == 0
     assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert summary["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "input": "provider_request.tsv",
+    }
+    assert summary["recommended_request_target"] == "provider-request validate"
     assert summary["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -181,6 +193,32 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     }
     assert summary["curator_completion_required_count"] == 1
     assert summary["curator_completion_blocker_counts"]["missing_required_field"] == 1
+    assert payload["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "input": str(provider_request_path),
+    }
+    assert payload["recommended_request_target"] == "provider-request validate"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow provider-request validate --input {provider_request_path}"
+    )
+
+    render_code = cli.main(
+        [
+            "commands",
+            "render",
+            "--request-json",
+            json.dumps(payload["recommended_request"], separators=(",", ":")),
+        ]
+    )
+    rendered = json.loads(capsys.readouterr().out)
+    assert render_code == 0
+    assert rendered["target_argv"] == [
+        "provider-request",
+        "validate",
+        "--input",
+        str(provider_request_path),
+    ]
 
     assert _run(
         ["--provider-handoff-tsv", str(handoff), "--write", "--outdir", str(outdir)],

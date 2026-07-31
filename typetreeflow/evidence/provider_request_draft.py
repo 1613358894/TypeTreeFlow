@@ -17,8 +17,14 @@ from typetreeflow.providers.routing import provider_route_groups
 
 
 PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION = "1"
+PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST: dict[str, object] = {
+    "command": "provider-request",
+    "subcommand": "validate",
+    "input": "provider_request.tsv",
+}
+PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST_TARGET = "provider-request validate"
 PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND = (
-    "typetreeflow --plan-provider-registration <provider_request.tsv> --outdir <run>"
+    "typetreeflow provider-request validate --input <provider_request.tsv>"
 )
 CURATOR_COMPLETION_FIELD_KEYS = (
     "strain",
@@ -171,6 +177,10 @@ class ProviderRequestDraft:
             "network_access": False,
             "manifest_mutated": False,
             "strict_scientific_deliverable": False,
+            "recommended_request": dict(PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST),
+            "recommended_request_target": (
+                PROVIDER_REQUEST_DRAFT_RECOMMENDED_REQUEST_TARGET
+            ),
             "recommended_next_command": PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
         }
 
