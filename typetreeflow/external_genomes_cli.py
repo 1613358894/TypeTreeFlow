@@ -400,11 +400,13 @@ def _install_plan_payload(
     planned_count = install_counts.get("external_genome_install_planned", 0)
     skipped_count = len(install_plan) - planned_count
     external_genomes_input = _command_path(args.input, fallback="external_genomes.tsv")
+    target_outdir = _command_path(args.target_outdir, fallback="<run>")
     recommended_request = dict(INSTALL_PLAN_RECOMMENDED_REQUEST)
     recommended_request["external_genomes"] = external_genomes_input
+    recommended_request["outdir"] = target_outdir
     recommended_next = (
         f"typetreeflow --register-external-genomes {external_genomes_input} "
-        "--outdir <run> --dry-run"
+        f"--outdir {target_outdir} --dry-run"
     )
     return {
         "schema_version": INSTALL_PLAN_SCHEMA_VERSION,

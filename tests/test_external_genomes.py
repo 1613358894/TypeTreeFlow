@@ -508,7 +508,7 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
     assert packet["recommended_request"] == {
         "command": "register-external-genomes",
         "external_genomes": path.as_posix(),
-        "outdir": "<run>",
+        "outdir": target.as_posix(),
         "dry_run": True,
     }
     assert packet["recommended_request_target"] == "register-external-genomes"
@@ -517,7 +517,7 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
         "--register-external-genomes",
         path.as_posix(),
         "--outdir",
-        "<run>",
+        target.as_posix(),
         "--dry-run",
     ]
     assert packet["recommended_command_plan"]["request_source"] == (
@@ -528,7 +528,7 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
     ]
     assert packet["recommended_next_command"] == (
         f"typetreeflow --register-external-genomes {path.as_posix()} "
-        "--outdir <run> --dry-run"
+        f"--outdir {target.as_posix()} --dry-run"
     )
     assert packet["safe_for_unattended_execution"] is False
     assert packet["downloads_triggered"] == 0
