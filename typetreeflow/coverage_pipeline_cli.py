@@ -722,6 +722,8 @@ def _run_status(
             "diagnostic_count",
             "status_counts",
             "provider_counts",
+            "provider_status_counts",
+            "provider_automation_level_counts",
             "operator_route_counts",
             "provider_route_groups",
             "next_input_class_counts",
@@ -747,6 +749,8 @@ def _run_status(
             "exported_count",
             "diagnostic_count",
             "provider_counts",
+            "provider_status_counts",
+            "provider_automation_level_counts",
             "operator_route_counts",
             "provider_route_groups",
             "next_input_class_counts",
@@ -776,6 +780,8 @@ def _run_status(
             "install_skipped_count",
             "diagnostic_count",
             "registration_status_counts",
+            "provider_status_counts",
+            "provider_automation_level_counts",
             "operator_route_counts",
             "provider_route_groups",
             "next_input_class_counts",
@@ -2091,6 +2097,10 @@ def _apply_registration_dry_run_stage_details(
     stage["summary_valid_count"] = sum(1 for row in rows if row.valid)
     stage["summary_invalid_count"] = sum(1 for row in rows if not row.valid)
     stage["summary_registration_status_counts"] = dict(sorted(status_counts.items()))
+    stage["summary_provider_status_counts"] = route_counts["provider_status_counts"]
+    stage["summary_provider_automation_level_counts"] = route_counts[
+        "provider_automation_level_counts"
+    ]
     stage["summary_operator_route_counts"] = route_counts["operator_route_counts"]
     stage["summary_provider_route_groups"] = route_counts["provider_route_groups"]
     stage["summary_next_input_class_counts"] = route_counts["next_input_class_counts"]
@@ -8804,6 +8814,10 @@ def _external_genomes_install_plan_payload(
         "valid_count": sum(1 for result in registration_results if result.valid),
         "invalid_count": sum(1 for result in registration_results if not result.valid),
         "registration_status_counts": dict(sorted(registration_counts.items())),
+        "provider_status_counts": route_counts["provider_status_counts"],
+        "provider_automation_level_counts": route_counts[
+            "provider_automation_level_counts"
+        ],
         "operator_route_counts": route_counts["operator_route_counts"],
         "provider_route_groups": route_counts["provider_route_groups"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
