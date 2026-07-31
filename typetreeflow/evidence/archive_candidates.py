@@ -5,9 +5,12 @@ from __future__ import annotations
 import csv
 import io
 import json
+from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
+from typetreeflow.providers.base import ProviderStatus
+from typetreeflow.providers.registry import build_default_provider_registry
 from typetreeflow.taxonomy.names import canonical_species_key
 
 
@@ -185,6 +188,9 @@ class ArchiveCandidateReport:
             ),
             "diagnostic_count": len(self.diagnostics),
             "status_counts": status_counts,
+            "archive_source_counts": _archive_source_counts(self.rows),
+            "accession_kind_counts": _accession_kind_counts(self.rows),
+            "review_input_class_counts": _review_input_class_counts(self.rows),
             "downloads_triggered": 0,
             "providers_contacted": 0,
             "manifest_mutated": False,
@@ -357,6 +363,64 @@ def _replace_status(
             "recommended_action": action,
         }
     )
+
+
+def _archive_source_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int]:
+    registry = build_default_provider_registry()
+    counts: Counter[str] = Counter()
+    for row in rows:
+        entry = registry.get(row.archive_source)
+        if entry.capability.status == ProviderStatus.METADATA_ONLY:
+            counts[entry.provider_key] += 1
+        elif row.archive_source:
+            counts["other"] += 1
+        else:
+            counts["missing"] += 1
+    return dict(sorted(counts.items()))
+
+
+def _accession_kind_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for row in rows:
+        if row.assembly_accession:
+            counts["assembly"] += 1
+        if row.biosample_accession:
+            counts["biosample"] += 1
+        if row.nuccore_accession:
+            counts["nuccore"] += 1
+        if row.wgs_accession:
+            counts["wgs"] += 1
+        if not (
+            row.assembly_accession
+            or row.biosample_accession
+            or row.nuccore_accession
+            or row.wgs_accession
+        ):
+            counts["missing"] += 1
+    return dict(sorted(counts.items()))
+
+
+def _review_input_class_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for row in rows:
+        counts[_review_input_class(row)] += 1
+    return dict(sorted(counts.items()))
+
+
+def _review_input_class(row: ArchiveCandidateRow) -> str:
+    if row.candidate_status == "archive_candidate_conflict":
+        return "conflict_resolution_required"
+    if row.candidate_status == "archive_candidate_missing_accession":
+        return "public_accession_required"
+    if row.candidate_status == "archive_candidate_malformed":
+        return "metadata_fix_required"
+    if row.candidate_status == "archive_candidate_insufficient_type_linkage":
+        if row.archive_type_material_signal in {"none", "unknown"}:
+            return "direct_type_material_signal_required"
+        return "lpsn_token_overlap_required"
+    if row.candidate_status == "archive_candidate_for_public_linkage_review":
+        return "direct_evidence_chain_review"
+    return "metadata_fix_required"
 
 
 def _write_tsv(fields: tuple[str, ...], rows: Iterable[Mapping[str, object]]) -> str:

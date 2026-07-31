@@ -66,6 +66,17 @@ def test_archive_candidate_report_is_audit_only_and_statused():
     assert report.valid is False
     assert report.summary["candidate_count"] == 1
     assert report.summary["manual_review_count"] == 3
+    assert report.summary["archive_source_counts"] == {"ena": 3}
+    assert report.summary["accession_kind_counts"] == {
+        "assembly": 2,
+        "biosample": 2,
+        "missing": 1,
+    }
+    assert report.summary["review_input_class_counts"] == {
+        "direct_evidence_chain_review": 1,
+        "direct_type_material_signal_required": 1,
+        "public_accession_required": 1,
+    }
     assert report.summary["downloads_triggered"] == 0
     assert report.summary["providers_contacted"] == 0
     assert report.summary["manifest_mutated"] is False
@@ -84,6 +95,9 @@ def test_archive_candidate_tsv_and_json_are_stable():
     summary = json.loads(report.summary_json())
     assert summary["record_count"] == 1
     assert summary["candidate_count"] == 1
+    assert summary["review_input_class_counts"] == {
+        "direct_evidence_chain_review": 1
+    }
 
 
 def test_archive_candidate_duplicate_is_conflict():

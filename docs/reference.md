@@ -1492,7 +1492,11 @@ Supported statuses are `archive_candidate_for_public_linkage_review`,
 `archive_candidate_missing_accession`, and `archive_candidate_malformed`.
 Archive candidate summaries always preserve `downloads_triggered=0`,
 `providers_contacted=0`, `manifest_mutated=false`, `audit_only=true`, and
-`strict_scientific_deliverable=false`.
+`strict_scientific_deliverable=false`. They also include controlled
+`archive_source_counts`, `accession_kind_counts`, and
+`review_input_class_counts` maps so AI/operator handoff can distinguish public
+archive source, available accession class, and the next local review input
+without reading row-level notes.
 
 The isolated archive candidate CLI adapter is:
 
@@ -1865,7 +1869,8 @@ directory, and optional downstream directory overrides. When
 `archive_candidates` operator-chain stage from the existing
 `archive_candidates.tsv`, `archive_candidates_summary.json`, and
 `archive_candidates_diagnostics.tsv` triplet. The stage carries bounded counts
-only; it does not query public archives, download genomes, create
+only, including archive source, accession kind, and review input class counts;
+it does not query public archives, download genomes, create
 `external_genomes.tsv`, or change strict evidence. It then re-emits
 `operator_chain_stages`, the current unavailable stage, and the recommended
 next command as compact JSON. It also preserves top-level provider automation
