@@ -443,7 +443,10 @@ controlled route counts, status keeps those counts as `summary_*` stage fields
 for routing context only. Provider-request and external-genomes child readiness
 packets are also preserved in `operator_chain_readiness_packets`, and as
 `summary_*_readiness_packet` fields on the matching stage rows, so controllers
-can route local review steps without opening child summary files. Registration
+can route local review steps without opening child summary files. Ready
+readiness packets include compact `recommended_request_target` labels, plus an
+`install_plan_recommended_request_target` label when a provider-request
+readiness summary also exposes the downstream install-plan companion. Registration
 dry-run status can also summarize valid,
 invalid, and registration status counts from the dry-run result TSV. It does not
 scan workflow outputs, contact
