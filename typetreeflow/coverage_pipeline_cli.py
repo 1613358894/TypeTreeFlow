@@ -775,6 +775,18 @@ def _run_status(
         coverage_next_task_packet,
         coverage_next_command_plan,
     )
+    coverage_queue_resume_packet = _coverage_queue_resume_packet(
+        coverage_next_task_packet,
+        coverage_next_command_plan,
+        coverage_next_operator_recipe,
+        queue_snapshot_sha256=queue_snapshot_sha256,
+        expected_queue_snapshot_sha256=getattr(
+            args,
+            "expected_queue_snapshot_sha256",
+            None,
+        ),
+        queue_snapshot_matches_expected=snapshot_matches,
+    )
     coverage_operator_queue_preview = _coverage_operator_queue_preview(
         coverage_action_queue,
         limit=queue_preview_limit,
@@ -813,6 +825,7 @@ def _run_status(
         "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_next_command_plan": coverage_next_command_plan,
         "coverage_next_operator_recipe": coverage_next_operator_recipe,
+        "coverage_queue_resume_packet": coverage_queue_resume_packet,
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
@@ -1313,6 +1326,14 @@ def _payload(
         coverage_next_task_packet,
         coverage_next_command_plan,
     )
+    coverage_queue_resume_packet = _coverage_queue_resume_packet(
+        coverage_next_task_packet,
+        coverage_next_command_plan,
+        coverage_next_operator_recipe,
+        queue_snapshot_sha256=queue_snapshot_sha256,
+        expected_queue_snapshot_sha256=expected_queue_snapshot_sha256,
+        queue_snapshot_matches_expected=snapshot_matches,
+    )
     coverage_operator_queue_preview = _coverage_operator_queue_preview(
         coverage_action_queue,
         limit=queue_preview_limit,
@@ -1368,6 +1389,7 @@ def _payload(
         "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_next_command_plan": coverage_next_command_plan,
         "coverage_next_operator_recipe": coverage_next_operator_recipe,
+        "coverage_queue_resume_packet": coverage_queue_resume_packet,
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
@@ -2231,6 +2253,68 @@ def _coverage_next_operator_recipe(
     }
 
 
+def _coverage_queue_resume_packet(
+    packet: Mapping[str, object],
+    command_plan: Mapping[str, object],
+    recipe: Mapping[str, object],
+    *,
+    queue_snapshot_sha256: str,
+    expected_queue_snapshot_sha256: str | None,
+    queue_snapshot_matches_expected: bool,
+) -> dict[str, object]:
+    blocking_ids = _diagnostic_ids(recipe.get("blocking", []))
+    warning_ids = _diagnostic_ids(recipe.get("warnings", []))
+    available = bool(packet.get("available")) and bool(recipe.get("available"))
+    if not available:
+        status = "no_action"
+    elif not queue_snapshot_matches_expected:
+        status = "blocked"
+    else:
+        status = str(recipe.get("status", ""))
+    return {
+        "schema_version": "coverage_queue_resume_packet.v1",
+        "available": available,
+        "status": status,
+        "queue_position": _safe_int(packet.get("queue_position", 0)),
+        "queue_item_id": str(packet.get("queue_item_id", "")),
+        "action_code": str(packet.get("action_code", "")),
+        "operator_route": str(packet.get("operator_route", "")),
+        "next_input_class": str(packet.get("next_input_class", "")),
+        "record_count": _safe_int(packet.get("record_count", 0)),
+        "required_inputs": list(recipe.get("required_inputs", []))
+        if isinstance(recipe.get("required_inputs"), list)
+        else [],
+        "target_argv": list(recipe.get("target_argv", []))
+        if isinstance(recipe.get("target_argv"), list)
+        else [],
+        "command_plan_status": str(command_plan.get("status", "")),
+        "command_plan_decision": str(command_plan.get("decision", "")),
+        "preflight_decision": str(command_plan.get("preflight_decision", "")),
+        "blocking_count": len(blocking_ids),
+        "blocking_ids": blocking_ids,
+        "warning_count": len(warning_ids),
+        "warning_ids": warning_ids,
+        "queue_snapshot_sha256": queue_snapshot_sha256,
+        "expected_queue_snapshot_sha256": str(expected_queue_snapshot_sha256 or ""),
+        "queue_snapshot_matches_expected": queue_snapshot_matches_expected,
+        "resume_with_queue_item_id": str(packet.get("queue_item_id", "")),
+        "resume_with_expected_queue_snapshot_sha256": queue_snapshot_sha256,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_queue_resume_packet_no_execution",
+    }
+
+
 def _coverage_operator_queue_preview(
     coverage_action_queue: list[dict[str, object]],
     *,
@@ -2393,6 +2477,11 @@ def _append_unique(values: list[str], value: str) -> None:
 def _failure(code: str, message: str) -> dict[str, object]:
     empty_packet = _coverage_next_task_packet([])
     empty_command_plan = _coverage_next_command_plan(empty_packet)
+    empty_recipe = _coverage_next_operator_recipe(
+        empty_packet,
+        empty_command_plan,
+    )
+    empty_queue_snapshot_sha256 = _coverage_queue_snapshot_sha256([])
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
         "status": "failed",
@@ -2420,12 +2509,22 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_priority_summary": _coverage_priority_summary([]),
         "coverage_next_task_packet": empty_packet,
         "coverage_next_command_plan": empty_command_plan,
-        "coverage_next_operator_recipe": _coverage_next_operator_recipe(
+        "coverage_next_operator_recipe": empty_recipe,
+        "coverage_queue_resume_packet": _coverage_queue_resume_packet(
             empty_packet,
             empty_command_plan,
+            empty_recipe,
+            queue_snapshot_sha256=empty_queue_snapshot_sha256,
+            expected_queue_snapshot_sha256=None,
+            queue_snapshot_matches_expected=True,
         ),
         "coverage_operator_queue_preview": _coverage_operator_queue_preview([]),
         "current_coverage_action_queue_item": {},
+        "selected_coverage_queue_item_id": "",
+        "selected_coverage_queue_item_found": False,
+        "expected_queue_snapshot_sha256": "",
+        "current_queue_snapshot_sha256": empty_queue_snapshot_sha256,
+        "queue_snapshot_matches_expected": True,
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
         "primary_action_recommended_request": None,

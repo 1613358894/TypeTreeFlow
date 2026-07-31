@@ -279,8 +279,11 @@ item. To resume a specific stable queue item, pass
 `--queue-item-id <queue_item_id>` to `preview`, `build`, or `status`; this only
 selects `current_coverage_action_queue_item`,
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
-`coverage_next_operator_recipe` metadata. It does not change the bounded preview
-prefix, execute the target command, or authorize provider access/downloads.
+`coverage_next_operator_recipe` metadata, and the matching
+`coverage_queue_resume_packet` repeats the selected item ID, digest guard,
+target argv, and no-execution boundary in one compact object. It does not
+change the bounded preview prefix, execute the target command, or authorize
+provider access/downloads.
 Controllers that persist `queue_snapshot_sha256` can pass
 `--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a
 mismatch is refused with exit code `2` so stale queue selections fail closed.

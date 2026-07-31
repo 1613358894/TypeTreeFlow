@@ -903,6 +903,29 @@ def test_coverage_pipeline_queue_item_id_selects_current_task_metadata(
         "--provider-handoff-tsv",
         "provider_handoff/provider_handoff.tsv",
     ]
+    resume_packet = payload["coverage_queue_resume_packet"]
+    assert resume_packet["schema_version"] == "coverage_queue_resume_packet.v1"
+    assert resume_packet["queue_item_id"] == "cq004_prepare_provider_handoff"
+    assert resume_packet["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        "provider_handoff/provider_handoff.tsv",
+    ]
+    assert resume_packet["queue_snapshot_sha256"] == payload[
+        "current_queue_snapshot_sha256"
+    ]
+    assert resume_packet["resume_with_queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+    assert resume_packet["resume_with_expected_queue_snapshot_sha256"] == (
+        payload["current_queue_snapshot_sha256"]
+    )
+    assert resume_packet["queue_snapshot_matches_expected"] is True
+    assert resume_packet["safe_for_unattended_execution"] is False
+    assert resume_packet["execution_boundary"] == (
+        "metadata_only_queue_resume_packet_no_execution"
+    )
     assert payload["coverage_operator_queue_preview"]["preview_item_ids"] == [
         "cq001_resolve_curator_conflict",
         "cq002_review_public_archive_linkage",
@@ -1039,6 +1062,12 @@ def test_coverage_pipeline_expected_queue_snapshot_guard(capsys, tmp_path):
     assert status_payload["coverage_next_task_packet"]["queue_item_id"] == (
         "cq004_prepare_provider_handoff"
     )
+    assert status_payload["coverage_queue_resume_packet"]["queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+    assert status_payload["coverage_queue_resume_packet"][
+        "resume_with_expected_queue_snapshot_sha256"
+    ] == digest
 
 
 def test_coverage_pipeline_rejects_queue_snapshot_mismatch(capsys, tmp_path):
@@ -1069,6 +1098,10 @@ def test_coverage_pipeline_rejects_queue_snapshot_mismatch(capsys, tmp_path):
     assert payload["expected_queue_snapshot_sha256"] == wrong_digest
     assert payload["current_queue_snapshot_sha256"] != wrong_digest
     assert payload["queue_snapshot_matches_expected"] is False
+    assert payload["coverage_queue_resume_packet"]["status"] == "blocked"
+    assert payload["coverage_queue_resume_packet"][
+        "queue_snapshot_matches_expected"
+    ] is False
     assert {
         "schema_version": payload["schema_version"],
         "component": "coverage_action_queue",
@@ -2665,6 +2698,48 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_recipe_no_execution",
+    }
+    assert payload["coverage_queue_resume_packet"] == {
+        "schema_version": "coverage_queue_resume_packet.v1",
+        "available": False,
+        "status": "no_action",
+        "queue_position": 0,
+        "queue_item_id": "",
+        "action_code": "",
+        "operator_route": "",
+        "next_input_class": "",
+        "record_count": 0,
+        "required_inputs": [],
+        "target_argv": [],
+        "command_plan_status": "no_action",
+        "command_plan_decision": "none",
+        "preflight_decision": "none",
+        "blocking_count": 0,
+        "blocking_ids": [],
+        "warning_count": 0,
+        "warning_ids": [],
+        "queue_snapshot_sha256": (
+            "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        ),
+        "expected_queue_snapshot_sha256": "",
+        "queue_snapshot_matches_expected": True,
+        "resume_with_queue_item_id": "",
+        "resume_with_expected_queue_snapshot_sha256": (
+            "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        ),
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_queue_resume_packet_no_execution",
     }
     assert payload["coverage_operator_queue_preview"] == {
         "schema_version": "coverage_operator_queue_preview.v1",
