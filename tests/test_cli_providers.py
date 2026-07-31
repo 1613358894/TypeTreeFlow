@@ -63,7 +63,12 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
     assert "dsmz" in payload["planning_handoff_provider_keys"]
     assert payload["download_enabled_provider_keys"] == []
     assert providers["refseq"]["aliases"] == ["RefSeq", "NCBI RefSeq"]
-    assert providers["bccm_lmg"]["aliases"] == ["BCCM LMG", "BCCM-LMG", "LMG"]
+    assert providers["bccm_lmg"]["aliases"] == [
+        "BCCM LMG",
+        "BCCM-LMG",
+        "BCCM/LMG",
+        "LMG",
+    ]
     assert "provider_guidance=public_archive_metadata_review" in (
         providers["ena"]["guidance_notes"]
     )

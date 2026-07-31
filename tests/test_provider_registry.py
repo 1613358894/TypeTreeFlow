@@ -56,11 +56,13 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
 
     aliases = {
         "DSMZ": "dsmz",
+        "DSM": "dsmz",
         "RefSeq": "refseq",
         "NCBI RefSeq": "refseq",
         "ATCC": "atcc_genome_portal",
         "ATCC Genome Portal": "atcc_genome_portal",
         "BCCM-LMG": "bccm_lmg",
+        "BCCM/LMG": "bccm_lmg",
         "Korean Collection for Type Cultures": "kctc",
         "Spanish Type Culture Collection": "cect",
         "Collection de l'Institut Pasteur": "cip",
@@ -79,14 +81,30 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
 
     for value, expected_key in aliases.items():
         assert registry.get(value).provider_key == expected_key
+        assert registry.canonical_key(value) == expected_key
 
 
 def test_provider_registry_exposes_stable_aliases_for_catalog_metadata():
     registry = build_default_provider_registry()
 
-    assert registry.aliases_for("bccm_lmg") == ("BCCM LMG", "BCCM-LMG", "LMG")
+    assert registry.aliases_for("bccm_lmg") == (
+        "BCCM LMG",
+        "BCCM-LMG",
+        "BCCM/LMG",
+        "LMG",
+    )
     assert "NCBI RefSeq" in registry.aliases_for("refseq")
     assert registry.aliases_for("unknown") == ()
+
+
+def test_provider_registry_extracts_provider_keys_from_culture_collection_text():
+    registry = build_default_provider_registry()
+
+    assert registry.keys_from_text(
+        "ATCC 1001; DSMZ 2002; DSM-2003; BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006"
+    ) == ("atcc_genome_portal", "dsmz", "bccm_lmg")
+    assert registry.keys_from_text("no culture collection token") == ()
+    assert registry.canonical_key("unregistered provider") is None
 
 
 def test_unknown_provider_still_fails_closed():

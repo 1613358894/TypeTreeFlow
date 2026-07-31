@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from typetreeflow.providers.atcc import AtccGenomePortalAdapter
@@ -39,6 +40,22 @@ class ProviderRegistry:
     def aliases_for(self, provider_key: str) -> tuple[str, ...]:
         canonical = self.get(provider_key).provider_key
         return self._entry_aliases.get(canonical, ())
+
+    def canonical_key(self, provider_key: str) -> str | None:
+        normalized = provider_key.strip()
+        if not normalized:
+            return None
+        canonical = self._aliases.get(_alias_key(normalized), normalized)
+        return canonical if canonical in self._entries else None
+
+    def keys_from_text(self, text: str) -> tuple[str, ...]:
+        normalized = text.upper()
+        provider_keys: list[str] = []
+        for prefix, provider_key in _TOKEN_PREFIXES:
+            pattern = rf"(?<![A-Z0-9]){re.escape(prefix)}(?:\s*[-:/]?\s*[A-Z0-9]|$)"
+            if re.search(pattern, normalized) and provider_key not in provider_keys:
+                provider_keys.append(provider_key)
+        return tuple(provider_keys)
 
 
 def unknown_provider_entry(provider_key: str) -> ProviderRegistryEntry:
@@ -97,6 +114,7 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("ATCC", "atcc_genome_portal"),
     ("ATCC Genome Portal", "atcc_genome_portal"),
     ("DSMZ", "dsmz"),
+    ("DSM", "dsmz"),
     ("German Collection of Microorganisms and Cell Cultures", "dsmz"),
     ("JCM", "jcm"),
     ("Japan Collection of Microorganisms", "jcm"),
@@ -118,6 +136,7 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("Czech Collection of Microorganisms", "ccm"),
     ("BCCM LMG", "bccm_lmg"),
     ("BCCM-LMG", "bccm_lmg"),
+    ("BCCM/LMG", "bccm_lmg"),
     ("LMG", "bccm_lmg"),
     ("NCIMB", "ncimb"),
     ("NCIB", "ncib"),
@@ -135,6 +154,33 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("NCBI GenBank", "genbank"),
     ("RefSeq", "refseq"),
     ("NCBI RefSeq", "refseq"),
+)
+
+
+_TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
+    ("ATCC", "atcc_genome_portal"),
+    ("DSMZ", "dsmz"),
+    ("DSM", "dsmz"),
+    ("JCM", "jcm"),
+    ("NCTC", "nctc"),
+    ("CGMCC", "cgmcc"),
+    ("NBRC", "nbrc"),
+    ("KCTC", "kctc"),
+    ("CECT", "cect"),
+    ("CIP", "cip"),
+    ("CCUG", "ccug"),
+    ("CCM", "ccm"),
+    ("BCCM/LMG", "bccm_lmg"),
+    ("BCCM-LMG", "bccm_lmg"),
+    ("LMG", "bccm_lmg"),
+    ("NCIMB", "ncimb"),
+    ("NCIB", "ncib"),
+    ("BCRC", "bcrc"),
+    ("CCRC", "ccrc"),
+    ("NCCB", "nccb"),
+    ("CSUR", "csur"),
+    ("CICC", "cicc"),
+    ("IFO", "ifo"),
 )
 
 
