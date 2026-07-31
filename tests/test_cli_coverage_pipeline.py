@@ -75,6 +75,13 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
         "provider_request_readiness_packet"
     ]
     assert preview["items"][0]["output_contract_count"] == 1
+    assert preview["preview_output_contract_names"] == [
+        "provider_request_readiness_packet"
+    ]
+    assert preview["preview_output_contract_counts"] == {
+        "provider_request_readiness_packet": 1
+    }
+    assert preview["preview_output_contract_count"] == 1
     digest = _coverage_queue_snapshot_sha256([packet])
     resume_packet = _coverage_queue_resume_packet(
         packet,
@@ -674,6 +681,15 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "cq002_review_public_archive_linkage",
         "cq003_review_public_type_linkage",
     ]
+    assert payload["coverage_operator_queue_preview"][
+        "preview_output_contract_names"
+    ] == []
+    assert payload["coverage_operator_queue_preview"][
+        "preview_output_contract_counts"
+    ] == {}
+    assert payload["coverage_operator_queue_preview"][
+        "preview_output_contract_count"
+    ] == 0
     assert payload["coverage_operator_queue_preview"]["truncated"] is True
     assert [
         item["queue_item_id"]
@@ -3204,6 +3220,9 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "preview_limit": 3,
         "preview_item_count": 0,
         "preview_item_ids": [],
+        "preview_output_contract_names": [],
+        "preview_output_contract_counts": {},
+        "preview_output_contract_count": 0,
         "truncated": False,
         "items": [],
         "audit_only": True,
