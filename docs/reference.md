@@ -2457,10 +2457,12 @@ bounded `summary_*` fields such as `summary_status`, `summary_ready_count`,
 `summary_blocker_counts`, `summary_provider_counts`, and
 `summary_install_plan_status_counts` may also be included. External-genomes
 child stages may also carry `summary_operator_route_counts`,
+`summary_provider_status_counts`, `summary_provider_automation_level_counts`,
 `summary_next_input_class_counts`, and `summary_automation_boundary_counts`
 when controlled route metadata is available. Registration dry-run stages may
-also carry `summary_valid_count`, `summary_invalid_count`, and
-`summary_registration_status_counts` from
+also carry `summary_valid_count`, `summary_invalid_count`,
+`summary_registration_status_counts`, `summary_provider_status_counts`, and
+`summary_provider_automation_level_counts` from
 `external_genome_registration_results.tsv`. Provider-request validation and
 external-genomes handoff child summaries can also contribute
 `summary_provider_request_readiness_packet`; external-genomes install-plan

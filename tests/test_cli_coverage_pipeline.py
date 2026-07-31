@@ -2690,7 +2690,9 @@ def _write_curated_provider_request(tmp_path):
                 "requires_manual_review": "false",
                 "curator": "reviewer-a",
                 "notes": (
-                    "curated_provider_request=true; operator_route=provider_handoff; "
+                    "curated_provider_request=true; provider_status=planning_only; "
+                    "provider_automation_level=planning_handoff; "
+                    "operator_route=provider_handoff; "
                     "next_input_class=permitted_local_fasta_terms_provenance; "
                     "automation_boundary=planning_handoff_no_provider_contact"
                 ),
@@ -5608,12 +5610,24 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert code == 0
     assert status_payload["operator_chain_stages"][4]["summary_ready_count"] == 1
     assert status_payload["operator_chain_stages"][4][
+        "summary_provider_status_counts"
+    ] == {"planning_only": 1}
+    assert status_payload["operator_chain_stages"][4][
+        "summary_provider_automation_level_counts"
+    ] == {"planning_handoff": 1}
+    assert status_payload["operator_chain_stages"][4][
         "summary_provider_request_readiness_packet"
     ]["status"] == "ready_for_next_stage"
     assert status_payload["operator_chain_stages"][4][
         "summary_provider_request_readiness_packet"
     ]["recommended_request_target"] == "provider-request external-genomes-handoff"
     assert status_payload["operator_chain_stages"][5]["summary_exported_count"] == 1
+    assert status_payload["operator_chain_stages"][5][
+        "summary_provider_status_counts"
+    ] == {"planning_only": 1}
+    assert status_payload["operator_chain_stages"][5][
+        "summary_provider_automation_level_counts"
+    ] == {"planning_handoff": 1}
     assert status_payload["operator_chain_stages"][5][
         "summary_provider_request_readiness_packet"
     ]["next_stage"] == "external_genomes_validate"
@@ -5643,6 +5657,12 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         status_payload["operator_chain_stages"][6]["summary_install_planned_count"]
         == 1
     )
+    assert status_payload["operator_chain_stages"][6][
+        "summary_provider_status_counts"
+    ] == {"planning_only": 1}
+    assert status_payload["operator_chain_stages"][6][
+        "summary_provider_automation_level_counts"
+    ] == {"planning_handoff": 1}
     assert status_payload["operator_chain_stages"][6][
         "summary_external_genomes_readiness_packet"
     ]["next_stage"] == "external_genomes_registration_dry_run"
