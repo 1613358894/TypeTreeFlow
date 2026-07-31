@@ -309,6 +309,13 @@ def run_coverage_pipeline_command(
                 command="coverage-pipeline provider-request-validation",
                 dry_run=not args.write,
             )
+            validation_payload["provider_request_readiness_packet"] = (
+                _provider_request_readiness_packet(
+                    stage="validate",
+                    payload=validation_payload,
+                    next_stage="provider_request_external_genomes_handoff",
+                )
+            )
             if curated_provider_request_records is not None:
                 external_genomes = build_provider_request_external_genomes_draft(
                     provider_request_records,
@@ -651,6 +658,7 @@ def _run_status(
             "status_counts",
             "provider_counts",
             "blocker_counts",
+            "provider_request_readiness_packet",
         ),
         diagnostics=diagnostics,
     )
@@ -674,6 +682,7 @@ def _run_status(
             "next_input_class_counts",
             "automation_boundary_counts",
             "diagnostic_counts",
+            "provider_request_readiness_packet",
         ),
         diagnostics=diagnostics,
         required_member=PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[
@@ -705,6 +714,7 @@ def _run_status(
             "type_material_counts",
             "manual_review_flag_counts",
             "install_plan_status_counts",
+            "external_genomes_readiness_packet",
         ),
         diagnostics=diagnostics,
         required_member=INSTALL_PLAN_OUTPUT_NAMES["install_plan"],
@@ -846,6 +856,9 @@ def _run_status(
             operator_chain_snapshot_matches
         ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
+        "operator_chain_readiness_packets": (
+            _operator_chain_readiness_packets_from_stages(stages)
+        ),
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
         ),
@@ -1141,6 +1154,161 @@ def _copy_stage_summary_details(
             stage[f"summary_{field}"] = summary[field]
 
 
+def _operator_chain_readiness_packets_from_stages(
+    stages: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    packets: dict[str, object] = {}
+    for stage in stages:
+        stage_name = str(stage.get("stage", ""))
+        for key in (
+            "summary_provider_request_readiness_packet",
+            "summary_external_genomes_readiness_packet",
+        ):
+            packet = stage.get(key)
+            if isinstance(packet, Mapping):
+                packets[stage_name] = dict(packet)
+                break
+    return packets
+
+
+def _provider_request_readiness_packet(
+    *,
+    stage: str,
+    payload: Mapping[str, object],
+    next_stage: str,
+) -> dict[str, object]:
+    record_count = _safe_int(payload.get("record_count", 0))
+    diagnostic_count = _safe_int(payload.get("diagnostic_count", 0))
+    status_value = str(payload.get("status", "blocked"))
+    ready_count = _safe_int(payload.get("ready_count", payload.get("exported_count", 0)))
+    blocked_count = _safe_int(
+        payload.get("blocked_count", max(record_count - ready_count, 0))
+    )
+    if status_value == "pass":
+        status = "ready_for_next_stage"
+    elif status_value == "failed":
+        status = "failed"
+    elif diagnostic_count:
+        status = "blocked"
+    elif record_count == 0:
+        status = "no_records"
+    else:
+        status = "blocked"
+    ready = status == "ready_for_next_stage"
+    recommended_request = payload.get("recommended_request")
+    install_plan_request = payload.get("install_plan_recommended_request")
+    return {
+        "schema_version": "provider_request_readiness_packet.v1",
+        "stage": stage,
+        "status": status,
+        "record_count": record_count,
+        "ready_count": ready_count,
+        "blocked_count": blocked_count,
+        "exported_count": _safe_int(payload.get("exported_count", 0)),
+        "diagnostic_count": diagnostic_count,
+        "next_stage": next_stage if ready else "",
+        "required_inputs": (
+            list(payload.get("required_inputs", []))
+            if isinstance(payload.get("required_inputs"), list)
+            else []
+        ),
+        "recommended_request": (
+            dict(recommended_request)
+            if ready and isinstance(recommended_request, Mapping)
+            else None
+        ),
+        "recommended_next_command": (
+            str(payload.get("recommended_next_command", "")) if ready else ""
+        ),
+        "install_plan_recommended_request": (
+            dict(install_plan_request)
+            if ready and isinstance(install_plan_request, Mapping)
+            else None
+        ),
+        "install_plan_recommended_next_command": (
+            str(payload.get("install_plan_recommended_next_command", ""))
+            if ready
+            else ""
+        ),
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "metadata_only_provider_request_readiness_no_execution",
+    }
+
+
+def _external_genomes_readiness_packet(
+    *,
+    stage: str,
+    payload: Mapping[str, object],
+    next_stage: str,
+) -> dict[str, object]:
+    record_count = _safe_int(payload.get("record_count", 0))
+    diagnostic_count = _safe_int(payload.get("diagnostic_count", 0))
+    status_value = str(payload.get("status", "blocked"))
+    planned_count = _safe_int(payload.get("install_planned_count", 0))
+    blocked_count = max(record_count - planned_count, 0)
+    if status_value == "pass":
+        status = "ready_for_next_stage"
+    elif status_value == "failed":
+        status = "failed"
+    elif diagnostic_count:
+        status = "blocked"
+    elif record_count == 0:
+        status = "no_records"
+    else:
+        status = "blocked"
+    ready = status == "ready_for_next_stage"
+    recommended_request = payload.get("recommended_request")
+    return {
+        "schema_version": "external_genomes_readiness_packet.v1",
+        "stage": stage,
+        "status": status,
+        "record_count": record_count,
+        "ready_count": planned_count,
+        "blocked_count": blocked_count,
+        "status_counts": (
+            dict(payload.get("install_plan_status_counts", {}))
+            if isinstance(payload.get("install_plan_status_counts"), Mapping)
+            else {}
+        ),
+        "next_stage": next_stage if ready else "",
+        "required_inputs": ["external_genome_install_plan.tsv"],
+        "recommended_request": (
+            dict(recommended_request)
+            if ready and isinstance(recommended_request, Mapping)
+            else None
+        ),
+        "recommended_next_command": (
+            str(payload.get("recommended_next_command", "")) if ready else ""
+        ),
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "metadata_only_external_genomes_readiness_no_execution",
+    }
+
+
 def _apply_registration_dry_run_stage_details(
     stages: list[dict[str, object]],
     *,
@@ -1405,7 +1573,7 @@ def _provider_request_records(provider_request) -> tuple[ProviderRequestRecord, 
 
 def _external_genomes_payload(draft, *, dry_run: bool) -> dict[str, object]:
     summary = draft.summary
-    return {
+    payload = {
         **summary,
         "status": "pass" if draft.valid else "blocked",
         "command": "coverage-pipeline provider-request-external-genomes",
@@ -1422,6 +1590,12 @@ def _external_genomes_payload(draft, *, dry_run: bool) -> dict[str, object]:
             else "Provider request external-genomes draft blocked"
         ),
     }
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="external_genomes_draft",
+        payload=payload,
+        next_stage="external_genomes_validate",
+    )
+    return payload
 
 
 def _payload(
@@ -1475,6 +1649,36 @@ def _payload(
         _next_unavailable_stage(operator_chain_stages),
         operator_chain_snapshot_sha256=operator_chain_snapshot_sha256,
     )
+    provider_request_validation_readiness_packet = _payload_map(
+        provider_request_validation,
+        "provider_request_readiness_packet",
+    )
+    provider_request_external_genomes_readiness_packet = _payload_map(
+        provider_request_external_genomes,
+        "provider_request_readiness_packet",
+    )
+    external_genomes_install_plan_readiness_packet = _payload_map(
+        external_genomes_install_plan,
+        "external_genomes_readiness_packet",
+    )
+    operator_chain_readiness_packets = {
+        key: value
+        for key, value in (
+            (
+                "provider_request_validation",
+                provider_request_validation_readiness_packet,
+            ),
+            (
+                "provider_request_external_genomes",
+                provider_request_external_genomes_readiness_packet,
+            ),
+            (
+                "external_genomes_install_plan",
+                external_genomes_install_plan_readiness_packet,
+            ),
+        )
+        if value
+    }
     coverage_next_action_groups = _coverage_next_action_groups(
         coverage_plan.actions
     )
@@ -1640,6 +1844,9 @@ def _payload(
             "blocked_count",
         ),
         "provider_request_validation_output_paths": validation_output_paths,
+        "provider_request_validation_readiness_packet": (
+            provider_request_validation_readiness_packet
+        ),
         "provider_request_external_genomes_recommended_request": (
             _stage_recommended_request("provider_request_external_genomes")
         ),
@@ -1667,6 +1874,9 @@ def _payload(
             {key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES}
             if provider_request_external_genomes is None
             else provider_request_external_genomes["output_paths"]
+        ),
+        "provider_request_external_genomes_readiness_packet": (
+            provider_request_external_genomes_readiness_packet
         ),
         "provider_request_external_genomes_install_plan_recommended_request": (
             _stage_recommended_request("external_genomes_install_plan")
@@ -1696,6 +1906,9 @@ def _payload(
             if external_genomes_install_plan is None
             else external_genomes_install_plan["output_paths"]
         ),
+        "external_genomes_install_plan_readiness_packet": (
+            external_genomes_install_plan_readiness_packet
+        ),
         "external_genomes_registration_dry_run_recommended_request": (
             _stage_recommended_request("external_genomes_registration_dry_run")
         ),
@@ -1719,6 +1932,7 @@ def _payload(
             operator_chain_snapshot_matches
         ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
+        "operator_chain_readiness_packets": operator_chain_readiness_packets,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -1774,6 +1988,15 @@ def _payload_int(payload: dict[str, object] | None, key: str) -> int:
     if payload is None:
         return 0
     return _safe_int(payload.get(key, 0))
+
+
+def _payload_map(payload: dict[str, object] | None, key: str) -> dict[str, object]:
+    if payload is None:
+        return {}
+    value = payload.get(key)
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(item_key): item_value for item_key, item_value in value.items()}
 
 
 def _optional_summary_map(summary: dict[str, object], key: str) -> dict[str, object]:
@@ -2947,6 +3170,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_validation_output_paths": {
             key: None for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES
         },
+        "provider_request_validation_readiness_packet": {},
         "provider_request_external_genomes_recommended_request": (
             _stage_recommended_request("provider_request_external_genomes")
         ),
@@ -2960,6 +3184,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_external_genomes_output_paths": {
             key: None for key in PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES
         },
+        "provider_request_external_genomes_readiness_packet": {},
         "provider_request_external_genomes_install_plan_recommended_request": (
             _stage_recommended_request("external_genomes_install_plan")
         ),
@@ -2973,6 +3198,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "external_genomes_install_plan_output_paths": {
             key: None for key in INSTALL_PLAN_OUTPUT_NAMES
         },
+        "external_genomes_install_plan_readiness_packet": {},
         "external_genomes_registration_dry_run_recommended_request": (
             _stage_recommended_request("external_genomes_registration_dry_run")
         ),
@@ -2994,6 +3220,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "operator_chain_next_step_packet": _empty_operator_chain_next_step_packet(
             operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
         ),
+        "operator_chain_readiness_packets": {},
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -3057,6 +3284,7 @@ def _rendered_outputs(
             "expected_operator_chain_snapshot_sha256",
             "operator_chain_snapshot_matches_expected",
             "operator_chain_next_step_packet",
+            "operator_chain_readiness_packets",
             "coverage_operator_queue_preview",
             "current_coverage_action_queue_item",
             "primary_next_action_group",
@@ -3085,6 +3313,7 @@ def _rendered_outputs(
             "provider_request_validation_ready_count",
             "provider_request_validation_blocked_count",
             "provider_request_validation_output_paths",
+            "provider_request_validation_readiness_packet",
             "provider_request_external_genomes_recommended_request",
             "provider_request_external_genomes_recommended_next_command",
             "provider_request_external_genomes_status",
@@ -3092,6 +3321,7 @@ def _rendered_outputs(
             "provider_request_external_genomes_exported_count",
             "provider_request_external_genomes_diagnostic_count",
             "provider_request_external_genomes_output_paths",
+            "provider_request_external_genomes_readiness_packet",
             "provider_request_external_genomes_install_plan_recommended_request",
             "provider_request_external_genomes_install_plan_recommended_next_command",
             "external_genomes_install_plan_status",
@@ -3099,6 +3329,7 @@ def _rendered_outputs(
             "external_genomes_install_plan_install_planned_count",
             "external_genomes_install_plan_diagnostic_count",
             "external_genomes_install_plan_output_paths",
+            "external_genomes_install_plan_readiness_packet",
             "external_genomes_registration_dry_run_recommended_request",
             "external_genomes_registration_dry_run_recommended_next_command",
             "provider_request_external_genomes_handoff_recommended_request",
@@ -3302,7 +3533,7 @@ def _external_genomes_install_plan_payload(
     route_counts = summarize_external_genome_route_metadata(registration_results)
     packet_counts = summarize_external_genome_packet_readiness(records)
     planned_count = install_counts.get("external_genome_install_planned", 0)
-    return {
+    payload = {
         "schema_version": INSTALL_PLAN_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
         "command": "coverage-pipeline external-genomes-install-plan",
@@ -3364,6 +3595,12 @@ def _external_genomes_install_plan_payload(
             else "Coverage pipeline external-genomes install plan blocked"
         ),
     }
+    payload["external_genomes_readiness_packet"] = _external_genomes_readiness_packet(
+        stage="install_plan",
+        payload=payload,
+        next_stage="external_genomes_registration_dry_run",
+    )
+    return payload
 
 
 def _rows_tsv(fields: Sequence[str], rows) -> str:

@@ -1800,6 +1800,19 @@ def test_coverage_pipeline_build_can_write_provider_request_validation_stage(
     assert payload["provider_request_validation_record_count"] == 8
     assert payload["provider_request_validation_ready_count"] == 0
     assert payload["provider_request_validation_blocked_count"] == 8
+    assert payload["provider_request_validation_readiness_packet"]["stage"] == (
+        "validate"
+    )
+    assert payload["provider_request_validation_readiness_packet"]["status"] == (
+        "blocked"
+    )
+    assert payload["provider_request_validation_readiness_packet"]["next_stage"] == ""
+    assert payload["provider_request_validation_readiness_packet"][
+        "recommended_request"
+    ] is None
+    assert payload["operator_chain_readiness_packets"][
+        "provider_request_validation"
+    ]["status"] == "blocked"
     assert payload["provider_request_validation_output_paths"] == {
         "summary": str(
             outdir
@@ -1848,6 +1861,9 @@ def test_coverage_pipeline_build_can_write_provider_request_validation_stage(
         (outdir / "coverage_pipeline_summary.json").read_text()
     )
     assert pipeline_summary["provider_request_validation_status"] == "blocked"
+    assert pipeline_summary["provider_request_validation_readiness_packet"][
+        "status"
+    ] == "blocked"
     assert pipeline_summary["operator_chain_stages"][4]["record_count"] == 0
 
 
@@ -1891,6 +1907,23 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["provider_request_external_genomes_exported_count"] == 1
     assert payload["external_genomes_install_plan_status"] == "pass"
     assert payload["external_genomes_install_plan_install_planned_count"] == 1
+    assert payload["provider_request_validation_readiness_packet"]["status"] == (
+        "ready_for_next_stage"
+    )
+    assert payload["provider_request_validation_readiness_packet"]["next_stage"] == (
+        "provider_request_external_genomes_handoff"
+    )
+    assert payload["provider_request_external_genomes_readiness_packet"][
+        "next_stage"
+    ] == "external_genomes_validate"
+    assert payload["external_genomes_install_plan_readiness_packet"][
+        "next_stage"
+    ] == "external_genomes_registration_dry_run"
+    assert set(payload["operator_chain_readiness_packets"]) == {
+        "provider_request_validation",
+        "provider_request_external_genomes",
+        "external_genomes_install_plan",
+    }
     assert payload["external_genomes_registration_dry_run_recommended_request"] == {
         "command": "register-external-genomes",
         "external_genomes": "provider_request_external_genomes/external_genomes.tsv",
@@ -1943,6 +1976,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         (outdir / "coverage_pipeline_summary.json").read_text()
     )
     assert pipeline_summary["provider_request_external_genomes_status"] == "pass"
+    assert pipeline_summary["operator_chain_readiness_packets"][
+        "provider_request_external_genomes"
+    ]["status"] == "ready_for_next_stage"
     assert pipeline_summary["operator_chain_stages"][5]["record_count"] == 1
     assert pipeline_summary["external_genomes_install_plan_status"] == "pass"
     assert pipeline_summary[
@@ -1962,7 +1998,13 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     )
     assert code == 0
     assert status_payload["operator_chain_stages"][4]["summary_ready_count"] == 1
+    assert status_payload["operator_chain_stages"][4][
+        "summary_provider_request_readiness_packet"
+    ]["status"] == "ready_for_next_stage"
     assert status_payload["operator_chain_stages"][5]["summary_exported_count"] == 1
+    assert status_payload["operator_chain_stages"][5][
+        "summary_provider_request_readiness_packet"
+    ]["next_stage"] == "external_genomes_validate"
     assert status_payload["operator_chain_stages"][5]["summary_operator_route_counts"] == {
         "provider_handoff": 1
     }
@@ -1980,6 +2022,14 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         status_payload["operator_chain_stages"][6]["summary_install_planned_count"]
         == 1
     )
+    assert status_payload["operator_chain_stages"][6][
+        "summary_external_genomes_readiness_packet"
+    ]["next_stage"] == "external_genomes_registration_dry_run"
+    assert set(status_payload["operator_chain_readiness_packets"]) == {
+        "provider_request_validation",
+        "provider_request_external_genomes",
+        "external_genomes_install_plan",
+    }
     assert status_payload["coverage_priority_summary"]["top_action_code"] == (
         "resolve_curator_conflict"
     )

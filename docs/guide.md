@@ -390,7 +390,11 @@ reuse on a later metadata call. It also reports `completion_gate`,
 blocking and how much provider handoff is planning-only versus metadata-review
 without parsing all stage rows. When external-genomes child summaries include
 controlled route counts, status keeps those counts as `summary_*` stage fields
-for routing context only. Registration dry-run status can also summarize valid,
+for routing context only. Provider-request and external-genomes child readiness
+packets are also preserved in `operator_chain_readiness_packets`, and as
+`summary_*_readiness_packet` fields on the matching stage rows, so controllers
+can route local review steps without opening child summary files. Registration
+dry-run status can also summarize valid,
 invalid, and registration status counts from the dry-run result TSV. It does not
 scan workflow outputs, contact
 providers, download genomes, copy FASTA, mutate manifests, or grant completion
