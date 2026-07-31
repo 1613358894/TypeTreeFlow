@@ -684,6 +684,8 @@ def _run_status(
             "archive_source_counts",
             "accession_kind_counts",
             "review_input_class_counts",
+            "source_input_kind_counts",
+            "expanded_discovery_candidate_count",
         ),
         diagnostics=diagnostics,
         required_member="archive_candidates.tsv",

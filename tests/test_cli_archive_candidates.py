@@ -112,6 +112,8 @@ def test_archive_candidates_dry_run_single_json_and_no_writes(tmp_path, capsys):
     assert payload["review_input_class_counts"] == {
         "direct_evidence_chain_review": 1
     }
+    assert payload["source_input_kind_counts"] == {"archive_candidate_input": 1}
+    assert payload["expanded_discovery_candidate_count"] == 0
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
@@ -181,6 +183,8 @@ def test_archive_candidates_write_publishes_owned_triplet(tmp_path, capsys):
     summary = json.loads(
         (outdir / "archive_candidates_summary.json").read_text(encoding="utf-8")
     )
+    assert summary["source_input_kind_counts"] == {"archive_candidate_input": 1}
+    assert summary["expanded_discovery_candidate_count"] == 0
     assert summary["strict_scientific_deliverable"] is False
     assert summary["recommended_request"] == payload["recommended_request"]
     assert summary["recommended_request_target"] == payload[
@@ -215,6 +219,10 @@ def test_archive_candidates_builds_from_expanded_discovery_results(
     }
     assert payload["candidate_count"] == 1
     assert payload["archive_source_counts"] == {"genbank": 1}
+    assert payload["source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert payload["expanded_discovery_candidate_count"] == 1
     with (outdir / "archive_candidates.tsv").open(encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
     assert len(rows) == 1
@@ -228,6 +236,13 @@ def test_archive_candidates_builds_from_expanded_discovery_results(
     )
     assert "raw expanded discovery note" not in rows[0]["evidence_notes"]
     assert payload["recommended_command_plan"]["decision"] == "block"
+    summary = json.loads(
+        (outdir / "archive_candidates_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert summary["expanded_discovery_candidate_count"] == 1
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False

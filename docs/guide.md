@@ -96,10 +96,13 @@ This is an audit aid only. It does not query archives, download genomes, write
 `external_genomes.tsv`, or make archive type-material signals strict. It
 surfaces public linkage candidates for curator or AI review. The
 expanded-discovery bridge maps only existing `matched_candidate` rows with a
-public accession and does not copy raw expanded-discovery notes. When `--write`
-succeeds, stdout and `archive_candidates_summary.json` include a structured
-`coverage-pipeline build` recommended request that points to the written
-`archive_candidates.tsv`, plus a metadata-only command plan that remains
+public accession and does not copy raw expanded-discovery notes. Archive
+candidate summaries preserve the bridge as `source_input_kind_counts` and
+`expanded_discovery_candidate_count`, so later coverage-pipeline status can
+show that provenance without parsing row notes. When `--write` succeeds, stdout
+and `archive_candidates_summary.json` include a structured `coverage-pipeline
+build` recommended request that points to the written `archive_candidates.tsv`,
+plus a metadata-only command plan that remains
 blocked until an operator explicitly allows writes; the adapter does not run
 that next command.
 

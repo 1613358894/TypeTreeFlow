@@ -178,6 +178,7 @@ class ArchiveCandidateReport:
             status_counts[row.candidate_status] = (
                 status_counts.get(row.candidate_status, 0) + 1
             )
+        source_input_kind_counts = _source_input_kind_counts(self.rows)
         return {
             "schema_version": self.schema_version,
             "valid": self.valid,
@@ -195,6 +196,10 @@ class ArchiveCandidateReport:
             "archive_source_counts": _archive_source_counts(self.rows),
             "accession_kind_counts": _accession_kind_counts(self.rows),
             "review_input_class_counts": _review_input_class_counts(self.rows),
+            "source_input_kind_counts": source_input_kind_counts,
+            "expanded_discovery_candidate_count": source_input_kind_counts.get(
+                "expanded_discovery_results", 0
+            ),
             "downloads_triggered": 0,
             "providers_contacted": 0,
             "manifest_mutated": False,
@@ -512,6 +517,21 @@ def _review_input_class_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str,
     for row in rows:
         counts[_review_input_class(row)] += 1
     return dict(sorted(counts.items()))
+
+
+def _source_input_kind_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for row in rows:
+        counts[_source_input_kind(row)] += 1
+    return dict(sorted(counts.items()))
+
+
+def _source_input_kind(row: ArchiveCandidateRow) -> str:
+    if "source=completion/expanded_discovery_results.tsv" in (
+        row.evidence_notes.casefold()
+    ):
+        return "expanded_discovery_results"
+    return "archive_candidate_input"
 
 
 def _review_input_class(row: ArchiveCandidateRow) -> str:

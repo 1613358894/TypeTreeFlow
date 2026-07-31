@@ -80,6 +80,10 @@ def test_archive_candidate_report_is_audit_only_and_statused():
         "direct_type_material_signal_required": 1,
         "public_accession_required": 1,
     }
+    assert report.summary["source_input_kind_counts"] == {
+        "archive_candidate_input": 3
+    }
+    assert report.summary["expanded_discovery_candidate_count"] == 0
     assert report.summary["downloads_triggered"] == 0
     assert report.summary["providers_contacted"] == 0
     assert report.summary["manifest_mutated"] is False
@@ -101,6 +105,8 @@ def test_archive_candidate_tsv_and_json_are_stable():
     assert summary["review_input_class_counts"] == {
         "direct_evidence_chain_review": 1
     }
+    assert summary["source_input_kind_counts"] == {"archive_candidate_input": 1}
+    assert summary["expanded_discovery_candidate_count"] == 0
 
 
 def test_archive_candidate_source_aliases_are_canonicalized():
@@ -197,6 +203,10 @@ def test_expanded_discovery_results_map_to_archive_candidate_input():
     report = build_archive_candidate_report(rows)
     assert report.valid is True
     assert report.summary["archive_source_counts"] == {"refseq": 1}
+    assert report.summary["source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert report.summary["expanded_discovery_candidate_count"] == 1
 
 
 def test_expanded_discovery_archive_candidate_reader_is_strict(tmp_path):
