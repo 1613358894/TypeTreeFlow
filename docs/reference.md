@@ -1961,7 +1961,10 @@ metadata-only next-step recipe and `coverage_operator_queue_preview` for the
 bounded queue preview. `operator_chain_next_step_packet` similarly renders and
 preflights the current operator-chain `next_stage.recommended_request` into a
 single metadata-only packet with target argv, decision, blocker/warning IDs, and
-the stage boundary; it is a planning handoff and does not dispatch the command.
+the stage boundary. It also repeats `operator_chain_snapshot_sha256`, a
+deterministic digest of the current operator-chain stage rows, so controllers
+can bind a proposed next local step to the exact checklist state they inspected;
+it is a planning handoff and does not dispatch the command.
 The payload also includes
 `required_inputs` and `recommended_request` as convenience copies from the
 current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and

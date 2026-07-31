@@ -748,7 +748,11 @@ def _run_status(
         raw_recommended_request = next_stage.get("recommended_request")
         if isinstance(raw_recommended_request, Mapping):
             next_recommended_request = dict(raw_recommended_request)
-    operator_chain_next_step_packet = _operator_chain_next_step_packet(next_stage)
+    operator_chain_snapshot_sha256 = _operator_chain_snapshot_sha256(stages)
+    operator_chain_next_step_packet = _operator_chain_next_step_packet(
+        next_stage,
+        operator_chain_snapshot_sha256=operator_chain_snapshot_sha256,
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -814,6 +818,7 @@ def _run_status(
             if next_stage
             else ""
         ),
+        "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -884,9 +889,13 @@ def _run_status(
 
 def _operator_chain_next_step_packet(
     next_stage: Mapping[str, object] | None,
+    *,
+    operator_chain_snapshot_sha256: str,
 ) -> dict[str, object]:
     if not isinstance(next_stage, Mapping):
-        return _empty_operator_chain_next_step_packet()
+        return _empty_operator_chain_next_step_packet(
+            operator_chain_snapshot_sha256=operator_chain_snapshot_sha256
+        )
     raw_request = next_stage.get("recommended_request")
     recommended_request = (
         dict(raw_request) if isinstance(raw_request, Mapping) else None
@@ -908,6 +917,7 @@ def _operator_chain_next_step_packet(
             next_stage.get("recommended_next_command", "")
         ),
         "boundary": str(next_stage.get("boundary", "")),
+        "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
         "audit_only": True,
         "dry_run": True,
         "writes_outputs": False,
@@ -964,7 +974,10 @@ def _operator_chain_next_step_packet(
     }
 
 
-def _empty_operator_chain_next_step_packet() -> dict[str, object]:
+def _empty_operator_chain_next_step_packet(
+    *,
+    operator_chain_snapshot_sha256: str,
+) -> dict[str, object]:
     return {
         "schema_version": "operator_chain_next_step_packet.v1",
         "available": False,
@@ -977,6 +990,7 @@ def _empty_operator_chain_next_step_packet() -> dict[str, object]:
         "recommended_request": None,
         "recommended_next_command": "",
         "boundary": "",
+        "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
         "target_argv": [],
         "recognized": {},
         "preflight_decision": "none",
@@ -1414,8 +1428,12 @@ def _payload(
             "install_planned_count",
         ),
     )
+    operator_chain_snapshot_sha256 = _operator_chain_snapshot_sha256(
+        operator_chain_stages
+    )
     operator_chain_next_step_packet = _operator_chain_next_step_packet(
-        _next_unavailable_stage(operator_chain_stages)
+        _next_unavailable_stage(operator_chain_stages),
+        operator_chain_snapshot_sha256=operator_chain_snapshot_sha256,
     )
     coverage_next_action_groups = _coverage_next_action_groups(
         coverage_plan.actions
@@ -1653,6 +1671,7 @@ def _payload(
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
         ),
         "operator_chain_stages": operator_chain_stages,
+        "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -2557,6 +2576,18 @@ def _coverage_queue_snapshot_sha256(
     return hashlib.sha256(canonical).hexdigest()
 
 
+def _operator_chain_snapshot_sha256(
+    operator_chain_stages: list[dict[str, object]],
+) -> str:
+    canonical = json.dumps(
+        operator_chain_stages,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def _diagnostic_ids(entries: object) -> list[str]:
     if not isinstance(entries, list):
         return []
@@ -2604,6 +2635,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         empty_command_plan,
     )
     empty_queue_snapshot_sha256 = _coverage_queue_snapshot_sha256([])
+    empty_operator_chain_snapshot_sha256 = _operator_chain_snapshot_sha256([])
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
         "status": "failed",
@@ -2724,7 +2756,10 @@ def _failure(code: str, message: str) -> dict[str, object]:
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
         ),
         "operator_chain_stages": [],
-        "operator_chain_next_step_packet": _empty_operator_chain_next_step_packet(),
+        "operator_chain_snapshot_sha256": empty_operator_chain_snapshot_sha256,
+        "operator_chain_next_step_packet": _empty_operator_chain_next_step_packet(
+            operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
+        ),
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -2784,6 +2819,7 @@ def _rendered_outputs(
             "coverage_next_task_packet",
             "coverage_next_command_plan",
             "coverage_next_operator_recipe",
+            "operator_chain_snapshot_sha256",
             "operator_chain_next_step_packet",
             "coverage_operator_queue_preview",
             "current_coverage_action_queue_item",
