@@ -427,11 +427,14 @@ plan, and which review gates remain before execution can even be considered.
 It is still a metadata-only no-execution handoff. Status payloads also use this
 packet to summarize the written server-validation result-template artifact path,
 SHA-256, template-match flag, and validator argv when that isolated artifact is
-available.
+available. When `--server-validation-result` is supplied, it also summarizes the
+explicit result artifact path, SHA-256, result status, validation status, and
+diagnostic count.
 Use `coverage_controller_inspection_summary` when the parent agent first needs
 a bounded table of available controller surfaces and their blocker/warning
 state before expanding one packet; status includes the result-template artifact
-status packet in this index when the template file exists.
+status packet and explicit result artifact status packet in this index when
+those files are supplied.
 Use `coverage_controller_runbook_packet` when the parent agent needs an ordered
 no-execution checklist for the next controller handoff rather than only a
 surface index.
