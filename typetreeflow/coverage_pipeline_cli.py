@@ -579,6 +579,7 @@ def _build_parser() -> argparse.ArgumentParser:
     status.add_argument("--provider-request-external-genomes-dir")
     status.add_argument("--external-genomes-install-plan-dir")
     status.add_argument("--registration-run-dir")
+    status.add_argument("--server-validation-result")
     status.add_argument(
         "--queue-preview-limit",
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
@@ -936,6 +937,12 @@ def _run_status(
             ),
         )
     )
+    coverage_handoff_server_validation_result_artifact_packet = (
+        _coverage_handoff_server_validation_result_artifact_packet(
+            getattr(args, "server_validation_result", None),
+            diagnostics=diagnostics,
+        )
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -1120,6 +1127,9 @@ def _run_status(
         ),
         "coverage_handoff_server_validation_result_template_artifact_packet": (
             coverage_handoff_server_validation_result_template_artifact_packet
+        ),
+        "coverage_handoff_server_validation_result_artifact_packet": (
+            coverage_handoff_server_validation_result_artifact_packet
         ),
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -4397,6 +4407,102 @@ def _coverage_handoff_server_validation_result_template_artifact_packet(
             else {}
         ),
         "template_matches_embedded_packet": template_matches,
+        "diagnostic_count": len(local_diagnostics),
+        "diagnostics": local_diagnostics,
+    }
+
+
+def _coverage_handoff_server_validation_result_artifact_packet(
+    result_path_value: str | None,
+    *,
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object]:
+    result_path = Path(result_path_value) if result_path_value else None
+    base = {
+        "schema_version": "coverage_handoff_server_validation_result_artifact_packet.v1",
+        "available": False,
+        "status": "no_action",
+        "artifact_path": str(result_path) if result_path else "",
+        "artifact_size_bytes": 0,
+        "artifact_sha256": "",
+        "result_schema_version": "",
+        "result_status": "",
+        "validation_status": "no_action",
+        "checked_surface_count": 0,
+        "boundary_confirmation_count": 0,
+        "missing_required_fields": [],
+        "invalid_field_ids": [],
+        "missing_checked_surfaces": [],
+        "boundary_blocker_ids": [],
+        "diagnostic_count": 0,
+        "diagnostics": [],
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "explicit_server_validation_result_status_only_no_target_execution"
+        ),
+    }
+    if result_path is None:
+        return base
+    local_diagnostics: list[dict[str, object]] = []
+    try:
+        if not result_path.is_file() or result_path.is_symlink():
+            raise OSError("missing or unsafe artifact")
+        raw = result_path.read_bytes()
+        result = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        diagnostic = _diagnostic("server_validation_result_artifact", "artifact_unreadable")
+        local_diagnostics.append(diagnostic)
+        diagnostics.append(diagnostic)
+        return {
+            **base,
+            "available": True,
+            "status": "blocked",
+            "validation_status": "blocked",
+            "diagnostic_count": len(local_diagnostics),
+            "diagnostics": local_diagnostics,
+        }
+    if not isinstance(result, dict):
+        diagnostic = _diagnostic("server_validation_result_artifact", "artifact_malformed")
+        local_diagnostics.append(diagnostic)
+        result = {}
+    validation = _validate_server_validation_result(result, local_diagnostics)
+    if local_diagnostics:
+        diagnostics.extend(local_diagnostics)
+    checked_surface_names = result.get("checked_surface_names")
+    if not isinstance(checked_surface_names, list):
+        checked_surface_names = []
+    validation_status = "pass" if not local_diagnostics else "blocked"
+    return {
+        **base,
+        "available": True,
+        "status": validation_status,
+        "artifact_size_bytes": len(raw),
+        "artifact_sha256": hashlib.sha256(raw).hexdigest(),
+        "result_schema_version": str(result.get("schema_version", "")),
+        "result_status": str(result.get("status", "")),
+        "validation_status": validation_status,
+        "checked_surface_count": len(checked_surface_names),
+        "boundary_confirmation_count": _safe_int(
+            validation.get("boundary_confirmation_count", 0)
+        ),
+        "missing_required_fields": list(
+            validation.get("missing_required_fields", [])
+        ),
+        "invalid_field_ids": list(validation.get("invalid_field_ids", [])),
+        "missing_checked_surfaces": list(
+            validation.get("missing_checked_surfaces", [])
+        ),
+        "boundary_blocker_ids": list(validation.get("boundary_blocker_ids", [])),
         "diagnostic_count": len(local_diagnostics),
         "diagnostics": local_diagnostics,
     }

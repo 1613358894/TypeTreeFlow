@@ -4856,6 +4856,40 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert validation_captured.out.count("\n") == 1
     assert validation_payload["status"] == "pass"
     assert validation_payload["boundary_confirmation_status"] == "pass"
+    code, result_status_payload, result_status_captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--server-validation-result",
+            str(result_template_path),
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+    result_artifact = result_status_payload[
+        "coverage_handoff_server_validation_result_artifact_packet"
+    ]
+    assert code == 0
+    assert result_status_captured.out.count("\n") == 1
+    assert result_artifact["available"] is True
+    assert result_artifact["status"] == "pass"
+    assert result_artifact["artifact_path"] == str(result_template_path)
+    assert result_artifact["artifact_sha256"] == hashlib.sha256(
+        result_template_path.read_bytes()
+    ).hexdigest()
+    assert result_artifact["result_schema_version"] == (
+        "coverage_handoff_server_validation_result.v1"
+    )
+    assert result_artifact["result_status"] == "pass"
+    assert result_artifact["validation_status"] == "pass"
+    assert result_artifact["checked_surface_count"] == 2
+    assert result_artifact["boundary_confirmation_count"] == 11
+    assert result_artifact["diagnostic_count"] == 0
+    assert result_artifact["dry_run"] is True
+    assert result_artifact["writes_outputs"] is False
+    assert result_artifact["downloads_triggered"] == 0
+    assert result_artifact["providers_contacted"] == 0
     assert summary["command"] == "coverage-pipeline build"
     assert summary["coverage_opportunity_summary"][1][
         "provider_automation_level_counts"
