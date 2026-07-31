@@ -2398,6 +2398,10 @@ The server-validation packet, runbook, result contract, and result template also
 mirror the structured `recommended_request` from the handoff next-step packet
 when one exists, so `commands render` and `commands plan` can inspect or
 preflight the same request without parsing argv or executing it.
+They also carry by-stage provider-status and provider automation-level count
+maps from the handoff chain. These fields are route context for bounded server
+validation only; they are not completion metrics, strict deliverable evidence,
+or authorization to contact providers.
 `coverage-pipeline server-validation-result validate --input <json>` is the
 matching local result-shape validator for a filled
 `coverage_handoff_server_validation_result.json`. It reads only that explicit

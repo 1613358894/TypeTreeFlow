@@ -348,6 +348,22 @@ def _assert_handoff_next_step_packet(
     assert packet["chain_complete"] is summary["chain_complete"]
     assert packet["available_stage_count"] == summary["available_stage_count"]
     assert packet["unavailable_stage_count"] == summary["unavailable_stage_count"]
+    assert packet["provider_route_stage_names"] == summary[
+        "provider_route_stage_names"
+    ]
+    assert packet["provider_route_stage_count"] == summary[
+        "provider_route_stage_count"
+    ]
+    assert packet["provider_status_counts_by_stage"] == summary[
+        "provider_status_counts_by_stage"
+    ]
+    assert packet["provider_automation_level_counts_by_stage"] == summary[
+        "provider_automation_level_counts_by_stage"
+    ]
+    assert packet["provider_status_counts"] == summary["provider_status_counts"]
+    assert packet["provider_automation_level_counts"] == summary[
+        "provider_automation_level_counts"
+    ]
     if available:
         assert packet["command_plan"]["available"] is True
         assert packet["command_plan"]["recommended_request_target"] == target
@@ -465,6 +481,22 @@ def _assert_handoff_next_step_packet(
     assert runbook["chain_complete"] is summary["chain_complete"]
     assert runbook["available_stage_names"] == summary["available_stage_names"]
     assert runbook["unavailable_stage_names"] == summary["unavailable_stage_names"]
+    assert runbook["provider_route_stage_names"] == packet[
+        "provider_route_stage_names"
+    ]
+    assert runbook["provider_route_stage_count"] == packet[
+        "provider_route_stage_count"
+    ]
+    assert runbook["provider_status_counts_by_stage"] == packet[
+        "provider_status_counts_by_stage"
+    ]
+    assert runbook["provider_automation_level_counts_by_stage"] == packet[
+        "provider_automation_level_counts_by_stage"
+    ]
+    assert runbook["provider_status_counts"] == packet["provider_status_counts"]
+    assert runbook["provider_automation_level_counts"] == packet[
+        "provider_automation_level_counts"
+    ]
     assert runbook["input_readiness_status"] == input_readiness["readiness_status"]
     assert runbook["operator_required_inputs"] == input_readiness[
         "operator_required_inputs"
@@ -600,6 +632,24 @@ def _assert_handoff_next_step_packet(
     assert server_validation["blocking_ids"] == packet["blocking_ids"]
     assert server_validation["blocking_count"] == packet["blocking_count"]
     assert server_validation["warning_ids"] == packet["warning_ids"]
+    assert server_validation["provider_route_stage_names"] == packet[
+        "provider_route_stage_names"
+    ]
+    assert server_validation["provider_route_stage_count"] == packet[
+        "provider_route_stage_count"
+    ]
+    assert server_validation["provider_status_counts_by_stage"] == packet[
+        "provider_status_counts_by_stage"
+    ]
+    assert server_validation["provider_automation_level_counts_by_stage"] == packet[
+        "provider_automation_level_counts_by_stage"
+    ]
+    assert server_validation["provider_status_counts"] == packet[
+        "provider_status_counts"
+    ]
+    assert server_validation["provider_automation_level_counts"] == packet[
+        "provider_automation_level_counts"
+    ]
     assert server_validation["runbook_step_ids"] == [
         step["step_id"] for step in runbook["steps"]
     ]
@@ -669,6 +719,24 @@ def _assert_handoff_next_step_packet(
     assert server_runbook["warning_ids"] == server_validation["warning_ids"]
     assert server_runbook["input_readiness_status"] == server_validation[
         "input_readiness_status"
+    ]
+    assert server_runbook["provider_route_stage_names"] == server_validation[
+        "provider_route_stage_names"
+    ]
+    assert server_runbook["provider_route_stage_count"] == server_validation[
+        "provider_route_stage_count"
+    ]
+    assert server_runbook["provider_status_counts_by_stage"] == server_validation[
+        "provider_status_counts_by_stage"
+    ]
+    assert server_runbook[
+        "provider_automation_level_counts_by_stage"
+    ] == server_validation["provider_automation_level_counts_by_stage"]
+    assert server_runbook["provider_status_counts"] == server_validation[
+        "provider_status_counts"
+    ]
+    assert server_runbook["provider_automation_level_counts"] == server_validation[
+        "provider_automation_level_counts"
     ]
     assert server_runbook["handoff_runbook_step_ids"] == server_validation[
         "runbook_step_ids"
@@ -812,6 +880,24 @@ def _assert_handoff_next_step_packet(
     assert result_contract["input_readiness_status"] == server_validation[
         "input_readiness_status"
     ]
+    assert result_contract["provider_route_stage_names"] == server_validation[
+        "provider_route_stage_names"
+    ]
+    assert result_contract["provider_route_stage_count"] == server_validation[
+        "provider_route_stage_count"
+    ]
+    assert result_contract["provider_status_counts_by_stage"] == server_validation[
+        "provider_status_counts_by_stage"
+    ]
+    assert result_contract[
+        "provider_automation_level_counts_by_stage"
+    ] == server_validation["provider_automation_level_counts_by_stage"]
+    assert result_contract["provider_status_counts"] == server_validation[
+        "provider_status_counts"
+    ]
+    assert result_contract["provider_automation_level_counts"] == server_validation[
+        "provider_automation_level_counts"
+    ]
     assert result_contract["recommended_request_target"] == server_validation[
         "recommended_request_target"
     ]
@@ -932,6 +1018,24 @@ def _assert_handoff_next_step_packet(
     assert result_template["checked_surface_count"] == (
         result_contract["checked_surface_count"]
     )
+    assert result_template["provider_route_stage_names"] == result_contract[
+        "provider_route_stage_names"
+    ]
+    assert result_template["provider_route_stage_count"] == result_contract[
+        "provider_route_stage_count"
+    ]
+    assert result_template["provider_status_counts_by_stage"] == result_contract[
+        "provider_status_counts_by_stage"
+    ]
+    assert result_template[
+        "provider_automation_level_counts_by_stage"
+    ] == result_contract["provider_automation_level_counts_by_stage"]
+    assert result_template["provider_status_counts"] == result_contract[
+        "provider_status_counts"
+    ]
+    assert result_template["provider_automation_level_counts"] == result_contract[
+        "provider_automation_level_counts"
+    ]
     assert result_template["boundary_confirmation_keys"] == [
         "filesystem_probe_performed",
         "artifact_validation_performed",
@@ -992,6 +1096,15 @@ def _assert_handoff_next_step_packet(
         "validation_status": result_contract["validation_status"],
         "checked_surface_names": result_contract["checked_surface_names"],
         "input_readiness_status": result_contract["input_readiness_status"],
+        "provider_route_stage_names": result_contract[
+            "provider_route_stage_names"
+        ],
+        "provider_status_counts_by_stage": result_contract[
+            "provider_status_counts_by_stage"
+        ],
+        "provider_automation_level_counts_by_stage": result_contract[
+            "provider_automation_level_counts_by_stage"
+        ],
         "blocking_ids": [],
         "warning_ids": [],
         "boundary_confirmations": {
@@ -1610,6 +1723,24 @@ def _assert_controller_packet(
     assert parent_packet["handoff_server_validation_argv"] == (
         server_validation_packet["recommended_argv"]
     )
+    assert parent_packet[
+        "handoff_server_validation_provider_route_stage_names"
+    ] == server_validation_packet["provider_route_stage_names"]
+    assert parent_packet[
+        "handoff_server_validation_provider_route_stage_count"
+    ] == server_validation_packet["provider_route_stage_count"]
+    assert parent_packet[
+        "handoff_server_validation_provider_status_counts_by_stage"
+    ] == server_validation_packet["provider_status_counts_by_stage"]
+    assert parent_packet[
+        "handoff_server_validation_provider_automation_level_counts_by_stage"
+    ] == server_validation_packet["provider_automation_level_counts_by_stage"]
+    assert parent_packet[
+        "handoff_server_validation_provider_status_counts"
+    ] == server_validation_packet["provider_status_counts"]
+    assert parent_packet[
+        "handoff_server_validation_provider_automation_level_counts"
+    ] == server_validation_packet["provider_automation_level_counts"]
     assert parent_packet[
         "handoff_server_validation_result_contract_available"
     ] is server_validation_result_contract["available"]
