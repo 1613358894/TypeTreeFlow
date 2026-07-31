@@ -34,7 +34,12 @@ _MANUAL_REVIEW_SUBCOMMANDS = {"validate", "import"}
 _STRICT_GATING_SUBCOMMANDS = {"evaluate"}
 _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
-_COVERAGE_PIPELINE_SUBCOMMANDS = {"build", "preview", "status"}
+_COVERAGE_PIPELINE_SUBCOMMANDS = {
+    "build",
+    "preview",
+    "server-validation-result validate",
+    "status",
+}
 _COUNT_CROSSWALK_SUBCOMMANDS = {"build"}
 _ARCHIVE_CANDIDATES_SUBCOMMANDS = {"build"}
 _COVERAGE_PLAN_SUBCOMMANDS = {"build"}
@@ -101,7 +106,10 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         )
     elif is_coverage_pipeline:
         command = "coverage-pipeline"
-        subcommand = tokens[1] if len(tokens) > 1 else None
+        if len(tokens) > 2 and tokens[1] == "server-validation-result":
+            subcommand = f"{tokens[1]} {tokens[2]}"
+        else:
+            subcommand = tokens[1] if len(tokens) > 1 else None
         mode = "coverage_pipeline"
         invalid = subcommand not in _COVERAGE_PIPELINE_SUBCOMMANDS
         unknown = (
