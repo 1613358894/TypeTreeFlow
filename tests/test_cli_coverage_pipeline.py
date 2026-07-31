@@ -721,6 +721,101 @@ def _assert_controller_packet(
     assert step_summary["execution_boundary"] == (
         "metadata_only_controller_step_summary_no_execution"
     )
+    preflight_handoff = payload["coverage_controller_preflight_handoff_packet"]
+    assert (
+        preflight_handoff["schema_version"]
+        == "coverage_controller_preflight_handoff_packet.v1"
+    )
+    assert preflight_handoff["available"] is bool(decision_surfaces)
+    assert preflight_handoff["controller_status"] == packet["controller_status"]
+    assert preflight_handoff["controller_decision"] == packet[
+        "controller_decision"
+    ]
+    assert preflight_handoff["controller_blocking_ids"] == packet[
+        "controller_blocking_ids"
+    ]
+    assert preflight_handoff["controller_warning_ids"] == packet[
+        "controller_warning_ids"
+    ]
+    assert preflight_handoff["digest_guard_summary"] == digest_guard
+    if decision_surfaces:
+        first_candidate = packet["controller_step_candidates"][0]
+        expected_argv_json = json.dumps(
+            first_candidate["target_argv"],
+            separators=(",", ":"),
+        )
+        assert preflight_handoff["source"] == first_candidate["source"]
+        assert preflight_handoff["handoff_kind"] == first_candidate["handoff_kind"]
+        assert preflight_handoff["recommended_request_target"] == first_candidate[
+            "recommended_request_target"
+        ]
+        assert preflight_handoff["target_argv"] == first_candidate["target_argv"]
+        assert preflight_handoff["target_argv_json"] == expected_argv_json
+        assert preflight_handoff["preflight_argv"] == [
+            "commands",
+            "preflight",
+            "--argv-json",
+            expected_argv_json,
+        ]
+        assert preflight_handoff["preflight_command_surface"] == (
+            "commands preflight"
+        )
+        assert preflight_handoff["candidate_preflight_decision"] == (
+            first_candidate["preflight_decision"]
+        )
+        assert preflight_handoff["candidate_blocking_ids"] == first_candidate[
+            "blocking_ids"
+        ]
+        assert preflight_handoff["candidate_warning_ids"] == first_candidate[
+            "warning_ids"
+        ]
+        expected_required = [
+            "verify controller_digest_guard_summary",
+            "run this commands preflight handoff",
+            "inspect preflight decision and blockers",
+            "operator approval before target command execution",
+        ]
+        if packet["controller_has_blockers"]:
+            expected_required = [
+                "resolve controller_blocking_ids",
+                *expected_required,
+            ]
+        assert (
+            preflight_handoff["required_before_preflight"]
+            == expected_required
+        )
+        assert (
+            preflight_handoff["recommended_execution_mode"]
+            == "operator_review_required"
+        )
+    else:
+        assert preflight_handoff["source"] == ""
+        assert preflight_handoff["handoff_kind"] == ""
+        assert preflight_handoff["recommended_request_target"] == ""
+        assert preflight_handoff["target_argv"] == []
+        assert preflight_handoff["target_argv_json"] == ""
+        assert preflight_handoff["preflight_argv"] == []
+        assert preflight_handoff["preflight_command_surface"] == ""
+        assert preflight_handoff["candidate_preflight_decision"] == ""
+        assert preflight_handoff["candidate_blocking_ids"] == []
+        assert preflight_handoff["candidate_warning_ids"] == []
+        assert preflight_handoff["required_before_preflight"] == []
+        assert preflight_handoff["recommended_execution_mode"] == "no_action"
+    assert preflight_handoff["target_command_execution_authorized"] is False
+    assert preflight_handoff["safe_for_unattended_execution"] is False
+    assert preflight_handoff["audit_only"] is True
+    assert preflight_handoff["dry_run"] is True
+    assert preflight_handoff["writes_outputs"] is False
+    assert preflight_handoff["writes_workflow_outputs"] is False
+    assert preflight_handoff["downloads_triggered"] == 0
+    assert preflight_handoff["providers_contacted"] == 0
+    assert preflight_handoff["network_access"] is False
+    assert preflight_handoff["external_tools"] is False
+    assert preflight_handoff["manifest_mutated"] is False
+    assert preflight_handoff["strict_scientific_deliverable"] is False
+    assert preflight_handoff["execution_boundary"] == (
+        "metadata_only_controller_preflight_handoff_no_execution"
+    )
     for candidate in packet["controller_step_candidates"]:
         route_context = candidate["route_context"]
         assert route_context["schema_version"] == "coverage_controller_route_context.v1"
