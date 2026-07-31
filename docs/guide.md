@@ -136,6 +136,10 @@ command does not contact providers, download genomes, mutate manifests, or
 claim strict scientific delivery.
 Command metadata reports `coverage_plan_packet.v1` for the generated
 coverage-plan pair.
+When `--write` succeeds, stdout includes a structured `recommended_request`
+for `provider-handoff build` using the written `coverage_plan.tsv`. That
+request is only an AI/operator handoff for a later local command; this step
+does not run provider-handoff or contact providers.
 
 Turn coverage-plan provider keys into a provider-specific offline handoff:
 
