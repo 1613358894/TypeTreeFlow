@@ -1679,6 +1679,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "metadata_review": 6,
         "planning_handoff": 2,
     }
+    assert provider_route_summary["planning_handoff_provider_count"] == 2
+    assert provider_route_summary["metadata_review_provider_count"] == 4
+    assert provider_route_summary["metadata_review_only_provider_count"] == 4
     assert provider_route_summary["planning_handoff_provider_keys"] == [
         "dsmz",
         "kctc",
@@ -1703,6 +1706,27 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     }
     assert dsmz_route["needs_provider_request_draft"] is True
     assert dsmz_route["metadata_review_only"] is False
+    priority_items = provider_route_summary["priority_provider_route_items"]
+    assert [item["provider_key"] for item in priority_items[:2]] == [
+        "dsmz",
+        "kctc",
+    ]
+    assert priority_items[0]["route_priority"] == "provider_handoff"
+    assert priority_items[0]["primary_provider_automation_level"] == (
+        "planning_handoff"
+    )
+    assert priority_items[0]["primary_source_action"] == "prepare_provider_handoff"
+    assert priority_items[0]["primary_operator_route"] == "provider_handoff"
+    assert priority_items[0]["primary_next_input_class"] == (
+        "permitted_local_fasta_terms_provenance"
+    )
+    assert priority_items[0]["safe_for_unattended_execution"] is False
+    genbank_priority = [
+        item for item in priority_items if item["provider_key"] == "genbank"
+    ][0]
+    assert genbank_priority["route_priority"] == "public_metadata_review"
+    assert genbank_priority["record_count"] == 2
+    assert genbank_priority["metadata_review_only"] is True
     assert payload["provider_terms_review_required_count"] == 8
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0
@@ -2905,6 +2929,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_provider_route_opportunity_summary"][
         "provider_key_record_counts"
     ]["genbank"] == 2
+    assert summary["coverage_provider_route_opportunity_summary"][
+        "priority_provider_route_items"
+    ][0]["provider_key"] == "dsmz"
     assert summary["provider_request_record_count"] == 8
     assert summary["provider_request_automation_level_counts"] == {
         "metadata_review": 6,
