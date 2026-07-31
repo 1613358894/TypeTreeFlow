@@ -53,6 +53,9 @@ class ProviderRequestValidationRow:
     blocking_reasons: tuple[str, ...]
     local_fasta_checked: bool
     local_sha256_matches: bool
+    operator_route: str = ""
+    next_input_class: str = ""
+    automation_boundary: str = ""
 
     @property
     def ready(self) -> bool:
@@ -67,6 +70,9 @@ class ProviderRequestValidationRow:
             "blocking_reasons": list(self.blocking_reasons),
             "local_fasta_checked": self.local_fasta_checked,
             "local_sha256_matches": self.local_sha256_matches,
+            "operator_route": self.operator_route,
+            "next_input_class": self.next_input_class,
+            "automation_boundary": self.automation_boundary,
         }
 
 
@@ -83,12 +89,27 @@ class ProviderRequestValidation:
     def summary(self) -> dict[str, object]:
         status_counts: dict[str, int] = {}
         provider_counts: dict[str, int] = {}
+        operator_route_counts: dict[str, int] = {}
+        next_input_class_counts: dict[str, int] = {}
+        automation_boundary_counts: dict[str, int] = {}
         blocker_counts: dict[str, int] = {}
         for row in self.rows:
             status_counts[row.readiness_status] = (
                 status_counts.get(row.readiness_status, 0) + 1
             )
             provider_counts[row.provider] = provider_counts.get(row.provider, 0) + 1
+            if row.operator_route:
+                operator_route_counts[row.operator_route] = (
+                    operator_route_counts.get(row.operator_route, 0) + 1
+                )
+            if row.next_input_class:
+                next_input_class_counts[row.next_input_class] = (
+                    next_input_class_counts.get(row.next_input_class, 0) + 1
+                )
+            if row.automation_boundary:
+                automation_boundary_counts[row.automation_boundary] = (
+                    automation_boundary_counts.get(row.automation_boundary, 0) + 1
+                )
             for blocker in row.blocking_reasons:
                 blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
         ready_count = sum(1 for row in self.rows if row.ready)
@@ -99,6 +120,11 @@ class ProviderRequestValidation:
             "blocked_count": len(self.rows) - ready_count,
             "status_counts": dict(sorted(status_counts.items())),
             "provider_counts": dict(sorted(provider_counts.items())),
+            "operator_route_counts": dict(sorted(operator_route_counts.items())),
+            "next_input_class_counts": dict(sorted(next_input_class_counts.items())),
+            "automation_boundary_counts": dict(
+                sorted(automation_boundary_counts.items())
+            ),
             "blocker_counts": dict(sorted(blocker_counts.items())),
             "local_fasta_checked_count": sum(
                 1 for row in self.rows if row.local_fasta_checked
@@ -171,6 +197,9 @@ def provider_request_validation_payload(
         "blocked_count": summary["blocked_count"],
         "status_counts": summary["status_counts"],
         "provider_counts": summary["provider_counts"],
+        "operator_route_counts": summary["operator_route_counts"],
+        "next_input_class_counts": summary["next_input_class_counts"],
+        "automation_boundary_counts": summary["automation_boundary_counts"],
         "blocker_counts": summary["blocker_counts"],
         "local_fasta_checked_count": summary["local_fasta_checked_count"],
         "local_sha256_matched_count": summary["local_sha256_matched_count"],
@@ -248,6 +277,7 @@ def _validate_record(
     base_dir: Path,
 ) -> ProviderRequestValidationRow:
     blockers: list[str] = []
+    route_metadata = _route_metadata_from_notes(record.notes)
     missing_required = [
         field
         for field in REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS
@@ -307,7 +337,23 @@ def _validate_record(
         blocking_reasons=unique_blockers,
         local_fasta_checked=local_fasta_checked,
         local_sha256_matches=local_sha256_matches,
+        operator_route=route_metadata["operator_route"],
+        next_input_class=route_metadata["next_input_class"],
+        automation_boundary=route_metadata["automation_boundary"],
     )
+
+
+def _route_metadata_from_notes(notes: str) -> dict[str, str]:
+    values = {
+        "operator_route": "",
+        "next_input_class": "",
+        "automation_boundary": "",
+    }
+    for part in str(notes).split(";"):
+        key, sep, value = part.strip().partition("=")
+        if sep and key in values:
+            values[key] = value.strip()
+    return values
 
 
 def _resolve_local_path(value: str, *, base_dir: Path) -> Path:

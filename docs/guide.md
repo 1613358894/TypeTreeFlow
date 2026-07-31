@@ -162,8 +162,9 @@ typetreeflow provider-request validate --input <provider_request.tsv> \
 The validator checks required provider request fields, terms review,
 curator-owned completion fields, type-material/manual-review flags, local
 FASTA existence, and SHA-256 match. It emits compact JSON with ready/blocked
-counts and blocker counts, but it does not echo local FASTA paths, hashes,
-provider notes, or sequence contents. It also includes the next offline
+counts, blocker counts, and inherited route counts from draft row notes when
+available, but it does not echo local FASTA paths, hashes, provider notes, or
+sequence contents. It also includes the next offline
 `provider-request external-genomes-handoff` request. With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated

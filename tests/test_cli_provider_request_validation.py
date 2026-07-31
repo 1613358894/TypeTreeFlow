@@ -35,7 +35,11 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "is_type_material": "true",
             "requires_manual_review": "false",
             "curator": "curator-a",
-            "notes": "local handoff",
+            "notes": (
+                "local handoff; operator_route=provider_handoff; "
+                "next_input_class=permitted_local_fasta_terms_provenance; "
+                "automation_boundary=planning_handoff_no_provider_contact"
+            ),
         }
     )
     values.update(overrides)
@@ -78,6 +82,13 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert payload["status"] == "pass"
     assert payload["ready_count"] == 1
     assert payload["blocked_count"] == 0
+    assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert payload["local_fasta_checked_count"] == 1
     assert payload["local_sha256_matched_count"] == 1
     assert payload["writes_outputs"] is False
@@ -137,6 +148,13 @@ def test_provider_request_validate_write_outputs_audit_pair(tmp_path, capsys):
     )
     assert summary["writes_outputs"] is True
     assert summary["ready_count"] == 1
+    assert summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert summary["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert summary["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert summary["required_inputs"] == ["provider_request.tsv"]
     assert summary["recommended_request"]["subcommand"] == "external-genomes-handoff"
     assert diagnostics == (

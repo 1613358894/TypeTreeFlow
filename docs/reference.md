@@ -1655,12 +1655,15 @@ valid retrieval date, curator field, `is_type_material=true`,
 `requires_manual_review=false`, local FASTA existence, nonempty file size,
 non-symlink path, SHA-256 shape, and checksum match. It emits one compact JSON
 object with `ready_count`, `blocked_count`, `blocker_counts`,
-`local_fasta_checked_count`, and `local_sha256_matched_count`; row previews
-include only request ID, species, provider, readiness status, blocker codes,
-and boolean local evidence checks. They do not echo local FASTA paths, hashes,
-provider notes, curator values, or sequence contents. The JSON and summary also
-include `required_inputs` plus a structured `recommended_request` for the next
-offline `provider-request external-genomes-handoff` step.
+`local_fasta_checked_count`, `local_sha256_matched_count`,
+`operator_route_counts`, `next_input_class_counts`, and
+`automation_boundary_counts` when those controlled values are present in draft
+row notes. Row previews include only request ID, species, provider, readiness
+status, blocker codes, route metadata, and boolean local evidence checks. They
+do not echo local FASTA paths, hashes, provider notes, curator values, or
+sequence contents. The JSON and summary also include `required_inputs` plus a
+structured `recommended_request` for the next offline
+`provider-request external-genomes-handoff` step.
 
 Successful fully ready validation exits `0`; schema/input/readiness blockers
 exit `2`; unexpected internal or write failures exit `1`. Without `--write`,
