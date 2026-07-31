@@ -1518,7 +1518,9 @@ such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, CCM,
 LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR, CICC, and IFO.
 Explicit provider hints may use canonical provider keys, common abbreviations,
 or static registry display names; they are normalized to canonical provider
-keys before summary counting.
+keys before summary counting. Recognized hints are additive across supported
+fields, so an unrecognized local source label does not mask a later canonical
+provider name in another field.
 Archive-candidate source fields such as `archive_source` and
 `archive_source_name` may also normalize public archive names such as ENA,
 DDBJ, GenBank, and RefSeq to metadata-only provider hints.
