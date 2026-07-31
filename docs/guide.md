@@ -312,7 +312,10 @@ same reason. They also summarize recommended request targets, such as
 executing those requests. Selected queue packets, operator recipes, queue-resume
 packets, preview items, and controller queue candidates also carry
 `next_input_package`, a compact no-execution summary of the next input schema,
-artifact, field/status counts, route, and request target. The top-level stage-specific
+artifact, field/status counts, route, and request target. The controller packet
+copies the queue package to `coverage_queue_next_input_package` and the first
+candidate package to `first_controller_step_next_input_package` for one-object
+handoff consumers. The top-level stage-specific
 `*_recommended_request` drafts also carry matching
 `*_recommended_request_target` labels for provider-request, external-genomes,
 install-plan, registration dry-run, and handoff routing. Opportunity and queue
