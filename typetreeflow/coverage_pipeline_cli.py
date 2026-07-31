@@ -1202,6 +1202,16 @@ def _provider_request_readiness_packet(
     ready = status == "ready_for_next_stage"
     recommended_request = payload.get("recommended_request")
     install_plan_request = payload.get("install_plan_recommended_request")
+    ready_recommended_request = (
+        dict(recommended_request)
+        if ready and isinstance(recommended_request, Mapping)
+        else None
+    )
+    ready_install_plan_request = (
+        dict(install_plan_request)
+        if ready and isinstance(install_plan_request, Mapping)
+        else None
+    )
     return {
         "schema_version": "provider_request_readiness_packet.v1",
         "stage": stage,
@@ -1217,18 +1227,16 @@ def _provider_request_readiness_packet(
             if isinstance(payload.get("required_inputs"), list)
             else []
         ),
-        "recommended_request": (
-            dict(recommended_request)
-            if ready and isinstance(recommended_request, Mapping)
-            else None
+        "recommended_request": ready_recommended_request,
+        "recommended_request_target": _coverage_recommended_request_target(
+            ready_recommended_request
         ),
         "recommended_next_command": (
             str(payload.get("recommended_next_command", "")) if ready else ""
         ),
-        "install_plan_recommended_request": (
-            dict(install_plan_request)
-            if ready and isinstance(install_plan_request, Mapping)
-            else None
+        "install_plan_recommended_request": ready_install_plan_request,
+        "install_plan_recommended_request_target": (
+            _coverage_recommended_request_target(ready_install_plan_request)
         ),
         "install_plan_recommended_next_command": (
             str(payload.get("install_plan_recommended_next_command", ""))
@@ -1275,6 +1283,11 @@ def _external_genomes_readiness_packet(
         status = "blocked"
     ready = status == "ready_for_next_stage"
     recommended_request = payload.get("recommended_request")
+    ready_recommended_request = (
+        dict(recommended_request)
+        if ready and isinstance(recommended_request, Mapping)
+        else None
+    )
     return {
         "schema_version": "external_genomes_readiness_packet.v1",
         "stage": stage,
@@ -1289,10 +1302,9 @@ def _external_genomes_readiness_packet(
         ),
         "next_stage": next_stage if ready else "",
         "required_inputs": ["external_genome_install_plan.tsv"],
-        "recommended_request": (
-            dict(recommended_request)
-            if ready and isinstance(recommended_request, Mapping)
-            else None
+        "recommended_request": ready_recommended_request,
+        "recommended_request_target": _coverage_recommended_request_target(
+            ready_recommended_request
         ),
         "recommended_next_command": (
             str(payload.get("recommended_next_command", "")) if ready else ""

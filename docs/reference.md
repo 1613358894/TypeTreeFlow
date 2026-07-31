@@ -1704,8 +1704,10 @@ structured `recommended_request` for the next offline
 `provider_request_readiness_packet`, a compact AI/operator handoff object with
 `stage=validate`, status/count fields, audit-only boundary flags, and
 `next_stage=provider_request_external_genomes_handoff` only when every row is
-ready. Blocked or failed validation packets keep `recommended_request=null` and
-an empty `recommended_next_command`. Ready packets also include
+ready. Ready packets include compact `recommended_request_target` labels for
+AI/controller routing. Blocked or failed validation packets keep
+`recommended_request=null`, empty request-target labels, and an empty
+`recommended_next_command`. Ready packets also include
 `recommended_command_plan`, a non-executing `commands plan` companion for the
 packet's `recommended_request`; because that request writes an isolated audit
 directory, the companion remains blocked until an operator or parent agent
@@ -2098,8 +2100,11 @@ external-genomes handoff child summaries can also contribute
 summaries can contribute `summary_external_genomes_readiness_packet`.
 `operator_chain_readiness_packets` collects those bounded packets by stage so
 an AI/operator controller can inspect child-stage readiness without opening the
-child summary files. These are routing
-hints only and do not change the `available` gate. It also includes
+child summary files. Ready readiness packets include compact
+`recommended_request_target` labels. Provider-request readiness packets can
+also include `install_plan_recommended_request_target` when the child summary
+exposes a downstream install-plan companion; these are routing hints only and
+do not change the `available` gate. It also includes
 `completion_gate` with `passed`, `required`, `blocking_stage_count`,
 `blocking_stage_names`, and `blocking_diagnostic_code`. By default, an
 incomplete chain remains a readable status result. Add `--require-complete` to
