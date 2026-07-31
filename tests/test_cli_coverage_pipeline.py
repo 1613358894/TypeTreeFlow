@@ -3649,8 +3649,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         decision="allow",
     )
     assert payload["provider_request_validation_recommended_next_command"] == (
-        "review ready rows before copying accepted local FASTA evidence into "
-        "external_genomes.tsv for --register-external-genomes"
+        "typetreeflow provider-request external-genomes-handoff --input "
+        "<provider_request.tsv> --write --outdir "
+        "<isolated-provider-request-external-genomes-directory>"
     )
     assert payload["provider_request_external_genomes_recommended_request"] == {
         "command": "external-genomes",
@@ -5046,8 +5047,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         decision="allow",
     )
     assert summary["provider_request_validation_recommended_next_command"] == (
-        "review ready rows before copying accepted local FASTA evidence into "
-        "external_genomes.tsv for --register-external-genomes"
+        "typetreeflow provider-request external-genomes-handoff --input "
+        "<provider_request.tsv> --write --outdir "
+        "<isolated-provider-request-external-genomes-directory>"
     )
     assert summary["provider_request_external_genomes_recommended_request"] == {
         "command": "external-genomes",
