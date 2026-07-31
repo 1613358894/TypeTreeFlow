@@ -142,6 +142,40 @@ def test_coverage_plan_uses_canonical_provider_hints_when_present():
     }
 
 
+def test_coverage_plan_provider_hints_are_additive_across_fields():
+    plan = build_coverage_plan(
+        [
+            _row(
+                "Clostridium multifieldum",
+                "external_fasta_required",
+                provider_keys="local-provider-label",
+                candidate_provider_keys="DSMZ; Korean Collection for Type Cultures",
+                preferred_provider_keys="European Nucleotide Archive",
+                provider_key="NCBI GenBank",
+            )
+        ]
+    )
+
+    action = plan.actions[0]
+    assert action.provider_keys == "local-provider-label; dsmz; kctc; ena; genbank"
+    summary = json.loads(plan.summary_json())
+    assert summary["provider_key_counts"] == {
+        "dsmz": 1,
+        "ena": 1,
+        "genbank": 1,
+        "kctc": 1,
+        "local-provider-label": 1,
+    }
+    assert summary["provider_status_counts"] == {
+        "metadata_only": 2,
+        "planning_only": 3,
+    }
+    assert summary["operator_route_counts"] == {
+        "provider_handoff": 3,
+        "public_metadata_review": 2,
+    }
+
+
 def test_coverage_plan_sanitizes_text():
     plan = build_coverage_plan([_row("Clostridium linebreakum\nsecret", "not_evaluated")])
 

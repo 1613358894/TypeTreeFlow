@@ -1615,7 +1615,10 @@ The compact JSON and written summary include provider route aggregates such as
 `next_input_class_counts`, `automation_boundary_counts`, and
 `provider_route_groups`, so AI/operator controllers can distinguish
 public-metadata review from user-assisted provider handoff before generating
-the provider-handoff pair.
+the provider-handoff pair. Provider hints from supported worklist fields are
+additive: an unknown local label is retained as fail-closed planning-only
+handoff metadata and does not mask later canonical provider or public archive
+names in other fields.
 Command metadata reports the target output contract as
 `coverage_plan_packet.v1`, so controllers can route the coverage-plan pair
 before running the command. When `--write` succeeds, stdout also includes
