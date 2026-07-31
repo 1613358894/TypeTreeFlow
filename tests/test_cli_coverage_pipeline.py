@@ -2856,7 +2856,10 @@ def _write_archive_candidates_output(outdir):
                 "archive_type_material_signal": "assembly_type_material",
                 "lpsn_token_overlap": "DSM 3",
                 "source_url": "",
-                "evidence_notes": "fixture archive candidate",
+                "evidence_notes": (
+                    "source=completion/expanded_discovery_results.tsv; "
+                    "fixture archive candidate"
+                ),
                 "candidate_status": "archive_candidate_for_public_linkage_review",
                 "requires_manual_review": "true",
                 "recommended_action": (
@@ -2887,6 +2890,10 @@ def _write_archive_candidates_output(outdir):
                 "review_input_class_counts": {
                     "direct_evidence_chain_review": 1,
                 },
+                "source_input_kind_counts": {
+                    "expanded_discovery_results": 1,
+                },
+                "expanded_discovery_candidate_count": 1,
                 "downloads_triggered": 0,
                 "providers_contacted": 0,
                 "manifest_mutated": False,
@@ -5457,6 +5464,15 @@ def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
     assert (
         outdir / "archive_candidates" / "archive_candidates_diagnostics.tsv"
     ).exists()
+    summary = json.loads(
+        (
+            outdir / "archive_candidates" / "archive_candidates_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert summary["source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert summary["expanded_discovery_candidate_count"] == 1
 
     code, payload, _ = _run(
         ["--coverage-pipeline-dir", str(outdir), "--json"],
@@ -6795,6 +6811,10 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
     assert archive_stage["summary_review_input_class_counts"] == {
         "direct_evidence_chain_review": 1
     }
+    assert archive_stage["summary_source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert archive_stage["summary_expanded_discovery_candidate_count"] == 1
     assert "archive_candidates" in payload["available_stage_names"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0

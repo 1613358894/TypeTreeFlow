@@ -1548,9 +1548,11 @@ Archive candidate summaries always preserve `downloads_triggered=0`,
 `providers_contacted=0`, `manifest_mutated=false`, `audit_only=true`, and
 `strict_scientific_deliverable=false`. They also include controlled
 `archive_source_counts`, `accession_kind_counts`, and
-`review_input_class_counts` maps so AI/operator handoff can distinguish public
-archive source, available accession class, and the next local review input
-without reading row-level notes.
+`review_input_class_counts` maps plus `source_input_kind_counts` and
+`expanded_discovery_candidate_count` so AI/operator handoff can distinguish
+public archive source, available accession class, the next local review input,
+and whether candidates came from the expanded-discovery bridge without reading
+row-level notes.
 
 The isolated archive candidate CLI adapter is:
 
