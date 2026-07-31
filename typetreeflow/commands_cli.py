@@ -593,7 +593,17 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         {
             "name": "coverage_plan_packet",
             "schema_version": "coverage_plan_packet.v1",
-            "purpose": "offline coverage action plan pair and summary",
+            "purpose": "offline coverage action plan pair and route summary",
+            "summary_fields": [
+                "action_counts",
+                "provider_key_counts",
+                "provider_status_counts",
+                "provider_automation_level_counts",
+                "operator_route_counts",
+                "next_input_class_counts",
+                "automation_boundary_counts",
+                "provider_route_groups",
+            ],
         },
     ),
     ("provider-handoff", "build"): (
