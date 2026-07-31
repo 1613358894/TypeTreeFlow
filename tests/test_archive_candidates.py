@@ -84,6 +84,72 @@ def test_archive_candidate_report_is_audit_only_and_statused():
         "archive_candidate_input": 3
     }
     assert report.summary["expanded_discovery_candidate_count"] == 0
+    packet = report.summary["public_archive_opportunity_packet"]
+    assert packet["schema_version"] == "public_archive_opportunity_packet.v1"
+    assert packet["safe_for_unattended_download"] is False
+    assert packet["downloads_triggered"] == 0
+    assert packet["providers_contacted"] == 0
+    assert packet["manifest_mutated"] is False
+    assert packet["audit_only"] is True
+    assert packet["strict_scientific_deliverable"] is False
+    assert packet["opportunity_count"] == 3
+    assert packet["opportunities"] == [
+        {
+            "priority": 10,
+            "review_input_class": "direct_evidence_chain_review",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium publicum"],
+            "species_truncated": False,
+            "candidate_status_counts": {
+                "archive_candidate_for_public_linkage_review": 1
+            },
+            "archive_source_counts": {"ena": 1},
+            "accession_kind_counts": {"assembly": 1, "biosample": 1},
+            "source_input_kind_counts": {"archive_candidate_input": 1},
+            "recommended_next_input": "manual_review.tsv",
+            "recommended_action": (
+                "review accession-to-type-strain evidence chain before manual import"
+            ),
+            "automation_boundary": "metadata_review_only_no_download",
+        },
+        {
+            "priority": 30,
+            "review_input_class": "direct_type_material_signal_required",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium weakum"],
+            "species_truncated": False,
+            "candidate_status_counts": {
+                "archive_candidate_insufficient_type_linkage": 1
+            },
+            "archive_source_counts": {"ena": 1},
+            "accession_kind_counts": {"assembly": 1, "biosample": 1},
+            "source_input_kind_counts": {"archive_candidate_input": 1},
+            "recommended_next_input": "manual_review.tsv",
+            "recommended_action": (
+                "find direct type-material signal before manual import"
+            ),
+            "automation_boundary": "metadata_review_only_no_download",
+        },
+        {
+            "priority": 50,
+            "review_input_class": "public_accession_required",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium missingum"],
+            "species_truncated": False,
+            "candidate_status_counts": {"archive_candidate_missing_accession": 1},
+            "archive_source_counts": {"ena": 1},
+            "accession_kind_counts": {"missing": 1},
+            "source_input_kind_counts": {"archive_candidate_input": 1},
+            "recommended_next_input": "archive_candidates_input.tsv",
+            "recommended_action": (
+                "supply assembly, BioSample, nuccore, or WGS accession"
+            ),
+            "automation_boundary": "metadata_review_only_no_download",
+        },
+    ]
     assert report.summary["downloads_triggered"] == 0
     assert report.summary["providers_contacted"] == 0
     assert report.summary["manifest_mutated"] is False
@@ -107,6 +173,7 @@ def test_archive_candidate_tsv_and_json_are_stable():
     }
     assert summary["source_input_kind_counts"] == {"archive_candidate_input": 1}
     assert summary["expanded_discovery_candidate_count"] == 0
+    assert summary["public_archive_opportunity_packet"]["opportunity_count"] == 1
 
 
 def test_archive_candidate_source_aliases_are_canonicalized():
