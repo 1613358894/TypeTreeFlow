@@ -294,8 +294,9 @@ the preview is truncated. It defaults to three items; use
 `--queue-preview-limit <1..10>` on `preview`, `build`, or `status` when an
 AI/operator controller needs a larger or smaller no-execution preview. Each
 preview item also carries compact command-plan status plus blocker/warning
-counts and IDs so a controller can route blocked items without executing or
-copying full diagnostic messages. The preview object includes
+counts and IDs, plus output contract names and counts, so a controller can
+route blocked items without executing, copying full diagnostic messages, or
+performing a separate command-catalog lookup. The preview object includes
 `queue_snapshot_sha256` and `preview_item_ids` so a controller can detect
 whether the queued metadata changed before resuming a previously inspected
 item. To resume a specific stable queue item, pass
@@ -304,9 +305,9 @@ selects `current_coverage_action_queue_item`,
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` metadata, and the matching
 `coverage_queue_resume_packet` repeats the selected item ID, digest guard,
-target argv, `review_input_packet`, and no-execution boundary in one compact
-object. It does not change the bounded preview prefix, execute the target
-command, or authorize provider access/downloads.
+target argv, output contracts, `review_input_packet`, and no-execution boundary
+in one compact object. It does not change the bounded preview prefix, execute
+the target command, or authorize provider access/downloads.
 Controllers that persist `queue_snapshot_sha256` can pass
 `--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a
 mismatch is refused with exit code `2` so stale queue selections fail closed.
