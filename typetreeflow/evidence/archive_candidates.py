@@ -281,7 +281,7 @@ def _candidate_from_row(
     diagnostics: list[ArchiveCandidateDiagnostic],
 ) -> ArchiveCandidateRow:
     species = _cell(row.get("species"))
-    archive_source = _cell(row.get("archive_source")).casefold()
+    archive_source = _archive_source_key(_cell(row.get("archive_source")))
     signal = _cell(row.get("archive_type_material_signal")) or "unknown"
     accessions = [
         _cell(row.get("assembly_accession")),
@@ -377,6 +377,14 @@ def _archive_source_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int
         else:
             counts["missing"] += 1
     return dict(sorted(counts.items()))
+
+
+def _archive_source_key(value: str) -> str:
+    cleaned = _cell(value)
+    if not cleaned:
+        return ""
+    registry = build_default_provider_registry()
+    return registry.canonical_key(cleaned) or cleaned.casefold()
 
 
 def _accession_kind_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int]:

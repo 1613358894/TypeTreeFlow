@@ -1538,6 +1538,10 @@ surfaces. Input rows use `species`, `strain`, `type_strain_id`,
 Supported statuses are `archive_candidate_for_public_linkage_review`,
 `archive_candidate_insufficient_type_linkage`, `archive_candidate_conflict`,
 `archive_candidate_missing_accession`, and `archive_candidate_malformed`.
+Known `archive_source` aliases such as ENA, European Nucleotide Archive,
+DDBJ, GenBank, and RefSeq are normalized to canonical registry keys in output
+rows; unknown source labels remain lower-case review metadata and do not create
+provider or download capability.
 Archive candidate summaries always preserve `downloads_triggered=0`,
 `providers_contacted=0`, `manifest_mutated=false`, `audit_only=true`, and
 `strict_scientific_deliverable=false`. They also include controlled
