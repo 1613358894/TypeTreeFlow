@@ -946,6 +946,10 @@ ATCC Genome Portal.
 The isolated install-plan command is optional but useful for AI operators: it
 checks local FASTA readiness and planned install destinations before invoking
 the workflow registration surface, while leaving the target run unmodified.
+When provider handoff route metadata is present in reviewed row notes, validate,
+install-plan, and registration dry-run JSON summarize only controlled route
+counts. These counts are operator context; they do not register genomes, install
+files, trigger downloads, or change strict completion.
 
 ## Troubleshooting
 

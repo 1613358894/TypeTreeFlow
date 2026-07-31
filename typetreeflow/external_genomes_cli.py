@@ -19,6 +19,7 @@ from typetreeflow.external_genomes import (
     read_external_genome_install_plan,
     read_external_genome_registration_results,
     read_external_genomes,
+    summarize_external_genome_route_metadata,
     validate_external_genome_records,
     write_external_genome_install_plan,
     write_external_genome_registration_results,
@@ -224,6 +225,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _validate_payload(results, *, diagnostics: list[dict[str, object]]) -> dict[str, object]:
     status_counts = Counter(result.status for result in results)
     valid_count = sum(1 for result in results if result.valid)
+    route_counts = summarize_external_genome_route_metadata(results)
     preview = [
         {
             "species": result.species,
@@ -241,6 +243,9 @@ def _validate_payload(results, *, diagnostics: list[dict[str, object]]) -> dict[
         "valid_count": valid_count,
         "invalid_count": len(results) - valid_count,
         "status_counts": dict(sorted(status_counts.items())),
+        "operator_route_counts": route_counts["operator_route_counts"],
+        "next_input_class_counts": route_counts["next_input_class_counts"],
+        "automation_boundary_counts": route_counts["automation_boundary_counts"],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "result_preview": preview,
@@ -273,6 +278,7 @@ def _install_plan_payload(
 ) -> dict[str, object]:
     registration_counts = Counter(result.status for result in registration_results)
     install_counts = Counter(item.status for item in install_plan)
+    route_counts = summarize_external_genome_route_metadata(registration_results)
     planned_count = install_counts.get("external_genome_install_planned", 0)
     skipped_count = len(install_plan) - planned_count
     external_genomes_input = _command_path(args.input, fallback="external_genomes.tsv")
@@ -292,6 +298,9 @@ def _install_plan_payload(
         "valid_count": sum(1 for result in registration_results if result.valid),
         "invalid_count": sum(1 for result in registration_results if not result.valid),
         "registration_status_counts": dict(sorted(registration_counts.items())),
+        "operator_route_counts": route_counts["operator_route_counts"],
+        "next_input_class_counts": route_counts["next_input_class_counts"],
+        "automation_boundary_counts": route_counts["automation_boundary_counts"],
         "install_plan_count": len(install_plan),
         "install_planned_count": planned_count,
         "install_skipped_count": skipped_count,
