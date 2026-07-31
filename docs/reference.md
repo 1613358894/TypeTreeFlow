@@ -1853,7 +1853,11 @@ pass `--queue-preview-limit <1..10>` to `preview`, `build`, or `status` to
 request a larger or smaller bounded preview. It lists each item's
 `queue_item_id`, route, required inputs, rendered argv, preflight decision, and
 `safe_for_unattended_execution=false`, with `truncated=true` when additional
-queue items exist. It is a routing preview, not a queue runner.
+queue items exist. Each item also carries compact command-plan diagnostics:
+`command_plan_status`, `blocking_count`, `blocking_ids`, `warning_count`, and
+`warning_ids`. These fields make blocked preview items routeable without
+copying diagnostic messages into the queue preview. It is a routing preview,
+not a queue runner.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
