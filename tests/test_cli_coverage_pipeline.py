@@ -819,6 +819,44 @@ def _assert_handoff_next_step_packet(
     assert result_contract["recommended_argv"] == server_validation[
         "recommended_argv"
     ]
+    expected_result_validation_request = {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result validate",
+        "input": "coverage_handoff_server_validation_result.json",
+        "json": True,
+    }
+    expected_result_validation_argv = [
+        "coverage-pipeline",
+        "server-validation-result",
+        "validate",
+        "--input",
+        "coverage_handoff_server_validation_result.json",
+        "--json",
+    ]
+    assert (
+        result_contract["result_filename"]
+        == "coverage_handoff_server_validation_result.json"
+    )
+    assert result_contract["result_validation_recommended_request_target"] == (
+        "coverage-pipeline server-validation-result validate"
+    )
+    assert (
+        result_contract["result_validation_recommended_request"]
+        == expected_result_validation_request
+    )
+    assert (
+        result_contract["result_validation_recommended_argv"]
+        == expected_result_validation_argv
+    )
+    assert result_contract[
+        "result_validation_expected_output_schema_version"
+    ] == "coverage_handoff_server_validation_result_validation.v1"
+    assert result_contract["result_validation_reads_only_explicit_result_json"] is True
+    assert result_contract["result_validation_may_execute_target_command"] is False
+    assert (
+        result_contract["result_validation_may_validate_filesystem_artifacts"]
+        is False
+    )
     assert result_contract["required_boundary_confirmations"] == [
         "filesystem_probe_performed=false",
         "artifact_validation_performed=false",
@@ -925,6 +963,26 @@ def _assert_handoff_next_step_packet(
     assert result_template["recommended_argv"] == result_contract[
         "recommended_argv"
     ]
+    assert result_template["result_validation_recommended_request_target"] == (
+        result_contract["result_validation_recommended_request_target"]
+    )
+    assert result_template["result_validation_recommended_request"] == (
+        result_contract["result_validation_recommended_request"]
+    )
+    assert result_template["result_validation_recommended_argv"] == (
+        result_contract["result_validation_recommended_argv"]
+    )
+    assert result_template[
+        "result_validation_expected_output_schema_version"
+    ] == result_contract["result_validation_expected_output_schema_version"]
+    assert result_template[
+        "result_validation_reads_only_explicit_result_json"
+    ] is True
+    assert result_template["result_validation_may_execute_target_command"] is False
+    assert (
+        result_template["result_validation_may_validate_filesystem_artifacts"]
+        is False
+    )
     rendered_template = result_template["result_template"]
     assert rendered_template == {
         "schema_version": result_contract["expected_result_schema_version"],
@@ -1574,6 +1632,19 @@ def _assert_controller_packet(
     assert parent_packet[
         "handoff_server_validation_result_template_default_status"
     ] == server_validation_result_template["result_template_default_status"]
+    assert parent_packet[
+        "handoff_server_validation_result_validation_target"
+    ] == server_validation_result_template[
+        "result_validation_recommended_request_target"
+    ]
+    assert parent_packet[
+        "handoff_server_validation_result_validation_argv"
+    ] == server_validation_result_template["result_validation_recommended_argv"]
+    assert parent_packet[
+        "handoff_server_validation_result_validation_expected_schema_version"
+    ] == server_validation_result_template[
+        "result_validation_expected_output_schema_version"
+    ]
     if preflight_handoff["available"]:
         assert (
             parent_packet["recommended_surface"]

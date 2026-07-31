@@ -3981,6 +3981,13 @@ def _coverage_handoff_server_validation_result_contract_packet(
         "strict_scientific_deliverable=false",
         "external_genomes_registration_applied=false",
     ]
+    result_filename = "coverage_handoff_server_validation_result.json"
+    result_validation_request = _coverage_server_validation_result_validation_request(
+        result_filename
+    )
+    result_validation_argv = _coverage_server_validation_result_validation_argv(
+        result_filename
+    )
     return {
         "schema_version": (
             "coverage_handoff_server_validation_result_contract_packet.v1"
@@ -4039,6 +4046,18 @@ def _coverage_handoff_server_validation_result_contract_packet(
             coverage_handoff_server_validation_packet,
             "recommended_argv",
         ),
+        "result_filename": result_filename,
+        "result_validation_recommended_request_target": (
+            "coverage-pipeline server-validation-result validate"
+        ),
+        "result_validation_recommended_request": result_validation_request,
+        "result_validation_recommended_argv": result_validation_argv,
+        "result_validation_expected_output_schema_version": (
+            "coverage_handoff_server_validation_result_validation.v1"
+        ),
+        "result_validation_reads_only_explicit_result_json": True,
+        "result_validation_may_execute_target_command": False,
+        "result_validation_may_validate_filesystem_artifacts": False,
         "required_boundary_confirmations": required_boundary_confirmations,
         "required_boundary_confirmation_count": len(
             required_boundary_confirmations
@@ -4122,6 +4141,13 @@ def _coverage_handoff_server_validation_result_template_packet(
             "inspection; keep blocked until evidence proves otherwise."
         ),
     }
+    result_filename = "coverage_handoff_server_validation_result.json"
+    result_validation_request = _coverage_server_validation_result_validation_request(
+        result_filename
+    )
+    result_validation_argv = _coverage_server_validation_result_validation_argv(
+        result_filename
+    )
     return {
         "schema_version": (
             "coverage_handoff_server_validation_result_template_packet.v1"
@@ -4130,7 +4156,7 @@ def _coverage_handoff_server_validation_result_template_packet(
         "template_status": (
             "operator_review_required" if available else "no_action"
         ),
-        "result_filename": "coverage_handoff_server_validation_result.json",
+        "result_filename": result_filename,
         "expected_result_schema_version": result_template["schema_version"],
         "expected_result_statuses": _string_list_field(
             coverage_handoff_server_validation_result_contract_packet,
@@ -4182,6 +4208,40 @@ def _coverage_handoff_server_validation_result_template_packet(
             coverage_handoff_server_validation_result_contract_packet,
             "recommended_argv",
         ),
+        "result_validation_recommended_request_target": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "result_validation_recommended_request_target",
+                "coverage-pipeline server-validation-result validate",
+            )
+        ),
+        "result_validation_recommended_request": (
+            dict(
+                coverage_handoff_server_validation_result_contract_packet[
+                    "result_validation_recommended_request"
+                ]
+            )
+            if isinstance(
+                coverage_handoff_server_validation_result_contract_packet.get(
+                    "result_validation_recommended_request"
+                ),
+                Mapping,
+            )
+            else result_validation_request
+        ),
+        "result_validation_recommended_argv": _string_list_field(
+            coverage_handoff_server_validation_result_contract_packet,
+            "result_validation_recommended_argv",
+        )
+        or result_validation_argv,
+        "result_validation_expected_output_schema_version": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "result_validation_expected_output_schema_version",
+                "coverage_handoff_server_validation_result_validation.v1",
+            )
+        ),
+        "result_validation_reads_only_explicit_result_json": True,
+        "result_validation_may_execute_target_command": False,
+        "result_validation_may_validate_filesystem_artifacts": False,
         "target_command_execution_authorized": False,
         "provider_contact_allowed": False,
         "safe_for_unattended_execution": False,
@@ -4203,6 +4263,30 @@ def _coverage_handoff_server_validation_result_template_packet(
             "metadata_only_handoff_server_validation_result_template_no_execution"
         ),
     }
+
+
+def _coverage_server_validation_result_validation_request(
+    result_filename: str,
+) -> dict[str, object]:
+    return {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result validate",
+        "input": result_filename,
+        "json": True,
+    }
+
+
+def _coverage_server_validation_result_validation_argv(
+    result_filename: str,
+) -> list[str]:
+    return [
+        "coverage-pipeline",
+        "server-validation-result",
+        "validate",
+        "--input",
+        result_filename,
+        "--json",
+    ]
 
 
 def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
@@ -6106,6 +6190,20 @@ def _coverage_parent_controller_packet(
         "handoff_server_validation_result_template_default_status": str(
             coverage_handoff_server_validation_result_template_packet.get(
                 "result_template_default_status", ""
+            )
+        ),
+        "handoff_server_validation_result_validation_target": str(
+            coverage_handoff_server_validation_result_template_packet.get(
+                "result_validation_recommended_request_target", ""
+            )
+        ),
+        "handoff_server_validation_result_validation_argv": _string_list_field(
+            coverage_handoff_server_validation_result_template_packet,
+            "result_validation_recommended_argv",
+        ),
+        "handoff_server_validation_result_validation_expected_schema_version": str(
+            coverage_handoff_server_validation_result_template_packet.get(
+                "result_validation_expected_output_schema_version", ""
             )
         ),
         "recommended_surface": recommended_surface,

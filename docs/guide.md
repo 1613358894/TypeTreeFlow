@@ -532,9 +532,12 @@ without writing result files, validating artifacts, or authorizing dispatch.
 schema-shaped, fail-closed JSON template for that contract. It defaults the
 embedded result to `status=blocked` and repeats the no-execution boundary
 confirmations so a server agent can fill an authorized bounded-validation
-result without inventing field names. It remains metadata-only and does not
-write files, validate artifacts, dispatch target commands, contact providers,
-or download genomes.
+result without inventing field names. It also includes a structured
+`result_validation_recommended_request` and argv for the local
+`coverage-pipeline server-validation-result validate` command so a controller
+can validate the filled result shape without guessing the next command. It
+remains metadata-only and does not write files, validate artifacts, dispatch
+target commands, contact providers, or download genomes.
 The server-validation packet, runbook, result contract, and result template also
 carry the same structured `recommended_request` as the handoff next-step packet
 when it is available, allowing AI controllers to pass the packet directly to
