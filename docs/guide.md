@@ -157,6 +157,8 @@ The summary also includes `provider_route_groups` so AI/controllers can see
 provider keys grouped by public metadata review versus provider handoff.
 Command metadata reports `provider_handoff_packet.v1` for the generated
 provider-handoff pair.
+When `--write` succeeds, stdout's `recommended_request` points to the written
+`provider_handoff.tsv` for a later local `provider-request draft` command.
 It blocks rows missing species, source lane, or action code, and does not
 contact providers, download genomes, mutate manifests, or claim strict
 scientific delivery.

@@ -27,6 +27,7 @@ from typetreeflow.evidence.provider_handoff import (
 
 
 COMMAND = "provider-handoff build"
+RECOMMENDED_REQUEST_TARGET = "provider-request draft"
 OUTPUT_NAMES = {
     "handoff": "provider_handoff.tsv",
     "summary": "provider_handoff_summary.json",
@@ -125,6 +126,14 @@ def run_provider_handoff_command(
         payload["output_paths"] = {
             key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
         }
+        payload["recommended_request"] = _provider_request_draft_recommended_request(
+            str(outdir / OUTPUT_NAMES["handoff"])
+        )
+        payload["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
+        payload["recommended_next_command"] = (
+            "typetreeflow provider-request draft --provider-handoff-tsv "
+            f"{outdir / OUTPUT_NAMES['handoff']}"
+        )
     _emit(payload, output)
     return 0 if not diagnostics else 2
 
@@ -203,6 +212,7 @@ def _payload(handoff, *, diagnostics: list[dict[str, object]], dry_run: bool) ->
         "default_network_enabled_count": summary["default_network_enabled_count"],
         "required_inputs": summary["required_inputs"],
         "recommended_request": summary["recommended_request"],
+        "recommended_request_target": RECOMMENDED_REQUEST_TARGET,
         "recommended_next_command": summary["recommended_next_command"],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -247,6 +257,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "default_network_enabled_count": 0,
         "required_inputs": list(PROVIDER_HANDOFF_REQUIRED_INPUTS),
         "recommended_request": dict(PROVIDER_HANDOFF_RECOMMENDED_REQUEST),
+        "recommended_request_target": RECOMMENDED_REQUEST_TARGET,
         "recommended_next_command": PROVIDER_HANDOFF_RECOMMENDED_NEXT_COMMAND,
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("provider_handoff_cli", code)],
@@ -264,6 +275,16 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "strict_scientific_deliverable": False,
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "summary": message,
+    }
+
+
+def _provider_request_draft_recommended_request(
+    provider_handoff_tsv: str,
+) -> dict[str, object]:
+    return {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": provider_handoff_tsv,
     }
 
 

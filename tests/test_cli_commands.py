@@ -63,6 +63,8 @@ PROVIDER_HANDOFF_SUMMARY_FIELDS = [
     "default_network_enabled_count",
     "required_inputs",
     "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
 ]
 PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS = [
     "record_count",
