@@ -508,6 +508,31 @@ def test_worklist_type_strain_nite_token_routes_to_nbrc_handoff():
     assert report.summary["candidate_provider_key_counts"] == {"nbrc": 1}
 
 
+def test_worklist_type_strain_kacc_token_routes_to_kacc_handoff():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium kaccum",
+                "type_strain_names": "KACC 12345",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium kaccum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {"species": "Clostridium kaccum", "reason_category": "missing_genome"}
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.candidate_provider_keys == "kacc"
+    assert row.candidate_provider_statuses == "kacc=planning_only"
+    assert report.summary["candidate_provider_key_counts"] == {"kacc": 1}
+
+
 def test_worklist_conflict_overrides_archive_candidate():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium conflictum"}],

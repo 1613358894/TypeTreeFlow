@@ -142,6 +142,8 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("NITE Biological Resource Center", "nbrc"),
     ("KCTC", "kctc"),
     ("Korean Collection for Type Cultures", "kctc"),
+    ("KACC", "kacc"),
+    ("Korean Agricultural Culture Collection", "kacc"),
     ("CECT", "cect"),
     ("Spanish Type Culture Collection", "cect"),
     ("CIP", "cip"),
@@ -183,6 +185,7 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("NBRC", "nbrc"),
     ("NITE", "nbrc"),
     ("KCTC", "kctc"),
+    ("KACC", "kacc"),
     ("CECT", "cect"),
     ("CIP", "cip"),
     ("CCUG", "ccug"),
@@ -232,6 +235,11 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "kctc",
             "Korean Collection for Type Cultures",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "kacc",
+            "Korean Agricultural Culture Collection",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(
