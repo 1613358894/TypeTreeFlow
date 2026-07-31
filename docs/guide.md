@@ -538,6 +538,12 @@ result without inventing field names. It also includes a structured
 can validate the filled result shape without guessing the next command. It
 remains metadata-only and does not write files, validate artifacts, dispatch
 target commands, contact providers, or download genomes.
+`coverage-pipeline status` also reports
+`coverage_handoff_server_validation_result_template_artifact_packet` when the
+isolated build directory contains the written server-validation result template.
+That packet gives the template path, SHA-256, current template-match status, and
+validator argv for the explicit JSON file. It is a read-only artifact-status
+handoff, not server execution or artifact validation.
 The server-validation packet, runbook, result contract, and result template also
 carry the same structured `recommended_request` as the handoff next-step packet
 when it is available, allowing AI controllers to pass the packet directly to

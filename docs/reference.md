@@ -2297,6 +2297,17 @@ field names. It also carries `result_validation_recommended_request`,
 `coverage-pipeline server-validation-result validate` shape validator. It
 remains metadata-only and does not validate artifacts, write files, dispatch
 target commands, contact providers, or download genomes.
+When `coverage-pipeline status` is pointed at an isolated build directory, it
+also emits `coverage_handoff_server_validation_result_template_artifact_packet`
+for the written
+`server_validation/coverage_handoff_server_validation_result_template.json`
+member when present. That packet reports the artifact path, relative path,
+size, SHA-256, result schema/status, whether the file still matches the
+currently computed embedded template, and an argv-ready validator command for
+the explicit JSON path. Missing or stale template artifacts are reported inside
+that packet; status inspection does not execute the target command, perform
+server validation, contact providers, download genomes, or mutate workflow
+outputs.
 The server-validation packet, runbook, result contract, and result template also
 mirror the structured `recommended_request` from the handoff next-step packet
 when one exists, so `commands render` and `commands plan` can inspect or
