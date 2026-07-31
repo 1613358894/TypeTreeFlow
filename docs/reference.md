@@ -2266,6 +2266,12 @@ whether the handoff is blocked, still needs operator input, or is ready for
 bounded local validation, and lists only metadata-gate actions. It does not
 probe the filesystem, validate artifacts, execute the target command, contact
 providers, download genomes, or authorize strict deliverables.
+`coverage_handoff_server_validation_runbook_packet` converts that server-facing
+summary into a short ordered checklist: inspect the server-validation packet,
+inspect the handoff runbook, and, only when argv exists, run a `commands plan`
+or `commands preflight` metadata gate. It remains metadata-only and still
+stops before filesystem artifact validation, provider contact, downloads, or
+target command execution.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without

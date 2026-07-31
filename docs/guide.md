@@ -514,6 +514,12 @@ over those handoff packets. It reports blocked, operator-input-required, or
 bounded-local-validation-ready status and lists only offline metadata-gate
 actions. It performs no filesystem probe or artifact validation and does not
 authorize target command execution.
+`coverage_handoff_server_validation_runbook_packet` is the matching ordered
+checklist for server-side bounded validation review. It starts with the
+server-validation packet, expands the handoff runbook, and only then points at
+a `commands plan` or `commands preflight` metadata gate. It still stops before
+filesystem artifact validation, provider contact, download, or target command
+execution.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage

@@ -633,6 +633,123 @@ def _assert_handoff_next_step_packet(
     assert server_validation["execution_boundary"] == (
         "metadata_only_handoff_server_validation_no_execution"
     )
+    server_runbook = payload["coverage_handoff_server_validation_runbook_packet"]
+    assert (
+        server_runbook["schema_version"]
+        == "coverage_handoff_server_validation_runbook_packet.v1"
+    )
+    assert server_runbook["available"] is server_validation["available"]
+    assert server_runbook["validation_status"] == server_validation[
+        "validation_status"
+    ]
+    assert server_runbook["next_stage"] == server_validation["next_stage"]
+    assert server_runbook["next_artifact"] == server_validation["next_artifact"]
+    assert server_runbook["recommended_request_target"] == server_validation[
+        "recommended_request_target"
+    ]
+    assert server_runbook["recommended_argv"] == server_validation[
+        "recommended_argv"
+    ]
+    assert server_runbook["preflight_decision"] == server_validation[
+        "preflight_decision"
+    ]
+    assert server_runbook["allowed_validation_actions"] == server_validation[
+        "allowed_validation_actions"
+    ]
+    assert server_runbook["blocking_ids"] == server_validation["blocking_ids"]
+    assert server_runbook["blocking_count"] == server_validation["blocking_count"]
+    assert server_runbook["warning_ids"] == server_validation["warning_ids"]
+    assert server_runbook["input_readiness_status"] == server_validation[
+        "input_readiness_status"
+    ]
+    assert server_runbook["handoff_runbook_step_ids"] == server_validation[
+        "runbook_step_ids"
+    ]
+    assert server_runbook["handoff_runbook_status"] == runbook["runbook_status"]
+    if server_validation["available"]:
+        expected_step_count = 3 if server_validation["recommended_argv"] else 2
+        assert server_runbook["runbook_status"] == "operator_review_required"
+        assert server_runbook["step_count"] == expected_step_count
+        assert [step["position"] for step in server_runbook["steps"]] == list(
+            range(1, expected_step_count + 1)
+        )
+        assert server_runbook["next_step_id"] == "inspect_server_validation_packet"
+        assert server_runbook["next_step_action"] == (
+            "inspect coverage_handoff_server_validation_packet"
+        )
+        assert server_runbook["steps"][0]["surface_name"] == (
+            "coverage_handoff_server_validation_packet"
+        )
+        assert server_runbook["steps"][1]["surface_name"] == (
+            "coverage_handoff_runbook_packet"
+        )
+        assert server_runbook["steps"][1]["required_before_step"] == [
+            "inspect coverage_handoff_server_validation_packet",
+            "confirm filesystem probe remains disabled",
+        ]
+        if server_validation["recommended_argv"]:
+            assert (
+                server_runbook["steps"][2]["step_id"]
+                == "run_server_validation_metadata_gate"
+            )
+            assert server_runbook["steps"][2]["argv"] == server_validation[
+                "recommended_argv"
+            ]
+    else:
+        assert server_runbook["runbook_status"] == "no_action"
+        assert server_runbook["step_count"] == 0
+        assert server_runbook["steps"] == []
+        assert server_runbook["next_step_id"] == ""
+        assert server_runbook["next_step_action"] == "no_action"
+    assert server_runbook["stop_conditions"] == [
+        "server validation packet unavailable",
+        "validation_status is blocked",
+        "operator input missing",
+        "filesystem artifact validation would be required",
+        "commands plan or preflight returns block",
+        "operator approval missing",
+        "target command would contact provider or download genomes",
+    ]
+    assert server_runbook["filesystem_probe_performed"] is False
+    assert server_runbook["artifact_validation_performed"] is False
+    assert server_runbook["target_command_execution_authorized"] is False
+    assert server_runbook["provider_contact_allowed"] is False
+    assert server_runbook["safe_for_unattended_execution"] is False
+    assert server_runbook["recommended_execution_mode"] == (
+        "operator_review_required" if server_validation["available"] else "no_action"
+    )
+    assert server_runbook["audit_only"] is True
+    assert server_runbook["dry_run"] is True
+    assert server_runbook["writes_outputs"] is False
+    assert server_runbook["writes_workflow_outputs"] is False
+    assert server_runbook["downloads_triggered"] == 0
+    assert server_runbook["providers_contacted"] == 0
+    assert server_runbook["network_access"] is False
+    assert server_runbook["external_tools"] is False
+    assert server_runbook["manifest_mutated"] is False
+    assert server_runbook["strict_scientific_deliverable"] is False
+    assert server_runbook["external_genomes_registration_applied"] is False
+    assert server_runbook["execution_boundary"] == (
+        "metadata_only_handoff_server_validation_runbook_no_execution"
+    )
+    for step in server_runbook["steps"]:
+        assert step["target_command_execution_authorized"] is False
+        assert step["provider_contact_allowed"] is False
+        assert step["safe_for_unattended_execution"] is False
+        assert step["audit_only"] is True
+        assert step["dry_run"] is True
+        assert step["writes_outputs"] is False
+        assert step["writes_workflow_outputs"] is False
+        assert step["downloads_triggered"] == 0
+        assert step["providers_contacted"] == 0
+        assert step["network_access"] is False
+        assert step["external_tools"] is False
+        assert step["manifest_mutated"] is False
+        assert step["strict_scientific_deliverable"] is False
+        assert step["external_genomes_registration_applied"] is False
+        assert step["execution_boundary"] == (
+            "metadata_only_handoff_server_validation_runbook_step_no_execution"
+        )
 
 
 def _assert_operator_chain_resume_packet(
