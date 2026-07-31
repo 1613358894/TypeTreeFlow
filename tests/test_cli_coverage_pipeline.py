@@ -1870,6 +1870,36 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         operator_chain_status="blocked",
         operator_chain_complete=False,
     )
+    handoff_readiness = payload["coverage_handoff_readiness_summary"]
+    assert handoff_readiness["schema_version"] == (
+        "coverage_handoff_readiness_summary.v1"
+    )
+    assert handoff_readiness["stage_count"] == 6
+    assert handoff_readiness["available_stage_names"] == [
+        "provider_handoff",
+        "provider_request",
+    ]
+    assert handoff_readiness["unavailable_stage_names"] == [
+        "provider_request_validation",
+        "provider_request_external_genomes",
+        "external_genomes_install_plan",
+        "external_genomes_registration_dry_run",
+    ]
+    assert handoff_readiness["chain_complete"] is False
+    assert handoff_readiness["next_stage"] == "provider_request_validation"
+    assert handoff_readiness["next_recommended_request_target"] == (
+        "provider-request external-genomes-handoff"
+    )
+    assert handoff_readiness["record_counts_by_stage"] == {
+        "provider_handoff": 8,
+        "provider_request": 8,
+        "provider_request_validation": 0,
+        "provider_request_external_genomes": 0,
+        "external_genomes_install_plan": 0,
+        "external_genomes_registration_dry_run": 0,
+    }
+    assert handoff_readiness["providers_contacted"] == 0
+    assert handoff_readiness["manifest_mutated"] is False
     assert payload["operator_chain_stages"][6]["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input provider_request_external_genomes/external_genomes.tsv "
@@ -3396,6 +3426,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     ]["status"] == "ready_for_next_stage"
     assert pipeline_summary["operator_chain_stages"][5]["record_count"] == 1
     assert pipeline_summary["external_genomes_install_plan_status"] == "pass"
+    assert pipeline_summary["coverage_handoff_readiness_summary"][
+        "next_stage"
+    ] == "external_genomes_registration_dry_run"
     assert pipeline_summary[
         "external_genomes_registration_dry_run_recommended_request"
     ] == {
@@ -3956,6 +3989,21 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         operator_chain_status="no_action",
         operator_chain_complete=True,
     )
+    assert payload["coverage_handoff_readiness_summary"]["chain_complete"] is True
+    assert payload["coverage_handoff_readiness_summary"]["next_stage"] == ""
+    assert payload["coverage_handoff_readiness_summary"][
+        "unavailable_stage_names"
+    ] == []
+    assert payload["coverage_handoff_readiness_summary"][
+        "record_counts_by_stage"
+    ] == {
+        "provider_handoff": 8,
+        "provider_request": 8,
+        "provider_request_validation": 2,
+        "provider_request_external_genomes": 1,
+        "external_genomes_install_plan": 1,
+        "external_genomes_registration_dry_run": 1,
+    }
     assert payload["coverage_opportunity_summary"][3][
         "provider_automation_level_counts"
     ] == {"planning_handoff": 2}

@@ -817,6 +817,7 @@ def _run_status(
             request_source="selected_operator_chain_stage.recommended_request",
         )
     )
+    coverage_handoff_readiness_summary = _coverage_handoff_readiness_summary(stages)
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -913,6 +914,7 @@ def _run_status(
         "selected_operator_chain_stage_command_plan": (
             selected_operator_chain_stage_command_plan
         ),
+        "coverage_handoff_readiness_summary": coverage_handoff_readiness_summary,
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
         ),
@@ -2047,6 +2049,9 @@ def _payload(
         )
         if value
     }
+    coverage_handoff_readiness_summary = _coverage_handoff_readiness_summary(
+        operator_chain_stages
+    )
     coverage_next_action_groups = _coverage_next_action_groups(
         coverage_plan.actions
     )
@@ -2398,6 +2403,7 @@ def _payload(
         "selected_operator_chain_stage_command_plan": (
             selected_operator_chain_stage_command_plan
         ),
+        "coverage_handoff_readiness_summary": coverage_handoff_readiness_summary,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -2633,6 +2639,86 @@ def _operator_stage(
         ),
         "recommended_next_command": recommended_next_command,
         "boundary": boundary,
+    }
+
+
+_HANDOFF_STAGE_NAMES = (
+    "provider_handoff",
+    "provider_request",
+    "provider_request_validation",
+    "provider_request_external_genomes",
+    "external_genomes_install_plan",
+    "external_genomes_registration_dry_run",
+)
+
+
+def _coverage_handoff_readiness_summary(
+    stages: list[dict[str, object]],
+) -> dict[str, object]:
+    stage_by_name = {str(stage.get("stage", "")): stage for stage in stages}
+    handoff_stages = [
+        stage_by_name[name] for name in _HANDOFF_STAGE_NAMES if name in stage_by_name
+    ]
+    available_stage_names = [
+        str(stage.get("stage", ""))
+        for stage in handoff_stages
+        if bool(stage.get("available"))
+    ]
+    unavailable_stage_names = [
+        str(stage.get("stage", ""))
+        for stage in handoff_stages
+        if not bool(stage.get("available"))
+    ]
+    next_stage = next(
+        (stage for stage in handoff_stages if not bool(stage.get("available"))),
+        None,
+    )
+    next_request = (
+        dict(next_stage.get("recommended_request", {}))
+        if isinstance(next_stage, Mapping)
+        and isinstance(next_stage.get("recommended_request"), Mapping)
+        else None
+    )
+    return {
+        "schema_version": "coverage_handoff_readiness_summary.v1",
+        "stage_names": list(_HANDOFF_STAGE_NAMES),
+        "stage_count": len(handoff_stages),
+        "available_stage_count": len(available_stage_names),
+        "unavailable_stage_count": len(unavailable_stage_names),
+        "available_stage_names": available_stage_names,
+        "unavailable_stage_names": unavailable_stage_names,
+        "chain_complete": bool(handoff_stages) and not unavailable_stage_names,
+        "next_stage": str(next_stage.get("stage", "")) if next_stage else "",
+        "next_artifact": str(next_stage.get("artifact", "")) if next_stage else "",
+        "next_required_inputs": (
+            list(next_stage.get("required_inputs", []))
+            if next_stage and isinstance(next_stage.get("required_inputs"), list)
+            else []
+        ),
+        "next_recommended_request": next_request,
+        "next_recommended_request_target": _coverage_recommended_request_target(
+            next_request
+        ),
+        "next_recommended_next_command": (
+            str(next_stage.get("recommended_next_command", ""))
+            if next_stage
+            else ""
+        ),
+        "record_counts_by_stage": {
+            str(stage.get("stage", "")): _safe_int(stage.get("record_count", 0))
+            for stage in handoff_stages
+        },
+        "provider_contact_allowed": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "execution_boundary": "metadata_only_handoff_readiness_no_execution",
     }
 
 
@@ -4781,6 +4867,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             ),
         ),
         "operator_chain_readiness_packets": {},
+        "coverage_handoff_readiness_summary": _coverage_handoff_readiness_summary([]),
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -4848,6 +4935,7 @@ def _rendered_outputs(
             "operator_chain_resume_packet",
             "coverage_stage_readiness_summary",
             "operator_chain_readiness_packets",
+            "coverage_handoff_readiness_summary",
             "coverage_operator_queue_preview",
             "coverage_operator_route_summary",
             "coverage_controller_packet",

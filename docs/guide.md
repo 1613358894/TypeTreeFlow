@@ -425,7 +425,11 @@ directory; it still does not create the future workflow run or copy FASTA.
 coverage chain, including the current artifact name, whether that stage has
 records in the present payload, its compact `recommended_request_target`, its
 recommended next command, and the no-provider/no-download boundary for that
-stage.
+stage. The matching
+`coverage_handoff_readiness_summary` compresses the provider/external-genomes
+portion of that chain into stage counts, the next missing local stage, required
+inputs, record counts by stage, and no-execution safety fields for one-object
+controller handoffs.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage

@@ -2136,7 +2136,11 @@ It also preserves top-level provider automation counts from
 `coverage_pipeline_summary.json` as
 `provider_automation_level_counts` and
 `provider_request_automation_level_counts`, and preserves
-`coverage_opportunity_summary` for routing. Each stage row and the derived `next_stage`
+`coverage_opportunity_summary` for routing. It also emits
+`coverage_handoff_readiness_summary`, a compact provider/external-genomes chain
+view with handoff stage names, available/unavailable stage counts, the next
+local stage, required inputs, recommended request target, record counts by
+stage, and explicit no-provider/no-download safety fields. Each stage row and the derived `next_stage`
 include `required_inputs`, a bounded list of local artifact paths or
 curator-supplied input categories needed before that stage can be treated as
 available. Stage rows also include `recommended_request`, a structured
