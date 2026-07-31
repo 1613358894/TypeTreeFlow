@@ -1832,6 +1832,13 @@ no-execution safety fields so AI controllers can pass the request through
 `commands render`, `commands plan`, or `commands preflight` before any local
 operator action. It is metadata only and always reports
 `safe_for_unattended_download=false`.
+`coverage_next_command_plan` is a no-dispatch planning companion for that
+packet. It renders the packet's structured `recommended_request`, records the
+target argv, embeds the `commands preflight` decision, and repeats the
+no-download/no-provider/no-manifest-mutation boundary fields. It is metadata
+only: `decision=allow` means the rendered argv passed the local preflight gate,
+not that TypeTreeFlow executed the command or authorized provider access,
+downloads, workflow mutation, or strict deliverable promotion.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
@@ -1907,7 +1914,10 @@ available. Stage rows also include `recommended_request`, a structured
 `commands render`/`commands plan` request object when a deterministic next CLI
 request exists; otherwise the value is `null`. These request objects are
 metadata only and must still pass `commands plan` or `commands preflight`
-before an operator runs the rendered argv. The payload also includes
+before an operator runs the rendered argv. `status` also re-emits
+`coverage_next_command_plan` from the stored pipeline summary so a controller
+can see the current packet's rendered argv and preflight decision without
+executing the target command. The payload also includes
 `required_inputs` and `recommended_request` as convenience copies from the
 current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
