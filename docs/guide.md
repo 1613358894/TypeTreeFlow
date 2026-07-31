@@ -281,8 +281,9 @@ flags such as `requires_curator_input`, `requires_public_metadata_review`, and
 AI/operator queueing. The
 `coverage_action_queue_summary` and `current_coverage_action_queue_item` fields
 let an AI controller read queue pressure and the first queued item without
-recomputing counts or inventing its own item keys. Opportunity and queue rows
-carry the same structured
+recomputing counts or inventing its own item keys; the queue and priority
+summaries also expose execution-gate counts for controller-level triage.
+Opportunity and queue rows carry the same structured
 `recommended_request` objects used by `commands render` / `commands plan`, but
 they still require normal planning or preflight before execution. They also carry
 bounded species previews so an AI/operator can see which records start each

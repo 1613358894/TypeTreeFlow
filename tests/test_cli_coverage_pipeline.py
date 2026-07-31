@@ -538,6 +538,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "permitted_local_fasta_terms_provenance": 1,
             "public_accession_type_strain_linkage": 1,
         },
+        "execution_gate_status_counts": {
+            "operator_review_required": 4,
+        },
         "manual_or_curator_input_required_count": 1,
         "provider_handoff_required_count": 1,
         "public_metadata_review_required_count": 2,
@@ -559,6 +562,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                 "species_count": 1,
                 "species_preview": ["Clostridium beta"],
                 "species_truncated": False,
+                "operator_execution_gate": _expected_operator_execution_gate(
+                    available=True,
+                    has_recommended_request=True,
+                ),
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -577,6 +584,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                 "species_count": 1,
                 "species_preview": ["Clostridium gamma"],
                 "species_truncated": False,
+                "operator_execution_gate": _expected_operator_execution_gate(
+                    available=True,
+                    has_recommended_request=True,
+                ),
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -595,6 +606,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                 "species_count": 1,
                 "species_preview": ["Clostridium alpha"],
                 "species_truncated": False,
+                "operator_execution_gate": _expected_operator_execution_gate(
+                    available=True,
+                    has_recommended_request=True,
+                ),
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -616,6 +631,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "curator_conflict_decision": 1,
             "permitted_local_fasta_terms_provenance": 1,
             "public_accession_type_strain_linkage": 1,
+        },
+        "execution_gate_status_record_counts": {
+            "operator_review_required": 4,
         },
         "provider_automation_level_record_counts": {
             "metadata_review": 6,

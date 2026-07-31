@@ -2320,6 +2320,7 @@ def _coverage_action_queue_summary(
 ) -> dict[str, object]:
     route_counts: dict[str, int] = {}
     input_counts: dict[str, int] = {}
+    gate_status_counts: dict[str, int] = {}
     manual_or_curator_count = 0
     provider_handoff_count = 0
     public_metadata_count = 0
@@ -2332,6 +2333,14 @@ def _coverage_action_queue_summary(
             route_counts[route] = route_counts.get(route, 0) + 1
         if input_class:
             input_counts[input_class] = input_counts.get(input_class, 0) + 1
+        raw_recommended_request = item.get("recommended_request")
+        gate = _coverage_operator_execution_gate(
+            available=True,
+            recommended_request=raw_recommended_request
+            if isinstance(raw_recommended_request, Mapping)
+            else None,
+        )
+        _count_preview_value(gate_status_counts, str(gate.get("gate_status", "")))
         if item.get("requires_curator_input"):
             manual_or_curator_count += 1
         if item.get("requires_provider_handoff"):
@@ -2346,6 +2355,7 @@ def _coverage_action_queue_summary(
         "queue_item_count": len(coverage_action_queue),
         "operator_route_counts": dict(sorted(route_counts.items())),
         "next_input_class_counts": dict(sorted(input_counts.items())),
+        "execution_gate_status_counts": _sorted_count_map(gate_status_counts),
         "manual_or_curator_input_required_count": manual_or_curator_count,
         "provider_handoff_required_count": provider_handoff_count,
         "public_metadata_review_required_count": public_metadata_count,
@@ -2359,6 +2369,7 @@ def _coverage_priority_summary(
 ) -> dict[str, object]:
     record_counts_by_route: dict[str, int] = {}
     record_counts_by_input: dict[str, int] = {}
+    gate_status_record_counts: dict[str, int] = {}
     provider_automation_record_counts: dict[str, int] = {}
     actionable_record_count = 0
     safe_for_unattended_download_count = 0
@@ -2368,6 +2379,21 @@ def _coverage_priority_summary(
         actionable_record_count += record_count
         route = str(item.get("operator_route", ""))
         input_class = str(item.get("next_input_class", ""))
+        raw_recommended_request = item.get("recommended_request")
+        recommended_request = (
+            dict(raw_recommended_request)
+            if isinstance(raw_recommended_request, Mapping)
+            else None
+        )
+        gate = _coverage_operator_execution_gate(
+            available=True,
+            recommended_request=recommended_request,
+        )
+        gate_status = str(gate.get("gate_status", ""))
+        if gate_status:
+            gate_status_record_counts[gate_status] = (
+                gate_status_record_counts.get(gate_status, 0) + record_count
+            )
         if route:
             record_counts_by_route[route] = (
                 record_counts_by_route.get(route, 0) + record_count
@@ -2388,12 +2414,6 @@ def _coverage_priority_summary(
         if item.get("safe_for_unattended_download"):
             safe_for_unattended_download_count += record_count
         if len(top_items) < 3:
-            raw_recommended_request = item.get("recommended_request")
-            recommended_request = (
-                dict(raw_recommended_request)
-                if isinstance(raw_recommended_request, Mapping)
-                else None
-            )
             top_items.append(
                 {
                     "queue_position": _safe_int(item.get("queue_position", 0)),
@@ -2410,6 +2430,7 @@ def _coverage_priority_summary(
                     if isinstance(item.get("species_preview"), list)
                     else [],
                     "species_truncated": bool(item.get("species_truncated")),
+                    "operator_execution_gate": gate,
                     "recommended_next_command": str(
                         item.get("recommended_next_command", "")
                     ),
@@ -2426,6 +2447,9 @@ def _coverage_priority_summary(
         "top_next_input_class": top_item.get("next_input_class", ""),
         "record_counts_by_operator_route": dict(sorted(record_counts_by_route.items())),
         "record_counts_by_next_input_class": dict(sorted(record_counts_by_input.items())),
+        "execution_gate_status_record_counts": dict(
+            sorted(gate_status_record_counts.items())
+        ),
         "provider_automation_level_record_counts": dict(
             sorted(provider_automation_record_counts.items())
         ),
@@ -3307,6 +3331,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             "queue_item_count": 0,
             "operator_route_counts": {},
             "next_input_class_counts": {},
+            "execution_gate_status_counts": {},
             "manual_or_curator_input_required_count": 0,
             "provider_handoff_required_count": 0,
             "public_metadata_review_required_count": 0,

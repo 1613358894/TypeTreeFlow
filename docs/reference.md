@@ -1864,9 +1864,10 @@ a one-based `queue_position`, deterministic `queue_item_id`, bounded route boole
 `safe_for_unattended_download=false` on every row. The queue is for
 AI/operator prioritization only; it does not grant unattended download or
 provider access. `coverage_action_queue_summary` reports bounded queue counts
-by `operator_route` and `next_input_class`, plus route-specific counts such as
-`manual_or_curator_input_required_count`, `public_metadata_review_required_count`,
-and `provider_handoff_required_count`. `current_coverage_action_queue_item`
+by `operator_route`, `next_input_class`, and execution-gate status, plus
+route-specific counts such as `manual_or_curator_input_required_count`,
+`public_metadata_review_required_count`, and
+`provider_handoff_required_count`. `current_coverage_action_queue_item`
 copies the first queued item or an empty object when no coverage action remains.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
@@ -1874,8 +1875,10 @@ payloads without inventing their own keys.
 `coverage_priority_summary` is a shorter AI/operator dashboard over the same
 queue. It reports total actionable records, the top action code, top route, top
 next-input class, up to three top queue items, record-count maps by route and
-next-input class, provider automation-level record counts, and
-`automation_boundary=prioritization_only_no_execution`. It is prioritization
+next-input class, execution-gate status record counts, provider
+automation-level record counts, and
+`automation_boundary=prioritization_only_no_execution`. Each top queue item
+also carries its compact `operator_execution_gate`. It is prioritization
 metadata only and does not authorize provider access, downloads, registration,
 manifest mutation, or strict completion.
 `coverage_next_task_packet` is the single current-task packet derived from the
