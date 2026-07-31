@@ -2794,7 +2794,13 @@ def _coverage_operator_queue_preview(
     limit: int = 3,
 ) -> dict[str, object]:
     items: list[dict[str, object]] = []
+    operator_route_counts: dict[str, int] = {}
+    next_input_class_counts: dict[str, int] = {}
+    command_plan_status_counts: dict[str, int] = {}
+    command_plan_decision_counts: dict[str, int] = {}
     output_contract_counts: dict[str, int] = {}
+    preview_blocking_item_ids: list[str] = []
+    preview_warning_item_ids: list[str] = []
     queue_snapshot_sha256 = _coverage_queue_snapshot_sha256(coverage_action_queue)
     for item in coverage_action_queue[:limit]:
         packet = _coverage_next_task_packet([item])
@@ -2804,14 +2810,31 @@ def _coverage_operator_queue_preview(
         warning_ids = _diagnostic_ids(recipe.get("warnings", []))
         output_contracts = _safe_output_contracts(recipe.get("output_contracts", []))
         output_contract_names = _output_contract_names(output_contracts)
+        queue_item_id = str(recipe.get("queue_item_id", ""))
+        command_plan_decision = str(recipe.get("command_plan_decision", ""))
+        command_plan_status = str(command_plan.get("status", ""))
+        _count_preview_value(
+            operator_route_counts,
+            str(recipe.get("operator_route", "")),
+        )
+        _count_preview_value(
+            next_input_class_counts,
+            str(recipe.get("next_input_class", "")),
+        )
+        _count_preview_value(command_plan_status_counts, command_plan_status)
+        _count_preview_value(command_plan_decision_counts, command_plan_decision)
         for contract_name in output_contract_names:
             output_contract_counts[contract_name] = (
                 output_contract_counts.get(contract_name, 0) + 1
             )
+        if blocking_ids and queue_item_id:
+            preview_blocking_item_ids.append(queue_item_id)
+        if warning_ids and queue_item_id:
+            preview_warning_item_ids.append(queue_item_id)
         items.append(
             {
                 "queue_position": _safe_int(recipe.get("queue_position", 0)),
-                "queue_item_id": str(recipe.get("queue_item_id", "")),
+                "queue_item_id": queue_item_id,
                 "action_code": str(recipe.get("action_code", "")),
                 "operator_route": str(recipe.get("operator_route", "")),
                 "next_input_class": str(recipe.get("next_input_class", "")),
@@ -2831,10 +2854,8 @@ def _coverage_operator_queue_preview(
                     if isinstance(packet.get("recommended_request"), Mapping)
                     else None,
                 ),
-                "command_plan_decision": str(
-                    recipe.get("command_plan_decision", "")
-                ),
-                "command_plan_status": str(command_plan.get("status", "")),
+                "command_plan_decision": command_plan_decision,
+                "command_plan_status": command_plan_status,
                 "output_contracts": output_contracts,
                 "output_contract_names": output_contract_names,
                 "output_contract_count": len(output_contracts),
@@ -2863,6 +2884,20 @@ def _coverage_operator_queue_preview(
             for item in items
             if str(item.get("queue_item_id", ""))
         ],
+        "preview_operator_route_counts": _sorted_count_map(operator_route_counts),
+        "preview_next_input_class_counts": _sorted_count_map(
+            next_input_class_counts
+        ),
+        "preview_command_plan_status_counts": _sorted_count_map(
+            command_plan_status_counts
+        ),
+        "preview_command_plan_decision_counts": _sorted_count_map(
+            command_plan_decision_counts
+        ),
+        "preview_blocking_item_count": len(preview_blocking_item_ids),
+        "preview_blocking_item_ids": preview_blocking_item_ids,
+        "preview_warning_item_count": len(preview_warning_item_ids),
+        "preview_warning_item_ids": preview_warning_item_ids,
         "preview_output_contract_names": sorted(output_contract_counts),
         "preview_output_contract_counts": {
             contract_name: output_contract_counts[contract_name]
@@ -3008,6 +3043,16 @@ def _output_contract_names(contracts: Sequence[Mapping[str, object]]) -> list[st
         for contract in contracts
         if str(contract.get("name", "")).strip()
     )
+
+
+def _count_preview_value(counts: dict[str, int], value: str) -> None:
+    normalized = value.strip()
+    if normalized:
+        counts[normalized] = counts.get(normalized, 0) + 1
+
+
+def _sorted_count_map(counts: Mapping[str, int]) -> dict[str, int]:
+    return {key: counts[key] for key in sorted(counts)}
 
 
 def _coverage_queue_item_id(queue_position: int, action_code: str) -> str:

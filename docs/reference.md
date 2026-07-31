@@ -1930,7 +1930,13 @@ fields make blocked preview items routeable without copying diagnostic messages
 or requiring a separate command-catalog lookup. The preview object also
 includes `preview_output_contract_names`, `preview_output_contract_counts`, and
 `preview_output_contract_count`, which summarize output-contract routes across
-the bounded preview prefix. It includes `queue_snapshot_sha256`, a deterministic
+the bounded preview prefix. It also includes
+`preview_operator_route_counts`, `preview_next_input_class_counts`,
+`preview_command_plan_status_counts`, `preview_command_plan_decision_counts`,
+`preview_blocking_item_count`, `preview_blocking_item_ids`,
+`preview_warning_item_count`, and `preview_warning_item_ids`, so controllers can
+route the preview prefix without expanding every item first. It includes
+`queue_snapshot_sha256`, a deterministic
 digest of the current coverage action queue metadata, and `preview_item_ids`,
 the item IDs included in the bounded preview. Controllers can compare the
 digest before resuming a previously inspected queue. Passing `--queue-item-id`
