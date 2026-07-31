@@ -104,6 +104,28 @@ def _expected_manual_review_input_packet(
     }
 
 
+def _assert_stage_command_plan(
+    payload,
+    key,
+    *,
+    target,
+    decision,
+    blocking_ids=(),
+):
+    plan = payload[key]
+    assert plan["schema_version"] == "coverage_next_command_plan.v1"
+    assert plan["available"] is True
+    assert plan["recommended_request_target"] == target
+    assert plan["decision"] == decision
+    assert [item["id"] for item in plan["blocking"]] == list(blocking_ids)
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
+    assert plan["execution_boundary"] == (
+        "metadata_only_command_plan_no_dispatch_no_execution"
+    )
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -1071,6 +1093,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         payload["provider_request_recommended_request_target"]
         == "provider-request draft"
     )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_recommended_command_plan",
+        target="provider-request draft",
+        decision="allow",
+    )
     assert payload["provider_request_recommended_next_command"] == (
         "typetreeflow --plan-provider-registration "
         "<provider_request.tsv> --outdir <run>"
@@ -1084,6 +1112,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         payload["provider_request_validation_recommended_request_target"]
         == "provider-request validate"
     )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_validation_recommended_command_plan",
+        target="provider-request validate",
+        decision="allow",
+    )
     assert payload["provider_request_validation_recommended_next_command"] == (
         "review ready rows before copying accepted local FASTA evidence into "
         "external_genomes.tsv for --register-external-genomes"
@@ -1096,6 +1130,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert (
         payload["provider_request_external_genomes_recommended_request_target"]
         == "external-genomes validate"
+    )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_external_genomes_recommended_command_plan",
+        target="external-genomes validate",
+        decision="allow",
     )
     assert payload["provider_request_external_genomes_recommended_next_command"] == (
         "typetreeflow external-genomes validate "
@@ -1114,6 +1154,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload[
         "provider_request_external_genomes_install_plan_recommended_request_target"
     ] == "external-genomes install-plan"
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_external_genomes_install_plan_recommended_command_plan",
+        target="external-genomes install-plan",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
+    )
     assert payload[
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
@@ -1131,6 +1178,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert (
         payload["external_genomes_registration_dry_run_recommended_request_target"]
         == "register-external-genomes"
+    )
+    _assert_stage_command_plan(
+        payload,
+        "external_genomes_registration_dry_run_recommended_command_plan",
+        target="register-external-genomes",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
     )
     assert payload[
         "external_genomes_registration_dry_run_recommended_next_command"
@@ -1151,6 +1205,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "provider_request_external_genomes_handoff_recommended_request_target"
         ]
         == "provider-request external-genomes-handoff"
+    )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_external_genomes_handoff_recommended_command_plan",
+        target="provider-request external-genomes-handoff",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
     )
     assert payload[
         "provider_request_external_genomes_handoff_recommended_next_command"
@@ -1954,6 +2015,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         summary["provider_request_recommended_request_target"]
         == "provider-request draft"
     )
+    _assert_stage_command_plan(
+        summary,
+        "provider_request_recommended_command_plan",
+        target="provider-request draft",
+        decision="allow",
+    )
     assert summary["provider_request_recommended_next_command"] == (
         "typetreeflow --plan-provider-registration "
         "<provider_request.tsv> --outdir <run>"
@@ -1967,6 +2034,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         summary["provider_request_validation_recommended_request_target"]
         == "provider-request validate"
     )
+    _assert_stage_command_plan(
+        summary,
+        "provider_request_validation_recommended_command_plan",
+        target="provider-request validate",
+        decision="allow",
+    )
     assert summary["provider_request_validation_recommended_next_command"] == (
         "review ready rows before copying accepted local FASTA evidence into "
         "external_genomes.tsv for --register-external-genomes"
@@ -1979,6 +2052,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert (
         summary["provider_request_external_genomes_recommended_request_target"]
         == "external-genomes validate"
+    )
+    _assert_stage_command_plan(
+        summary,
+        "provider_request_external_genomes_recommended_command_plan",
+        target="external-genomes validate",
+        decision="allow",
     )
     assert summary["provider_request_external_genomes_recommended_next_command"] == (
         "typetreeflow external-genomes validate "
@@ -1997,6 +2076,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary[
         "provider_request_external_genomes_install_plan_recommended_request_target"
     ] == "external-genomes install-plan"
+    _assert_stage_command_plan(
+        summary,
+        "provider_request_external_genomes_install_plan_recommended_command_plan",
+        target="external-genomes install-plan",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
+    )
     assert summary[
         "provider_request_external_genomes_install_plan_recommended_next_command"
     ] == (
@@ -2014,6 +2100,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert (
         summary["external_genomes_registration_dry_run_recommended_request_target"]
         == "register-external-genomes"
+    )
+    _assert_stage_command_plan(
+        summary,
+        "external_genomes_registration_dry_run_recommended_command_plan",
+        target="register-external-genomes",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
     )
     assert summary[
         "external_genomes_registration_dry_run_recommended_next_command"
@@ -2034,6 +2127,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
             "provider_request_external_genomes_handoff_recommended_request_target"
         ]
         == "provider-request external-genomes-handoff"
+    )
+    _assert_stage_command_plan(
+        summary,
+        "provider_request_external_genomes_handoff_recommended_command_plan",
+        target="provider-request external-genomes-handoff",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
     )
     assert summary[
         "provider_request_external_genomes_handoff_recommended_next_command"
@@ -3428,26 +3528,65 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         payload["provider_request_recommended_request_target"]
         == "provider-request draft"
     )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_recommended_command_plan",
+        target="provider-request draft",
+        decision="allow",
+    )
     assert (
         payload["provider_request_validation_recommended_request_target"]
         == "provider-request validate"
+    )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_validation_recommended_command_plan",
+        target="provider-request validate",
+        decision="allow",
     )
     assert (
         payload["provider_request_external_genomes_recommended_request_target"]
         == "external-genomes validate"
     )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_external_genomes_recommended_command_plan",
+        target="external-genomes validate",
+        decision="allow",
+    )
     assert payload[
         "provider_request_external_genomes_install_plan_recommended_request_target"
     ] == "external-genomes install-plan"
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_external_genomes_install_plan_recommended_command_plan",
+        target="external-genomes install-plan",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
+    )
     assert (
         payload["external_genomes_registration_dry_run_recommended_request_target"]
         == "register-external-genomes"
+    )
+    _assert_stage_command_plan(
+        payload,
+        "external_genomes_registration_dry_run_recommended_command_plan",
+        target="register-external-genomes",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
     )
     assert (
         payload[
             "provider_request_external_genomes_handoff_recommended_request_target"
         ]
         == "provider-request external-genomes-handoff"
+    )
+    _assert_stage_command_plan(
+        payload,
+        "provider_request_external_genomes_handoff_recommended_command_plan",
+        target="provider-request external-genomes-handoff",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
     )
     assert payload["coverage_next_task_packet"] == {
         "available": False,
