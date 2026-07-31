@@ -119,11 +119,13 @@ def test_worklist_tsv_and_json_are_stable_and_audit_only():
     assert parsed[0]["audit_only"] == "true"
     assert parsed[0]["strict_scientific_deliverable"] == "false"
     assert parsed[0]["candidate_provider_keys"] == ""
+    assert parsed[0]["candidate_provider_statuses"] == ""
     assert parsed[0]["source_artifacts"] == "reconciler_audit"
     summary = json.loads(report.summary_json())
     assert summary["audit_only"] is True
     assert summary["strict_scientific_deliverable"] is False
     assert summary["candidate_provider_key_counts"] == {}
+    assert summary["candidate_provider_status_counts"] == {}
     assert summary["review_signal_counts"]["ncbi_type_material_candidate"] == 1
 
 
@@ -181,6 +183,7 @@ def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
             {
                 "species": "Clostridium archivum",
                 "candidate_status": "archive_candidate_for_public_linkage_review",
+                "archive_source_name": "ENA",
                 "assembly_accession": "GCA_0009.1",
             }
         ],
@@ -188,6 +191,8 @@ def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
 
     assert report.rows[0].lane == "public_linkage_review"
     assert report.rows[0].reason_code == "public_archive_insdc_candidate_review"
+    assert report.rows[0].candidate_provider_keys == "ena"
+    assert report.rows[0].candidate_provider_statuses == "ena=metadata_only"
     assert report.rows[0].source_artifacts == "completion_gaps; archive_candidates"
     assert report.summary["review_signal_counts"]["archive_candidate_review"] == 1
 
@@ -237,10 +242,37 @@ def test_worklist_manual_supplement_hints_can_drive_external_fasta_lane():
     assert row.reason_code == "manual_supplement_external_fasta_required"
     assert row.source_artifacts == "manual_supplement_hints"
     assert row.candidate_provider_keys == "dsmz"
+    assert row.candidate_provider_statuses == "dsmz=planning_only"
     assert report.summary["review_signal_counts"][
         "manual_supplement_external_fasta_required"
     ] == 1
     assert report.summary["candidate_provider_key_counts"] == {"dsmz": 1}
+    assert report.summary["candidate_provider_status_counts"] == {"planning_only": 1}
+
+
+def test_worklist_archive_candidate_provider_source_status_is_metadata_only():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium archiveum"}],
+        completion_gap_rows=[
+            {"species": "Clostridium archiveum", "reason_category": "missing_genome"}
+        ],
+        archive_candidate_rows=[
+            {
+                "species": "Clostridium archiveum",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "archive_source": "GenBank",
+                "assembly_accession": "GCA_000099999.1",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "public_linkage_review"
+    assert row.reason_code == "public_archive_insdc_candidate_review"
+    assert row.candidate_provider_keys == "genbank"
+    assert row.candidate_provider_statuses == "genbank=metadata_only"
+    assert report.summary["candidate_provider_key_counts"] == {"genbank": 1}
+    assert report.summary["candidate_provider_status_counts"] == {"metadata_only": 1}
 
 
 def test_worklist_manual_supplement_matched_candidate_surfaces_review_lane():
@@ -290,8 +322,18 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
         "atcc_genome_portal; dsmz; kctc; ccm; bccm_lmg; ncimb; bcrc; "
         "csur; cip; cect"
     )
+    assert row.candidate_provider_statuses == (
+        "atcc_genome_portal=planning_only; dsmz=planning_only; "
+        "kctc=planning_only; ccm=planning_only; bccm_lmg=planning_only; "
+        "ncimb=planning_only; bcrc=planning_only; csur=planning_only; "
+        "cip=planning_only; cect=planning_only"
+    )
     rendered = list(csv.DictReader(io.StringIO(report.rows_tsv()), delimiter="\t"))
     assert rendered[0]["candidate_provider_keys"] == row.candidate_provider_keys
+    assert (
+        rendered[0]["candidate_provider_statuses"]
+        == row.candidate_provider_statuses
+    )
     assert report.summary["candidate_provider_key_counts"] == {
         "atcc_genome_portal": 1,
         "bccm_lmg": 1,
@@ -304,6 +346,7 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
         "kctc": 1,
         "ncimb": 1,
     }
+    assert report.summary["candidate_provider_status_counts"] == {"planning_only": 10}
 
 
 def test_worklist_explicit_provider_hints_accept_registry_display_names():

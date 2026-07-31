@@ -2646,11 +2646,12 @@ def _write_inputs(tmp_path):
     )
     _write_tsv(
         archive,
-        ("species", "candidate_status", "assembly_accession"),
+        ("species", "candidate_status", "archive_source_name", "assembly_accession"),
         [
             {
                 "species": "Clostridium gamma",
                 "candidate_status": "archive_candidate_for_public_linkage_review",
+                "archive_source_name": "ENA",
                 "assembly_accession": "GCA_000003.1",
             }
         ],
@@ -2816,7 +2817,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["lane_counts"]["external_fasta_required"] == 1
     assert payload["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
+        "ena": 1,
         "kctc": 1,
+    }
+    assert payload["worklist_candidate_provider_status_counts"] == {
+        "metadata_only": 1,
+        "planning_only": 2,
     }
     assert payload["coverage_action_counts"] == {
         "prepare_provider_handoff": 1,
@@ -2856,8 +2862,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "species_preview": ["Clostridium gamma"],
             "species_truncated": False,
             "source_lanes": ["public_linkage_review"],
-            "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
-            "provider_automation_level_counts": {"metadata_review": 4},
+            "provider_keys": ["ena"],
+            "provider_automation_level_counts": {"metadata_review": 1},
             "recommended_next_command": "manual-review validate --input <review.tsv>",
             "recommended_request": {
                 "command": "manual-review",
@@ -3138,10 +3144,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "manual-review validate": 3,
             "provider-request draft": 1,
         },
-        "provider_automation_level_record_counts": {
-            "metadata_review": 6,
-            "planning_handoff": 2,
-        },
+            "provider_automation_level_record_counts": {
+                "metadata_review": 3,
+                "planning_handoff": 2,
+            },
         "safe_for_unattended_download_record_count": 0,
         "automation_boundary": "prioritization_only_no_execution",
     }
@@ -3407,19 +3413,18 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["current_coverage_action_queue_item"]["review_input_packet"][
         "input_artifact"
     ] == "<review.tsv>"
-    assert payload["provider_handoff_record_count"] == 8
-    assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
+    assert payload["provider_handoff_record_count"] == 5
+    assert payload["provider_status_counts"] == {"metadata_only": 3, "planning_only": 2}
     assert payload["provider_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 3,
         "planning_handoff": 2,
     }
     provider_route_summary = payload["coverage_provider_route_opportunity_summary"]
     assert provider_route_summary["schema_version"] == (
         "coverage_provider_route_opportunity_summary.v1"
     )
-    assert provider_route_summary["record_count"] == 8
+    assert provider_route_summary["record_count"] == 5
     assert provider_route_summary["provider_keys"] == [
-        "ddbj",
         "dsmz",
         "ena",
         "genbank",
@@ -3427,26 +3432,24 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "refseq",
     ]
     assert provider_route_summary["provider_key_record_counts"] == {
-        "ddbj": 1,
         "dsmz": 1,
         "ena": 1,
-        "genbank": 2,
+        "genbank": 1,
         "kctc": 1,
-        "refseq": 2,
+        "refseq": 1,
     }
     assert provider_route_summary["provider_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 3,
         "planning_handoff": 2,
     }
     assert provider_route_summary["planning_handoff_provider_count"] == 2
-    assert provider_route_summary["metadata_review_provider_count"] == 4
-    assert provider_route_summary["metadata_review_only_provider_count"] == 4
+    assert provider_route_summary["metadata_review_provider_count"] == 3
+    assert provider_route_summary["metadata_review_only_provider_count"] == 3
     assert provider_route_summary["planning_handoff_provider_keys"] == [
         "dsmz",
         "kctc",
     ]
     assert provider_route_summary["metadata_review_provider_keys"] == [
-        "ddbj",
         "ena",
         "genbank",
         "refseq",
@@ -3484,16 +3487,16 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         item for item in priority_items if item["provider_key"] == "genbank"
     ][0]
     assert genbank_priority["route_priority"] == "public_metadata_review"
-    assert genbank_priority["record_count"] == 2
+    assert genbank_priority["record_count"] == 1
     assert genbank_priority["metadata_review_only"] is True
     next_batch = payload["coverage_route_next_batch_packet"]
     assert next_batch["schema_version"] == "coverage_route_next_batch_packet.v1"
     assert next_batch["available"] is True
     assert next_batch["batch_status"] == "ready_for_operator_review"
     assert next_batch["batch_item_count"] == 5
-    assert next_batch["source_provider_count"] == 6
+    assert next_batch["source_provider_count"] == 5
     assert next_batch["planning_handoff_provider_count"] == 2
-    assert next_batch["metadata_review_only_provider_count"] == 4
+    assert next_batch["metadata_review_only_provider_count"] == 3
     assert next_batch["first_provider_key"] == "dsmz"
     assert next_batch["first_route_priority"] == "provider_handoff"
     assert next_batch["first_recommended_operator_action"] == (
@@ -3579,21 +3582,20 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     ]
     assert genbank_batch_item["blocking_ids"] == []
     assert genbank_batch_item["warning_ids"] == []
-    assert payload["provider_terms_review_required_count"] == 8
+    assert payload["provider_terms_review_required_count"] == 5
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0
     assert payload["provider_default_network_enabled_count"] == 0
-    assert payload["provider_request_record_count"] == 8
+    assert payload["provider_request_record_count"] == 5
     assert payload["provider_request_provider_key_counts"] == {
-        "ddbj": 1,
         "dsmz": 1,
         "ena": 1,
-        "genbank": 2,
+        "genbank": 1,
         "kctc": 1,
-        "refseq": 2,
+        "refseq": 1,
     }
     assert payload["provider_request_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 3,
         "planning_handoff": 2,
     }
     assert payload["primary_next_action_group"]["action_code"] == (
@@ -3820,8 +3822,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "provider-request external-genomes-handoff"
     )
     assert handoff_readiness["record_counts_by_stage"] == {
-        "provider_handoff": 8,
-        "provider_request": 8,
+        "provider_handoff": 5,
+        "provider_request": 5,
         "provider_request_validation": 0,
         "provider_request_external_genomes": 0,
         "external_genomes_install_plan": 0,
@@ -3866,16 +3868,23 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["writes_workflow_outputs"] is False
     assert payload["manifest_mutated"] is False
     assert payload["strict_scientific_deliverable"] is False
-    assert "provider_guidance=public_archive_metadata_review" in (
-        payload["provider_handoff_preview"][0]["provider_guidance_notes"]
+    assert any(
+        "provider_guidance=public_archive_metadata_review"
+        in row["provider_guidance_notes"]
+        for row in payload["provider_handoff_preview"]
     )
-    assert payload["provider_handoff_preview"][0]["provider_automation_level"] == (
-        "metadata_review"
+    assert any(
+        row["provider_automation_level"] == "metadata_review"
+        for row in payload["provider_handoff_preview"]
     )
-    assert payload["provider_request_preview"][0]["requires_manual_review"] == "true"
-    assert payload["provider_request_preview"][0]["local_fasta_path"] == ""
-    assert "provider_automation_level=metadata_review" in (
-        payload["provider_request_preview"][0]["notes"]
+    assert all(
+        row["requires_manual_review"] == "true"
+        for row in payload["provider_request_preview"]
+    )
+    assert all(row["local_fasta_path"] == "" for row in payload["provider_request_preview"])
+    assert any(
+        "provider_automation_level=metadata_review" in row["notes"]
+        for row in payload["provider_request_preview"]
     )
 
 
@@ -4665,7 +4674,7 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "record_count": 1,
             "species": ["Clostridium gamma"],
             "source_lanes": ["public_linkage_review"],
-            "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
+            "provider_keys": ["ena"],
             "required_inputs": [
                 "public accession to type-strain direct evidence chain",
             ],
@@ -4941,7 +4950,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["command"] == "coverage-pipeline build"
     assert summary["coverage_opportunity_summary"][1][
         "provider_automation_level_counts"
-    ] == {"metadata_review": 4}
+    ] == {"metadata_review": 1}
     assert summary["coverage_action_queue"][3]["operator_route"] == (
         "provider_handoff"
     )
@@ -4970,9 +4979,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["current_coverage_action_queue_item"]["operator_route"] == (
         "curator_decision"
     )
-    assert summary["provider_handoff_record_count"] == 8
+    assert summary["provider_handoff_record_count"] == 5
     assert summary["provider_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 3,
         "planning_handoff": 2,
     }
     assert summary["coverage_provider_route_opportunity_summary"][
@@ -4980,7 +4989,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ] == ["dsmz", "kctc"]
     assert summary["coverage_provider_route_opportunity_summary"][
         "provider_key_record_counts"
-    ]["genbank"] == 2
+    ]["genbank"] == 1
     assert summary["coverage_provider_route_opportunity_summary"][
         "priority_provider_route_items"
     ][0]["provider_key"] == "dsmz"
@@ -4993,12 +5002,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_route_next_batch_packet"][
         "first_recommended_request_target"
     ] == "provider-request draft"
-    assert summary["provider_request_record_count"] == 8
+    assert summary["provider_request_record_count"] == 5
     assert summary["provider_request_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 3,
         "planning_handoff": 2,
     }
-    assert summary["provider_terms_review_required_count"] == 8
+    assert summary["provider_terms_review_required_count"] == 5
     assert summary["provider_network_supported_count"] == 0
     assert summary["primary_next_action_group"]["action_code"] == (
         "resolve_curator_conflict"
@@ -5152,7 +5161,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["operator_chain_stages"][0]["artifact"] == (
         "acquisition_worklist/acquisition_worklist.tsv"
     )
-    assert summary["operator_chain_stages"][3]["record_count"] == 8
+    assert summary["operator_chain_stages"][3]["record_count"] == 5
     assert summary["operator_chain_stages"][4]["available"] is False
     assert summary["operator_chain_stages"][7]["recommended_next_command"] == (
         "typetreeflow --register-external-genomes "
@@ -5254,7 +5263,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     )
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
+        "ena": 1,
         "kctc": 1,
+    }
+    assert summary["worklist_candidate_provider_status_counts"] == {
+        "metadata_only": 1,
+        "planning_only": 2,
     }
     assert summary["coverage_next_action_groups"][0]["action_code"] == (
         "resolve_curator_conflict"
@@ -5359,9 +5373,9 @@ def test_coverage_pipeline_build_can_write_provider_request_validation_stage(
     assert captured.out.count("\n") == 1
     assert payload["status"] == "pass"
     assert payload["provider_request_validation_status"] == "blocked"
-    assert payload["provider_request_validation_record_count"] == 8
+    assert payload["provider_request_validation_record_count"] == 5
     assert payload["provider_request_validation_ready_count"] == 0
-    assert payload["provider_request_validation_blocked_count"] == 8
+    assert payload["provider_request_validation_blocked_count"] == 5
     assert payload["provider_request_validation_readiness_packet"]["stage"] == (
         "validate"
     )
@@ -6156,8 +6170,8 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_handoff_readiness_summary"][
         "record_counts_by_stage"
     ] == {
-        "provider_handoff": 8,
-        "provider_request": 8,
+        "provider_handoff": 5,
+        "provider_request": 5,
         "provider_request_validation": 2,
         "provider_request_external_genomes": 1,
         "external_genomes_install_plan": 1,
@@ -6245,11 +6259,11 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     ] == "metadata_only_operator_queue_preview"
     assert payload["current_coverage_action_queue_item"]["queue_position"] == 1
     assert payload["provider_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 3,
         "planning_handoff": 2,
     }
     assert payload["provider_request_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 3,
         "planning_handoff": 2,
     }
     assert [stage["available"] for stage in payload["operator_chain_stages"]] == [
@@ -6398,13 +6412,13 @@ def test_coverage_pipeline_status_preserves_blocked_validation_stage_details(
     assert validation_stage["available"] is False
     assert validation_stage["record_count"] == 0
     assert validation_stage["summary_status"] == "blocked"
-    assert validation_stage["summary_record_count"] == 8
+    assert validation_stage["summary_record_count"] == 5
     assert validation_stage["summary_ready_count"] == 0
-    assert validation_stage["summary_blocked_count"] == 8
+    assert validation_stage["summary_blocked_count"] == 5
     assert validation_stage["summary_diagnostic_count"] > 0
-    assert validation_stage["summary_blocker_counts"]["local_fasta_path_missing"] == 8
+    assert validation_stage["summary_blocker_counts"]["local_fasta_path_missing"] == 5
     assert validation_stage["summary_status_counts"] == {
-        "provider_request_blocked": 8,
+        "provider_request_blocked": 5,
     }
     assert payload["next_stage"]["stage"] == "provider_request_validation"
     assert payload["completion_gate"]["blocking_stage_names"][0] == (

@@ -733,6 +733,7 @@ _ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
     "lane_counts",
     "review_signal_counts",
     "candidate_provider_key_counts",
+    "candidate_provider_status_counts",
     "diagnostic_count",
     "rows_truncated",
     "audit_only",

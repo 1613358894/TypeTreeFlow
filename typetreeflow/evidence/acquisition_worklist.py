@@ -28,6 +28,7 @@ ACQUISITION_WORKLIST_FIELDS: tuple[str, ...] = (
     "reason_code",
     "recommended_action",
     "candidate_provider_keys",
+    "candidate_provider_statuses",
     "source_artifacts",
     "audit_only",
     "strict_scientific_deliverable",
@@ -51,6 +52,7 @@ class AcquisitionWorklistRow:
     reason_code: str = ""
     recommended_action: str = ""
     candidate_provider_keys: str = ""
+    candidate_provider_statuses: str = ""
     source_artifacts: str = ""
     schema_version: str = ACQUISITION_WORKLIST_SCHEMA_VERSION
     audit_only: bool = True
@@ -66,6 +68,7 @@ class AcquisitionWorklistRow:
             "reason_code": self.reason_code,
             "recommended_action": self.recommended_action,
             "candidate_provider_keys": self.candidate_provider_keys,
+            "candidate_provider_statuses": self.candidate_provider_statuses,
             "source_artifacts": self.source_artifacts,
             "audit_only": str(self.audit_only).lower(),
             "strict_scientific_deliverable": str(
@@ -84,6 +87,7 @@ class AcquisitionWorklistReport:
         lane_counts = {lane: 0 for lane in ACQUISITION_WORKLIST_LANES}
         signal_counts = _review_signal_counts(self.rows)
         provider_key_counts = _candidate_provider_key_counts(self.rows)
+        provider_status_counts = _candidate_provider_status_counts(self.rows)
         for row in self.rows:
             lane_counts[row.lane] += 1
         return {
@@ -92,6 +96,7 @@ class AcquisitionWorklistReport:
             "lane_counts": lane_counts,
             "review_signal_counts": signal_counts,
             "candidate_provider_key_counts": provider_key_counts,
+            "candidate_provider_status_counts": provider_status_counts,
             "audit_only": True,
             "strict_scientific_deliverable": False,
             "downloads_triggered": 0,
@@ -244,6 +249,7 @@ def _classify_species(
             tier,
             "public_archive_insdc_candidate_review",
             source_artifacts,
+            candidate_provider_keys,
         )
     if _has_expanded_matched_candidate(
         expanded_discovery_rows
@@ -303,6 +309,9 @@ def _row(
         reason_code=reason_code,
         recommended_action=_recommended_action(lane),
         candidate_provider_keys=candidate_provider_keys,
+        candidate_provider_statuses=_candidate_provider_statuses(
+            candidate_provider_keys
+        ),
         source_artifacts=source_artifacts,
     )
 
@@ -374,6 +383,33 @@ def _candidate_provider_key_counts(
             if provider_key:
                 counts[provider_key] = counts.get(provider_key, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _candidate_provider_status_counts(
+    rows: Iterable[AcquisitionWorklistRow],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    registry = build_default_provider_registry()
+    for row in rows:
+        for provider_key in row.candidate_provider_keys.split(";"):
+            provider_key = provider_key.strip()
+            if not provider_key:
+                continue
+            status = registry.get(provider_key).capability.status.value
+            counts[status] = counts.get(status, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _candidate_provider_statuses(candidate_provider_keys: str) -> str:
+    registry = build_default_provider_registry()
+    statuses: list[str] = []
+    for provider_key in candidate_provider_keys.split(";"):
+        provider_key = provider_key.strip()
+        if not provider_key:
+            continue
+        status = registry.get(provider_key).capability.status.value
+        statuses.append(f"{provider_key}={status}")
+    return "; ".join(statuses)
 
 
 def _public_linkage_reason(
@@ -547,6 +583,16 @@ def _extend_provider_keys_from_explicit_hints(
         "preferred_provider_keys",
         "provider_keys",
         "provider_key",
+        "archive_source",
+        "archive_source_name",
+        "archive_provider_key",
+        "archive_source_key",
+        "public_archive_source",
+        "public_archive_source_name",
+        "source_platform",
+        "source",
+        "source_name",
+        "database",
     )
     for token in re.split(r"[;,|]", value):
         canonical = registry.canonical_key(token)
