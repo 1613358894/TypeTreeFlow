@@ -369,6 +369,7 @@ class ProviderHandoffAuditSummary:
     provider_counts: list[tuple[str, int]]
     status_counts: list[tuple[str, int]]
     automation_level_counts: list[tuple[str, int]]
+    operator_route_counts: list[tuple[str, int]]
     action_counts: list[tuple[str, int]]
 
 
@@ -1048,6 +1049,7 @@ def read_optional_provider_handoff_audit(
     provider_counts: list[tuple[str, int]] = []
     status_counts: list[tuple[str, int]] = []
     automation_level_counts: list[tuple[str, int]] = []
+    operator_route_counts: list[tuple[str, int]] = []
     action_counts: list[tuple[str, int]] = []
     summary_data: dict[str, object] | None = None
     observed_rows: int | None = None
@@ -1080,6 +1082,9 @@ def read_optional_provider_handoff_audit(
             )
             parsed_automation_level_counts = _parse_nonnegative_int_map(
                 _optional_dict(loaded, "provider_automation_level_counts")
+            )
+            parsed_operator_route_counts = _parse_nonnegative_int_map(
+                _optional_dict(loaded, "operator_route_counts")
             )
             parsed_action_counts = _parse_nonnegative_int_map(
                 _required_dict(loaded, "source_action_counts")
@@ -1127,6 +1132,7 @@ def read_optional_provider_handoff_audit(
             automation_level_counts = _sorted_nonzero_counts(
                 parsed_automation_level_counts
             )
+            operator_route_counts = _sorted_nonzero_counts(parsed_operator_route_counts)
             action_counts = _sorted_nonzero_counts(parsed_action_counts)
             valid_files.append(summary_path.name)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
@@ -1162,6 +1168,7 @@ def read_optional_provider_handoff_audit(
         provider_counts=provider_counts,
         status_counts=status_counts,
         automation_level_counts=automation_level_counts,
+        operator_route_counts=operator_route_counts,
         action_counts=action_counts,
     )
 
@@ -3691,6 +3698,18 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(level)} | {count} |"
                         for level, count in provider_handoff_audit.automation_level_counts[:5]
+                    ],
+                ]
+            )
+        if provider_handoff_audit.operator_route_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Operator Route | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(route)} | {count} |"
+                        for route, count in provider_handoff_audit.operator_route_counts[:5]
                     ],
                 ]
             )

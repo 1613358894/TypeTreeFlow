@@ -322,9 +322,10 @@ Failed-handoff packages exclude these coverage-plan artifacts.
 
 Provider handoff plans are a second offline planning layer over coverage-plan
 rows with provider keys. They may expand provider keys into registry-backed
-provider status, terms-review, credential, and network-disabled fields, but
-they must not contact providers, download genomes, authenticate, accept terms,
-write manifests, grant completion credit, or promote strict deliverables.
+provider status, route metadata, terms-review, credential, and
+network-disabled fields, but they must not contact providers, download genomes,
+authenticate, accept terms, write manifests, grant completion credit, or
+promote strict deliverables.
 Common provider labels may be normalized to canonical registry keys for stable
 handoff counts, but alias recognition is metadata cleanup only and does not
 create provider access or download support.
@@ -338,9 +339,9 @@ adapters, package raw curator/provider data, or convert a recommended action
 into an executed provider/download action.
 The optional report-only `--provider-handoff-dir` surface is a passive reader
 over that pair. It may display compact counts, provider-key totals,
-provider-status totals, source-action totals, and readiness totals for terms,
-credentials, and network support in `report/summary.md`, but it must not
-display row-level provider instructions, discover workflow outputs,
+provider-status totals, route totals, source-action totals, and readiness
+totals for terms, credentials, and network support in `report/summary.md`, but
+it must not display row-level provider instructions, discover workflow outputs,
 authenticate, accept terms, contact providers, trigger downloads, mutate the
 manifest, or reinterpret handoff rows as strict scientific deliverables.
 Normal `package-results --include reports` and `--include all` may copy valid

@@ -54,6 +54,13 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["provider_key_counts"] == {"genbank": 1, "refseq": 1}
     assert payload["provider_status_counts"] == {"metadata_only": 2}
     assert payload["provider_automation_level_counts"] == {"metadata_review": 2}
+    assert payload["operator_route_counts"] == {"public_metadata_review": 2}
+    assert payload["next_input_class_counts"] == {
+        "public_accession_type_strain_linkage": 2
+    }
+    assert payload["automation_boundary_counts"] == {
+        "metadata_review_only_no_download": 2
+    }
     assert payload["terms_review_required_count"] == 2
     assert payload["credentials_required_count"] == 0
     assert payload["network_supported_count"] == 0
@@ -69,6 +76,15 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
     )
     assert "provider_guidance=public_archive_metadata_review" in (
         payload["handoff_preview"][0]["provider_guidance_notes"]
+    )
+    assert payload["handoff_preview"][0]["operator_route"] == (
+        "public_metadata_review"
+    )
+    assert payload["handoff_preview"][0]["next_input_class"] == (
+        "public_accession_type_strain_linkage"
+    )
+    assert payload["handoff_preview"][0]["automation_boundary"] == (
+        "metadata_review_only_no_download"
     )
     assert payload["writes_outputs"] is False
     assert payload["downloads_triggered"] == 0
@@ -91,6 +107,13 @@ def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):
     summary = json.loads((outdir / "provider_handoff_summary.json").read_text())
     assert summary["provider_status_counts"] == {"planning_only": 1}
     assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
+    assert summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert summary["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert summary["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert summary["terms_review_required_count"] == 1
     assert summary["network_supported_count"] == 0
     assert summary["required_inputs"] == ["provider_handoff.tsv"]

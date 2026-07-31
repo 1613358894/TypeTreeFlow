@@ -1583,15 +1583,18 @@ successful handoff generation exits `0`; unexpected internal or write failures
 exit `1`. Provider handoff rows are AI/operator planning artifacts only: they
 do not contact providers, download genomes, mutate manifests, change completion
 metrics, or promote strict scientific deliverables.
-`provider_handoff.tsv` includes `provider_automation_level` plus
-`provider_guidance_notes`. The automation level is AI planning metadata derived
-from the static provider registry, using the same `planning_handoff`,
-`metadata_review`, and `download_enabled` labels as `providers catalog`.
-Guidance notes are compact fail-closed strings derived from the provider
-registry adapter. These fields may describe terms review, credential review,
-user-assisted local FASTA handoff, public archive metadata review, or current
-adapter capability, but they are not provider authorization, terms acceptance,
-download readiness, or strict type-strain evidence.
+`provider_handoff.tsv` includes `provider_automation_level` plus the same
+controlled `operator_route`, `next_input_class`, and `automation_boundary`
+vocabulary used by `providers catalog` and the coverage action queue. The
+summary JSON and compact stdout include counts for those route fields. The
+automation level is AI planning metadata derived from the static provider
+registry, using the same `planning_handoff`, `metadata_review`, and
+`download_enabled` labels as `providers catalog`. Guidance notes are compact
+fail-closed strings derived from the provider registry adapter. These fields
+may describe terms review, credential review, user-assisted local FASTA
+handoff, public archive metadata review, or current adapter capability, but
+they are not provider authorization, terms acceptance, download readiness, or
+strict type-strain evidence.
 The optional report/package surfaces are separate from handoff generation:
 pass `--provider-handoff-dir <dir>` with `--report-only` to display compact
 provider-handoff audit counts, or with `package-results --include reports|all`
