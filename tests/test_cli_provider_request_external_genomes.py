@@ -110,6 +110,16 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
         "subcommand": "validate",
         "input": "external_genomes.tsv",
     }
+    assert packet["recommended_command_plan"]["decision"] == "allow"
+    assert packet["recommended_command_plan"]["target_argv"] == [
+        "external-genomes",
+        "validate",
+        "--input",
+        "external_genomes.tsv",
+    ]
+    assert packet["recommended_command_plan"]["request_source"] == (
+        "provider_request_readiness_packet.recommended_request"
+    )
     assert packet["install_plan_recommended_request"] == {
         "command": "external-genomes",
         "subcommand": "install-plan",
@@ -118,6 +128,10 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
         "write": True,
         "outdir": "<isolated-install-plan-directory>",
     }
+    assert packet["install_plan_recommended_command_plan"]["decision"] == "block"
+    assert [item["id"] for item in packet["install_plan_recommended_command_plan"]["blocking"]] == [
+        "write_not_allowed"
+    ]
     assert packet["safe_for_unattended_execution"] is False
     assert packet["downloads_triggered"] == 0
     assert packet["providers_contacted"] == 0
@@ -238,7 +252,9 @@ def test_provider_request_external_genomes_draft_blocked_does_not_write(
     assert packet["status"] == "blocked"
     assert packet["next_stage"] == ""
     assert packet["recommended_request"] is None
+    assert packet["recommended_command_plan"] is None
     assert packet["install_plan_recommended_request"] is None
+    assert packet["install_plan_recommended_command_plan"] is None
     assert not outdir.exists()
     assert not (tmp_path / "external_genomes.tsv").exists()
 
@@ -414,6 +430,13 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
         "subcommand": "validate",
         "input": external_genomes_path,
     }
+    assert packet["recommended_command_plan"]["decision"] == "allow"
+    assert packet["recommended_command_plan"]["target_argv"] == [
+        "external-genomes",
+        "validate",
+        "--input",
+        external_genomes_path,
+    ]
     assert packet["install_plan_recommended_request"] == {
         "command": "external-genomes",
         "subcommand": "install-plan",
@@ -422,6 +445,18 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
         "write": True,
         "outdir": "<isolated-install-plan-directory>",
     }
+    assert packet["install_plan_recommended_command_plan"]["decision"] == "block"
+    assert packet["install_plan_recommended_command_plan"]["target_argv"] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        external_genomes_path,
+        "--target-outdir",
+        "<run>",
+        "--write",
+        "--outdir",
+        "<isolated-install-plan-directory>",
+    ]
     assert payload["install_plan_recommended_request"] == {
         "command": "external-genomes",
         "subcommand": "install-plan",
@@ -501,6 +536,8 @@ def test_provider_request_external_genomes_handoff_blocked_writes_validation_onl
     assert packet["status"] == "blocked"
     assert packet["next_stage"] == ""
     assert packet["recommended_request"] is None
+    assert packet["recommended_command_plan"] is None
+    assert packet["install_plan_recommended_command_plan"] is None
     assert payload["install_plan_recommended_request"] is None
     assert validation_summary["blocked_count"] == 1
     assert not (outdir / "provider_request_external_genomes").exists()

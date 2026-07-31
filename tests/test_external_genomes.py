@@ -363,7 +363,8 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
     assert captured.err == ""
     assert captured.out.count("\n") == 1
     assert payload["status"] == "pass"
-    assert payload["external_genomes_readiness_packet"] == {
+    packet = payload["external_genomes_readiness_packet"]
+    assert packet == {
         "schema_version": "external_genomes_readiness_packet.v1",
         "stage": "validate",
         "status": "ready_for_next_stage",
@@ -379,6 +380,7 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
             "input": "<external_genomes.tsv>",
             "target_outdir": "<run>",
         },
+        "recommended_command_plan": packet["recommended_command_plan"],
         "recommended_next_command": (
             "typetreeflow external-genomes install-plan "
             "--input <external_genomes.tsv> --target-outdir <run>"
@@ -397,6 +399,24 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_external_genomes_readiness_no_execution",
     }
+    plan = packet["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == (
+        "external_genomes_readiness_packet.recommended_request"
+    )
+    assert plan["decision"] == "allow"
+    assert plan["target_argv"] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        "<external_genomes.tsv>",
+        "--target-outdir",
+        "<run>",
+    ]
+    assert plan["preflight_decision"] == "allow"
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
 
 
 def test_external_genomes_install_plan_emits_registration_readiness_packet(
@@ -441,6 +461,20 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
         "outdir": "<run>",
         "dry_run": True,
     }
+    assert packet["recommended_command_plan"]["decision"] == "block"
+    assert packet["recommended_command_plan"]["target_argv"] == [
+        "--register-external-genomes",
+        path.as_posix(),
+        "--outdir",
+        "<run>",
+        "--dry-run",
+    ]
+    assert packet["recommended_command_plan"]["request_source"] == (
+        "external_genomes_readiness_packet.recommended_request"
+    )
+    assert [item["id"] for item in packet["recommended_command_plan"]["blocking"]] == [
+        "write_not_allowed"
+    ]
     assert packet["recommended_next_command"] == (
         f"typetreeflow --register-external-genomes {path.as_posix()} "
         "--outdir <run> --dry-run"

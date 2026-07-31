@@ -172,7 +172,9 @@ counts, blocker counts, and inherited route counts from draft row notes when
 available, but it does not echo local FASTA paths, hashes, provider notes, or
 sequence contents. It also includes the next offline
 `provider-request external-genomes-handoff` request plus a compact
-`provider_request_readiness_packet` for AI/operator controllers. With `--write`, it publishes only
+`provider_request_readiness_packet` for AI/operator controllers. Ready packets
+include a metadata-only `recommended_command_plan` so controllers can see the
+rendered argv and preflight blocker IDs before asking for write allowance. With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated
 directory. Passing validation only means the rows are ready for
@@ -196,7 +198,9 @@ previews omit local paths, hashes, notes, and sequence contents. Stdout and the
 summary JSON include exported route counts plus the next `external-genomes
 validate` and `external-genomes install-plan` requests, and the matching
 `provider_request_readiness_packet` exposes those requests only when every row
-is ready. Controlled route
+is ready. The packet also carries metadata-only command plans for those next
+requests; install-plan writes remain blocked until explicit write allowance is
+supplied. Controlled route
 metadata may be copied into `external_genomes.tsv` notes, but raw provider or
 curator notes are not copied. This is still only a handoff input: it does not
 register external genomes, copy FASTA files, mutate manifests, contact
