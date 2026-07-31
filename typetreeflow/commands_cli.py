@@ -475,6 +475,71 @@ _COVERAGE_PIPELINE_BASE_OUTPUT_CONTRACTS: tuple[dict[str, object], ...] = (
         "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
     },
     {
+        "name": "coverage_controller_resume_packet",
+        "schema_version": "coverage_controller_resume_packet.v1",
+        "purpose": "compact controller resume fields for the selected next action",
+    },
+    {
+        "name": "coverage_controller_step_summary",
+        "schema_version": "coverage_controller_step_summary.v1",
+        "purpose": "bounded list of controller candidate surfaces and target argv",
+    },
+    {
+        "name": "coverage_controller_preflight_handoff_packet",
+        "schema_version": "coverage_controller_preflight_handoff_packet.v1",
+        "purpose": "metadata-only command preflight handoff for the first controller candidate",
+    },
+    {
+        "name": "coverage_parent_controller_packet",
+        "schema_version": "coverage_parent_controller_packet.v1",
+        "purpose": "top-level parent/AI/server controller surface recommendation",
+    },
+    {
+        "name": "coverage_controller_inspection_summary",
+        "schema_version": "coverage_controller_inspection_summary.v1",
+        "purpose": "compact index of available controller and handoff surfaces",
+    },
+    {
+        "name": "coverage_controller_runbook_packet",
+        "schema_version": "coverage_controller_runbook_packet.v1",
+        "purpose": "ordered metadata-only parent-controller checklist",
+    },
+    {
+        "name": "coverage_handoff_next_step_packet",
+        "schema_version": "coverage_handoff_next_step_packet.v1",
+        "purpose": "provider/external handoff next-step command preview",
+    },
+    {
+        "name": "coverage_handoff_input_readiness_packet",
+        "schema_version": "coverage_handoff_input_readiness_packet.v1",
+        "purpose": "metadata-only required-input classifier for the handoff stage",
+    },
+    {
+        "name": "coverage_handoff_runbook_packet",
+        "schema_version": "coverage_handoff_runbook_packet.v1",
+        "purpose": "ordered metadata-only provider/external handoff checklist",
+    },
+    {
+        "name": "coverage_handoff_server_validation_packet",
+        "schema_version": "coverage_handoff_server_validation_packet.v1",
+        "purpose": "parent/server-facing bounded validation readiness summary",
+    },
+    {
+        "name": "coverage_handoff_server_validation_runbook_packet",
+        "schema_version": "coverage_handoff_server_validation_runbook_packet.v1",
+        "purpose": "ordered metadata-only server-validation review checklist",
+    },
+    {
+        "name": "coverage_handoff_server_validation_result_contract_packet",
+        "schema_version": "coverage_handoff_server_validation_result_contract_packet.v1",
+        "purpose": "expected bounded server-validation result shape and boundaries",
+    },
+    {
+        "name": "coverage_handoff_server_validation_result_template_packet",
+        "schema_version": "coverage_handoff_server_validation_result_template_packet.v1",
+        "purpose": "fail-closed schema-shaped server-validation result template",
+    },
+    {
         "name": "operator_chain_next_step_packet",
         "schema_version": "operator_chain_next_step_packet.v1",
         "purpose": "metadata-only next operator-chain command preview",
