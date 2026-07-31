@@ -201,6 +201,11 @@ def _write_archive_candidates_output(outdir):
                 "status_counts": {
                     "archive_candidate_for_public_linkage_review": 1,
                 },
+                "archive_source_counts": {"ena": 1},
+                "accession_kind_counts": {"assembly": 1, "biosample": 1},
+                "review_input_class_counts": {
+                    "direct_evidence_chain_review": 1,
+                },
                 "downloads_triggered": 0,
                 "providers_contacted": 0,
                 "manifest_mutated": False,
@@ -1862,6 +1867,14 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
     assert archive_stage["summary_diagnostic_count"] == 0
     assert archive_stage["summary_status_counts"] == {
         "archive_candidate_for_public_linkage_review": 1,
+    }
+    assert archive_stage["summary_archive_source_counts"] == {"ena": 1}
+    assert archive_stage["summary_accession_kind_counts"] == {
+        "assembly": 1,
+        "biosample": 1,
+    }
+    assert archive_stage["summary_review_input_class_counts"] == {
+        "direct_evidence_chain_review": 1
     }
     assert "archive_candidates" in payload["available_stage_names"]
     assert payload["downloads_triggered"] == 0

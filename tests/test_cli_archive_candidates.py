@@ -57,6 +57,11 @@ def test_archive_candidates_dry_run_single_json_and_no_writes(tmp_path, capsys):
     assert payload["command"] == "archive-candidates build"
     assert payload["status"] == "pass"
     assert payload["candidate_count"] == 1
+    assert payload["archive_source_counts"] == {"ena": 1}
+    assert payload["accession_kind_counts"] == {"assembly": 1, "biosample": 1}
+    assert payload["review_input_class_counts"] == {
+        "direct_evidence_chain_review": 1
+    }
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
