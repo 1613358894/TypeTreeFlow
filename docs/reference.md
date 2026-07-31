@@ -1942,6 +1942,11 @@ and operator approval before any execution.
 it lists each controller candidate's priority, source, handoff kind, target
 argv, preflight decision, blocker/warning counts, snapshot match flag, and
 route-context labels without copying the full nested candidate payloads.
+`coverage_controller_preflight_handoff_packet` wraps the first candidate's
+target argv as a `commands preflight --argv-json ...` request so a server or AI
+parent controller can run the local preflight gate before dispatch. It repeats
+candidate and controller blockers, but it does not execute the target command
+or authorize execution after preflight.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -2103,6 +2108,10 @@ required-before-resume checklist without authorizing dispatch.
 `coverage_controller_step_summary` provides the same candidates as a bounded
 table-like summary for dashboards and parent controllers that only need triage
 metadata.
+`coverage_controller_preflight_handoff_packet` provides a preflight-specific
+handoff for the first candidate, including `target_argv_json`, the exact
+metadata-only `preflight_argv`, and a `required_before_preflight` checklist;
+`target_command_execution_authorized` is always `false`.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
