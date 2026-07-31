@@ -193,6 +193,7 @@ def _payload(handoff, *, diagnostics: list[dict[str, object]], dry_run: bool) ->
             "provider_automation_level_counts"
         ],
         "operator_route_counts": summary["operator_route_counts"],
+        "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
         "source_action_counts": summary["source_action_counts"],
@@ -236,6 +237,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_status_counts": {},
         "provider_automation_level_counts": {},
         "operator_route_counts": {},
+        "provider_route_groups": [],
         "next_input_class_counts": {},
         "automation_boundary_counts": {},
         "source_action_counts": {},

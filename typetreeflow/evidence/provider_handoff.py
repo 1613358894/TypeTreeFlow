@@ -11,7 +11,7 @@ from typing import Iterable, Mapping
 
 from typetreeflow.providers.base import ProviderContext
 from typetreeflow.providers.registry import ProviderRegistry, build_default_provider_registry
-from typetreeflow.providers.routing import provider_route
+from typetreeflow.providers.routing import provider_route, provider_route_groups
 
 
 PROVIDER_HANDOFF_SCHEMA_VERSION = "1"
@@ -157,6 +157,9 @@ class ProviderHandoff:
                 sorted(automation_level_counts.items())
             ),
             "operator_route_counts": dict(sorted(operator_route_counts.items())),
+            "provider_route_groups": provider_route_groups(
+                row.to_row() for row in self.rows
+            ),
             "next_input_class_counts": dict(sorted(next_input_class_counts.items())),
             "automation_boundary_counts": dict(
                 sorted(automation_boundary_counts.items())

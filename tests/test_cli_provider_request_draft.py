@@ -65,6 +65,25 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["provider_key_counts"] == {"dsmz": 1}
     assert payload["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["provider_route_groups"] == [
+        {
+            "operator_route": "provider_handoff",
+            "record_count": 1,
+            "provider_keys": ["dsmz"],
+            "provider_key_counts": {"dsmz": 1},
+            "provider_status_counts": {"planning_only": 1},
+            "automation_level_counts": {"planning_handoff": 1},
+            "next_input_class_counts": {
+                "permitted_local_fasta_terms_provenance": 1
+            },
+            "automation_boundary_counts": {
+                "planning_handoff_no_provider_contact": 1
+            },
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        }
+    ]
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }

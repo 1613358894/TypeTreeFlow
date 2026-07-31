@@ -67,6 +67,42 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
         "provider_handoff": 1,
         "public_metadata_review": 2,
     }
+    assert summary["provider_route_groups"] == [
+        {
+            "operator_route": "provider_handoff",
+            "record_count": 1,
+            "provider_keys": ["dsmz"],
+            "provider_key_counts": {"dsmz": 1},
+            "provider_status_counts": {"planning_only": 1},
+            "automation_level_counts": {"planning_handoff": 1},
+            "next_input_class_counts": {
+                "permitted_local_fasta_terms_provenance": 1
+            },
+            "automation_boundary_counts": {
+                "planning_handoff_no_provider_contact": 1
+            },
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        },
+        {
+            "operator_route": "public_metadata_review",
+            "record_count": 2,
+            "provider_keys": ["genbank", "refseq"],
+            "provider_key_counts": {"genbank": 1, "refseq": 1},
+            "provider_status_counts": {"metadata_only": 2},
+            "automation_level_counts": {"metadata_review": 2},
+            "next_input_class_counts": {
+                "public_accession_type_strain_linkage": 2
+            },
+            "automation_boundary_counts": {
+                "metadata_review_only_no_download": 2
+            },
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        },
+    ]
     assert summary["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1,
         "public_accession_type_strain_linkage": 2,

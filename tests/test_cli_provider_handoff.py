@@ -55,6 +55,25 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["provider_status_counts"] == {"metadata_only": 2}
     assert payload["provider_automation_level_counts"] == {"metadata_review": 2}
     assert payload["operator_route_counts"] == {"public_metadata_review": 2}
+    assert payload["provider_route_groups"] == [
+        {
+            "operator_route": "public_metadata_review",
+            "record_count": 2,
+            "provider_keys": ["genbank", "refseq"],
+            "provider_key_counts": {"genbank": 1, "refseq": 1},
+            "provider_status_counts": {"metadata_only": 2},
+            "automation_level_counts": {"metadata_review": 2},
+            "next_input_class_counts": {
+                "public_accession_type_strain_linkage": 2
+            },
+            "automation_boundary_counts": {
+                "metadata_review_only_no_download": 2
+            },
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        }
+    ]
     assert payload["next_input_class_counts"] == {
         "public_accession_type_strain_linkage": 2
     }
@@ -108,6 +127,8 @@ def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):
     assert summary["provider_status_counts"] == {"planning_only": 1}
     assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert summary["provider_route_groups"][0]["operator_route"] == "provider_handoff"
+    assert summary["provider_route_groups"][0]["provider_keys"] == ["dsmz"]
     assert summary["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
