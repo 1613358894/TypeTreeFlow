@@ -11,6 +11,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Sequence, TextIO
 
+from typetreeflow.command_plan_packets import recommended_command_plan
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
@@ -412,6 +413,9 @@ def _external_genomes_readiness_packet(
             if stage == "validate"
             else "external_genomes_registration_dry_run"
         )
+    next_request = (
+        dict(recommended_request) if status == "ready_for_next_stage" else None
+    )
     return {
         "schema_version": "external_genomes_readiness_packet.v1",
         "stage": stage,
@@ -422,10 +426,10 @@ def _external_genomes_readiness_packet(
         "status_counts": dict(sorted(status_counts.items())),
         "next_stage": next_stage,
         "required_inputs": list(required_inputs),
-        "recommended_request": (
-            dict(recommended_request)
-            if status == "ready_for_next_stage"
-            else None
+        "recommended_request": next_request,
+        "recommended_command_plan": recommended_command_plan(
+            next_request,
+            request_source="external_genomes_readiness_packet.recommended_request",
         ),
         "recommended_next_command": (
             recommended_next_command if status == "ready_for_next_stage" else ""
