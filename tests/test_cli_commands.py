@@ -415,6 +415,9 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert coverage_pipeline_contracts | {
         "operator_chain_readiness_packets",
     } <= contract_names[("coverage-pipeline", "status")]
+    assert "coverage_handoff_server_validation_result_validation" in contract_names[
+        ("coverage-pipeline", "server-validation-result validate")
+    ]
     for key in (
         ("acquisition-worklist", "build"),
         ("coverage-pipeline", "preview"),
@@ -448,6 +451,9 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--stage",
         "--expected-operator-chain-snapshot-sha256",
     } <= parameter_names[("coverage-pipeline", "preview")]
+    assert {"--input", "--json"} <= parameter_names[
+        ("coverage-pipeline", "server-validation-result validate")
+    ]
     audit_dir_flags = {
         "--manual-review-import-dir",
         "--acquisition-worklist-dir",
@@ -1240,6 +1246,74 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
             "operator_chain_readiness_packets",
     }
     _assert_output_contract_summary(payload)
+
+
+def test_commands_render_emits_normalized_coverage_pipeline_result_validator_argv(
+    capsys,
+):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"coverage-pipeline",'
+                    '"subcommand":"server-validation-result validate",'
+                    '"input":"coverage_handoff_server_validation_result.json",'
+                    '"json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "validate",
+        "--input",
+        "coverage_handoff_server_validation_result.json",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert payload["recognized"]["subcommand"] == "server-validation-result validate"
+    assert payload["recognized"]["mode"] == "coverage_pipeline"
+    assert payload["recognized"]["requires_outdir"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is False
+    assert _output_contract_names(payload) == {
+        "coverage_handoff_server_validation_result_validation"
+    }
+
+
+def test_commands_recognize_accepts_coverage_pipeline_result_validator(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "recognize",
+                "--argv-json",
+                (
+                    '["coverage-pipeline","server-validation-result","validate",'
+                    '"--input","coverage_handoff_server_validation_result.json",'
+                    '"--json"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert payload["recognized"]["subcommand"] == "server-validation-result validate"
+    assert payload["recognized"]["invalid"] is False
+    assert payload["recognized"]["unknown"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is False
+    assert payload["recognized"]["requires_outdir"] is False
+    assert _output_contract_names(payload) == {
+        "coverage_handoff_server_validation_result_validation"
+    }
 
 
 def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_allowance(

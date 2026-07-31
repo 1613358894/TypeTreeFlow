@@ -209,6 +209,16 @@ _CATALOG_ENTRIES = (
         "boundary": "explicit local coverage chain status only; no provider contact or downloads",
     },
     {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result validate",
+        "mode": "coverage_pipeline",
+        "argv_pattern": "typetreeflow coverage-pipeline server-validation-result validate --input <json>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": False,
+        "boundary": "local result-shape validation only; no target execution, provider contact, downloads, or workflow mutation",
+    },
+    {
         "command": "count-crosswalk",
         "subcommand": "build",
         "mode": "count_crosswalk",
@@ -565,6 +575,13 @@ _OUTPUT_CONTRACT_CATALOG: dict[
     ("coverage-pipeline", "preview"): _COVERAGE_PIPELINE_BASE_OUTPUT_CONTRACTS,
     ("coverage-pipeline", "build"): _COVERAGE_PIPELINE_WRITTEN_OUTPUT_CONTRACTS,
     ("coverage-pipeline", "status"): _COVERAGE_PIPELINE_WRITTEN_OUTPUT_CONTRACTS,
+    ("coverage-pipeline", "server-validation-result validate"): (
+        {
+            "name": "coverage_handoff_server_validation_result_validation",
+            "schema_version": "coverage_handoff_server_validation_result_validation.v1",
+            "purpose": "local-only bounded server-validation result shape and boundary validation",
+        },
+    ),
     ("acquisition-worklist", "build"): (
         {
             "name": "acquisition_worklist_packet",
@@ -1614,6 +1631,22 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "exit nonzero unless every operator-chain stage is available",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("coverage-pipeline", "server-validation-result validate"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "explicit coverage_handoff_server_validation_result.json input",
         },
         {
             "name": "--json",
@@ -2917,6 +2950,27 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         if outdir:
             argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force"})
+    if (
+        command == "coverage-pipeline"
+        and subcommand == "server-validation-result validate"
+    ):
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input",
+                "json",
+            },
+        )
+        argv = [
+            "coverage-pipeline",
+            "server-validation-result",
+            "validate",
+            "--input",
+            _required_string(request, "input"),
+        ]
+        return _with_flags(argv, request, {"json": "--json"})
     if command == "coverage-pipeline" and subcommand in {"build", "preview", "status"}:
         if subcommand == "status":
             _reject_unknown_fields(
