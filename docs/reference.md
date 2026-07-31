@@ -1955,6 +1955,12 @@ recommended surface to inspect next. It is metadata only:
 `safe_for_unattended_execution=false`, and provider contact, downloads,
 workflow-output writes, manifest mutation, external-genomes registration, and
 strict deliverable promotion remain disabled.
+`coverage_controller_inspection_summary` is the bounded index over the parent
+controller, controller, step-summary, preflight, handoff-next-step, and
+route-batch packets. It lists each surface's availability, schema version,
+target argv, blocker IDs, warning IDs, and execution boundary so a parent
+process can inspect one compact table before expanding nested packets. It is
+also metadata only and does not authorize target command execution.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -2127,6 +2133,11 @@ provider/external `coverage_handoff_next_step_packet`), repeats the selected
 argv, carries a `required_before_action` checklist, and keeps
 `recommended_execution_mode=operator_review_required` unless no action remains.
 It is not a dispatcher and does not authorize target command execution.
+`coverage_controller_inspection_summary` is the companion inspection index for
+parent processes that need to validate which handoff surfaces are present
+before choosing one to expand. It reports available, blocking, and warning
+surface names plus a fixed `surfaces` list, but it remains
+`metadata_only_controller_inspection_no_execution`.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

@@ -320,6 +320,11 @@ surface. It selects the next recommended metadata surface, repeats the selected
 argv and required-review checklist, and keeps target execution, provider
 contact, downloads, workflow-output writes, manifest mutation, registration,
 and strict deliverable promotion disabled.
+`coverage_controller_inspection_summary` is the compact surface index for
+parent agents. It lists the parent-controller, controller, step-summary,
+preflight, handoff-next-step, and route-batch packets with availability,
+target argv, blocker IDs, warning IDs, and execution boundaries before the
+parent expands a specific nested packet.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
 summary for parent orchestration. `controller_digest_guard_summary` repeats the
 queue and operator-chain snapshot guards in one place so parent controllers can
@@ -410,6 +415,9 @@ to preflight the first candidate before any target command dispatch. It includes
 answer for which metadata surface to inspect next, what argv to preflight or
 plan, and which review gates remain before execution can even be considered.
 It is still a metadata-only no-execution handoff.
+Use `coverage_controller_inspection_summary` when the parent agent first needs
+a bounded table of available controller surfaces and their blocker/warning
+state before expanding one packet.
 The preflight packet includes
 `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata

@@ -994,6 +994,129 @@ def _assert_controller_packet(
     assert parent_packet["execution_boundary"] == (
         "metadata_only_parent_controller_no_execution"
     )
+    inspection_summary = payload["coverage_controller_inspection_summary"]
+    assert (
+        inspection_summary["schema_version"]
+        == "coverage_controller_inspection_summary.v1"
+    )
+    expected_surface_names = [
+        "coverage_parent_controller_packet",
+        "coverage_controller_packet",
+        "coverage_controller_step_summary",
+        "coverage_controller_preflight_handoff_packet",
+        "coverage_handoff_next_step_packet",
+        "coverage_route_next_batch_packet",
+    ]
+    assert inspection_summary["surface_count"] == len(expected_surface_names)
+    assert [
+        item["name"] for item in inspection_summary["surfaces"]
+    ] == expected_surface_names
+    surface_by_name = {
+        item["name"]: item for item in inspection_summary["surfaces"]
+    }
+    expected_available_surfaces = [
+        name
+        for name in expected_surface_names
+        if surface_by_name[name]["available"]
+    ]
+    assert inspection_summary["available"] is bool(expected_available_surfaces)
+    assert inspection_summary["available_surface_count"] == len(
+        expected_available_surfaces
+    )
+    assert (
+        inspection_summary["available_surface_names"]
+        == expected_available_surfaces
+    )
+    expected_blocking_surfaces = [
+        name
+        for name in expected_surface_names
+        if surface_by_name[name]["blocking_count"] > 0
+    ]
+    expected_warning_surfaces = [
+        name
+        for name in expected_surface_names
+        if surface_by_name[name]["warning_count"] > 0
+    ]
+    assert inspection_summary["blocking_surface_count"] == len(
+        expected_blocking_surfaces
+    )
+    assert inspection_summary["blocking_surface_names"] == expected_blocking_surfaces
+    assert inspection_summary["warning_surface_count"] == len(
+        expected_warning_surfaces
+    )
+    assert inspection_summary["warning_surface_names"] == expected_warning_surfaces
+    assert inspection_summary["recommended_surface"] == parent_packet[
+        "recommended_surface"
+    ]
+    assert inspection_summary["recommended_action"] == parent_packet[
+        "recommended_action"
+    ]
+    assert inspection_summary["recommended_argv"] == parent_packet[
+        "recommended_argv"
+    ]
+    assert inspection_summary["required_before_action"] == parent_packet[
+        "required_before_action"
+    ]
+    if expected_available_surfaces:
+        assert (
+            inspection_summary["recommended_execution_mode"]
+            == "operator_review_required"
+        )
+    else:
+        assert inspection_summary["recommended_execution_mode"] == "no_action"
+    assert surface_by_name["coverage_parent_controller_packet"]["target_argv"] == (
+        parent_packet["recommended_argv"]
+    )
+    assert surface_by_name["coverage_controller_step_summary"]["target_argv"] == (
+        step_summary["first_step_argv"]
+    )
+    assert surface_by_name[
+        "coverage_controller_preflight_handoff_packet"
+    ]["target_argv"] == preflight_handoff["preflight_argv"]
+    assert surface_by_name["coverage_handoff_next_step_packet"]["target_argv"] == (
+        handoff_next_step["target_argv"]
+    )
+    assert surface_by_name["coverage_route_next_batch_packet"]["target_argv"] == (
+        payload["coverage_route_next_batch_packet"].get("first_target_argv", [])
+    )
+    assert surface_by_name["coverage_controller_packet"]["blocking_ids"] == (
+        packet["controller_blocking_ids"]
+    )
+    assert surface_by_name["coverage_controller_packet"]["warning_ids"] == (
+        packet["controller_warning_ids"]
+    )
+    assert inspection_summary["target_command_execution_authorized"] is False
+    assert inspection_summary["safe_for_unattended_execution"] is False
+    assert inspection_summary["audit_only"] is True
+    assert inspection_summary["dry_run"] is True
+    assert inspection_summary["writes_outputs"] is False
+    assert inspection_summary["writes_workflow_outputs"] is False
+    assert inspection_summary["downloads_triggered"] == 0
+    assert inspection_summary["providers_contacted"] == 0
+    assert inspection_summary["network_access"] is False
+    assert inspection_summary["external_tools"] is False
+    assert inspection_summary["manifest_mutated"] is False
+    assert inspection_summary["strict_scientific_deliverable"] is False
+    assert inspection_summary["external_genomes_registration_applied"] is False
+    assert inspection_summary["execution_boundary"] == (
+        "metadata_only_controller_inspection_no_execution"
+    )
+    for surface in inspection_summary["surfaces"]:
+        assert surface["target_command_execution_authorized"] is False
+        assert surface["safe_for_unattended_execution"] is False
+        assert surface["audit_only"] is True
+        assert surface["dry_run"] is True
+        assert surface["writes_outputs"] is False
+        assert surface["writes_workflow_outputs"] is False
+        assert surface["downloads_triggered"] == 0
+        assert surface["providers_contacted"] == 0
+        assert surface["network_access"] is False
+        assert surface["external_tools"] is False
+        assert surface["manifest_mutated"] is False
+        assert surface["strict_scientific_deliverable"] is False
+        assert surface["execution_boundary"].startswith("metadata_only_") or (
+            surface["execution_boundary"] == ""
+        )
     for candidate in packet["controller_step_candidates"]:
         route_context = candidate["route_context"]
         assert route_context["schema_version"] == "coverage_controller_route_context.v1"
