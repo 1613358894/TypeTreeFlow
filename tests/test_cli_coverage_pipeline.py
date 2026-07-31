@@ -174,6 +174,54 @@ def _assert_stage_readiness_summary(
     )
     assert summary["completed_stage_count"] == completed_stage_count
     assert summary["blocked_stage_count"] == blocked_stage_count
+    blocked_stages = [
+        stage for stage in payload["operator_chain_stages"] if not stage["available"]
+    ]
+    blocker_summary = summary["stage_blocker_summary"]
+    assert blocker_summary["schema_version"] == "coverage_stage_blocker_summary.v1"
+    assert blocker_summary["blocked_stage_count"] == len(blocked_stages)
+    assert blocker_summary["blocked_stage_names"] == [
+        stage["stage"] for stage in blocked_stages
+    ]
+    if blocked_stages:
+        first_blocked = blocked_stages[0]
+        assert blocker_summary["first_blocked_stage"] == first_blocked["stage"]
+        assert blocker_summary["first_blocked_required_inputs"] == first_blocked[
+            "required_inputs"
+        ]
+        assert blocker_summary["first_blocked_recommended_request_target"] == (
+            first_blocked["recommended_request_target"]
+        )
+        assert summary["first_blocked_stage_required_inputs"] == first_blocked[
+            "required_inputs"
+        ]
+        assert summary["first_blocked_stage_recommended_request_target"] == (
+            first_blocked["recommended_request_target"]
+        )
+    else:
+        assert blocker_summary["first_blocked_stage"] == ""
+        assert blocker_summary["first_blocked_required_inputs"] == []
+        assert blocker_summary["first_blocked_recommended_request_target"] == ""
+        assert summary["first_blocked_stage_required_inputs"] == []
+        assert summary["first_blocked_stage_recommended_request_target"] == ""
+    assert blocker_summary["blocked_stage_details"] == [
+        {
+            "stage": stage["stage"],
+            "artifact": stage["artifact"],
+            "required_inputs": stage["required_inputs"],
+            "recommended_request_target": stage["recommended_request_target"],
+            "recommended_next_command": stage["recommended_next_command"],
+            "boundary": stage["boundary"],
+        }
+        for stage in blocked_stages
+    ]
+    assert blocker_summary["safe_for_unattended_execution"] is False
+    assert blocker_summary["audit_only"] is True
+    assert blocker_summary["dry_run"] is True
+    assert (
+        blocker_summary["execution_boundary"]
+        == "metadata_only_stage_blocker_summary_no_execution"
+    )
     assert summary["stage_status_counts"] == {
         "available": completed_stage_count,
         "unavailable": blocked_stage_count,
@@ -4019,6 +4067,23 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
         "stage_count": 0,
         "completed_stage_count": 0,
         "blocked_stage_count": 0,
+        "stage_blocker_summary": {
+            "schema_version": "coverage_stage_blocker_summary.v1",
+            "blocked_stage_count": 0,
+            "blocked_stage_names": [],
+            "first_blocked_stage": "",
+            "first_blocked_required_inputs": [],
+            "first_blocked_recommended_request_target": "",
+            "blocked_stage_details": [],
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+            "execution_boundary": (
+                "metadata_only_stage_blocker_summary_no_execution"
+            ),
+        },
+        "first_blocked_stage_required_inputs": [],
+        "first_blocked_stage_recommended_request_target": "",
         "stage_status_counts": {"available": 0, "unavailable": 0},
         "available_stage_names": [],
         "unavailable_stage_names": [],

@@ -1217,11 +1217,56 @@ def _coverage_stage_readiness_summary(
         unavailable_stage_names[0] if unavailable_stage_names else ""
     )
     next_stage = str(next_step_packet.get("stage", ""))
+    blocked_stage_details: list[dict[str, object]] = []
+    for stage in stages:
+        if stage.get("available"):
+            continue
+        blocked_stage_details.append(
+            {
+                "stage": str(stage.get("stage", "")),
+                "artifact": str(stage.get("artifact", "")),
+                "required_inputs": _string_list_field(stage, "required_inputs"),
+                "recommended_request_target": str(
+                    stage.get("recommended_request_target", "")
+                ),
+                "recommended_next_command": str(
+                    stage.get("recommended_next_command", "")
+                ),
+                "boundary": str(stage.get("boundary", "")),
+            }
+        )
+    first_blocked_stage = blocked_stage_details[0] if blocked_stage_details else {}
+    stage_blocker_summary = {
+        "schema_version": "coverage_stage_blocker_summary.v1",
+        "blocked_stage_count": len(blocked_stage_details),
+        "blocked_stage_names": [str(stage["stage"]) for stage in blocked_stage_details],
+        "first_blocked_stage": str(first_blocked_stage.get("stage", "")),
+        "first_blocked_required_inputs": list(
+            first_blocked_stage.get("required_inputs", [])
+        )
+        if isinstance(first_blocked_stage.get("required_inputs"), list)
+        else [],
+        "first_blocked_recommended_request_target": str(
+            first_blocked_stage.get("recommended_request_target", "")
+        ),
+        "blocked_stage_details": blocked_stage_details,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "execution_boundary": "metadata_only_stage_blocker_summary_no_execution",
+    }
     return {
         "schema_version": "coverage_stage_readiness_summary.v1",
         "stage_count": len(stages),
         "completed_stage_count": len(available_stage_names),
         "blocked_stage_count": len(unavailable_stage_names),
+        "stage_blocker_summary": stage_blocker_summary,
+        "first_blocked_stage_required_inputs": list(
+            stage_blocker_summary["first_blocked_required_inputs"]
+        ),
+        "first_blocked_stage_recommended_request_target": str(
+            stage_blocker_summary["first_blocked_recommended_request_target"]
+        ),
         "stage_status_counts": {
             "available": len(available_stage_names),
             "unavailable": len(unavailable_stage_names),
