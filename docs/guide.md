@@ -210,7 +210,10 @@ provider notes, or sequence contents. It also includes the next offline
 `provider_request_readiness_packet` for AI/operator controllers. Ready packets
 include `provider_route_groups` and a metadata-only `recommended_command_plan`
 so controllers can see the compact `recommended_request_target`, rendered argv,
-and preflight blocker IDs before asking for write allowance. With `--write`, it publishes only
+and preflight blocker IDs before asking for write allowance. Ready stdout uses
+the explicit `--input` path, and includes `--base-dir` in the recommended
+request when supplied; blocked stdout leaves the recommended request empty.
+With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated
 directory. Passing validation only means the rows are ready for

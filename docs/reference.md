@@ -1749,7 +1749,11 @@ status, blocker codes, route metadata, and boolean local evidence checks. They
 do not echo local FASTA paths, hashes, provider notes, curator values, or
 sequence contents. The JSON and summary also include `required_inputs` plus a
 structured `recommended_request` for the next offline
-`provider-request external-genomes-handoff` step. They also include
+`provider-request external-genomes-handoff` step, its compact
+`recommended_request_target`, and a renderable `recommended_next_command`.
+Library summaries keep a generic `<provider_request.tsv>` template; CLI stdout
+and write summaries use the explicit `--input` path and preserve `--base-dir`
+in the recommended request when supplied. They also include
 `provider_request_readiness_packet`, a compact AI/operator handoff object with
 `stage=validate`, status/count fields, audit-only boundary flags, and
 `next_stage=provider_request_external_genomes_handoff` only when every row is

@@ -42,6 +42,7 @@ from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_VALIDATION_DIAGNOSTIC_FIELDS,
     PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES,
     PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST,
+    PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST_TARGET,
     PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
     PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS,
     PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
@@ -445,6 +446,12 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
         _emit(_validate_failure("internal_error"), output)
         return 1
     payload = _validate_payload(validation)
+    _apply_validation_recommendation(
+        payload,
+        validation_valid=validation.valid,
+        input_path=input_path,
+        base_dir_arg=args.base_dir,
+    )
     if args.write:
         written_payload = {
             **payload,
@@ -595,6 +602,50 @@ def _validate_payload(validation) -> dict[str, object]:
         next_stage="provider_request_external_genomes_handoff",
     )
     return payload
+
+
+def _apply_validation_recommendation(
+    payload: dict[str, object],
+    *,
+    validation_valid: bool,
+    input_path: Path,
+    base_dir_arg: str | None,
+) -> None:
+    if not validation_valid:
+        payload["recommended_request"] = None
+        payload["recommended_request_target"] = ""
+        payload["recommended_next_command"] = ""
+        payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+            stage="validate",
+            payload=payload,
+            next_stage="provider_request_external_genomes_handoff",
+        )
+        return
+    request: dict[str, object] = {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": str(input_path),
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
+    next_command = (
+        "typetreeflow provider-request external-genomes-handoff "
+        f"--input {input_path}"
+    )
+    if base_dir_arg:
+        request["base_dir"] = base_dir_arg
+        next_command += f" --base-dir {base_dir_arg}"
+    next_command += (
+        " --write --outdir <isolated-provider-request-external-genomes-directory>"
+    )
+    payload["recommended_request"] = request
+    payload["recommended_request_target"] = recommended_request_target(request)
+    payload["recommended_next_command"] = next_command
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="validate",
+        payload=payload,
+        next_stage="provider_request_external_genomes_handoff",
+    )
 
 
 def _external_genomes_payload(draft) -> dict[str, object]:
@@ -1031,6 +1082,9 @@ def _external_genomes_handoff_failure(code: str) -> dict[str, object]:
         "external_genomes_registration_applied": False,
         "required_inputs": list(PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS),
         "recommended_request": dict(PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST),
+        "recommended_request_target": (
+            PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST_TARGET
+        ),
         "recommended_next_command": PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
         "install_plan_recommended_request": None,
         "output_paths": {
@@ -1078,6 +1132,9 @@ def _validate_failure(code: str) -> dict[str, object]:
         "strict_scientific_deliverable": False,
         "required_inputs": list(PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS),
         "recommended_request": dict(PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST),
+        "recommended_request_target": (
+            PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST_TARGET
+        ),
         "recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
         ),

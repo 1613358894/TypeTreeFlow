@@ -118,6 +118,15 @@ def test_provider_request_ready_when_local_fasta_and_curator_fields_match(
         "write": True,
         "outdir": "<isolated-provider-request-external-genomes-directory>",
     }
+    assert (
+        result.summary["recommended_request_target"]
+        == "provider-request external-genomes-handoff"
+    )
+    assert result.summary["recommended_next_command"] == (
+        "typetreeflow provider-request external-genomes-handoff --input "
+        "<provider_request.tsv> --write --outdir "
+        "<isolated-provider-request-external-genomes-directory>"
+    )
 
 
 def test_provider_request_blocks_incomplete_curator_handoff(tmp_path):

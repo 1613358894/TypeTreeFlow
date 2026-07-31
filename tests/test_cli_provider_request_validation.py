@@ -103,10 +103,19 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert payload["recommended_request"] == {
         "command": "provider-request",
         "subcommand": "external-genomes-handoff",
-        "input": "provider_request.tsv",
+        "input": str(request),
         "write": True,
         "outdir": "<isolated-provider-request-external-genomes-directory>",
     }
+    assert (
+        payload["recommended_request_target"]
+        == "provider-request external-genomes-handoff"
+    )
+    assert payload["recommended_next_command"] == (
+        "typetreeflow provider-request external-genomes-handoff "
+        f"--input {request} --write --outdir "
+        "<isolated-provider-request-external-genomes-directory>"
+    )
     packet = payload["provider_request_readiness_packet"]
     assert packet == {
         "schema_version": "provider_request_readiness_packet.v1",
@@ -123,15 +132,16 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
         "recommended_request": {
             "command": "provider-request",
             "subcommand": "external-genomes-handoff",
-            "input": "provider_request.tsv",
+            "input": str(request),
             "write": True,
             "outdir": "<isolated-provider-request-external-genomes-directory>",
         },
         "recommended_request_target": "provider-request external-genomes-handoff",
         "recommended_command_plan": packet["recommended_command_plan"],
         "recommended_next_command": (
-            "review ready rows before copying accepted local FASTA evidence into "
-            "external_genomes.tsv for --register-external-genomes"
+            "typetreeflow provider-request external-genomes-handoff "
+            f"--input {request} --write --outdir "
+            "<isolated-provider-request-external-genomes-directory>"
         ),
         "install_plan_recommended_request": None,
         "install_plan_recommended_request_target": "",
@@ -166,7 +176,7 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
         "provider-request",
         "external-genomes-handoff",
         "--input",
-        "provider_request.tsv",
+        str(request),
         "--write",
         "--outdir",
         "<isolated-provider-request-external-genomes-directory>",
@@ -227,7 +237,22 @@ def test_provider_request_validate_write_outputs_audit_pair(tmp_path, capsys):
         "planning_handoff_no_provider_contact": 1
     }
     assert summary["required_inputs"] == ["provider_request.tsv"]
-    assert summary["recommended_request"]["subcommand"] == "external-genomes-handoff"
+    assert summary["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": str(request),
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
+    assert (
+        summary["recommended_request_target"]
+        == "provider-request external-genomes-handoff"
+    )
+    assert summary["recommended_next_command"] == (
+        "typetreeflow provider-request external-genomes-handoff "
+        f"--input {request} --write --outdir "
+        "<isolated-provider-request-external-genomes-directory>"
+    )
     assert diagnostics == (
         "schema_version\tcomponent\tseverity\tdiagnostic_code\tcount\n"
     )
@@ -256,6 +281,9 @@ def test_provider_request_validate_blocked_returns_two(tmp_path, capsys):
     packet = payload["provider_request_readiness_packet"]
     assert packet["status"] == "blocked"
     assert packet["next_stage"] == ""
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
     assert packet["recommended_request"] is None
     assert packet["recommended_request_target"] == ""
     assert packet["recommended_command_plan"] is None
@@ -431,3 +459,16 @@ def test_provider_request_validate_relative_paths_can_use_base_dir(
     payload = json.loads(capsys.readouterr().out)
     assert result == 0
     assert payload["status"] == "pass"
+    assert payload["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": str(request),
+        "base_dir": str(base),
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
+    assert payload["recommended_next_command"] == (
+        "typetreeflow provider-request external-genomes-handoff "
+        f"--input {request} --base-dir {base} --write --outdir "
+        "<isolated-provider-request-external-genomes-directory>"
+    )

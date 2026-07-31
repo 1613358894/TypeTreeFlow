@@ -624,6 +624,8 @@ _PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS: list[str] = [
     "local_sha256_matched_count",
     "required_inputs",
     "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
 ]
 _PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS: list[str] = [
     "record_count",
