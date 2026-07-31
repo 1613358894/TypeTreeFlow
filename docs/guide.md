@@ -44,11 +44,12 @@ typetreeflow providers catalog
 ```
 
 The catalog command emits the stable command surface for AI operators. The
-catalog entries also list stable `output_contracts` for AI/operator packet
-fields such as readiness and operator-chain handoff packets. The recognize,
-render, plan, and preflight commands echo the recognized target command's
-`output_contracts` in their own JSON envelope so an AI operator can route the
-expected handoff packet without a second catalog lookup.
+catalog entries also list stable `output_contracts`, `output_contract_names`,
+and `output_contract_count` for AI/operator packet fields such as readiness and
+operator-chain handoff packets. The recognize, render, plan, and preflight
+commands echo the recognized target command's output-contract metadata in their
+own JSON envelope so an AI operator can route the expected handoff packet
+without a second catalog lookup or full contract scan.
 
 The recognize command emits one compact JSON object describing a proposed argv
 shape, including recognized command, mode, write-output declaration, and outdir
@@ -289,8 +290,9 @@ action group without treating the preview as a replacement for the source TSVs.
 It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` so an AI/operator can see the current local
-input requirement, rendered argv, preflight decision, output contracts, and
-review-only recipe without executing the target command. The recipe repeats the
+input requirement, rendered argv, preflight decision, output contracts and their
+name/count summaries, and review-only recipe without executing the target
+command. The recipe repeats the
 same `review_input_packet` as the selected task packet, so it can be handed to a
 controller as a complete no-execution operator checklist. Command metadata also
 declares these coverage-pipeline stdout contracts, including queue resume and
@@ -323,8 +325,9 @@ selects `current_coverage_action_queue_item`,
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` metadata, and the matching
 `coverage_queue_resume_packet` repeats the selected item ID, digest guard,
-target argv, output contracts, `review_input_packet`, and no-execution boundary
-in one compact object. It does not change the bounded preview prefix, execute
+target argv, output contracts, output-contract name/count summaries,
+`review_input_packet`, and no-execution boundary in one compact object. It does
+not change the bounded preview prefix, execute
 the target command, or authorize provider access/downloads.
 Controllers that persist `queue_snapshot_sha256` can pass
 `--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a

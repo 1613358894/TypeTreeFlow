@@ -695,7 +695,7 @@ environment files, contact providers, run downloads, or invoke external tools.
 `commands catalog` returns `catalog`, a static list of command entries with
 `command`, `subcommand`, `mode`, `argv_pattern`, `json_stdout`,
 `write_behavior`, `requires_outdir`, `boundary`, `parameters`, and
-`output_contracts`.
+`output_contracts`, `output_contract_names`, and `output_contract_count`.
 Each `parameters` item has `name`, `kind`, `required`, `repeatable`, and
 `purpose` fields so AI operators can construct candidate argv lists before
 passing them through `commands preflight`. Each `output_contracts` item names a
@@ -705,9 +705,10 @@ that include AI/operator handoff packets, such as
 `operator_chain_readiness_packets`.
 `commands recognize`, `commands render`, `commands plan`, and
 `commands preflight` also echo the recognized target command's
-`output_contracts` at the top level; unknown or invalid target commands return
-an empty list. This is metadata only and does not authorize writes, workflow
-mutation, network access, downloads, or external tools.
+`output_contracts`, `output_contract_names`, and `output_contract_count` at the
+top level; unknown or invalid target commands return an empty contract list and
+zero count. The summary fields are metadata only and do not authorize writes,
+workflow mutation, network access, downloads, or external tools.
 The same JSON envelope also includes `early_dispatch_order`, the ordered list
 of isolated top-level commands that `typetreeflow.cli.main` checks before
 loading the full workflow parser. This is metadata only; it does not make the
