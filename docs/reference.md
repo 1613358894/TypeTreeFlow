@@ -2525,12 +2525,17 @@ providers, install FASTA, or mark strict completion.
 The validate payload also includes `external_genomes_readiness_packet`. When
 every row is valid, that packet reports `status=ready_for_next_stage`,
 `next_stage=external_genomes_install_plan`, and a structured request for
-`external-genomes install-plan`; otherwise it reports the blocked count and does
-not emit a next request. The packet also carries `provider_route_groups` when
-controlled route metadata is present. The packet is metadata only and always keeps
-`safe_for_unattended_execution=false`. Ready packets include
+`external-genomes install-plan` using the explicit `--input` path supplied to
+validation; otherwise it reports the blocked count and does not emit a next
+request, target label, or command. The packet also carries `provider_route_groups`
+when controlled route metadata is present. The packet is metadata only and
+always keeps `safe_for_unattended_execution=false`. Ready packets include
+`recommended_request_target`, `recommended_next_command`, and
 `recommended_command_plan`, a no-dispatch companion that renders and preflights
-the next structured request for AI/operator routing.
+the next structured request for AI/operator routing. The top-level validate
+payload mirrors the same concrete `required_inputs`, `recommended_request`,
+`recommended_request_target`, and `recommended_next_command` fields for
+controllers that do not inspect nested packets.
 `external-genomes install-plan --input <external_genomes.tsv> --target-outdir
 <run>` is the AI/operator handoff between validation and workflow
 registration. It validates the same explicit TSV and referenced local FASTA
@@ -2546,8 +2551,10 @@ structured `recommended_request` for a later dry-run
 `register-external-genomes` command. The recommended request uses the explicit
 `--input` path supplied to `external-genomes install-plan`, so AI/operator
 controllers can render the registration dry-run without reconstructing the TSV
-path from earlier handoffs. It carries the same controlled route count fields
-and packet-readiness count fields when present. Its
+path from earlier handoffs. The payload also includes
+`recommended_request_target` and `recommended_next_command` for that later dry
+run. It carries the same controlled route count fields and packet-readiness
+count fields when present. Its
 `external_genomes_readiness_packet` reports
 `next_stage=external_genomes_registration_dry_run` only when all install-plan
 rows are planned; otherwise it remains blocked and omits the next request.
