@@ -393,6 +393,20 @@ def run_coverage_pipeline_command(
                             registration_results,
                             install_plan,
                             records=external_genomes.records,
+                            external_genomes_input=(
+                                outdir
+                                / "provider_request_external_genomes"
+                                / PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[
+                                    "external_genomes"
+                                ]
+                            )
+                            if args.write and outdir is not None
+                            else (
+                                Path("provider_request_external_genomes")
+                                / PROVIDER_REQUEST_EXTERNAL_GENOMES_OUTPUT_NAMES[
+                                    "external_genomes"
+                                ]
+                            ),
                             target_outdir=Path(
                                 args.external_genomes_install_target_outdir
                             ),
@@ -830,6 +844,7 @@ def _run_status(
         ),
         diagnostics=diagnostics,
     )
+    _apply_registration_dry_run_recommended_request_from_install_plan(stages)
     next_stage = _next_unavailable_stage(stages)
     available_stage_names = [
         str(stage.get("stage", "")) for stage in stages if stage.get("available")
@@ -2184,6 +2199,35 @@ def _find_stage(
     return None
 
 
+def _apply_registration_dry_run_recommended_request_from_install_plan(
+    stages: list[dict[str, object]],
+) -> None:
+    install_stage = _find_stage(stages, "external_genomes_install_plan")
+    registration_stage = _find_stage(
+        stages,
+        "external_genomes_registration_dry_run",
+    )
+    if install_stage is None or registration_stage is None:
+        return
+    packet = install_stage.get("summary_external_genomes_readiness_packet")
+    if not isinstance(packet, Mapping):
+        packet = install_stage.get("external_genomes_readiness_packet")
+    if not isinstance(packet, Mapping):
+        return
+    if packet.get("status") != "ready_for_next_stage":
+        return
+    recommended_request = packet.get("recommended_request")
+    if not isinstance(recommended_request, Mapping):
+        return
+    registration_stage["recommended_request"] = dict(recommended_request)
+    registration_stage["recommended_request_target"] = (
+        _coverage_recommended_request_target(recommended_request)
+    )
+    registration_stage["recommended_next_command"] = str(
+        packet.get("recommended_next_command", "")
+    )
+
+
 def _with_operator_metadata(stage: dict[str, object]) -> dict[str, object]:
     if isinstance(stage.get("required_inputs"), list):
         required_inputs = stage["required_inputs"]
@@ -2514,6 +2558,32 @@ def _payload(
             "install_planned_count",
         ),
     )
+    provider_request_validation_readiness_packet = _payload_map(
+        provider_request_validation,
+        "provider_request_readiness_packet",
+    )
+    provider_request_external_genomes_readiness_packet = _payload_map(
+        provider_request_external_genomes,
+        "provider_request_readiness_packet",
+    )
+    external_genomes_install_plan_readiness_packet = _payload_map(
+        external_genomes_install_plan,
+        "external_genomes_readiness_packet",
+    )
+    install_plan_stage = _find_stage(
+        operator_chain_stages,
+        "external_genomes_install_plan",
+    )
+    if (
+        install_plan_stage is not None
+        and external_genomes_install_plan_readiness_packet
+    ):
+        install_plan_stage["external_genomes_readiness_packet"] = dict(
+            external_genomes_install_plan_readiness_packet
+        )
+    _apply_registration_dry_run_recommended_request_from_install_plan(
+        operator_chain_stages
+    )
     operator_chain_snapshot_sha256 = _operator_chain_snapshot_sha256(
         operator_chain_stages
     )
@@ -2545,18 +2615,6 @@ def _payload(
             {"available": False, "recommended_request": None},
             request_source="selected_operator_chain_stage.recommended_request",
         )
-    )
-    provider_request_validation_readiness_packet = _payload_map(
-        provider_request_validation,
-        "provider_request_readiness_packet",
-    )
-    provider_request_external_genomes_readiness_packet = _payload_map(
-        provider_request_external_genomes,
-        "provider_request_readiness_packet",
-    )
-    external_genomes_install_plan_readiness_packet = _payload_map(
-        external_genomes_install_plan,
-        "external_genomes_readiness_packet",
     )
     operator_chain_readiness_packets = {
         key: value
@@ -3008,23 +3066,33 @@ def _payload(
             external_genomes_install_plan_readiness_packet
         ),
         "external_genomes_registration_dry_run_recommended_request": (
-            _stage_recommended_request("external_genomes_registration_dry_run")
+            _coverage_stage_recommended_request_from_chain(
+                operator_chain_stages,
+                "external_genomes_registration_dry_run",
+            )
         ),
         "external_genomes_registration_dry_run_recommended_request_target": (
             _coverage_recommended_request_target(
-                _stage_recommended_request("external_genomes_registration_dry_run")
+                _coverage_stage_recommended_request_from_chain(
+                    operator_chain_stages,
+                    "external_genomes_registration_dry_run",
+                )
             )
         ),
         "external_genomes_registration_dry_run_recommended_command_plan": (
-            _coverage_stage_command_plan(
-                "external_genomes_registration_dry_run",
+            _coverage_command_plan_for_recommended_request(
+                _coverage_stage_recommended_request_from_chain(
+                    operator_chain_stages,
+                    "external_genomes_registration_dry_run",
+                ),
                 "external_genomes_registration_dry_run_recommended_request",
             )
         ),
         "external_genomes_registration_dry_run_recommended_next_command": (
-            "typetreeflow --register-external-genomes "
-            "provider_request_external_genomes/external_genomes.tsv "
-            "--outdir <run> --dry-run"
+            _coverage_stage_recommended_next_command_from_chain(
+                operator_chain_stages,
+                "external_genomes_registration_dry_run",
+            )
         ),
         "provider_request_external_genomes_handoff_recommended_request": (
             _stage_recommended_request("provider_request_validation")
@@ -7528,6 +7596,47 @@ def _coverage_stage_command_plan(
     )
 
 
+def _coverage_command_plan_for_recommended_request(
+    recommended_request: Mapping[str, object] | None,
+    request_source: str,
+) -> dict[str, object]:
+    return _coverage_next_command_plan(
+        {
+            "available": isinstance(recommended_request, Mapping),
+            "recommended_request": (
+                dict(recommended_request)
+                if isinstance(recommended_request, Mapping)
+                else None
+            ),
+        },
+        request_source=request_source,
+    )
+
+
+def _coverage_stage_recommended_request_from_chain(
+    stages: Sequence[Mapping[str, object]],
+    stage_name: str,
+) -> dict[str, object] | None:
+    for stage in stages:
+        if stage.get("stage") != stage_name:
+            continue
+        request = stage.get("recommended_request")
+        if isinstance(request, Mapping):
+            return dict(request)
+        break
+    return _stage_recommended_request(stage_name)
+
+
+def _coverage_stage_recommended_next_command_from_chain(
+    stages: Sequence[Mapping[str, object]],
+    stage_name: str,
+) -> str:
+    for stage in stages:
+        if stage.get("stage") == stage_name:
+            return str(stage.get("recommended_next_command", ""))
+    return ""
+
+
 def _operator_chain_stage_command_plan(
     stage: Mapping[str, object],
 ) -> dict[str, object]:
@@ -9076,6 +9185,7 @@ def _external_genomes_install_plan_payload(
     install_plan,
     *,
     records,
+    external_genomes_input: Path | str,
     target_outdir: Path,
     dry_run: bool,
 ) -> dict[str, object]:
@@ -9089,6 +9199,10 @@ def _external_genomes_install_plan_payload(
     route_counts = summarize_external_genome_route_metadata(registration_results)
     packet_counts = summarize_external_genome_packet_readiness(records)
     planned_count = install_counts.get("external_genome_install_planned", 0)
+    recommended_request = _registration_dry_run_recommended_request(
+        external_genomes_input=external_genomes_input,
+        target_outdir=target_outdir,
+    )
     payload = {
         "schema_version": INSTALL_PLAN_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -9130,13 +9244,9 @@ def _external_genomes_install_plan_payload(
         "strict_scientific_deliverable": False,
         "target_outdir_mutated": False,
         "output_paths": {key: None for key in INSTALL_PLAN_OUTPUT_NAMES},
-        "recommended_request": _stage_recommended_request(
-            "external_genomes_registration_dry_run"
-        ),
-        "recommended_next_command": (
-            "typetreeflow --register-external-genomes "
-            "provider_request_external_genomes/external_genomes.tsv "
-            "--outdir <run> --dry-run"
+        "recommended_request": recommended_request,
+        "recommended_next_command": _registration_dry_run_recommended_next_command(
+            recommended_request
         ),
         "expected_registration_result_fields": tuple(
             EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS
@@ -9162,6 +9272,29 @@ def _external_genomes_install_plan_payload(
         next_stage="external_genomes_registration_dry_run",
     )
     return payload
+
+
+def _registration_dry_run_recommended_request(
+    *,
+    external_genomes_input: Path | str,
+    target_outdir: Path | str,
+) -> dict[str, object]:
+    return {
+        "command": "register-external-genomes",
+        "external_genomes": str(external_genomes_input),
+        "outdir": str(target_outdir),
+        "dry_run": True,
+    }
+
+
+def _registration_dry_run_recommended_next_command(
+    request: Mapping[str, object],
+) -> str:
+    return (
+        "typetreeflow --register-external-genomes "
+        f"{request.get('external_genomes', '')} "
+        f"--outdir {request.get('outdir', '')} --dry-run"
+    )
 
 
 def _rows_tsv(fields: Sequence[str], rows) -> str:

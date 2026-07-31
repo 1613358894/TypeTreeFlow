@@ -5730,12 +5730,28 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         "provider_request_external_genomes",
         "external_genomes_install_plan",
     }
-    assert payload["external_genomes_registration_dry_run_recommended_request"] == {
+    expected_registration_request = {
         "command": "register-external-genomes",
-        "external_genomes": "provider_request_external_genomes/external_genomes.tsv",
-        "outdir": "<run>",
+        "external_genomes": str(
+            outdir / "provider_request_external_genomes" / "external_genomes.tsv"
+        ),
+        "outdir": str(install_target),
         "dry_run": True,
     }
+    expected_registration_next_command = (
+        "typetreeflow --register-external-genomes "
+        f"{expected_registration_request['external_genomes']} "
+        f"--outdir {expected_registration_request['outdir']} --dry-run"
+    )
+    assert payload["external_genomes_registration_dry_run_recommended_request"] == (
+        expected_registration_request
+    )
+    assert payload[
+        "external_genomes_registration_dry_run_recommended_next_command"
+    ] == expected_registration_next_command
+    assert payload["external_genomes_install_plan_readiness_packet"][
+        "recommended_request"
+    ] == expected_registration_request
     assert payload["operator_chain_stages"][4]["available"] is True
     assert payload["operator_chain_stages"][5]["available"] is True
     assert payload["operator_chain_stages"][6]["available"] is True
@@ -5764,16 +5780,11 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert install_rows[0]["status"] == "external_genome_install_planned"
     assert install_rows[0]["installed_genome_path"].startswith(str(install_target))
     install_summary_payload = json.loads(install_summary.read_text())
-    assert install_summary_payload["recommended_request"] == {
-        "command": "register-external-genomes",
-        "external_genomes": "provider_request_external_genomes/external_genomes.tsv",
-        "outdir": "<run>",
-        "dry_run": True,
-    }
+    assert install_summary_payload["recommended_request"] == (
+        expected_registration_request
+    )
     assert install_summary_payload["recommended_next_command"] == (
-        "typetreeflow --register-external-genomes "
-        "provider_request_external_genomes/external_genomes.tsv "
-        "--outdir <run> --dry-run"
+        expected_registration_next_command
     )
     assert not install_target.exists()
     assert str(fasta) not in captured.out
@@ -5792,12 +5803,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     ] == "external_genomes_registration_dry_run"
     assert pipeline_summary[
         "external_genomes_registration_dry_run_recommended_request"
-    ] == {
-        "command": "register-external-genomes",
-        "external_genomes": "provider_request_external_genomes/external_genomes.tsv",
-        "outdir": "<run>",
-        "dry_run": True,
-    }
+    ] == expected_registration_request
     assert pipeline_summary["operator_chain_stages"][6]["record_count"] == 1
 
     code, status_payload, _ = _run(
@@ -5867,6 +5873,19 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert status_payload["operator_chain_stages"][6][
         "summary_external_genomes_readiness_packet"
     ]["recommended_request_target"] == "register-external-genomes"
+    assert status_payload["operator_chain_stages"][6][
+        "summary_external_genomes_readiness_packet"
+    ]["recommended_request"] == expected_registration_request
+    assert status_payload["operator_chain_stages"][7]["recommended_request"] == (
+        expected_registration_request
+    )
+    assert status_payload["operator_chain_stages"][7][
+        "recommended_next_command"
+    ] == expected_registration_next_command
+    assert status_payload["recommended_request"] == expected_registration_request
+    assert status_payload["recommended_next_command"] == (
+        expected_registration_next_command
+    )
     assert status_payload["operator_chain_stages"][6][
         "summary_external_genomes_readiness_packet"
     ]["provider_route_groups"][0]["provider_key_counts"] == {"dsmz": 1}

@@ -1355,6 +1355,9 @@ metadata-only handoff that says whether the packet is ready for the next local
 stage and, when ready, carries the structured next request, compact
 `recommended_request_target`, and renderable `recommended_next_command`.
 `validate` uses the explicit `--input` path in its install-plan recommendation;
+`install-plan` uses the reviewed external-genomes TSV path and target workflow
+outdir in its registration dry-run recommendation, so AI operators do not need
+to reconstruct those values from placeholders.
 blocked packets leave those next-step fields empty. Successful validate payloads
 also expose an `install_plan_recommended_command_plan` for the optional
 `external-genomes install-plan --write --outdir <isolated-directory>` audit
