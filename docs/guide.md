@@ -262,7 +262,9 @@ readiness guards. The bundle directory can be supplied later with
 `--coverage-pipeline-dir`, or its two child directories can be supplied
 explicitly. The compact handoff payload retains validation route counts for
 AI/operator routing continuity and includes a readiness packet for the next
-explicit `external-genomes validate` step when the bundle is complete. This remains an isolated handoff convenience
+explicit `external-genomes validate` step when the bundle is complete. Complete
+payloads include compact `recommended_request_target` labels; blocked payloads
+leave top-level recommended request fields empty. This remains an isolated handoff convenience
 only: no workflow outputs, provider contact, downloads, FASTA copying,
 external-genome registration, manifest mutation, completion credit, or strict
 deliverable promotion.

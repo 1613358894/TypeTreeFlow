@@ -1853,7 +1853,9 @@ can keep the provider-request route visible through the bundled handoff step.
 When `--write` succeeds and the draft directory is created, the returned
 recommended validation and install-plan requests point to
 `<dir>/provider_request_external_genomes/external_genomes.tsv`, the concrete
-child artifact in the isolated handoff bundle. The payload also includes
+child artifact in the isolated handoff bundle, and the top-level payload exposes
+their compact `recommended_request_target` labels. Blocked handoff payloads
+leave top-level recommended request fields empty. The payload also includes
 `provider_request_readiness_packet` with `stage=external_genomes_handoff`; it
 uses the same audit-only boundary fields and sets
 `next_stage=external_genomes_validate` only when both validation and draft
