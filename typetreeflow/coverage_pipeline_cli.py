@@ -356,6 +356,9 @@ def run_coverage_pipeline_command(
         queue_preview_limit=queue_preview_limit,
         queue_item_id=args.queue_item_id,
         expected_queue_snapshot_sha256=args.expected_queue_snapshot_sha256,
+        expected_operator_chain_snapshot_sha256=(
+            args.expected_operator_chain_snapshot_sha256
+        ),
     )
     if args.write and not diagnostics:
         try:
@@ -478,6 +481,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     preview.add_argument("--queue-item-id")
     preview.add_argument("--expected-queue-snapshot-sha256")
+    preview.add_argument("--expected-operator-chain-snapshot-sha256")
     preview.add_argument("--json", action="store_true")
     preview.set_defaults(
         write=False,
@@ -506,6 +510,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     build.add_argument("--queue-item-id")
     build.add_argument("--expected-queue-snapshot-sha256")
+    build.add_argument("--expected-operator-chain-snapshot-sha256")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -523,6 +528,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     status.add_argument("--queue-item-id")
     status.add_argument("--expected-queue-snapshot-sha256")
+    status.add_argument("--expected-operator-chain-snapshot-sha256")
     status.add_argument("--require-complete", action="store_true")
     status.add_argument("--json", action="store_true")
     return parser
@@ -749,6 +755,15 @@ def _run_status(
         if isinstance(raw_recommended_request, Mapping):
             next_recommended_request = dict(raw_recommended_request)
     operator_chain_snapshot_sha256 = _operator_chain_snapshot_sha256(stages)
+    operator_chain_snapshot_matches = _validate_expected_operator_chain_snapshot(
+        current_sha256=operator_chain_snapshot_sha256,
+        expected_sha256=getattr(
+            args,
+            "expected_operator_chain_snapshot_sha256",
+            None,
+        ),
+        diagnostics=diagnostics,
+    )
     operator_chain_next_step_packet = _operator_chain_next_step_packet(
         next_stage,
         operator_chain_snapshot_sha256=operator_chain_snapshot_sha256,
@@ -819,6 +834,12 @@ def _run_status(
             else ""
         ),
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
+        "expected_operator_chain_snapshot_sha256": str(
+            getattr(args, "expected_operator_chain_snapshot_sha256", "") or ""
+        ),
+        "operator_chain_snapshot_matches_expected": (
+            operator_chain_snapshot_matches
+        ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -1405,6 +1426,7 @@ def _payload(
     queue_preview_limit: int,
     queue_item_id: str | None,
     expected_queue_snapshot_sha256: str | None,
+    expected_operator_chain_snapshot_sha256: str | None,
 ) -> dict[str, object]:
     worklist_summary = worklist.summary
     coverage_summary = coverage_plan.summary
@@ -1430,6 +1452,11 @@ def _payload(
     )
     operator_chain_snapshot_sha256 = _operator_chain_snapshot_sha256(
         operator_chain_stages
+    )
+    operator_chain_snapshot_matches = _validate_expected_operator_chain_snapshot(
+        current_sha256=operator_chain_snapshot_sha256,
+        expected_sha256=expected_operator_chain_snapshot_sha256,
+        diagnostics=diagnostics,
     )
     operator_chain_next_step_packet = _operator_chain_next_step_packet(
         _next_unavailable_stage(operator_chain_stages),
@@ -1672,6 +1699,12 @@ def _payload(
         ),
         "operator_chain_stages": operator_chain_stages,
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
+        "expected_operator_chain_snapshot_sha256": str(
+            expected_operator_chain_snapshot_sha256 or ""
+        ),
+        "operator_chain_snapshot_matches_expected": (
+            operator_chain_snapshot_matches
+        ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -2552,14 +2585,46 @@ def _validate_expected_queue_snapshot(
     expected_sha256: str | None,
     diagnostics: list[dict[str, object]],
 ) -> bool:
+    return _validate_expected_snapshot(
+        current_sha256=current_sha256,
+        expected_sha256=expected_sha256,
+        diagnostics=diagnostics,
+        component="coverage_action_queue",
+        diagnostic_code="queue_snapshot_mismatch",
+    )
+
+
+def _validate_expected_operator_chain_snapshot(
+    *,
+    current_sha256: str,
+    expected_sha256: str | None,
+    diagnostics: list[dict[str, object]],
+) -> bool:
+    return _validate_expected_snapshot(
+        current_sha256=current_sha256,
+        expected_sha256=expected_sha256,
+        diagnostics=diagnostics,
+        component="operator_chain",
+        diagnostic_code="operator_chain_snapshot_mismatch",
+    )
+
+
+def _validate_expected_snapshot(
+    *,
+    current_sha256: str,
+    expected_sha256: str | None,
+    diagnostics: list[dict[str, object]],
+    component: str,
+    diagnostic_code: str,
+) -> bool:
     expected = str(expected_sha256 or "").strip().lower()
     if not expected:
         return True
     if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
-        diagnostics.append(_diagnostic("coverage_action_queue", "queue_snapshot_mismatch"))
+        diagnostics.append(_diagnostic(component, diagnostic_code))
         return False
     if expected != current_sha256:
-        diagnostics.append(_diagnostic("coverage_action_queue", "queue_snapshot_mismatch"))
+        diagnostics.append(_diagnostic(component, diagnostic_code))
         return False
     return True
 
@@ -2757,6 +2822,8 @@ def _failure(code: str, message: str) -> dict[str, object]:
         ),
         "operator_chain_stages": [],
         "operator_chain_snapshot_sha256": empty_operator_chain_snapshot_sha256,
+        "expected_operator_chain_snapshot_sha256": "",
+        "operator_chain_snapshot_matches_expected": True,
         "operator_chain_next_step_packet": _empty_operator_chain_next_step_packet(
             operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
         ),
@@ -2820,6 +2887,8 @@ def _rendered_outputs(
             "coverage_next_command_plan",
             "coverage_next_operator_recipe",
             "operator_chain_snapshot_sha256",
+            "expected_operator_chain_snapshot_sha256",
+            "operator_chain_snapshot_matches_expected",
             "operator_chain_next_step_packet",
             "coverage_operator_queue_preview",
             "current_coverage_action_queue_item",
