@@ -2077,6 +2077,12 @@ includes local packet-readiness maps: `external_source_counts`,
 `manual_review_flag_counts`. These compact counts describe the supplied
 `external_genomes.tsv` packet and do not validate provider terms, query
 providers, install FASTA, or mark strict completion.
+The validate payload also includes `external_genomes_readiness_packet`. When
+every row is valid, that packet reports `status=ready_for_next_stage`,
+`next_stage=external_genomes_install_plan`, and a structured request for
+`external-genomes install-plan`; otherwise it reports the blocked count and does
+not emit a next request. The packet is metadata only and always keeps
+`safe_for_unattended_execution=false`.
 `external-genomes install-plan --input <external_genomes.tsv> --target-outdir
 <run>` is the AI/operator handoff between validation and workflow
 registration. It validates the same explicit TSV and referenced local FASTA
@@ -2093,9 +2099,12 @@ structured `recommended_request` for a later dry-run
 `--input` path supplied to `external-genomes install-plan`, so AI/operator
 controllers can render the registration dry-run without reconstructing the TSV
 path from earlier handoffs. It carries the same controlled route count fields
-and packet-readiness count fields when present. Valid plans exit `0`; schema, input, checksum,
-missing-file, or manual-review diagnostics exit `2`; output-path or write
-failures exit `1`.
+and packet-readiness count fields when present. Its
+`external_genomes_readiness_packet` reports
+`next_stage=external_genomes_registration_dry_run` only when all install-plan
+rows are planned; otherwise it remains blocked and omits the next request. Valid
+plans exit `0`; schema, input, checksum, missing-file, or manual-review
+diagnostics exit `2`; output-path or write failures exit `1`.
 `--register-external-genomes <external_genomes.tsv>` emits one compact JSON
 object on stdout. The payload reports registration-result, valid/invalid,
 install-plan, install-result, and manifest record counts plus the stable
