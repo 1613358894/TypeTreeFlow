@@ -14,6 +14,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
+from typetreeflow.commands_cli import plan_command_request
 from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_FIELDS,
     ACQUISITION_WORKLIST_SCHEMA_VERSION,
@@ -697,6 +698,12 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         raw_recommended_request = next_stage.get("recommended_request")
         if isinstance(raw_recommended_request, Mapping):
             next_recommended_request = dict(raw_recommended_request)
+    coverage_next_task_packet = _optional_summary_map(
+        coverage_summary, "coverage_next_task_packet"
+    )
+    coverage_next_command_plan = _coverage_next_command_plan(
+        coverage_next_task_packet
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -728,9 +735,8 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         "coverage_priority_summary": _optional_summary_map(
             coverage_summary, "coverage_priority_summary"
         ),
-        "coverage_next_task_packet": _optional_summary_map(
-            coverage_summary, "coverage_next_task_packet"
-        ),
+        "coverage_next_task_packet": coverage_next_task_packet,
+        "coverage_next_command_plan": coverage_next_command_plan,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -1200,6 +1206,7 @@ def _payload(
     )
     coverage_priority_summary = _coverage_priority_summary(coverage_action_queue)
     coverage_next_task_packet = _coverage_next_task_packet(coverage_action_queue)
+    coverage_next_command_plan = _coverage_next_command_plan(coverage_next_task_packet)
     current_coverage_action_queue_item = (
         dict(coverage_action_queue[0]) if coverage_action_queue else {}
     )
@@ -1251,6 +1258,7 @@ def _payload(
         "coverage_action_queue": coverage_action_queue,
         "coverage_priority_summary": coverage_priority_summary,
         "coverage_next_task_packet": coverage_next_task_packet,
+        "coverage_next_command_plan": coverage_next_command_plan,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "primary_next_action_group": primary_next_action_group,
@@ -1918,6 +1926,100 @@ def _coverage_next_task_packet(
     }
 
 
+def _coverage_next_command_plan(
+    packet: Mapping[str, object],
+) -> dict[str, object]:
+    raw_request = packet.get("recommended_request")
+    if not packet.get("available") or not isinstance(raw_request, Mapping):
+        return {
+            "schema_version": "coverage_next_command_plan.v1",
+            "available": False,
+            "status": "no_action",
+            "decision": "none",
+            "request_source": "coverage_next_task_packet.recommended_request",
+            "request_unwrapped_from": "",
+            "recommended_request": None,
+            "target_argv": [],
+            "recognized": {},
+            "preflight_decision": "none",
+            "blocking": [],
+            "warnings": [],
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_command_plan_no_dispatch_no_execution"
+            ),
+        }
+    try:
+        plan = plan_command_request(dict(packet))
+    except ValueError as error:
+        return {
+            "schema_version": "coverage_next_command_plan.v1",
+            "available": True,
+            "status": "blocked",
+            "decision": "block",
+            "request_source": "coverage_next_task_packet.recommended_request",
+            "request_unwrapped_from": "recommended_request",
+            "recommended_request": dict(raw_request),
+            "target_argv": [],
+            "recognized": {},
+            "preflight_decision": "block",
+            "blocking": [
+                {
+                    "id": "invalid_recommended_request",
+                    "message": str(error),
+                }
+            ],
+            "warnings": [],
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_command_plan_no_dispatch_no_execution"
+            ),
+        }
+    return {
+        "schema_version": "coverage_next_command_plan.v1",
+        "available": True,
+        "status": plan["status"],
+        "decision": plan["decision"],
+        "request_source": "coverage_next_task_packet.recommended_request",
+        "request_unwrapped_from": plan["request_unwrapped_from"],
+        "recommended_request": dict(raw_request),
+        "target_argv": list(plan["target_argv"]),
+        "recognized": dict(plan["recognized"]),
+        "preflight_decision": plan["preflight"]["decision"],
+        "blocking": list(plan["blocking"]),
+        "warnings": list(plan["warnings"]),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_command_plan_no_dispatch_no_execution",
+    }
+
+
 def _coverage_action_required_inputs(action_code: str) -> list[str]:
     return list(_COVERAGE_ACTION_REQUIRED_INPUTS.get(action_code, ()))
 
@@ -1961,6 +2063,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         },
         "coverage_priority_summary": _coverage_priority_summary([]),
         "coverage_next_task_packet": _coverage_next_task_packet([]),
+        "coverage_next_command_plan": _coverage_next_command_plan(
+            _coverage_next_task_packet([])
+        ),
         "current_coverage_action_queue_item": {},
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
@@ -2096,6 +2201,7 @@ def _rendered_outputs(
             "coverage_action_queue_summary",
             "coverage_priority_summary",
             "coverage_next_task_packet",
+            "coverage_next_command_plan",
             "current_coverage_action_queue_item",
             "primary_next_action_group",
             "primary_action_required_inputs",

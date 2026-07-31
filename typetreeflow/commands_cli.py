@@ -2127,6 +2127,39 @@ def _parsed_command(
     }
 
 
+def render_command_request(request: dict[str, object]) -> dict[str, object]:
+    """Render a structured command request without dispatching it."""
+
+    return _render_payload(
+        _parsed_command(action="render", target_argv=[], request=dict(request))
+    )
+
+
+def plan_command_request(
+    request: dict[str, object],
+    *,
+    allow_write: bool = False,
+    allow_workflow_outputs: bool = False,
+    allow_real_actions: bool = False,
+    allow_network: bool = False,
+    allow_external_tools: bool = False,
+) -> dict[str, object]:
+    """Render and preflight a structured command request without dispatching it."""
+
+    return _plan_payload(
+        _parsed_command(
+            action="plan",
+            target_argv=[],
+            allow_write=allow_write,
+            allow_workflow_outputs=allow_workflow_outputs,
+            allow_real_actions=allow_real_actions,
+            allow_network=allow_network,
+            allow_external_tools=allow_external_tools,
+            request=dict(request),
+        )
+    )
+
+
 def _catalog_payload() -> dict[str, object]:
     return {
         "command": COMMAND_CATALOG,
