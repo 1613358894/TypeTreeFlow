@@ -11,7 +11,10 @@ from collections import Counter
 from pathlib import Path
 from typing import Sequence, TextIO
 
-from typetreeflow.command_plan_packets import recommended_command_plan
+from typetreeflow.command_plan_packets import (
+    recommended_command_plan,
+    recommended_request_target,
+)
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
@@ -86,11 +89,27 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
         )
     except ValueError as error:
         diagnostics.append(_input_diagnostic(str(error)))
-        _emit(_validate_payload([], records=[], diagnostics=diagnostics), output)
+        _emit(
+            _validate_payload(
+                [],
+                records=[],
+                diagnostics=diagnostics,
+                input_path=input_path,
+            ),
+            output,
+        )
         return 2
     except (OSError, UnicodeError):
         diagnostics.append(_diagnostic("external_genomes_validate", "input_unreadable"))
-        _emit(_validate_payload([], records=[], diagnostics=diagnostics), output)
+        _emit(
+            _validate_payload(
+                [],
+                records=[],
+                diagnostics=diagnostics,
+                input_path=input_path,
+            ),
+            output,
+        )
         return 2
 
     results = validate_external_genome_records(records, base_dir=input_path.parent)
@@ -104,7 +123,15 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
                 )
             )
 
-    _emit(_validate_payload(results, records=records, diagnostics=diagnostics), output)
+    _emit(
+        _validate_payload(
+            results,
+            records=records,
+            diagnostics=diagnostics,
+            input_path=input_path,
+        ),
+        output,
+    )
     return 0 if not diagnostics else 2
 
 
@@ -236,17 +263,27 @@ def _validate_payload(
     *,
     records,
     diagnostics: list[dict[str, object]],
+    input_path: Path | str,
 ) -> dict[str, object]:
     status_counts = Counter(result.status for result in results)
     valid_count = sum(1 for result in results if result.valid)
     route_counts = summarize_external_genome_route_metadata(results)
     packet_counts = summarize_external_genome_packet_readiness(records)
-    recommended_request = {
-        "command": "external-genomes",
-        "subcommand": "install-plan",
-        "input": "<external_genomes.tsv>",
-        "target_outdir": "<run>",
-    }
+    input_value = _command_path(input_path, fallback="external_genomes.tsv")
+    ready_for_next_step = bool(results) and not diagnostics
+    recommended_request = None
+    recommended_next_command = ""
+    if ready_for_next_step:
+        recommended_request = {
+            "command": "external-genomes",
+            "subcommand": "install-plan",
+            "input": input_value,
+            "target_outdir": "<run>",
+        }
+        recommended_next_command = (
+            "typetreeflow external-genomes install-plan "
+            f"--input {input_value} --target-outdir <run>"
+        )
     preview = [
         {
             "species": result.species,
@@ -283,13 +320,14 @@ def _validate_payload(
             blocked_count=len(results) - valid_count,
             status_counts=dict(sorted(status_counts.items())),
             provider_route_groups=route_counts["provider_route_groups"],
-            required_inputs=["external_genomes.tsv"],
-            recommended_request=recommended_request,
-            recommended_next_command=(
-                "typetreeflow external-genomes install-plan "
-                "--input <external_genomes.tsv> --target-outdir <run>"
-            ),
+            required_inputs=[input_value],
+            recommended_request=recommended_request or {},
+            recommended_next_command=recommended_next_command,
         ),
+        "required_inputs": [input_value],
+        "recommended_request": recommended_request,
+        "recommended_request_target": recommended_request_target(recommended_request),
+        "recommended_next_command": recommended_next_command,
         "audit_only": True,
         "dry_run": True,
         "writes_outputs": False,
@@ -380,6 +418,7 @@ def _install_plan_payload(
         "target_outdir_mutated": False,
         "required_inputs": [external_genomes_input],
         "recommended_request": recommended_request,
+        "recommended_request_target": recommended_request_target(recommended_request),
         "recommended_next_command": recommended_next,
         "expected_registration_result_fields": tuple(
             EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS
@@ -433,6 +472,7 @@ def _external_genomes_readiness_packet(
         "next_stage": next_stage,
         "required_inputs": list(required_inputs),
         "recommended_request": next_request,
+        "recommended_request_target": recommended_request_target(next_request),
         "recommended_command_plan": recommended_command_plan(
             next_request,
             request_source="external_genomes_readiness_packet.recommended_request",
@@ -461,6 +501,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         [],
         records=[],
         diagnostics=[_diagnostic("external_genomes_validate_cli", code)],
+        input_path="",
     )
     payload.update(status="failed", summary=message)
     return payload

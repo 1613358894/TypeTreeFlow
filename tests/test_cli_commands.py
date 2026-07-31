@@ -133,6 +133,10 @@ EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS = [
     "checksum_input_counts",
     "type_material_counts",
     "manual_review_flag_counts",
+    "required_inputs",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
     "external_genomes_readiness_packet",
 ]
 EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS = [
@@ -144,6 +148,8 @@ EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS = [
     "install_plan_status_counts",
     "required_inputs",
     "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
 ]
 SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS = [
     "status",

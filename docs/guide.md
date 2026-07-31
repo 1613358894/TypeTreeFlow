@@ -1316,10 +1316,13 @@ checks local FASTA readiness and planned install destinations before invoking
 the workflow registration surface, while leaving the target run unmodified.
 Both `validate` and `install-plan` emit `external_genomes_readiness_packet`, a
 metadata-only handoff that says whether the packet is ready for the next local
-stage and, when ready, carries the structured next request. It also carries
-`provider_route_groups` when reviewed notes include controlled route metadata. It always keeps
-`safe_for_unattended_execution=false`; an AI/operator must still review the
-packet before invoking the next CLI command.
+stage and, when ready, carries the structured next request, compact
+`recommended_request_target`, and renderable `recommended_next_command`.
+`validate` uses the explicit `--input` path in its install-plan recommendation;
+blocked packets leave those next-step fields empty. It also carries
+`provider_route_groups` when reviewed notes include controlled route metadata.
+It always keeps `safe_for_unattended_execution=false`; an AI/operator must still
+review the packet before invoking the next CLI command.
 When provider handoff route metadata is present in reviewed row notes, validate,
 install-plan, and registration dry-run JSON summarize only controlled route
 counts and provider route groups. These fields are operator context; they do

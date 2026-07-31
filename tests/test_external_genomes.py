@@ -374,17 +374,18 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
         "status_counts": {"external_genome_registered": 1},
         "provider_route_groups": [],
         "next_stage": "external_genomes_install_plan",
-        "required_inputs": ["external_genomes.tsv"],
+        "required_inputs": [path.as_posix()],
         "recommended_request": {
             "command": "external-genomes",
             "subcommand": "install-plan",
-            "input": "<external_genomes.tsv>",
+            "input": path.as_posix(),
             "target_outdir": "<run>",
         },
+        "recommended_request_target": "external-genomes install-plan",
         "recommended_command_plan": packet["recommended_command_plan"],
         "recommended_next_command": (
             "typetreeflow external-genomes install-plan "
-            "--input <external_genomes.tsv> --target-outdir <run>"
+            f"--input {path.as_posix()} --target-outdir <run>"
         ),
         "safe_for_unattended_execution": False,
         "recommended_execution_mode": "operator_review_required",
@@ -410,7 +411,7 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
         "external-genomes",
         "install-plan",
         "--input",
-        "<external_genomes.tsv>",
+        path.as_posix(),
         "--target-outdir",
         "<run>",
     ]
@@ -463,6 +464,7 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
         "outdir": "<run>",
         "dry_run": True,
     }
+    assert packet["recommended_request_target"] == "register-external-genomes"
     assert packet["recommended_command_plan"]["decision"] == "block"
     assert packet["recommended_command_plan"]["target_argv"] == [
         "--register-external-genomes",

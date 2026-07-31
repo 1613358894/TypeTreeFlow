@@ -90,6 +90,23 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     assert payload["external_genomes_readiness_packet"]["provider_route_groups"] == (
         payload["provider_route_groups"]
     )
+    assert payload["required_inputs"] == [table.as_posix()]
+    assert payload["recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": table.as_posix(),
+        "target_outdir": "<run>",
+    }
+    assert payload["recommended_request_target"] == "external-genomes install-plan"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow external-genomes install-plan --input {table.as_posix()} "
+        "--target-outdir <run>"
+    )
+    packet = payload["external_genomes_readiness_packet"]
+    assert packet["required_inputs"] == [table.as_posix()]
+    assert packet["recommended_request"] == payload["recommended_request"]
+    assert packet["recommended_request_target"] == payload["recommended_request_target"]
+    assert packet["recommended_next_command"] == payload["recommended_next_command"]
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -183,6 +200,13 @@ def test_external_genomes_validate_blocks_mixed_invalid_rows(tmp_path, capsys):
     ]
     assert payload["writes_outputs"] is False
     assert not (tmp_path / "manifest.tsv").exists()
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
+    packet = payload["external_genomes_readiness_packet"]
+    assert packet["recommended_request"] is None
+    assert packet["recommended_request_target"] == ""
+    assert packet["recommended_next_command"] == ""
 
 
 def test_external_genomes_validate_blocks_wrong_schema(tmp_path, capsys):
@@ -273,6 +297,7 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
         "outdir": "<run>",
         "dry_run": True,
     }
+    assert payload["recommended_request_target"] == "register-external-genomes"
     assert payload["recommended_next_command"] == (
         f"typetreeflow --register-external-genomes {input_path} "
         "--outdir <run> --dry-run"

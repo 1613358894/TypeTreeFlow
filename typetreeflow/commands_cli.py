@@ -667,6 +667,10 @@ _EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS: list[str] = [
     "checksum_input_counts",
     "type_material_counts",
     "manual_review_flag_counts",
+    "required_inputs",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
     "external_genomes_readiness_packet",
 ]
 _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS: list[str] = [
@@ -678,6 +682,8 @@ _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS: list[str] = [
     "install_plan_status_counts",
     "required_inputs",
     "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
 ]
 _SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS: list[str] = [
     "status",
