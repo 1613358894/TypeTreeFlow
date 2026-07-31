@@ -743,6 +743,104 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     )
 
 
+def test_coverage_pipeline_queue_preview_limit_controls_preview_and_status(
+    capsys, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--queue-preview-limit",
+            "4",
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert payload["coverage_operator_queue_preview"]["preview_limit"] == 4
+    assert payload["coverage_operator_queue_preview"]["preview_item_count"] == 4
+    assert payload["coverage_operator_queue_preview"]["truncated"] is False
+    assert [
+        item["queue_item_id"]
+        for item in payload["coverage_operator_queue_preview"]["items"]
+    ] == [
+        "cq001_resolve_curator_conflict",
+        "cq002_review_public_archive_linkage",
+        "cq003_review_public_type_linkage",
+        "cq004_prepare_provider_handoff",
+    ]
+
+    outdir = tmp_path / "pipeline_outputs"
+    code, build_payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--queue-preview-limit",
+            "2",
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert build_payload["coverage_operator_queue_preview"]["preview_limit"] == 2
+    assert build_payload["coverage_operator_queue_preview"]["preview_item_count"] == 2
+    assert build_payload["coverage_operator_queue_preview"]["truncated"] is True
+
+    code, status_payload, captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--queue-preview-limit",
+            "4",
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert status_payload["coverage_operator_queue_preview"]["preview_limit"] == 4
+    assert status_payload["coverage_operator_queue_preview"]["preview_item_count"] == 4
+    assert status_payload["coverage_operator_queue_preview"]["truncated"] is False
+
+
+def test_coverage_pipeline_rejects_invalid_queue_preview_limit(capsys):
+    code, payload, captured = _run(
+        ["--queue-preview-limit", "0", "--json"],
+        capsys,
+    )
+
+    assert code == 2
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "invalid_queue_preview_limit"
+    )
+
+
 def test_coverage_pipeline_accepts_expanded_discovery_and_manual_hints(
     capsys, tmp_path
 ):

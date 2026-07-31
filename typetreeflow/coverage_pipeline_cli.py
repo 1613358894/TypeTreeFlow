@@ -82,6 +82,8 @@ COMMAND_PREVIEW = "coverage-pipeline preview"
 COMMAND_BUILD = "coverage-pipeline build"
 COMMAND_STATUS = "coverage-pipeline status"
 STATUS_SCHEMA_VERSION = "coverage_pipeline_status.v1"
+QUEUE_PREVIEW_DEFAULT_LIMIT = 3
+QUEUE_PREVIEW_MAX_LIMIT = 10
 _PREVIEW_LIMIT = 10
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -213,8 +215,19 @@ def run_coverage_pipeline_command(
     except _UsageError:
         _emit(_failure("invalid_command_usage", "Invalid coverage-pipeline usage"), output)
         return 2
+    try:
+        queue_preview_limit = _queue_preview_limit(args.queue_preview_limit)
+    except ValueError:
+        _emit(
+            _failure(
+                "invalid_queue_preview_limit",
+                "Queue preview limit must be an integer from 1 to 10",
+            ),
+            output,
+        )
+        return 2
     if args.action == "status":
-        return _run_status(args, output)
+        return _run_status(args, output, queue_preview_limit=queue_preview_limit)
     outdir = Path(args.outdir) if getattr(args, "outdir", None) else None
     if (
         (args.write and outdir is None)
@@ -339,6 +352,7 @@ def run_coverage_pipeline_command(
         diagnostics=diagnostics,
         command=COMMAND_BUILD if args.action == "build" else COMMAND_PREVIEW,
         dry_run=not args.write,
+        queue_preview_limit=queue_preview_limit,
     )
     if args.write and not diagnostics:
         try:
@@ -455,6 +469,10 @@ def _build_parser() -> argparse.ArgumentParser:
     preview.add_argument("--archive-candidates-tsv")
     preview.add_argument("--expanded-discovery-results-tsv")
     preview.add_argument("--manual-supplement-hints-tsv")
+    preview.add_argument(
+        "--queue-preview-limit",
+        default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
+    )
     preview.add_argument("--json", action="store_true")
     preview.set_defaults(
         write=False,
@@ -477,6 +495,10 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--provider-request-validation-base-dir")
     build.add_argument("--curated-provider-request-tsv")
     build.add_argument("--external-genomes-install-target-outdir")
+    build.add_argument(
+        "--queue-preview-limit",
+        default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
+    )
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -488,6 +510,10 @@ def _build_parser() -> argparse.ArgumentParser:
     status.add_argument("--provider-request-external-genomes-dir")
     status.add_argument("--external-genomes-install-plan-dir")
     status.add_argument("--registration-run-dir")
+    status.add_argument(
+        "--queue-preview-limit",
+        default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
+    )
     status.add_argument("--require-complete", action="store_true")
     status.add_argument("--json", action="store_true")
     return parser
@@ -515,7 +541,22 @@ def _read_optional_tsv(
         return ()
 
 
-def _run_status(args: argparse.Namespace, output: TextIO) -> int:
+def _queue_preview_limit(value: object) -> int:
+    try:
+        limit = int(str(value))
+    except (TypeError, ValueError):
+        raise ValueError("invalid queue preview limit") from None
+    if limit < 1 or limit > QUEUE_PREVIEW_MAX_LIMIT:
+        raise ValueError("invalid queue preview limit")
+    return limit
+
+
+def _run_status(
+    args: argparse.Namespace,
+    output: TextIO,
+    *,
+    queue_preview_limit: int,
+) -> int:
     diagnostics: list[dict[str, object]] = []
     coverage_dir = Path(args.coverage_pipeline_dir)
     coverage_summary = _read_json_artifact(
@@ -709,7 +750,8 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         coverage_next_command_plan,
     )
     coverage_operator_queue_preview = _coverage_operator_queue_preview(
-        _optional_summary_list(coverage_summary, "coverage_action_queue")
+        _optional_summary_list(coverage_summary, "coverage_action_queue"),
+        limit=queue_preview_limit,
     )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
@@ -1179,6 +1221,7 @@ def _payload(
     diagnostics: list[dict[str, object]],
     command: str,
     dry_run: bool,
+    queue_preview_limit: int,
 ) -> dict[str, object]:
     worklist_summary = worklist.summary
     coverage_summary = coverage_plan.summary
@@ -1221,7 +1264,8 @@ def _payload(
         coverage_next_command_plan,
     )
     coverage_operator_queue_preview = _coverage_operator_queue_preview(
-        coverage_action_queue
+        coverage_action_queue,
+        limit=queue_preview_limit,
     )
     current_coverage_action_queue_item = (
         dict(coverage_action_queue[0]) if coverage_action_queue else {}

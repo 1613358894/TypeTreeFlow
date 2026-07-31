@@ -1137,6 +1137,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "optional manual supplement hints TSV",
         },
+        {
+            "name": "--queue-preview-limit",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "bounded coverage operator queue preview item limit",
+        },
     ],
     ("coverage-pipeline", "build"): [
         {
@@ -1223,6 +1230,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             ),
         },
         {
+            "name": "--queue-preview-limit",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "bounded coverage operator queue preview item limit",
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -1286,6 +1300,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "optional dry-run external-genome registration result directory",
+        },
+        {
+            "name": "--queue-preview-limit",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "bounded coverage operator queue preview item limit",
         },
         {
             "name": "--require-complete",
@@ -2556,6 +2577,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "provider_request_external_genomes_dir",
                     "external_genomes_install_plan_dir",
                     "registration_run_dir",
+                    "queue_preview_limit",
                     "require_complete",
                     "json",
                 },
@@ -2583,6 +2605,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 value = _optional_string(request, key)
                 if value:
                     argv.extend([flag, value])
+            queue_preview_limit = _optional_string(request, "queue_preview_limit")
+            if queue_preview_limit:
+                argv.extend(["--queue-preview-limit", queue_preview_limit])
             return _with_flags(
                 argv,
                 request,
@@ -2601,6 +2626,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "archive_candidates_tsv",
             "expanded_discovery_results_tsv",
             "manual_supplement_hints_tsv",
+            "queue_preview_limit",
         }
         if subcommand == "build":
             allowed.update(
@@ -2628,6 +2654,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             value = _optional_string(request, key)
             if value:
                 argv.extend([flag, value])
+        queue_preview_limit = _optional_string(request, "queue_preview_limit")
+        if queue_preview_limit:
+            argv.extend(["--queue-preview-limit", queue_preview_limit])
         if subcommand == "build":
             if _bool_flag(request, "validate_provider_request"):
                 argv.append("--validate-provider-request")

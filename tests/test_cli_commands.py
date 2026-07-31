@@ -985,6 +985,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                     '"provider_request_external_genomes_dir":"external",'
                     '"external_genomes_install_plan_dir":"install_plan",'
                     '"registration_run_dir":"registration",'
+                    '"queue_preview_limit":"5",'
                     '"require_complete":true,"json":true}'
                 ),
             ]
@@ -1008,6 +1009,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "install_plan",
         "--registration-run-dir",
         "registration",
+        "--queue-preview-limit",
+        "5",
         "--require-complete",
         "--json",
     ]
