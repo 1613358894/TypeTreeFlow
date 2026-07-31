@@ -1749,10 +1749,41 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert next_batch["first_recommended_request_target"] == (
         "provider-request draft"
     )
+    assert next_batch["first_command_plan_decision"] == "allow"
+    assert next_batch["first_preflight_decision"] == "allow"
+    assert next_batch["first_target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        "provider_handoff/provider_handoff.tsv",
+    ]
+    assert next_batch["first_blocking_ids"] == []
+    assert next_batch["first_warning_ids"] == []
+    first_plan = next_batch["first_recommended_command_plan"]
+    assert first_plan["schema_version"] == "coverage_next_command_plan.v1"
+    assert first_plan["request_source"] == (
+        "coverage_route_next_batch_packet.batch_items.1.recommended_request"
+    )
+    assert first_plan["recommended_request_target"] == "provider-request draft"
+    assert first_plan["decision"] == "allow"
+    assert first_plan["preflight_decision"] == "allow"
+    assert first_plan["downloads_triggered"] == 0
+    assert first_plan["providers_contacted"] == 0
+    assert first_plan["manifest_mutated"] is False
     assert next_batch["safe_for_unattended_execution"] is False
     assert next_batch["downloads_triggered"] == 0
     assert next_batch["providers_contacted"] == 0
     assert next_batch["strict_scientific_deliverable"] is False
+    assert next_batch["batch_items"][0]["command_plan_decision"] == "allow"
+    assert next_batch["batch_items"][0]["preflight_decision"] == "allow"
+    assert next_batch["batch_items"][0]["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        "provider_handoff/provider_handoff.tsv",
+    ]
+    assert next_batch["batch_items"][0]["blocking_ids"] == []
+    assert next_batch["batch_items"][0]["warning_ids"] == []
     assert next_batch["batch_items"][0]["operator_execution_gate"] == {
         "gate_status": "operator_review_required",
         "requires_operator_review": True,
@@ -1779,6 +1810,16 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert genbank_batch_item["recommended_request_target"] == (
         "manual-review validate"
     )
+    assert genbank_batch_item["recommended_command_plan"]["decision"] == "allow"
+    assert genbank_batch_item["preflight_decision"] == "allow"
+    assert genbank_batch_item["target_argv"] == [
+        "manual-review",
+        "validate",
+        "--input",
+        "<review.tsv>",
+    ]
+    assert genbank_batch_item["blocking_ids"] == []
+    assert genbank_batch_item["warning_ids"] == []
     assert payload["provider_terms_review_required_count"] == 8
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0

@@ -3137,6 +3137,22 @@ def _coverage_route_next_batch_packet(
         recommended_request_target = _coverage_recommended_request_target(
             recommended_request
         )
+        recommended_command_plan = _coverage_next_command_plan(
+            {
+                "available": recommended_request is not None,
+                "recommended_request": recommended_request,
+            },
+            request_source=(
+                "coverage_route_next_batch_packet.batch_items."
+                f"{len(batch_items) + 1}.recommended_request"
+            ),
+        )
+        recommended_command_blocking_ids = _diagnostic_ids(
+            recommended_command_plan.get("blocking", [])
+        )
+        recommended_command_warning_ids = _diagnostic_ids(
+            recommended_command_plan.get("warnings", [])
+        )
         batch_items.append(
             {
                 "batch_position": len(batch_items) + 1,
@@ -3147,6 +3163,36 @@ def _coverage_route_next_batch_packet(
                 "required_local_input": required_local_input,
                 "recommended_request": recommended_request,
                 "recommended_request_target": recommended_request_target,
+                "recommended_command_plan": recommended_command_plan,
+                "command_plan_decision": str(
+                    recommended_command_plan.get("decision", "")
+                ),
+                "preflight_decision": str(
+                    recommended_command_plan.get("preflight_decision", "")
+                ),
+                "target_argv": (
+                    [
+                        str(value)
+                        for value in recommended_command_plan.get("target_argv", [])
+                    ]
+                    if isinstance(recommended_command_plan.get("target_argv"), list)
+                    else []
+                ),
+                "output_contracts": (
+                    [
+                        dict(contract)
+                        for contract in recommended_command_plan.get(
+                            "output_contracts", []
+                        )
+                        if isinstance(contract, Mapping)
+                    ]
+                    if isinstance(
+                        recommended_command_plan.get("output_contracts"), list
+                    )
+                    else []
+                ),
+                "blocking_ids": recommended_command_blocking_ids,
+                "warning_ids": recommended_command_warning_ids,
                 "record_count": _safe_int(item.get("record_count", 0)),
                 "species_count": _safe_int(item.get("species_count", 0)),
                 "species_preview": list(item.get("species_preview", []))
@@ -3227,6 +3273,30 @@ def _coverage_route_next_batch_packet(
         ),
         "first_recommended_request_target": str(
             first_item.get("recommended_request_target", "")
+        ),
+        "first_recommended_command_plan": (
+            dict(first_item.get("recommended_command_plan", {}))
+            if isinstance(first_item.get("recommended_command_plan"), Mapping)
+            else None
+        ),
+        "first_command_plan_decision": str(
+            first_item.get("command_plan_decision", "")
+        ),
+        "first_preflight_decision": str(first_item.get("preflight_decision", "")),
+        "first_target_argv": (
+            [str(value) for value in first_item.get("target_argv", [])]
+            if isinstance(first_item.get("target_argv"), list)
+            else []
+        ),
+        "first_blocking_ids": (
+            [str(value) for value in first_item.get("blocking_ids", [])]
+            if isinstance(first_item.get("blocking_ids"), list)
+            else []
+        ),
+        "first_warning_ids": (
+            [str(value) for value in first_item.get("warning_ids", [])]
+            if isinstance(first_item.get("warning_ids"), list)
+            else []
         ),
         "batch_items": batch_items,
         "truncated": len(priority_items) > limit,
