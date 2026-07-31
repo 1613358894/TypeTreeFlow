@@ -117,6 +117,7 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
         "blocked_count": 0,
         "exported_count": 0,
         "diagnostic_count": 0,
+        "provider_route_groups": payload["provider_route_groups"],
         "next_stage": "provider_request_external_genomes_handoff",
         "required_inputs": ["provider_request.tsv"],
         "recommended_request": {

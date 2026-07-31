@@ -87,6 +87,9 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     assert payload["provider_route_groups"][0]["provider_key_counts"] == {
         "atcc_genome_portal": 1
     }
+    assert payload["external_genomes_readiness_packet"]["provider_route_groups"] == (
+        payload["provider_route_groups"]
+    )
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -245,6 +248,9 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert payload["provider_route_groups"][0]["provider_key_counts"] == {
         "atcc_genome_portal": 1
     }
+    assert payload["external_genomes_readiness_packet"]["provider_route_groups"] == (
+        payload["provider_route_groups"]
+    )
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
