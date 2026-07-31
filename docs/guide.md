@@ -362,7 +362,10 @@ unavailable stage names, the first unavailable stage, and the recommended next
 command. Like `preview` and `build`, it also reports
 `operator_chain_next_step_packet`, a metadata-only handoff object that renders
 and preflights the next unavailable local stage's structured request without
-dispatching it. It also reports `completion_gate`,
+dispatching it. The packet repeats `operator_chain_snapshot_sha256`, the
+deterministic digest of the current operator-chain checklist, so controllers can
+bind a proposed next step to the stage state they inspected. It also reports
+`completion_gate`,
 `provider_automation_level_counts`, and
 `provider_request_automation_level_counts`, and preserves
 `coverage_opportunity_summary` so automation can read whether any stage remains
