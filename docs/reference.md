@@ -1947,6 +1947,14 @@ target argv as a `commands preflight --argv-json ...` request so a server or AI
 parent controller can run the local preflight gate before dispatch. It repeats
 candidate and controller blockers, but it does not execute the target command
 or authorize execution after preflight.
+`coverage_parent_controller_packet` is the top-level parent-controller
+envelope. It repeats the controller status, step summary, first controller
+candidate, preflight argv, provider/external handoff next step, and the
+recommended surface to inspect next. It is metadata only:
+`target_command_execution_authorized=false`,
+`safe_for_unattended_execution=false`, and provider contact, downloads,
+workflow-output writes, manifest mutation, external-genomes registration, and
+strict deliverable promotion remain disabled.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -2112,6 +2120,13 @@ metadata.
 handoff for the first candidate, including `target_argv_json`, the exact
 metadata-only `preflight_argv`, and a `required_before_preflight` checklist;
 `target_command_execution_authorized` is always `false`.
+`coverage_parent_controller_packet` is the one-object parent/AI/server
+envelope over the controller surfaces. It names the recommended next surface
+(`coverage_controller_preflight_handoff_packet` when available, otherwise the
+provider/external `coverage_handoff_next_step_packet`), repeats the selected
+argv, carries a `required_before_action` checklist, and keeps
+`recommended_execution_mode=operator_review_required` unless no action remains.
+It is not a dispatcher and does not authorize target command execution.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
