@@ -13,6 +13,7 @@ from typetreeflow.taxonomy.lpsn import LpsnSpeciesRecord
 
 RECOGNIZED_COLLECTION_PREFIXES = [
     "DSM",
+    "DSMZ",
     "ATCC",
     "JCM",
     "NCTC",
@@ -32,7 +33,11 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "CSUR",
     "CICC",
     "IFO",
+    "NITE",
 ]
+COLLECTION_PREFIX_ALIASES = {
+    "DSMZ": "DSM",
+}
 CULTURE_COLLECTION_AUDIT_FIELDS = [
     "species",
     "source",
@@ -82,7 +87,8 @@ def extract_culture_collection_ids(text: str) -> list[CultureCollectionId]:
     ids: list[CultureCollectionId] = []
     seen: set[str] = set()
     for match in _COLLECTION_ID_PATTERN.finditer(text):
-        prefix = match.group("prefix").upper()
+        raw_prefix = match.group("prefix").upper()
+        prefix = COLLECTION_PREFIX_ALIASES.get(raw_prefix, raw_prefix)
         number = _normalize_collection_number(match.group("number"))
         normalized = f"{prefix} {number}"
         if normalized in seen:
