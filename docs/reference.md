@@ -742,6 +742,12 @@ metadata. Unsupported commands, missing required fields, unknown request fields,
 or wrong value types fail with exit code `2`. Rendering is a string-planning
 step only; the returned argv must still be checked with `commands preflight`
 before any executor considers running it.
+For AI/operator handoffs, `commands render` and `commands plan` also accept a
+metadata packet whose top-level `recommended_request` is a structured command
+request, including `coverage_next_task_packet`. The original packet remains in
+`request`, the unwrapped command request appears in `effective_request`, and
+`request_unwrapped_from` is `recommended_request`. Packets without a structured
+`recommended_request` still fail closed as invalid requests.
 For coverage planning requests, structured fields
 `expanded_discovery_results_tsv` and `manual_supplement_hints_tsv` render to
 the explicit local TSV flags on `acquisition-worklist build` and

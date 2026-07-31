@@ -2156,7 +2156,8 @@ def _catalog_entry(entry: dict[str, object]) -> dict[str, object]:
 
 def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
     request = dict(parsed["request"])
-    target_argv = _render_target_argv(request)
+    effective_request = _effective_render_request(request)
+    target_argv = _render_target_argv(effective_request)
     recognized = recognize_cli_command(target_argv)
     return {
         "command": COMMAND_RENDER,
@@ -2169,6 +2170,8 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
         "network_access": False,
         "external_tools": False,
         "request": request,
+        "effective_request": effective_request,
+        "request_unwrapped_from": _request_unwrapped_from(request),
         "target_argv": target_argv,
         "recognized": recognized,
         "blocking": [],
@@ -2178,7 +2181,8 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
 
 def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
     request = dict(parsed["request"])
-    target_argv = _render_target_argv(request)
+    effective_request = _effective_render_request(request)
+    target_argv = _render_target_argv(effective_request)
     preflight = _preflight_payload(
         _parsed_command(
             action="preflight",
@@ -2223,12 +2227,31 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
             target_risk["external_tools_declared"]
         ),
         "request": request,
+        "effective_request": effective_request,
+        "request_unwrapped_from": _request_unwrapped_from(request),
         "target_argv": target_argv,
         "recognized": preflight["recognized"],
         "preflight": preflight,
         "blocking": preflight["blocking"],
         "warnings": preflight["warnings"],
     }
+
+
+def _effective_render_request(request: dict[str, object]) -> dict[str, object]:
+    if "command" in request:
+        return request
+    recommended_request = request.get("recommended_request")
+    if isinstance(recommended_request, dict):
+        return dict(recommended_request)
+    return request
+
+
+def _request_unwrapped_from(request: dict[str, object]) -> str:
+    if "command" in request:
+        return ""
+    if isinstance(request.get("recommended_request"), dict):
+        return "recommended_request"
+    return ""
 
 
 def _render_target_argv(request: dict[str, object]) -> list[str]:

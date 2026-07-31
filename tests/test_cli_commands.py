@@ -1896,6 +1896,87 @@ def test_commands_plan_allows_rendered_read_only_command(capsys):
     assert payload["target_allowances"] == payload["preflight"]["allowances"]
 
 
+def test_commands_render_accepts_coverage_next_task_packet(capsys):
+    request = json.dumps(
+        {
+            "available": True,
+            "packet_status": "ready_for_operator_review",
+            "action_code": "resolve_curator_conflict",
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
+            "safe_for_unattended_download": False,
+            "execution_boundary": "metadata_only_run_commands_plan_or_preflight_first",
+        },
+        separators=(",", ":"),
+    )
+
+    assert main(["commands", "render", "--request-json", request]) == 0
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "manual-review",
+        "validate",
+        "--input",
+        "<review.tsv>",
+    ]
+    assert payload["request_unwrapped_from"] == "recommended_request"
+    assert payload["effective_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    }
+    assert payload["request"]["action_code"] == "resolve_curator_conflict"
+
+
+def test_commands_plan_accepts_coverage_next_task_packet(capsys):
+    request = json.dumps(
+        {
+            "packet_status": "ready_for_operator_review",
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
+            "safe_for_unattended_download": False,
+        },
+        separators=(",", ":"),
+    )
+
+    assert main(["commands", "plan", "--request-json", request]) == 0
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["request_unwrapped_from"] == "recommended_request"
+    assert payload["target_argv"] == [
+        "manual-review",
+        "validate",
+        "--input",
+        "<review.tsv>",
+    ]
+    assert payload["preflight"]["decision"] == "allow"
+
+
+def test_commands_render_rejects_packet_without_recommended_request(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                '{"packet_status":"ready_for_operator_review"}',
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "command" in payload["blocking"][0]["message"]
+
+
 def test_commands_plan_blocks_rendered_workflow_without_allowances(capsys):
     assert (
         main(
