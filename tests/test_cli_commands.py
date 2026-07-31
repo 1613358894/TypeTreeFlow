@@ -385,6 +385,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
+        "coverage_operator_route_summary",
         "operator_chain_next_step_packet",
         "operator_chain_resume_packet",
     }
@@ -1189,6 +1190,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
+        "coverage_operator_route_summary",
         "operator_chain_next_step_packet",
         "operator_chain_resume_packet",
         "operator_chain_readiness_packets",
@@ -1253,6 +1255,7 @@ def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_al
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
+        "coverage_operator_route_summary",
         "operator_chain_next_step_packet",
         "operator_chain_resume_packet",
         "operator_chain_readiness_packets",

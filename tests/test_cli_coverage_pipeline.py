@@ -244,6 +244,95 @@ def _assert_operator_chain_resume_packet(
     assert packet["strict_scientific_deliverable"] is False
 
 
+def _assert_operator_route_summary(payload):
+    summary = payload["coverage_operator_route_summary"]
+    assert summary["schema_version"] == "coverage_operator_route_summary.v1"
+    assert summary["route_count"] == 3
+    assert summary["queue_item_count"] == 4
+    assert summary["record_count"] == 4
+    assert summary["first_operator_route"] == "curator_decision"
+    assert summary["first_queue_item_id"] == "cq001_resolve_curator_conflict"
+    assert summary["routes"] == [
+        {
+            "operator_route": "curator_decision",
+            "queue_item_count": 1,
+            "record_count": 1,
+            "first_queue_position": 1,
+            "first_queue_item_id": "cq001_resolve_curator_conflict",
+            "first_action_code": "resolve_curator_conflict",
+            "first_next_input_class": "curator_conflict_decision",
+            "first_recommended_request_target": "manual-review validate",
+            "next_input_class_counts": {"curator_conflict_decision": 1},
+            "recommended_request_target_counts": {"manual-review validate": 1},
+            "automation_boundary_counts": {"manual_review_required": 1},
+            "requires_curator_input": True,
+            "requires_public_metadata_review": False,
+            "requires_provider_handoff": False,
+            "requires_external_registration_review": False,
+            "safe_for_unattended_download_count": 0,
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        },
+        {
+            "operator_route": "public_metadata_review",
+            "queue_item_count": 2,
+            "record_count": 2,
+            "first_queue_position": 2,
+            "first_queue_item_id": "cq002_review_public_archive_linkage",
+            "first_action_code": "review_public_archive_linkage",
+            "first_next_input_class": "public_accession_type_strain_linkage",
+            "first_recommended_request_target": "manual-review validate",
+            "next_input_class_counts": {
+                "biosample_accession_type_strain_linkage": 1,
+                "public_accession_type_strain_linkage": 1,
+            },
+            "recommended_request_target_counts": {"manual-review validate": 2},
+            "automation_boundary_counts": {
+                "metadata_review_only_no_download": 2,
+            },
+            "requires_curator_input": False,
+            "requires_public_metadata_review": True,
+            "requires_provider_handoff": False,
+            "requires_external_registration_review": False,
+            "safe_for_unattended_download_count": 0,
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        },
+        {
+            "operator_route": "provider_handoff",
+            "queue_item_count": 1,
+            "record_count": 1,
+            "first_queue_position": 4,
+            "first_queue_item_id": "cq004_prepare_provider_handoff",
+            "first_action_code": "prepare_provider_handoff",
+            "first_next_input_class": "permitted_local_fasta_terms_provenance",
+            "first_recommended_request_target": "provider-request draft",
+            "next_input_class_counts": {
+                "permitted_local_fasta_terms_provenance": 1,
+            },
+            "recommended_request_target_counts": {"provider-request draft": 1},
+            "automation_boundary_counts": {
+                "planning_handoff_no_provider_contact": 1,
+            },
+            "requires_curator_input": False,
+            "requires_public_metadata_review": False,
+            "requires_provider_handoff": True,
+            "requires_external_registration_review": False,
+            "safe_for_unattended_download_count": 0,
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        },
+    ]
+    assert summary["safe_for_unattended_execution"] is False
+    assert summary["downloads_triggered"] == 0
+    assert summary["providers_contacted"] == 0
+    assert summary["network_access"] is False
+    assert summary["strict_scientific_deliverable"] is False
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -757,6 +846,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "external_registration_review_required_count": 0,
         "safe_for_unattended_download_count": 0,
     }
+    _assert_operator_route_summary(payload)
     assert payload["coverage_priority_summary"] == {
         "queue_item_count": 4,
         "actionable_record_count": 4,
@@ -2106,6 +2196,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_action_queue_summary"][
         "public_metadata_review_required_count"
     ] == 2
+    _assert_operator_route_summary(summary)
     assert summary["coverage_next_task_packet"]["action_code"] == (
         "resolve_curator_conflict"
     )
@@ -3199,6 +3290,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_action_queue_summary"][
         "safe_for_unattended_download_count"
     ] == 0
+    _assert_operator_route_summary(payload)
     assert payload["coverage_next_task_packet"]["queue_position"] == 1
     assert payload["coverage_next_task_packet"]["recommended_request"] == {
         "command": "manual-review",
@@ -3723,6 +3815,27 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_chain_resume_packet_no_execution",
+    }
+    assert payload["coverage_operator_route_summary"] == {
+        "schema_version": "coverage_operator_route_summary.v1",
+        "route_count": 0,
+        "queue_item_count": 0,
+        "record_count": 0,
+        "first_operator_route": "",
+        "first_queue_item_id": "",
+        "routes": [],
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_route_summary_no_execution",
     }
     assert payload["diagnostics"][0]["component"] == "coverage_pipeline_status"
     assert payload["diagnostics"][0]["diagnostic_code"] == "artifact_unreadable"

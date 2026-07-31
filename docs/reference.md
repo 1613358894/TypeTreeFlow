@@ -1877,6 +1877,11 @@ or `provider-request draft`, and route-specific counts such as
 `manual_or_curator_input_required_count`, `public_metadata_review_required_count`, and
 `provider_handoff_required_count`. `current_coverage_action_queue_item`
 copies the first queued item or an empty object when no coverage action remains.
+`coverage_operator_route_summary` groups the same queue by `operator_route`,
+preserving first queue item IDs, first recommended request targets, per-route
+record counts, next-input class counts, automation-boundary counts, and route
+booleans for curator, public-metadata, provider-handoff, and external-registration
+review. It is for AI routing and does not authorize unattended execution.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -1920,8 +1925,9 @@ scientific deliverable promotion.
 the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
 `coverage_next_command_plan`, `coverage_stage_command_plans`,
 `coverage_stage_readiness_summary`, `coverage_next_operator_recipe`,
-`coverage_queue_resume_packet`, and `coverage_operator_queue_preview`, plus
-operator-chain packets when present. `operator_chain_resume_packet` is the
+`coverage_queue_resume_packet`, `coverage_operator_queue_preview`, and
+`coverage_operator_route_summary`, plus operator-chain packets when present.
+`operator_chain_resume_packet` is the
 compact counterpart to `operator_chain_next_step_packet`: it carries the next
 stage, command target, rendered argv, command-plan/preflight decisions, blocker
 IDs, and `resume_with_expected_operator_chain_snapshot_sha256` digest guard for
@@ -2000,6 +2006,10 @@ selects the current
 packet, command plan, recipe, and `current_coverage_action_queue_item`, but it
 does not change this bounded preview prefix. It is a routing preview, not a
 queue runner.
+`coverage_operator_route_summary` is the full queue's route-level counterpart:
+it groups records by route and keeps compact first-item and target metadata so
+an AI/controller can decide which review surface to handle next without
+scanning every queue row.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

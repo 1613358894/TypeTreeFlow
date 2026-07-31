@@ -454,6 +454,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "purpose": "bounded coverage queue routing preview",
         },
         {
+            "name": "coverage_operator_route_summary",
+            "schema_version": "coverage_operator_route_summary.v1",
+            "purpose": "operator-route grouped coverage queue summary for AI routing",
+        },
+        {
             "name": "operator_chain_next_step_packet",
             "schema_version": "operator_chain_next_step_packet.v1",
             "purpose": "metadata-only next operator-chain command preview",
@@ -499,6 +504,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_operator_queue_preview",
             "schema_version": "coverage_operator_queue_preview.v1",
             "purpose": "bounded coverage queue routing preview",
+        },
+        {
+            "name": "coverage_operator_route_summary",
+            "schema_version": "coverage_operator_route_summary.v1",
+            "purpose": "operator-route grouped coverage queue summary for AI routing",
         },
         {
             "name": "operator_chain_next_step_packet",
@@ -551,6 +561,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_operator_queue_preview",
             "schema_version": "coverage_operator_queue_preview.v1",
             "purpose": "bounded coverage queue routing preview",
+        },
+        {
+            "name": "coverage_operator_route_summary",
+            "schema_version": "coverage_operator_route_summary.v1",
+            "purpose": "operator-route grouped coverage queue summary for AI routing",
         },
         {
             "name": "operator_chain_next_step_packet",

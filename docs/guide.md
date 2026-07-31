@@ -283,6 +283,9 @@ AI/operator queueing. The
 let an AI controller read queue pressure and the first queued item without
 recomputing counts or inventing its own item keys; the queue and priority
 summaries also expose execution-gate counts for controller-level triage.
+`coverage_operator_route_summary` groups that same queue by route, preserving
+the first item and command target for each route so controllers can choose the
+next review surface without scanning every row.
 Queue rows also carry `operator_execution_gate` and `review_input_packet` so
 controllers can route required local inputs without first expanding a selected
 packet; the queue and priority summaries count review-input schemas for the
@@ -347,7 +350,9 @@ preview object also summarizes output contracts across the bounded prefix with
 `preview_output_contract_count`. It also includes bounded-prefix route,
 next-input, command-plan status, decision, execution-gate status, blocking-item,
 and warning-item summaries so a controller can triage the queue without
-expanding every item first. It includes `queue_snapshot_sha256` and
+expanding every item first. Use `coverage_operator_route_summary` when the
+controller needs the same route-level view over the full queue. It includes
+`queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata
 changed before resuming a previously inspected item. To resume a specific
 stable queue item, pass
