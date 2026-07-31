@@ -1603,7 +1603,11 @@ public-metadata review from user-assisted provider handoff before generating
 the provider-handoff pair.
 Command metadata reports the target output contract as
 `coverage_plan_packet.v1`, so controllers can route the coverage-plan pair
-before running the command.
+before running the command. When `--write` succeeds, stdout also includes
+`recommended_request`, `recommended_request_target`, and
+`recommended_next_command` for a later local `provider-handoff build` command
+that points to the written `coverage_plan.tsv`. The adapter does not run that
+next command.
 Existing output directories are refused by default;
 `--force` replaces only an owned pair with matching schemas. Missing,
 unreadable, malformed, wrong-schema, or boundary-violating input blocks the

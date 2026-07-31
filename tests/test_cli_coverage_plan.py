@@ -89,6 +89,9 @@ def test_coverage_plan_dry_run_is_single_json_and_writes_nothing(tmp_path, capsy
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
     assert payload["writes_outputs"] is False
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
     assert worklist.read_bytes() == before
 
 
@@ -150,6 +153,16 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
     assert payload["dry_run"] is False
     assert payload["writes_outputs"] is True
     assert payload["writes_workflow_outputs"] is False
+    plan_path = outdir / "coverage_plan.tsv"
+    assert payload["recommended_request"] == {
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": str(plan_path),
+    }
+    assert payload["recommended_request_target"] == "provider-handoff build"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow provider-handoff build --coverage-plan-tsv {plan_path}"
+    )
     assert {path.name for path in outdir.iterdir()} == {
         "coverage_plan.tsv",
         "coverage_plan_summary.json",
@@ -160,6 +173,25 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
         "provider_handoff": 7,
         "public_metadata_review": 4,
     }
+
+    assert (
+        cli.main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(payload["recommended_request"], separators=(",", ":")),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        str(plan_path),
+    ]
 
 
 def test_coverage_plan_force_only_replaces_matching_owned_pair(tmp_path, capsys):

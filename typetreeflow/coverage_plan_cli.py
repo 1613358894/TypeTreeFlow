@@ -24,6 +24,7 @@ from typetreeflow.evidence.coverage_plan import (
 
 
 COMMAND = "coverage-plan build"
+RECOMMENDED_REQUEST_TARGET = "provider-handoff build"
 OUTPUT_NAMES = {
     "actions": "coverage_plan.tsv",
     "summary": "coverage_plan_summary.json",
@@ -115,6 +116,14 @@ def run_coverage_plan_command(
         payload["output_paths"] = {
             key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
         }
+        payload["recommended_request"] = _provider_handoff_recommended_request(
+            str(outdir / OUTPUT_NAMES["actions"])
+        )
+        payload["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
+        payload["recommended_next_command"] = (
+            "typetreeflow provider-handoff build --coverage-plan-tsv "
+            f"{outdir / OUTPUT_NAMES['actions']}"
+        )
     _emit(payload, output)
     return 0 if not diagnostics else 2
 
@@ -191,6 +200,9 @@ def _payload(plan, *, diagnostics: list[dict[str, object]], dry_run: bool) -> di
         "providers_contacted": 0,
         "manifest_mutated": False,
         "output_paths": {key: None for key in OUTPUT_NAMES},
+        "recommended_request": None,
+        "recommended_request_target": "",
+        "recommended_next_command": "",
         "summary": "Coverage plan build passed" if not diagnostics else "Coverage plan build blocked",
     }
 
@@ -222,7 +234,18 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "providers_contacted": 0,
         "manifest_mutated": False,
         "output_paths": {key: None for key in OUTPUT_NAMES},
+        "recommended_request": None,
+        "recommended_request_target": "",
+        "recommended_next_command": "",
         "summary": message,
+    }
+
+
+def _provider_handoff_recommended_request(coverage_plan_tsv: str) -> dict[str, object]:
+    return {
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": coverage_plan_tsv,
     }
 
 

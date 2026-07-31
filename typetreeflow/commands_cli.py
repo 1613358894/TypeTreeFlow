@@ -583,6 +583,9 @@ _PROVIDER_ROUTE_SUMMARY_FIELDS: list[str] = [
 _COVERAGE_PLAN_SUMMARY_FIELDS: list[str] = [
     "action_counts",
     *_PROVIDER_ROUTE_SUMMARY_FIELDS,
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
 ]
 _PROVIDER_HANDOFF_SUMMARY_FIELDS: list[str] = [
     "record_count",
