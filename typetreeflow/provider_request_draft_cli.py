@@ -768,17 +768,29 @@ def _external_genomes_handoff_payload(
         "recommended_request": (
             external_payload.get("recommended_request")
             if passed
-            else validation_payload.get("recommended_request")
+            else None
+        ),
+        "recommended_request_target": (
+            recommended_request_target(external_payload.get("recommended_request"))
+            if passed
+            else ""
         ),
         "recommended_next_command": (
             external_payload.get("recommended_next_command", "")
             if passed
-            else PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
+            else ""
         ),
         "install_plan_recommended_request": (
             external_payload.get("install_plan_recommended_request")
             if passed
             else None
+        ),
+        "install_plan_recommended_request_target": (
+            recommended_request_target(
+                external_payload.get("install_plan_recommended_request")
+            )
+            if passed
+            else ""
         ),
         "install_plan_recommended_next_command": (
             external_payload.get("install_plan_recommended_next_command", "")
@@ -931,10 +943,14 @@ def _external_genomes_recommendation_fields(input_path: str | Path) -> dict[str,
             "subcommand": "validate",
             "input": input_value,
         },
+        "recommended_request_target": "external-genomes validate",
         "recommended_next_command": (
             f"typetreeflow external-genomes validate --input {input_value}"
         ),
         "install_plan_recommended_request": install_plan_request,
+        "install_plan_recommended_request_target": (
+            "external-genomes install-plan"
+        ),
         "install_plan_recommended_next_command": (
             "typetreeflow external-genomes install-plan "
             f"--input {input_value} --target-outdir <run> "
@@ -1081,12 +1097,11 @@ def _external_genomes_handoff_failure(code: str) -> dict[str, object]:
         "strict_scientific_deliverable": False,
         "external_genomes_registration_applied": False,
         "required_inputs": list(PROVIDER_REQUEST_VALIDATION_REQUIRED_INPUTS),
-        "recommended_request": dict(PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST),
-        "recommended_request_target": (
-            PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST_TARGET
-        ),
-        "recommended_next_command": PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+        "recommended_request": None,
+        "recommended_request_target": "",
+        "recommended_next_command": "",
         "install_plan_recommended_request": None,
+        "install_plan_recommended_request_target": "",
         "output_paths": {
             "provider_request_validation_summary": None,
             "provider_request_validation_diagnostics": None,

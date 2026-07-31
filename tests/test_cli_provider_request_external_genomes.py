@@ -204,8 +204,13 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
         "subcommand": "validate",
         "input": external_genomes_path,
     }
+    assert payload["recommended_request_target"] == "external-genomes validate"
     assert payload["recommended_next_command"] == (
         f"typetreeflow external-genomes validate --input {external_genomes_path}"
+    )
+    assert (
+        payload["install_plan_recommended_request_target"]
+        == "external-genomes install-plan"
     )
     assert payload["output_paths"]["external_genomes"].endswith("external_genomes.tsv")
     assert summary["writes_outputs"] is True
@@ -217,6 +222,7 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
     assert summary["recommended_request"]["command"] == "external-genomes"
     assert summary["recommended_request"]["subcommand"] == "validate"
     assert summary["recommended_request"]["input"] == external_genomes_path
+    assert summary["recommended_request_target"] == "external-genomes validate"
     assert summary["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         f"--input {external_genomes_path} --target-outdir <run> "
@@ -224,6 +230,10 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
     )
     assert summary["install_plan_recommended_request"]["subcommand"] == "install-plan"
     assert summary["install_plan_recommended_request"]["input"] == external_genomes_path
+    assert (
+        summary["install_plan_recommended_request_target"]
+        == "external-genomes install-plan"
+    )
     assert header == "\t".join(EXTERNAL_GENOME_FIELDS)
     assert records[0].external_source == "dsmz"
     assert not (tmp_path / "manifest.tsv").exists()
@@ -488,6 +498,10 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
         "write": True,
         "outdir": "<isolated-install-plan-directory>",
     }
+    assert (
+        payload["install_plan_recommended_request_target"]
+        == "external-genomes install-plan"
+    )
     assert payload["install_plan_recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         f"--input {external_genomes_path} --target-outdir <run> "
@@ -554,7 +568,9 @@ def test_provider_request_external_genomes_handoff_blocked_writes_validation_onl
     assert payload["validation_status"] == "blocked"
     assert payload["external_genomes_status"] == "blocked"
     assert payload["required_inputs"] == ["provider_request.tsv"]
-    assert payload["recommended_request"]["subcommand"] == "external-genomes-handoff"
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
     packet = payload["provider_request_readiness_packet"]
     assert packet["status"] == "blocked"
     assert packet["next_stage"] == ""

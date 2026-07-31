@@ -635,7 +635,11 @@ _PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS: list[str] = [
     "diagnostic_counts",
     "required_inputs",
     "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
     "install_plan_recommended_request",
+    "install_plan_recommended_request_target",
+    "install_plan_recommended_next_command",
 ]
 _PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS: list[str] = [
     "record_count",
@@ -648,6 +652,11 @@ _PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS: list[str] = [
     *_ROUTE_SUMMARY_FIELDS,
     "required_inputs",
     "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
+    "install_plan_recommended_request",
+    "install_plan_recommended_request_target",
+    "install_plan_recommended_next_command",
 ]
 _EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS: list[str] = [
     "record_count",
