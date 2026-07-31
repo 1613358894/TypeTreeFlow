@@ -1697,7 +1697,7 @@ valid retrieval date, curator field, `is_type_material=true`,
 non-symlink path, SHA-256 shape, and checksum match. It emits one compact JSON
 object with `ready_count`, `blocked_count`, `blocker_counts`,
 `local_fasta_checked_count`, `local_sha256_matched_count`,
-`operator_route_counts`, `next_input_class_counts`, and
+`operator_route_counts`, `provider_route_groups`, `next_input_class_counts`, and
 `automation_boundary_counts` when those controlled values are present in draft
 row notes. Row previews include only request ID, species, provider, readiness
 status, blocker codes, route metadata, and boolean local evidence checks. They
@@ -1748,7 +1748,7 @@ SHA-256 values, provider notes, curator values, or sequence contents. Without
 `external_genomes.tsv` and
 `provider_request_external_genomes_summary.json` into the explicitly supplied
 directory. The JSON and summary include route counts for exported ready rows,
-`recommended_request` for `external-genomes validate`, plus
+`provider_route_groups`, `recommended_request` for `external-genomes validate`, plus
 `install_plan_recommended_request` for the offline `external-genomes
 install-plan` step. The install-plan recommended request includes `write=true` and
 `outdir=<isolated-install-plan-directory>` so AI/operator controllers can
@@ -2245,8 +2245,9 @@ stable boundary fields `dry_run=true`, `writes_outputs=false`,
 `providers_contacted=0`, `network_access=false`, `external_tools=false`,
 `manifest_mutated=false`, and `strict_scientific_deliverable=false`.
 When reviewed rows carry controlled route metadata in `notes`, the payload also
-includes `operator_route_counts`, `next_input_class_counts`, and
-`automation_boundary_counts` for AI/operator handoff context only. It also
+includes `operator_route_counts`, `provider_route_groups`,
+`next_input_class_counts`, and `automation_boundary_counts` for AI/operator
+handoff context only. It also
 includes local packet-readiness maps: `external_source_counts`,
 `checksum_input_counts`, `type_material_counts`, and
 `manual_review_flag_counts`. These compact counts describe the supplied

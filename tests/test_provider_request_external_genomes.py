@@ -88,6 +88,25 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     assert draft.summary["exported_count"] == 1
     assert draft.summary["provider_counts"] == {"dsmz": 1}
     assert draft.summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert draft.summary["provider_route_groups"] == [
+        {
+            "operator_route": "provider_handoff",
+            "record_count": 1,
+            "provider_keys": ["dsmz"],
+            "provider_key_counts": {"dsmz": 1},
+            "provider_status_counts": {},
+            "automation_level_counts": {},
+            "next_input_class_counts": {
+                "permitted_local_fasta_terms_provenance": 1
+            },
+            "automation_boundary_counts": {
+                "planning_handoff_no_provider_contact": 1
+            },
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        }
+    ]
     assert draft.summary["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -177,5 +196,6 @@ def test_provider_request_external_genomes_blocks_unready_rows(tmp_path):
         "provider_request_not_ready": 1,
     }
     assert draft.summary["operator_route_counts"] == {}
+    assert draft.summary["provider_route_groups"] == []
     assert draft.summary["downloads_triggered"] == 0
     assert draft.summary["providers_contacted"] == 0

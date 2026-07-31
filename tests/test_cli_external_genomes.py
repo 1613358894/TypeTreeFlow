@@ -209,6 +209,10 @@ def test_register_external_genomes_dry_run_stdout_is_compact_json(tmp_path, caps
     assert payload["valid_count"] == 1
     assert payload["invalid_count"] == 0
     assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["provider_route_groups"][0]["operator_route"] == "provider_handoff"
+    assert payload["provider_route_groups"][0]["provider_key_counts"] == {
+        "atcc_genome_portal": 1
+    }
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }

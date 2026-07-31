@@ -183,9 +183,9 @@ typetreeflow provider-request validate --input <provider_request.tsv> \
 The validator checks required provider request fields, terms review,
 curator-owned completion fields, type-material/manual-review flags, local
 FASTA existence, and SHA-256 match. It emits compact JSON with ready/blocked
-counts, blocker counts, and inherited route counts from draft row notes when
-available, but it does not echo local FASTA paths, hashes, provider notes, or
-sequence contents. It also includes the next offline
+counts, blocker counts, inherited route counts, and provider route groups from
+draft row notes when available, but it does not echo local FASTA paths, hashes,
+provider notes, or sequence contents. It also includes the next offline
 `provider-request external-genomes-handoff` request plus a compact
 `provider_request_readiness_packet` for AI/operator controllers. Ready packets
 include a metadata-only `recommended_command_plan` so controllers can see the
@@ -211,8 +211,9 @@ The command reuses the same provider-request validation guards and writes an
 `external_genomes.tsv` only when every row is ready. The draft records resolved
 local FASTA paths for later `external-genomes validate` use, but stdout
 previews omit local paths, hashes, notes, and sequence contents. Stdout and the
-summary JSON include exported route counts plus the next `external-genomes
-validate` and `external-genomes install-plan` requests, and the matching
+summary JSON include exported route counts, provider route groups, plus the next
+`external-genomes validate` and `external-genomes install-plan` requests, and
+the matching
 `provider_request_readiness_packet` exposes those requests only when every row
 is ready. The packet also carries metadata-only command plans for those next
 requests; install-plan writes remain blocked until explicit write allowance is
@@ -1129,8 +1130,9 @@ stage and, when ready, carries the structured next request. It always keeps
 packet before invoking the next CLI command.
 When provider handoff route metadata is present in reviewed row notes, validate,
 install-plan, and registration dry-run JSON summarize only controlled route
-counts. These counts are operator context; they do not register genomes, install
-files, trigger downloads, or change strict completion.
+counts and provider route groups. These fields are operator context; they do
+not register genomes, install files, trigger downloads, or change strict
+completion.
 
 ## Troubleshooting
 

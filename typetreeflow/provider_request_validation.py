@@ -11,6 +11,7 @@ from typetreeflow.provider_plan import (
     REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS,
     SUPPORTED_PROVIDER_ARTIFACT_TYPES,
 )
+from typetreeflow.providers.routing import provider_route_groups
 
 
 PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION = "1"
@@ -121,6 +122,10 @@ class ProviderRequestValidation:
             "status_counts": dict(sorted(status_counts.items())),
             "provider_counts": dict(sorted(provider_counts.items())),
             "operator_route_counts": dict(sorted(operator_route_counts.items())),
+            "provider_route_groups": provider_route_groups(
+                (_provider_route_group_row(row) for row in self.rows),
+                provider_key_field="provider",
+            ),
             "next_input_class_counts": dict(sorted(next_input_class_counts.items())),
             "automation_boundary_counts": dict(
                 sorted(automation_boundary_counts.items())
@@ -161,6 +166,15 @@ def validate_provider_requests_for_local_handoff(
     return ProviderRequestValidation(rows=rows)
 
 
+def _provider_route_group_row(row: ProviderRequestValidationRow) -> dict[str, object]:
+    return {
+        "provider": row.provider,
+        "operator_route": row.operator_route,
+        "next_input_class": row.next_input_class,
+        "automation_boundary": row.automation_boundary,
+    }
+
+
 def provider_request_validation_diagnostics(
     validation: ProviderRequestValidation,
 ) -> list[dict[str, object]]:
@@ -198,6 +212,7 @@ def provider_request_validation_payload(
         "status_counts": summary["status_counts"],
         "provider_counts": summary["provider_counts"],
         "operator_route_counts": summary["operator_route_counts"],
+        "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
         "blocker_counts": summary["blocker_counts"],

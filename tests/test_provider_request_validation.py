@@ -80,6 +80,25 @@ def test_provider_request_ready_when_local_fasta_and_curator_fields_match(
     assert result.summary["local_fasta_checked_count"] == 1
     assert result.summary["local_sha256_matched_count"] == 1
     assert result.summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert result.summary["provider_route_groups"] == [
+        {
+            "operator_route": "provider_handoff",
+            "record_count": 1,
+            "provider_keys": ["dsmz"],
+            "provider_key_counts": {"dsmz": 1},
+            "provider_status_counts": {},
+            "automation_level_counts": {},
+            "next_input_class_counts": {
+                "permitted_local_fasta_terms_provenance": 1
+            },
+            "automation_boundary_counts": {
+                "planning_handoff_no_provider_contact": 1
+            },
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        }
+    ]
     assert result.summary["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }

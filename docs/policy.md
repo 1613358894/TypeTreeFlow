@@ -376,7 +376,7 @@ credit, manifest mutation, or strict deliverable promotion. Failed-handoff
 packages exclude these provider-request artifacts.
 Provider request draft summaries may count missing curator-owned fields and
 blocker categories for later registration planning. They may also report
-`operator_route_counts`, `next_input_class_counts`,
+`operator_route_counts`, `provider_route_groups`, `next_input_class_counts`,
 `automation_boundary_counts`, `curator_completion_template_counts`, and
 row-level fill-in templates such as `provider_local_fasta_handoff` or
 `public_archive_linkage_review`. Those counts and templates are AI routing
@@ -392,7 +392,7 @@ contents. Optional `--write` mode may publish only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in an explicit isolated output
 directory. It may parse controlled route metadata from draft row notes only to
-emit aggregate AI/operator routing counts and bounded preview fields; that
+emit aggregate AI/operator routing counts, provider route groups, and bounded preview fields; that
 metadata must not affect readiness, registration, completion, or strict
 scientific status. The optional report/package
 `--provider-request-validation-dir` surface may read and copy only that pair,
@@ -412,8 +412,8 @@ directory. The draft may contain resolved local FASTA paths because those are
 the intended inputs for later local external-genomes validation, but compact
 stdout must not display paths, hashes, provider notes, curator values, or
 sequence contents. It may carry controlled route metadata from provider-request
-notes into aggregate counts and external-genomes notes, but it must not copy
-raw provider notes or curator notes. This command must not register external
+notes into aggregate counts, provider route groups, and external-genomes notes,
+but it must not copy raw provider notes or curator notes. This command must not register external
 genomes, copy FASTA files, contact providers, accept terms, download data,
 mutate manifests, change completion metrics, or reinterpret provider-request
 rows as strict scientific deliverables.

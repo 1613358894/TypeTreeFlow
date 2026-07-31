@@ -197,6 +197,12 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     external_genomes = external_draft_dir / "external_genomes.tsv"
     assert draft_payload["exported_count"] == 1
     assert draft_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert draft_payload["provider_route_groups"][0]["operator_route"] == (
+        "provider_handoff"
+    )
+    assert draft_payload["provider_route_groups"][0]["provider_key_counts"] == {
+        "dsmz": 1
+    }
     assert draft_payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -224,6 +230,9 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     external_payload = json.loads(capsys.readouterr().out)
     assert external_payload["valid_count"] == 1
     assert external_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert external_payload["provider_route_groups"] == draft_payload[
+        "provider_route_groups"
+    ]
     assert external_payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -260,6 +269,9 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert install_plan_payload["status"] == "pass"
     assert install_plan_payload["install_planned_count"] == 1
     assert install_plan_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert install_plan_payload["provider_route_groups"] == draft_payload[
+        "provider_route_groups"
+    ]
     assert install_plan_payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -420,6 +432,12 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
     assert handoff_payload["ready_count"] == 1
     assert handoff_payload["exported_count"] == 1
     assert handoff_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert handoff_payload["provider_route_groups"][0]["operator_route"] == (
+        "provider_handoff"
+    )
+    assert handoff_payload["provider_route_groups"][0]["provider_key_counts"] == {
+        "dsmz": 1
+    }
     assert handoff_payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }

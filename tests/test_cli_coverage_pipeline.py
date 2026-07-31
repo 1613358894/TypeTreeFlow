@@ -3361,6 +3361,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         "provider_handoff": 1
     }
     assert status_payload["operator_chain_stages"][5][
+        "summary_provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
+    assert status_payload["operator_chain_stages"][5][
         "summary_next_input_class_counts"
     ] == {
         "permitted_local_fasta_terms_provenance": 1
@@ -3405,6 +3408,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert status_payload["operator_chain_stages"][6]["summary_operator_route_counts"] == {
         "provider_handoff": 1
     }
+    assert status_payload["operator_chain_stages"][6][
+        "summary_provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
     assert status_payload["operator_chain_stages"][6][
         "summary_next_input_class_counts"
     ] == {
@@ -3642,6 +3648,25 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
                 "exported_count": 1,
                 "provider_counts": {"dsmz": 1},
                 "operator_route_counts": {"provider_handoff": 1},
+                "provider_route_groups": [
+                    {
+                        "operator_route": "provider_handoff",
+                        "record_count": 1,
+                        "provider_keys": ["dsmz"],
+                        "provider_key_counts": {"dsmz": 1},
+                        "provider_status_counts": {},
+                        "automation_level_counts": {},
+                        "next_input_class_counts": {
+                            "permitted_local_fasta_terms_provenance": 1
+                        },
+                        "automation_boundary_counts": {
+                            "planning_handoff_no_provider_contact": 1
+                        },
+                        "safe_for_unattended_execution": False,
+                        "audit_only": True,
+                        "dry_run": True,
+                    }
+                ],
                 "next_input_class_counts": {
                     "permitted_local_fasta_terms_provenance": 1
                 },
@@ -3668,6 +3693,25 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
                 "install_skipped_count": 0,
                 "registration_status_counts": {"external_genome_registered": 1},
                 "operator_route_counts": {"provider_handoff": 1},
+                "provider_route_groups": [
+                    {
+                        "operator_route": "provider_handoff",
+                        "record_count": 1,
+                        "provider_keys": ["dsmz"],
+                        "provider_key_counts": {"dsmz": 1},
+                        "provider_status_counts": {},
+                        "automation_level_counts": {},
+                        "next_input_class_counts": {
+                            "permitted_local_fasta_terms_provenance": 1
+                        },
+                        "automation_boundary_counts": {
+                            "planning_handoff_no_provider_contact": 1
+                        },
+                        "safe_for_unattended_execution": False,
+                        "audit_only": True,
+                        "dry_run": True,
+                    }
+                ],
                 "next_input_class_counts": {
                     "permitted_local_fasta_terms_provenance": 1
                 },
@@ -3946,6 +3990,9 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "provider_handoff": 1
     }
     assert payload["operator_chain_stages"][5][
+        "summary_provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
+    assert payload["operator_chain_stages"][5][
         "summary_next_input_class_counts"
     ] == {
         "permitted_local_fasta_terms_provenance": 1
@@ -3965,6 +4012,9 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["operator_chain_stages"][6]["summary_operator_route_counts"] == {
         "provider_handoff": 1
     }
+    assert payload["operator_chain_stages"][6][
+        "summary_provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
     assert payload["operator_chain_stages"][6][
         "summary_next_input_class_counts"
     ] == {
@@ -4003,6 +4053,9 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["operator_chain_stages"][7]["summary_operator_route_counts"] == {
         "provider_handoff": 1
     }
+    assert payload["operator_chain_stages"][7][
+        "summary_provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
     assert payload["operator_chain_stages"][7][
         "summary_next_input_class_counts"
     ] == {
