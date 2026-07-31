@@ -551,6 +551,88 @@ def _assert_handoff_next_step_packet(
         assert step["execution_boundary"] == (
             "metadata_only_handoff_runbook_step_no_execution"
         )
+    server_validation = payload["coverage_handoff_server_validation_packet"]
+    assert (
+        server_validation["schema_version"]
+        == "coverage_handoff_server_validation_packet.v1"
+    )
+    assert server_validation["available"] is bool(
+        packet["available"] or input_readiness["required_inputs"]
+    )
+    expected_validation_status = "no_action"
+    if packet["blocking_ids"]:
+        expected_validation_status = "blocked"
+    elif input_readiness["operator_required_inputs"]:
+        expected_validation_status = "operator_input_required"
+    elif input_readiness["required_inputs"]:
+        expected_validation_status = "ready_for_bounded_local_validation"
+    elif packet["available"]:
+        expected_validation_status = "metadata_gate_review_required"
+    assert server_validation["validation_status"] == expected_validation_status
+    assert server_validation["next_stage"] == packet["stage"]
+    assert server_validation["next_artifact"] == packet["artifact"]
+    assert server_validation["required_inputs"] == input_readiness["required_inputs"]
+    assert server_validation["required_input_count"] == input_readiness[
+        "required_input_count"
+    ]
+    assert server_validation["operator_required_inputs"] == input_readiness[
+        "operator_required_inputs"
+    ]
+    assert server_validation["operator_required_input_count"] == input_readiness[
+        "operator_required_input_count"
+    ]
+    assert server_validation["input_readiness_status"] == input_readiness[
+        "readiness_status"
+    ]
+    assert server_validation["server_bounded_validation_candidate"] is input_readiness[
+        "server_bounded_validation_candidate"
+    ]
+    assert server_validation["recommended_request_target"] == packet[
+        "recommended_request_target"
+    ]
+    assert server_validation["recommended_argv"] == packet["target_argv"]
+    assert server_validation["preflight_decision"] == packet["preflight_decision"]
+    assert server_validation["blocking_ids"] == packet["blocking_ids"]
+    assert server_validation["blocking_count"] == packet["blocking_count"]
+    assert server_validation["warning_ids"] == packet["warning_ids"]
+    assert server_validation["runbook_step_ids"] == [
+        step["step_id"] for step in runbook["steps"]
+    ]
+    assert server_validation["stop_conditions"] == runbook["stop_conditions"]
+    if expected_validation_status == "no_action":
+        assert server_validation["allowed_validation_actions"] == []
+        assert server_validation["recommended_execution_mode"] == "no_action"
+    else:
+        assert server_validation["allowed_validation_actions"] == [
+            "inspect coverage_handoff_input_readiness_packet",
+            "inspect coverage_handoff_next_step_packet",
+            "inspect coverage_handoff_runbook_packet",
+            "run commands plan metadata gate",
+            "run commands preflight metadata gate",
+        ]
+        assert (
+            server_validation["recommended_execution_mode"]
+            == "operator_review_required"
+        )
+    assert server_validation["filesystem_probe_performed"] is False
+    assert server_validation["artifact_validation_performed"] is False
+    assert server_validation["target_command_execution_authorized"] is False
+    assert server_validation["provider_contact_allowed"] is False
+    assert server_validation["safe_for_unattended_execution"] is False
+    assert server_validation["audit_only"] is True
+    assert server_validation["dry_run"] is True
+    assert server_validation["writes_outputs"] is False
+    assert server_validation["writes_workflow_outputs"] is False
+    assert server_validation["downloads_triggered"] == 0
+    assert server_validation["providers_contacted"] == 0
+    assert server_validation["network_access"] is False
+    assert server_validation["external_tools"] is False
+    assert server_validation["manifest_mutated"] is False
+    assert server_validation["strict_scientific_deliverable"] is False
+    assert server_validation["external_genomes_registration_applied"] is False
+    assert server_validation["execution_boundary"] == (
+        "metadata_only_handoff_server_validation_no_execution"
+    )
 
 
 def _assert_operator_chain_resume_packet(
