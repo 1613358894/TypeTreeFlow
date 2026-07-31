@@ -491,8 +491,9 @@ Controllers can also persist `operator_chain_snapshot_sha256` and pass
 a mismatch is refused with exit code `2` so stale operator-chain handoffs fail
 closed before any target command is considered.
 The payload also carries
-`worklist_candidate_provider_key_counts` from the worklist layer plus provider
-automation-level counts from the handoff and request-draft layers so
+`worklist_candidate_provider_key_counts` and
+`worklist_candidate_provider_status_counts` from the worklist layer plus
+provider automation-level counts from the handoff and request-draft layers so
 AI/operator handoff pressure is visible before reading the nested artifacts. It
 also includes `coverage_provider_route_opportunity_summary`, which groups the
 provider handoff rows by provider key, status, automation level, source action,
@@ -713,8 +714,10 @@ When missing-public-genome rows contain explicit provider hints or recognizable
 culture-collection tokens, the worklist may carry `candidate_provider_keys` so
 the coverage plan can route provider handoff more precisely. Those keys remain
 review hints only. The worklist summary also reports
-`candidate_provider_key_counts` so an AI/operator can see likely handoff
-pressure before running the full coverage plan.
+`candidate_provider_key_counts` and `candidate_provider_status_counts` so an
+AI/operator can separate planning-only culture-collection handoff pressure from
+metadata-only public archive review pressure before running the full coverage
+plan.
 Use `--coverage-pipeline-dir <isolated-coverage-pipeline-directory>` with
 `--report-only` or `package-results --include reports|all` to hand off that
 directory as one explicit read-only input. TypeTreeFlow derives only its

@@ -90,11 +90,12 @@ def _inputs(tmp_path):
     )
     _write_tsv(
         archive,
-        ["species", "candidate_status", "assembly_accession"],
+        ["species", "candidate_status", "archive_source_name", "assembly_accession"],
         [
             {
                 "species": "Clostridium archiveum",
                 "candidate_status": "archive_candidate_for_public_linkage_review",
+                "archive_source_name": "ENA",
                 "assembly_accession": "GCA_0009.1",
             }
         ],
@@ -142,6 +143,11 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
     assert payload["candidate_provider_key_counts"] == {
         "atcc_genome_portal": 1,
         "dsmz": 1,
+        "ena": 1,
+    }
+    assert payload["candidate_provider_status_counts"] == {
+        "metadata_only": 1,
+        "planning_only": 2,
     }
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
@@ -212,6 +218,7 @@ def test_acquisition_worklist_reads_expanded_discovery_and_manual_hints(
         "manual_supplement_external_fasta_required"
     ] == 1
     assert payload["candidate_provider_key_counts"] == {"dsmz": 1}
+    assert payload["candidate_provider_status_counts"] == {"planning_only": 1}
     sources = {
         row["species"]: row["source_artifacts"] for row in payload["rows_preview"]
     }
@@ -277,6 +284,11 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
     assert summary["candidate_provider_key_counts"] == {
         "atcc_genome_portal": 1,
         "dsmz": 1,
+        "ena": 1,
+    }
+    assert summary["candidate_provider_status_counts"] == {
+        "metadata_only": 1,
+        "planning_only": 2,
     }
 
     assert (

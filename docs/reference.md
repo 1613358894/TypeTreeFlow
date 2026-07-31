@@ -1492,8 +1492,8 @@ external-genome rows plus optional archive-candidate audit rows and assign at
 most one lane per species. The TSV field order is `schema_version`, `species`,
 `lane`, `selected_accession`,
 `reconciled_evidence_tier`, `reason_code`, `recommended_action`,
-`candidate_provider_keys`, `source_artifacts`, `audit_only`, and
-`strict_scientific_deliverable`.
+`candidate_provider_keys`, `candidate_provider_statuses`, `source_artifacts`,
+`audit_only`, and `strict_scientific_deliverable`.
 Supported lanes are `no_action_strict_complete`,
 `curator_conflict_resolution`, `public_linkage_review`,
 `external_registration_ready`, `external_fasta_required`, and
@@ -1507,6 +1507,11 @@ candidate, BioSample linkage review, archive candidate review, missing public
 genome, external-registration-ready rows, and candidate provider routing
 hints. These counts are review hints only and do not change lane, completion,
 provider, or download semantics.
+The summary also includes `candidate_provider_status_counts`, and rows include
+`candidate_provider_statuses` entries such as `ena=metadata_only` or
+`dsmz=planning_only`, so AI/operators can separate public archive metadata
+review from provider handoff pressure without contacting providers or running
+downloads.
 For `external_fasta_required` rows, `candidate_provider_keys` may be derived
 from explicit local provider hints or recognizable culture-collection tokens
 such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC, KCTC, CECT, CIP, CCUG, CCM,
@@ -1514,6 +1519,9 @@ LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR, CICC, and IFO.
 Explicit provider hints may use canonical provider keys, common abbreviations,
 or static registry display names; they are normalized to canonical provider
 keys before summary counting.
+Archive-candidate source fields such as `archive_source` and
+`archive_source_name` may also normalize public archive names such as ENA,
+DDBJ, GenBank, and RefSeq to metadata-only provider hints.
 The field is a provider handoff hint only; it does not confirm type-strain
 status, contact providers, authorize terms, or trigger downloads.
 
@@ -1559,8 +1567,9 @@ typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-au
 
 It reads only the explicitly named TSV files and emits exactly one compact
 JSON object, including `review_signal_counts` and
-`candidate_provider_key_counts` review hints. Without `--write`, it writes
-nothing. With `--write`, it writes only `acquisition_worklist.tsv` and
+`candidate_provider_key_counts` plus `candidate_provider_status_counts` review
+hints. Without `--write`, it writes nothing. With `--write`, it writes only
+`acquisition_worklist.tsv` and
 `acquisition_worklist_summary.json` into the explicitly supplied directory.
 Command metadata reports the target output contract as
 `acquisition_worklist_packet.v1`, so AI/operator controllers can route the
@@ -1896,6 +1905,7 @@ request draft, then emit one compact JSON object with lane, action,
 provider-key,
 provider-status, provider automation-level, and provider-request draft counts
 plus `worklist_candidate_provider_key_counts`,
+`worklist_candidate_provider_status_counts`,
 `coverage_next_action_groups`, `coverage_opportunity_summary`, and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
