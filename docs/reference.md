@@ -1889,6 +1889,13 @@ review, includes per-provider bounded species previews, and adds
 provider handoff packages before metadata-only review pressure. It repeats
 explicit no-download safety fields. It is for platform opportunity triage only
 and does not contact providers or authorize unattended execution.
+`coverage_route_next_batch_packet` derives from that provider route list and
+exposes a bounded batch selector for AI/operator controllers. It reports the
+first provider key, route priority, recommended operator action, required local
+input artifact, up to five batch items, and an operator-review gate for each
+item. It is a planning packet for local review or handoff preparation only; it
+does not dispatch commands, contact providers, download genomes, mutate
+manifests, or write strict deliverables.
 `coverage_action_queue` is the same opportunity set in stable queue order with
 a one-based `queue_position`, deterministic `queue_item_id`, bounded route booleans such as
 `requires_curator_input`, `requires_public_metadata_review`,

@@ -1727,6 +1727,37 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert genbank_priority["route_priority"] == "public_metadata_review"
     assert genbank_priority["record_count"] == 2
     assert genbank_priority["metadata_review_only"] is True
+    next_batch = payload["coverage_route_next_batch_packet"]
+    assert next_batch["schema_version"] == "coverage_route_next_batch_packet.v1"
+    assert next_batch["available"] is True
+    assert next_batch["batch_status"] == "ready_for_operator_review"
+    assert next_batch["batch_item_count"] == 5
+    assert next_batch["source_provider_count"] == 6
+    assert next_batch["planning_handoff_provider_count"] == 2
+    assert next_batch["metadata_review_only_provider_count"] == 4
+    assert next_batch["first_provider_key"] == "dsmz"
+    assert next_batch["first_route_priority"] == "provider_handoff"
+    assert next_batch["first_recommended_operator_action"] == (
+        "prepare_provider_handoff_package"
+    )
+    assert next_batch["first_required_local_input"] == "provider_handoff.tsv"
+    assert next_batch["safe_for_unattended_execution"] is False
+    assert next_batch["downloads_triggered"] == 0
+    assert next_batch["providers_contacted"] == 0
+    assert next_batch["strict_scientific_deliverable"] is False
+    assert next_batch["batch_items"][0]["operator_execution_gate"] == {
+        "gate_status": "operator_review_required",
+        "requires_operator_review": True,
+        "required_before_execution": [
+            "review local input package",
+            "run commands preflight before invoking target CLI",
+        ],
+        "safe_for_unattended_execution": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "strict_scientific_deliverable": False,
+    }
     assert payload["provider_terms_review_required_count"] == 8
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0
@@ -2932,6 +2963,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_provider_route_opportunity_summary"][
         "priority_provider_route_items"
     ][0]["provider_key"] == "dsmz"
+    assert summary["coverage_route_next_batch_packet"]["first_provider_key"] == (
+        "dsmz"
+    )
+    assert summary["coverage_route_next_batch_packet"][
+        "first_recommended_operator_action"
+    ] == "prepare_provider_handoff_package"
     assert summary["provider_request_record_count"] == 8
     assert summary["provider_request_automation_level_counts"] == {
         "metadata_review": 6,
@@ -3581,6 +3618,12 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert status_payload["coverage_priority_summary"]["top_action_code"] == (
         "resolve_curator_conflict"
     )
+    assert status_payload["coverage_route_next_batch_packet"][
+        "first_provider_key"
+    ] == "dsmz"
+    assert status_payload["coverage_route_next_batch_packet"][
+        "first_recommended_operator_action"
+    ] == "prepare_provider_handoff_package"
     assert status_payload["coverage_priority_summary"][
         "record_counts_by_operator_route"
     ] == {
