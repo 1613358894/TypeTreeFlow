@@ -2799,6 +2799,17 @@ def _coverage_queue_resume_packet(
             else None,
         )
     )
+    raw_gate = recipe.get("operator_execution_gate")
+    operator_execution_gate = (
+        dict(raw_gate)
+        if isinstance(raw_gate, Mapping)
+        else _coverage_operator_execution_gate(
+            available=bool(packet.get("available")),
+            recommended_request=packet.get("recommended_request")
+            if isinstance(packet.get("recommended_request"), Mapping)
+            else None,
+        )
+    )
     available = bool(packet.get("available")) and bool(recipe.get("available"))
     if not available:
         status = "no_action"
@@ -2825,6 +2836,7 @@ def _coverage_queue_resume_packet(
         if isinstance(recipe.get("required_inputs"), list)
         else [],
         "review_input_packet": review_input_packet,
+        "operator_execution_gate": operator_execution_gate,
         "target_argv": list(recipe.get("target_argv", []))
         if isinstance(recipe.get("target_argv"), list)
         else [],

@@ -144,6 +144,7 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
     ]
     assert resume_packet["output_contract_count"] == 1
     assert resume_packet["review_input_packet"] == recipe["review_input_packet"]
+    assert resume_packet["operator_execution_gate"] == recipe["operator_execution_gate"]
     assert recipe["downloads_triggered"] == 0
     assert recipe["providers_contacted"] == 0
     assert recipe["manifest_mutated"] is False
@@ -3296,6 +3297,10 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
                 "metadata_only_review_input_packet_no_execution"
             ),
         },
+        "operator_execution_gate": _expected_operator_execution_gate(
+            available=False,
+            has_recommended_request=False,
+        ),
         "target_argv": [],
         "command_plan_status": "no_action",
         "command_plan_decision": "none",
