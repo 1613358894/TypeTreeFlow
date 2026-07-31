@@ -1626,10 +1626,12 @@ SHA-256, license, retrieval date, and curator fields blank. These rows do not
 contact providers, accept terms, download genomes, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
 The compact JSON and `provider_request_draft_summary.json` include
-`provider_automation_level_counts`, `curator_completion_required_count`,
-`curator_completion_template_counts`, `curator_completion_field_counts`, and
-`curator_completion_blocker_counts`. The row notes include
-`provider_automation_level`, `curator_completion_template`, and
+`provider_automation_level_counts`, `operator_route_counts`,
+`next_input_class_counts`, `automation_boundary_counts`,
+`curator_completion_required_count`, `curator_completion_template_counts`,
+`curator_completion_field_counts`, and `curator_completion_blocker_counts`.
+The row notes include `provider_automation_level`, `operator_route`,
+`next_input_class`, `automation_boundary`, `curator_completion_template`, and
 `required_curator_fields` so an AI/operator can distinguish provider/local
 FASTA handoff from public-archive linkage review without losing the provider
 automation boundary from the handoff step. These counts and templates are

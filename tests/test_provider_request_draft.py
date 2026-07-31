@@ -16,6 +16,9 @@ def _handoff_rows():
             "source_action_code": "prepare_provider_handoff",
             "source_lane": "external_fasta_required",
             "provider_automation_level": "planning_handoff",
+            "operator_route": "provider_handoff",
+            "next_input_class": "permitted_local_fasta_terms_provenance",
+            "automation_boundary": "planning_handoff_no_provider_contact",
             "provider_guidance_notes": "provider_guidance=culture_collection_user_handoff",
         },
         {
@@ -26,6 +29,9 @@ def _handoff_rows():
             "source_action_code": "review_public_archive_linkage",
             "source_lane": "public_linkage_review",
             "provider_automation_level": "metadata_review",
+            "operator_route": "public_metadata_review",
+            "next_input_class": "public_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
             "provider_guidance_notes": "provider_guidance=public_archive_metadata_review",
         },
     ]
@@ -48,6 +54,9 @@ def test_provider_request_draft_builds_review_only_provider_request_rows():
     assert "provider_contacted=false" in rows[0]["notes"]
     assert "downloads_triggered=0" in rows[0]["notes"]
     assert "provider_automation_level=planning_handoff" in rows[0]["notes"]
+    assert "operator_route=provider_handoff" in rows[0]["notes"]
+    assert "next_input_class=permitted_local_fasta_terms_provenance" in rows[0]["notes"]
+    assert "automation_boundary=planning_handoff_no_provider_contact" in rows[0]["notes"]
     assert "curator_completion_template=provider_local_fasta_handoff" in rows[0]["notes"]
     assert "recipe=obtain_permitted_provider_or_local_type_material_fasta" in rows[0]["notes"]
     assert "required_curator_fields=strain,type_strain_id" in rows[0]["notes"]
@@ -66,6 +75,18 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
         "provider_automation_level_counts": {
             "metadata_review": 1,
             "planning_handoff": 1,
+        },
+        "operator_route_counts": {
+            "provider_handoff": 1,
+            "public_metadata_review": 1,
+        },
+        "next_input_class_counts": {
+            "permitted_local_fasta_terms_provenance": 1,
+            "public_accession_type_strain_linkage": 1,
+        },
+        "automation_boundary_counts": {
+            "metadata_review_only_no_download": 1,
+            "planning_handoff_no_provider_contact": 1,
         },
         "source_action_counts": {
             "prepare_provider_handoff": 1,

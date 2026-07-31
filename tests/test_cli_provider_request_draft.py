@@ -21,6 +21,9 @@ def _write_provider_handoff(path) -> None:
                 "provider_name": "DSMZ",
                 "provider_status": "planning_only",
                 "provider_automation_level": "planning_handoff",
+                "operator_route": "provider_handoff",
+                "next_input_class": "permitted_local_fasta_terms_provenance",
+                "automation_boundary": "planning_handoff_no_provider_contact",
                 "species": "Clostridium beta",
                 "source_action_code": "prepare_provider_handoff",
                 "source_lane": "external_fasta_required",
@@ -61,6 +64,13 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["record_count"] == 1
     assert payload["provider_key_counts"] == {"dsmz": 1}
     assert payload["provider_automation_level_counts"] == {"planning_handoff": 1}
+    assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert payload["curator_completion_template_counts"] == {
         "provider_local_fasta_handoff": 1
     }
@@ -90,6 +100,15 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     )
     assert (
         "provider_automation_level=planning_handoff"
+        in payload["request_preview"][0]["notes"]
+    )
+    assert "operator_route=provider_handoff" in payload["request_preview"][0]["notes"]
+    assert (
+        "next_input_class=permitted_local_fasta_terms_provenance"
+        in payload["request_preview"][0]["notes"]
+    )
+    assert (
+        "automation_boundary=planning_handoff_no_provider_contact"
         in payload["request_preview"][0]["notes"]
     )
     assert (
@@ -131,6 +150,13 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     assert summary["record_count"] == 1
     assert summary["providers_contacted"] == 0
     assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
+    assert summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert summary["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert summary["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert summary["curator_completion_template_counts"] == {
         "provider_local_fasta_handoff": 1
     }
