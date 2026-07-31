@@ -318,13 +318,13 @@ candidate and controller blockers, and keeps
 `coverage_parent_controller_packet` is the parent-agent envelope for this same
 surface. It selects the next recommended metadata surface, repeats the selected
 argv, provider/external handoff next step, server-validation status/runbook
-summary, and required-review checklist, and keeps target execution, provider
-contact, downloads, workflow-output writes, manifest mutation, registration,
-and strict deliverable promotion disabled.
+summary, result contract/template summary, and required-review checklist, and
+keeps target execution, provider contact, downloads, workflow-output writes,
+manifest mutation, registration, and strict deliverable promotion disabled.
 `coverage_controller_inspection_summary` is the compact surface index for
 parent agents. It lists the parent-controller, controller, step-summary,
 preflight, handoff-next-step, handoff server-validation
-packet/runbook/result-contract, and route-batch packets with availability,
+packet/runbook/result-contract/result-template, and route-batch packets with availability,
 target argv, blocker IDs, warning IDs, and execution boundaries before the
 parent expands a specific nested packet.
 `coverage_controller_runbook_packet` is the ordered metadata-only checklist for

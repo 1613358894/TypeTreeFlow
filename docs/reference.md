@@ -1950,7 +1950,8 @@ or authorize execution after preflight.
 `coverage_parent_controller_packet` is the top-level parent-controller
 envelope. It repeats the controller status, step summary, first controller
 candidate, preflight argv, provider/external handoff next step, server
-validation status/runbook summary, and the recommended surface to inspect next.
+validation status/runbook summary, result contract/template summary, and the
+recommended surface to inspect next.
 It is metadata only:
 `target_command_execution_authorized=false`,
 `safe_for_unattended_execution=false`, and provider contact, downloads,
@@ -2139,7 +2140,8 @@ metadata-only `preflight_argv`, and a `required_before_preflight` checklist;
 envelope over the controller surfaces. It names the recommended next surface
 (`coverage_controller_preflight_handoff_packet` when available, otherwise the
 provider/external `coverage_handoff_next_step_packet`), repeats the selected
-argv, carries a `required_before_action` checklist, and keeps
+argv, carries a `required_before_action` checklist, includes server-validation
+result contract/template status fields for parent agents, and keeps
 `recommended_execution_mode=operator_review_required` unless no action remains.
 It is not a dispatcher and does not authorize target command execution.
 `coverage_controller_inspection_summary` is the companion inspection index for
