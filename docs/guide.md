@@ -94,6 +94,8 @@ typetreeflow acquisition-worklist build --checklist-tsv <species.tsv> \
 
 The command is a planning aid only. It does not contact providers, download
 genomes, merge manifests, or grant strict scientific deliverable status.
+Command metadata reports `acquisition_worklist_packet.v1` for the generated
+worklist pair.
 Its summary includes lane counts and review-signal counts so AI or curator
 operators can prioritize candidate, conflict, gap, archive/INSDC, BioSample,
 BacDive/DSMZ, NCBI, expanded-discovery candidate, manual-supplement, and
@@ -116,6 +118,8 @@ already-strict records from a matching acquisition-worklist schema. Wrong-schema
 or boundary-violating worklists are blocked rather than reinterpreted. The
 command does not contact providers, download genomes, mutate manifests, or
 claim strict scientific delivery.
+Command metadata reports `coverage_plan_packet.v1` for the generated
+coverage-plan pair.
 
 Turn coverage-plan provider keys into a provider-specific offline handoff:
 
@@ -129,6 +133,8 @@ records provider status, automation level, controlled operator route, next
 input class, automation boundary, terms-review, credential, and
 network-disabled boundaries, with compact readiness and route counts plus the
 next offline `provider-request draft` request in stdout and the summary JSON.
+Command metadata reports `provider_handoff_packet.v1` for the generated
+provider-handoff pair.
 It blocks rows missing species, source lane, or action code, and does not
 contact providers, download genomes, mutate manifests, or claim strict
 scientific delivery.

@@ -523,6 +523,27 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "purpose": "stage-keyed provider/external-genomes readiness packet map",
         },
     ),
+    ("acquisition-worklist", "build"): (
+        {
+            "name": "acquisition_worklist_packet",
+            "schema_version": "acquisition_worklist_packet.v1",
+            "purpose": "offline acquisition worklist pair and summary",
+        },
+    ),
+    ("coverage-plan", "build"): (
+        {
+            "name": "coverage_plan_packet",
+            "schema_version": "coverage_plan_packet.v1",
+            "purpose": "offline coverage action plan pair and summary",
+        },
+    ),
+    ("provider-handoff", "build"): (
+        {
+            "name": "provider_handoff_packet",
+            "schema_version": "provider_handoff_packet.v1",
+            "purpose": "offline provider handoff pair and summary",
+        },
+    ),
     ("provider-request", "validate"): (
         {
             "name": "provider_request_readiness_packet",

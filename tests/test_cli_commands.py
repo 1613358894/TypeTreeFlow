@@ -354,6 +354,15 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert "operator_chain_readiness_packets" in contract_names[
         ("coverage-pipeline", "status")
     ]
+    assert "acquisition_worklist_packet" in contract_names[
+        ("acquisition-worklist", "build")
+    ]
+    assert "coverage_plan_packet" in contract_names[
+        ("coverage-plan", "build")
+    ]
+    assert "provider_handoff_packet" in contract_names[
+        ("provider-handoff", "build")
+    ]
     coverage_pipeline_contracts = {
         "coverage_next_task_packet",
         "coverage_next_command_plan",
@@ -1030,6 +1039,7 @@ def test_commands_render_emits_normalized_acquisition_worklist_argv(capsys):
     assert payload["recognized"]["command"] == "acquisition-worklist"
     assert payload["recognized"]["mode"] == "acquisition_worklist"
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {"acquisition_worklist_packet"}
 
 
 def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
@@ -1290,6 +1300,7 @@ def test_commands_render_emits_normalized_coverage_plan_argv(capsys):
     assert payload["recognized"]["command"] == "coverage-plan"
     assert payload["recognized"]["mode"] == "coverage_plan"
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {"coverage_plan_packet"}
 
 
 def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
@@ -1323,6 +1334,7 @@ def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
     assert payload["recognized"]["command"] == "provider-handoff"
     assert payload["recognized"]["mode"] == "provider_handoff"
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {"provider_handoff_packet"}
 
 
 def test_commands_render_emits_normalized_provider_request_argv(capsys):

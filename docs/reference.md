@@ -1538,6 +1538,9 @@ JSON object, including `review_signal_counts` and
 `candidate_provider_key_counts` review hints. Without `--write`, it writes
 nothing. With `--write`, it writes only `acquisition_worklist.tsv` and
 `acquisition_worklist_summary.json` into the explicitly supplied directory.
+Command metadata reports the target output contract as
+`acquisition_worklist_packet.v1`, so AI/operator controllers can route the
+worklist pair before running the command.
 Expanded discovery and manual-supplement inputs are local TSV handoffs only:
 `matched_candidate` and `review_matched_candidates` can surface public linkage
 review, while `manual_search_required` or `provide_external_genome_fasta` can
@@ -1563,7 +1566,11 @@ It reads only the explicitly named acquisition worklist TSV with the matching
 schema and audit-only boundary fields, then emits exactly one compact JSON
 object. Without `--write`, it writes nothing. With `--write`, it writes only
 `coverage_plan.tsv` and `coverage_plan_summary.json` into the explicitly
-supplied directory. Existing output directories are refused by default;
+supplied directory.
+Command metadata reports the target output contract as
+`coverage_plan_packet.v1`, so controllers can route the coverage-plan pair
+before running the command.
+Existing output directories are refused by default;
 `--force` replaces only an owned pair with matching schemas. Missing,
 unreadable, malformed, wrong-schema, or boundary-violating input blocks the
 command with exit code `2`; successful plan generation exits `0`; unexpected
@@ -1606,6 +1613,9 @@ successful handoff generation exits `0`; unexpected internal or write failures
 exit `1`. Provider handoff rows are AI/operator planning artifacts only: they
 do not contact providers, download genomes, mutate manifests, change completion
 metrics, or promote strict scientific deliverables.
+Command metadata reports the target output contract as
+`provider_handoff_packet.v1`, so controllers can route the provider-handoff pair
+before running the command.
 `provider_handoff.tsv` includes `provider_automation_level` plus the same
 controlled `operator_route`, `next_input_class`, and `automation_boundary`
 vocabulary used by `providers catalog` and the coverage action queue. The
