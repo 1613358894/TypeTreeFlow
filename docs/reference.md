@@ -1840,7 +1840,7 @@ plus `worklist_candidate_provider_key_counts`,
 `provider_request_recommended_next_command`, their matching
 `*_recommended_request` structured request drafts, matching
 `*_recommended_request_target` compact command/subcommand labels, and bounded
-previews. Action
+`*_recommended_command_plan` no-dispatch planning companions. Action
 groups are sorted by priority and summarize action code, record count, source
 lanes, provider keys, required inputs, a structured `recommended_request` draft,
 and the recommended next command for AI/operator routing. Required inputs are
