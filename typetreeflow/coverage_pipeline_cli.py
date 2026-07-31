@@ -708,6 +708,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         coverage_next_task_packet,
         coverage_next_command_plan,
     )
+    coverage_operator_queue_preview = _coverage_operator_queue_preview(
+        _optional_summary_list(coverage_summary, "coverage_action_queue")
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -742,6 +745,7 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_next_command_plan": coverage_next_command_plan,
         "coverage_next_operator_recipe": coverage_next_operator_recipe,
+        "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -1216,6 +1220,9 @@ def _payload(
         coverage_next_task_packet,
         coverage_next_command_plan,
     )
+    coverage_operator_queue_preview = _coverage_operator_queue_preview(
+        coverage_action_queue
+    )
     current_coverage_action_queue_item = (
         dict(coverage_action_queue[0]) if coverage_action_queue else {}
     )
@@ -1269,6 +1276,7 @@ def _payload(
         "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_next_command_plan": coverage_next_command_plan,
         "coverage_next_operator_recipe": coverage_next_operator_recipe,
+        "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "primary_next_action_group": primary_next_action_group,
@@ -2120,6 +2128,60 @@ def _coverage_next_operator_recipe(
     }
 
 
+def _coverage_operator_queue_preview(
+    coverage_action_queue: list[dict[str, object]],
+    *,
+    limit: int = 3,
+) -> dict[str, object]:
+    items: list[dict[str, object]] = []
+    for item in coverage_action_queue[:limit]:
+        packet = _coverage_next_task_packet([item])
+        command_plan = _coverage_next_command_plan(packet)
+        recipe = _coverage_next_operator_recipe(packet, command_plan)
+        items.append(
+            {
+                "queue_position": _safe_int(recipe.get("queue_position", 0)),
+                "action_code": str(recipe.get("action_code", "")),
+                "operator_route": str(recipe.get("operator_route", "")),
+                "next_input_class": str(recipe.get("next_input_class", "")),
+                "record_count": _safe_int(recipe.get("record_count", 0)),
+                "required_inputs": list(recipe.get("required_inputs", []))
+                if isinstance(recipe.get("required_inputs"), list)
+                else [],
+                "command_plan_decision": str(
+                    recipe.get("command_plan_decision", "")
+                ),
+                "target_argv": list(recipe.get("target_argv", []))
+                if isinstance(recipe.get("target_argv"), list)
+                else [],
+                "step_count": _safe_int(recipe.get("step_count", 0)),
+                "safe_for_unattended_execution": False,
+                "recommended_execution_mode": "operator_review_required",
+                "execution_boundary": "metadata_only_operator_queue_preview",
+            }
+        )
+    return {
+        "schema_version": "coverage_operator_queue_preview.v1",
+        "available": bool(items),
+        "queue_item_count": len(coverage_action_queue),
+        "preview_limit": limit,
+        "preview_item_count": len(items),
+        "truncated": len(coverage_action_queue) > limit,
+        "items": items,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_queue_preview_no_execution",
+    }
+
+
 def _coverage_action_required_inputs(action_code: str) -> list[str]:
     return list(_COVERAGE_ACTION_REQUIRED_INPUTS.get(action_code, ()))
 
@@ -2170,6 +2232,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             empty_packet,
             empty_command_plan,
         ),
+        "coverage_operator_queue_preview": _coverage_operator_queue_preview([]),
         "current_coverage_action_queue_item": {},
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
@@ -2307,6 +2370,7 @@ def _rendered_outputs(
             "coverage_next_task_packet",
             "coverage_next_command_plan",
             "coverage_next_operator_recipe",
+            "coverage_operator_queue_preview",
             "current_coverage_action_queue_item",
             "primary_next_action_group",
             "primary_action_required_inputs",
