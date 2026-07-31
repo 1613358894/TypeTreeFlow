@@ -909,6 +909,10 @@ def _run_status(
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
     )
+    coverage_controller_runbook_packet = _coverage_controller_runbook_packet(
+        coverage_parent_controller_packet=coverage_parent_controller_packet,
+        coverage_controller_inspection_summary=coverage_controller_inspection_summary,
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -983,6 +987,7 @@ def _run_status(
         "coverage_controller_inspection_summary": (
             coverage_controller_inspection_summary
         ),
+        "coverage_controller_runbook_packet": coverage_controller_runbook_packet,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -2196,6 +2201,10 @@ def _payload(
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
     )
+    coverage_controller_runbook_packet = _coverage_controller_runbook_packet(
+        coverage_parent_controller_packet=coverage_parent_controller_packet,
+        coverage_controller_inspection_summary=coverage_controller_inspection_summary,
+    )
     current_coverage_action_queue_item = dict(selected_queue_item or {})
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
@@ -2270,6 +2279,7 @@ def _payload(
         "coverage_controller_inspection_summary": (
             coverage_controller_inspection_summary
         ),
+        "coverage_controller_runbook_packet": coverage_controller_runbook_packet,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "selected_coverage_queue_item_id": str(queue_item_id or ""),
@@ -4926,6 +4936,162 @@ def _coverage_controller_inspection_summary(
     }
 
 
+def _coverage_controller_runbook_step(
+    *,
+    position: int,
+    step_id: str,
+    action: str,
+    surface_name: str,
+    argv: Sequence[str] = (),
+    required_before_step: Sequence[str] = (),
+    expected_result: str = "",
+) -> dict[str, object]:
+    return {
+        "position": position,
+        "step_id": step_id,
+        "action": action,
+        "surface_name": surface_name,
+        "argv": [str(value) for value in argv],
+        "required_before_step": [str(value) for value in required_before_step],
+        "expected_result": expected_result,
+        "target_command_execution_authorized": False,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_controller_runbook_step_no_execution",
+    }
+
+
+def _coverage_controller_runbook_packet(
+    *,
+    coverage_parent_controller_packet: Mapping[str, object],
+    coverage_controller_inspection_summary: Mapping[str, object],
+) -> dict[str, object]:
+    recommended_surface = str(
+        coverage_parent_controller_packet.get("recommended_surface", "")
+    )
+    recommended_argv = _string_list_field(
+        coverage_parent_controller_packet,
+        "recommended_argv",
+    )
+    required_before_action = _string_list_field(
+        coverage_parent_controller_packet,
+        "required_before_action",
+    )
+    controller_blocking_ids = _string_list_field(
+        coverage_parent_controller_packet,
+        "controller_blocking_ids",
+    )
+    steps: list[dict[str, object]] = []
+    if recommended_surface:
+        steps.append(
+            _coverage_controller_runbook_step(
+                position=len(steps) + 1,
+                step_id="inspect_controller_surfaces",
+                action="inspect coverage_controller_inspection_summary",
+                surface_name="coverage_controller_inspection_summary",
+                required_before_step=("read current JSON payload",),
+                expected_result="select recommended_surface if available",
+            )
+        )
+        steps.append(
+            _coverage_controller_runbook_step(
+                position=len(steps) + 1,
+                step_id="inspect_recommended_surface",
+                action=f"inspect {recommended_surface}",
+                surface_name=recommended_surface,
+                required_before_step=required_before_action,
+                expected_result="confirm blockers, warnings, argv, and boundary",
+            )
+        )
+        if recommended_argv:
+            steps.append(
+                _coverage_controller_runbook_step(
+                    position=len(steps) + 1,
+                    step_id="run_metadata_gate",
+                    action="run commands plan or commands preflight metadata gate",
+                    surface_name=recommended_surface,
+                    argv=recommended_argv,
+                    required_before_step=(
+                        "operator review of recommended surface",
+                        "no target command execution",
+                    ),
+                    expected_result="metadata gate result is reviewed before dispatch",
+                )
+            )
+    stop_conditions = [
+        "controller_blocking_ids present",
+        "recommended surface unavailable",
+        "snapshot or digest guard mismatch",
+        "commands plan or preflight returns block",
+        "operator approval missing",
+        "target command would contact provider or download genomes",
+    ]
+    return {
+        "schema_version": "coverage_controller_runbook_packet.v1",
+        "available": bool(recommended_surface),
+        "runbook_status": (
+            "operator_review_required" if recommended_surface else "no_action"
+        ),
+        "recommended_surface": recommended_surface,
+        "recommended_action": str(
+            coverage_parent_controller_packet.get("recommended_action", "")
+        ),
+        "recommended_argv": recommended_argv,
+        "required_before_action": required_before_action,
+        "controller_has_blockers": bool(
+            coverage_parent_controller_packet.get("controller_has_blockers")
+        ),
+        "controller_blocking_ids": controller_blocking_ids,
+        "controller_warning_ids": _string_list_field(
+            coverage_parent_controller_packet,
+            "controller_warning_ids",
+        ),
+        "available_surface_names": _string_list_field(
+            coverage_controller_inspection_summary,
+            "available_surface_names",
+        ),
+        "blocking_surface_names": _string_list_field(
+            coverage_controller_inspection_summary,
+            "blocking_surface_names",
+        ),
+        "warning_surface_names": _string_list_field(
+            coverage_controller_inspection_summary,
+            "warning_surface_names",
+        ),
+        "step_count": len(steps),
+        "steps": steps,
+        "next_step_id": str(steps[0]["step_id"]) if steps else "",
+        "next_step_action": str(steps[0]["action"]) if steps else "no_action",
+        "stop_conditions": stop_conditions,
+        "target_command_execution_authorized": False,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": (
+            "operator_review_required" if recommended_surface else "no_action"
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "metadata_only_controller_runbook_no_execution",
+    }
+
+
 def _coverage_next_task_packet(
     coverage_action_queue: list[dict[str, object]],
 ) -> dict[str, object]:
@@ -6039,6 +6205,10 @@ def _failure(code: str, message: str) -> dict[str, object]:
             coverage_route_next_batch_packet=empty_route_next_batch_packet,
         )
     )
+    empty_controller_runbook_packet = _coverage_controller_runbook_packet(
+        coverage_parent_controller_packet=empty_parent_controller_packet,
+        coverage_controller_inspection_summary=empty_controller_inspection_summary,
+    )
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
         "status": "failed",
@@ -6087,6 +6257,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_controller_inspection_summary": (
             empty_controller_inspection_summary
         ),
+        "coverage_controller_runbook_packet": empty_controller_runbook_packet,
         "current_coverage_action_queue_item": {},
         "selected_coverage_queue_item_id": "",
         "selected_coverage_queue_item_found": False,
@@ -6340,6 +6511,7 @@ def _rendered_outputs(
             "coverage_controller_preflight_handoff_packet",
             "coverage_parent_controller_packet",
             "coverage_controller_inspection_summary",
+            "coverage_controller_runbook_packet",
             "current_coverage_action_queue_item",
             "selected_coverage_queue_item_id",
             "selected_coverage_queue_item_found",

@@ -1117,6 +1117,114 @@ def _assert_controller_packet(
         assert surface["execution_boundary"].startswith("metadata_only_") or (
             surface["execution_boundary"] == ""
         )
+    runbook_packet = payload["coverage_controller_runbook_packet"]
+    assert (
+        runbook_packet["schema_version"]
+        == "coverage_controller_runbook_packet.v1"
+    )
+    assert runbook_packet["available"] is bool(parent_packet["recommended_surface"])
+    assert runbook_packet["recommended_surface"] == parent_packet[
+        "recommended_surface"
+    ]
+    assert runbook_packet["recommended_action"] == parent_packet[
+        "recommended_action"
+    ]
+    assert runbook_packet["recommended_argv"] == parent_packet["recommended_argv"]
+    assert runbook_packet["required_before_action"] == parent_packet[
+        "required_before_action"
+    ]
+    assert runbook_packet["controller_has_blockers"] is parent_packet[
+        "controller_has_blockers"
+    ]
+    assert runbook_packet["controller_blocking_ids"] == parent_packet[
+        "controller_blocking_ids"
+    ]
+    assert runbook_packet["controller_warning_ids"] == parent_packet[
+        "controller_warning_ids"
+    ]
+    assert runbook_packet["available_surface_names"] == inspection_summary[
+        "available_surface_names"
+    ]
+    assert runbook_packet["blocking_surface_names"] == inspection_summary[
+        "blocking_surface_names"
+    ]
+    assert runbook_packet["warning_surface_names"] == inspection_summary[
+        "warning_surface_names"
+    ]
+    if parent_packet["recommended_surface"]:
+        expected_step_count = 3 if parent_packet["recommended_argv"] else 2
+        assert runbook_packet["runbook_status"] == "operator_review_required"
+        assert runbook_packet["step_count"] == expected_step_count
+        assert [step["position"] for step in runbook_packet["steps"]] == list(
+            range(1, expected_step_count + 1)
+        )
+        assert runbook_packet["next_step_id"] == "inspect_controller_surfaces"
+        assert runbook_packet["next_step_action"] == (
+            "inspect coverage_controller_inspection_summary"
+        )
+        assert runbook_packet["steps"][0]["surface_name"] == (
+            "coverage_controller_inspection_summary"
+        )
+        assert runbook_packet["steps"][1]["surface_name"] == parent_packet[
+            "recommended_surface"
+        ]
+        assert runbook_packet["steps"][1]["required_before_step"] == (
+            parent_packet["required_before_action"]
+        )
+        if parent_packet["recommended_argv"]:
+            assert runbook_packet["steps"][2]["step_id"] == "run_metadata_gate"
+            assert runbook_packet["steps"][2]["argv"] == parent_packet[
+                "recommended_argv"
+            ]
+            assert runbook_packet["steps"][2]["surface_name"] == parent_packet[
+                "recommended_surface"
+            ]
+    else:
+        assert runbook_packet["runbook_status"] == "no_action"
+        assert runbook_packet["step_count"] == 0
+        assert runbook_packet["steps"] == []
+        assert runbook_packet["next_step_id"] == ""
+        assert runbook_packet["next_step_action"] == "no_action"
+    assert runbook_packet["stop_conditions"] == [
+        "controller_blocking_ids present",
+        "recommended surface unavailable",
+        "snapshot or digest guard mismatch",
+        "commands plan or preflight returns block",
+        "operator approval missing",
+        "target command would contact provider or download genomes",
+    ]
+    assert runbook_packet["target_command_execution_authorized"] is False
+    assert runbook_packet["safe_for_unattended_execution"] is False
+    assert runbook_packet["audit_only"] is True
+    assert runbook_packet["dry_run"] is True
+    assert runbook_packet["writes_outputs"] is False
+    assert runbook_packet["writes_workflow_outputs"] is False
+    assert runbook_packet["downloads_triggered"] == 0
+    assert runbook_packet["providers_contacted"] == 0
+    assert runbook_packet["network_access"] is False
+    assert runbook_packet["external_tools"] is False
+    assert runbook_packet["manifest_mutated"] is False
+    assert runbook_packet["strict_scientific_deliverable"] is False
+    assert runbook_packet["external_genomes_registration_applied"] is False
+    assert runbook_packet["execution_boundary"] == (
+        "metadata_only_controller_runbook_no_execution"
+    )
+    for step in runbook_packet["steps"]:
+        assert step["target_command_execution_authorized"] is False
+        assert step["safe_for_unattended_execution"] is False
+        assert step["audit_only"] is True
+        assert step["dry_run"] is True
+        assert step["writes_outputs"] is False
+        assert step["writes_workflow_outputs"] is False
+        assert step["downloads_triggered"] == 0
+        assert step["providers_contacted"] == 0
+        assert step["network_access"] is False
+        assert step["external_tools"] is False
+        assert step["manifest_mutated"] is False
+        assert step["strict_scientific_deliverable"] is False
+        assert step["execution_boundary"] == (
+            "metadata_only_controller_runbook_step_no_execution"
+        )
     for candidate in packet["controller_step_candidates"]:
         route_context = candidate["route_context"]
         assert route_context["schema_version"] == "coverage_controller_route_context.v1"

@@ -325,6 +325,12 @@ parent agents. It lists the parent-controller, controller, step-summary,
 preflight, handoff-next-step, and route-batch packets with availability,
 target argv, blocker IDs, warning IDs, and execution boundaries before the
 parent expands a specific nested packet.
+`coverage_controller_runbook_packet` is the ordered metadata-only checklist for
+parent agents. It starts with the inspection summary, expands the recommended
+surface, and only then points at a `commands plan` or `commands preflight`
+metadata gate. Stop conditions require fail-closed behavior for blockers,
+snapshot or digest mismatches, blocked preflight, missing operator approval, or
+any target command that would contact providers or download genomes.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
 summary for parent orchestration. `controller_digest_guard_summary` repeats the
 queue and operator-chain snapshot guards in one place so parent controllers can
@@ -418,6 +424,9 @@ It is still a metadata-only no-execution handoff.
 Use `coverage_controller_inspection_summary` when the parent agent first needs
 a bounded table of available controller surfaces and their blocker/warning
 state before expanding one packet.
+Use `coverage_controller_runbook_packet` when the parent agent needs an ordered
+no-execution checklist for the next controller handoff rather than only a
+surface index.
 The preflight packet includes
 `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata
