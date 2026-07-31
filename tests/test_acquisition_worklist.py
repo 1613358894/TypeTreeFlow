@@ -80,6 +80,32 @@ def test_worklist_assigns_one_lane_per_species_with_conflict_priority():
         "expanded_discovery_candidate_review": 0,
         "manual_supplement_external_fasta_required": 0,
     }
+    opportunities = report.summary["acquisition_opportunity_summary"]
+    assert [
+        (item["priority"], item["lane"], item["reason_code"])
+        for item in opportunities
+    ] == [
+        (10, "curator_conflict_resolution", "conflict_blocks_automatic_use"),
+        (
+            30,
+            "public_linkage_review",
+            "public_candidate_ncbi_type_material_review",
+        ),
+        (40, "external_registration_ready", "reviewed_external_fasta_ready"),
+        (50, "external_fasta_required", "no_public_strict_genome_linkage"),
+        (80, "not_evaluated", "no_local_evidence_rows"),
+        (90, "no_action_strict_complete", "strict_usable_present"),
+    ]
+    conflict = opportunities[0]
+    assert conflict["next_input_class"] == "manual_review.tsv"
+    assert conflict["recommended_next_command"] == (
+        "manual-review validate --input <review.tsv>"
+    )
+    assert conflict["source_artifact_counts"] == {"reconciler_audit": 1}
+    assert conflict["species_preview"] == ["Clostridium conflictum"]
+    assert all(
+        item["safe_for_unattended_download"] is False for item in opportunities
+    )
 
 
 def test_worklist_conflict_overrides_external_ready():
@@ -127,6 +153,22 @@ def test_worklist_tsv_and_json_are_stable_and_audit_only():
     assert summary["candidate_provider_key_counts"] == {}
     assert summary["candidate_provider_status_counts"] == {}
     assert summary["review_signal_counts"]["ncbi_type_material_candidate"] == 1
+    assert summary["acquisition_opportunity_summary"][0] == {
+        "priority": 30,
+        "lane": "public_linkage_review",
+        "reason_code": "public_candidate_ncbi_type_material_review",
+        "next_input_class": "manual_review.tsv",
+        "automation_boundary": "public_metadata_review_only_no_download",
+        "record_count": 1,
+        "species_count": 1,
+        "species_preview": ["Clostridium candidatum"],
+        "species_truncated": False,
+        "source_artifact_counts": {"reconciler_audit": 1},
+        "candidate_provider_key_counts": {},
+        "candidate_provider_status_counts": {},
+        "recommended_next_command": "manual-review validate --input <review.tsv>",
+        "safe_for_unattended_download": False,
+    }
 
 
 def test_worklist_public_linkage_reasons_surface_review_signals():

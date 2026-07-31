@@ -226,6 +226,9 @@ def _payload(report, *, diagnostics: list[dict[str, object]], dry_run: bool) -> 
         "candidate_provider_status_counts": summary[
             "candidate_provider_status_counts"
         ],
+        "acquisition_opportunity_summary": summary[
+            "acquisition_opportunity_summary"
+        ],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "rows_preview": preview,
@@ -261,6 +264,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "review_signal_counts": {},
         "candidate_provider_key_counts": {},
         "candidate_provider_status_counts": {},
+        "acquisition_opportunity_summary": [],
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("acquisition_worklist_cli", code)],
         "rows_preview": [],
