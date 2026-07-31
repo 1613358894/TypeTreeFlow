@@ -1023,6 +1023,9 @@ def _run_status(
         coverage_handoff_server_validation_result_template_packet=(
             coverage_handoff_server_validation_result_template_packet
         ),
+        coverage_handoff_server_validation_result_template_artifact_packet=(
+            coverage_handoff_server_validation_result_template_artifact_packet
+        ),
     )
     coverage_controller_inspection_summary = (
         _coverage_controller_inspection_summary(
@@ -1044,6 +1047,9 @@ def _run_status(
             ),
             coverage_handoff_server_validation_result_template_packet=(
                 coverage_handoff_server_validation_result_template_packet
+            ),
+            coverage_handoff_server_validation_result_template_artifact_packet=(
+                coverage_handoff_server_validation_result_template_artifact_packet
             ),
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
@@ -6175,7 +6181,18 @@ def _coverage_parent_controller_packet(
     coverage_handoff_server_validation_runbook_packet: Mapping[str, object],
     coverage_handoff_server_validation_result_contract_packet: Mapping[str, object],
     coverage_handoff_server_validation_result_template_packet: Mapping[str, object],
+    coverage_handoff_server_validation_result_template_artifact_packet: (
+        Mapping[str, object] | None
+    ) = None,
 ) -> dict[str, object]:
+    template_artifact_packet = (
+        coverage_handoff_server_validation_result_template_artifact_packet
+        if isinstance(
+            coverage_handoff_server_validation_result_template_artifact_packet,
+            Mapping,
+        )
+        else {}
+    )
     controller_available = bool(coverage_controller_packet.get("available"))
     controller_preflight_available = bool(
         coverage_controller_preflight_handoff_packet.get("available")
@@ -6337,6 +6354,30 @@ def _coverage_parent_controller_packet(
                 "result_validation_expected_output_schema_version", ""
             )
         ),
+        "handoff_server_validation_result_template_artifact_available": bool(
+            template_artifact_packet.get("available")
+        ),
+        "handoff_server_validation_result_template_artifact_status": str(
+            template_artifact_packet.get("status", "no_action")
+        ),
+        "handoff_server_validation_result_template_artifact_path": str(
+            template_artifact_packet.get("artifact_path", "")
+        ),
+        "handoff_server_validation_result_template_artifact_relative_path": str(
+            template_artifact_packet.get("relative_path", "")
+        ),
+        "handoff_server_validation_result_template_artifact_sha256": str(
+            template_artifact_packet.get("artifact_sha256", "")
+        ),
+        "handoff_server_validation_result_template_artifact_matches_embedded": bool(
+            template_artifact_packet.get("template_matches_embedded_packet")
+        ),
+        "handoff_server_validation_result_template_artifact_validation_argv": (
+            _string_list_field(
+                template_artifact_packet,
+                "result_validation_recommended_argv",
+            )
+        ),
         "recommended_surface": recommended_surface,
         "recommended_action": recommended_action,
         "recommended_argv": recommended_argv,
@@ -6440,7 +6481,18 @@ def _coverage_controller_inspection_summary(
     coverage_handoff_server_validation_result_contract_packet: Mapping[str, object],
     coverage_handoff_server_validation_result_template_packet: Mapping[str, object],
     coverage_route_next_batch_packet: Mapping[str, object],
+    coverage_handoff_server_validation_result_template_artifact_packet: (
+        Mapping[str, object] | None
+    ) = None,
 ) -> dict[str, object]:
+    template_artifact_packet = (
+        coverage_handoff_server_validation_result_template_artifact_packet
+        if isinstance(
+            coverage_handoff_server_validation_result_template_artifact_packet,
+            Mapping,
+        )
+        else {}
+    )
     surfaces = [
         _controller_inspection_surface_item(
             "coverage_parent_controller_packet",
@@ -6486,12 +6538,22 @@ def _coverage_controller_inspection_summary(
             coverage_handoff_server_validation_result_template_packet,
             argv_key="recommended_argv",
         ),
+    ]
+    if template_artifact_packet:
+        surfaces.append(
+            _controller_inspection_surface_item(
+                "coverage_handoff_server_validation_result_template_artifact_packet",
+                template_artifact_packet,
+                argv_key="result_validation_recommended_argv",
+            )
+        )
+    surfaces.append(
         _controller_inspection_surface_item(
             "coverage_route_next_batch_packet",
             coverage_route_next_batch_packet,
             argv_key="first_target_argv",
-        ),
-    ]
+        )
+    )
     available_surface_names = [
         str(item["name"]) for item in surfaces if bool(item["available"])
     ]
