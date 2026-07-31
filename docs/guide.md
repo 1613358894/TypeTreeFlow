@@ -466,6 +466,11 @@ stage. The matching
 portion of that chain into stage counts, the next missing local stage, required
 inputs, record counts by stage, and no-execution safety fields for one-object
 controller handoffs.
+`coverage_handoff_next_step_packet` is the matching command-plan handoff for
+that next missing provider/external stage. It carries the next stage, artifact,
+required inputs, structured request, rendered argv, preflight decision, and
+blocker or warning IDs while keeping provider contact, downloads, registration,
+FASTA copying, manifest mutation, and strict promotion disabled.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
