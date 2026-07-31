@@ -1158,6 +1158,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "fail closed when coverage queue metadata digest changed",
         },
+        {
+            "name": "--expected-operator-chain-snapshot-sha256",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "fail closed when operator-chain stage digest changed",
+        },
     ],
     ("coverage-pipeline", "build"): [
         {
@@ -1265,6 +1272,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "fail closed when coverage queue metadata digest changed",
         },
         {
+            "name": "--expected-operator-chain-snapshot-sha256",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "fail closed when operator-chain stage digest changed",
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -1349,6 +1363,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "fail closed when coverage queue metadata digest changed",
+        },
+        {
+            "name": "--expected-operator-chain-snapshot-sha256",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "fail closed when operator-chain stage digest changed",
         },
         {
             "name": "--require-complete",
@@ -2622,6 +2643,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "queue_preview_limit",
                     "queue_item_id",
                     "expected_queue_snapshot_sha256",
+                    "expected_operator_chain_snapshot_sha256",
                     "require_complete",
                     "json",
                 },
@@ -2666,6 +2688,17 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                         expected_queue_snapshot,
                     ]
                 )
+            expected_operator_chain_snapshot = _optional_string(
+                request,
+                "expected_operator_chain_snapshot_sha256",
+            )
+            if expected_operator_chain_snapshot:
+                argv.extend(
+                    [
+                        "--expected-operator-chain-snapshot-sha256",
+                        expected_operator_chain_snapshot,
+                    ]
+                )
             return _with_flags(
                 argv,
                 request,
@@ -2687,6 +2720,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "queue_preview_limit",
             "queue_item_id",
             "expected_queue_snapshot_sha256",
+            "expected_operator_chain_snapshot_sha256",
         }
         if subcommand == "build":
             allowed.update(
@@ -2729,6 +2763,17 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 [
                     "--expected-queue-snapshot-sha256",
                     expected_queue_snapshot,
+                ]
+            )
+        expected_operator_chain_snapshot = _optional_string(
+            request,
+            "expected_operator_chain_snapshot_sha256",
+        )
+        if expected_operator_chain_snapshot:
+            argv.extend(
+                [
+                    "--expected-operator-chain-snapshot-sha256",
+                    expected_operator_chain_snapshot,
                 ]
             )
         if subcommand == "build":

@@ -287,6 +287,10 @@ provider access/downloads.
 Controllers that persist `queue_snapshot_sha256` can pass
 `--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a
 mismatch is refused with exit code `2` so stale queue selections fail closed.
+Controllers can also persist `operator_chain_snapshot_sha256` and pass
+`--expected-operator-chain-snapshot-sha256 <sha256>` on the next metadata call;
+a mismatch is refused with exit code `2` so stale operator-chain handoffs fail
+closed before any target command is considered.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so

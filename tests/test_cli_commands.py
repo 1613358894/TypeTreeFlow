@@ -268,6 +268,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--provider-request-external-genomes-dir",
         "--external-genomes-install-plan-dir",
         "--registration-run-dir",
+        "--expected-operator-chain-snapshot-sha256",
         "--require-complete",
         "--json",
     } <= parameter_names[("coverage-pipeline", "status")]
@@ -276,7 +277,11 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--provider-request-validation-base-dir",
         "--curated-provider-request-tsv",
         "--external-genomes-install-target-outdir",
+        "--expected-operator-chain-snapshot-sha256",
     } <= parameter_names[("coverage-pipeline", "build")]
+    assert {
+        "--expected-operator-chain-snapshot-sha256",
+    } <= parameter_names[("coverage-pipeline", "preview")]
     audit_dir_flags = {
         "--manual-review-import-dir",
         "--acquisition-worklist-dir",
@@ -989,6 +994,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                     '"queue_item_id":"cq004_prepare_provider_handoff",'
                     '"expected_queue_snapshot_sha256":'
                     '"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",'
+                    '"expected_operator_chain_snapshot_sha256":'
+                    '"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",'
                     '"require_complete":true,"json":true}'
                 ),
             ]
@@ -1018,6 +1025,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "cq004_prepare_provider_handoff",
         "--expected-queue-snapshot-sha256",
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "--expected-operator-chain-snapshot-sha256",
+        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
         "--require-complete",
         "--json",
     ]
