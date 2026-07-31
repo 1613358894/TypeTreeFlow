@@ -6,6 +6,16 @@ from collections import Counter
 from collections.abc import Iterable, Mapping
 
 
+def provider_automation_level(entry) -> str:
+    """Return stable AI-facing automation class for a provider registry entry."""
+    capability = entry.capability
+    if capability.status.value == "download_enabled":
+        return "download_enabled"
+    if "metadata_review" in capability.allowed_modes:
+        return "metadata_review"
+    return "planning_handoff"
+
+
 def provider_route(automation_level: str) -> dict[str, str]:
     """Return stable route metadata for a provider automation level."""
     if automation_level == "metadata_review":
