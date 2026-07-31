@@ -2333,6 +2333,7 @@ def _coverage_action_queue_summary(
     route_counts: dict[str, int] = {}
     input_counts: dict[str, int] = {}
     gate_status_counts: dict[str, int] = {}
+    review_schema_counts: dict[str, int] = {}
     manual_or_curator_count = 0
     provider_handoff_count = 0
     public_metadata_count = 0
@@ -2347,6 +2348,11 @@ def _coverage_action_queue_summary(
             input_counts[input_class] = input_counts.get(input_class, 0) + 1
         gate = _coverage_item_execution_gate(item)
         _count_preview_value(gate_status_counts, str(gate.get("gate_status", "")))
+        review_input_packet = _coverage_item_review_input_packet(item)
+        _count_preview_value(
+            review_schema_counts,
+            str(review_input_packet.get("input_schema", "")),
+        )
         if item.get("requires_curator_input"):
             manual_or_curator_count += 1
         if item.get("requires_provider_handoff"):
@@ -2362,6 +2368,7 @@ def _coverage_action_queue_summary(
         "operator_route_counts": dict(sorted(route_counts.items())),
         "next_input_class_counts": dict(sorted(input_counts.items())),
         "execution_gate_status_counts": _sorted_count_map(gate_status_counts),
+        "review_input_schema_counts": _sorted_count_map(review_schema_counts),
         "manual_or_curator_input_required_count": manual_or_curator_count,
         "provider_handoff_required_count": provider_handoff_count,
         "public_metadata_review_required_count": public_metadata_count,
@@ -2376,6 +2383,7 @@ def _coverage_priority_summary(
     record_counts_by_route: dict[str, int] = {}
     record_counts_by_input: dict[str, int] = {}
     gate_status_record_counts: dict[str, int] = {}
+    review_schema_record_counts: dict[str, int] = {}
     provider_automation_record_counts: dict[str, int] = {}
     actionable_record_count = 0
     safe_for_unattended_download_count = 0
@@ -2396,6 +2404,12 @@ def _coverage_priority_summary(
         if gate_status:
             gate_status_record_counts[gate_status] = (
                 gate_status_record_counts.get(gate_status, 0) + record_count
+            )
+        review_input_packet = _coverage_item_review_input_packet(item)
+        review_schema = str(review_input_packet.get("input_schema", ""))
+        if review_schema:
+            review_schema_record_counts[review_schema] = (
+                review_schema_record_counts.get(review_schema, 0) + record_count
             )
         if route:
             record_counts_by_route[route] = (
@@ -2434,6 +2448,7 @@ def _coverage_priority_summary(
                     else [],
                     "species_truncated": bool(item.get("species_truncated")),
                     "operator_execution_gate": gate,
+                    "review_input_packet": review_input_packet,
                     "recommended_next_command": str(
                         item.get("recommended_next_command", "")
                     ),
@@ -2452,6 +2467,9 @@ def _coverage_priority_summary(
         "record_counts_by_next_input_class": dict(sorted(record_counts_by_input.items())),
         "execution_gate_status_record_counts": dict(
             sorted(gate_status_record_counts.items())
+        ),
+        "review_input_schema_record_counts": dict(
+            sorted(review_schema_record_counts.items())
         ),
         "provider_automation_level_record_counts": dict(
             sorted(provider_automation_record_counts.items())
@@ -2585,6 +2603,21 @@ def _coverage_item_execution_gate(item: Mapping[str, object]) -> dict[str, objec
     )
     return _coverage_operator_execution_gate(
         available=True,
+        recommended_request=recommended_request,
+    )
+
+
+def _coverage_item_review_input_packet(item: Mapping[str, object]) -> dict[str, object]:
+    raw_packet = item.get("review_input_packet")
+    if isinstance(raw_packet, Mapping):
+        return dict(raw_packet)
+    raw_request = item.get("recommended_request")
+    recommended_request = (
+        dict(raw_request) if isinstance(raw_request, Mapping) else None
+    )
+    return _coverage_review_input_packet(
+        str(item.get("action_code", "")),
+        record_count=_safe_int(item.get("record_count", 0)),
         recommended_request=recommended_request,
     )
 
@@ -3346,6 +3379,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             "operator_route_counts": {},
             "next_input_class_counts": {},
             "execution_gate_status_counts": {},
+            "review_input_schema_counts": {},
             "manual_or_curator_input_required_count": 0,
             "provider_handoff_required_count": 0,
             "public_metadata_review_required_count": 0,
