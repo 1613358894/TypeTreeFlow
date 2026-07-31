@@ -13,6 +13,9 @@ def test_default_registry_contains_planning_only_culture_collections():
         "nbrc",
         "kctc",
         "kacc",
+        "vkm",
+        "mccc",
+        "gdmcc",
         "cect",
         "cip",
         "ccug",
@@ -67,6 +70,12 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "Korean Collection for Type Cultures": "kctc",
         "KACC": "kacc",
         "Korean Agricultural Culture Collection": "kacc",
+        "VKM": "vkm",
+        "All-Russian Collection of Microorganisms": "vkm",
+        "MCCC": "mccc",
+        "Marine Culture Collection of China": "mccc",
+        "GDMCC": "gdmcc",
+        "Guangdong Microbial Culture Collection Center": "gdmcc",
         "Spanish Type Culture Collection": "cect",
         "Collection de l'Institut Pasteur": "cip",
         "Culture Collection University of Gothenburg": "ccug",
@@ -105,8 +114,17 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
 
     assert registry.keys_from_text(
         "ATCC 1001; DSMZ 2002; DSM-2003; KACC 12345; "
+        "VKM B-1787; MCCC 1K07510; GDMCC 1.2529; "
         "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006"
-    ) == ("atcc_genome_portal", "dsmz", "kacc", "bccm_lmg")
+    ) == (
+        "atcc_genome_portal",
+        "dsmz",
+        "kacc",
+        "vkm",
+        "mccc",
+        "gdmcc",
+        "bccm_lmg",
+    )
     assert registry.keys_from_text("ATCC; DSMZ; JCM") == (
         "atcc_genome_portal",
         "dsmz",

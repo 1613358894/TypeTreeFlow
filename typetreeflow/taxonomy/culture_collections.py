@@ -21,6 +21,9 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "LMG",
     "KCTC",
     "KACC",
+    "VKM",
+    "MCCC",
+    "GDMCC",
     "NBRC",
     "CCUG",
     "CCM",
@@ -73,9 +76,13 @@ _PREFIX_PATTERN = "|".join(
     re.escape(prefix)
     for prefix in sorted(RECOGNIZED_COLLECTION_PREFIXES, key=len, reverse=True)
 )
+_COLLECTION_NUMBER_PATTERN = (
+    r"(?:[A-Za-z]{1,5}\s*[-:]?\s*)?"
+    r"\d+(?:[A-Za-z]\d+)?(?:[.-]\d+)*(?:[A-Za-z])?"
+)
 _COLLECTION_ID_PATTERN = re.compile(
     rf"(?<![A-Za-z0-9])(?P<prefix>{_PREFIX_PATTERN})\s*[-:]?\s*"
-    r"(?P<number>(?:[A-Za-z]{1,5}\s*[-:]?\s*)?\d+(?:[.-]\d+)*(?:[A-Za-z])?)"
+    rf"(?P<number>{_COLLECTION_NUMBER_PATTERN})"
     r"(?![A-Za-z0-9])",
     re.IGNORECASE,
 )

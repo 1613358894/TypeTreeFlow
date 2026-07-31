@@ -116,7 +116,8 @@ def test_extracts_expanded_public_collection_prefixes():
     text = (
         "type strain NCIMB 123; NCIB 456; BCRC 789; CCRC 1011; "
         "NCCB 12003; CSUR P900; CICC 10456; IFO 15517; "
-        "NITE BP-1234; KACC 12345"
+        "NITE BP-1234; KACC 12345; VKM B-1787; MCCC 1K07510; "
+        "GDMCC 1.2529"
     )
 
     normalized_ids = [
@@ -134,6 +135,9 @@ def test_extracts_expanded_public_collection_prefixes():
         "IFO 15517",
         "NITE BP-1234",
         "KACC 12345",
+        "VKM B-1787",
+        "MCCC 1K07510",
+        "GDMCC 1.2529",
     ]
 
 
@@ -226,6 +230,9 @@ def test_known_prefixes_include_required_collections():
         "LMG",
         "KCTC",
         "KACC",
+        "VKM",
+        "MCCC",
+        "GDMCC",
         "NBRC",
         "CCUG",
         "CCM",
