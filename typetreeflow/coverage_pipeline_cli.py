@@ -928,6 +928,9 @@ def _run_status(
                 coverage_controller_preflight_handoff_packet
             ),
             coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
+            coverage_handoff_server_validation_packet=(
+                coverage_handoff_server_validation_packet
+            ),
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
     )
@@ -2249,6 +2252,9 @@ def _payload(
                 coverage_controller_preflight_handoff_packet
             ),
             coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
+            coverage_handoff_server_validation_packet=(
+                coverage_handoff_server_validation_packet
+            ),
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
     )
@@ -5287,6 +5293,7 @@ def _coverage_controller_inspection_summary(
     coverage_controller_step_summary: Mapping[str, object],
     coverage_controller_preflight_handoff_packet: Mapping[str, object],
     coverage_handoff_next_step_packet: Mapping[str, object],
+    coverage_handoff_server_validation_packet: Mapping[str, object],
     coverage_route_next_batch_packet: Mapping[str, object],
 ) -> dict[str, object]:
     surfaces = [
@@ -5313,6 +5320,11 @@ def _coverage_controller_inspection_summary(
             "coverage_handoff_next_step_packet",
             coverage_handoff_next_step_packet,
             argv_key="target_argv",
+        ),
+        _controller_inspection_surface_item(
+            "coverage_handoff_server_validation_packet",
+            coverage_handoff_server_validation_packet,
+            argv_key="recommended_argv",
         ),
         _controller_inspection_surface_item(
             "coverage_route_next_batch_packet",
@@ -6665,6 +6677,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
                 empty_controller_preflight_handoff_packet
             ),
             coverage_handoff_next_step_packet=empty_handoff_next_step_packet,
+            coverage_handoff_server_validation_packet=(
+                empty_handoff_server_validation_packet
+            ),
             coverage_route_next_batch_packet=empty_route_next_batch_packet,
         )
     )
