@@ -3117,12 +3117,26 @@ def _coverage_route_next_batch_packet(
         if route_priority == "provider_handoff":
             recommended_operator_action = "prepare_provider_handoff_package"
             required_local_input = "provider_handoff.tsv"
+            recommended_request: dict[str, object] | None = {
+                "command": "provider-request",
+                "subcommand": "draft",
+                "provider_handoff_tsv": OUTPUT_PATHS["provider_handoff"],
+            }
         elif route_priority == "public_metadata_review":
             recommended_operator_action = "review_public_metadata_linkage"
             required_local_input = "manual_review.tsv"
+            recommended_request = {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            }
         else:
             recommended_operator_action = "operator_review_required"
             required_local_input = "local_review_input"
+            recommended_request = None
+        recommended_request_target = _coverage_recommended_request_target(
+            recommended_request
+        )
         batch_items.append(
             {
                 "batch_position": len(batch_items) + 1,
@@ -3131,6 +3145,8 @@ def _coverage_route_next_batch_packet(
                 "route_priority": route_priority,
                 "recommended_operator_action": recommended_operator_action,
                 "required_local_input": required_local_input,
+                "recommended_request": recommended_request,
+                "recommended_request_target": recommended_request_target,
                 "record_count": _safe_int(item.get("record_count", 0)),
                 "species_count": _safe_int(item.get("species_count", 0)),
                 "species_preview": list(item.get("species_preview", []))
@@ -3203,6 +3219,14 @@ def _coverage_route_next_batch_packet(
         ),
         "first_required_local_input": str(
             first_item.get("required_local_input", "")
+        ),
+        "first_recommended_request": (
+            dict(first_item.get("recommended_request", {}))
+            if isinstance(first_item.get("recommended_request"), Mapping)
+            else None
+        ),
+        "first_recommended_request_target": str(
+            first_item.get("recommended_request_target", "")
         ),
         "batch_items": batch_items,
         "truncated": len(priority_items) > limit,
