@@ -2289,8 +2289,12 @@ schema-shaped, fail-closed `coverage_handoff_server_validation_result.json`
 template for that result contract. The embedded template defaults to
 `status=blocked` and repeats the no-execution boundary confirmations so a
 server agent can fill an authorized bounded-validation result without guessing
-field names. It remains metadata-only and does not validate artifacts, write
-files, dispatch target commands, contact providers, or download genomes.
+field names. It also carries `result_validation_recommended_request`,
+`result_validation_recommended_argv`, and
+`result_validation_expected_output_schema_version` for the local
+`coverage-pipeline server-validation-result validate` shape validator. It
+remains metadata-only and does not validate artifacts, write files, dispatch
+target commands, contact providers, or download genomes.
 The server-validation packet, runbook, result contract, and result template also
 mirror the structured `recommended_request` from the handoff next-step packet
 when one exists, so `commands render` and `commands plan` can inspect or
