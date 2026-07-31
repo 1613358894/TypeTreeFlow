@@ -949,6 +949,12 @@ def _run_status(
         coverage_handoff_server_validation_runbook_packet=(
             coverage_handoff_server_validation_runbook_packet
         ),
+        coverage_handoff_server_validation_result_contract_packet=(
+            coverage_handoff_server_validation_result_contract_packet
+        ),
+        coverage_handoff_server_validation_result_template_packet=(
+            coverage_handoff_server_validation_result_template_packet
+        ),
     )
     coverage_controller_inspection_summary = (
         _coverage_controller_inspection_summary(
@@ -2321,6 +2327,12 @@ def _payload(
         ),
         coverage_handoff_server_validation_runbook_packet=(
             coverage_handoff_server_validation_runbook_packet
+        ),
+        coverage_handoff_server_validation_result_contract_packet=(
+            coverage_handoff_server_validation_result_contract_packet
+        ),
+        coverage_handoff_server_validation_result_template_packet=(
+            coverage_handoff_server_validation_result_template_packet
         ),
     )
     coverage_controller_inspection_summary = (
@@ -5632,6 +5644,8 @@ def _coverage_parent_controller_packet(
     coverage_handoff_next_step_packet: Mapping[str, object],
     coverage_handoff_server_validation_packet: Mapping[str, object],
     coverage_handoff_server_validation_runbook_packet: Mapping[str, object],
+    coverage_handoff_server_validation_result_contract_packet: Mapping[str, object],
+    coverage_handoff_server_validation_result_template_packet: Mapping[str, object],
 ) -> dict[str, object]:
     controller_available = bool(coverage_controller_packet.get("available"))
     controller_preflight_available = bool(
@@ -5739,6 +5753,46 @@ def _coverage_parent_controller_packet(
         ),
         "handoff_server_validation_argv": _string_list_field(
             coverage_handoff_server_validation_packet, "recommended_argv"
+        ),
+        "handoff_server_validation_result_contract_available": bool(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "available"
+            )
+        ),
+        "handoff_server_validation_result_contract_status": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "contract_status", "no_action"
+            )
+        ),
+        "handoff_server_validation_expected_result_schema_version": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "expected_result_schema_version", ""
+            )
+        ),
+        "handoff_server_validation_required_result_field_count": _safe_int(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "required_result_field_count", 0
+            )
+        ),
+        "handoff_server_validation_result_template_available": bool(
+            coverage_handoff_server_validation_result_template_packet.get(
+                "available"
+            )
+        ),
+        "handoff_server_validation_result_template_status": str(
+            coverage_handoff_server_validation_result_template_packet.get(
+                "template_status", "no_action"
+            )
+        ),
+        "handoff_server_validation_result_template_filename": str(
+            coverage_handoff_server_validation_result_template_packet.get(
+                "result_filename", ""
+            )
+        ),
+        "handoff_server_validation_result_template_default_status": str(
+            coverage_handoff_server_validation_result_template_packet.get(
+                "result_template_default_status", ""
+            )
         ),
         "recommended_surface": recommended_surface,
         "recommended_action": recommended_action,
@@ -7260,6 +7314,12 @@ def _failure(code: str, message: str) -> dict[str, object]:
         ),
         coverage_handoff_server_validation_runbook_packet=(
             empty_handoff_server_validation_runbook_packet
+        ),
+        coverage_handoff_server_validation_result_contract_packet=(
+            empty_handoff_server_validation_result_contract_packet
+        ),
+        coverage_handoff_server_validation_result_template_packet=(
+            empty_handoff_server_validation_result_template_packet
         ),
     )
     empty_controller_inspection_summary = (

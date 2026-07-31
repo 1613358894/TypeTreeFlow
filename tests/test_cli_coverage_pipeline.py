@@ -1514,6 +1514,12 @@ def _assert_controller_packet(
     server_validation_runbook = payload[
         "coverage_handoff_server_validation_runbook_packet"
     ]
+    server_validation_result_contract = payload[
+        "coverage_handoff_server_validation_result_contract_packet"
+    ]
+    server_validation_result_template = payload[
+        "coverage_handoff_server_validation_result_template_packet"
+    ]
     assert parent_packet["handoff_server_validation_available"] is (
         server_validation_packet["available"]
     )
@@ -1532,6 +1538,30 @@ def _assert_controller_packet(
     assert parent_packet["handoff_server_validation_argv"] == (
         server_validation_packet["recommended_argv"]
     )
+    assert parent_packet[
+        "handoff_server_validation_result_contract_available"
+    ] is server_validation_result_contract["available"]
+    assert parent_packet[
+        "handoff_server_validation_result_contract_status"
+    ] == server_validation_result_contract["contract_status"]
+    assert parent_packet[
+        "handoff_server_validation_expected_result_schema_version"
+    ] == server_validation_result_contract["expected_result_schema_version"]
+    assert parent_packet[
+        "handoff_server_validation_required_result_field_count"
+    ] == server_validation_result_contract["required_result_field_count"]
+    assert parent_packet[
+        "handoff_server_validation_result_template_available"
+    ] is server_validation_result_template["available"]
+    assert parent_packet[
+        "handoff_server_validation_result_template_status"
+    ] == server_validation_result_template["template_status"]
+    assert parent_packet[
+        "handoff_server_validation_result_template_filename"
+    ] == server_validation_result_template["result_filename"]
+    assert parent_packet[
+        "handoff_server_validation_result_template_default_status"
+    ] == server_validation_result_template["result_template_default_status"]
     if preflight_handoff["available"]:
         assert (
             parent_packet["recommended_surface"]
