@@ -127,6 +127,32 @@ EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS = [
     "required_inputs",
     "recommended_request",
 ]
+SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS = [
+    "status",
+    "validation_status",
+    "result_schema_version",
+    "result_status",
+    "checked_surface_count",
+    "required_field_count",
+    "missing_required_fields",
+    "invalid_field_ids",
+    "missing_checked_surfaces",
+    "boundary_confirmation_count",
+    "boundary_confirmation_status",
+    "boundary_blocker_ids",
+    "diagnostic_count",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+    "external_genomes_registration_applied",
+    "execution_boundary",
+]
 
 
 def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
@@ -405,6 +431,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "external_genomes_readiness_packet.v1",
             "external-genomes install-plan readiness handoff",
             EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS,
+        ),
+        ("coverage-pipeline", "server-validation-result validate"): (
+            "coverage_handoff_server_validation_result_validation",
+            "coverage_handoff_server_validation_result_validation.v1",
+            "local-only bounded server-validation result shape and boundary validation",
+            SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS,
         ),
     }
     for key, (name, schema_version, purpose, summary_fields) in (
@@ -1466,6 +1498,13 @@ def test_commands_render_emits_normalized_coverage_pipeline_result_validator_arg
     assert _output_contract_names(payload) == {
         "coverage_handoff_server_validation_result_validation"
     }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS
+    )
+    assert (
+        payload["output_contract_summary_fields"]
+        == SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS
+    )
 
 
 def test_commands_recognize_accepts_coverage_pipeline_result_validator(capsys):
@@ -1495,6 +1534,13 @@ def test_commands_recognize_accepts_coverage_pipeline_result_validator(capsys):
     assert _output_contract_names(payload) == {
         "coverage_handoff_server_validation_result_validation"
     }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS
+    )
+    assert (
+        payload["output_contract_summary_fields"]
+        == SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS
+    )
 
 
 def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_allowance(

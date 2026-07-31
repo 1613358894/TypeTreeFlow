@@ -49,7 +49,8 @@ catalog entries also list stable `output_contracts`, `output_contract_names`,
 `output_contract_summary_field_count` for AI/operator packet fields such as
 readiness and operator-chain handoff packets. Contracts may include
 `summary_fields` for stable compact routing summaries across the coverage-plan,
-provider-handoff, provider-request, and external-genomes handoff chain. The
+provider-handoff, provider-request, external-genomes handoff, and server
+validation result-validation chain. The
 recognize, render, plan, and preflight commands echo the recognized target
 command's output-contract metadata in their own JSON envelope so an AI operator
 can route the expected handoff packet and summary fields without a second
@@ -573,7 +574,10 @@ typetreeflow coverage-pipeline server-validation-result validate \
 This validator reads only the explicit JSON file and does not execute the
 target command, validate filesystem artifacts, contact providers, download
 genomes, mutate manifests, register external genomes, or promote strict
-scientific deliverables.
+scientific deliverables. Its command contract advertises stable summary fields
+such as validation status, result status, checked-surface count, boundary
+confirmation status, diagnostic count, and no-execution boundary flags so AI
+controllers can route the local validation result without parsing diagnostics.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
