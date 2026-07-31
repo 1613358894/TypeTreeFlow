@@ -2536,9 +2536,9 @@ stable boundary fields `dry_run=true`, `writes_outputs=false`,
 `providers_contacted=0`, `network_access=false`, `external_tools=false`,
 `manifest_mutated=false`, and `strict_scientific_deliverable=false`.
 When reviewed rows carry controlled route metadata in `notes`, the payload also
-includes `operator_route_counts`, `provider_route_groups`,
-`next_input_class_counts`, and `automation_boundary_counts` for AI/operator
-handoff context only. It also
+includes `provider_status_counts`, `provider_automation_level_counts`,
+`operator_route_counts`, `provider_route_groups`, `next_input_class_counts`,
+and `automation_boundary_counts` for AI/operator handoff context only. It also
 includes local packet-readiness maps: `external_source_counts`,
 `checksum_input_counts`, `type_material_counts`, and
 `manual_review_flag_counts`. These compact counts describe the supplied
@@ -2575,8 +2575,9 @@ structured `recommended_request` for a later dry-run
 controllers can render the registration dry-run without reconstructing the TSV
 path from earlier handoffs. The payload also includes
 `recommended_request_target` and `recommended_next_command` for that later dry
-run. It carries the same controlled route count fields and packet-readiness
-count fields when present. Its
+run. It carries the same controlled route count fields, including provider
+status and automation-level counts, plus packet-readiness count fields when
+present. Its
 `external_genomes_readiness_packet` reports
 `next_stage=external_genomes_registration_dry_run` only when all install-plan
 rows are planned; otherwise it remains blocked and omits the next request.

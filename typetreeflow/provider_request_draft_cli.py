@@ -666,6 +666,10 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         "record_count": summary["record_count"],
         "exported_count": summary["exported_count"],
         "provider_counts": summary["provider_counts"],
+        "provider_status_counts": summary["provider_status_counts"],
+        "provider_automation_level_counts": summary[
+            "provider_automation_level_counts"
+        ],
         "operator_route_counts": summary["operator_route_counts"],
         "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
