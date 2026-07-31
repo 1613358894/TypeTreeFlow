@@ -671,6 +671,10 @@ _EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS: list[str] = [
     "recommended_request",
     "recommended_request_target",
     "recommended_next_command",
+    "install_plan_recommended_request",
+    "install_plan_recommended_request_target",
+    "install_plan_recommended_next_command",
+    "install_plan_recommended_command_plan",
     "external_genomes_readiness_packet",
 ]
 _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS: list[str] = [
