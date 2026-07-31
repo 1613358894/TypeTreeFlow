@@ -124,12 +124,14 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
             "write": True,
             "outdir": "<isolated-provider-request-external-genomes-directory>",
         },
+        "recommended_request_target": "provider-request external-genomes-handoff",
         "recommended_command_plan": packet["recommended_command_plan"],
         "recommended_next_command": (
             "review ready rows before copying accepted local FASTA evidence into "
             "external_genomes.tsv for --register-external-genomes"
         ),
         "install_plan_recommended_request": None,
+        "install_plan_recommended_request_target": "",
         "install_plan_recommended_command_plan": None,
         "install_plan_recommended_next_command": "",
         "safe_for_unattended_execution": False,
@@ -151,6 +153,9 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert plan["schema_version"] == "recommended_command_plan.v1"
     assert plan["request_source"] == (
         "provider_request_readiness_packet.recommended_request"
+    )
+    assert plan["recommended_request_target"] == (
+        "provider-request external-genomes-handoff"
     )
     assert plan["decision"] == "block"
     assert plan["preflight_decision"] == "block"
@@ -248,8 +253,10 @@ def test_provider_request_validate_blocked_returns_two(tmp_path, capsys):
     assert packet["status"] == "blocked"
     assert packet["next_stage"] == ""
     assert packet["recommended_request"] is None
+    assert packet["recommended_request_target"] == ""
     assert packet["recommended_command_plan"] is None
     assert packet["recommended_next_command"] == ""
+    assert packet["install_plan_recommended_request_target"] == ""
     assert packet["install_plan_recommended_command_plan"] is None
     assert payload["blocker_counts"]["local_fasta_missing"] == 1
     assert payload["blocker_counts"]["manual_review_required"] == 1

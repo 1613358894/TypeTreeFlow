@@ -34,6 +34,7 @@ def recommended_command_plan(
         "request_source": request_source,
         "request_unwrapped_from": plan["request_unwrapped_from"],
         "recommended_request": request,
+        "recommended_request_target": recommended_request_target(request),
         "target_argv": list(plan["target_argv"]),
         "recognized": dict(plan["recognized"]),
         "output_contracts": [
@@ -71,6 +72,7 @@ def _blocked_plan(
         "request_source": request_source,
         "request_unwrapped_from": "recommended_request",
         "recommended_request": request,
+        "recommended_request_target": recommended_request_target(request),
         "target_argv": [],
         "recognized": {},
         "output_contracts": [],
@@ -94,3 +96,13 @@ def _blocked_plan(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_command_plan_no_dispatch_no_execution",
     }
+
+
+def recommended_request_target(request: Mapping[str, object] | None) -> str:
+    if not isinstance(request, Mapping):
+        return ""
+    command = str(request.get("command", "")).strip()
+    subcommand = str(request.get("subcommand", "")).strip()
+    if command and subcommand:
+        return f"{command} {subcommand}"
+    return command

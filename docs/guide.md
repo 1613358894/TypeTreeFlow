@@ -184,7 +184,8 @@ sequence contents. It also includes the next offline
 `provider-request external-genomes-handoff` request plus a compact
 `provider_request_readiness_packet` for AI/operator controllers. Ready packets
 include a metadata-only `recommended_command_plan` so controllers can see the
-rendered argv and preflight blocker IDs before asking for write allowance. With `--write`, it publishes only
+compact `recommended_request_target`, rendered argv, and preflight blocker IDs
+before asking for write allowance. With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated
 directory. Passing validation only means the rows are ready for
