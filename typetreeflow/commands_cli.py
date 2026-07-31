@@ -461,7 +461,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         {
             "name": "coverage_controller_packet",
             "schema_version": "coverage_controller_packet.v1",
-            "purpose": "compact combined queue and operator-chain controller handoff with status summary",
+            "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
         },
         {
             "name": "operator_chain_next_step_packet",
@@ -518,7 +518,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         {
             "name": "coverage_controller_packet",
             "schema_version": "coverage_controller_packet.v1",
-            "purpose": "compact combined queue and operator-chain controller handoff with status summary",
+            "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
         },
         {
             "name": "operator_chain_next_step_packet",
@@ -580,7 +580,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         {
             "name": "coverage_controller_packet",
             "schema_version": "coverage_controller_packet.v1",
-            "purpose": "compact combined queue and operator-chain controller handoff with status summary",
+            "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
         },
         {
             "name": "operator_chain_next_step_packet",

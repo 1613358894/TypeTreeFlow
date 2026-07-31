@@ -293,7 +293,9 @@ AI handoff with digest guards and no-execution safety fields. Its ordered
 operator-chain stage candidates without expanding the full queue or stage list;
 the candidates still require normal planning or preflight before execution.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
-summary for parent orchestration.
+summary for parent orchestration. `controller_digest_guard_summary` repeats the
+queue and operator-chain snapshot guards in one place so parent controllers can
+reject stale context before rendering commands.
 Queue rows also carry `operator_execution_gate` and `review_input_packet` so
 controllers can route required local inputs without first expanding a selected
 packet; the queue and priority summaries count review-input schemas for the
