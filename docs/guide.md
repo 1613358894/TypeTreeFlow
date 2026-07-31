@@ -65,7 +65,10 @@ remain authoritative.
 
 The provider catalog command emits the static fail-closed provider registry for
 AI operators. It is metadata only: no provider is contacted and no download
-capability is enabled by listing a provider.
+capability is enabled by listing a provider. Its `provider_route_groups`
+summary groups provider keys by AI/operator route so controllers can distinguish
+public metadata review from user-assisted provider handoff without scanning the
+full catalog.
 
 For AI-facing offline planning, first normalize public archive candidates from
 already collected ENA/DDBJ/INSDC/GenBank-style metadata:

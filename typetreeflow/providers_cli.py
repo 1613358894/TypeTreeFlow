@@ -132,6 +132,7 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
     automation_level_counts: Counter[str] = Counter()
     operator_route_counts: Counter[str] = Counter()
     mode_counts: Counter[str] = Counter()
+    route_groups: dict[str, dict[str, object]] = {}
     planning_only_keys: list[str] = []
     metadata_only_keys: list[str] = []
     planning_handoff_keys: list[str] = []
@@ -151,6 +152,26 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
         status_counts[status] += 1
         automation_level_counts[automation_level] += 1
         operator_route_counts[operator_route] += 1
+        route_group = route_groups.setdefault(
+            operator_route,
+            {
+                "operator_route": operator_route,
+                "provider_keys": [],
+                "provider_status_counts": Counter(),
+                "automation_level_counts": Counter(),
+                "next_input_class_counts": Counter(),
+                "automation_boundary_counts": Counter(),
+            },
+        )
+        route_group["provider_keys"].append(key)
+        route_group["provider_status_counts"][status] += 1
+        route_group["automation_level_counts"][automation_level] += 1
+        route_group["next_input_class_counts"][
+            str(entry["next_input_class"])
+        ] += 1
+        route_group["automation_boundary_counts"][
+            str(entry["automation_boundary"])
+        ] += 1
         for mode in entry["allowed_modes"]:
             mode_counts[str(mode)] += 1
         if status == "planning_only":
@@ -178,6 +199,7 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
         "provider_status_counts": dict(sorted(status_counts.items())),
         "automation_level_counts": dict(sorted(automation_level_counts.items())),
         "operator_route_counts": dict(sorted(operator_route_counts.items())),
+        "provider_route_groups": _provider_route_groups(route_groups),
         "allowed_mode_counts": dict(sorted(mode_counts.items())),
         "planning_only_provider_keys": sorted(planning_only_keys),
         "metadata_only_provider_keys": sorted(metadata_only_keys),
@@ -197,6 +219,7 @@ def _empty_catalog_summary() -> dict[str, object]:
         "provider_status_counts": {},
         "automation_level_counts": {},
         "operator_route_counts": {},
+        "provider_route_groups": [],
         "allowed_mode_counts": {},
         "planning_only_provider_keys": [],
         "metadata_only_provider_keys": [],
@@ -209,6 +232,38 @@ def _empty_catalog_summary() -> dict[str, object]:
         "default_network_enabled_provider_keys": [],
         "adapter_present_provider_keys": [],
     }
+
+
+def _provider_route_groups(
+    route_groups: dict[str, dict[str, object]],
+) -> list[dict[str, object]]:
+    groups: list[dict[str, object]] = []
+    for operator_route in sorted(route_groups):
+        group = route_groups[operator_route]
+        provider_keys = sorted(str(key) for key in group["provider_keys"])
+        groups.append(
+            {
+                "operator_route": operator_route,
+                "provider_count": len(provider_keys),
+                "provider_keys": provider_keys,
+                "provider_status_counts": dict(
+                    sorted(group["provider_status_counts"].items())
+                ),
+                "automation_level_counts": dict(
+                    sorted(group["automation_level_counts"].items())
+                ),
+                "next_input_class_counts": dict(
+                    sorted(group["next_input_class_counts"].items())
+                ),
+                "automation_boundary_counts": dict(
+                    sorted(group["automation_boundary_counts"].items())
+                ),
+                "safe_for_unattended_execution": False,
+                "audit_only": True,
+                "dry_run": True,
+            }
+        )
+    return groups
 
 
 def _clean(value: str) -> str:

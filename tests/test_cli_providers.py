@@ -54,6 +54,38 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
         "provider_handoff": payload["provider_count"] - 4,
         "public_metadata_review": 4,
     }
+    assert payload["provider_route_groups"] == [
+        {
+            "operator_route": "provider_handoff",
+            "provider_count": payload["provider_count"] - 4,
+            "provider_keys": payload["planning_handoff_provider_keys"],
+            "provider_status_counts": {"planning_only": payload["provider_count"] - 4},
+            "automation_level_counts": {
+                "planning_handoff": payload["provider_count"] - 4
+            },
+            "next_input_class_counts": {
+                "permitted_local_fasta_terms_provenance": payload["provider_count"] - 4
+            },
+            "automation_boundary_counts": {
+                "planning_handoff_no_provider_contact": payload["provider_count"] - 4
+            },
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        },
+        {
+            "operator_route": "public_metadata_review",
+            "provider_count": 4,
+            "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
+            "provider_status_counts": {"metadata_only": 4},
+            "automation_level_counts": {"metadata_review": 4},
+            "next_input_class_counts": {"public_accession_type_strain_linkage": 4},
+            "automation_boundary_counts": {"metadata_review_only_no_download": 4},
+            "safe_for_unattended_execution": False,
+            "audit_only": True,
+            "dry_run": True,
+        },
+    ]
     assert payload["metadata_review_provider_keys"] == [
         "ddbj",
         "ena",
