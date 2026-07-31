@@ -939,6 +939,9 @@ def _operator_chain_next_step_packet(
     recommended_request = (
         dict(raw_request) if isinstance(raw_request, Mapping) else None
     )
+    recommended_request_target = _coverage_recommended_request_target(
+        recommended_request
+    )
     required_inputs = (
         [str(value) for value in next_stage.get("required_inputs", [])]
         if isinstance(next_stage.get("required_inputs"), list)
@@ -952,6 +955,7 @@ def _operator_chain_next_step_packet(
         "record_count": _safe_int(next_stage.get("record_count", 0)),
         "required_inputs": required_inputs,
         "recommended_request": recommended_request,
+        "recommended_request_target": recommended_request_target,
         "recommended_next_command": str(
             next_stage.get("recommended_next_command", "")
         ),
@@ -1031,6 +1035,7 @@ def _empty_operator_chain_next_step_packet(
         "record_count": 0,
         "required_inputs": [],
         "recommended_request": None,
+        "recommended_request_target": "",
         "recommended_next_command": "",
         "boundary": "",
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
@@ -2162,6 +2167,9 @@ def _operator_stage(
         "required_inputs": list(required_inputs),
         "recommended_request": (
             dict(recommended_request) if recommended_request else None
+        ),
+        "recommended_request_target": _coverage_recommended_request_target(
+            recommended_request
         ),
         "recommended_next_command": recommended_next_command,
         "boundary": boundary,

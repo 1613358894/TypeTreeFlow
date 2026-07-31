@@ -370,8 +370,9 @@ The install-plan recommendation writes a separate isolated install-plan audit
 directory; it still does not create the future workflow run or copy FASTA.
 `operator_chain_stages` gives AI operators a bounded checklist of the local
 coverage chain, including the current artifact name, whether that stage has
-records in the present payload, its recommended next command, and the
-no-provider/no-download boundary for that stage.
+records in the present payload, its compact `recommended_request_target`, its
+recommended next command, and the no-provider/no-download boundary for that
+stage.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
@@ -427,11 +428,12 @@ unavailable stage names, the first unavailable stage, and the recommended next
 command. Like `preview` and `build`, it also reports
 `operator_chain_next_step_packet`, a metadata-only handoff object that renders
 and preflights the next unavailable local stage's structured request without
-dispatching it. The packet repeats `operator_chain_snapshot_sha256`, the
-deterministic digest of the current operator-chain checklist, so controllers can
-bind a proposed next step to the stage state they inspected. It also repeats the
-same digest as `resume_with_expected_operator_chain_snapshot_sha256`, ready to
-reuse on a later metadata call. It also reports `completion_gate`,
+dispatching it. The packet repeats the compact `recommended_request_target` and
+`operator_chain_snapshot_sha256`, which is the deterministic digest of the
+current operator-chain checklist, so controllers can bind a proposed next step
+to the stage state they inspected. It also repeats the same digest as
+`resume_with_expected_operator_chain_snapshot_sha256`, ready to reuse on a later
+metadata call. It also reports `completion_gate`,
 `provider_automation_level_counts`, and
 `provider_request_automation_level_counts`, and preserves
 `coverage_opportunity_summary` so automation can read whether any stage remains
