@@ -1861,8 +1861,8 @@ authorization.
 a one-based `queue_position`, deterministic `queue_item_id`, bounded route booleans such as
 `requires_curator_input`, `requires_public_metadata_review`,
 `requires_provider_handoff`, and `requires_external_registration_review`, plus
-`safe_for_unattended_download=false` and `operator_execution_gate` on every row.
-The queue is for
+`safe_for_unattended_download=false`, `operator_execution_gate`, and
+`review_input_packet` on every row. The queue is for
 AI/operator prioritization only; it does not grant unattended download or
 provider access. `coverage_action_queue_summary` reports bounded queue counts
 by `operator_route`, `next_input_class`, and execution-gate status, plus

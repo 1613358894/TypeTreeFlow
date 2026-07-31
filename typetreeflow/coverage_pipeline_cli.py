@@ -2282,8 +2282,14 @@ def _coverage_action_queue(
             if isinstance(raw_recommended_request, Mapping)
             else None
         )
+        record_count = _safe_int(opportunity.get("record_count", 0))
         operator_execution_gate = _coverage_operator_execution_gate(
             available=True,
+            recommended_request=recommended_request,
+        )
+        review_input_packet = _coverage_review_input_packet(
+            action_code,
+            record_count=record_count,
             recommended_request=recommended_request,
         )
         queue.append(
@@ -2294,7 +2300,7 @@ def _coverage_action_queue(
                 "operator_route": operator_route,
                 "next_input_class": str(opportunity.get("next_input_class", "")),
                 "automation_boundary": automation_boundary,
-                "record_count": _safe_int(opportunity.get("record_count", 0)),
+                "record_count": record_count,
                 "species_count": _safe_int(opportunity.get("species_count", 0)),
                 "species_preview": list(opportunity.get("species_preview", []))
                 if isinstance(opportunity.get("species_preview"), list)
@@ -2311,6 +2317,7 @@ def _coverage_action_queue(
                 ),
                 "safe_for_unattended_download": False,
                 "operator_execution_gate": operator_execution_gate,
+                "review_input_packet": review_input_packet,
                 "recommended_next_command": str(
                     opportunity.get("recommended_next_command", "")
                 ),
