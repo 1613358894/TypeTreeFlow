@@ -505,6 +505,27 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["coverage_next_command_plan"]["downloads_triggered"] == 0
     assert payload["coverage_next_command_plan"]["providers_contacted"] == 0
     assert payload["coverage_next_command_plan"]["manifest_mutated"] is False
+    assert payload["coverage_next_operator_recipe"]["available"] is True
+    assert payload["coverage_next_operator_recipe"]["status"] == (
+        "ready_for_operator_review"
+    )
+    assert payload["coverage_next_operator_recipe"]["operator_route"] == (
+        "curator_decision"
+    )
+    assert payload["coverage_next_operator_recipe"]["command_plan_decision"] == "allow"
+    assert payload["coverage_next_operator_recipe"]["target_argv"] == [
+        "manual-review",
+        "validate",
+        "--input",
+        "<review.tsv>",
+    ]
+    assert payload["coverage_next_operator_recipe"]["safe_for_unattended_execution"] is False
+    assert payload["coverage_next_operator_recipe"]["step_count"] == 3
+    assert [step["action"] for step in payload["coverage_next_operator_recipe"]["steps"]] == [
+        "review_required_inputs",
+        "inspect_command_plan",
+        "operator_execute_after_review",
+    ]
     assert payload["current_coverage_action_queue_item"]["action_code"] == (
         "resolve_curator_conflict"
     )
@@ -1727,6 +1748,17 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     ]
     assert payload["coverage_next_command_plan"]["writes_outputs"] is False
     assert payload["coverage_next_command_plan"]["writes_workflow_outputs"] is False
+    assert payload["coverage_next_operator_recipe"]["status"] == (
+        "ready_for_operator_review"
+    )
+    assert payload["coverage_next_operator_recipe"]["target_argv"] == [
+        "manual-review",
+        "validate",
+        "--input",
+        "<review.tsv>",
+    ]
+    assert payload["coverage_next_operator_recipe"]["downloads_triggered"] == 0
+    assert payload["coverage_next_operator_recipe"]["providers_contacted"] == 0
     assert payload["current_coverage_action_queue_item"]["queue_position"] == 1
     assert payload["provider_automation_level_counts"] == {
         "metadata_review": 6,
@@ -2164,6 +2196,36 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_command_plan_no_dispatch_no_execution",
+    }
+    assert payload["coverage_next_operator_recipe"] == {
+        "schema_version": "coverage_next_operator_recipe.v1",
+        "available": False,
+        "status": "no_action",
+        "queue_position": 0,
+        "action_code": "",
+        "operator_route": "",
+        "next_input_class": "",
+        "record_count": 0,
+        "required_inputs": [],
+        "command_plan_decision": "none",
+        "target_argv": [],
+        "step_count": 0,
+        "steps": [],
+        "blocking": [],
+        "warnings": [],
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_recipe_no_execution",
     }
 
     code, payload, _ = _run(["--checklist-tsv", str(tmp_path / "missing.tsv")], capsys)

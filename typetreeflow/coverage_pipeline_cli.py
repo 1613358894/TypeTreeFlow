@@ -704,6 +704,10 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
     coverage_next_command_plan = _coverage_next_command_plan(
         coverage_next_task_packet
     )
+    coverage_next_operator_recipe = _coverage_next_operator_recipe(
+        coverage_next_task_packet,
+        coverage_next_command_plan,
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -737,6 +741,7 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         ),
         "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_next_command_plan": coverage_next_command_plan,
+        "coverage_next_operator_recipe": coverage_next_operator_recipe,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -1207,6 +1212,10 @@ def _payload(
     coverage_priority_summary = _coverage_priority_summary(coverage_action_queue)
     coverage_next_task_packet = _coverage_next_task_packet(coverage_action_queue)
     coverage_next_command_plan = _coverage_next_command_plan(coverage_next_task_packet)
+    coverage_next_operator_recipe = _coverage_next_operator_recipe(
+        coverage_next_task_packet,
+        coverage_next_command_plan,
+    )
     current_coverage_action_queue_item = (
         dict(coverage_action_queue[0]) if coverage_action_queue else {}
     )
@@ -1259,6 +1268,7 @@ def _payload(
         "coverage_priority_summary": coverage_priority_summary,
         "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_next_command_plan": coverage_next_command_plan,
+        "coverage_next_operator_recipe": coverage_next_operator_recipe,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "primary_next_action_group": primary_next_action_group,
@@ -2020,6 +2030,96 @@ def _coverage_next_command_plan(
     }
 
 
+def _coverage_next_operator_recipe(
+    packet: Mapping[str, object],
+    command_plan: Mapping[str, object],
+) -> dict[str, object]:
+    raw_required_inputs = packet.get("required_inputs", [])
+    required_inputs = (
+        [str(value) for value in raw_required_inputs if str(value)]
+        if isinstance(raw_required_inputs, list)
+        else []
+    )
+    raw_target_argv = command_plan.get("target_argv", [])
+    target_argv = (
+        [str(value) for value in raw_target_argv if str(value)]
+        if isinstance(raw_target_argv, list)
+        else []
+    )
+    available = bool(packet.get("available")) and bool(command_plan.get("available"))
+    decision = str(command_plan.get("decision", "none"))
+    if not available:
+        status = "no_action"
+    elif decision == "allow":
+        status = "ready_for_operator_review"
+    else:
+        status = "blocked"
+    steps: list[dict[str, object]] = []
+    if available:
+        steps.append(
+            {
+                "step": 1,
+                "action": "review_required_inputs",
+                "status": "required" if required_inputs else "not_required",
+                "required_inputs": required_inputs,
+                "boundary": "operator_supplied_metadata_only",
+            }
+        )
+        steps.append(
+            {
+                "step": 2,
+                "action": "inspect_command_plan",
+                "status": "available",
+                "decision": decision,
+                "target_argv": target_argv,
+                "boundary": "no_dispatch_no_execution",
+            }
+        )
+        steps.append(
+            {
+                "step": 3,
+                "action": "operator_execute_after_review",
+                "status": "blocked_until_operator_review",
+                "target_argv": target_argv,
+                "boundary": "manual_or_ai_operator_must_invoke_cli_separately",
+            }
+        )
+    return {
+        "schema_version": "coverage_next_operator_recipe.v1",
+        "available": available,
+        "status": status,
+        "queue_position": _safe_int(packet.get("queue_position", 0)),
+        "action_code": str(packet.get("action_code", "")),
+        "operator_route": str(packet.get("operator_route", "")),
+        "next_input_class": str(packet.get("next_input_class", "")),
+        "record_count": _safe_int(packet.get("record_count", 0)),
+        "required_inputs": required_inputs,
+        "command_plan_decision": decision,
+        "target_argv": target_argv,
+        "step_count": len(steps),
+        "steps": steps,
+        "blocking": list(command_plan.get("blocking", []))
+        if isinstance(command_plan.get("blocking"), list)
+        else [],
+        "warnings": list(command_plan.get("warnings", []))
+        if isinstance(command_plan.get("warnings"), list)
+        else [],
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_recipe_no_execution",
+    }
+
+
 def _coverage_action_required_inputs(action_code: str) -> list[str]:
     return list(_COVERAGE_ACTION_REQUIRED_INPUTS.get(action_code, ()))
 
@@ -2037,6 +2137,8 @@ def _append_unique(values: list[str], value: str) -> None:
 
 
 def _failure(code: str, message: str) -> dict[str, object]:
+    empty_packet = _coverage_next_task_packet([])
+    empty_command_plan = _coverage_next_command_plan(empty_packet)
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
         "status": "failed",
@@ -2062,9 +2164,11 @@ def _failure(code: str, message: str) -> dict[str, object]:
             "safe_for_unattended_download_count": 0,
         },
         "coverage_priority_summary": _coverage_priority_summary([]),
-        "coverage_next_task_packet": _coverage_next_task_packet([]),
-        "coverage_next_command_plan": _coverage_next_command_plan(
-            _coverage_next_task_packet([])
+        "coverage_next_task_packet": empty_packet,
+        "coverage_next_command_plan": empty_command_plan,
+        "coverage_next_operator_recipe": _coverage_next_operator_recipe(
+            empty_packet,
+            empty_command_plan,
         ),
         "current_coverage_action_queue_item": {},
         "primary_next_action_group": None,
@@ -2202,6 +2306,7 @@ def _rendered_outputs(
             "coverage_priority_summary",
             "coverage_next_task_packet",
             "coverage_next_command_plan",
+            "coverage_next_operator_recipe",
             "current_coverage_action_queue_item",
             "primary_next_action_group",
             "primary_action_required_inputs",

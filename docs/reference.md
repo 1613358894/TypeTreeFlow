@@ -1839,6 +1839,11 @@ no-download/no-provider/no-manifest-mutation boundary fields. It is metadata
 only: `decision=allow` means the rendered argv passed the local preflight gate,
 not that TypeTreeFlow executed the command or authorized provider access,
 downloads, workflow mutation, or strict deliverable promotion.
+`coverage_next_operator_recipe` wraps the same packet and command plan as a
+bounded three-step operator recipe: review required local inputs, inspect the
+command plan, then invoke the target CLI separately only after review. It always
+reports `safe_for_unattended_execution=false` and
+`execution_boundary=metadata_only_operator_recipe_no_execution`.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
@@ -1917,7 +1922,8 @@ metadata only and must still pass `commands plan` or `commands preflight`
 before an operator runs the rendered argv. `status` also re-emits
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
-executing the target command. The payload also includes
+executing the target command, plus `coverage_next_operator_recipe` for the same
+metadata-only next-step recipe. The payload also includes
 `required_inputs` and `recommended_request` as convenience copies from the
 current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
