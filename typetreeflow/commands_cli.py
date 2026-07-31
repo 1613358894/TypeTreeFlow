@@ -424,6 +424,26 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "purpose": "selected coverage action handoff for AI/operator review",
         },
         {
+            "name": "coverage_next_command_plan",
+            "schema_version": "coverage_next_command_plan.v1",
+            "purpose": "rendered target command plan and preflight decision",
+        },
+        {
+            "name": "coverage_next_operator_recipe",
+            "schema_version": "coverage_next_operator_recipe.v1",
+            "purpose": "metadata-only operator checklist for selected coverage action",
+        },
+        {
+            "name": "coverage_queue_resume_packet",
+            "schema_version": "coverage_queue_resume_packet.v1",
+            "purpose": "stable queue-item resume handoff with digest guard",
+        },
+        {
+            "name": "coverage_operator_queue_preview",
+            "schema_version": "coverage_operator_queue_preview.v1",
+            "purpose": "bounded coverage queue routing preview",
+        },
+        {
             "name": "operator_chain_next_step_packet",
             "schema_version": "operator_chain_next_step_packet.v1",
             "purpose": "metadata-only next operator-chain command preview",
@@ -434,6 +454,26 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_next_task_packet",
             "schema_version": "coverage_next_task_packet.v1",
             "purpose": "selected coverage action handoff for AI/operator review",
+        },
+        {
+            "name": "coverage_next_command_plan",
+            "schema_version": "coverage_next_command_plan.v1",
+            "purpose": "rendered target command plan and preflight decision",
+        },
+        {
+            "name": "coverage_next_operator_recipe",
+            "schema_version": "coverage_next_operator_recipe.v1",
+            "purpose": "metadata-only operator checklist for selected coverage action",
+        },
+        {
+            "name": "coverage_queue_resume_packet",
+            "schema_version": "coverage_queue_resume_packet.v1",
+            "purpose": "stable queue-item resume handoff with digest guard",
+        },
+        {
+            "name": "coverage_operator_queue_preview",
+            "schema_version": "coverage_operator_queue_preview.v1",
+            "purpose": "bounded coverage queue routing preview",
         },
         {
             "name": "operator_chain_next_step_packet",
@@ -447,6 +487,31 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         },
     ),
     ("coverage-pipeline", "status"): (
+        {
+            "name": "coverage_next_task_packet",
+            "schema_version": "coverage_next_task_packet.v1",
+            "purpose": "selected coverage action handoff for AI/operator review",
+        },
+        {
+            "name": "coverage_next_command_plan",
+            "schema_version": "coverage_next_command_plan.v1",
+            "purpose": "rendered target command plan and preflight decision",
+        },
+        {
+            "name": "coverage_next_operator_recipe",
+            "schema_version": "coverage_next_operator_recipe.v1",
+            "purpose": "metadata-only operator checklist for selected coverage action",
+        },
+        {
+            "name": "coverage_queue_resume_packet",
+            "schema_version": "coverage_queue_resume_packet.v1",
+            "purpose": "stable queue-item resume handoff with digest guard",
+        },
+        {
+            "name": "coverage_operator_queue_preview",
+            "schema_version": "coverage_operator_queue_preview.v1",
+            "purpose": "bounded coverage queue routing preview",
+        },
         {
             "name": "operator_chain_next_step_packet",
             "schema_version": "operator_chain_next_step_packet.v1",

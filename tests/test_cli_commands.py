@@ -354,6 +354,23 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert "operator_chain_readiness_packets" in contract_names[
         ("coverage-pipeline", "status")
     ]
+    coverage_pipeline_contracts = {
+        "coverage_next_task_packet",
+        "coverage_next_command_plan",
+        "coverage_next_operator_recipe",
+        "coverage_queue_resume_packet",
+        "coverage_operator_queue_preview",
+        "operator_chain_next_step_packet",
+    }
+    assert coverage_pipeline_contracts <= contract_names[
+        ("coverage-pipeline", "preview")
+    ]
+    assert coverage_pipeline_contracts | {
+        "operator_chain_readiness_packets",
+    } <= contract_names[("coverage-pipeline", "build")]
+    assert coverage_pipeline_contracts | {
+        "operator_chain_readiness_packets",
+    } <= contract_names[("coverage-pipeline", "status")]
     for key in (
         ("acquisition-worklist", "build"),
         ("coverage-pipeline", "preview"),
@@ -1138,6 +1155,11 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
     assert payload["recognized"]["writes_outputs_declared"] is False
     assert payload["recognized"]["requires_outdir"] is False
     assert _output_contract_names(payload) == {
+        "coverage_next_task_packet",
+        "coverage_next_command_plan",
+        "coverage_next_operator_recipe",
+        "coverage_queue_resume_packet",
+        "coverage_operator_queue_preview",
         "operator_chain_next_step_packet",
         "operator_chain_readiness_packets",
     }
@@ -1194,6 +1216,10 @@ def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_al
     assert payload["target_allowances"]["allow_workflow_outputs"] is False
     assert _output_contract_names(payload) == {
         "coverage_next_task_packet",
+        "coverage_next_command_plan",
+        "coverage_next_operator_recipe",
+        "coverage_queue_resume_packet",
+        "coverage_operator_queue_preview",
         "operator_chain_next_step_packet",
         "operator_chain_readiness_packets",
     }

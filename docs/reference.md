@@ -1879,6 +1879,11 @@ refused with `diagnostic_code=queue_item_id_not_found` and exit code `2`.
 `coverage_next_command_plan` and `coverage_next_operator_recipe` echo the
 planned target command's `output_contracts` so controllers can route readiness
 or handoff packets without a separate catalog lookup.
+`commands recognize`, `commands plan`, and `commands preflight` also declare
+the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
+`coverage_next_command_plan`, `coverage_next_operator_recipe`,
+`coverage_queue_resume_packet`, and `coverage_operator_queue_preview`, plus
+operator-chain packets when present.
 The packet also includes `review_input_packet`, a bounded local-input handoff
 for the selected action. For manual-review actions it names the
 `manual_review.v1` schema, required manual-review TSV fields, allowed
