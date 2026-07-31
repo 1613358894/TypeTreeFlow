@@ -83,9 +83,20 @@ typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv>
   [--json] [--write --outdir <isolated-directory> [--force]]
 ```
 
+You can also bridge already written expanded-discovery results into the same
+archive-candidate review surface:
+
+```bash
+typetreeflow archive-candidates build \
+  --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
+  [--json] [--write --outdir <isolated-directory> [--force]]
+```
+
 This is an audit aid only. It does not query archives, download genomes, write
 `external_genomes.tsv`, or make archive type-material signals strict. It
-surfaces public linkage candidates for curator or AI review. When `--write`
+surfaces public linkage candidates for curator or AI review. The
+expanded-discovery bridge maps only existing `matched_candidate` rows with a
+public accession and does not copy raw expanded-discovery notes. When `--write`
 succeeds, stdout and `archive_candidates_summary.json` include a structured
 `coverage-pipeline build` recommended request that points to the written
 `archive_candidates.tsv`, plus a metadata-only command plan that remains

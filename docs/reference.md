@@ -1555,9 +1555,16 @@ without reading row-level notes.
 The isolated archive candidate CLI adapter is:
 
 ```text
-typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv> [--json] [--write --outdir <dir> [--force]]
+typetreeflow archive-candidates build (--input-tsv <archive_candidates_input.tsv> | --expanded-discovery-results-tsv <expanded_discovery_results.tsv>) [--json] [--write --outdir <dir> [--force]]
 ```
 
+Exactly one input source is required. `--input-tsv` reads the archive-candidate
+input schema directly. `--expanded-discovery-results-tsv` reads a local
+`completion/expanded_discovery_results.tsv`-style file and maps only
+`matched_candidate` rows with an assembly or BioSample accession into the
+archive-candidate input schema. The mapper infers public archive source from
+the matched accession/query context, carries the query token as unreviewed
+linkage evidence, and does not copy raw expanded-discovery notes.
 Without `--write`, it writes nothing. With `--write`, it writes only
 `archive_candidates.tsv`, `archive_candidates_summary.json`, and
 `archive_candidates_diagnostics.tsv` into the explicitly supplied isolated

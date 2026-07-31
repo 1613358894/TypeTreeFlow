@@ -1898,9 +1898,19 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
         {
             "name": "--input-tsv",
             "kind": "path",
-            "required": True,
+            "required": False,
             "repeatable": False,
             "purpose": "offline archive candidate TSV input",
+        },
+        {
+            "name": "--expanded-discovery-results-tsv",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": (
+                "offline expanded-discovery results TSV to map into archive "
+                "candidate review rows"
+            ),
         },
         {
             "name": "--write",
@@ -3397,17 +3407,23 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "command",
                 "subcommand",
                 "input_tsv",
+                "expanded_discovery_results_tsv",
                 "write",
                 "outdir",
                 "force",
             },
         )
-        argv = [
-            "archive-candidates",
-            "build",
-            "--input-tsv",
-            _required_string(request, "input_tsv"),
-        ]
+        input_tsv = _optional_string(request, "input_tsv")
+        expanded_results = _optional_string(request, "expanded_discovery_results_tsv")
+        if bool(input_tsv) == bool(expanded_results):
+            raise ValueError(
+                "Archive-candidates requests require exactly one input source"
+            )
+        argv = ["archive-candidates", "build"]
+        if input_tsv:
+            argv.extend(["--input-tsv", input_tsv])
+        else:
+            argv.extend(["--expanded-discovery-results-tsv", expanded_results])
         if _bool_flag(request, "write"):
             argv.append("--write")
         outdir = _optional_string(request, "outdir")

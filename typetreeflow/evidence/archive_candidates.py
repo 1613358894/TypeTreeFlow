@@ -9,6 +9,10 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
+from typetreeflow.expanded_discovery import (
+    EXPANDED_DISCOVERY_RESULT_FIELDS,
+    MATCHED_CANDIDATE,
+)
 from typetreeflow.providers.base import ProviderStatus
 from typetreeflow.providers.registry import build_default_provider_registry
 from typetreeflow.taxonomy.names import canonical_species_key
@@ -237,6 +241,87 @@ def read_archive_candidate_input(
     return rows, tuple(diagnostics)
 
 
+def read_expanded_discovery_archive_candidate_input(
+    path: str,
+) -> tuple[tuple[Mapping[str, object], ...], tuple[ArchiveCandidateDiagnostic, ...]]:
+    """Read expanded-discovery results as archive-candidate input rows."""
+
+    try:
+        with open(path, "r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            if not reader.fieldnames:
+                return (), (ArchiveCandidateDiagnostic("missing_header", 1),)
+            if tuple(reader.fieldnames) != tuple(EXPANDED_DISCOVERY_RESULT_FIELDS):
+                return (), (
+                    ArchiveCandidateDiagnostic(
+                        "expanded_discovery_schema_mismatch", 1
+                    ),
+                )
+            rows = archive_candidate_rows_from_expanded_discovery_results(
+                tuple(dict(row) for row in reader)
+            )
+    except (OSError, UnicodeError, csv.Error):
+        return (), (
+            ArchiveCandidateDiagnostic(
+                "expanded_discovery_input_unreadable",
+                0,
+            ),
+        )
+    return rows, ()
+
+
+def archive_candidate_rows_from_expanded_discovery_results(
+    rows: Iterable[Mapping[str, object]],
+) -> tuple[Mapping[str, object], ...]:
+    """Convert matched expanded-discovery candidates to archive-candidate input.
+
+    The mapper only carries controlled metadata needed for public archive review;
+    it does not copy raw notes or infer strict deliverable status.
+    """
+
+    mapped: list[dict[str, object]] = []
+    for row in rows:
+        decision = _cell(row.get("decision")).casefold()
+        assembly_accession = _cell(row.get("candidate_accession"))
+        biosample_accession = _cell(row.get("candidate_biosample"))
+        if decision != MATCHED_CANDIDATE or not (
+            assembly_accession or biosample_accession
+        ):
+            continue
+        archive_source, archive_source_name = _expanded_archive_source(
+            assembly_accession,
+            _cell(row.get("query_database")),
+        )
+        token = _cell(row.get("token"))
+        mapped.append(
+            {
+                "species": _cell(row.get("species")),
+                "strain": _cell(row.get("candidate_strain")) or token,
+                "type_strain_id": token,
+                "archive_source": archive_source,
+                "archive_source_name": archive_source_name,
+                "assembly_accession": assembly_accession,
+                "biosample_accession": biosample_accession,
+                "nuccore_accession": "",
+                "wgs_accession": "",
+                "organism_name": _cell(row.get("candidate_organism")),
+                "strain_designation": _cell(row.get("candidate_strain")),
+                "culture_collection_tokens": token,
+                "archive_type_material_signal": (
+                    "direct_type_strain_linkage_unreviewed"
+                ),
+                "lpsn_token_overlap": token,
+                "source_url": "",
+                "evidence_notes": _join_notes(
+                    "source=completion/expanded_discovery_results.tsv",
+                    f"query_database={_cell(row.get('query_database'))}",
+                    f"decision_reason={_cell(row.get('decision_reason'))}",
+                ),
+            }
+        )
+    return tuple(mapped)
+
+
 def build_archive_candidate_report(
     rows: Iterable[Mapping[str, object]],
     *,
@@ -387,6 +472,20 @@ def _archive_source_key(value: str) -> str:
     return registry.canonical_key(cleaned) or cleaned.casefold()
 
 
+def _expanded_archive_source(
+    assembly_accession: str,
+    query_database: str,
+) -> tuple[str, str]:
+    accession = assembly_accession.strip().upper()
+    if accession.startswith("GCF_"):
+        return "refseq", "NCBI RefSeq"
+    if accession.startswith("GCA_"):
+        return "genbank", "GenBank"
+    if "biosample" in query_database.casefold():
+        return "genbank", "NCBI BioSample"
+    return "genbank", "GenBank"
+
+
 def _accession_kind_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int]:
     counts: Counter[str] = Counter()
     for row in rows:
@@ -464,3 +563,7 @@ def _forbidden_fields(header: Iterable[str]) -> list[str]:
         if any(token in normalized for token in FORBIDDEN_ARCHIVE_CANDIDATE_FIELD_TOKENS):
             forbidden.append(field)
     return forbidden
+
+
+def _join_notes(*parts: str) -> str:
+    return "; ".join(_cell(part) for part in parts if _cell(part))

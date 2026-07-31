@@ -7,6 +7,7 @@ from pathlib import Path
 
 from typetreeflow import cli
 from typetreeflow.evidence.archive_candidates import ARCHIVE_CANDIDATE_INPUT_FIELDS
+from typetreeflow.expanded_discovery import EXPANDED_DISCOVERY_RESULT_FIELDS
 
 
 def _run(args, capsys):
@@ -42,6 +43,55 @@ def _write_input(path: Path, rows=None, fields=ARCHIVE_CANDIDATE_INPUT_FIELDS):
         writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
         writer.writeheader()
         writer.writerows(rows or [_row()])
+    return path
+
+
+def _write_expanded_results(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=EXPANDED_DISCOVERY_RESULT_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "species": "Clostridium expandum",
+                "token": "DSM 42",
+                "token_kind": "culture_collection_id",
+                "query_database": "NCBI Assembly",
+                "query": "Clostridium expandum DSM 42",
+                "candidate_accession": "GCA_000042.1",
+                "candidate_biosample": "SAMN000042",
+                "candidate_organism": "Clostridium expandum",
+                "candidate_strain": "DSM 42",
+                "candidate_assembly_level": "Complete Genome",
+                "decision": "matched_candidate",
+                "decision_reason": "Candidate species and token evidence both match.",
+                "suggested_next_action": "review matched candidate",
+                "notes": "raw expanded discovery note must not be copied",
+            }
+        )
+        writer.writerow(
+            {
+                "species": "Clostridium rejectum",
+                "token": "DSM 99",
+                "token_kind": "culture_collection_id",
+                "query_database": "NCBI Assembly",
+                "query": "Clostridium rejectum DSM 99",
+                "candidate_accession": "GCA_000099.1",
+                "candidate_biosample": "",
+                "candidate_organism": "Other species",
+                "candidate_strain": "DSM 99",
+                "candidate_assembly_level": "Contig",
+                "decision": "rejected_species_mismatch",
+                "decision_reason": "Candidate organism does not match checklist species.",
+                "suggested_next_action": "review mismatch",
+                "notes": "rejected rows are not mapped",
+            }
+        )
     return path
 
 
@@ -139,6 +189,67 @@ def test_archive_candidates_write_publishes_owned_triplet(tmp_path, capsys):
     assert summary["recommended_command_plan"] == payload[
         "recommended_command_plan"
     ]
+
+
+def test_archive_candidates_builds_from_expanded_discovery_results(
+    tmp_path, capsys
+):
+    expanded = _write_expanded_results(tmp_path / "expanded_discovery_results.tsv")
+    outdir = tmp_path / "archive_audit"
+
+    code, payload, _ = _run(
+        [
+            "--expanded-discovery-results-tsv",
+            str(expanded),
+            "--write",
+            "--outdir",
+            str(outdir),
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert payload["input_paths"] == {
+        "input_tsv": None,
+        "expanded_discovery_results_tsv": str(expanded),
+    }
+    assert payload["candidate_count"] == 1
+    assert payload["archive_source_counts"] == {"genbank": 1}
+    with (outdir / "archive_candidates.tsv").open(encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    assert len(rows) == 1
+    assert rows[0]["species"] == "Clostridium expandum"
+    assert rows[0]["archive_source"] == "genbank"
+    assert rows[0]["archive_source_name"] == "GenBank"
+    assert rows[0]["assembly_accession"] == "GCA_000042.1"
+    assert rows[0]["biosample_accession"] == "SAMN000042"
+    assert rows[0]["archive_type_material_signal"] == (
+        "direct_type_strain_linkage_unreviewed"
+    )
+    assert "raw expanded discovery note" not in rows[0]["evidence_notes"]
+    assert payload["recommended_command_plan"]["decision"] == "block"
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
+
+
+def test_archive_candidates_requires_exactly_one_input_source(tmp_path, capsys):
+    input_tsv = _write_input(tmp_path / "archive_candidates.tsv")
+    expanded = _write_expanded_results(tmp_path / "expanded_discovery_results.tsv")
+
+    code, payload, _ = _run(
+        [
+            "--input-tsv",
+            str(input_tsv),
+            "--expanded-discovery-results-tsv",
+            str(expanded),
+        ],
+        capsys,
+    )
+
+    assert code == 2
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "invalid_command_usage"
 
 
 def test_archive_candidates_malformed_input_exits_two_and_writes_diagnostics(
