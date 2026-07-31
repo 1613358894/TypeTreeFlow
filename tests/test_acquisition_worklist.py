@@ -275,6 +275,34 @@ def test_worklist_archive_candidate_provider_source_status_is_metadata_only():
     assert report.summary["candidate_provider_status_counts"] == {"metadata_only": 1}
 
 
+def test_worklist_archive_candidate_source_name_survives_generic_source_value():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium archivealiasum"}],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium archivealiasum",
+                "reason_category": "missing_genome",
+            }
+        ],
+        archive_candidate_rows=[
+            {
+                "species": "Clostridium archivealiasum",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "archive_source": "public_archive_candidate",
+                "archive_source_name": "European Nucleotide Archive",
+                "assembly_accession": "GCA_000088888.1",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "public_linkage_review"
+    assert row.candidate_provider_keys == "ena"
+    assert row.candidate_provider_statuses == "ena=metadata_only"
+    assert report.summary["candidate_provider_key_counts"] == {"ena": 1}
+    assert report.summary["candidate_provider_status_counts"] == {"metadata_only": 1}
+
+
 def test_worklist_manual_supplement_matched_candidate_surfaces_review_lane():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium hintum"}],
@@ -389,6 +417,41 @@ def test_worklist_explicit_provider_hints_accept_registry_display_names():
         "kctc": 1,
         "nbrc": 1,
         "nctc": 1,
+    }
+
+
+def test_worklist_explicit_provider_hints_are_additive_across_fields():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium multifieldum"}],
+        reconciler_rows=[
+            _row(
+                "Clostridium multifieldum",
+                reconciled_evidence_tier="missing_public_genome",
+                candidate_provider_keys="unrecognized-local-hint; DSMZ",
+                preferred_provider_keys="Japan Collection of Microorganisms",
+                provider_key="NCTC",
+                source_name="GenBank",
+            )
+        ],
+        completion_gap_rows=[
+            {"species": "Clostridium multifieldum", "reason_category": "missing_genome"}
+        ],
+    )
+
+    assert report.rows[0].candidate_provider_keys == "dsmz; jcm; nctc; genbank"
+    assert report.rows[0].candidate_provider_statuses == (
+        "dsmz=planning_only; jcm=planning_only; nctc=planning_only; "
+        "genbank=metadata_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "dsmz": 1,
+        "genbank": 1,
+        "jcm": 1,
+        "nctc": 1,
+    }
+    assert report.summary["candidate_provider_status_counts"] == {
+        "metadata_only": 1,
+        "planning_only": 3,
     }
 
 

@@ -577,8 +577,7 @@ def _extend_provider_keys_from_explicit_hints(
     row: Mapping[str, object],
     registry: ProviderRegistry,
 ) -> None:
-    value = _value(
-        row,
+    for field in (
         "candidate_provider_keys",
         "preferred_provider_keys",
         "provider_keys",
@@ -593,11 +592,11 @@ def _extend_provider_keys_from_explicit_hints(
         "source",
         "source_name",
         "database",
-    )
-    for token in re.split(r"[;,|]", value):
-        canonical = registry.canonical_key(token)
-        if canonical and canonical not in provider_keys:
-            provider_keys.append(canonical)
+    ):
+        for token in re.split(r"[;,|]", _value(row, field)):
+            canonical = registry.canonical_key(token)
+            if canonical and canonical not in provider_keys:
+                provider_keys.append(canonical)
 
 
 def _extend_provider_keys_from_tokens(
