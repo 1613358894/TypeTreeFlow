@@ -7113,6 +7113,10 @@ def _coverage_next_command_plan(
             "target_argv": [],
             "recognized": {},
             "output_contracts": [],
+            "output_contract_names": [],
+            "output_contract_count": 0,
+            "output_contract_summary_fields": [],
+            "output_contract_summary_field_count": 0,
             "preflight_decision": "none",
             "blocking": [],
             "warnings": [],
@@ -7147,6 +7151,10 @@ def _coverage_next_command_plan(
             "target_argv": [],
             "recognized": {},
             "output_contracts": [],
+            "output_contract_names": [],
+            "output_contract_count": 0,
+            "output_contract_summary_fields": [],
+            "output_contract_summary_field_count": 0,
             "preflight_decision": "block",
             "blocking": [
                 {
@@ -7169,6 +7177,12 @@ def _coverage_next_command_plan(
                 "metadata_only_command_plan_no_dispatch_no_execution"
             ),
         }
+    output_contracts = [
+        dict(contract) for contract in plan.get("output_contracts", [])
+    ]
+    output_contract_summary_fields = _output_contract_summary_fields(
+        output_contracts
+    )
     return {
         "schema_version": "coverage_next_command_plan.v1",
         "available": True,
@@ -7182,9 +7196,11 @@ def _coverage_next_command_plan(
         ),
         "target_argv": list(plan["target_argv"]),
         "recognized": dict(plan["recognized"]),
-        "output_contracts": [
-            dict(contract) for contract in plan.get("output_contracts", [])
-        ],
+        "output_contracts": output_contracts,
+        "output_contract_names": _output_contract_names(output_contracts),
+        "output_contract_count": len(output_contracts),
+        "output_contract_summary_fields": output_contract_summary_fields,
+        "output_contract_summary_field_count": len(output_contract_summary_fields),
         "preflight_decision": plan["preflight"]["decision"],
         "blocking": list(plan["blocking"]),
         "warnings": list(plan["warnings"]),
@@ -7259,6 +7275,9 @@ def _coverage_next_operator_recipe(
         [dict(contract) for contract in raw_output_contracts if isinstance(contract, Mapping)]
         if isinstance(raw_output_contracts, list)
         else []
+    )
+    output_contract_summary_fields = _output_contract_summary_fields(
+        output_contracts
     )
     action_code = str(packet.get("action_code", ""))
     record_count = _safe_int(packet.get("record_count", 0))
@@ -7348,6 +7367,10 @@ def _coverage_next_operator_recipe(
         "command_plan_decision": decision,
         "target_argv": target_argv,
         "output_contracts": output_contracts,
+        "output_contract_names": _output_contract_names(output_contracts),
+        "output_contract_count": len(output_contracts),
+        "output_contract_summary_fields": output_contract_summary_fields,
+        "output_contract_summary_field_count": len(output_contract_summary_fields),
         "step_count": len(steps),
         "steps": steps,
         "blocking": list(command_plan.get("blocking", []))
@@ -7407,6 +7430,9 @@ def _coverage_queue_resume_packet(
         )
     )
     available = bool(packet.get("available")) and bool(recipe.get("available"))
+    output_contract_summary_fields = _output_contract_summary_fields(
+        output_contracts
+    )
     if not available:
         status = "no_action"
     elif not queue_snapshot_matches_expected:
@@ -7454,6 +7480,8 @@ def _coverage_queue_resume_packet(
         "output_contracts": output_contracts,
         "output_contract_names": _output_contract_names(output_contracts),
         "output_contract_count": len(output_contracts),
+        "output_contract_summary_fields": output_contract_summary_fields,
+        "output_contract_summary_field_count": len(output_contract_summary_fields),
         "blocking_count": len(blocking_ids),
         "blocking_ids": blocking_ids,
         "warning_count": len(warning_ids),
@@ -7491,6 +7519,7 @@ def _coverage_operator_queue_preview(
     command_plan_decision_counts: dict[str, int] = {}
     execution_gate_status_counts: dict[str, int] = {}
     output_contract_counts: dict[str, int] = {}
+    output_contract_summary_field_counts: dict[str, int] = {}
     preview_blocking_item_ids: list[str] = []
     preview_warning_item_ids: list[str] = []
     queue_snapshot_sha256 = _coverage_queue_snapshot_sha256(coverage_action_queue)
@@ -7502,6 +7531,9 @@ def _coverage_operator_queue_preview(
         warning_ids = _diagnostic_ids(recipe.get("warnings", []))
         output_contracts = _safe_output_contracts(recipe.get("output_contracts", []))
         output_contract_names = _output_contract_names(output_contracts)
+        output_contract_summary_fields = _output_contract_summary_fields(
+            output_contracts
+        )
         raw_gate = recipe.get("operator_execution_gate")
         operator_execution_gate = (
             dict(raw_gate)
@@ -7533,6 +7565,10 @@ def _coverage_operator_queue_preview(
         for contract_name in output_contract_names:
             output_contract_counts[contract_name] = (
                 output_contract_counts.get(contract_name, 0) + 1
+            )
+        for field_name in output_contract_summary_fields:
+            output_contract_summary_field_counts[field_name] = (
+                output_contract_summary_field_counts.get(field_name, 0) + 1
             )
         if blocking_ids and queue_item_id:
             preview_blocking_item_ids.append(queue_item_id)
@@ -7578,6 +7614,10 @@ def _coverage_operator_queue_preview(
                 "output_contracts": output_contracts,
                 "output_contract_names": output_contract_names,
                 "output_contract_count": len(output_contracts),
+                "output_contract_summary_fields": output_contract_summary_fields,
+                "output_contract_summary_field_count": len(
+                    output_contract_summary_fields
+                ),
                 "blocking_count": len(blocking_ids),
                 "blocking_ids": blocking_ids,
                 "warning_count": len(warning_ids),
@@ -7626,6 +7666,16 @@ def _coverage_operator_queue_preview(
             for contract_name in sorted(output_contract_counts)
         },
         "preview_output_contract_count": len(output_contract_counts),
+        "preview_output_contract_summary_fields": sorted(
+            output_contract_summary_field_counts
+        ),
+        "preview_output_contract_summary_field_counts": {
+            field_name: output_contract_summary_field_counts[field_name]
+            for field_name in sorted(output_contract_summary_field_counts)
+        },
+        "preview_output_contract_summary_field_count": len(
+            output_contract_summary_field_counts
+        ),
         "truncated": len(coverage_action_queue) > limit,
         "items": items,
         "audit_only": True,
@@ -7784,6 +7834,24 @@ def _output_contract_names(contracts: Sequence[Mapping[str, object]]) -> list[st
         for contract in contracts
         if str(contract.get("name", "")).strip()
     )
+
+
+def _output_contract_summary_fields(
+    contracts: Sequence[Mapping[str, object]]
+) -> list[str]:
+    fields: list[str] = []
+    seen: set[str] = set()
+    for contract in contracts:
+        raw_fields = contract.get("summary_fields", [])
+        if not isinstance(raw_fields, list):
+            continue
+        for field in raw_fields:
+            field_name = str(field).strip()
+            if not field_name or field_name in seen:
+                continue
+            fields.append(field_name)
+            seen.add(field_name)
+    return fields
 
 
 def _count_preview_value(counts: dict[str, int], value: str) -> None:

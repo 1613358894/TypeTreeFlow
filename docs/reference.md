@@ -698,7 +698,9 @@ environment files, contact providers, run downloads, or invoke external tools.
 `commands catalog` returns `catalog`, a static list of command entries with
 `command`, `subcommand`, `mode`, `argv_pattern`, `json_stdout`,
 `write_behavior`, `requires_outdir`, `boundary`, `parameters`, and
-`output_contracts`, `output_contract_names`, and `output_contract_count`.
+`output_contracts`, `output_contract_names`, `output_contract_count`,
+`output_contract_summary_fields`, and
+`output_contract_summary_field_count`.
 Each `parameters` item has `name`, `kind`, `required`, `repeatable`, and
 `purpose` fields so AI operators can construct candidate argv lists before
 passing them through `commands preflight`. Each `output_contracts` item names a
@@ -715,9 +717,11 @@ handoff packets such as
 `operator_chain_readiness_packets`.
 `commands recognize`, `commands render`, `commands plan`, and
 `commands preflight` also echo the recognized target command's
-`output_contracts`, `output_contract_names`, and `output_contract_count` at the
-top level; unknown or invalid target commands return an empty contract list and
-zero count. The summary fields are metadata only and do not authorize writes,
+`output_contracts`, `output_contract_names`, `output_contract_count`,
+`output_contract_summary_fields`, and
+`output_contract_summary_field_count` at the top level; unknown or invalid
+target commands return an empty contract list, zero counts, and no summary
+fields. The summary fields are metadata only and do not authorize writes,
 workflow mutation, network access, downloads, or external tools.
 The same JSON envelope also includes `early_dispatch_order`, the ordered list
 of isolated top-level commands that `typetreeflow.cli.main` checks before
@@ -2091,9 +2095,11 @@ repeats the selected `review_input_packet`, `operator_execution_gate`, and
 selected queue item. It repeats the selected `queue_item_id`, current queue
 snapshot digest, expected digest, digest match state, target argv, command-plan
 status, preflight decision, blocker/warning IDs, `output_contracts`,
-`output_contract_names`, `output_contract_count`, `review_input_packet`,
-`operator_execution_gate`, `recommended_request_target`, and the exact values to
-reuse as `--queue-item-id` and
+`output_contract_names`, `output_contract_count`,
+`output_contract_summary_fields`, `output_contract_summary_field_count`,
+`review_input_packet`, `operator_execution_gate`,
+`recommended_request_target`, and the exact values to reuse as
+`--queue-item-id` and
 `--expected-queue-snapshot-sha256` on a later metadata call. It is still
 metadata only:
 `execution_boundary=metadata_only_queue_resume_packet_no_execution`.
@@ -2109,12 +2115,16 @@ preflight decision, and
 compact command-plan diagnostics:
 `command_plan_status`, `blocking_count`, `blocking_ids`, `warning_count`, and
 `warning_ids`, plus compact output-contract routing metadata:
-`output_contracts`, `output_contract_names`, and `output_contract_count`. These
-fields make blocked preview items routeable without copying diagnostic messages
-or requiring a separate command-catalog lookup. The preview object also
-includes `preview_output_contract_names`, `preview_output_contract_counts`, and
-`preview_output_contract_count`, which summarize output-contract routes across
-the bounded preview prefix. It also includes
+`output_contracts`, `output_contract_names`, `output_contract_count`,
+`output_contract_summary_fields`, and
+`output_contract_summary_field_count`. These fields make blocked preview items
+routeable without copying diagnostic messages or requiring a separate
+command-catalog lookup. The preview object also includes
+`preview_output_contract_names`, `preview_output_contract_counts`,
+`preview_output_contract_count`, `preview_output_contract_summary_fields`,
+`preview_output_contract_summary_field_counts`, and
+`preview_output_contract_summary_field_count`, which summarize output-contract
+routes and summary fields across the bounded preview prefix. It also includes
 `preview_operator_route_counts`, `preview_next_input_class_counts`,
 `preview_command_plan_status_counts`, `preview_command_plan_decision_counts`,
 `preview_execution_gate_status_counts`, `preview_blocking_item_count`,

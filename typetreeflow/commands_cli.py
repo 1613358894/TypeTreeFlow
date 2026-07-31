@@ -2680,6 +2680,24 @@ def _output_contract_names(contracts: Sequence[dict[str, object]]) -> list[str]:
     )
 
 
+def _output_contract_summary_fields(
+    contracts: Sequence[dict[str, object]]
+) -> list[str]:
+    fields: list[str] = []
+    seen: set[str] = set()
+    for contract in contracts:
+        summary_fields = contract.get("summary_fields", [])
+        if not isinstance(summary_fields, list):
+            continue
+        for field in summary_fields:
+            field_name = str(field).strip()
+            if not field_name or field_name in seen:
+                continue
+            fields.append(field_name)
+            seen.add(field_name)
+    return fields
+
+
 def _attach_output_contract_summary(payload: dict[str, object]) -> None:
     contracts = payload.get("output_contracts", [])
     if not isinstance(contracts, list):
@@ -2689,6 +2707,9 @@ def _attach_output_contract_summary(payload: dict[str, object]) -> None:
     ]
     payload["output_contract_names"] = _output_contract_names(contract_maps)
     payload["output_contract_count"] = len(contract_maps)
+    summary_fields = _output_contract_summary_fields(contract_maps)
+    payload["output_contract_summary_fields"] = summary_fields
+    payload["output_contract_summary_field_count"] = len(summary_fields)
 
 
 def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
