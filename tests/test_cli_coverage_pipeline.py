@@ -346,6 +346,27 @@ def _assert_controller_packet(
     assert packet["available"] is bool(decision_surfaces)
     assert packet["decision_surface_count"] == len(decision_surfaces)
     assert packet["decision_surfaces"] == decision_surfaces
+    assert packet["controller_step_count"] == len(decision_surfaces)
+    assert [
+        candidate["source"] for candidate in packet["controller_step_candidates"]
+    ] == decision_surfaces
+    if decision_surfaces:
+        first_candidate = packet["controller_step_candidates"][0]
+        assert packet["first_controller_step_source"] == first_candidate["source"]
+        assert (
+            packet["first_controller_step_target"]
+            == first_candidate["recommended_request_target"]
+        )
+        assert packet["first_controller_step_argv"] == first_candidate["target_argv"]
+    else:
+        assert packet["first_controller_step_source"] == ""
+        assert packet["first_controller_step_target"] == ""
+        assert packet["first_controller_step_argv"] == []
+    for candidate in packet["controller_step_candidates"]:
+        assert candidate["safe_for_unattended_execution"] is False
+        assert candidate["audit_only"] is True
+        assert candidate["dry_run"] is True
+        assert candidate["execution_boundary"].startswith("metadata_only_")
     assert packet["coverage_queue_handoff_available"] is (
         "coverage_action_queue" in decision_surfaces
     )
@@ -377,6 +398,32 @@ def _assert_controller_packet(
     assert packet["coverage_queue_snapshot_matches_expected"] == payload[
         "queue_snapshot_matches_expected"
     ]
+    queue_candidates = [
+        candidate
+        for candidate in packet["controller_step_candidates"]
+        if candidate["source"] == "coverage_action_queue"
+    ]
+    if "coverage_action_queue" in decision_surfaces:
+        assert len(queue_candidates) == 1
+        assert queue_candidates[0]["priority"] == 1
+        assert queue_candidates[0]["handoff_kind"] == "queue_item"
+        assert queue_candidates[0]["queue_item_id"] == payload[
+            "coverage_queue_resume_packet"
+        ]["queue_item_id"]
+        assert queue_candidates[0]["recommended_request_target"] == payload[
+            "coverage_queue_resume_packet"
+        ]["recommended_request_target"]
+        assert queue_candidates[0]["target_argv"] == payload[
+            "coverage_queue_resume_packet"
+        ]["target_argv"]
+        assert queue_candidates[0]["snapshot_sha256"] == payload[
+            "coverage_queue_resume_packet"
+        ]["queue_snapshot_sha256"]
+        assert queue_candidates[0]["snapshot_matches_expected"] == payload[
+            "queue_snapshot_matches_expected"
+        ]
+    else:
+        assert queue_candidates == []
     assert packet["operator_chain_handoff_available"] is (
         "operator_chain_stage" in decision_surfaces
     )
@@ -400,6 +447,32 @@ def _assert_controller_packet(
     assert packet["operator_chain_snapshot_matches_expected"] == payload[
         "operator_chain_snapshot_matches_expected"
     ]
+    chain_candidates = [
+        candidate
+        for candidate in packet["controller_step_candidates"]
+        if candidate["source"] == "operator_chain_stage"
+    ]
+    if "operator_chain_stage" in decision_surfaces:
+        assert len(chain_candidates) == 1
+        assert chain_candidates[0]["priority"] == 2
+        assert chain_candidates[0]["handoff_kind"] == "stage"
+        assert chain_candidates[0]["stage"] == payload[
+            "operator_chain_resume_packet"
+        ]["stage"]
+        assert chain_candidates[0]["recommended_request_target"] == payload[
+            "operator_chain_resume_packet"
+        ]["recommended_request_target"]
+        assert chain_candidates[0]["target_argv"] == payload[
+            "operator_chain_resume_packet"
+        ]["target_argv"]
+        assert chain_candidates[0]["snapshot_sha256"] == payload[
+            "operator_chain_resume_packet"
+        ]["operator_chain_snapshot_sha256"]
+        assert chain_candidates[0]["snapshot_matches_expected"] == payload[
+            "operator_chain_snapshot_matches_expected"
+        ]
+    else:
+        assert chain_candidates == []
     assert packet["safe_for_unattended_execution"] is False
     assert packet["audit_only"] is True
     assert packet["dry_run"] is True

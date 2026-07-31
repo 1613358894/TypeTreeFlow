@@ -2017,8 +2017,11 @@ an AI/controller can decide which review surface to handle next without
 scanning every queue row.
 `coverage_controller_packet` is the shortest combined handoff: it lists
 available decision surfaces, queue and operator-chain statuses, current command
-targets, and snapshot match booleans in one object while preserving the same
-no-execution boundaries.
+targets, snapshot match booleans, and ordered `controller_step_candidates` in
+one object while preserving the same no-execution boundaries. Each controller
+candidate repeats only compact source, target argv, digest guard, blocking, and
+warning metadata from the queue or operator-chain handoff; it is not execution
+authority.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
