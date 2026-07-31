@@ -711,7 +711,10 @@ example `coverage_plan_packet.v1` lists provider route count fields such as
 `operator_route_counts` and `provider_route_groups`. Provider-handoff,
 provider-request, and external-genomes readiness contracts use the same pattern
 for route counts, readiness counts, required inputs, and recommended next
-requests when those fields are stable. Other contracts describe AI/operator
+requests when those fields are stable. The server-validation result validator
+contract lists local validation status, result status, checked-surface count,
+boundary confirmation status, diagnostic count, and no-execution boundary flags
+as stable routing fields. Other contracts describe AI/operator
 handoff packets such as
 `provider_request_readiness_packet`, `external_genomes_readiness_packet`, and
 `operator_chain_readiness_packets`.
@@ -2354,7 +2357,10 @@ JSON file, checks required fields, accepted statuses, checked surfaces, and
 no-execution boundary confirmations, and emits one compact JSON object. It
 returns exit `0` for a contract-valid result, exit `2` for usage, input,
 schema, or boundary validation problems, and exit `1` for unexpected internal
-errors. Passing this validator does not execute the target command, validate
+errors. The command contract exposes stable summary fields for validation
+status, result status, checked-surface count, boundary confirmation status,
+diagnostic count, and no-execution boundary flags. Passing this validator does
+not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.
 `coverage-pipeline status --server-validation-result <json>` can attach that
