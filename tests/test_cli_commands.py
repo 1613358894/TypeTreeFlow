@@ -386,6 +386,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
         "operator_chain_next_step_packet",
+        "operator_chain_resume_packet",
     }
     assert coverage_pipeline_contracts <= contract_names[
         ("coverage-pipeline", "preview")
@@ -1189,6 +1190,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
         "operator_chain_next_step_packet",
+        "operator_chain_resume_packet",
         "operator_chain_readiness_packets",
     }
     _assert_output_contract_summary(payload)
@@ -1252,6 +1254,7 @@ def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_al
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
         "operator_chain_next_step_packet",
+        "operator_chain_resume_packet",
         "operator_chain_readiness_packets",
     }
     assert payload["preflight"]["output_contracts"] == payload["output_contracts"]

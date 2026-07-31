@@ -1921,7 +1921,11 @@ the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
 `coverage_next_command_plan`, `coverage_stage_command_plans`,
 `coverage_stage_readiness_summary`, `coverage_next_operator_recipe`,
 `coverage_queue_resume_packet`, and `coverage_operator_queue_preview`, plus
-operator-chain packets when present.
+operator-chain packets when present. `operator_chain_resume_packet` is the
+compact counterpart to `operator_chain_next_step_packet`: it carries the next
+stage, command target, rendered argv, command-plan/preflight decisions, blocker
+IDs, and `resume_with_expected_operator_chain_snapshot_sha256` digest guard for
+later metadata calls. It is still a no-execution handoff.
 The packet also includes `review_input_packet`, a bounded local-input handoff
 for the selected action. For manual-review actions it names the
 `manual_review.v1` schema, required manual-review TSV fields, allowed
@@ -2092,6 +2096,10 @@ The packet also exposes `resume_with_stage` and
 `resume_with_expected_operator_chain_snapshot_sha256`, which are direct copies
 of the stage name and digest to carry into a later guarded metadata call; it is
 a planning handoff and does not dispatch the command.
+`operator_chain_resume_packet` repeats the compact resume fields from the same
+next-step packet, including target argv, decisions, blocker/warning IDs, stage,
+artifact, and digest guard, so controllers can persist a smaller handoff object
+without losing the fail-closed snapshot binding.
 The payload also includes
 `required_inputs` and `recommended_request` as convenience copies from the
 current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and

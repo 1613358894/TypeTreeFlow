@@ -791,6 +791,9 @@ def _run_status(
         stages,
         operator_chain_next_step_packet,
     )
+    operator_chain_resume_packet = _operator_chain_resume_packet(
+        operator_chain_next_step_packet
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -865,6 +868,7 @@ def _run_status(
             operator_chain_snapshot_matches
         ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
+        "operator_chain_resume_packet": operator_chain_resume_packet,
         "coverage_stage_readiness_summary": coverage_stage_readiness_summary,
         "operator_chain_readiness_packets": (
             _operator_chain_readiness_packets_from_stages(stages)
@@ -1248,6 +1252,71 @@ def _coverage_stage_readiness_summary(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_stage_readiness_summary_no_execution",
+    }
+
+
+def _operator_chain_resume_packet(
+    next_step_packet: Mapping[str, object],
+) -> dict[str, object]:
+    blocking_ids = (
+        [str(value) for value in next_step_packet.get("blocking_ids", [])]
+        if isinstance(next_step_packet.get("blocking_ids"), list)
+        else []
+    )
+    warning_ids = (
+        [str(value) for value in next_step_packet.get("warning_ids", [])]
+        if isinstance(next_step_packet.get("warning_ids"), list)
+        else []
+    )
+    target_argv = (
+        [str(value) for value in next_step_packet.get("target_argv", [])]
+        if isinstance(next_step_packet.get("target_argv"), list)
+        else []
+    )
+    available = bool(next_step_packet.get("available"))
+    return {
+        "schema_version": "operator_chain_resume_packet.v1",
+        "available": available,
+        "status": str(next_step_packet.get("status", "")),
+        "stage": str(next_step_packet.get("stage", "")),
+        "artifact": str(next_step_packet.get("artifact", "")),
+        "record_count": _safe_int(next_step_packet.get("record_count", 0)),
+        "recommended_request_target": str(
+            next_step_packet.get("recommended_request_target", "")
+        ),
+        "target_argv": target_argv,
+        "command_plan_decision": str(next_step_packet.get("decision", "")),
+        "preflight_decision": str(next_step_packet.get("preflight_decision", "")),
+        "blocking_count": len(blocking_ids),
+        "blocking_ids": blocking_ids,
+        "warning_count": len(warning_ids),
+        "warning_ids": warning_ids,
+        "operator_chain_snapshot_sha256": str(
+            next_step_packet.get("operator_chain_snapshot_sha256", "")
+        ),
+        "resume_with_stage": str(next_step_packet.get("resume_with_stage", "")),
+        "resume_with_expected_operator_chain_snapshot_sha256": str(
+            next_step_packet.get(
+                "resume_with_expected_operator_chain_snapshot_sha256",
+                "",
+            )
+        ),
+        "resume_required": available,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": (
+            "operator_review_required" if available else "no_action"
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_chain_resume_packet_no_execution",
     }
 
 
@@ -1778,6 +1847,9 @@ def _payload(
         operator_chain_stages,
         operator_chain_next_step_packet,
     )
+    operator_chain_resume_packet = _operator_chain_resume_packet(
+        operator_chain_next_step_packet
+    )
     provider_request_validation_readiness_packet = _payload_map(
         provider_request_validation,
         "provider_request_readiness_packet",
@@ -2135,6 +2207,7 @@ def _payload(
             operator_chain_snapshot_matches
         ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
+        "operator_chain_resume_packet": operator_chain_resume_packet,
         "coverage_stage_readiness_summary": coverage_stage_readiness_summary,
         "operator_chain_readiness_packets": operator_chain_readiness_packets,
         "diagnostic_count": len(diagnostics),
@@ -3848,6 +3921,11 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "operator_chain_next_step_packet": _empty_operator_chain_next_step_packet(
             operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
         ),
+        "operator_chain_resume_packet": _operator_chain_resume_packet(
+            _empty_operator_chain_next_step_packet(
+                operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
+            )
+        ),
         "coverage_stage_readiness_summary": _coverage_stage_readiness_summary(
             [],
             _empty_operator_chain_next_step_packet(
@@ -3918,6 +3996,7 @@ def _rendered_outputs(
             "expected_operator_chain_snapshot_sha256",
             "operator_chain_snapshot_matches_expected",
             "operator_chain_next_step_packet",
+            "operator_chain_resume_packet",
             "coverage_stage_readiness_summary",
             "operator_chain_readiness_packets",
             "coverage_operator_queue_preview",

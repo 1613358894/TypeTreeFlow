@@ -203,6 +203,47 @@ def _assert_stage_readiness_summary(
     assert summary["strict_scientific_deliverable"] is False
 
 
+def _assert_operator_chain_resume_packet(
+    payload,
+    *,
+    available,
+    status,
+    stage,
+    target,
+    decision,
+):
+    packet = payload["operator_chain_resume_packet"]
+    next_step = payload["operator_chain_next_step_packet"]
+    assert packet["schema_version"] == "operator_chain_resume_packet.v1"
+    assert packet["available"] is available
+    assert packet["status"] == status
+    assert packet["stage"] == stage
+    assert packet["artifact"] == next_step["artifact"]
+    assert packet["record_count"] == next_step["record_count"]
+    assert packet["recommended_request_target"] == target
+    assert packet["target_argv"] == next_step["target_argv"]
+    assert packet["command_plan_decision"] == decision
+    assert packet["preflight_decision"] == next_step["preflight_decision"]
+    assert packet["blocking_ids"] == next_step["blocking_ids"]
+    assert packet["warning_ids"] == next_step["warning_ids"]
+    assert packet["operator_chain_snapshot_sha256"] == (
+        next_step["operator_chain_snapshot_sha256"]
+    )
+    assert packet["resume_with_stage"] == next_step["resume_with_stage"]
+    assert packet["resume_with_expected_operator_chain_snapshot_sha256"] == (
+        next_step["resume_with_expected_operator_chain_snapshot_sha256"]
+    )
+    assert packet["resume_required"] is available
+    assert packet["safe_for_unattended_execution"] is False
+    assert packet["audit_only"] is True
+    assert packet["dry_run"] is True
+    assert packet["downloads_triggered"] == 0
+    assert packet["providers_contacted"] == 0
+    assert packet["network_access"] is False
+    assert packet["manifest_mutated"] is False
+    assert packet["strict_scientific_deliverable"] is False
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -1327,6 +1368,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         next_stage_target="provider-request external-genomes-handoff",
         next_stage_decision="block",
     )
+    _assert_operator_chain_resume_packet(
+        payload,
+        available=True,
+        status="blocked",
+        stage="provider_request_validation",
+        target="provider-request external-genomes-handoff",
+        decision="block",
+    )
     assert payload["operator_chain_stages"][6]["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input provider_request_external_genomes/external_genomes.tsv "
@@ -2314,6 +2363,14 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         next_stage_decision="block",
     )
     assert summary["coverage_stage_readiness_summary"]["chain_complete"] is False
+    _assert_operator_chain_resume_packet(
+        summary,
+        available=True,
+        status="blocked",
+        stage="provider_request_validation",
+        target="provider-request external-genomes-handoff",
+        decision="block",
+    )
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
         "kctc": 1,
@@ -3120,6 +3177,14 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         next_stage_decision="none",
     )
     assert payload["coverage_stage_readiness_summary"]["chain_complete"] is True
+    _assert_operator_chain_resume_packet(
+        payload,
+        available=False,
+        status="no_action",
+        stage="",
+        target="",
+        decision="none",
+    )
     assert payload["coverage_opportunity_summary"][3][
         "provider_automation_level_counts"
     ] == {"planning_handoff": 2}
@@ -3621,6 +3686,43 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_stage_readiness_summary_no_execution",
+    }
+    assert payload["operator_chain_resume_packet"] == {
+        "schema_version": "operator_chain_resume_packet.v1",
+        "available": False,
+        "status": "no_action",
+        "stage": "",
+        "artifact": "",
+        "record_count": 0,
+        "recommended_request_target": "",
+        "target_argv": [],
+        "command_plan_decision": "none",
+        "preflight_decision": "none",
+        "blocking_count": 0,
+        "blocking_ids": [],
+        "warning_count": 0,
+        "warning_ids": [],
+        "operator_chain_snapshot_sha256": (
+            payload["operator_chain_snapshot_sha256"]
+        ),
+        "resume_with_stage": "",
+        "resume_with_expected_operator_chain_snapshot_sha256": (
+            payload["operator_chain_snapshot_sha256"]
+        ),
+        "resume_required": False,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "no_action",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_chain_resume_packet_no_execution",
     }
     assert payload["diagnostics"][0]["component"] == "coverage_pipeline_status"
     assert payload["diagnostics"][0]["diagnostic_code"] == "artifact_unreadable"
