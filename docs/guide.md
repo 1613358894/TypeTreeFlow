@@ -482,9 +482,11 @@ decisions, blocker or warning IDs, and digest guard without requiring
 controllers to persist the full next-step packet. It also reports
 `selected_operator_chain_stage` and
 `selected_operator_chain_stage_command_plan` when
-`--stage <operator_chain_stage>` is supplied, so an AI/operator can inspect one
-exact local stage handoff without dispatching it. Unknown stage names fail
-closed with a compact JSON diagnostic. It also reports
+`--stage <operator_chain_stage>` is supplied. The same stage selector is
+available on `coverage-pipeline preview` and `coverage-pipeline build`, so an
+AI/operator can inspect one exact local stage handoff before or after isolated
+pipeline outputs exist, without dispatching it. Unknown stage names fail closed
+with a compact JSON diagnostic. It also reports
 `completion_gate`,
 `provider_automation_level_counts`, and
 `provider_request_automation_level_counts`, and preserves

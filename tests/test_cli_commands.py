@@ -381,6 +381,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "coverage_next_task_packet",
         "coverage_next_command_plan",
         "coverage_stage_command_plans",
+        "selected_operator_chain_stage_command_plan",
         "coverage_stage_readiness_summary",
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",
@@ -425,9 +426,11 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--provider-request-validation-base-dir",
         "--curated-provider-request-tsv",
         "--external-genomes-install-target-outdir",
+        "--stage",
         "--expected-operator-chain-snapshot-sha256",
     } <= parameter_names[("coverage-pipeline", "build")]
     assert {
+        "--stage",
         "--expected-operator-chain-snapshot-sha256",
     } <= parameter_names[("coverage-pipeline", "preview")]
     audit_dir_flags = {
@@ -1078,6 +1081,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
                     '"archive_candidates_tsv":"archive.tsv",'
                     '"expanded_discovery_results_tsv":"expanded.tsv",'
                     '"manual_supplement_hints_tsv":"manual_hints.tsv",'
+                    '"stage":"provider_request_validation",'
                     '"validate_provider_request":true,'
                     '"provider_request_validation_base_dir":"provider_request",'
                     '"curated_provider_request_tsv":"curated_provider_request.tsv",'
@@ -1107,6 +1111,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
         "expanded.tsv",
         "--manual-supplement-hints-tsv",
         "manual_hints.tsv",
+        "--stage",
+        "provider_request_validation",
         "--validate-provider-request",
         "--provider-request-validation-base-dir",
         "provider_request",
@@ -1258,6 +1264,7 @@ def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_al
         "coverage_next_task_packet",
         "coverage_next_command_plan",
         "coverage_stage_command_plans",
+        "selected_operator_chain_stage_command_plan",
         "coverage_stage_readiness_summary",
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",

@@ -434,6 +434,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "purpose": "stage-keyed command plans for coverage pipeline handoffs",
         },
         {
+            "name": "selected_operator_chain_stage_command_plan",
+            "schema_version": "coverage_next_command_plan.v1",
+            "purpose": "command plan for the explicitly selected operator-chain stage",
+        },
+        {
             "name": "coverage_stage_readiness_summary",
             "schema_version": "coverage_stage_readiness_summary.v1",
             "purpose": "compact coverage stage readiness, blocker, and command-plan summary for AI routing",
@@ -489,6 +494,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_stage_command_plans",
             "schema_version": "coverage_stage_command_plans.v1",
             "purpose": "stage-keyed command plans for coverage pipeline handoffs",
+        },
+        {
+            "name": "selected_operator_chain_stage_command_plan",
+            "schema_version": "coverage_next_command_plan.v1",
+            "purpose": "command plan for the explicitly selected operator-chain stage",
         },
         {
             "name": "coverage_stage_readiness_summary",
@@ -1406,6 +1416,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "select a stable coverage queue item for task packet metadata",
         },
         {
+            "name": "--stage",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "select an operator-chain stage for metadata-only command-plan handoff",
+        },
+        {
             "name": "--expected-queue-snapshot-sha256",
             "kind": "string",
             "required": False,
@@ -1517,6 +1534,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "select a stable coverage queue item for task packet metadata",
+        },
+        {
+            "name": "--stage",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "select an operator-chain stage for metadata-only command-plan handoff",
         },
         {
             "name": "--expected-queue-snapshot-sha256",
@@ -3037,6 +3061,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "manual_supplement_hints_tsv",
             "queue_preview_limit",
             "queue_item_id",
+            "stage",
             "expected_queue_snapshot_sha256",
             "expected_operator_chain_snapshot_sha256",
         }
@@ -3072,6 +3097,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         queue_item_id = _optional_string(request, "queue_item_id")
         if queue_item_id:
             argv.extend(["--queue-item-id", queue_item_id])
+        stage = _optional_string(request, "stage")
+        if stage:
+            argv.extend(["--stage", stage])
         expected_queue_snapshot = _optional_string(
             request,
             "expected_queue_snapshot_sha256",

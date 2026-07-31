@@ -367,6 +367,7 @@ def run_coverage_pipeline_command(
         dry_run=not args.write,
         queue_preview_limit=queue_preview_limit,
         queue_item_id=args.queue_item_id,
+        stage_name=args.stage,
         expected_queue_snapshot_sha256=args.expected_queue_snapshot_sha256,
         expected_operator_chain_snapshot_sha256=(
             args.expected_operator_chain_snapshot_sha256
@@ -492,6 +493,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     preview.add_argument("--queue-item-id")
+    preview.add_argument("--stage")
     preview.add_argument("--expected-queue-snapshot-sha256")
     preview.add_argument("--expected-operator-chain-snapshot-sha256")
     preview.add_argument("--json", action="store_true")
@@ -521,6 +523,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     build.add_argument("--queue-item-id")
+    build.add_argument("--stage")
     build.add_argument("--expected-queue-snapshot-sha256")
     build.add_argument("--expected-operator-chain-snapshot-sha256")
     build.add_argument("--json", action="store_true")
@@ -1929,6 +1932,7 @@ def _payload(
     dry_run: bool,
     queue_preview_limit: int,
     queue_item_id: str | None,
+    stage_name: str | None,
     expected_queue_snapshot_sha256: str | None,
     expected_operator_chain_snapshot_sha256: str | None,
 ) -> dict[str, object]:
@@ -1972,6 +1976,19 @@ def _payload(
     )
     operator_chain_resume_packet = _operator_chain_resume_packet(
         operator_chain_next_step_packet
+    )
+    selected_operator_chain_stage = _selected_operator_chain_stage(
+        operator_chain_stages,
+        stage_name,
+        diagnostics=diagnostics,
+    )
+    selected_operator_chain_stage_command_plan = (
+        _operator_chain_stage_command_plan(selected_operator_chain_stage)
+        if selected_operator_chain_stage
+        else _coverage_next_command_plan(
+            {"available": False, "recommended_request": None},
+            request_source="selected_operator_chain_stage.recommended_request",
+        )
     )
     provider_request_validation_readiness_packet = _payload_map(
         provider_request_validation,
@@ -2346,6 +2363,12 @@ def _payload(
         "operator_chain_resume_packet": operator_chain_resume_packet,
         "coverage_stage_readiness_summary": coverage_stage_readiness_summary,
         "operator_chain_readiness_packets": operator_chain_readiness_packets,
+        "selected_operator_chain_stage_name": str(stage_name or ""),
+        "selected_operator_chain_stage_found": bool(selected_operator_chain_stage),
+        "selected_operator_chain_stage": dict(selected_operator_chain_stage or {}),
+        "selected_operator_chain_stage_command_plan": (
+            selected_operator_chain_stage_command_plan
+        ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
