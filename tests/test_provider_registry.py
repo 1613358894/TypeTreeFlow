@@ -26,10 +26,11 @@ def test_default_registry_contains_planning_only_culture_collections():
         "bcrc",
         "ccrc",
         "nccb",
-        "csur",
-        "cicc",
-        "ifo",
-    ):
+            "csur",
+            "cicc",
+            "ifo",
+            "img_jgi",
+        ):
         entry = registry.get(key)
         assert entry.provider_key == key
         assert entry.capability.status == ProviderStatus.PLANNING_ONLY
@@ -53,6 +54,12 @@ def test_default_registry_contains_metadata_only_public_archives():
         assert "provider_guidance=public_archive_metadata_review" in (
             entry.adapter.plan_notes(None)
         )
+    bv_brc = registry.get("bv_brc")
+    assert bv_brc.capability.status == ProviderStatus.METADATA_ONLY
+    assert bv_brc.capability.supports_network is False
+    assert "provider_guidance=public_genome_portal_metadata_review" in (
+        bv_brc.adapter.plan_notes(None)
+    )
 
 
 def test_provider_registry_aliases_human_labels_to_canonical_keys():
@@ -88,6 +95,12 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "CSUR": "csur",
         "CICC": "cicc",
         "IFO": "ifo",
+        "BV-BRC": "bv_brc",
+        "PATRIC": "bv_brc",
+        "Bacterial and Viral Bioinformatics Resource Center": "bv_brc",
+        "IMG/M": "img_jgi",
+        "JGI IMG": "img_jgi",
+        "Integrated Microbial Genomes": "img_jgi",
         "European Nucleotide Archive": "ena",
     }
 
@@ -106,6 +119,8 @@ def test_provider_registry_exposes_stable_aliases_for_catalog_metadata():
         "LMG",
     )
     assert "NCBI RefSeq" in registry.aliases_for("refseq")
+    assert "PATRIC" in registry.aliases_for("bv_brc")
+    assert "JGI IMG" in registry.aliases_for("img_jgi")
     assert registry.aliases_for("unknown") == ()
 
 
@@ -115,7 +130,8 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
     assert registry.keys_from_text(
         "ATCC 1001; DSMZ 2002; DSM-2003; KACC 12345; "
         "VKM B-1787; MCCC 1K07510; GDMCC 1.2529; "
-        "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006"
+        "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; "
+        "PATRIC genome 123; IMG/M 3300000000"
     ) == (
         "atcc_genome_portal",
         "dsmz",
@@ -124,6 +140,8 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "mccc",
         "gdmcc",
         "bccm_lmg",
+        "bv_brc",
+        "img_jgi",
     )
     assert registry.keys_from_text("ATCC; DSMZ; JCM") == (
         "atcc_genome_portal",
@@ -143,8 +161,8 @@ def test_provider_registry_normalizes_provider_hint_fields_with_embedded_tokens(
 
     assert registry.keys_from_hints(
         "German Collection of Microorganisms and Cell Cultures (DSMZ); "
-        "Korean Collection for Type Cultures (KCTC); RefSeq"
-    ) == ("dsmz", "kctc", "refseq")
+        "Korean Collection for Type Cultures (KCTC); RefSeq; BV-BRC; JGI IMG"
+    ) == ("dsmz", "kctc", "refseq", "bv_brc", "img_jgi")
     assert registry.keys_from_hints("new provider; DSMZ") == ("new provider", "dsmz")
 
 

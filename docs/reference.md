@@ -2668,13 +2668,15 @@ The default provider registry includes static fail-closed entries for ATCC
 Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC/NITE, KCTC,
 KACC, VKM, MCCC, GDMCC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB, BCRC,
 CCRC, NCCB, CSUR, CICC, and IFO;
-and public archives ENA, DDBJ, GenBank, and NCBI RefSeq. Culture-collection
-entries are `planning_only`; public archive entries are `metadata_only`.
+public archives ENA, DDBJ, GenBank, and NCBI RefSeq; BV-BRC/PATRIC; and
+IMG/JGI. Culture-collection and IMG/JGI entries are `planning_only`; public
+archive and BV-BRC/PATRIC entries are `metadata_only`.
 Coverage action planning may use explicit
 `provider_keys`, `candidate_provider_keys`, `preferred_provider_keys`, or
 `provider_key` hints from local rows and normalizes known aliases to canonical
 provider keys. Provider hint fields may also contain recognizable standalone
-culture-collection tokens such as `ATCC`, `DSMZ`, `NITE`, `KCTC`, `KACC`, or `VKM`;
+culture-collection tokens such as `ATCC`, `DSMZ`, `NITE`, `KCTC`, `KACC`, or `VKM`,
+plus public portal labels such as `BV-BRC`, `PATRIC`, `IMG/M`, or `JGI IMG`;
 these are still normalized only as review hints. These statuses and hints describe review
 guidance only and do not enable provider network access, automatic downloads,
 credentials, terms acceptance, or strict type-strain confirmation.
