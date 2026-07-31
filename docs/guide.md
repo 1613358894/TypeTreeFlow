@@ -442,7 +442,8 @@ To inspect the current local operator chain without writing anything:
 typetreeflow coverage-pipeline status \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
   [--expected-queue-snapshot-sha256 <sha256>] \
-  [--queue-item-id <queue_item_id>] [--json]
+  [--queue-item-id <queue_item_id>] \
+  [--stage <operator_chain_stage>] [--json]
 ```
 
 The status command reads standard downstream child directories under the same
@@ -479,6 +480,11 @@ metadata call. `operator_chain_resume_packet` is the compact version of that
 stage handoff, carrying the stage, target argv, command-plan/preflight
 decisions, blocker or warning IDs, and digest guard without requiring
 controllers to persist the full next-step packet. It also reports
+`selected_operator_chain_stage` and
+`selected_operator_chain_stage_command_plan` when
+`--stage <operator_chain_stage>` is supplied, so an AI/operator can inspect one
+exact local stage handoff without dispatching it. Unknown stage names fail
+closed with a compact JSON diagnostic. It also reports
 `completion_gate`,
 `provider_automation_level_counts`, and
 `provider_request_automation_level_counts`, and preserves

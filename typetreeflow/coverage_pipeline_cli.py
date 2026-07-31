@@ -539,6 +539,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     status.add_argument("--queue-item-id")
+    status.add_argument("--stage")
     status.add_argument("--expected-queue-snapshot-sha256")
     status.add_argument("--expected-operator-chain-snapshot-sha256")
     status.add_argument("--require-complete", action="store_true")
@@ -794,6 +795,19 @@ def _run_status(
     operator_chain_resume_packet = _operator_chain_resume_packet(
         operator_chain_next_step_packet
     )
+    selected_operator_chain_stage = _selected_operator_chain_stage(
+        stages,
+        getattr(args, "stage", None),
+        diagnostics=diagnostics,
+    )
+    selected_operator_chain_stage_command_plan = (
+        _operator_chain_stage_command_plan(selected_operator_chain_stage)
+        if selected_operator_chain_stage
+        else _coverage_next_command_plan(
+            {"available": False, "recommended_request": None},
+            request_source="selected_operator_chain_stage.recommended_request",
+        )
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -883,6 +897,12 @@ def _run_status(
         "coverage_stage_readiness_summary": coverage_stage_readiness_summary,
         "operator_chain_readiness_packets": (
             _operator_chain_readiness_packets_from_stages(stages)
+        ),
+        "selected_operator_chain_stage_name": str(getattr(args, "stage", "") or ""),
+        "selected_operator_chain_stage_found": bool(selected_operator_chain_stage),
+        "selected_operator_chain_stage": dict(selected_operator_chain_stage or {}),
+        "selected_operator_chain_stage_command_plan": (
+            selected_operator_chain_stage_command_plan
         ),
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -3625,6 +3645,22 @@ def _coverage_stage_command_plan(
     )
 
 
+def _operator_chain_stage_command_plan(
+    stage: Mapping[str, object],
+) -> dict[str, object]:
+    raw_request = stage.get("recommended_request")
+    recommended_request = (
+        dict(raw_request) if isinstance(raw_request, Mapping) else None
+    )
+    return _coverage_next_command_plan(
+        {
+            "available": recommended_request is not None,
+            "recommended_request": recommended_request,
+        },
+        request_source="selected_operator_chain_stage.recommended_request",
+    )
+
+
 def _coverage_stage_command_plans() -> dict[str, dict[str, object]]:
     return {
         key: _coverage_stage_command_plan(stage_name, request_source)
@@ -4038,6 +4074,25 @@ def _selected_coverage_queue_item(
         if str(item.get("queue_item_id", "")) == requested_id:
             return item
     diagnostics.append(_diagnostic("coverage_action_queue", "queue_item_id_not_found"))
+    return None
+
+
+def _selected_operator_chain_stage(
+    stages: Sequence[object],
+    stage_name: str | None,
+    *,
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object] | None:
+    requested_stage = str(stage_name or "").strip()
+    if not requested_stage:
+        return None
+    for stage in stages:
+        if (
+            isinstance(stage, Mapping)
+            and str(stage.get("stage", "")) == requested_stage
+        ):
+            return dict(stage)
+    diagnostics.append(_diagnostic("operator_chain", "operator_chain_stage_not_found"))
     return None
 
 
