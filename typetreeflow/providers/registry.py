@@ -170,6 +170,14 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("CSUR", "csur"),
     ("CICC", "cicc"),
     ("IFO", "ifo"),
+    ("BV-BRC", "bv_brc"),
+    ("BVBRC", "bv_brc"),
+    ("PATRIC", "bv_brc"),
+    ("Bacterial and Viral Bioinformatics Resource Center", "bv_brc"),
+    ("IMG", "img_jgi"),
+    ("IMG/M", "img_jgi"),
+    ("JGI IMG", "img_jgi"),
+    ("Integrated Microbial Genomes", "img_jgi"),
     ("ENA", "ena"),
     ("European Nucleotide Archive", "ena"),
     ("DDBJ", "ddbj"),
@@ -210,6 +218,12 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("CSUR", "csur"),
     ("CICC", "cicc"),
     ("IFO", "ifo"),
+    ("BV-BRC", "bv_brc"),
+    ("BVBRC", "bv_brc"),
+    ("PATRIC", "bv_brc"),
+    ("IMG/M", "img_jgi"),
+    ("IMG", "img_jgi"),
+    ("JGI IMG", "img_jgi"),
 )
 
 
@@ -330,6 +344,17 @@ def build_default_provider_registry() -> ProviderRegistry:
             "ifo",
             "IFO",
             guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "img_jgi",
+            "JGI IMG/M",
+            guidance_tag="public_genome_portal_user_handoff",
+            requires_credentials=True,
+        ),
+        metadata_only_provider(
+            "bv_brc",
+            "BV-BRC",
+            guidance_tag="public_genome_portal_metadata_review",
         ),
         metadata_only_provider(
             "ena",

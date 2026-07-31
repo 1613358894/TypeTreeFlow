@@ -296,7 +296,8 @@ The v2.2.40 release record batches the P5 offline AI-control and
 coverage-planning surfaces. `archive-candidates build` writes only an isolated
 review triplet, acquisition worklists may read those candidate rows as
 review-only signals, `providers catalog` exposes provider metadata without
-provider contact, and command rendering can plan the corresponding offline
+provider contact, including BV-BRC/PATRIC and IMG/JGI review routing, and
+command rendering can plan the corresponding offline
 commands. These surfaces do not claim live-provider validation, downloads,
 strict evidence promotion, or strict deliverable materialization.
 

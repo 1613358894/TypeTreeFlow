@@ -101,14 +101,15 @@ def test_coverage_plan_uses_canonical_provider_hints_when_present():
             _row(
                 "Clostridium hintedum",
                 "external_fasta_required",
-                provider_keys="KCTC, DSMZ; RefSeq | KCTC",
+                provider_keys="KCTC, DSMZ; RefSeq | KCTC; BV-BRC",
             ),
             _row(
                 "Clostridium embeddedum",
                 "external_fasta_required",
                 candidate_provider_keys=(
                     "German Collection of Microorganisms and Cell Cultures "
-                    "(DSMZ); Korean Collection for Type Cultures (KCTC)"
+                    "(DSMZ); Korean Collection for Type Cultures (KCTC); "
+                    "JGI IMG"
                 ),
             ),
             _row(
@@ -121,24 +122,30 @@ def test_coverage_plan_uses_canonical_provider_hints_when_present():
     )
 
     by_species = {action.species: action for action in plan.actions}
-    assert by_species["Clostridium hintedum"].provider_keys == "kctc; dsmz; refseq"
-    assert by_species["Clostridium embeddedum"].provider_keys == "dsmz; kctc"
+    assert by_species["Clostridium hintedum"].provider_keys == (
+        "kctc; dsmz; refseq; bv_brc"
+    )
+    assert by_species["Clostridium embeddedum"].provider_keys == (
+        "dsmz; kctc; img_jgi"
+    )
     assert by_species["Clostridium archiveum"].provider_keys == "ena; ddbj"
     summary = json.loads(plan.summary_json())
     assert summary["provider_key_counts"] == {
+        "bv_brc": 1,
         "ddbj": 1,
         "dsmz": 2,
         "ena": 1,
+        "img_jgi": 1,
         "kctc": 2,
         "refseq": 1,
     }
     assert summary["provider_automation_level_counts"] == {
-        "metadata_review": 3,
-        "planning_handoff": 4,
+        "metadata_review": 4,
+        "planning_handoff": 5,
     }
     assert summary["operator_route_counts"] == {
-        "provider_handoff": 4,
-        "public_metadata_review": 3,
+        "provider_handoff": 5,
+        "public_metadata_review": 4,
     }
 
 

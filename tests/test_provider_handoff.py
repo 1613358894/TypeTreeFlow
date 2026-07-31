@@ -132,24 +132,33 @@ def test_build_provider_handoff_canonicalizes_provider_aliases():
     rows = _coverage_rows()
     rows[0]["provider_keys"] = "RefSeq; NCBI GenBank"
     rows[1]["provider_keys"] = (
-        "DSMZ; BCCM-LMG; Korean Collection for Type Cultures (KCTC)"
+        "DSMZ; BCCM-LMG; Korean Collection for Type Cultures (KCTC); "
+        "PATRIC; JGI IMG"
     )
 
     handoff = build_provider_handoff(rows)
 
     assert [row.provider_key for row in handoff.rows] == [
         "bccm_lmg",
+        "bv_brc",
         "dsmz",
         "genbank",
+        "img_jgi",
         "kctc",
         "refseq",
     ]
     assert handoff.summary["provider_key_counts"] == {
         "bccm_lmg": 1,
+        "bv_brc": 1,
         "dsmz": 1,
         "genbank": 1,
+        "img_jgi": 1,
         "kctc": 1,
         "refseq": 1,
+    }
+    assert handoff.summary["provider_automation_level_counts"] == {
+        "metadata_review": 3,
+        "planning_handoff": 4,
     }
     assert handoff.summary["downloads_triggered"] == 0
     assert handoff.summary["providers_contacted"] == 0
