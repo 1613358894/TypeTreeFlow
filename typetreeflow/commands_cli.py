@@ -458,6 +458,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "operator_chain_next_step_packet.v1",
             "purpose": "metadata-only next operator-chain command preview",
         },
+        {
+            "name": "operator_chain_resume_packet",
+            "schema_version": "operator_chain_resume_packet.v1",
+            "purpose": "compact stage resume handoff with operator-chain digest guard",
+        },
     ),
     ("coverage-pipeline", "build"): (
         {
@@ -499,6 +504,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "operator_chain_next_step_packet",
             "schema_version": "operator_chain_next_step_packet.v1",
             "purpose": "metadata-only next operator-chain command preview",
+        },
+        {
+            "name": "operator_chain_resume_packet",
+            "schema_version": "operator_chain_resume_packet.v1",
+            "purpose": "compact stage resume handoff with operator-chain digest guard",
         },
         {
             "name": "operator_chain_readiness_packets",
@@ -546,6 +556,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "operator_chain_next_step_packet",
             "schema_version": "operator_chain_next_step_packet.v1",
             "purpose": "metadata-only next operator-chain command preview",
+        },
+        {
+            "name": "operator_chain_resume_packet",
+            "schema_version": "operator_chain_resume_packet.v1",
+            "purpose": "compact stage resume handoff with operator-chain digest guard",
         },
         {
             "name": "operator_chain_readiness_packets",

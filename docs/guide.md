@@ -455,7 +455,11 @@ dispatching it. The packet repeats the compact `recommended_request_target` and
 current operator-chain checklist, so controllers can bind a proposed next step
 to the stage state they inspected. It also repeats the same digest as
 `resume_with_expected_operator_chain_snapshot_sha256`, ready to reuse on a later
-metadata call. It also reports `completion_gate`,
+metadata call. `operator_chain_resume_packet` is the compact version of that
+stage handoff, carrying the stage, target argv, command-plan/preflight
+decisions, blocker or warning IDs, and digest guard without requiring
+controllers to persist the full next-step packet. It also reports
+`completion_gate`,
 `provider_automation_level_counts`, and
 `provider_request_automation_level_counts`, and preserves
 `coverage_opportunity_summary` so automation can read whether any stage remains
