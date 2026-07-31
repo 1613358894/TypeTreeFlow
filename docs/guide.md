@@ -567,8 +567,10 @@ curator supplies accepted local FASTA paths and checksums. `build --write`
 publishes only isolated `acquisition_worklist/`, `coverage_plan/`,
 `provider_handoff/`, `provider_request/`, optional
 `provider_request_validation/`, optional `provider_request_external_genomes/`,
-optional `external_genomes_install_plan/`, and `coverage_pipeline_summary.json`
-members under the requested directory. If `--curated-provider-request-tsv` is
+optional `external_genomes_install_plan/`,
+`server_validation/coverage_handoff_server_validation_result_template.json`,
+and `coverage_pipeline_summary.json` members under the requested directory. If
+`--curated-provider-request-tsv` is
 supplied, the pipeline validates that explicit curator-completed TSV and writes
 `provider_request_external_genomes/` only when the local validation passes; it
 does not infer curator completion from the generated `provider_request/` draft.

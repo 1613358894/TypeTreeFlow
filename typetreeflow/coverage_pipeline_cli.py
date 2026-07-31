@@ -137,6 +137,9 @@ OUTPUT_PATHS = {
     "provider_handoff_summary": "provider_handoff/provider_handoff_summary.json",
     "provider_request": "provider_request/provider_request.tsv",
     "provider_request_summary": "provider_request/provider_request_draft_summary.json",
+    "server_validation_result_template": (
+        "server_validation/coverage_handoff_server_validation_result_template.json"
+    ),
     "pipeline_summary": "coverage_pipeline_summary.json",
 }
 PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND = (
@@ -8202,6 +8205,14 @@ def _rendered_outputs(
         "provider_handoff_summary": provider_handoff.summary_json() + "\n",
         "provider_request": provider_request.provider_request_tsv(),
         "provider_request_summary": provider_request.summary_json() + "\n",
+        "server_validation_result_template": json.dumps(
+            summary["coverage_handoff_server_validation_result_template_packet"][
+                "result_template"
+            ],
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n",
         "pipeline_summary": json.dumps(summary, sort_keys=True, separators=(",", ":"))
         + "\n",
     }
@@ -8574,6 +8585,14 @@ def _validate_owned_output_dir(outdir: Path) -> None:
         outdir / OUTPUT_PATHS["provider_request_summary"],
         PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION,
     )
+    server_validation_result_template = (
+        outdir / OUTPUT_PATHS["server_validation_result_template"]
+    )
+    if server_validation_result_template.exists():
+        _validate_existing_json(
+            server_validation_result_template,
+            SERVER_VALIDATION_RESULT_SCHEMA_VERSION,
+        )
     _validate_existing_json(
         outdir / OUTPUT_PATHS["pipeline_summary"],
         ACQUISITION_WORKLIST_SCHEMA_VERSION,

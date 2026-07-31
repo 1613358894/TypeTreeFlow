@@ -2209,8 +2209,10 @@ register genomes. `build --write` writes only
 isolated `acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, optional `provider_request_validation/`, optional
 `provider_request_external_genomes/`, optional
-`external_genomes_install_plan/`, and `coverage_pipeline_summary.json` members
-under the explicitly supplied directory. Existing output directories are
+`external_genomes_install_plan/`,
+`server_validation/coverage_handoff_server_validation_result_template.json`,
+and `coverage_pipeline_summary.json` members under the explicitly supplied
+directory. Existing output directories are
 refused by default; `--force` replaces only an owned coverage-pipeline
 directory with matching schemas.
 When `--archive-candidates-tsv` points at a complete archive-candidates audit

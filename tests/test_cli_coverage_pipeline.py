@@ -4740,8 +4740,35 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert (outdir / "coverage_plan" / "coverage_plan.tsv").exists()
     assert (outdir / "provider_handoff" / "provider_handoff.tsv").exists()
     assert (outdir / "provider_request" / "provider_request.tsv").exists()
+    result_template_path = (
+        outdir
+        / "server_validation"
+        / "coverage_handoff_server_validation_result_template.json"
+    )
+    assert result_template_path.exists()
+    assert payload["output_paths"]["server_validation_result_template"] == str(
+        result_template_path
+    )
     assert not (outdir / "provider_request_validation").exists()
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
+    result_template = json.loads(result_template_path.read_text())
+    assert result_template == summary[
+        "coverage_handoff_server_validation_result_template_packet"
+    ]["result_template"]
+    assert result_template["status"] == "blocked"
+    assert result_template["boundary_confirmations"]["downloads_triggered"] == 0
+    result_template["status"] = "pass"
+    result_template["summary"] = "Bounded local server validation passed."
+    result_template_path.write_text(json.dumps(result_template), encoding="utf-8")
+    code, validation_payload, validation_captured = _run(
+        ["validate", "--input", str(result_template_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+    assert code == 0
+    assert validation_captured.out.count("\n") == 1
+    assert validation_payload["status"] == "pass"
+    assert validation_payload["boundary_confirmation_status"] == "pass"
     assert summary["command"] == "coverage-pipeline build"
     assert summary["coverage_opportunity_summary"][1][
         "provider_automation_level_counts"
