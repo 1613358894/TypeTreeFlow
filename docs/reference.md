@@ -2049,7 +2049,11 @@ candidate repeats only compact source, target argv, digest guard, blocking,
 warning, and `route_context` metadata from the queue or operator-chain handoff;
 it is not execution authority. The route context carries operator-route /
 next-input-class metadata or provider route groups when available, plus a
-`first_controller_step_route_context` convenience copy. The packet also exposes
+`first_controller_step_route_context` convenience copy. Queue-derived controller
+fields also include `coverage_queue_next_input_package`, and the first candidate
+is copied to `first_controller_step_next_input_package`, so controllers can read
+the next local input schema and artifact without expanding candidate internals.
+The packet also exposes
 `controller_status`, `controller_decision`,
 and aggregate blocker/warning IDs so controllers can fail closed without
 expanding every candidate. Its nested `controller_digest_guard_summary`

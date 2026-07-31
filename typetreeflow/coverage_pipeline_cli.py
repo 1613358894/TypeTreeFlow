@@ -3410,6 +3410,16 @@ def _coverage_controller_packet(
         )
         if controller_step_candidates
         else {},
+        "first_controller_step_next_input_package": (
+            dict(controller_step_candidates[0].get("next_input_package", {}))
+            if isinstance(
+                controller_step_candidates[0].get("next_input_package", {}),
+                Mapping,
+            )
+            else {}
+        )
+        if controller_step_candidates
+        else {},
         "coverage_queue_handoff_available": queue_handoff_available,
         "coverage_queue_status": str(coverage_queue_resume_packet.get("status", "")),
         "coverage_queue_item_count": _safe_int(
@@ -3429,6 +3439,14 @@ def _coverage_controller_packet(
         ),
         "coverage_queue_recommended_request_target": str(
             coverage_queue_resume_packet.get("recommended_request_target", "")
+        ),
+        "coverage_queue_next_input_package": (
+            dict(coverage_queue_resume_packet.get("next_input_package", {}))
+            if isinstance(
+                coverage_queue_resume_packet.get("next_input_package", {}),
+                Mapping,
+            )
+            else {}
         ),
         "coverage_queue_target_argv": list(
             coverage_queue_resume_packet.get("target_argv", [])

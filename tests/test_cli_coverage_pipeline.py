@@ -535,11 +535,16 @@ def _assert_controller_packet(
             packet["first_controller_step_route_context"]
             == first_candidate["route_context"]
         )
+        assert (
+            packet["first_controller_step_next_input_package"]
+            == first_candidate.get("next_input_package", {})
+        )
     else:
         assert packet["first_controller_step_source"] == ""
         assert packet["first_controller_step_target"] == ""
         assert packet["first_controller_step_argv"] == []
         assert packet["first_controller_step_route_context"] == {}
+        assert packet["first_controller_step_next_input_package"] == {}
     for candidate in packet["controller_step_candidates"]:
         route_context = candidate["route_context"]
         assert route_context["schema_version"] == "coverage_controller_route_context.v1"
@@ -582,6 +587,9 @@ def _assert_controller_packet(
     assert packet["coverage_queue_recommended_request_target"] == payload[
         "coverage_queue_resume_packet"
     ]["recommended_request_target"]
+    assert packet["coverage_queue_next_input_package"] == payload[
+        "coverage_queue_resume_packet"
+    ]["next_input_package"]
     assert packet["coverage_queue_target_argv"] == payload[
         "coverage_queue_resume_packet"
     ]["target_argv"]
