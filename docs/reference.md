@@ -1952,7 +1952,8 @@ available. Stage rows also include `recommended_request`, a structured
 `commands render`/`commands plan` request object when a deterministic next CLI
 request exists; otherwise the value is `null`. These request objects are
 metadata only and must still pass `commands plan` or `commands preflight`
-before an operator runs the rendered argv. `status` also re-emits
+before an operator runs the rendered argv. `preview`, `build`, and `status`
+also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
 executing the target command, plus `coverage_next_operator_recipe` for the same
