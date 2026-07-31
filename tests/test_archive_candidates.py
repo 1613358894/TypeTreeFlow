@@ -224,6 +224,32 @@ def test_archive_candidate_accepts_bv_brc_public_metadata_source():
     assert packet["providers_contacted"] == 0
 
 
+def test_archive_candidate_img_jgi_source_remains_planning_handoff():
+    report = build_archive_candidate_report(
+        [
+            _row(
+                archive_source="IMG/M",
+                archive_source_name="JGI IMG",
+                assembly_accession="",
+                biosample_accession="",
+                nuccore_accession="NZ_CP000002",
+                source_url="https://img.jgi.doe.gov/",
+            )
+        ]
+    )
+
+    row = report.rows[0]
+    assert row.archive_source == "img_jgi"
+    assert row.candidate_status == "archive_candidate_for_public_linkage_review"
+    assert report.summary["archive_source_counts"] == {"other": 1}
+    assert report.summary["accession_kind_counts"] == {"nuccore": 1}
+    packet = report.summary["public_archive_opportunity_packet"]
+    assert packet["opportunities"][0]["archive_source_counts"] == {"other": 1}
+    assert packet["opportunities"][0]["recommended_next_input"] == "manual_review.tsv"
+    assert packet["safe_for_unattended_download"] is False
+    assert packet["providers_contacted"] == 0
+
+
 def test_archive_candidate_duplicate_is_conflict():
     report = build_archive_candidate_report([_row(), _row()])
 

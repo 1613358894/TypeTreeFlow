@@ -1524,8 +1524,10 @@ fields, so an unrecognized local source label does not mask a later canonical
 provider name in another field.
 Archive-candidate source fields such as `archive_source` and
 `archive_source_name` may also normalize public archive or genome-portal names
-such as ENA, DDBJ, GenBank, RefSeq, BV-BRC, and PATRIC to metadata-only
-provider hints.
+such as ENA, DDBJ, GenBank, RefSeq, BV-BRC, PATRIC, IMG/M, and JGI IMG to
+provider hints. ENA, DDBJ, GenBank, RefSeq, BV-BRC, and PATRIC remain
+metadata-only review hints; IMG/JGI remains a planning-only handoff hint and is
+not counted as a public archive metadata source.
 The field is a provider handoff hint only; it does not confirm type-strain
 status, contact providers, authorize terms, or trigger downloads.
 
@@ -1543,9 +1545,12 @@ Supported statuses are `archive_candidate_for_public_linkage_review`,
 `archive_candidate_insufficient_type_linkage`, `archive_candidate_conflict`,
 `archive_candidate_missing_accession`, and `archive_candidate_malformed`.
 Known `archive_source` aliases such as ENA, European Nucleotide Archive,
-DDBJ, GenBank, RefSeq, BV-BRC, and PATRIC are normalized to canonical registry keys in output
-rows; unknown source labels remain lower-case review metadata and do not create
-provider or download capability.
+DDBJ, GenBank, RefSeq, BV-BRC, PATRIC, IMG/M, and JGI IMG are normalized to
+canonical registry keys in output rows. Only metadata-only sources contribute
+their canonical keys to public archive source counts; planning-only sources
+such as IMG/JGI are retained on rows but counted as `other` in archive source
+summaries. Unknown source labels remain lower-case review metadata and do not
+create provider or download capability.
 Archive candidate summaries always preserve `downloads_triggered=0`,
 `providers_contacted=0`, `manifest_mutated=false`, `audit_only=true`, and
 `strict_scientific_deliverable=false`. They also include controlled

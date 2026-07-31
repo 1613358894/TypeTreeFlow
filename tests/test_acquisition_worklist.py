@@ -266,6 +266,37 @@ def test_worklist_carries_bv_brc_archive_candidate_provider_hint():
     assert opportunity["safe_for_unattended_download"] is False
 
 
+def test_worklist_carries_img_jgi_archive_candidate_as_planning_hint():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium portalhandoffum"}],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium portalhandoffum",
+                "reason_category": "missing_genome",
+            }
+        ],
+        archive_candidate_rows=[
+            {
+                "species": "Clostridium portalhandoffum",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "archive_source": "IMG/M",
+                "archive_source_name": "JGI IMG",
+                "nuccore_accession": "NZ_CP000002",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "public_linkage_review"
+    assert row.reason_code == "public_archive_insdc_candidate_review"
+    assert row.candidate_provider_keys == "img_jgi"
+    assert row.candidate_provider_statuses == "img_jgi=planning_only"
+    opportunity = report.summary["acquisition_opportunity_summary"][0]
+    assert opportunity["candidate_provider_key_counts"] == {"img_jgi": 1}
+    assert opportunity["candidate_provider_status_counts"] == {"planning_only": 1}
+    assert opportunity["safe_for_unattended_download"] is False
+
+
 def test_worklist_expanded_discovery_matched_candidate_surfaces_review_lane():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium expandum"}],
