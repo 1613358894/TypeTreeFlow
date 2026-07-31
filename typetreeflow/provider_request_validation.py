@@ -277,7 +277,7 @@ def _validate_record(
     base_dir: Path,
 ) -> ProviderRequestValidationRow:
     blockers: list[str] = []
-    route_metadata = _route_metadata_from_notes(record.notes)
+    route_metadata = provider_request_route_metadata_from_notes(record.notes)
     missing_required = [
         field
         for field in REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS
@@ -343,7 +343,8 @@ def _validate_record(
     )
 
 
-def _route_metadata_from_notes(notes: str) -> dict[str, str]:
+def provider_request_route_metadata_from_notes(notes: str) -> dict[str, str]:
+    """Extract controlled AI routing metadata from provider-request notes."""
     values = {
         "operator_route": "",
         "next_input_class": "",

@@ -46,7 +46,12 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "is_type_material": "true",
             "requires_manual_review": "false",
             "curator": "curator-a",
-            "notes": "private curator note omitted from draft",
+            "notes": (
+                "private curator note omitted from draft; "
+                "operator_route=provider_handoff; "
+                "next_input_class=permitted_local_fasta_terms_provenance; "
+                "automation_boundary=planning_handoff_no_provider_contact"
+            ),
         }
     )
     values.update(overrides)
@@ -82,6 +87,13 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     assert draft.summary["record_count"] == 1
     assert draft.summary["exported_count"] == 1
     assert draft.summary["provider_counts"] == {"dsmz": 1}
+    assert draft.summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert draft.summary["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert draft.summary["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert draft.summary["writes_workflow_outputs"] is False
     assert draft.summary["external_genomes_registration_applied"] is False
     assert draft.summary["recommended_next_command"] == (
@@ -107,6 +119,9 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     assert record.requires_manual_review is False
     assert record.status == "external_genome_registered"
     assert "request_id=REQ-001" in record.notes
+    assert "operator_route=provider_handoff" in record.notes
+    assert "next_input_class=permitted_local_fasta_terms_provenance" in record.notes
+    assert "automation_boundary=planning_handoff_no_provider_contact" in record.notes
     assert "private curator note" not in record.notes
     validate_external_genomes(draft.records, base_dir=tmp_path)
 
@@ -161,5 +176,6 @@ def test_provider_request_external_genomes_blocks_unready_rows(tmp_path):
         "no_ready_provider_request_rows": 1,
         "provider_request_not_ready": 1,
     }
+    assert draft.summary["operator_route_counts"] == {}
     assert draft.summary["downloads_triggered"] == 0
     assert draft.summary["providers_contacted"] == 0
