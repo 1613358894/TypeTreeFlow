@@ -707,14 +707,16 @@ passing them through `commands preflight`. Each `output_contracts` item names a
 stable top-level JSON field, schema version, and purpose for command outputs
 that include AI/operator handoff packets. Some contracts also list
 `summary_fields` when a compact summary has stable AI-routing fields; for
-example `coverage_plan_packet.v1` lists provider route count fields such as
-`operator_route_counts` and `provider_route_groups`. Provider-handoff,
-provider-request, and external-genomes readiness contracts use the same pattern
-for route counts, readiness counts, required inputs, and recommended next
-requests when those fields are stable. The server-validation result validator
-contract lists local validation status, result status, checked-surface count,
-boundary confirmation status, diagnostic count, and no-execution boundary flags
-as stable routing fields. Other contracts describe AI/operator
+example `acquisition_worklist_packet.v1` lists record, lane, review-signal, and
+candidate provider-key counts, while `coverage_plan_packet.v1` lists provider
+route count fields such as `operator_route_counts` and
+`provider_route_groups`. Provider-handoff, provider-request, and
+external-genomes readiness contracts use the same pattern for route counts,
+readiness counts, required inputs, and recommended next requests when those
+fields are stable. The server-validation result validator contract lists local
+validation status, result status, checked-surface count, boundary confirmation
+status, diagnostic count, and no-execution boundary flags as stable routing
+fields. Other contracts describe AI/operator
 handoff packets such as
 `provider_request_readiness_packet`, `external_genomes_readiness_packet`, and
 `operator_chain_readiness_packets`.

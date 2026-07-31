@@ -153,6 +153,23 @@ SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+ACQUISITION_WORKLIST_SUMMARY_FIELDS = [
+    "record_count",
+    "lane_counts",
+    "review_signal_counts",
+    "candidate_provider_key_counts",
+    "diagnostic_count",
+    "rows_truncated",
+    "audit_only",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "strict_scientific_deliverable",
+    "downloads_triggered",
+    "providers_contacted",
+    "manifest_mutated",
+    "output_paths",
+]
 
 
 def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
@@ -437,6 +454,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "coverage_handoff_server_validation_result_validation.v1",
             "local-only bounded server-validation result shape and boundary validation",
             SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS,
+        ),
+        ("acquisition-worklist", "build"): (
+            "acquisition_worklist_packet",
+            "acquisition_worklist_packet.v1",
+            "offline acquisition worklist pair and summary",
+            ACQUISITION_WORKLIST_SUMMARY_FIELDS,
         ),
     }
     for key, (name, schema_version, purpose, summary_fields) in (
@@ -1298,6 +1321,13 @@ def test_commands_render_emits_normalized_acquisition_worklist_argv(capsys):
     assert payload["recognized"]["mode"] == "acquisition_worklist"
     assert payload["recognized"]["requires_outdir"] is True
     assert _output_contract_names(payload) == {"acquisition_worklist_packet"}
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        ACQUISITION_WORKLIST_SUMMARY_FIELDS
+    )
+    assert (
+        payload["output_contract_summary_fields"]
+        == ACQUISITION_WORKLIST_SUMMARY_FIELDS
+    )
 
 
 def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
