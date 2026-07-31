@@ -80,6 +80,42 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
             "provider_handoff": 1,
             "public_metadata_review": 1,
         },
+        "provider_route_groups": [
+            {
+                "operator_route": "provider_handoff",
+                "record_count": 1,
+                "provider_keys": ["dsmz"],
+                "provider_key_counts": {"dsmz": 1},
+                "provider_status_counts": {"planning_only": 1},
+                "automation_level_counts": {"planning_handoff": 1},
+                "next_input_class_counts": {
+                    "permitted_local_fasta_terms_provenance": 1
+                },
+                "automation_boundary_counts": {
+                    "planning_handoff_no_provider_contact": 1
+                },
+                "safe_for_unattended_execution": False,
+                "audit_only": True,
+                "dry_run": True,
+            },
+            {
+                "operator_route": "public_metadata_review",
+                "record_count": 1,
+                "provider_keys": ["genbank"],
+                "provider_key_counts": {"genbank": 1},
+                "provider_status_counts": {"metadata_only": 1},
+                "automation_level_counts": {"metadata_review": 1},
+                "next_input_class_counts": {
+                    "public_accession_type_strain_linkage": 1
+                },
+                "automation_boundary_counts": {
+                    "metadata_review_only_no_download": 1
+                },
+                "safe_for_unattended_execution": False,
+                "audit_only": True,
+                "dry_run": True,
+            },
+        ],
         "next_input_class_counts": {
             "permitted_local_fasta_terms_provenance": 1,
             "public_accession_type_strain_linkage": 1,

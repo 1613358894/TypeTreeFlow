@@ -1623,8 +1623,9 @@ before running the command.
 `provider_handoff.tsv` includes `provider_automation_level` plus the same
 controlled `operator_route`, `next_input_class`, and `automation_boundary`
 vocabulary used by `providers catalog` and the coverage action queue. The
-summary JSON and compact stdout include counts for those route fields. The
-automation level is AI planning metadata derived from the static provider
+summary JSON and compact stdout include counts for those route fields plus
+`provider_route_groups`, which groups provider keys and row counts by
+`operator_route`. The automation level is AI planning metadata derived from the static provider
 registry, using the same `planning_handoff`, `metadata_review`, and
 `download_enabled` labels as `providers catalog`. Guidance notes are compact
 fail-closed strings derived from the provider registry adapter. These fields
@@ -1664,7 +1665,7 @@ contact providers, accept terms, download genomes, mutate manifests, change
 completion metrics, or promote strict scientific deliverables.
 The compact JSON and `provider_request_draft_summary.json` include
 `provider_automation_level_counts`, `operator_route_counts`,
-`next_input_class_counts`, `automation_boundary_counts`,
+`provider_route_groups`, `next_input_class_counts`, `automation_boundary_counts`,
 `curator_completion_required_count`, `curator_completion_template_counts`,
 `curator_completion_field_counts`, and `curator_completion_blocker_counts`.
 `commands recognize`, `commands plan`, and `commands preflight` report the

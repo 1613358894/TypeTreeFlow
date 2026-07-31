@@ -137,6 +137,8 @@ records provider status, automation level, controlled operator route, next
 input class, automation boundary, terms-review, credential, and
 network-disabled boundaries, with compact readiness and route counts plus the
 next offline `provider-request draft` request in stdout and the summary JSON.
+The summary also includes `provider_route_groups` so AI/controllers can see
+provider keys grouped by public metadata review versus provider handoff.
 Command metadata reports `provider_handoff_packet.v1` for the generated
 provider-handoff pair.
 It blocks rows missing species, source lane, or action code, and does not
@@ -157,7 +159,7 @@ contact, terms acceptance, download execution, manifest mutation, completion
 credit, or strict scientific delivery. Input rows with missing provider key,
 provider name, provider status, route metadata, or species are blocked instead
 of producing empty provider request rows. The compact JSON and summary include
-`operator_route_counts`, `next_input_class_counts`,
+`operator_route_counts`, `provider_route_groups`, `next_input_class_counts`,
 `automation_boundary_counts`, `curator_completion_template_counts`,
 `curator_completion_field_counts`, and `curator_completion_blocker_counts` so
 AI/operator routing can see both the inherited route and the curator-owned

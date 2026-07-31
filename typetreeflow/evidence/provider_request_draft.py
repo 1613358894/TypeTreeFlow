@@ -13,6 +13,7 @@ from typetreeflow.provider_plan import (
     REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS,
 )
 from typetreeflow.providers.policy import redact_secret_like_text
+from typetreeflow.providers.routing import provider_route_groups
 
 
 PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION = "1"
@@ -148,6 +149,10 @@ class ProviderRequestDraft:
                 sorted(automation_level_counts.items())
             ),
             "operator_route_counts": dict(sorted(operator_route_counts.items())),
+            "provider_route_groups": provider_route_groups(
+                (_provider_route_group_row(row) for row in self.rows),
+                provider_key_field="provider",
+            ),
             "next_input_class_counts": dict(sorted(next_input_class_counts.items())),
             "automation_boundary_counts": dict(
                 sorted(automation_boundary_counts.items())
@@ -241,6 +246,17 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         if cleaned:
             parts.append(f"{key}={cleaned}")
     return _clean("; ".join(parts))
+
+
+def _provider_route_group_row(row: ProviderRequestDraftRow) -> dict[str, object]:
+    return {
+        "provider": row.provider,
+        "provider_status": row.provider_status,
+        "provider_automation_level": row.provider_automation_level,
+        "operator_route": row.operator_route,
+        "next_input_class": row.next_input_class,
+        "automation_boundary": row.automation_boundary,
+    }
 
 
 def _curator_completion_template(row: ProviderRequestDraftRow) -> str:
