@@ -6,6 +6,7 @@ import socket
 import subprocess
 
 from typetreeflow import cli
+from typetreeflow.commands_cli import _output_contracts_for_command
 from typetreeflow.coverage_pipeline_cli import (
     _coverage_next_command_plan,
     _coverage_next_operator_recipe,
@@ -2288,13 +2289,11 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
     recipe = _coverage_next_operator_recipe(packet, plan)
 
     assert plan["decision"] == "allow"
-    assert plan["output_contracts"] == [
-        {
-            "name": "provider_request_draft_packet",
-            "schema_version": "provider_request_draft_packet.v1",
-            "purpose": "provider request draft handoff",
-        }
-    ]
+    assert plan["output_contracts"] == _output_contracts_for_command(
+        "provider-request",
+        "draft",
+    )
+    assert plan["output_contracts"][0]["summary_fields"]
     assert recipe["output_contracts"] == plan["output_contracts"]
     assert recipe["operator_execution_gate"] == _expected_operator_execution_gate(
         available=True,

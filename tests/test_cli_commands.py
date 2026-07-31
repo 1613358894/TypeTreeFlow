@@ -25,6 +25,101 @@ def _assert_output_contract_summary(payload):
     assert payload["output_contract_count"] == len(payload["output_contracts"])
 
 
+ROUTE_SUMMARY_FIELDS = [
+    "operator_route_counts",
+    "next_input_class_counts",
+    "automation_boundary_counts",
+    "provider_route_groups",
+]
+PROVIDER_ROUTE_SUMMARY_FIELDS = [
+    "provider_key_counts",
+    "provider_status_counts",
+    "provider_automation_level_counts",
+    *ROUTE_SUMMARY_FIELDS,
+]
+COVERAGE_PLAN_SUMMARY_FIELDS = [
+    "action_counts",
+    *PROVIDER_ROUTE_SUMMARY_FIELDS,
+]
+PROVIDER_HANDOFF_SUMMARY_FIELDS = [
+    "record_count",
+    *PROVIDER_ROUTE_SUMMARY_FIELDS,
+    "source_action_counts",
+    "terms_review_required_count",
+    "credentials_required_count",
+    "network_supported_count",
+    "default_network_enabled_count",
+    "required_inputs",
+    "recommended_request",
+]
+PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS = [
+    "record_count",
+    *PROVIDER_ROUTE_SUMMARY_FIELDS,
+    "source_action_counts",
+    "curator_completion_template_counts",
+    "curator_completion_required_count",
+    "curator_completion_field_counts",
+    "curator_completion_blocker_counts",
+    "recommended_next_command",
+]
+PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS = [
+    "record_count",
+    "ready_count",
+    "blocked_count",
+    "status_counts",
+    "provider_counts",
+    *ROUTE_SUMMARY_FIELDS,
+    "blocker_counts",
+    "local_fasta_checked_count",
+    "local_sha256_matched_count",
+    "required_inputs",
+    "recommended_request",
+]
+PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS = [
+    "record_count",
+    "exported_count",
+    "provider_counts",
+    *ROUTE_SUMMARY_FIELDS,
+    "diagnostic_counts",
+    "required_inputs",
+    "recommended_request",
+    "install_plan_recommended_request",
+]
+PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS = [
+    "record_count",
+    "ready_count",
+    "blocked_count",
+    "exported_count",
+    "validation_status",
+    "external_genomes_status",
+    "provider_counts",
+    *ROUTE_SUMMARY_FIELDS,
+    "required_inputs",
+    "recommended_request",
+]
+EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS = [
+    "record_count",
+    "valid_count",
+    "invalid_count",
+    *ROUTE_SUMMARY_FIELDS,
+    "external_source_counts",
+    "checksum_input_counts",
+    "type_material_counts",
+    "manual_review_flag_counts",
+    "external_genomes_readiness_packet",
+]
+EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS = [
+    *EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS,
+    "registration_status_counts",
+    "install_plan_count",
+    "install_planned_count",
+    "install_skipped_count",
+    "install_plan_status_counts",
+    "required_inputs",
+    "recommended_request",
+]
+
+
 def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
     assert (
         main(
@@ -80,6 +175,7 @@ def test_commands_recognize_echoes_target_output_contracts(capsys):
             "name": "provider_request_readiness_packet",
             "schema_version": "provider_request_readiness_packet.v1",
             "purpose": "provider-request validation readiness handoff",
+            "summary_fields": PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS,
         }
     ]
     _assert_output_contract_summary(payload)
@@ -108,7 +204,8 @@ def test_commands_recognize_provider_request_draft_output_contract(capsys):
         {
             "name": "provider_request_draft_packet",
             "schema_version": "provider_request_draft_packet.v1",
-            "purpose": "provider request draft handoff",
+            "purpose": "provider request draft handoff and route summary",
+            "summary_fields": PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS,
         }
     ]
     _assert_output_contract_summary(payload)
@@ -250,18 +347,69 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "name": "coverage_plan_packet",
             "schema_version": "coverage_plan_packet.v1",
             "purpose": "offline coverage action plan pair and route summary",
-            "summary_fields": [
-                "action_counts",
-                "provider_key_counts",
-                "provider_status_counts",
-                "provider_automation_level_counts",
-                "operator_route_counts",
-                "next_input_class_counts",
-                "automation_boundary_counts",
-                "provider_route_groups",
-            ],
+            "summary_fields": COVERAGE_PLAN_SUMMARY_FIELDS,
         }
     ]
+    expected_handoff_contracts = {
+        ("provider-handoff", "build"): (
+            "provider_handoff_packet",
+            "provider_handoff_packet.v1",
+            "offline provider handoff pair and route summary",
+            PROVIDER_HANDOFF_SUMMARY_FIELDS,
+        ),
+        ("provider-request", "validate"): (
+            "provider_request_readiness_packet",
+            "provider_request_readiness_packet.v1",
+            "provider-request validation readiness handoff",
+            PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS,
+        ),
+        ("provider-request", "draft"): (
+            "provider_request_draft_packet",
+            "provider_request_draft_packet.v1",
+            "provider request draft handoff and route summary",
+            PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS,
+        ),
+        ("provider-request", "external-genomes-draft"): (
+            "provider_request_readiness_packet",
+            "provider_request_readiness_packet.v1",
+            "external-genomes draft readiness handoff",
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS,
+        ),
+        ("provider-request", "external-genomes-handoff"): (
+            "provider_request_readiness_packet",
+            "provider_request_readiness_packet.v1",
+            "bundled provider-request validation and draft readiness handoff",
+            PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS,
+        ),
+        ("external-genomes", "validate"): (
+            "external_genomes_readiness_packet",
+            "external_genomes_readiness_packet.v1",
+            "external-genomes validation readiness handoff",
+            EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS,
+        ),
+        ("external-genomes", "install-plan"): (
+            "external_genomes_readiness_packet",
+            "external_genomes_readiness_packet.v1",
+            "external-genomes install-plan readiness handoff",
+            EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS,
+        ),
+    }
+    for key, (name, schema_version, purpose, summary_fields) in (
+        expected_handoff_contracts.items()
+    ):
+        entry = next(
+            item
+            for item in catalog
+            if (item["command"], item["subcommand"]) == key
+        )
+        assert entry["output_contracts"] == [
+            {
+                "name": name,
+                "schema_version": schema_version,
+                "purpose": purpose,
+                "summary_fields": summary_fields,
+            }
+        ]
     verify_genus = next(
         entry for entry in catalog if (entry["command"], entry["subcommand"]) == ("verify-genus", None)
     )
@@ -323,6 +471,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "name": "external_genomes_readiness_packet",
             "schema_version": "external_genomes_readiness_packet.v1",
             "purpose": "external-genomes validation readiness handoff",
+            "summary_fields": EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS,
         }
     ]
     assert [parameter["name"] for parameter in external_validate["parameters"]] == [
@@ -1484,16 +1633,9 @@ def test_commands_render_emits_normalized_coverage_plan_argv(capsys):
     assert payload["recognized"]["mode"] == "coverage_plan"
     assert payload["recognized"]["requires_outdir"] is True
     assert _output_contract_names(payload) == {"coverage_plan_packet"}
-    assert payload["output_contracts"][0]["summary_fields"] == [
-        "action_counts",
-        "provider_key_counts",
-        "provider_status_counts",
-        "provider_automation_level_counts",
-        "operator_route_counts",
-        "next_input_class_counts",
-        "automation_boundary_counts",
-        "provider_route_groups",
-    ]
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        COVERAGE_PLAN_SUMMARY_FIELDS
+    )
 
 
 def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
@@ -1528,6 +1670,9 @@ def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
     assert payload["recognized"]["mode"] == "provider_handoff"
     assert payload["recognized"]["requires_outdir"] is True
     assert _output_contract_names(payload) == {"provider_handoff_packet"}
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        PROVIDER_HANDOFF_SUMMARY_FIELDS
+    )
 
 
 def test_commands_render_emits_normalized_provider_request_argv(capsys):
@@ -1561,6 +1706,10 @@ def test_commands_render_emits_normalized_provider_request_argv(capsys):
     assert payload["recognized"]["command"] == "provider-request"
     assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {"provider_request_draft_packet"}
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS
+    )
 
 
 def test_commands_render_emits_normalized_provider_request_validate_argv(capsys):
@@ -1602,6 +1751,9 @@ def test_commands_render_emits_normalized_provider_request_validate_argv(capsys)
     assert _output_contract_names(payload) == {
         "provider_request_readiness_packet",
     }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS
+    )
 
 
 def test_commands_render_emits_normalized_provider_request_external_genomes_argv(capsys):
@@ -1641,6 +1793,12 @@ def test_commands_render_emits_normalized_provider_request_external_genomes_argv
     assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["writes_outputs_declared"] is True
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {
+        "provider_request_readiness_packet",
+    }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS
+    )
 
 
 def test_commands_render_emits_normalized_provider_request_external_genomes_handoff_argv(
@@ -1682,6 +1840,12 @@ def test_commands_render_emits_normalized_provider_request_external_genomes_hand
     assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["writes_outputs_declared"] is True
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {
+        "provider_request_readiness_packet",
+    }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS
+    )
 
 
 def test_commands_plan_allows_provider_request_external_genomes_handoff_with_write_allowance(
@@ -1751,6 +1915,12 @@ def test_commands_render_emits_normalized_external_genomes_validate_argv(capsys)
     assert payload["recognized"]["mode"] == "external_genomes"
     assert payload["recognized"]["writes_outputs_declared"] is False
     assert payload["recognized"]["requires_outdir"] is False
+    assert _output_contract_names(payload) == {
+        "external_genomes_readiness_packet",
+    }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS
+    )
 
 
 def test_commands_render_emits_normalized_external_genomes_install_plan_argv(capsys):
@@ -1789,6 +1959,12 @@ def test_commands_render_emits_normalized_external_genomes_install_plan_argv(cap
     assert payload["recognized"]["mode"] == "external_genomes"
     assert payload["recognized"]["writes_outputs_declared"] is True
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {
+        "external_genomes_readiness_packet",
+    }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS
+    )
 
 
 def test_commands_plan_blocks_external_genomes_install_plan_write_without_allowance(

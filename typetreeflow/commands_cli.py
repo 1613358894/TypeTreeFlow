@@ -568,6 +568,99 @@ _COVERAGE_PIPELINE_WRITTEN_OUTPUT_CONTRACTS: tuple[dict[str, object], ...] = (
         "purpose": "stage-keyed provider/external-genomes readiness packet map",
     },
 )
+_ROUTE_SUMMARY_FIELDS: list[str] = [
+    "operator_route_counts",
+    "next_input_class_counts",
+    "automation_boundary_counts",
+    "provider_route_groups",
+]
+_PROVIDER_ROUTE_SUMMARY_FIELDS: list[str] = [
+    "provider_key_counts",
+    "provider_status_counts",
+    "provider_automation_level_counts",
+    *_ROUTE_SUMMARY_FIELDS,
+]
+_COVERAGE_PLAN_SUMMARY_FIELDS: list[str] = [
+    "action_counts",
+    *_PROVIDER_ROUTE_SUMMARY_FIELDS,
+]
+_PROVIDER_HANDOFF_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    *_PROVIDER_ROUTE_SUMMARY_FIELDS,
+    "source_action_counts",
+    "terms_review_required_count",
+    "credentials_required_count",
+    "network_supported_count",
+    "default_network_enabled_count",
+    "required_inputs",
+    "recommended_request",
+]
+_PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    *_PROVIDER_ROUTE_SUMMARY_FIELDS,
+    "source_action_counts",
+    "curator_completion_template_counts",
+    "curator_completion_required_count",
+    "curator_completion_field_counts",
+    "curator_completion_blocker_counts",
+    "recommended_next_command",
+]
+_PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    "ready_count",
+    "blocked_count",
+    "status_counts",
+    "provider_counts",
+    *_ROUTE_SUMMARY_FIELDS,
+    "blocker_counts",
+    "local_fasta_checked_count",
+    "local_sha256_matched_count",
+    "required_inputs",
+    "recommended_request",
+]
+_PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    "exported_count",
+    "provider_counts",
+    *_ROUTE_SUMMARY_FIELDS,
+    "diagnostic_counts",
+    "required_inputs",
+    "recommended_request",
+    "install_plan_recommended_request",
+]
+_PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    "ready_count",
+    "blocked_count",
+    "exported_count",
+    "validation_status",
+    "external_genomes_status",
+    "provider_counts",
+    *_ROUTE_SUMMARY_FIELDS,
+    "required_inputs",
+    "recommended_request",
+]
+_EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    "valid_count",
+    "invalid_count",
+    *_ROUTE_SUMMARY_FIELDS,
+    "external_source_counts",
+    "checksum_input_counts",
+    "type_material_counts",
+    "manual_review_flag_counts",
+    "external_genomes_readiness_packet",
+]
+_EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS: list[str] = [
+    *_EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS,
+    "registration_status_counts",
+    "install_plan_count",
+    "install_planned_count",
+    "install_skipped_count",
+    "install_plan_status_counts",
+    "required_inputs",
+    "recommended_request",
+]
 _OUTPUT_CONTRACT_CATALOG: dict[
     tuple[str, str | None],
     tuple[dict[str, object], ...],
@@ -594,23 +687,15 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_plan_packet",
             "schema_version": "coverage_plan_packet.v1",
             "purpose": "offline coverage action plan pair and route summary",
-            "summary_fields": [
-                "action_counts",
-                "provider_key_counts",
-                "provider_status_counts",
-                "provider_automation_level_counts",
-                "operator_route_counts",
-                "next_input_class_counts",
-                "automation_boundary_counts",
-                "provider_route_groups",
-            ],
+            "summary_fields": _COVERAGE_PLAN_SUMMARY_FIELDS,
         },
     ),
     ("provider-handoff", "build"): (
         {
             "name": "provider_handoff_packet",
             "schema_version": "provider_handoff_packet.v1",
-            "purpose": "offline provider handoff pair and summary",
+            "purpose": "offline provider handoff pair and route summary",
+            "summary_fields": _PROVIDER_HANDOFF_SUMMARY_FIELDS,
         },
     ),
     ("provider-request", "validate"): (
@@ -618,13 +703,15 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "provider_request_readiness_packet",
             "schema_version": "provider_request_readiness_packet.v1",
             "purpose": "provider-request validation readiness handoff",
+            "summary_fields": _PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS,
         },
     ),
     ("provider-request", "draft"): (
         {
             "name": "provider_request_draft_packet",
             "schema_version": "provider_request_draft_packet.v1",
-            "purpose": "provider request draft handoff",
+            "purpose": "provider request draft handoff and route summary",
+            "summary_fields": _PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS,
         },
     ),
     ("provider-request", "external-genomes-draft"): (
@@ -632,6 +719,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "provider_request_readiness_packet",
             "schema_version": "provider_request_readiness_packet.v1",
             "purpose": "external-genomes draft readiness handoff",
+            "summary_fields": _PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS,
         },
     ),
     ("provider-request", "external-genomes-handoff"): (
@@ -639,6 +727,9 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "provider_request_readiness_packet",
             "schema_version": "provider_request_readiness_packet.v1",
             "purpose": "bundled provider-request validation and draft readiness handoff",
+            "summary_fields": (
+                _PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS
+            ),
         },
     ),
     ("external-genomes", "validate"): (
@@ -646,6 +737,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "external_genomes_readiness_packet",
             "schema_version": "external_genomes_readiness_packet.v1",
             "purpose": "external-genomes validation readiness handoff",
+            "summary_fields": _EXTERNAL_GENOMES_READINESS_SUMMARY_FIELDS,
         },
     ),
     ("external-genomes", "install-plan"): (
@@ -653,6 +745,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "external_genomes_readiness_packet",
             "schema_version": "external_genomes_readiness_packet.v1",
             "purpose": "external-genomes install-plan readiness handoff",
+            "summary_fields": _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS,
         },
     ),
 }
