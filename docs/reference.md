@@ -1709,9 +1709,11 @@ AI/controller routing. Blocked or failed validation packets keep
 `recommended_request=null`, empty request-target labels, and an empty
 `recommended_next_command`. Ready packets also include
 `recommended_command_plan`, a non-executing `commands plan` companion for the
-packet's `recommended_request`; because that request writes an isolated audit
-directory, the companion remains blocked until an operator or parent agent
-explicitly grants write allowance.
+packet's `recommended_request`. The command-plan companion also repeats
+`recommended_request_target`, so controllers can route without parsing the
+nested request object. Because that request writes an isolated audit directory,
+the companion remains blocked until an operator or parent agent explicitly
+grants write allowance.
 
 Successful fully ready validation exits `0`; schema/input/readiness blockers
 exit `2`; unexpected internal or write failures exit `1`. Without `--write`,
@@ -1759,9 +1761,11 @@ sets `next_stage=external_genomes_validate` and exposes the validation and
 install-plan recommended requests only when every provider request row was
 exported. Ready packets also include `recommended_command_plan` for the
 validation request and `install_plan_recommended_command_plan` for the
-install-plan request. These companions are metadata-only preflight results:
-they do not execute the request, and write-oriented install-plan requests remain
-blocked until explicit write allowance is supplied.
+install-plan request, plus compact `recommended_request_target` and
+`install_plan_recommended_request_target` labels. These companions are
+metadata-only preflight results: they do not execute the request, and
+write-oriented install-plan requests remain blocked until explicit write
+allowance is supplied.
 Existing output directories are refused by default; `--force` replaces only an
 owned pair with matching schemas.
 

@@ -12,7 +12,10 @@ import uuid
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
-from typetreeflow.command_plan_packets import recommended_command_plan
+from typetreeflow.command_plan_packets import (
+    recommended_command_plan,
+    recommended_request_target,
+)
 from typetreeflow.evidence.provider_handoff import (
     PROVIDER_HANDOFF_FIELDS,
     PROVIDER_HANDOFF_SCHEMA_VERSION,
@@ -790,6 +793,7 @@ def _provider_request_readiness_packet(
             else []
         ),
         "recommended_request": next_request,
+        "recommended_request_target": recommended_request_target(next_request),
         "recommended_command_plan": recommended_command_plan(
             next_request,
             request_source="provider_request_readiness_packet.recommended_request",
@@ -798,6 +802,9 @@ def _provider_request_readiness_packet(
             str(payload.get("recommended_next_command", "")) if ready else ""
         ),
         "install_plan_recommended_request": install_request,
+        "install_plan_recommended_request_target": recommended_request_target(
+            install_request
+        ),
         "install_plan_recommended_command_plan": (
             recommended_command_plan(
                 install_request,
