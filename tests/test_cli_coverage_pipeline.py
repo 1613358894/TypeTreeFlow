@@ -545,6 +545,90 @@ def _assert_controller_packet(
         assert packet["first_controller_step_argv"] == []
         assert packet["first_controller_step_route_context"] == {}
         assert packet["first_controller_step_next_input_package"] == {}
+    resume_packet = payload["coverage_controller_resume_packet"]
+    assert (
+        resume_packet["schema_version"]
+        == "coverage_controller_resume_packet.v1"
+    )
+    assert resume_packet["available"] is bool(decision_surfaces)
+    assert resume_packet["controller_blocking_ids"] == packet[
+        "controller_blocking_ids"
+    ]
+    assert resume_packet["controller_warning_ids"] == packet[
+        "controller_warning_ids"
+    ]
+    assert resume_packet["digest_guard_summary"] == digest_guard
+    if decision_surfaces:
+        first_candidate = packet["controller_step_candidates"][0]
+        assert resume_packet["status"] == packet["controller_status"]
+        assert resume_packet["decision"] == packet["controller_decision"]
+        assert resume_packet["source"] == first_candidate["source"]
+        assert resume_packet["handoff_kind"] == first_candidate["handoff_kind"]
+        assert resume_packet["resume_selector"] == first_candidate[
+            "resume_selector"
+        ]
+        assert resume_packet["resume_expected_snapshot_sha256"] == first_candidate[
+            "resume_expected_snapshot_sha256"
+        ]
+        assert resume_packet["recommended_request_target"] == first_candidate[
+            "recommended_request_target"
+        ]
+        assert resume_packet["target_argv"] == first_candidate["target_argv"]
+        assert resume_packet["preflight_decision"] == first_candidate[
+            "preflight_decision"
+        ]
+        assert resume_packet["blocking_ids"] == first_candidate["blocking_ids"]
+        assert resume_packet["warning_ids"] == first_candidate["warning_ids"]
+        assert resume_packet["route_context"] == first_candidate["route_context"]
+        assert resume_packet["next_input_package"] == first_candidate.get(
+            "next_input_package", {}
+        )
+        expected_required = [
+            "verify controller_digest_guard_summary",
+            "inspect selected controller_step_candidate",
+            "run commands plan or commands preflight",
+            "operator approval",
+        ]
+        if packet["controller_has_blockers"]:
+            expected_required = [
+                "resolve controller_blocking_ids",
+                *expected_required,
+            ]
+        assert resume_packet["required_before_resume"] == expected_required
+        assert (
+            resume_packet["recommended_execution_mode"]
+            == "operator_review_required"
+        )
+    else:
+        assert resume_packet["status"] == "no_action"
+        assert resume_packet["decision"] == "none"
+        assert resume_packet["source"] == ""
+        assert resume_packet["handoff_kind"] == ""
+        assert resume_packet["resume_selector"] == ""
+        assert resume_packet["resume_expected_snapshot_sha256"] == ""
+        assert resume_packet["recommended_request_target"] == ""
+        assert resume_packet["target_argv"] == []
+        assert resume_packet["preflight_decision"] == ""
+        assert resume_packet["blocking_ids"] == []
+        assert resume_packet["warning_ids"] == []
+        assert resume_packet["route_context"] == {}
+        assert resume_packet["next_input_package"] == {}
+        assert resume_packet["required_before_resume"] == []
+        assert resume_packet["recommended_execution_mode"] == "no_action"
+    assert resume_packet["safe_for_unattended_execution"] is False
+    assert resume_packet["audit_only"] is True
+    assert resume_packet["dry_run"] is True
+    assert resume_packet["writes_outputs"] is False
+    assert resume_packet["writes_workflow_outputs"] is False
+    assert resume_packet["downloads_triggered"] == 0
+    assert resume_packet["providers_contacted"] == 0
+    assert resume_packet["network_access"] is False
+    assert resume_packet["external_tools"] is False
+    assert resume_packet["manifest_mutated"] is False
+    assert resume_packet["strict_scientific_deliverable"] is False
+    assert resume_packet["execution_boundary"] == (
+        "metadata_only_controller_resume_packet_no_execution"
+    )
     for candidate in packet["controller_step_candidates"]:
         route_context = candidate["route_context"]
         assert route_context["schema_version"] == "coverage_controller_route_context.v1"
