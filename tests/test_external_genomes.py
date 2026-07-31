@@ -17,6 +17,7 @@ from typetreeflow.external_genomes import (
     read_external_genome_install_results,
     read_external_genome_registration_results,
     read_external_genomes,
+    summarize_external_genome_packet_readiness,
     validate_external_genome_records,
     write_external_genome_install_plan,
     write_external_genome_install_results,
@@ -300,6 +301,44 @@ def test_external_genome_registration_results_keep_processing_bad_records(tmp_pa
     assert results[0].status == "external_genome_missing_file"
     assert results[1].valid is True
     assert results[1].status == "external_genome_registered"
+
+
+def test_external_genome_packet_readiness_summary_is_controlled(tmp_path):
+    records = [
+        _record(
+            tmp_path,
+            external_source="ATCC_Genome_Portal",
+            sha256="a" * 64,
+            is_type_material=True,
+            requires_manual_review=False,
+        ),
+        _record(
+            tmp_path,
+            external_source="",
+            sha256="",
+            is_type_material=False,
+            requires_manual_review=True,
+        ),
+    ]
+
+    assert summarize_external_genome_packet_readiness(records) == {
+        "external_source_counts": {
+            "atcc_genome_portal": 1,
+            "missing": 1,
+        },
+        "checksum_input_counts": {
+            "computed_or_missing": 1,
+            "provided": 1,
+        },
+        "type_material_counts": {
+            "not_type_material": 1,
+            "type_material": 1,
+        },
+        "manual_review_flag_counts": {
+            "manual_review_cleared": 1,
+            "manual_review_required": 1,
+        },
+    }
 
 
 def test_external_genome_install_plan_valid_record_is_planned(tmp_path):

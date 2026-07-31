@@ -1204,6 +1204,20 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     ] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert status_payload["operator_chain_stages"][6]["summary_external_source_counts"] == {
+        "dsmz": 1
+    }
+    assert status_payload["operator_chain_stages"][6]["summary_checksum_input_counts"] == {
+        "provided": 1
+    }
+    assert status_payload["operator_chain_stages"][6]["summary_type_material_counts"] == {
+        "type_material": 1
+    }
+    assert status_payload["operator_chain_stages"][6][
+        "summary_manual_review_flag_counts"
+    ] == {
+        "manual_review_cleared": 1
+    }
     assert status_payload[
         "external_genomes_registration_dry_run_recommended_request"
     ] == {
@@ -1449,6 +1463,10 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
                 "automation_boundary_counts": {
                     "planning_handoff_no_provider_contact": 1
                 },
+                "external_source_counts": {"dsmz": 1},
+                "checksum_input_counts": {"provided": 1},
+                "type_material_counts": {"type_material": 1},
+                "manual_review_flag_counts": {"manual_review_cleared": 1},
                 "install_plan_status_counts": {
                     "external_genome_install_planned": 1,
                 },
@@ -1622,6 +1640,20 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "summary_automation_boundary_counts"
     ] == {
         "planning_handoff_no_provider_contact": 1
+    }
+    assert payload["operator_chain_stages"][6]["summary_external_source_counts"] == {
+        "dsmz": 1
+    }
+    assert payload["operator_chain_stages"][6]["summary_checksum_input_counts"] == {
+        "provided": 1
+    }
+    assert payload["operator_chain_stages"][6]["summary_type_material_counts"] == {
+        "type_material": 1
+    }
+    assert payload["operator_chain_stages"][6][
+        "summary_manual_review_flag_counts"
+    ] == {
+        "manual_review_cleared": 1
     }
     assert payload["operator_chain_stages"][6]["summary_install_plan_status_counts"] == {
         "external_genome_install_planned": 1,

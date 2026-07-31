@@ -1966,7 +1966,12 @@ stable boundary fields `dry_run=true`, `writes_outputs=false`,
 `manifest_mutated=false`, and `strict_scientific_deliverable=false`.
 When reviewed rows carry controlled route metadata in `notes`, the payload also
 includes `operator_route_counts`, `next_input_class_counts`, and
-`automation_boundary_counts` for AI/operator handoff context only.
+`automation_boundary_counts` for AI/operator handoff context only. It also
+includes local packet-readiness maps: `external_source_counts`,
+`checksum_input_counts`, `type_material_counts`, and
+`manual_review_flag_counts`. These compact counts describe the supplied
+`external_genomes.tsv` packet and do not validate provider terms, query
+providers, install FASTA, or mark strict completion.
 `external-genomes install-plan --input <external_genomes.tsv> --target-outdir
 <run>` is the AI/operator handoff between validation and workflow
 registration. It validates the same explicit TSV and referenced local FASTA
@@ -1983,7 +1988,7 @@ structured `recommended_request` for a later dry-run
 `--input` path supplied to `external-genomes install-plan`, so AI/operator
 controllers can render the registration dry-run without reconstructing the TSV
 path from earlier handoffs. It carries the same controlled route count fields
-when present. Valid plans exit `0`; schema, input, checksum,
+and packet-readiness count fields when present. Valid plans exit `0`; schema, input, checksum,
 missing-file, or manual-review diagnostics exit `2`; output-path or write
 failures exit `1`.
 `--register-external-genomes <external_genomes.tsv>` emits one compact JSON
