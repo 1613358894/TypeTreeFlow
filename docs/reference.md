@@ -2245,6 +2245,13 @@ handoff request into a metadata-only command plan with target argv,
 preflight decision, blocker/warning IDs, and provider/download/registration
 guards. It is a local handoff planning packet only; it does not contact
 providers, register external genomes, copy FASTA files, or authorize execution.
+`coverage_handoff_runbook_packet` is the ordered metadata-only checklist for
+that provider/external handoff. It starts by inspecting
+`coverage_handoff_readiness_summary`, then the next-step packet, and only then
+points at the `commands plan` or `commands preflight` metadata gate. Its stop
+conditions require fail-closed behavior for a complete chain, unavailable next
+stage, missing local input, blocked metadata gate, missing operator approval,
+or any target command that would contact providers or download genomes.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
