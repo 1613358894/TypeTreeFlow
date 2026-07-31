@@ -66,6 +66,14 @@ def test_extracts_dsm_without_space():
     assert ids[0].raw == "DSM1234"
 
 
+def test_extracts_dsmz_alias_as_dsm_identifier():
+    ids = extract_culture_collection_ids("type strain DSMZ 2002; DSMZ2003")
+
+    assert [
+        (collection_id.raw, collection_id.normalized) for collection_id in ids
+    ] == [("DSMZ 2002", "DSM 2002"), ("DSMZ2003", "DSM 2003")]
+
+
 def test_extracts_atcc_with_space():
     ids = extract_culture_collection_ids("ATCC 25586")
 
@@ -107,7 +115,7 @@ def test_extracts_multiple_ids_in_order():
 def test_extracts_expanded_public_collection_prefixes():
     text = (
         "type strain NCIMB 123; NCIB 456; BCRC 789; CCRC 1011; "
-        "NCCB 12003; CSUR P900; CICC 10456; IFO 15517"
+        "NCCB 12003; CSUR P900; CICC 10456; IFO 15517; NITE BP-1234"
     )
 
     normalized_ids = [
@@ -123,6 +131,7 @@ def test_extracts_expanded_public_collection_prefixes():
         "CSUR P900",
         "CICC 10456",
         "IFO 15517",
+        "NITE BP-1234",
     ]
 
 
@@ -207,6 +216,7 @@ def test_annotate_candidates_returns_annotated_list():
 def test_known_prefixes_include_required_collections():
     required = {
         "DSM",
+        "DSMZ",
         "ATCC",
         "JCM",
         "NCTC",
@@ -226,6 +236,7 @@ def test_known_prefixes_include_required_collections():
         "CSUR",
         "CICC",
         "IFO",
+        "NITE",
     }
 
     assert required.issubset(set(RECOGNIZED_COLLECTION_PREFIXES))
