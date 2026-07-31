@@ -424,10 +424,14 @@ to preflight the first candidate before any target command dispatch. It includes
 `coverage_parent_controller_packet` when the parent agent needs one top-level
 answer for which metadata surface to inspect next, what argv to preflight or
 plan, and which review gates remain before execution can even be considered.
-It is still a metadata-only no-execution handoff.
+It is still a metadata-only no-execution handoff. Status payloads also use this
+packet to summarize the written server-validation result-template artifact path,
+SHA-256, template-match flag, and validator argv when that isolated artifact is
+available.
 Use `coverage_controller_inspection_summary` when the parent agent first needs
 a bounded table of available controller surfaces and their blocker/warning
-state before expanding one packet.
+state before expanding one packet; status includes the result-template artifact
+status packet in this index when the template file exists.
 Use `coverage_controller_runbook_packet` when the parent agent needs an ordered
 no-execution checklist for the next controller handoff rather than only a
 surface index.

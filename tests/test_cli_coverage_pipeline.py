@@ -1736,8 +1736,12 @@ def _assert_controller_packet(
         "coverage_handoff_server_validation_runbook_packet",
         "coverage_handoff_server_validation_result_contract_packet",
         "coverage_handoff_server_validation_result_template_packet",
-        "coverage_route_next_batch_packet",
     ]
+    if "coverage_handoff_server_validation_result_template_artifact_packet" in payload:
+        expected_surface_names.append(
+            "coverage_handoff_server_validation_result_template_artifact_packet"
+        )
+    expected_surface_names.append("coverage_route_next_batch_packet")
     assert inspection_summary["surface_count"] == len(expected_surface_names)
     assert [
         item["name"] for item in inspection_summary["surfaces"]
@@ -4797,6 +4801,49 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert template_artifact["dry_run"] is True
     assert template_artifact["downloads_triggered"] == 0
     assert template_artifact["providers_contacted"] == 0
+    status_parent = status_payload["coverage_parent_controller_packet"]
+    assert (
+        status_parent[
+            "handoff_server_validation_result_template_artifact_available"
+        ]
+        is True
+    )
+    assert (
+        status_parent["handoff_server_validation_result_template_artifact_status"]
+        == "pass"
+    )
+    assert (
+        status_parent["handoff_server_validation_result_template_artifact_path"]
+        == str(result_template_path)
+    )
+    assert (
+        status_parent["handoff_server_validation_result_template_artifact_sha256"]
+        == template_artifact["artifact_sha256"]
+    )
+    assert (
+        status_parent[
+            "handoff_server_validation_result_template_artifact_matches_embedded"
+        ]
+        is True
+    )
+    assert (
+        status_parent[
+            "handoff_server_validation_result_template_artifact_validation_argv"
+        ]
+        == template_artifact["result_validation_recommended_argv"]
+    )
+    status_surfaces = status_payload["coverage_controller_inspection_summary"][
+        "surfaces"
+    ]
+    surface_by_name = {item["name"]: item for item in status_surfaces}
+    artifact_surface = surface_by_name[
+        "coverage_handoff_server_validation_result_template_artifact_packet"
+    ]
+    assert artifact_surface["available"] is True
+    assert artifact_surface["status"] == "pass"
+    assert artifact_surface["target_argv"] == template_artifact[
+        "result_validation_recommended_argv"
+    ]
     result_template["status"] = "pass"
     result_template["summary"] = "Bounded local server validation passed."
     result_template_path.write_text(json.dumps(result_template), encoding="utf-8")

@@ -1954,7 +1954,9 @@ or authorize execution after preflight.
 envelope. It repeats the controller status, step summary, first controller
 candidate, preflight argv, provider/external handoff next step, server
 validation status/runbook summary, result contract/template summary, and the
-recommended surface to inspect next.
+recommended surface to inspect next. In `coverage-pipeline status`, it also
+summarizes the written server-validation result-template artifact path, SHA-256,
+template-match flag, and validator argv when that isolated artifact exists.
 It is metadata only:
 `target_command_execution_authorized=false`,
 `safe_for_unattended_execution=false`, and provider contact, downloads,
@@ -1962,7 +1964,8 @@ workflow-output writes, manifest mutation, external-genomes registration, and
 strict deliverable promotion remain disabled.
 `coverage_controller_inspection_summary` is the bounded index over the parent
 controller, controller, step-summary, preflight, handoff-next-step, handoff
-server-validation packet/runbook/result-contract/result-template, and route-batch packets. It
+server-validation packet/runbook/result-contract/result-template, the optional
+written result-template artifact status packet, and route-batch packets. It
 lists each surface's availability, schema version, target argv, blocker IDs,
 warning IDs, and execution boundary so a parent process can inspect one compact
 table before expanding nested packets. It is also metadata only and does not
