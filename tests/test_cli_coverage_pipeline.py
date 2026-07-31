@@ -370,6 +370,77 @@ def _assert_handoff_next_step_packet(
     assert packet["execution_boundary"] == (
         "metadata_only_handoff_next_step_no_execution"
     )
+    input_readiness = payload["coverage_handoff_input_readiness_packet"]
+    assert (
+        input_readiness["schema_version"]
+        == "coverage_handoff_input_readiness_packet.v1"
+    )
+    assert input_readiness["available"] is bool(packet["required_inputs"])
+    assert input_readiness["next_stage"] == packet["stage"]
+    assert input_readiness["next_artifact"] == packet["artifact"]
+    assert input_readiness["required_input_count"] == len(packet["required_inputs"])
+    assert input_readiness["required_inputs"] == packet["required_inputs"]
+    assert len(input_readiness["input_items"]) == len(packet["required_inputs"])
+    expected_kind_counts = {}
+    expected_operator_inputs = []
+    for item, required_input in zip(
+        input_readiness["input_items"], packet["required_inputs"]
+    ):
+        assert item["input"] == required_input
+        assert item["provider_contact_allowed"] is False
+        assert item["downloads_triggered"] == 0
+        assert item["providers_contacted"] == 0
+        assert item["network_access"] is False
+        assert item["strict_scientific_deliverable"] is False
+        expected_kind_counts[item["input_kind"]] = (
+            expected_kind_counts.get(item["input_kind"], 0) + 1
+        )
+        if item["requires_operator_provided_value"]:
+            expected_operator_inputs.append(required_input)
+    assert input_readiness["input_kind_counts"] == dict(
+        sorted(expected_kind_counts.items())
+    )
+    assert input_readiness["operator_required_inputs"] == expected_operator_inputs
+    assert input_readiness["operator_required_input_count"] == len(
+        expected_operator_inputs
+    )
+    assert input_readiness["pipeline_artifact_input_count"] == expected_kind_counts.get(
+        "pipeline_artifact", 0
+    )
+    expected_readiness = (
+        "operator_input_required"
+        if expected_operator_inputs
+        else (
+            "local_artifact_review_required"
+            if packet["required_inputs"]
+            else "no_action"
+        )
+    )
+    assert input_readiness["readiness_status"] == expected_readiness
+    assert input_readiness["chain_complete"] is summary["chain_complete"]
+    assert input_readiness["server_bounded_validation_candidate"] is bool(
+        packet["required_inputs"]
+    )
+    assert input_readiness["target_command_execution_authorized"] is False
+    assert input_readiness["provider_contact_allowed"] is False
+    assert input_readiness["safe_for_unattended_execution"] is False
+    assert input_readiness["recommended_execution_mode"] == (
+        "operator_review_required" if packet["required_inputs"] else "no_action"
+    )
+    assert input_readiness["audit_only"] is True
+    assert input_readiness["dry_run"] is True
+    assert input_readiness["writes_outputs"] is False
+    assert input_readiness["writes_workflow_outputs"] is False
+    assert input_readiness["downloads_triggered"] == 0
+    assert input_readiness["providers_contacted"] == 0
+    assert input_readiness["network_access"] is False
+    assert input_readiness["external_tools"] is False
+    assert input_readiness["manifest_mutated"] is False
+    assert input_readiness["strict_scientific_deliverable"] is False
+    assert input_readiness["external_genomes_registration_applied"] is False
+    assert input_readiness["execution_boundary"] == (
+        "metadata_only_handoff_input_readiness_no_execution"
+    )
     runbook = payload["coverage_handoff_runbook_packet"]
     assert runbook["schema_version"] == "coverage_handoff_runbook_packet.v1"
     assert runbook["available"] is packet["available"]
@@ -392,8 +463,15 @@ def _assert_handoff_next_step_packet(
     assert runbook["chain_complete"] is summary["chain_complete"]
     assert runbook["available_stage_names"] == summary["available_stage_names"]
     assert runbook["unavailable_stage_names"] == summary["unavailable_stage_names"]
+    assert runbook["input_readiness_status"] == input_readiness["readiness_status"]
+    assert runbook["operator_required_inputs"] == input_readiness[
+        "operator_required_inputs"
+    ]
+    assert runbook["operator_required_input_count"] == input_readiness[
+        "operator_required_input_count"
+    ]
     if available:
-        expected_step_count = 3 if packet["target_argv"] else 2
+        expected_step_count = 4 if packet["target_argv"] else 3
         assert runbook["runbook_status"] == "operator_review_required"
         assert runbook["step_count"] == expected_step_count
         assert [step["position"] for step in runbook["steps"]] == list(
@@ -407,15 +485,22 @@ def _assert_handoff_next_step_packet(
             "coverage_handoff_readiness_summary"
         )
         assert runbook["steps"][1]["surface_name"] == (
-            "coverage_handoff_next_step_packet"
+            "coverage_handoff_input_readiness_packet"
         )
         assert runbook["steps"][1]["required_before_step"] == [
-            "confirm required local inputs exist",
+            "classify required local inputs",
+            "confirm provider contact remains disabled",
+        ]
+        assert runbook["steps"][2]["surface_name"] == (
+            "coverage_handoff_next_step_packet"
+        )
+        assert runbook["steps"][2]["required_before_step"] == [
+            "confirm input readiness packet",
             "confirm provider contact remains disabled",
         ]
         if packet["target_argv"]:
-            assert runbook["steps"][2]["step_id"] == "run_handoff_metadata_gate"
-            assert runbook["steps"][2]["argv"] == packet["target_argv"]
+            assert runbook["steps"][3]["step_id"] == "run_handoff_metadata_gate"
+            assert runbook["steps"][3]["argv"] == packet["target_argv"]
     else:
         assert runbook["runbook_status"] == "no_action"
         assert runbook["step_count"] == 0
