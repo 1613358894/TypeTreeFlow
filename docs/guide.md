@@ -359,7 +359,9 @@ operator routing but does not query archives, download genomes, create
 `external_genomes.tsv`, register files, or change strict evidence. The status
 payload reports `operator_chain_stages`, `stage_status_counts`, available and
 unavailable stage names, the first unavailable stage, and the recommended next
-command. It also reports `completion_gate`,
+command. It also reports `operator_chain_next_step_packet`, a metadata-only
+handoff object that renders and preflights the next unavailable local stage's
+structured request without dispatching it. It also reports `completion_gate`,
 `provider_automation_level_counts`, and
 `provider_request_automation_level_counts`, and preserves
 `coverage_opportunity_summary` so automation can read whether any stage remains

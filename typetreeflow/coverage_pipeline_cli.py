@@ -748,6 +748,7 @@ def _run_status(
         raw_recommended_request = next_stage.get("recommended_request")
         if isinstance(raw_recommended_request, Mapping):
             next_recommended_request = dict(raw_recommended_request)
+    operator_chain_next_step_packet = _operator_chain_next_step_packet(next_stage)
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -813,6 +814,7 @@ def _run_status(
             if next_stage
             else ""
         ),
+        "operator_chain_next_step_packet": operator_chain_next_step_packet,
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
         ),
@@ -878,6 +880,122 @@ def _run_status(
     }
     _emit(payload, output)
     return 0 if not diagnostics else 2
+
+
+def _operator_chain_next_step_packet(
+    next_stage: Mapping[str, object] | None,
+) -> dict[str, object]:
+    if not isinstance(next_stage, Mapping):
+        return _empty_operator_chain_next_step_packet()
+    raw_request = next_stage.get("recommended_request")
+    recommended_request = (
+        dict(raw_request) if isinstance(raw_request, Mapping) else None
+    )
+    required_inputs = (
+        [str(value) for value in next_stage.get("required_inputs", [])]
+        if isinstance(next_stage.get("required_inputs"), list)
+        else []
+    )
+    base = {
+        "schema_version": "operator_chain_next_step_packet.v1",
+        "available": True,
+        "stage": str(next_stage.get("stage", "")),
+        "artifact": str(next_stage.get("artifact", "")),
+        "record_count": _safe_int(next_stage.get("record_count", 0)),
+        "required_inputs": required_inputs,
+        "recommended_request": recommended_request,
+        "recommended_next_command": str(
+            next_stage.get("recommended_next_command", "")
+        ),
+        "boundary": str(next_stage.get("boundary", "")),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_chain_next_step_no_execution",
+    }
+    if recommended_request is None:
+        return {
+            **base,
+            "status": "blocked",
+            "decision": "block",
+            "target_argv": [],
+            "recognized": {},
+            "preflight_decision": "block",
+            "blocking_count": 1,
+            "blocking_ids": ["missing_recommended_request"],
+            "warning_count": 0,
+            "warning_ids": [],
+        }
+    try:
+        plan = plan_command_request({"recommended_request": recommended_request})
+    except ValueError:
+        return {
+            **base,
+            "status": "blocked",
+            "decision": "block",
+            "target_argv": [],
+            "recognized": {},
+            "preflight_decision": "block",
+            "blocking_count": 1,
+            "blocking_ids": ["invalid_recommended_request"],
+            "warning_count": 0,
+            "warning_ids": [],
+        }
+    blocking_ids = _diagnostic_ids(plan.get("blocking", []))
+    warning_ids = _diagnostic_ids(plan.get("warnings", []))
+    return {
+        **base,
+        "status": str(plan.get("status", "")),
+        "decision": str(plan.get("decision", "")),
+        "target_argv": list(plan.get("target_argv", [])),
+        "recognized": dict(plan.get("recognized", {})),
+        "preflight_decision": str(plan.get("preflight", {}).get("decision", "")),
+        "blocking_count": len(blocking_ids),
+        "blocking_ids": blocking_ids,
+        "warning_count": len(warning_ids),
+        "warning_ids": warning_ids,
+    }
+
+
+def _empty_operator_chain_next_step_packet() -> dict[str, object]:
+    return {
+        "schema_version": "operator_chain_next_step_packet.v1",
+        "available": False,
+        "status": "no_action",
+        "decision": "none",
+        "stage": "",
+        "artifact": "",
+        "record_count": 0,
+        "required_inputs": [],
+        "recommended_request": None,
+        "recommended_next_command": "",
+        "boundary": "",
+        "target_argv": [],
+        "recognized": {},
+        "preflight_decision": "none",
+        "blocking_count": 0,
+        "blocking_ids": [],
+        "warning_count": 0,
+        "warning_ids": [],
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_chain_next_step_no_execution",
+    }
 
 
 def _status_stage_dir(

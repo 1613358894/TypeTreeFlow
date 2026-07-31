@@ -1957,7 +1957,11 @@ before an operator runs the rendered argv. `status` also re-emits
 can see the current packet's rendered argv and preflight decision without
 executing the target command, plus `coverage_next_operator_recipe` for the same
 metadata-only next-step recipe and `coverage_operator_queue_preview` for the
-bounded queue preview. The payload also includes
+bounded queue preview. `operator_chain_next_step_packet` similarly renders and
+preflights the current operator-chain `next_stage.recommended_request` into a
+single metadata-only packet with target argv, decision, blocker/warning IDs, and
+the stage boundary; it is a planning handoff and does not dispatch the command.
+The payload also includes
 `required_inputs` and `recommended_request` as convenience copies from the
 current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
