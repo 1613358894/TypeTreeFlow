@@ -596,10 +596,19 @@ To inspect the current local operator chain without writing anything:
 ```bash
 typetreeflow coverage-pipeline status \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
+  [--server-validation-result <coverage_handoff_server_validation_result.json>] \
   [--expected-queue-snapshot-sha256 <sha256>] \
   [--queue-item-id <queue_item_id>] \
   [--stage <operator_chain_stage>] [--json]
 ```
+
+When `--server-validation-result` is supplied, status reads only that explicit
+bounded server-validation result JSON and reports
+`coverage_handoff_server_validation_result_artifact_packet` with the result
+path, SHA-256, schema/status, checked-surface count, boundary count, and
+validation diagnostics. Invalid explicit results fail closed. The option does
+not run the target command, validate server artifacts, contact providers,
+download genomes, mutate manifests, or register external genomes.
 
 The status command reads standard downstream child directories under the same
 isolated pipeline directory when present. To override those locations, pass:

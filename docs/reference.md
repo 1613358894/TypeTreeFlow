@@ -1834,7 +1834,7 @@ The isolated coverage pipeline adapter is:
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json]
 typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
-typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--server-validation-result <coverage_handoff_server_validation_result.json>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
 typetreeflow coverage-pipeline server-validation-result validate --input <coverage_handoff_server_validation_result.json> [--json]
 ```
 
@@ -2325,6 +2325,14 @@ schema, or boundary validation problems, and exit `1` for unexpected internal
 errors. Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.
+`coverage-pipeline status --server-validation-result <json>` can attach that
+same explicit result JSON to the pipeline status payload as
+`coverage_handoff_server_validation_result_artifact_packet`. The packet reports
+the result path, SHA-256, schema/status, checked-surface count, boundary count,
+and validation diagnostics. Invalid explicit results make status fail closed;
+omitting the option leaves the packet at `status=no_action`. This is still a
+local result-shape/status read and does not execute the target command, contact
+providers, download genomes, mutate manifests, or register external genomes.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
