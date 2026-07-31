@@ -106,7 +106,8 @@ genomes, merge manifests, or grant strict scientific deliverable status.
 Command metadata reports `acquisition_worklist_packet.v1` for the generated
 worklist pair, including stable summary fields for record count, lane counts,
 review-signal counts, candidate provider-key counts, diagnostic count, output
-paths, and no-download boundary flags.
+paths, recommended coverage-plan request metadata, and no-download boundary
+flags.
 Its summary includes lane counts and review-signal counts so AI or curator
 operators can prioritize candidate, conflict, gap, archive/INSDC, BioSample,
 BacDive/DSMZ, NCBI, expanded-discovery candidate, manual-supplement, and
@@ -114,6 +115,10 @@ external-registration review without treating those counts as completion or
 download readiness. Expanded discovery and manual-supplement inputs are local
 TSV handoffs only; this command does not run discovery, query providers, or
 auto-select any accession.
+When `--write` succeeds, stdout includes a structured `recommended_request`
+for `coverage-plan build` using the written `acquisition_worklist.tsv`. That
+request is only an AI/operator handoff for a later local command; this step
+does not run coverage-plan or write workflow outputs.
 
 Turn an acquisition worklist into a prioritized offline action plan:
 

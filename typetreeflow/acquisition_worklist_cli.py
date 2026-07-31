@@ -20,6 +20,7 @@ from typetreeflow.evidence.acquisition_worklist import (
 
 
 COMMAND = "acquisition-worklist build"
+RECOMMENDED_REQUEST_TARGET = "coverage-plan build"
 OUTPUT_NAMES = {
     "worklist": "acquisition_worklist.tsv",
     "summary": "acquisition_worklist_summary.json",
@@ -152,6 +153,14 @@ def run_acquisition_worklist_command(
         payload["output_paths"] = {
             key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
         }
+        payload["recommended_request"] = _coverage_plan_recommended_request(
+            str(outdir / OUTPUT_NAMES["worklist"])
+        )
+        payload["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
+        payload["recommended_next_command"] = (
+            "typetreeflow coverage-plan build --worklist-tsv "
+            f"{outdir / OUTPUT_NAMES['worklist']}"
+        )
     _emit(payload, output)
     return 0 if not diagnostics else 2
 
@@ -222,6 +231,9 @@ def _payload(report, *, diagnostics: list[dict[str, object]], dry_run: bool) -> 
         "providers_contacted": 0,
         "manifest_mutated": False,
         "output_paths": {key: None for key in OUTPUT_NAMES},
+        "recommended_request": None,
+        "recommended_request_target": "",
+        "recommended_next_command": "",
         "summary": (
             "Acquisition worklist build passed"
             if not diagnostics
@@ -252,7 +264,18 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "providers_contacted": 0,
         "manifest_mutated": False,
         "output_paths": {key: None for key in OUTPUT_NAMES},
+        "recommended_request": None,
+        "recommended_request_target": "",
+        "recommended_next_command": "",
         "summary": message,
+    }
+
+
+def _coverage_plan_recommended_request(worklist_tsv: str) -> dict[str, object]:
+    return {
+        "command": "coverage-plan",
+        "subcommand": "build",
+        "worklist_tsv": worklist_tsv,
     }
 
 
