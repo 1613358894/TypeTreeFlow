@@ -3349,6 +3349,16 @@ def _coverage_plan_readme_lines(
     lines.extend(_coverage_plan_boundary_lines())
     if audit.present_files:
         lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.automation_level_counts:
+        lines.append(
+            "- Provider automation levels: "
+            + _provider_automation_level_counts_summary(audit.automation_level_counts)
+        )
+    if audit.operator_route_counts:
+        lines.append(
+            "- Operator routes: "
+            + _provider_automation_level_counts_summary(audit.operator_route_counts)
+        )
     if audit.warnings:
         lines.append("- Warning: " + "; ".join(audit.warnings))
     return lines
@@ -3688,6 +3698,16 @@ def _coverage_plan_handoff_lines(
     lines.extend(_coverage_plan_boundary_lines())
     if audit.present_files:
         lines.append("- Coverage action plan files copied: " + ", ".join(audit.present_files))
+    if audit.automation_level_counts:
+        lines.append(
+            "- Provider automation levels: "
+            + _provider_automation_level_counts_summary(audit.automation_level_counts)
+        )
+    if audit.operator_route_counts:
+        lines.append(
+            "- Operator routes: "
+            + _provider_automation_level_counts_summary(audit.operator_route_counts)
+        )
     if audit.warnings:
         lines.append("- Coverage action plan warning: " + "; ".join(audit.warnings))
     return lines

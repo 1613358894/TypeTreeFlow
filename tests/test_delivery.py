@@ -1068,6 +1068,12 @@ def test_package_results_includes_explicit_coverage_plan_pair_and_scope(
     )
     assert "Coverage action plan artifacts are audit-only" in package_text
     assert "AI/operator planning availability" in package_text
+    assert "Provider automation levels: metadata_review=4; planning_handoff=1" in (
+        package_text
+    )
+    assert "Operator routes: public_metadata_review=4; provider_handoff=1" in (
+        package_text
+    )
     assert "`downloads_triggered=0`" in package_text
     assert "`strict_scientific_deliverable=false`" in package_text
     assert "private action detail" not in package_text
