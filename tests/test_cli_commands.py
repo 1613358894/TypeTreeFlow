@@ -151,6 +151,23 @@ EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS = [
     "recommended_request_target",
     "recommended_next_command",
 ]
+EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS = [
+    "registration_result_count",
+    "valid_count",
+    "invalid_count",
+    "registration_status_counts",
+    *ROUTE_SUMMARY_FIELDS,
+    "install_plan_count",
+    "install_plan_status_counts",
+    "install_result_count",
+    "install_result_status_counts",
+    "manifest_record_count",
+    "required_inputs",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
+    "next_actions",
+]
 SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS = [
     "status",
     "validation_status",
@@ -475,6 +492,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "external_genomes_readiness_packet.v1",
             "external-genomes install-plan readiness handoff",
             EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS,
+        ),
+        ("register-external-genomes", None): (
+            "external_genome_registration_packet",
+            "external_genome_registration_packet.v1",
+            "local external-genome registration and apply handoff",
+            EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS,
         ),
         ("coverage-pipeline", "server-validation-result validate"): (
             "coverage_handoff_server_validation_result_validation",
@@ -2176,6 +2199,12 @@ def test_commands_render_emits_normalized_register_external_genomes_argv(capsys)
     assert payload["recognized"]["mode"] == "external_genome_registration"
     assert payload["recognized"]["writes_outputs_declared"] is True
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {
+        "external_genome_registration_packet",
+    }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS
+    )
 
 
 def test_commands_plan_register_external_genomes_dry_run_requires_only_write_allowance(

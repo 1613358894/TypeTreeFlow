@@ -2572,7 +2572,13 @@ boundary fields `downloads_triggered=0`, `providers_contacted=0`,
 `manifest_mutated=false`; in non-dry-run mode it becomes true only when
 manifest/name-map records are actually written. Controlled route count fields,
 when present, remain handoff context and do not affect validation, installation,
-completion metrics, or strict evidence.
+completion metrics, or strict evidence. When a dry-run registration passes with
+no invalid rows, stdout includes `required_inputs`, a structured
+`recommended_request`, `recommended_request_target=register-external-genomes`,
+and a renderable `recommended_next_command` for the corresponding non-dry-run
+local apply step. Warning, blocked, failed, and already non-dry-run payloads
+leave those next-step fields empty so AI/operator controllers fail closed until
+rows are reviewed.
 
 ## Stable Boundaries
 

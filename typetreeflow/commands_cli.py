@@ -685,6 +685,23 @@ _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS: list[str] = [
     "recommended_request_target",
     "recommended_next_command",
 ]
+_EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS: list[str] = [
+    "registration_result_count",
+    "valid_count",
+    "invalid_count",
+    "registration_status_counts",
+    *_ROUTE_SUMMARY_FIELDS,
+    "install_plan_count",
+    "install_plan_status_counts",
+    "install_result_count",
+    "install_result_status_counts",
+    "manifest_record_count",
+    "required_inputs",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
+    "next_actions",
+]
 _SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS: list[str] = [
     "status",
     "validation_status",
@@ -818,6 +835,14 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "external_genomes_readiness_packet.v1",
             "purpose": "external-genomes install-plan readiness handoff",
             "summary_fields": _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS,
+        },
+    ),
+    ("register-external-genomes", None): (
+        {
+            "name": "external_genome_registration_packet",
+            "schema_version": "external_genome_registration_packet.v1",
+            "purpose": "local external-genome registration and apply handoff",
+            "summary_fields": _EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS,
         },
     ),
 }

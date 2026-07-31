@@ -222,6 +222,17 @@ def test_register_external_genomes_dry_run_stdout_is_compact_json(tmp_path, caps
     assert payload["install_plan_status_counts"] == {
         "external_genome_install_planned": 1
     }
+    assert payload["required_inputs"] == [external_genomes.as_posix()]
+    assert payload["recommended_request"] == {
+        "command": "register-external-genomes",
+        "external_genomes": external_genomes.as_posix(),
+        "outdir": outdir.as_posix(),
+    }
+    assert payload["recommended_request_target"] == "register-external-genomes"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow --register-external-genomes {external_genomes.as_posix()} "
+        f"--outdir {outdir.as_posix()}"
+    )
     assert payload["writes_outputs"] is True
     assert payload["writes_workflow_outputs"] is True
     assert payload["downloads_triggered"] == 0
@@ -273,6 +284,10 @@ def test_register_external_genomes_dry_run_mixed_stdout_is_warning_json(
         "external_genome_install_planned": 1,
         "external_genome_install_skipped_invalid": 1,
     }
+    assert payload["required_inputs"] == []
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
     assert payload["warnings"][0]["id"] == "invalid_external_genome_rows"
 
 
@@ -300,6 +315,10 @@ def test_register_external_genomes_failure_stdout_is_compact_json(tmp_path, caps
     assert payload["status"] == "failed"
     assert payload["registration_result_count"] == 0
     assert payload["writes_outputs"] is False
+    assert payload["required_inputs"] == []
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
     assert payload["blocking"][0]["id"] == "external_genome_registration_failed"
     assert "missing required field" in payload["summary"]
 
@@ -456,7 +475,9 @@ def test_register_external_genomes_missing_required_field_errors(tmp_path, caplo
     assert "external_genome_id" in caplog.text
 
 
-def test_register_external_genomes_non_dry_run_valid_tsv_installs_fasta_and_writes_manifest(tmp_path):
+def test_register_external_genomes_non_dry_run_valid_tsv_installs_fasta_and_writes_manifest(
+    tmp_path, capsys
+):
     outdir = tmp_path / "out"
     fasta = _fasta(tmp_path / "genomes" / "reference.fna")
     external_genomes = _external_genomes_tsv(
@@ -496,6 +517,10 @@ def test_register_external_genomes_non_dry_run_valid_tsv_installs_fasta_and_writ
         "Fusobacterium_mortiferum_ATCC_9817_atcc_genome_portal_ATCC_9817_GENOME.fna"
     )
     assert "external_genome_id=ATCC_9817_GENOME" in manifest_records[0].notes
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
 
 
 def test_register_external_genomes_non_dry_run_mixed_rows_installs_valid_and_returns_nonzero(tmp_path):
