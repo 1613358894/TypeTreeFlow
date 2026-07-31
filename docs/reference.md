@@ -2023,7 +2023,10 @@ candidate repeats only compact source, target argv, digest guard, blocking, and
 warning metadata from the queue or operator-chain handoff; it is not execution
 authority. The packet also exposes `controller_status`, `controller_decision`,
 and aggregate blocker/warning IDs so controllers can fail closed without
-expanding every candidate.
+expanding every candidate. Its nested `controller_digest_guard_summary`
+collects queue and operator-chain snapshot fingerprints plus mismatch sources
+so resume automation can reject stale controller context before rendering or
+executing any command.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

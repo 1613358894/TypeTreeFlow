@@ -378,6 +378,39 @@ def _assert_controller_packet(
     assert packet["controller_warning_count"] == len(expected_warning_ids)
     assert packet["controller_warning_ids"] == expected_warning_ids
     assert packet["controller_requires_operator_review"] is bool(decision_surfaces)
+    digest_guard = packet["controller_digest_guard_summary"]
+    assert (
+        digest_guard["schema_version"]
+        == "coverage_controller_digest_guard_summary.v1"
+    )
+    assert digest_guard["source_count"] == len(decision_surfaces)
+    assert [
+        source["source"] for source in digest_guard["sources"]
+    ] == decision_surfaces
+    expected_mismatch_sources = [
+        source["source"]
+        for source in digest_guard["sources"]
+        if source["matches_expected"] is False
+    ]
+    assert digest_guard["all_snapshots_match"] is not bool(expected_mismatch_sources)
+    assert digest_guard["mismatch_count"] == len(expected_mismatch_sources)
+    assert digest_guard["mismatch_sources"] == expected_mismatch_sources
+    assert digest_guard["safe_for_unattended_execution"] is False
+    assert digest_guard["audit_only"] is True
+    assert digest_guard["dry_run"] is True
+    assert (
+        digest_guard["execution_boundary"]
+        == "metadata_only_controller_digest_guard_no_execution"
+    )
+    assert packet["controller_all_snapshots_match"] is digest_guard[
+        "all_snapshots_match"
+    ]
+    assert packet["controller_snapshot_mismatch_count"] == digest_guard[
+        "mismatch_count"
+    ]
+    assert packet["controller_snapshot_mismatch_sources"] == digest_guard[
+        "mismatch_sources"
+    ]
     if decision_surfaces:
         first_candidate = packet["controller_step_candidates"][0]
         assert packet["first_controller_step_source"] == first_candidate["source"]
@@ -450,6 +483,24 @@ def _assert_controller_packet(
         assert queue_candidates[0]["snapshot_matches_expected"] == payload[
             "queue_snapshot_matches_expected"
         ]
+        queue_digest_sources = [
+            source
+            for source in digest_guard["sources"]
+            if source["source"] == "coverage_action_queue"
+        ]
+        assert len(queue_digest_sources) == 1
+        assert queue_digest_sources[0]["snapshot_sha256"] == payload[
+            "coverage_queue_resume_packet"
+        ]["queue_snapshot_sha256"]
+        assert queue_digest_sources[0]["expected_snapshot_sha256"] == payload[
+            "coverage_queue_resume_packet"
+        ]["expected_queue_snapshot_sha256"]
+        assert queue_digest_sources[0]["matches_expected"] == payload[
+            "queue_snapshot_matches_expected"
+        ]
+        assert queue_digest_sources[0]["resume_selector"] == payload[
+            "coverage_queue_resume_packet"
+        ]["resume_with_queue_item_id"]
     else:
         assert queue_candidates == []
     assert packet["operator_chain_handoff_available"] is (
@@ -499,6 +550,24 @@ def _assert_controller_packet(
         assert chain_candidates[0]["snapshot_matches_expected"] == payload[
             "operator_chain_snapshot_matches_expected"
         ]
+        chain_digest_sources = [
+            source
+            for source in digest_guard["sources"]
+            if source["source"] == "operator_chain_stage"
+        ]
+        assert len(chain_digest_sources) == 1
+        assert chain_digest_sources[0]["snapshot_sha256"] == payload[
+            "operator_chain_resume_packet"
+        ]["operator_chain_snapshot_sha256"]
+        assert chain_digest_sources[0]["expected_snapshot_sha256"] == payload[
+            "operator_chain_resume_packet"
+        ]["resume_with_expected_operator_chain_snapshot_sha256"]
+        assert chain_digest_sources[0]["matches_expected"] == payload[
+            "operator_chain_snapshot_matches_expected"
+        ]
+        assert chain_digest_sources[0]["resume_selector"] == payload[
+            "operator_chain_resume_packet"
+        ]["resume_with_stage"]
     else:
         assert chain_candidates == []
     assert packet["safe_for_unattended_execution"] is False

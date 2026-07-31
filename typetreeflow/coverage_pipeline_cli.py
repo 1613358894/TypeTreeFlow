@@ -3085,6 +3085,63 @@ def _coverage_controller_packet(
     else:
         controller_status = "ready_for_operator_review"
         controller_decision = "review"
+    digest_guard_sources: list[dict[str, object]] = []
+    if queue_handoff_available:
+        digest_guard_sources.append(
+            {
+                "source": "coverage_action_queue",
+                "snapshot_sha256": str(
+                    coverage_queue_resume_packet.get("queue_snapshot_sha256", "")
+                ),
+                "expected_snapshot_sha256": str(
+                    coverage_queue_resume_packet.get(
+                        "expected_queue_snapshot_sha256", ""
+                    )
+                ),
+                "matches_expected": queue_snapshot_matches_expected,
+                "resume_selector": str(
+                    coverage_queue_resume_packet.get("resume_with_queue_item_id", "")
+                ),
+            }
+        )
+    if operator_chain_handoff_available:
+        digest_guard_sources.append(
+            {
+                "source": "operator_chain_stage",
+                "snapshot_sha256": str(
+                    operator_chain_resume_packet.get(
+                        "operator_chain_snapshot_sha256", ""
+                    )
+                ),
+                "expected_snapshot_sha256": str(
+                    operator_chain_resume_packet.get(
+                        "resume_with_expected_operator_chain_snapshot_sha256",
+                        "",
+                    )
+                ),
+                "matches_expected": operator_chain_snapshot_matches_expected,
+                "resume_selector": str(
+                    operator_chain_resume_packet.get("resume_with_stage", "")
+                ),
+            }
+        )
+    digest_mismatch_sources = [
+        str(source.get("source", ""))
+        for source in digest_guard_sources
+        if source.get("matches_expected") is False
+    ]
+    controller_digest_guard_summary = {
+        "schema_version": "coverage_controller_digest_guard_summary.v1",
+        "source_count": len(digest_guard_sources),
+        "sources": digest_guard_sources,
+        "all_snapshots_match": not digest_mismatch_sources,
+        "mismatch_count": len(digest_mismatch_sources),
+        "mismatch_sources": digest_mismatch_sources,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "execution_boundary": "metadata_only_controller_digest_guard_no_execution",
+    }
     return {
         "schema_version": "coverage_controller_packet.v1",
         "available": bool(decision_surfaces),
@@ -3096,6 +3153,16 @@ def _coverage_controller_packet(
         "controller_warning_count": len(controller_warning_ids),
         "controller_warning_ids": controller_warning_ids,
         "controller_requires_operator_review": bool(controller_step_candidates),
+        "controller_all_snapshots_match": bool(
+            controller_digest_guard_summary["all_snapshots_match"]
+        ),
+        "controller_snapshot_mismatch_count": _safe_int(
+            controller_digest_guard_summary["mismatch_count"]
+        ),
+        "controller_snapshot_mismatch_sources": list(
+            controller_digest_guard_summary["mismatch_sources"]
+        ),
+        "controller_digest_guard_summary": controller_digest_guard_summary,
         "decision_surface_count": len(decision_surfaces),
         "decision_surfaces": decision_surfaces,
         "controller_step_count": len(controller_step_candidates),
