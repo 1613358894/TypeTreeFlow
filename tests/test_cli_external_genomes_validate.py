@@ -316,13 +316,13 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert payload["recommended_request"] == {
         "command": "register-external-genomes",
         "external_genomes": input_path,
-        "outdir": "<run>",
+        "outdir": target_run.as_posix(),
         "dry_run": True,
     }
     assert payload["recommended_request_target"] == "register-external-genomes"
     assert payload["recommended_next_command"] == (
         f"typetreeflow --register-external-genomes {input_path} "
-        "--outdir <run> --dry-run"
+        f"--outdir {target_run.as_posix()} --dry-run"
     )
     assert not target_run.exists()
     assert (isolated / "external_genome_registration_results.tsv").is_file()
@@ -334,6 +334,7 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     )
     assert summary["recommended_request"]["command"] == "register-external-genomes"
     assert summary["recommended_request"]["external_genomes"] == input_path
+    assert summary["recommended_request"]["outdir"] == target_run.as_posix()
     assert summary["recommended_next_command"] == payload["recommended_next_command"]
     assert summary["provider_status_counts"] == {"planning_only": 1}
     assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}

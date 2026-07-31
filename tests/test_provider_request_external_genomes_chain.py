@@ -327,7 +327,7 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
         "--register-external-genomes",
         external_genomes.as_posix(),
         "--outdir",
-        "<run>",
+        register_outdir.as_posix(),
         "--dry-run",
     ]
     assert render_payload["recognized"]["command"] == "register-external-genomes"
