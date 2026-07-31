@@ -301,6 +301,10 @@ def _validate_payload(
         "valid_count": valid_count,
         "invalid_count": len(results) - valid_count,
         "status_counts": dict(sorted(status_counts.items())),
+        "provider_status_counts": route_counts["provider_status_counts"],
+        "provider_automation_level_counts": route_counts[
+            "provider_automation_level_counts"
+        ],
         "operator_route_counts": route_counts["operator_route_counts"],
         "provider_route_groups": route_counts["provider_route_groups"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
@@ -319,6 +323,10 @@ def _validate_payload(
             ready_count=valid_count,
             blocked_count=len(results) - valid_count,
             status_counts=dict(sorted(status_counts.items())),
+            provider_status_counts=route_counts["provider_status_counts"],
+            provider_automation_level_counts=route_counts[
+                "provider_automation_level_counts"
+            ],
             provider_route_groups=route_counts["provider_route_groups"],
             required_inputs=[input_value],
             recommended_request=recommended_request or {},
@@ -378,6 +386,10 @@ def _install_plan_payload(
         "valid_count": sum(1 for result in registration_results if result.valid),
         "invalid_count": sum(1 for result in registration_results if not result.valid),
         "registration_status_counts": dict(sorted(registration_counts.items())),
+        "provider_status_counts": route_counts["provider_status_counts"],
+        "provider_automation_level_counts": route_counts[
+            "provider_automation_level_counts"
+        ],
         "operator_route_counts": route_counts["operator_route_counts"],
         "provider_route_groups": route_counts["provider_route_groups"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
@@ -398,6 +410,10 @@ def _install_plan_payload(
             ready_count=planned_count,
             blocked_count=skipped_count,
             status_counts=dict(sorted(install_counts.items())),
+            provider_status_counts=route_counts["provider_status_counts"],
+            provider_automation_level_counts=route_counts[
+                "provider_automation_level_counts"
+            ],
             provider_route_groups=route_counts["provider_route_groups"],
             required_inputs=[external_genomes_input],
             recommended_request=recommended_request,
@@ -439,6 +455,8 @@ def _external_genomes_readiness_packet(
     ready_count: int,
     blocked_count: int,
     status_counts: dict[str, int],
+    provider_status_counts: dict[str, int],
+    provider_automation_level_counts: dict[str, int],
     provider_route_groups: list[dict[str, object]],
     required_inputs: list[str],
     recommended_request: dict[str, object],
@@ -468,6 +486,10 @@ def _external_genomes_readiness_packet(
         "ready_count": ready_count,
         "blocked_count": blocked_count,
         "status_counts": dict(sorted(status_counts.items())),
+        "provider_status_counts": dict(sorted(provider_status_counts.items())),
+        "provider_automation_level_counts": dict(
+            sorted(provider_automation_level_counts.items())
+        ),
         "provider_route_groups": list(provider_route_groups),
         "next_stage": next_stage,
         "required_inputs": list(required_inputs),

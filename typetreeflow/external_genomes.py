@@ -116,11 +116,24 @@ EXTERNAL_GENOME_INSTALL_RESULT_STATUSES = {
 }
 
 EXTERNAL_GENOME_ROUTE_METADATA_FIELDS = (
+    "provider_status",
+    "provider_automation_level",
     "operator_route",
     "next_input_class",
     "automation_boundary",
 )
 EXTERNAL_GENOME_ROUTE_METADATA_ALLOWED_VALUES = {
+    "provider_status": {
+        "metadata_only",
+        "planning_only",
+        "download_supported",
+        "unknown",
+    },
+    "provider_automation_level": {
+        "metadata_review",
+        "planning_handoff",
+        "explicit_download",
+    },
     "operator_route": {
         "public_metadata_review",
         "provider_download",
@@ -842,6 +855,8 @@ def summarize_external_genome_route_metadata(
     rows: Iterable[object],
 ) -> dict[str, object]:
     counts = {
+        "provider_status_counts": Counter(),
+        "provider_automation_level_counts": Counter(),
         "operator_route_counts": Counter(),
         "next_input_class_counts": Counter(),
         "automation_boundary_counts": Counter(),
@@ -858,6 +873,8 @@ def summarize_external_genome_route_metadata(
             }
         )
         for field, count_key in (
+            ("provider_status", "provider_status_counts"),
+            ("provider_automation_level", "provider_automation_level_counts"),
             ("operator_route", "operator_route_counts"),
             ("next_input_class", "next_input_class_counts"),
             ("automation_boundary", "automation_boundary_counts"),

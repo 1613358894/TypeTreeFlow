@@ -45,7 +45,9 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "requires_manual_review": "false",
             "curator": "curator-a",
             "notes": (
-                "local handoff; operator_route=provider_handoff; "
+                "local handoff; provider_status=planning_only; "
+                "provider_automation_level=planning_handoff; "
+                "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
                 "automation_boundary=planning_handoff_no_provider_contact"
             ),
@@ -102,7 +104,9 @@ def _write_ready_provider_request_from_template(
             "requires_manual_review": "false",
             "curator": "curator-a",
             "notes": (
-                "local handoff; operator_route=provider_handoff; "
+                "local handoff; provider_status=planning_only; "
+                "provider_automation_level=planning_handoff; "
+                "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
                 "automation_boundary=planning_handoff_no_provider_contact"
             ),
@@ -174,6 +178,10 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     )
     validation_payload = json.loads(capsys.readouterr().out)
     assert validation_payload["ready_count"] == 1
+    assert validation_payload["provider_status_counts"] == {"planning_only": 1}
+    assert validation_payload["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert validation_payload["writes_workflow_outputs"] is False
 
     assert (
@@ -196,6 +204,10 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     draft_payload = json.loads(draft_stdout)
     external_genomes = external_draft_dir / "external_genomes.tsv"
     assert draft_payload["exported_count"] == 1
+    assert draft_payload["provider_status_counts"] == {"planning_only": 1}
+    assert draft_payload["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert draft_payload["operator_route_counts"] == {"provider_handoff": 1}
     assert draft_payload["provider_route_groups"][0]["operator_route"] == (
         "provider_handoff"
@@ -229,6 +241,10 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     )
     external_payload = json.loads(capsys.readouterr().out)
     assert external_payload["valid_count"] == 1
+    assert external_payload["provider_status_counts"] == {"planning_only": 1}
+    assert external_payload["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert external_payload["operator_route_counts"] == {"provider_handoff": 1}
     assert external_payload["provider_route_groups"] == draft_payload[
         "provider_route_groups"
@@ -268,6 +284,10 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     )
     assert install_plan_payload["status"] == "pass"
     assert install_plan_payload["install_planned_count"] == 1
+    assert install_plan_payload["provider_status_counts"] == {"planning_only": 1}
+    assert install_plan_payload["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert install_plan_payload["operator_route_counts"] == {"provider_handoff": 1}
     assert install_plan_payload["provider_route_groups"] == draft_payload[
         "provider_route_groups"
@@ -335,6 +355,10 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert register_payload["status"] == "pass"
     assert register_payload["dry_run"] is True
     assert register_payload["valid_count"] == 1
+    assert register_payload["provider_status_counts"] == {"planning_only": 1}
+    assert register_payload["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert register_payload["operator_route_counts"] == {"provider_handoff": 1}
     assert register_payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
