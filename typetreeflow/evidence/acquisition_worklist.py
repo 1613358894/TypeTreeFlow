@@ -14,6 +14,7 @@ import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
+from typetreeflow.providers.registry import ProviderRegistry, build_default_provider_registry
 from typetreeflow.taxonomy.names import canonical_species_key
 
 
@@ -523,80 +524,22 @@ def _manual_hint_has_matched_candidate_review(
     return False
 
 
-_PROVIDER_TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
-    ("ATCC", "atcc_genome_portal"),
-    ("DSM", "dsmz"),
-    ("JCM", "jcm"),
-    ("NCTC", "nctc"),
-    ("CGMCC", "cgmcc"),
-    ("NBRC", "nbrc"),
-    ("KCTC", "kctc"),
-    ("CECT", "cect"),
-    ("CIP", "cip"),
-    ("CCUG", "ccug"),
-    ("CCM", "ccm"),
-    ("LMG", "bccm_lmg"),
-    ("NCIMB", "ncimb"),
-    ("NCIB", "ncib"),
-    ("BCRC", "bcrc"),
-    ("CCRC", "ccrc"),
-    ("NCCB", "nccb"),
-    ("CSUR", "csur"),
-    ("CICC", "cicc"),
-    ("IFO", "ifo"),
-)
-_PROVIDER_HINT_ALIASES = {
-    "atcc": "atcc_genome_portal",
-    "atcc genome portal": "atcc_genome_portal",
-    "dsm": "dsmz",
-    "dsmz": "dsmz",
-    "german collection of microorganisms and cell cultures": "dsmz",
-    "jcm": "jcm",
-    "japan collection of microorganisms": "jcm",
-    "nctc": "nctc",
-    "national collection of type cultures": "nctc",
-    "cgmcc": "cgmcc",
-    "china general microbiological culture collection center": "cgmcc",
-    "nbrc": "nbrc",
-    "nite biological resource center": "nbrc",
-    "kctc": "kctc",
-    "korean collection for type cultures": "kctc",
-    "cect": "cect",
-    "spanish type culture collection": "cect",
-    "cip": "cip",
-    "collection de l'institut pasteur": "cip",
-    "ccug": "ccug",
-    "culture collection university of gothenburg": "ccug",
-    "ccm": "ccm",
-    "czech collection of microorganisms": "ccm",
-    "lmg": "bccm_lmg",
-    "bccm lmg": "bccm_lmg",
-    "bccm-lmg": "bccm_lmg",
-    "ncimb": "ncimb",
-    "ncib": "ncib",
-    "bcrc": "bcrc",
-    "ccrc": "ccrc",
-    "nccb": "nccb",
-    "csur": "csur",
-    "cicc": "cicc",
-    "ifo": "ifo",
-}
-
-
 def _candidate_provider_keys(
     *row_groups: Iterable[Mapping[str, object]],
 ) -> str:
     provider_keys: list[str] = []
+    registry = build_default_provider_registry()
     for rows in row_groups:
         for row in rows:
-            _extend_provider_keys_from_explicit_hints(provider_keys, row)
-            _extend_provider_keys_from_tokens(provider_keys, row)
+            _extend_provider_keys_from_explicit_hints(provider_keys, row, registry)
+            _extend_provider_keys_from_tokens(provider_keys, row, registry)
     return "; ".join(provider_keys)
 
 
 def _extend_provider_keys_from_explicit_hints(
     provider_keys: list[str],
     row: Mapping[str, object],
+    registry: ProviderRegistry,
 ) -> None:
     value = _value(
         row,
@@ -606,7 +549,7 @@ def _extend_provider_keys_from_explicit_hints(
         "provider_key",
     )
     for token in re.split(r"[;,|]", value):
-        canonical = _PROVIDER_HINT_ALIASES.get(_provider_hint_key(token))
+        canonical = registry.canonical_key(token)
         if canonical and canonical not in provider_keys:
             provider_keys.append(canonical)
 
@@ -614,6 +557,7 @@ def _extend_provider_keys_from_explicit_hints(
 def _extend_provider_keys_from_tokens(
     provider_keys: list[str],
     row: Mapping[str, object],
+    registry: ProviderRegistry,
 ) -> None:
     text = " ; ".join(
         _value(row, field)
@@ -632,17 +576,9 @@ def _extend_provider_keys_from_tokens(
             "token",
         )
     )
-    normalized = text.upper()
-    for prefix, provider_key in _PROVIDER_TOKEN_PREFIXES:
-        pattern = rf"(?<![A-Z0-9]){re.escape(prefix)}(?:\s*[-:]?\s*[A-Z0-9]|$)"
-        if re.search(pattern, normalized) and provider_key not in provider_keys:
+    for provider_key in registry.keys_from_text(text):
+        if provider_key not in provider_keys:
             provider_keys.append(provider_key)
-
-
-def _provider_hint_key(value: str) -> str:
-    return " ".join(
-        str(value).strip().lower().replace("_", " ").replace("-", " ").split()
-    )
 
 
 def _source_artifacts(

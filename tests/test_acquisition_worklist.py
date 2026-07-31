@@ -266,7 +266,8 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
             {
                 "full_name": "Clostridium providerum",
                 "type_strain_names": (
-                    "ATCC 1001; DSM 2002; KCTC 3003; LMG 4004; CCM 5005; "
+                    "ATCC 1001; DSMZ 2002; DSM-2003; KCTC 3003; "
+                    "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; CCM 5005; "
                     "NCIMB 6006; BCRC 7007; CSUR P900"
                 ),
             }
@@ -322,7 +323,7 @@ def test_worklist_explicit_provider_hints_accept_registry_display_names():
                     "Spanish Type Culture Collection; "
                     "Collection de l'Institut Pasteur; "
                     "Culture Collection University of Gothenburg; "
-                    "BCCM-LMG"
+                    "BCCM/LMG"
                 ),
             )
         ],

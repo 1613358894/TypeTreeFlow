@@ -1571,8 +1571,11 @@ typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--j
 It reads only the explicitly named coverage-plan TSV and expands non-empty
 `provider_keys` through the static fail-closed provider registry. Common
 provider labels and case variants such as `DSMZ`, `RefSeq`,
-`ATCC Genome Portal`, and `BCCM-LMG` are normalized to canonical provider keys
-before counting and serialization. The compact JSON and summary also include
+`DSM`, `ATCC Genome Portal`, `BCCM-LMG`, and `BCCM/LMG` are normalized to
+canonical provider keys before counting and serialization. Acquisition
+worklists use the same static registry alias and culture-collection token
+rules when deriving `candidate_provider_keys` from local rows. The compact
+JSON and summary also include
 readiness counts for terms review, credential requirement, network support,
 and default network enablement, plus `required_inputs`,
 `recommended_request`, and `recommended_next_command` fields for the next
