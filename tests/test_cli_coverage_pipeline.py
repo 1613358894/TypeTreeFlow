@@ -112,6 +112,12 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
         "provider_request_draft_packet"
     ]
     assert preview["items"][0]["output_contract_count"] == 1
+    assert preview["items"][0]["operator_execution_gate"] == (
+        _expected_operator_execution_gate(
+            available=True,
+            has_recommended_request=True,
+        )
+    )
     assert preview["preview_output_contract_names"] == [
         "provider_request_draft_packet"
     ]
@@ -125,6 +131,9 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
     }
     assert preview["preview_command_plan_status_counts"] == {"pass": 1}
     assert preview["preview_command_plan_decision_counts"] == {"allow": 1}
+    assert preview["preview_execution_gate_status_counts"] == {
+        "operator_review_required": 1
+    }
     assert preview["preview_blocking_item_count"] == 0
     assert preview["preview_blocking_item_ids"] == []
     assert preview["preview_warning_item_count"] == 0
@@ -755,6 +764,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "preview_command_plan_decision_counts"
     ] == {"allow": 3}
     assert payload["coverage_operator_queue_preview"][
+        "preview_execution_gate_status_counts"
+    ] == {"operator_review_required": 3}
+    assert payload["coverage_operator_queue_preview"][
         "preview_blocking_item_count"
     ] == 0
     assert payload["coverage_operator_queue_preview"][
@@ -810,6 +822,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     )
     assert all(
         item["safe_for_unattended_execution"] is False
+        for item in payload["coverage_operator_queue_preview"]["items"]
+    )
+    assert all(
+        item["operator_execution_gate"] == _expected_operator_execution_gate(
+            available=True,
+            has_recommended_request=True,
+        )
         for item in payload["coverage_operator_queue_preview"]["items"]
     )
     public_archive_packet = payload["coverage_operator_queue_preview"]["items"][1][
@@ -3349,6 +3368,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "preview_next_input_class_counts": {},
         "preview_command_plan_status_counts": {},
         "preview_command_plan_decision_counts": {},
+        "preview_execution_gate_status_counts": {},
         "preview_blocking_item_count": 0,
         "preview_blocking_item_ids": [],
         "preview_warning_item_count": 0,
