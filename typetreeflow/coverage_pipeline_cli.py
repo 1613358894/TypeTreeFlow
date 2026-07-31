@@ -1958,6 +1958,7 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
                 "action_code": action.action_code,
                 "action_label": action.action_label,
                 "record_count": 0,
+                "species": [],
                 "source_lanes": [],
                 "provider_keys": [],
                 "required_inputs": [],
@@ -1966,6 +1967,7 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
             },
         )
         group["record_count"] = int(group["record_count"]) + 1
+        _append_unique(group["species"], action.species)
         _append_unique(group["source_lanes"], action.source_lane)
         _append_unique(group["required_inputs"], action.required_input)
         for provider_key in str(action.provider_keys).split(";"):
@@ -2010,6 +2012,7 @@ def _coverage_opportunity_summary(
                 "next_input_class": route["next_input_class"],
                 "automation_boundary": route["automation_boundary"],
                 "record_count": group.get("record_count", 0),
+                **_bounded_species_preview(group.get("species", [])),
                 "source_lanes": list(group.get("source_lanes", [])),
                 "provider_keys": list(group.get("provider_keys", [])),
                 "provider_automation_level_counts": dict(
@@ -2065,6 +2068,11 @@ def _coverage_action_queue(
                 "next_input_class": str(opportunity.get("next_input_class", "")),
                 "automation_boundary": automation_boundary,
                 "record_count": _safe_int(opportunity.get("record_count", 0)),
+                "species_count": _safe_int(opportunity.get("species_count", 0)),
+                "species_preview": list(opportunity.get("species_preview", []))
+                if isinstance(opportunity.get("species_preview"), list)
+                else [],
+                "species_truncated": bool(opportunity.get("species_truncated")),
                 "provider_automation_level_counts": automation_counts,
                 "requires_curator_input": operator_route == "curator_decision",
                 "requires_public_metadata_review": (
@@ -2174,6 +2182,11 @@ def _coverage_priority_summary(
                         item.get("automation_boundary", "")
                     ),
                     "record_count": record_count,
+                    "species_count": _safe_int(item.get("species_count", 0)),
+                    "species_preview": list(item.get("species_preview", []))
+                    if isinstance(item.get("species_preview"), list)
+                    else [],
+                    "species_truncated": bool(item.get("species_truncated")),
                     "recommended_next_command": str(
                         item.get("recommended_next_command", "")
                     ),
@@ -2214,6 +2227,9 @@ def _coverage_next_task_packet(
             "next_input_class": "",
             "automation_boundary": "next_task_only_no_execution",
             "record_count": 0,
+            "species_count": 0,
+            "species_preview": [],
+            "species_truncated": False,
             "required_inputs": [],
             "recommended_request": None,
             "recommended_next_command": "",
@@ -2247,6 +2263,11 @@ def _coverage_next_task_packet(
             item.get("automation_boundary", "next_task_only_no_execution")
         ),
         "record_count": _safe_int(item.get("record_count", 0)),
+        "species_count": _safe_int(item.get("species_count", 0)),
+        "species_preview": list(item.get("species_preview", []))
+        if isinstance(item.get("species_preview"), list)
+        else [],
+        "species_truncated": bool(item.get("species_truncated")),
         "required_inputs": _coverage_action_required_inputs(action_code),
         "recommended_request": recommended_request,
         "recommended_next_command": str(item.get("recommended_next_command", "")),
@@ -2422,6 +2443,11 @@ def _coverage_next_operator_recipe(
         "operator_route": str(packet.get("operator_route", "")),
         "next_input_class": str(packet.get("next_input_class", "")),
         "record_count": _safe_int(packet.get("record_count", 0)),
+        "species_count": _safe_int(packet.get("species_count", 0)),
+        "species_preview": list(packet.get("species_preview", []))
+        if isinstance(packet.get("species_preview"), list)
+        else [],
+        "species_truncated": bool(packet.get("species_truncated")),
         "required_inputs": required_inputs,
         "command_plan_decision": decision,
         "target_argv": target_argv,
@@ -2477,6 +2503,11 @@ def _coverage_queue_resume_packet(
         "operator_route": str(packet.get("operator_route", "")),
         "next_input_class": str(packet.get("next_input_class", "")),
         "record_count": _safe_int(packet.get("record_count", 0)),
+        "species_count": _safe_int(packet.get("species_count", 0)),
+        "species_preview": list(packet.get("species_preview", []))
+        if isinstance(packet.get("species_preview"), list)
+        else [],
+        "species_truncated": bool(packet.get("species_truncated")),
         "required_inputs": list(recipe.get("required_inputs", []))
         if isinstance(recipe.get("required_inputs"), list)
         else [],
@@ -2539,6 +2570,11 @@ def _coverage_operator_queue_preview(
                 "operator_route": str(recipe.get("operator_route", "")),
                 "next_input_class": str(recipe.get("next_input_class", "")),
                 "record_count": _safe_int(recipe.get("record_count", 0)),
+                "species_count": _safe_int(packet.get("species_count", 0)),
+                "species_preview": list(packet.get("species_preview", []))
+                if isinstance(packet.get("species_preview"), list)
+                else [],
+                "species_truncated": bool(packet.get("species_truncated")),
                 "required_inputs": list(recipe.get("required_inputs", []))
                 if isinstance(recipe.get("required_inputs"), list)
                 else [],
@@ -2721,6 +2757,21 @@ def _coverage_action_recommended_request(
 ) -> dict[str, object] | None:
     request = _COVERAGE_ACTION_RECOMMENDED_REQUESTS.get(action_code)
     return dict(request) if request else None
+
+
+def _bounded_species_preview(values: object, *, limit: int = 5) -> dict[str, object]:
+    if not isinstance(values, list):
+        return {
+            "species_count": 0,
+            "species_preview": [],
+            "species_truncated": False,
+        }
+    species = [str(value) for value in values if str(value)]
+    return {
+        "species_count": len(species),
+        "species_preview": species[:limit],
+        "species_truncated": len(species) > limit,
+    }
 
 
 def _coverage_review_input_packet(

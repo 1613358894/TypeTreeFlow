@@ -260,7 +260,10 @@ let an AI controller read queue pressure and the first queued item without
 recomputing counts or inventing its own item keys. Opportunity and queue rows
 carry the same structured
 `recommended_request` objects used by `commands render` / `commands plan`, but
-they still require normal planning or preflight before execution. It also carries
+they still require normal planning or preflight before execution. They also carry
+bounded species previews so an AI/operator can see which records start each
+action group without treating the preview as a replacement for the source TSVs.
+It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` so an AI/operator can see the current local
 input requirement, rendered argv, preflight decision, and review-only recipe

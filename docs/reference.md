@@ -1798,6 +1798,11 @@ and the recommended next command for AI/operator routing. Required inputs are
 metadata-only evidence requirements copied from coverage-plan actions. The
 request draft is also metadata only; operators should still pass it through
 `commands render`, `commands plan`, or `commands preflight` before execution.
+Action groups also carry a bounded species list: `species` on
+`coverage_next_action_groups`, and `species_count`, `species_preview`, and
+`species_truncated` on the downstream compact summaries and packets. The preview
+is capped and intended for routing the first review items, not for replacing the
+source TSV files.
 `coverage_opportunity_summary` is a compact derived view of those same action
 groups with per-action provider automation-level counts, so an AI/operator can
 see manual-review, public metadata-review, and planning-handoff pressure
