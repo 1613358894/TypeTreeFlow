@@ -164,6 +164,35 @@ def test_build_provider_handoff_canonicalizes_provider_aliases():
     assert handoff.summary["providers_contacted"] == 0
 
 
+def test_provider_handoff_img_jgi_requires_credentials_but_no_network():
+    rows = _coverage_rows()
+    rows[1]["provider_keys"] = "IMG/M; JGI IMG"
+
+    handoff = build_provider_handoff(rows)
+
+    img_jgi = next(row for row in handoff.rows if row.provider_key == "img_jgi")
+    assert img_jgi.provider_status == "planning_only"
+    assert img_jgi.provider_automation_level == "planning_handoff"
+    assert img_jgi.operator_route == "provider_handoff"
+    assert img_jgi.next_input_class == "permitted_local_fasta_terms_provenance"
+    assert img_jgi.automation_boundary == "planning_handoff_no_provider_contact"
+    assert img_jgi.terms_review_required is True
+    assert img_jgi.credentials_required is True
+    assert img_jgi.network_supported is False
+    assert img_jgi.default_network_enabled is False
+    assert img_jgi.downloads_triggered == 0
+    assert img_jgi.providers_contacted == 0
+    assert img_jgi.strict_scientific_deliverable is False
+    assert "provider_guidance=public_genome_portal_user_handoff" in (
+        img_jgi.provider_guidance_notes
+    )
+    summary = handoff.summary
+    assert summary["provider_key_counts"]["img_jgi"] == 1
+    assert summary["credentials_required_count"] == 1
+    assert summary["network_supported_count"] == 0
+    assert summary["default_network_enabled_count"] == 0
+
+
 def test_provider_handoff_serializers_are_stable_and_json_serializable():
     handoff = build_provider_handoff(_coverage_rows())
 

@@ -1729,6 +1729,10 @@ may describe terms review, credential review, user-assisted local FASTA
 handoff, public archive metadata review, or current adapter capability, but
 they are not provider authorization, terms acceptance, download readiness, or
 strict type-strain evidence.
+Planning-only public genome portal entries such as IMG/JGI remain in this
+handoff route. They may report `credentials_required=true`, but still keep
+`network_supported=false`, `default_network_enabled=false`,
+`downloads_triggered=0`, and `providers_contacted=0`.
 The optional report/package surfaces are separate from handoff generation:
 pass `--provider-handoff-dir <dir>` with `--report-only` to display compact
 provider-handoff audit counts, or with `package-results --include reports|all`
