@@ -1798,6 +1798,11 @@ and the recommended next command for AI/operator routing. Required inputs are
 metadata-only evidence requirements copied from coverage-plan actions. The
 request draft is also metadata only; operators should still pass it through
 `commands render`, `commands plan`, or `commands preflight` before execution.
+Action groups also carry a bounded species list: `species` on
+`coverage_next_action_groups`, and `species_count`, `species_preview`, and
+`species_truncated` on the downstream compact summaries and packets. The preview
+is capped and intended for routing the first review items, not for replacing the
+source TSV files.
 `coverage_opportunity_summary` is a compact derived view of those same action
 groups with per-action provider automation-level counts, so an AI/operator can
 see manual-review, public metadata-review, and planning-handoff pressure
@@ -1837,6 +1842,15 @@ can pass the request through `commands render`, `commands plan`, or
 `commands preflight` before any local operator action. It is metadata only and
 always reports `safe_for_unattended_download=false`. Unknown queue item IDs are
 refused with `diagnostic_code=queue_item_id_not_found` and exit code `2`.
+The packet also includes `review_input_packet`, a bounded local-input handoff
+for the selected action. For manual-review actions it names the
+`manual_review.v1` schema, required manual-review TSV fields, allowed
+manual-review statuses, and the evidence focus, such as public archive
+accession-to-type-strain linkage or conflict resolution. Provider-handoff and
+external-registration actions name their existing local TSV schemas instead.
+This packet is review metadata only: it always reports no downloads, no
+provider contact, no workflow-output writes, no manifest mutation, and no strict
+scientific deliverable.
 Controllers can also pass `--expected-queue-snapshot-sha256 <sha256>` with the
 previously observed `coverage_operator_queue_preview.queue_snapshot_sha256`.
 If the current queue digest differs, the command refuses the stale resume
@@ -1861,17 +1875,19 @@ reports `safe_for_unattended_execution=false` and
 `coverage_queue_resume_packet` is a compact AI/controller handoff view over the
 selected queue item. It repeats the selected `queue_item_id`, current queue
 snapshot digest, expected digest, digest match state, target argv, command-plan
-status, preflight decision, blocker/warning IDs, and the exact values to reuse
-as `--queue-item-id` and `--expected-queue-snapshot-sha256` on a later metadata
-call. It is still metadata only:
+status, preflight decision, blocker/warning IDs, `review_input_packet`, and the
+exact values to reuse as `--queue-item-id` and
+`--expected-queue-snapshot-sha256` on a later metadata call. It is still
+metadata only:
 `execution_boundary=metadata_only_queue_resume_packet_no_execution`.
 `coverage_operator_queue_preview` extends that no-execution view to a bounded
 set of queue items. By default it previews the first three items; operators can
 pass `--queue-preview-limit <1..10>` to `preview`, `build`, or `status` to
 request a larger or smaller bounded preview. It lists each item's
-`queue_item_id`, route, required inputs, rendered argv, preflight decision, and
-`safe_for_unattended_execution=false`, with `truncated=true` when additional
-queue items exist. Each item also carries compact command-plan diagnostics:
+`queue_item_id`, route, required inputs, `review_input_packet`, rendered argv,
+preflight decision, and `safe_for_unattended_execution=false`, with
+`truncated=true` when additional queue items exist. Each item also carries
+compact command-plan diagnostics:
 `command_plan_status`, `blocking_count`, `blocking_ids`, `warning_count`, and
 `warning_ids`. These fields make blocked preview items routeable without
 copying diagnostic messages into the queue preview. The preview object also
@@ -2061,6 +2077,12 @@ includes local packet-readiness maps: `external_source_counts`,
 `manual_review_flag_counts`. These compact counts describe the supplied
 `external_genomes.tsv` packet and do not validate provider terms, query
 providers, install FASTA, or mark strict completion.
+The validate payload also includes `external_genomes_readiness_packet`. When
+every row is valid, that packet reports `status=ready_for_next_stage`,
+`next_stage=external_genomes_install_plan`, and a structured request for
+`external-genomes install-plan`; otherwise it reports the blocked count and does
+not emit a next request. The packet is metadata only and always keeps
+`safe_for_unattended_execution=false`.
 `external-genomes install-plan --input <external_genomes.tsv> --target-outdir
 <run>` is the AI/operator handoff between validation and workflow
 registration. It validates the same explicit TSV and referenced local FASTA
@@ -2077,9 +2099,12 @@ structured `recommended_request` for a later dry-run
 `--input` path supplied to `external-genomes install-plan`, so AI/operator
 controllers can render the registration dry-run without reconstructing the TSV
 path from earlier handoffs. It carries the same controlled route count fields
-and packet-readiness count fields when present. Valid plans exit `0`; schema, input, checksum,
-missing-file, or manual-review diagnostics exit `2`; output-path or write
-failures exit `1`.
+and packet-readiness count fields when present. Its
+`external_genomes_readiness_packet` reports
+`next_stage=external_genomes_registration_dry_run` only when all install-plan
+rows are planned; otherwise it remains blocked and omits the next request. Valid
+plans exit `0`; schema, input, checksum, missing-file, or manual-review
+diagnostics exit `2`; output-path or write failures exit `1`.
 `--register-external-genomes <external_genomes.tsv>` emits one compact JSON
 object on stdout. The payload reports registration-result, valid/invalid,
 install-plan, install-result, and manifest record counts plus the stable

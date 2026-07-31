@@ -240,6 +240,12 @@ def _validate_payload(
     valid_count = sum(1 for result in results if result.valid)
     route_counts = summarize_external_genome_route_metadata(results)
     packet_counts = summarize_external_genome_packet_readiness(records)
+    recommended_request = {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": "<external_genomes.tsv>",
+        "target_outdir": "<run>",
+    }
     preview = [
         {
             "species": result.species,
@@ -268,6 +274,19 @@ def _validate_payload(
         "diagnostics": diagnostics,
         "result_preview": preview,
         "result_truncated": len(results) > len(preview),
+        "external_genomes_readiness_packet": _external_genomes_readiness_packet(
+            stage="validate",
+            record_count=len(results),
+            ready_count=valid_count,
+            blocked_count=len(results) - valid_count,
+            status_counts=dict(sorted(status_counts.items())),
+            required_inputs=["external_genomes.tsv"],
+            recommended_request=recommended_request,
+            recommended_next_command=(
+                "typetreeflow external-genomes install-plan "
+                "--input <external_genomes.tsv> --target-outdir <run>"
+            ),
+        ),
         "audit_only": True,
         "dry_run": True,
         "writes_outputs": False,
@@ -331,6 +350,16 @@ def _install_plan_payload(
         "install_plan_status_counts": dict(sorted(install_counts.items())),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
+        "external_genomes_readiness_packet": _external_genomes_readiness_packet(
+            stage="install_plan",
+            record_count=len(install_plan),
+            ready_count=planned_count,
+            blocked_count=skipped_count,
+            status_counts=dict(sorted(install_counts.items())),
+            required_inputs=[external_genomes_input],
+            recommended_request=recommended_request,
+            recommended_next_command=recommended_next,
+        ),
         "audit_only": True,
         "dry_run": True,
         "writes_outputs": False,
@@ -356,6 +385,64 @@ def _install_plan_payload(
             if not diagnostics
             else "External-genomes install plan blocked"
         ),
+    }
+
+
+def _external_genomes_readiness_packet(
+    *,
+    stage: str,
+    record_count: int,
+    ready_count: int,
+    blocked_count: int,
+    status_counts: dict[str, int],
+    required_inputs: list[str],
+    recommended_request: dict[str, object],
+    recommended_next_command: str,
+) -> dict[str, object]:
+    if record_count == 0:
+        status = "no_records"
+        next_stage = ""
+    elif blocked_count:
+        status = "blocked"
+        next_stage = ""
+    else:
+        status = "ready_for_next_stage"
+        next_stage = (
+            "external_genomes_install_plan"
+            if stage == "validate"
+            else "external_genomes_registration_dry_run"
+        )
+    return {
+        "schema_version": "external_genomes_readiness_packet.v1",
+        "stage": stage,
+        "status": status,
+        "record_count": record_count,
+        "ready_count": ready_count,
+        "blocked_count": blocked_count,
+        "status_counts": dict(sorted(status_counts.items())),
+        "next_stage": next_stage,
+        "required_inputs": list(required_inputs),
+        "recommended_request": (
+            dict(recommended_request)
+            if status == "ready_for_next_stage"
+            else None
+        ),
+        "recommended_next_command": (
+            recommended_next_command if status == "ready_for_next_stage" else ""
+        ),
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_external_genomes_readiness_no_execution",
     }
 
 

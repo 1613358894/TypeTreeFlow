@@ -10,6 +10,11 @@ from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_FIELDS,
     ARCHIVE_CANDIDATE_SCHEMA_VERSION,
 )
+from typetreeflow.evidence.manual_review import (
+    MANUAL_REVIEW_FIELDS,
+    MANUAL_REVIEW_SCHEMA_VERSION,
+    MANUAL_REVIEW_STATUSES,
+)
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     calculate_sha256,
@@ -285,6 +290,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "next_input_class": "curator_conflict_decision",
             "automation_boundary": "manual_review_required",
             "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium beta"],
+            "species_truncated": False,
             "source_lanes": ["curator_conflict_resolution"],
             "provider_keys": [],
             "provider_automation_level_counts": {},
@@ -302,6 +310,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "next_input_class": "public_accession_type_strain_linkage",
             "automation_boundary": "metadata_review_only_no_download",
             "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium gamma"],
+            "species_truncated": False,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
             "provider_automation_level_counts": {"metadata_review": 4},
@@ -319,6 +330,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "next_input_class": "biosample_accession_type_strain_linkage",
             "automation_boundary": "metadata_review_only_no_download",
             "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium alpha"],
+            "species_truncated": False,
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["genbank", "refseq"],
             "provider_automation_level_counts": {"metadata_review": 2},
@@ -336,6 +350,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "next_input_class": "permitted_local_fasta_terms_provenance",
             "automation_boundary": "planning_handoff_no_provider_contact",
             "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium delta"],
+            "species_truncated": False,
             "source_lanes": ["external_fasta_required"],
             "provider_keys": ["dsmz", "kctc"],
             "provider_automation_level_counts": {"planning_handoff": 2},
@@ -413,6 +430,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                 "next_input_class": "curator_conflict_decision",
                 "automation_boundary": "manual_review_required",
                 "record_count": 1,
+                "species_count": 1,
+                "species_preview": ["Clostridium beta"],
+                "species_truncated": False,
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -428,6 +448,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                 "next_input_class": "public_accession_type_strain_linkage",
                 "automation_boundary": "metadata_review_only_no_download",
                 "record_count": 1,
+                "species_count": 1,
+                "species_preview": ["Clostridium gamma"],
+                "species_truncated": False,
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -443,6 +466,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                 "next_input_class": "biosample_accession_type_strain_linkage",
                 "automation_boundary": "metadata_review_only_no_download",
                 "record_count": 1,
+                "species_count": 1,
+                "species_preview": ["Clostridium alpha"],
+                "species_truncated": False,
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -482,6 +508,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "next_input_class": "curator_conflict_decision",
         "automation_boundary": "manual_review_required",
         "record_count": 1,
+        "species_count": 1,
+        "species_preview": ["Clostridium beta"],
+        "species_truncated": False,
         "required_inputs": ["curator conflict decision with independent review"],
         "recommended_request": {
             "command": "manual-review",
@@ -489,6 +518,40 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "input": "<review.tsv>",
         },
         "recommended_next_command": "manual-review validate --input <review.tsv>",
+        "review_input_packet": {
+            "schema_version": "coverage_review_input_packet.v1",
+            "available": True,
+            "action_code": "resolve_curator_conflict",
+            "operator_route": "curator_decision",
+            "next_input_class": "curator_conflict_decision",
+            "record_count": 1,
+            "input_artifact": "<review.tsv>",
+            "input_schema": f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}",
+            "required_fields": list(MANUAL_REVIEW_FIELDS),
+            "allowed_statuses": list(MANUAL_REVIEW_STATUSES),
+            "evidence_focus": (
+                "curator conflict resolution with independent review"
+            ),
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
+            "review_only": True,
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_review_input_packet_no_execution"
+            ),
+        },
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -585,6 +648,22 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         item["safe_for_unattended_execution"] is False
         for item in payload["coverage_operator_queue_preview"]["items"]
     )
+    public_archive_packet = payload["coverage_operator_queue_preview"]["items"][1][
+        "review_input_packet"
+    ]
+    assert public_archive_packet["available"] is True
+    assert public_archive_packet["action_code"] == "review_public_archive_linkage"
+    assert public_archive_packet["input_schema"] == (
+        f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}"
+    )
+    assert public_archive_packet["required_fields"] == list(MANUAL_REVIEW_FIELDS)
+    assert public_archive_packet["allowed_statuses"] == list(MANUAL_REVIEW_STATUSES)
+    assert public_archive_packet["evidence_focus"] == (
+        "public archive accession to species type-strain direct evidence chain"
+    )
+    assert public_archive_packet["downloads_triggered"] == 0
+    assert public_archive_packet["providers_contacted"] == 0
+    assert public_archive_packet["strict_scientific_deliverable"] is False
     assert payload["current_coverage_action_queue_item"]["action_code"] == (
         "resolve_curator_conflict"
     )
@@ -1312,6 +1391,7 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "action_code": "resolve_curator_conflict",
             "action_label": "Resolve conflicting type-strain evidence before acquisition",
             "record_count": 1,
+            "species": ["Clostridium beta"],
             "source_lanes": ["curator_conflict_resolution"],
             "provider_keys": [],
             "required_inputs": [
@@ -1329,6 +1409,7 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "action_code": "review_public_archive_linkage",
             "action_label": "Review public archive candidate against type-strain equivalence",
             "record_count": 1,
+            "species": ["Clostridium gamma"],
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["ddbj", "ena", "genbank", "refseq"],
             "required_inputs": [
@@ -1346,6 +1427,7 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "action_code": "review_public_type_linkage",
             "action_label": "Review selected public genome linkage against type strain",
             "record_count": 1,
+            "species": ["Clostridium alpha"],
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["genbank", "refseq"],
             "required_inputs": [
@@ -1363,6 +1445,7 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "action_code": "prepare_provider_handoff",
             "action_label": "Prepare user-assisted provider handoff or record unresolved gap",
             "record_count": 1,
+            "species": ["Clostridium delta"],
             "source_lanes": ["external_fasta_required"],
             "provider_keys": ["dsmz", "kctc"],
             "required_inputs": [
@@ -2818,9 +2901,40 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "next_input_class": "",
         "automation_boundary": "next_task_only_no_execution",
         "record_count": 0,
+        "species_count": 0,
+        "species_preview": [],
+        "species_truncated": False,
         "required_inputs": [],
         "recommended_request": None,
         "recommended_next_command": "",
+        "review_input_packet": {
+            "schema_version": "coverage_review_input_packet.v1",
+            "available": False,
+            "action_code": "",
+            "operator_route": "local_evidence_build",
+            "next_input_class": "local_reconciler_completion_gap_evidence",
+            "record_count": 0,
+            "input_artifact": "",
+            "input_schema": "",
+            "required_fields": [],
+            "allowed_statuses": [],
+            "evidence_focus": "",
+            "recommended_request": None,
+            "review_only": True,
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_review_input_packet_no_execution"
+            ),
+        },
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -2863,6 +2977,9 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "operator_route": "",
         "next_input_class": "",
         "record_count": 0,
+        "species_count": 0,
+        "species_preview": [],
+        "species_truncated": False,
         "required_inputs": [],
         "command_plan_decision": "none",
         "target_argv": [],
@@ -2894,7 +3011,38 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "operator_route": "",
         "next_input_class": "",
         "record_count": 0,
+        "species_count": 0,
+        "species_preview": [],
+        "species_truncated": False,
         "required_inputs": [],
+        "review_input_packet": {
+            "schema_version": "coverage_review_input_packet.v1",
+            "available": False,
+            "action_code": "",
+            "operator_route": "local_evidence_build",
+            "next_input_class": "local_reconciler_completion_gap_evidence",
+            "record_count": 0,
+            "input_artifact": "",
+            "input_schema": "",
+            "required_fields": [],
+            "allowed_statuses": [],
+            "evidence_focus": "",
+            "recommended_request": None,
+            "review_only": True,
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_review_input_packet_no_execution"
+            ),
+        },
         "target_argv": [],
         "command_plan_status": "no_action",
         "command_plan_decision": "none",

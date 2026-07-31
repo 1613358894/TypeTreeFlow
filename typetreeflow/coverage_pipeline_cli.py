@@ -33,6 +33,11 @@ from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_SCHEMA_VERSION,
     build_coverage_plan,
 )
+from typetreeflow.evidence.manual_review import (
+    MANUAL_REVIEW_FIELDS,
+    MANUAL_REVIEW_SCHEMA_VERSION,
+    MANUAL_REVIEW_STATUSES,
+)
 from typetreeflow.evidence.provider_handoff import (
     PROVIDER_HANDOFF_FIELDS,
     PROVIDER_HANDOFF_SCHEMA_VERSION,
@@ -1953,6 +1958,7 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
                 "action_code": action.action_code,
                 "action_label": action.action_label,
                 "record_count": 0,
+                "species": [],
                 "source_lanes": [],
                 "provider_keys": [],
                 "required_inputs": [],
@@ -1961,6 +1967,7 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
             },
         )
         group["record_count"] = int(group["record_count"]) + 1
+        _append_unique(group["species"], action.species)
         _append_unique(group["source_lanes"], action.source_lane)
         _append_unique(group["required_inputs"], action.required_input)
         for provider_key in str(action.provider_keys).split(";"):
@@ -2005,6 +2012,7 @@ def _coverage_opportunity_summary(
                 "next_input_class": route["next_input_class"],
                 "automation_boundary": route["automation_boundary"],
                 "record_count": group.get("record_count", 0),
+                **_bounded_species_preview(group.get("species", [])),
                 "source_lanes": list(group.get("source_lanes", [])),
                 "provider_keys": list(group.get("provider_keys", [])),
                 "provider_automation_level_counts": dict(
@@ -2060,6 +2068,11 @@ def _coverage_action_queue(
                 "next_input_class": str(opportunity.get("next_input_class", "")),
                 "automation_boundary": automation_boundary,
                 "record_count": _safe_int(opportunity.get("record_count", 0)),
+                "species_count": _safe_int(opportunity.get("species_count", 0)),
+                "species_preview": list(opportunity.get("species_preview", []))
+                if isinstance(opportunity.get("species_preview"), list)
+                else [],
+                "species_truncated": bool(opportunity.get("species_truncated")),
                 "provider_automation_level_counts": automation_counts,
                 "requires_curator_input": operator_route == "curator_decision",
                 "requires_public_metadata_review": (
@@ -2169,6 +2182,11 @@ def _coverage_priority_summary(
                         item.get("automation_boundary", "")
                     ),
                     "record_count": record_count,
+                    "species_count": _safe_int(item.get("species_count", 0)),
+                    "species_preview": list(item.get("species_preview", []))
+                    if isinstance(item.get("species_preview"), list)
+                    else [],
+                    "species_truncated": bool(item.get("species_truncated")),
                     "recommended_next_command": str(
                         item.get("recommended_next_command", "")
                     ),
@@ -2209,9 +2227,17 @@ def _coverage_next_task_packet(
             "next_input_class": "",
             "automation_boundary": "next_task_only_no_execution",
             "record_count": 0,
+            "species_count": 0,
+            "species_preview": [],
+            "species_truncated": False,
             "required_inputs": [],
             "recommended_request": None,
             "recommended_next_command": "",
+            "review_input_packet": _coverage_review_input_packet(
+                "",
+                record_count=0,
+                recommended_request=None,
+            ),
             "safe_for_unattended_download": False,
             "downloads_triggered": 0,
             "providers_contacted": 0,
@@ -2224,23 +2250,32 @@ def _coverage_next_task_packet(
     recommended_request = (
         dict(raw_request) if isinstance(raw_request, Mapping) else None
     )
+    action_code = str(item.get("action_code", ""))
     return {
         "available": True,
         "packet_status": "ready_for_operator_review",
         "queue_position": _safe_int(item.get("queue_position", 0)),
         "queue_item_id": str(item.get("queue_item_id", "")),
-        "action_code": str(item.get("action_code", "")),
+        "action_code": action_code,
         "operator_route": str(item.get("operator_route", "")),
         "next_input_class": str(item.get("next_input_class", "")),
         "automation_boundary": str(
             item.get("automation_boundary", "next_task_only_no_execution")
         ),
         "record_count": _safe_int(item.get("record_count", 0)),
-        "required_inputs": _coverage_action_required_inputs(
-            str(item.get("action_code", ""))
-        ),
+        "species_count": _safe_int(item.get("species_count", 0)),
+        "species_preview": list(item.get("species_preview", []))
+        if isinstance(item.get("species_preview"), list)
+        else [],
+        "species_truncated": bool(item.get("species_truncated")),
+        "required_inputs": _coverage_action_required_inputs(action_code),
         "recommended_request": recommended_request,
         "recommended_next_command": str(item.get("recommended_next_command", "")),
+        "review_input_packet": _coverage_review_input_packet(
+            action_code,
+            record_count=_safe_int(item.get("record_count", 0)),
+            recommended_request=recommended_request,
+        ),
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -2408,6 +2443,11 @@ def _coverage_next_operator_recipe(
         "operator_route": str(packet.get("operator_route", "")),
         "next_input_class": str(packet.get("next_input_class", "")),
         "record_count": _safe_int(packet.get("record_count", 0)),
+        "species_count": _safe_int(packet.get("species_count", 0)),
+        "species_preview": list(packet.get("species_preview", []))
+        if isinstance(packet.get("species_preview"), list)
+        else [],
+        "species_truncated": bool(packet.get("species_truncated")),
         "required_inputs": required_inputs,
         "command_plan_decision": decision,
         "target_argv": target_argv,
@@ -2463,9 +2503,21 @@ def _coverage_queue_resume_packet(
         "operator_route": str(packet.get("operator_route", "")),
         "next_input_class": str(packet.get("next_input_class", "")),
         "record_count": _safe_int(packet.get("record_count", 0)),
+        "species_count": _safe_int(packet.get("species_count", 0)),
+        "species_preview": list(packet.get("species_preview", []))
+        if isinstance(packet.get("species_preview"), list)
+        else [],
+        "species_truncated": bool(packet.get("species_truncated")),
         "required_inputs": list(recipe.get("required_inputs", []))
         if isinstance(recipe.get("required_inputs"), list)
         else [],
+        "review_input_packet": _coverage_review_input_packet(
+            str(packet.get("action_code", "")),
+            record_count=_safe_int(packet.get("record_count", 0)),
+            recommended_request=packet.get("recommended_request")
+            if isinstance(packet.get("recommended_request"), Mapping)
+            else None,
+        ),
         "target_argv": list(recipe.get("target_argv", []))
         if isinstance(recipe.get("target_argv"), list)
         else [],
@@ -2518,9 +2570,21 @@ def _coverage_operator_queue_preview(
                 "operator_route": str(recipe.get("operator_route", "")),
                 "next_input_class": str(recipe.get("next_input_class", "")),
                 "record_count": _safe_int(recipe.get("record_count", 0)),
+                "species_count": _safe_int(packet.get("species_count", 0)),
+                "species_preview": list(packet.get("species_preview", []))
+                if isinstance(packet.get("species_preview"), list)
+                else [],
+                "species_truncated": bool(packet.get("species_truncated")),
                 "required_inputs": list(recipe.get("required_inputs", []))
                 if isinstance(recipe.get("required_inputs"), list)
                 else [],
+                "review_input_packet": _coverage_review_input_packet(
+                    str(recipe.get("action_code", "")),
+                    record_count=_safe_int(recipe.get("record_count", 0)),
+                    recommended_request=packet.get("recommended_request")
+                    if isinstance(packet.get("recommended_request"), Mapping)
+                    else None,
+                ),
                 "command_plan_decision": str(
                     recipe.get("command_plan_decision", "")
                 ),
@@ -2693,6 +2757,101 @@ def _coverage_action_recommended_request(
 ) -> dict[str, object] | None:
     request = _COVERAGE_ACTION_RECOMMENDED_REQUESTS.get(action_code)
     return dict(request) if request else None
+
+
+def _bounded_species_preview(values: object, *, limit: int = 5) -> dict[str, object]:
+    if not isinstance(values, list):
+        return {
+            "species_count": 0,
+            "species_preview": [],
+            "species_truncated": False,
+        }
+    species = [str(value) for value in values if str(value)]
+    return {
+        "species_count": len(species),
+        "species_preview": species[:limit],
+        "species_truncated": len(species) > limit,
+    }
+
+
+def _coverage_review_input_packet(
+    action_code: str,
+    *,
+    record_count: int,
+    recommended_request: Mapping[str, object] | None,
+) -> dict[str, object]:
+    route = _coverage_action_route(action_code)
+    input_schema = ""
+    input_artifact = ""
+    required_fields: list[str] = []
+    allowed_statuses: list[str] = []
+    evidence_focus = ""
+    if action_code in {
+        "resolve_curator_conflict",
+        "review_public_archive_linkage",
+        "review_public_type_linkage",
+    }:
+        input_schema = f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}"
+        input_artifact = str(
+            recommended_request.get("input", "<review.tsv>")
+            if recommended_request
+            else "<review.tsv>"
+        )
+        required_fields = list(MANUAL_REVIEW_FIELDS)
+        allowed_statuses = list(MANUAL_REVIEW_STATUSES)
+        if action_code == "resolve_curator_conflict":
+            evidence_focus = "curator conflict resolution with independent review"
+        elif action_code == "review_public_archive_linkage":
+            evidence_focus = (
+                "public archive accession to species type-strain direct evidence chain"
+            )
+        else:
+            evidence_focus = (
+                "BioSample/accession to species type-strain direct evidence chain"
+            )
+    elif action_code == "review_external_registration":
+        input_schema = "external_genomes.v1"
+        input_artifact = "external_genomes.tsv"
+        required_fields = list(EXTERNAL_GENOME_FIELDS)
+        evidence_focus = "approved external-genomes registration packet review"
+    elif action_code == "prepare_provider_handoff":
+        input_schema = f"provider_handoff.v{PROVIDER_HANDOFF_SCHEMA_VERSION}"
+        input_artifact = OUTPUT_PATHS["provider_handoff"]
+        required_fields = list(PROVIDER_HANDOFF_FIELDS)
+        evidence_focus = "permitted local FASTA terms and provenance handoff"
+    elif action_code == "build_local_evidence":
+        input_schema = "local_reconciler_completion_gap_evidence.v1"
+        input_artifact = "<local evidence inputs>"
+        evidence_focus = "local reconciler and completion gap evidence"
+    available = bool(input_schema)
+    return {
+        "schema_version": "coverage_review_input_packet.v1",
+        "available": available,
+        "action_code": action_code,
+        "operator_route": route["operator_route"],
+        "next_input_class": route["next_input_class"],
+        "record_count": record_count,
+        "input_artifact": input_artifact,
+        "input_schema": input_schema,
+        "required_fields": required_fields,
+        "allowed_statuses": allowed_statuses,
+        "evidence_focus": evidence_focus,
+        "recommended_request": dict(recommended_request)
+        if isinstance(recommended_request, Mapping)
+        else None,
+        "review_only": True,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_review_input_packet_no_execution",
+    }
 
 
 def _append_unique(values: list[str], value: str) -> None:

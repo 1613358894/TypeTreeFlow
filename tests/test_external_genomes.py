@@ -1,8 +1,10 @@
 from dataclasses import replace
+import json
 from pathlib import Path
 
 import pytest
 
+from typetreeflow import cli
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
@@ -78,6 +80,11 @@ def _row_values(**overrides) -> list[str]:
     )
     values.update(overrides)
     return [values[field] for field in EXTERNAL_GENOME_FIELDS]
+
+
+def _write_external_genomes_tsv(path: Path, rows: list[ExternalGenomeRecord]) -> Path:
+    write_external_genomes(rows, path)
+    return path
 
 
 def test_external_genomes_round_trip(tmp_path):
@@ -339,6 +346,111 @@ def test_external_genome_packet_readiness_summary_is_controlled(tmp_path):
             "manual_review_required": 1,
         },
     }
+
+
+def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
+    fasta = _fasta(tmp_path / "genome.fna")
+    path = _write_external_genomes_tsv(
+        tmp_path / "external_genomes.tsv",
+        [_record(tmp_path, genome_fasta_path=str(fasta), sha256=calculate_sha256(fasta))],
+    )
+
+    code = cli.main(["external-genomes", "validate", "--input", str(path), "--json"])
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["external_genomes_readiness_packet"] == {
+        "schema_version": "external_genomes_readiness_packet.v1",
+        "stage": "validate",
+        "status": "ready_for_next_stage",
+        "record_count": 1,
+        "ready_count": 1,
+        "blocked_count": 0,
+        "status_counts": {"external_genome_registered": 1},
+        "next_stage": "external_genomes_install_plan",
+        "required_inputs": ["external_genomes.tsv"],
+        "recommended_request": {
+            "command": "external-genomes",
+            "subcommand": "install-plan",
+            "input": "<external_genomes.tsv>",
+            "target_outdir": "<run>",
+        },
+        "recommended_next_command": (
+            "typetreeflow external-genomes install-plan "
+            "--input <external_genomes.tsv> --target-outdir <run>"
+        ),
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_external_genomes_readiness_no_execution",
+    }
+
+
+def test_external_genomes_install_plan_emits_registration_readiness_packet(
+    capsys, tmp_path
+):
+    fasta = _fasta(tmp_path / "genome.fna")
+    path = _write_external_genomes_tsv(
+        tmp_path / "external_genomes.tsv",
+        [_record(tmp_path, genome_fasta_path=str(fasta), sha256=calculate_sha256(fasta))],
+    )
+    target = tmp_path / "future_run"
+
+    code = cli.main(
+        [
+            "external-genomes",
+            "install-plan",
+            "--input",
+            str(path),
+            "--target-outdir",
+            str(target),
+            "--json",
+        ]
+    )
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    packet = payload["external_genomes_readiness_packet"]
+    assert packet["stage"] == "install_plan"
+    assert packet["status"] == "ready_for_next_stage"
+    assert packet["next_stage"] == "external_genomes_registration_dry_run"
+    assert packet["record_count"] == 1
+    assert packet["ready_count"] == 1
+    assert packet["blocked_count"] == 0
+    assert packet["status_counts"] == {"external_genome_install_planned": 1}
+    assert packet["required_inputs"] == [path.as_posix()]
+    assert packet["recommended_request"] == {
+        "command": "register-external-genomes",
+        "external_genomes": path.as_posix(),
+        "outdir": "<run>",
+        "dry_run": True,
+    }
+    assert packet["recommended_next_command"] == (
+        f"typetreeflow --register-external-genomes {path.as_posix()} "
+        "--outdir <run> --dry-run"
+    )
+    assert packet["safe_for_unattended_execution"] is False
+    assert packet["downloads_triggered"] == 0
+    assert packet["providers_contacted"] == 0
+    assert packet["manifest_mutated"] is False
+    assert packet["strict_scientific_deliverable"] is False
+    assert target.exists() is False
 
 
 def test_external_genome_install_plan_valid_record_is_planned(tmp_path):
