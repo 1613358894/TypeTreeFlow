@@ -541,3 +541,167 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
     assert "provider_request_external_genomes_audit" in scope
     assert str(fasta) not in package_stdout
     assert calculate_sha256(fasta) not in package_stdout
+
+
+def test_coverage_pipeline_integrates_expanded_archive_and_external_handoff(
+    tmp_path,
+    capsys,
+):
+    checklist, reconciler, gaps, _archive = _write_inputs(tmp_path)
+    expanded = tmp_path / "expanded_discovery_results.tsv"
+    _write(
+        expanded,
+        "\t".join(
+            (
+                "species",
+                "token",
+                "query_database",
+                "candidate_accession",
+                "candidate_biosample",
+                "candidate_strain",
+                "decision",
+                "decision_reason",
+            )
+        )
+        + "\n"
+        + "\t".join(
+            (
+                "Clostridium gamma",
+                "DSM 3",
+                "NCBI Assembly",
+                "GCA_000003.1",
+                "SAMN000003",
+                "DSM 3",
+                "matched_candidate",
+                "Candidate species and token evidence both match.",
+            )
+        )
+        + "\n",
+    )
+    fasta = _write(tmp_path / "local" / "provider" / "DSM-1.fna", ">seq\nACGT\n")
+    curated_provider_request = _write_provider_request(
+        tmp_path / "curated_provider_request.tsv",
+        local_sha256=calculate_sha256(fasta),
+    )
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    register_outdir = tmp_path / "future_registration_run"
+
+    assert (
+        cli.main(
+            [
+                "coverage-pipeline",
+                "build",
+                "--checklist-tsv",
+                str(checklist),
+                "--reconciler-audit-tsv",
+                str(reconciler),
+                "--completion-gaps-tsv",
+                str(gaps),
+                "--expanded-discovery-results-tsv",
+                str(expanded),
+                "--curated-provider-request-tsv",
+                str(curated_provider_request),
+                "--provider-request-validation-base-dir",
+                str(tmp_path),
+                "--external-genomes-install-target-outdir",
+                str(register_outdir),
+                "--write",
+                "--outdir",
+                str(pipeline_dir),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["manifest_mutated"] is False
+    archive_summary = json.loads(
+        (
+            pipeline_dir
+            / "archive_candidates"
+            / "archive_candidates_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert archive_summary["source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert archive_summary["expanded_discovery_candidate_count"] == 1
+    assert (
+        pipeline_dir
+        / "provider_request_external_genomes"
+        / "external_genomes.tsv"
+    ).exists()
+    assert (
+        pipeline_dir
+        / "external_genomes_install_plan"
+        / "external_genome_install_plan.tsv"
+    ).exists()
+    assert not register_outdir.exists()
+
+    assert (
+        cli.main(
+            [
+                "coverage-pipeline",
+                "status",
+                "--coverage-pipeline-dir",
+                str(pipeline_dir),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    status_payload = json.loads(capsys.readouterr().out)
+    stages = {
+        stage["stage"]: stage
+        for stage in status_payload["operator_chain_stages"]
+    }
+    assert stages["archive_candidates"]["summary_source_input_kind_counts"] == {
+        "expanded_discovery_results": 1
+    }
+    assert stages["provider_request_external_genomes"]["available"] is True
+    assert stages["external_genomes_install_plan"]["available"] is True
+    assert status_payload["next_stage"]["stage"] == (
+        "external_genomes_registration_dry_run"
+    )
+
+    external_genomes = (
+        pipeline_dir / "provider_request_external_genomes" / "external_genomes.tsv"
+    )
+    assert (
+        cli.main(
+            [
+                "external-genomes",
+                "validate",
+                "--input",
+                str(external_genomes),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    validate_payload = json.loads(capsys.readouterr().out)
+    assert validate_payload["install_plan_recommended_command_plan"][
+        "target_argv"
+    ] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        external_genomes.as_posix(),
+        "--target-outdir",
+        "<run>",
+        "--write",
+        "--outdir",
+        "<isolated-install-plan-directory>",
+    ]
+    assert [
+        item["id"]
+        for item in validate_payload["install_plan_recommended_command_plan"][
+            "blocking"
+        ]
+    ] == ["write_not_allowed"]
+    assert validate_payload["downloads_triggered"] == 0
+    assert validate_payload["providers_contacted"] == 0
+    assert validate_payload["manifest_mutated"] is False
