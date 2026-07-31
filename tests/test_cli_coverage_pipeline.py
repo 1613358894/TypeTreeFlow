@@ -82,6 +82,16 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
         "provider_request_readiness_packet": 1
     }
     assert preview["preview_output_contract_count"] == 1
+    assert preview["preview_operator_route_counts"] == {"provider_handoff": 1}
+    assert preview["preview_next_input_class_counts"] == {
+        "provider_request_validation": 1
+    }
+    assert preview["preview_command_plan_status_counts"] == {"pass": 1}
+    assert preview["preview_command_plan_decision_counts"] == {"allow": 1}
+    assert preview["preview_blocking_item_count"] == 0
+    assert preview["preview_blocking_item_ids"] == []
+    assert preview["preview_warning_item_count"] == 0
+    assert preview["preview_warning_item_ids"] == []
     digest = _coverage_queue_snapshot_sha256([packet])
     resume_packet = _coverage_queue_resume_packet(
         packet,
@@ -681,6 +691,35 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "cq002_review_public_archive_linkage",
         "cq003_review_public_type_linkage",
     ]
+    preview_items = payload["coverage_operator_queue_preview"]["items"]
+    assert payload["coverage_operator_queue_preview"][
+        "preview_operator_route_counts"
+    ] == {"curator_decision": 1, "public_metadata_review": 2}
+    assert payload["coverage_operator_queue_preview"][
+        "preview_next_input_class_counts"
+    ] == {
+        "biosample_accession_type_strain_linkage": 1,
+        "curator_conflict_decision": 1,
+        "public_accession_type_strain_linkage": 1,
+    }
+    assert payload["coverage_operator_queue_preview"][
+        "preview_command_plan_status_counts"
+    ] == {"pass": 3}
+    assert payload["coverage_operator_queue_preview"][
+        "preview_command_plan_decision_counts"
+    ] == {"allow": 3}
+    assert payload["coverage_operator_queue_preview"][
+        "preview_blocking_item_count"
+    ] == 0
+    assert payload["coverage_operator_queue_preview"][
+        "preview_blocking_item_ids"
+    ] == []
+    assert payload["coverage_operator_queue_preview"][
+        "preview_warning_item_count"
+    ] == 0
+    assert payload["coverage_operator_queue_preview"][
+        "preview_warning_item_ids"
+    ] == []
     assert payload["coverage_operator_queue_preview"][
         "preview_output_contract_names"
     ] == []
@@ -693,7 +732,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["coverage_operator_queue_preview"]["truncated"] is True
     assert [
         item["queue_item_id"]
-        for item in payload["coverage_operator_queue_preview"]["items"]
+        for item in preview_items
     ] == [
         "cq001_resolve_curator_conflict",
         "cq002_review_public_archive_linkage",
@@ -701,7 +740,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     ]
     assert [
         item["action_code"]
-        for item in payload["coverage_operator_queue_preview"]["items"]
+        for item in preview_items
     ] == [
         "resolve_curator_conflict",
         "review_public_archive_linkage",
@@ -709,19 +748,19 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     ]
     assert all(
         item["command_plan_decision"] == "allow"
-        for item in payload["coverage_operator_queue_preview"]["items"]
+        for item in preview_items
     )
     assert all(
         item["command_plan_status"] == "pass"
-        for item in payload["coverage_operator_queue_preview"]["items"]
+        for item in preview_items
     )
     assert all(
         item["blocking_count"] == 0 and item["blocking_ids"] == []
-        for item in payload["coverage_operator_queue_preview"]["items"]
+        for item in preview_items
     )
     assert all(
         item["warning_count"] == 0 and item["warning_ids"] == []
-        for item in payload["coverage_operator_queue_preview"]["items"]
+        for item in preview_items
     )
     assert all(
         item["safe_for_unattended_execution"] is False
@@ -3220,6 +3259,14 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "preview_limit": 3,
         "preview_item_count": 0,
         "preview_item_ids": [],
+        "preview_operator_route_counts": {},
+        "preview_next_input_class_counts": {},
+        "preview_command_plan_status_counts": {},
+        "preview_command_plan_decision_counts": {},
+        "preview_blocking_item_count": 0,
+        "preview_blocking_item_ids": [],
+        "preview_warning_item_count": 0,
+        "preview_warning_item_ids": [],
         "preview_output_contract_names": [],
         "preview_output_contract_counts": {},
         "preview_output_contract_count": 0,
