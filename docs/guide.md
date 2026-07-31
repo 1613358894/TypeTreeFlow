@@ -415,7 +415,11 @@ operator route, and next input class. Use it to see which platforms are only
 public metadata review pressure and which platforms need a provider handoff
 package. Its `priority_provider_route_items` list ranks provider handoff package
 work before metadata-only review pressure; it is still audit-only and does not
-authorize provider contact or downloads. The payload
+authorize provider contact or downloads. `coverage_route_next_batch_packet`
+turns that ranked route list into a bounded next-batch selector with a first
+provider key, recommended operator action, required local input artifact, and
+per-item operator-review gates. It is for local review planning only and still
+does not dispatch commands, contact providers, or download genomes. The payload
 also reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus

@@ -922,6 +922,10 @@ def _run_status(
             coverage_summary,
             "coverage_provider_route_opportunity_summary",
         ),
+        "coverage_route_next_batch_packet": _optional_summary_map(
+            coverage_summary,
+            "coverage_route_next_batch_packet",
+        ),
         "coverage_action_queue": _optional_summary_list(
             coverage_summary, "coverage_action_queue"
         ),
@@ -2067,6 +2071,9 @@ def _payload(
         _coverage_provider_route_opportunity_summary(provider_handoff.rows)
     )
     coverage_action_queue = _coverage_action_queue(coverage_opportunity_summary)
+    coverage_route_next_batch_packet = _coverage_route_next_batch_packet(
+        coverage_provider_route_opportunity_summary
+    )
     coverage_action_queue_summary = _coverage_action_queue_summary(
         coverage_action_queue
     )
@@ -2167,6 +2174,7 @@ def _payload(
         "coverage_provider_route_opportunity_summary": (
             coverage_provider_route_opportunity_summary
         ),
+        "coverage_route_next_batch_packet": coverage_route_next_batch_packet,
         "coverage_action_queue": coverage_action_queue,
         "coverage_priority_summary": coverage_priority_summary,
         "coverage_next_task_packet": coverage_next_task_packet,
@@ -3090,6 +3098,128 @@ def _coverage_provider_priority_items(
             }
         )
     return items
+
+
+def _coverage_route_next_batch_packet(
+    provider_route_summary: Mapping[str, object],
+    *,
+    limit: int = 5,
+) -> dict[str, object]:
+    raw_items = provider_route_summary.get("priority_provider_route_items", [])
+    priority_items = (
+        [dict(item) for item in raw_items if isinstance(item, Mapping)]
+        if isinstance(raw_items, list)
+        else []
+    )
+    batch_items: list[dict[str, object]] = []
+    for item in priority_items[:limit]:
+        route_priority = str(item.get("route_priority", ""))
+        if route_priority == "provider_handoff":
+            recommended_operator_action = "prepare_provider_handoff_package"
+            required_local_input = "provider_handoff.tsv"
+        elif route_priority == "public_metadata_review":
+            recommended_operator_action = "review_public_metadata_linkage"
+            required_local_input = "manual_review.tsv"
+        else:
+            recommended_operator_action = "operator_review_required"
+            required_local_input = "local_review_input"
+        batch_items.append(
+            {
+                "batch_position": len(batch_items) + 1,
+                "provider_key": str(item.get("provider_key", "")),
+                "provider_name": str(item.get("provider_name", "")),
+                "route_priority": route_priority,
+                "recommended_operator_action": recommended_operator_action,
+                "required_local_input": required_local_input,
+                "record_count": _safe_int(item.get("record_count", 0)),
+                "species_count": _safe_int(item.get("species_count", 0)),
+                "species_preview": list(item.get("species_preview", []))
+                if isinstance(item.get("species_preview"), list)
+                else [],
+                "species_truncated": bool(item.get("species_truncated")),
+                "primary_provider_automation_level": str(
+                    item.get("primary_provider_automation_level", "")
+                ),
+                "primary_source_action": str(item.get("primary_source_action", "")),
+                "primary_operator_route": str(
+                    item.get("primary_operator_route", "")
+                ),
+                "primary_next_input_class": str(
+                    item.get("primary_next_input_class", "")
+                ),
+                "needs_provider_request_draft": bool(
+                    item.get("needs_provider_request_draft")
+                ),
+                "metadata_review_only": bool(item.get("metadata_review_only")),
+                "terms_review_required_count": _safe_int(
+                    item.get("terms_review_required_count", 0)
+                ),
+                "credentials_required_count": _safe_int(
+                    item.get("credentials_required_count", 0)
+                ),
+                "network_supported_count": _safe_int(
+                    item.get("network_supported_count", 0)
+                ),
+                "operator_execution_gate": {
+                    "gate_status": "operator_review_required",
+                    "requires_operator_review": True,
+                    "required_before_execution": [
+                        "review local input package",
+                        "run commands preflight before invoking target CLI",
+                    ],
+                    "safe_for_unattended_execution": False,
+                    "downloads_triggered": 0,
+                    "providers_contacted": 0,
+                    "network_access": False,
+                    "strict_scientific_deliverable": False,
+                },
+            }
+        )
+    first_item = batch_items[0] if batch_items else {}
+    return {
+        "schema_version": "coverage_route_next_batch_packet.v1",
+        "available": bool(batch_items),
+        "batch_status": "ready_for_operator_review" if batch_items else "no_action",
+        "batch_item_count": len(batch_items),
+        "batch_record_count": sum(
+            _safe_int(item.get("record_count", 0)) for item in batch_items
+        ),
+        "source_summary_schema_version": str(
+            provider_route_summary.get("schema_version", "")
+        ),
+        "source_provider_count": _safe_int(
+            provider_route_summary.get("provider_count", 0)
+        ),
+        "planning_handoff_provider_count": _safe_int(
+            provider_route_summary.get("planning_handoff_provider_count", 0)
+        ),
+        "metadata_review_only_provider_count": _safe_int(
+            provider_route_summary.get("metadata_review_only_provider_count", 0)
+        ),
+        "first_provider_key": str(first_item.get("provider_key", "")),
+        "first_route_priority": str(first_item.get("route_priority", "")),
+        "first_recommended_operator_action": str(
+            first_item.get("recommended_operator_action", "")
+        ),
+        "first_required_local_input": str(
+            first_item.get("required_local_input", "")
+        ),
+        "batch_items": batch_items,
+        "truncated": len(priority_items) > limit,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_route_next_batch_no_execution",
+    }
 
 
 def _coverage_action_route(action_code: str) -> dict[str, str]:
@@ -4947,6 +5077,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_provider_route_opportunity_summary": (
             _coverage_provider_route_opportunity_summary(())
         ),
+        "coverage_route_next_batch_packet": _coverage_route_next_batch_packet(
+            _coverage_provider_route_opportunity_summary(())
+        ),
         "coverage_action_queue": [],
         "coverage_action_queue_summary": {
             "queue_item_count": 0,
@@ -5226,6 +5359,7 @@ def _rendered_outputs(
             "coverage_next_action_groups",
             "coverage_opportunity_summary",
             "coverage_provider_route_opportunity_summary",
+            "coverage_route_next_batch_packet",
             "coverage_action_queue",
             "coverage_action_queue_summary",
             "coverage_priority_summary",
