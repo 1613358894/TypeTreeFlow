@@ -1819,6 +1819,13 @@ next-input class, provider automation-level record counts, and
 `automation_boundary=prioritization_only_no_execution`. It is prioritization
 metadata only and does not authorize provider access, downloads, registration,
 manifest mutation, or strict completion.
+`coverage_next_task_packet` is the single current-task packet derived from the
+first queued item. It repeats the action code, route, next-input class, required
+inputs, structured `recommended_request`, recommended command, and explicit
+no-execution safety fields so AI controllers can pass the request through
+`commands render`, `commands plan`, or `commands preflight` before any local
+operator action. It is metadata only and always reports
+`safe_for_unattended_download=false`.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

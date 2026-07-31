@@ -463,6 +463,29 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "safe_for_unattended_download_record_count": 0,
         "automation_boundary": "prioritization_only_no_execution",
     }
+    assert payload["coverage_next_task_packet"] == {
+        "available": True,
+        "packet_status": "ready_for_operator_review",
+        "queue_position": 1,
+        "action_code": "resolve_curator_conflict",
+        "operator_route": "curator_decision",
+        "next_input_class": "curator_conflict_decision",
+        "automation_boundary": "manual_review_required",
+        "record_count": 1,
+        "required_inputs": ["curator conflict decision with independent review"],
+        "recommended_request": {
+            "command": "manual-review",
+            "subcommand": "validate",
+            "input": "<review.tsv>",
+        },
+        "recommended_next_command": "manual-review validate --input <review.tsv>",
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_run_commands_plan_or_preflight_first",
+    }
     assert payload["current_coverage_action_queue_item"]["action_code"] == (
         "resolve_curator_conflict"
     )
@@ -854,6 +877,15 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_action_queue_summary"][
         "public_metadata_review_required_count"
     ] == 2
+    assert summary["coverage_next_task_packet"]["action_code"] == (
+        "resolve_curator_conflict"
+    )
+    assert summary["coverage_next_task_packet"]["required_inputs"] == [
+        "curator conflict decision with independent review"
+    ]
+    assert summary["coverage_next_task_packet"]["execution_boundary"] == (
+        "metadata_only_run_commands_plan_or_preflight_first"
+    )
     assert summary["current_coverage_action_queue_item"]["operator_route"] == (
         "curator_decision"
     )
@@ -1269,6 +1301,13 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         "provider_handoff": 1,
         "public_metadata_review": 2,
     }
+    assert status_payload["coverage_next_task_packet"]["packet_status"] == (
+        "ready_for_operator_review"
+    )
+    assert status_payload["coverage_next_task_packet"]["action_code"] == (
+        "resolve_curator_conflict"
+    )
+    assert status_payload["coverage_next_task_packet"]["safe_for_unattended_download"] is False
     assert status_payload["operator_chain_stages"][6]["summary_operator_route_counts"] == {
         "provider_handoff": 1
     }
@@ -1653,6 +1692,13 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_action_queue_summary"][
         "safe_for_unattended_download_count"
     ] == 0
+    assert payload["coverage_next_task_packet"]["queue_position"] == 1
+    assert payload["coverage_next_task_packet"]["recommended_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    }
+    assert payload["coverage_next_task_packet"]["downloads_triggered"] == 0
     assert payload["current_coverage_action_queue_item"]["queue_position"] == 1
     assert payload["provider_automation_level_counts"] == {
         "metadata_review": 6,
@@ -2047,6 +2093,25 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
     assert payload["primary_action_required_inputs"] == []
     assert payload["primary_action_recommended_request"] is None
     assert payload["primary_action_recommended_next_command"] == ""
+    assert payload["coverage_next_task_packet"] == {
+        "available": False,
+        "packet_status": "no_action",
+        "queue_position": 0,
+        "action_code": "",
+        "operator_route": "",
+        "next_input_class": "",
+        "automation_boundary": "next_task_only_no_execution",
+        "record_count": 0,
+        "required_inputs": [],
+        "recommended_request": None,
+        "recommended_next_command": "",
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_run_commands_plan_or_preflight_first",
+    }
 
     code, payload, _ = _run(["--checklist-tsv", str(tmp_path / "missing.tsv")], capsys)
     assert code == 2
@@ -2066,6 +2131,8 @@ def test_coverage_pipeline_invalid_usage_keeps_routing_metadata(capsys):
     assert payload["primary_action_required_inputs"] == []
     assert payload["primary_action_recommended_request"] is None
     assert payload["primary_action_recommended_next_command"] == ""
+    assert payload["coverage_next_task_packet"]["available"] is False
+    assert payload["coverage_next_task_packet"]["packet_status"] == "no_action"
     assert payload["provider_request_recommended_request"] == {
         "command": "provider-request",
         "subcommand": "draft",
