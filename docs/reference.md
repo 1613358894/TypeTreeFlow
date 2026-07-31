@@ -2520,9 +2520,11 @@ entries are `planning_only`; public archive entries are `metadata_only`.
 Coverage action planning may use explicit
 `provider_keys`, `candidate_provider_keys`, `preferred_provider_keys`, or
 `provider_key` hints from local rows and normalizes known aliases to canonical
-provider keys. These statuses and hints describe review guidance only and do
-not enable provider network access, automatic downloads, credentials, terms
-acceptance, or strict type-strain confirmation.
+provider keys. Provider hint fields may also contain recognizable standalone
+culture-collection tokens such as `ATCC`, `DSMZ`, or `KCTC`; these are still
+normalized only as review hints. These statuses and hints describe review
+guidance only and do not enable provider network access, automatic downloads,
+credentials, terms acceptance, or strict type-strain confirmation.
 
 `likely_type_material`, `representative_only`, provider proposals, and local
 query records are not strict confirmed type strains. Strict wording requires

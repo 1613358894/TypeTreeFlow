@@ -103,6 +103,15 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
     assert registry.keys_from_text(
         "ATCC 1001; DSMZ 2002; DSM-2003; BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006"
     ) == ("atcc_genome_portal", "dsmz", "bccm_lmg")
+    assert registry.keys_from_text("ATCC; DSMZ; JCM") == (
+        "atcc_genome_portal",
+        "dsmz",
+        "jcm",
+    )
+    assert registry.keys_from_text(
+        "German Collection of Microorganisms and Cell Cultures (DSMZ); "
+        "Korean Collection for Type Cultures (KCTC)"
+    ) == ("dsmz", "kctc")
     assert registry.keys_from_text("no culture collection token") == ()
     assert registry.canonical_key("unregistered provider") is None
 
