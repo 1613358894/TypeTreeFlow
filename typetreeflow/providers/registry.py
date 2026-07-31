@@ -52,7 +52,7 @@ class ProviderRegistry:
         normalized = text.upper()
         provider_keys: list[str] = []
         for prefix, provider_key in _TOKEN_PREFIXES:
-            pattern = rf"(?<![A-Z0-9]){re.escape(prefix)}(?:\s*[-:/]?\s*[A-Z0-9]|$)"
+            pattern = rf"(?<![A-Z0-9]){re.escape(prefix)}(?=$|[^A-Z0-9])"
             if re.search(pattern, normalized) and provider_key not in provider_keys:
                 provider_keys.append(provider_key)
         return tuple(provider_keys)

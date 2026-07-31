@@ -349,6 +349,34 @@ def test_worklist_explicit_provider_hints_accept_registry_display_names():
     }
 
 
+def test_worklist_provider_hints_extract_standalone_tokens_from_hint_fields():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium tokenhintum"}],
+        reconciler_rows=[
+            _row(
+                "Clostridium tokenhintum",
+                reconciled_evidence_tier="missing_public_genome",
+                candidate_provider_keys=(
+                    "ATCC; German Collection of Microorganisms and Cell Cultures "
+                    "(DSMZ); Korean Collection for Type Cultures (KCTC)"
+                ),
+            )
+        ],
+        completion_gap_rows=[
+            {"species": "Clostridium tokenhintum", "reason_category": "missing_genome"}
+        ],
+    )
+
+    assert report.rows[0].candidate_provider_keys == (
+        "atcc_genome_portal; dsmz; kctc"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "atcc_genome_portal": 1,
+        "dsmz": 1,
+        "kctc": 1,
+    }
+
+
 def test_worklist_conflict_overrides_archive_candidate():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium conflictum"}],

@@ -572,6 +572,10 @@ def _extend_provider_keys_from_tokens(
             "ncbi_culture_collection_ids",
             "curator_culture_collection_ids",
             "matched_lpsn_type_strain_ids",
+            "candidate_provider_keys",
+            "preferred_provider_keys",
+            "provider_keys",
+            "provider_key",
             "tokens",
             "token",
         )
