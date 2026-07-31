@@ -104,6 +104,7 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
     assert packet["ready_count"] == 1
     assert packet["blocked_count"] == 0
     assert packet["exported_count"] == 1
+    assert packet["provider_route_groups"] == payload["provider_route_groups"]
     assert packet["next_stage"] == "external_genomes_validate"
     assert packet["recommended_request"] == {
         "command": "external-genomes",

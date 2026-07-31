@@ -3250,6 +3250,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["provider_request_validation_readiness_packet"][
         "install_plan_recommended_request_target"
     ] == ""
+    assert payload["provider_request_validation_readiness_packet"][
+        "provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
     assert payload["provider_request_external_genomes_readiness_packet"][
         "next_stage"
     ] == "external_genomes_validate"
@@ -3259,12 +3262,18 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["provider_request_external_genomes_readiness_packet"][
         "install_plan_recommended_request_target"
     ] == "external-genomes install-plan"
+    assert payload["provider_request_external_genomes_readiness_packet"][
+        "provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
     assert payload["external_genomes_install_plan_readiness_packet"][
         "next_stage"
     ] == "external_genomes_registration_dry_run"
     assert payload["external_genomes_install_plan_readiness_packet"][
         "recommended_request_target"
     ] == "register-external-genomes"
+    assert payload["external_genomes_install_plan_readiness_packet"][
+        "provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
     assert set(payload["operator_chain_readiness_packets"]) == {
         "provider_request_validation",
         "provider_request_external_genomes",
@@ -3357,6 +3366,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert status_payload["operator_chain_stages"][5][
         "summary_provider_request_readiness_packet"
     ]["recommended_request_target"] == "external-genomes validate"
+    assert status_payload["operator_chain_stages"][5][
+        "summary_provider_request_readiness_packet"
+    ]["provider_route_groups"][0]["provider_key_counts"] == {"dsmz": 1}
     assert status_payload["operator_chain_stages"][5]["summary_operator_route_counts"] == {
         "provider_handoff": 1
     }
@@ -3383,6 +3395,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert status_payload["operator_chain_stages"][6][
         "summary_external_genomes_readiness_packet"
     ]["recommended_request_target"] == "register-external-genomes"
+    assert status_payload["operator_chain_stages"][6][
+        "summary_external_genomes_readiness_packet"
+    ]["provider_route_groups"][0]["provider_key_counts"] == {"dsmz": 1}
     assert set(status_payload["operator_chain_readiness_packets"]) == {
         "provider_request_validation",
         "provider_request_external_genomes",

@@ -791,6 +791,11 @@ def _provider_request_readiness_packet(
         "blocked_count": blocked_count,
         "exported_count": _safe_int(payload.get("exported_count", 0)),
         "diagnostic_count": diagnostic_count,
+        "provider_route_groups": (
+            list(payload.get("provider_route_groups", []))
+            if isinstance(payload.get("provider_route_groups"), list)
+            else []
+        ),
         "next_stage": next_stage if ready else "",
         "required_inputs": (
             list(payload.get("required_inputs", []))

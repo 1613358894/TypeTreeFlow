@@ -372,6 +372,7 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
         "ready_count": 1,
         "blocked_count": 0,
         "status_counts": {"external_genome_registered": 1},
+        "provider_route_groups": [],
         "next_stage": "external_genomes_install_plan",
         "required_inputs": ["external_genomes.tsv"],
         "recommended_request": {
@@ -454,6 +455,7 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
     assert packet["ready_count"] == 1
     assert packet["blocked_count"] == 0
     assert packet["status_counts"] == {"external_genome_install_planned": 1}
+    assert packet["provider_route_groups"] == []
     assert packet["required_inputs"] == [path.as_posix()]
     assert packet["recommended_request"] == {
         "command": "register-external-genomes",

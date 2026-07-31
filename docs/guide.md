@@ -188,9 +188,9 @@ draft row notes when available, but it does not echo local FASTA paths, hashes,
 provider notes, or sequence contents. It also includes the next offline
 `provider-request external-genomes-handoff` request plus a compact
 `provider_request_readiness_packet` for AI/operator controllers. Ready packets
-include a metadata-only `recommended_command_plan` so controllers can see the
-compact `recommended_request_target`, rendered argv, and preflight blocker IDs
-before asking for write allowance. With `--write`, it publishes only
+include `provider_route_groups` and a metadata-only `recommended_command_plan`
+so controllers can see the compact `recommended_request_target`, rendered argv,
+and preflight blocker IDs before asking for write allowance. With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated
 directory. Passing validation only means the rows are ready for
@@ -216,8 +216,8 @@ summary JSON include exported route counts, provider route groups, plus the next
 the matching
 `provider_request_readiness_packet` exposes those requests only when every row
 is ready. The packet also carries metadata-only command plans for those next
-requests; install-plan writes remain blocked until explicit write allowance is
-supplied. Controlled route
+requests and the same `provider_route_groups`; install-plan writes remain
+blocked until explicit write allowance is supplied. Controlled route
 metadata may be copied into `external_genomes.tsv` notes, but raw provider or
 curator notes are not copied. This is still only a handoff input: it does not
 register external genomes, copy FASTA files, mutate manifests, contact
@@ -1125,7 +1125,8 @@ checks local FASTA readiness and planned install destinations before invoking
 the workflow registration surface, while leaving the target run unmodified.
 Both `validate` and `install-plan` emit `external_genomes_readiness_packet`, a
 metadata-only handoff that says whether the packet is ready for the next local
-stage and, when ready, carries the structured next request. It always keeps
+stage and, when ready, carries the structured next request. It also carries
+`provider_route_groups` when reviewed notes include controlled route metadata. It always keeps
 `safe_for_unattended_execution=false`; an AI/operator must still review the
 packet before invoking the next CLI command.
 When provider handoff route metadata is present in reviewed row notes, validate,

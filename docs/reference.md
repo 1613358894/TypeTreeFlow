@@ -1708,8 +1708,10 @@ structured `recommended_request` for the next offline
 `provider_request_readiness_packet`, a compact AI/operator handoff object with
 `stage=validate`, status/count fields, audit-only boundary flags, and
 `next_stage=provider_request_external_genomes_handoff` only when every row is
-ready. Ready packets include compact `recommended_request_target` labels for
-AI/controller routing. Blocked or failed validation packets keep
+ready. It carries `provider_route_groups` when controlled route metadata is
+present, so controllers can route without re-reading the parent payload. Ready
+packets include compact `recommended_request_target` labels for AI/controller
+routing. Blocked or failed validation packets keep
 `recommended_request=null`, empty request-target labels, and an empty
 `recommended_next_command`. Ready packets also include
 `recommended_command_plan`, a non-executing `commands plan` companion for the
@@ -1763,7 +1765,8 @@ manual path reconstruction. The payload and written summary also include
 `provider_request_readiness_packet` with `stage=external_genomes_draft`; it
 sets `next_stage=external_genomes_validate` and exposes the validation and
 install-plan recommended requests only when every provider request row was
-exported. Ready packets also include `recommended_command_plan` for the
+exported. The packet retains `provider_route_groups` from the exported ready
+rows. Ready packets also include `recommended_command_plan` for the
 validation request and `install_plan_recommended_command_plan` for the
 install-plan request, plus compact `recommended_request_target` and
 `install_plan_recommended_request_target` labels. These companions are
@@ -2257,7 +2260,8 @@ The validate payload also includes `external_genomes_readiness_packet`. When
 every row is valid, that packet reports `status=ready_for_next_stage`,
 `next_stage=external_genomes_install_plan`, and a structured request for
 `external-genomes install-plan`; otherwise it reports the blocked count and does
-not emit a next request. The packet is metadata only and always keeps
+not emit a next request. The packet also carries `provider_route_groups` when
+controlled route metadata is present. The packet is metadata only and always keeps
 `safe_for_unattended_execution=false`. Ready packets include
 `recommended_command_plan`, a no-dispatch companion that renders and preflights
 the next structured request for AI/operator routing.
