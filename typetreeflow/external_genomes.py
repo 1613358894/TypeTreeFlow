@@ -919,6 +919,187 @@ def summarize_external_genome_packet_readiness(
     return {key: dict(sorted(counter.items())) for key, counter in counts.items()}
 
 
+def summarize_external_genome_action_summary(
+    rows: Iterable[object],
+    *,
+    stage: str,
+) -> list[dict[str, object]]:
+    """Group external-genomes validation/install-plan rows into local actions."""
+
+    groups: dict[str, dict[str, object]] = {}
+    for row in rows:
+        status = str(getattr(row, "status", "") or "")
+        route = _external_genome_action_route(stage, status)
+        group = groups.setdefault(
+            status,
+            {
+                "priority": route["priority"],
+                "stage": stage,
+                "status": status,
+                "next_input_class": route["next_input_class"],
+                "recommended_action": route["recommended_action"],
+                "recommended_next_command": route["recommended_next_command"],
+                "automation_boundary": route["automation_boundary"],
+                "record_count": 0,
+                "species": [],
+                "external_source_counts": Counter(),
+            },
+        )
+        group["record_count"] = int(group["record_count"]) + 1
+        species = group["species"]
+        if isinstance(species, list):
+            _append_unique(species, str(getattr(row, "species", "") or ""))
+        source = str(getattr(row, "external_source", "") or "").strip().casefold()
+        group_source_counts = group["external_source_counts"]
+        if isinstance(group_source_counts, Counter):
+            group_source_counts[source or "missing"] += 1
+
+    summary: list[dict[str, object]] = []
+    for group in sorted(
+        groups.values(),
+        key=lambda item: (int(item["priority"]), str(item["status"])),
+    ):
+        species_values = [
+            species
+            for species in group["species"]  # type: ignore[index]
+            if str(species).strip()
+        ]
+        source_counts = group["external_source_counts"]
+        summary.append(
+            {
+                "priority": group["priority"],
+                "stage": group["stage"],
+                "status": group["status"],
+                "next_input_class": group["next_input_class"],
+                "recommended_action": group["recommended_action"],
+                "automation_boundary": group["automation_boundary"],
+                "record_count": group["record_count"],
+                "species_count": len(set(species_values)),
+                **_bounded_species_preview(species_values),
+                "external_source_counts": (
+                    dict(sorted(source_counts.items()))
+                    if isinstance(source_counts, Counter)
+                    else {}
+                ),
+                "recommended_next_command": group["recommended_next_command"],
+                "safe_for_unattended_execution": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+        )
+    return summary
+
+
+def _external_genome_action_route(stage: str, status: str) -> dict[str, object]:
+    if stage == "validate":
+        if status == "external_genome_registered":
+            return {
+                "priority": 10,
+                "next_input_class": "external_genomes install-plan",
+                "recommended_action": "build local install plan for validated FASTA rows",
+                "recommended_next_command": (
+                    "external-genomes install-plan --input <external_genomes.tsv> "
+                    "--target-outdir <run>"
+                ),
+                "automation_boundary": "local_install_plan_review_no_execution",
+            }
+        if status == "external_genome_missing_file":
+            return {
+                "priority": 20,
+                "next_input_class": "external_genomes.tsv",
+                "recommended_action": "supply an existing local FASTA path",
+                "recommended_next_command": (
+                    "external-genomes validate --input <external_genomes.tsv>"
+                ),
+                "automation_boundary": "local_fasta_required_no_download",
+            }
+        if status == "external_genome_checksum_mismatch":
+            return {
+                "priority": 30,
+                "next_input_class": "external_genomes.tsv",
+                "recommended_action": "fix FASTA checksum or replace the local file",
+                "recommended_next_command": (
+                    "external-genomes validate --input <external_genomes.tsv>"
+                ),
+                "automation_boundary": "local_checksum_review_no_download",
+            }
+        if status == "external_genome_manual_review_required":
+            return {
+                "priority": 40,
+                "next_input_class": "external_genomes.tsv",
+                "recommended_action": "complete manual review before install planning",
+                "recommended_next_command": (
+                    "external-genomes validate --input <external_genomes.tsv>"
+                ),
+                "automation_boundary": "manual_review_required_no_execution",
+            }
+    if stage == "install_plan":
+        if status == "external_genome_install_planned":
+            return {
+                "priority": 10,
+                "next_input_class": "register-external-genomes dry-run",
+                "recommended_action": "review registration dry-run before manifest mutation",
+                "recommended_next_command": (
+                    "typetreeflow --register-external-genomes "
+                    "<external_genomes.tsv> --outdir <run> --dry-run"
+                ),
+                "automation_boundary": "registration_dry_run_review_no_apply",
+            }
+        if status == "external_genome_install_skipped_existing":
+            return {
+                "priority": 20,
+                "next_input_class": "target outdir review",
+                "recommended_action": "review existing installed path or rerun with force",
+                "recommended_next_command": (
+                    "external-genomes install-plan --input <external_genomes.tsv> "
+                    "--target-outdir <run>"
+                ),
+                "automation_boundary": "existing_install_review_no_overwrite",
+            }
+        if status == "external_genome_install_skipped_invalid":
+            return {
+                "priority": 30,
+                "next_input_class": "external_genomes.tsv",
+                "recommended_action": "fix invalid external-genomes rows before planning",
+                "recommended_next_command": (
+                    "external-genomes validate --input <external_genomes.tsv>"
+                ),
+                "automation_boundary": "local_input_fix_required_no_execution",
+            }
+    return {
+        "priority": 90,
+        "next_input_class": "external_genomes.tsv",
+        "recommended_action": "review external-genomes status",
+        "recommended_next_command": "external-genomes validate --input <external_genomes.tsv>",
+        "automation_boundary": "local_review_required_no_execution",
+    }
+
+
+def _bounded_species_preview(
+    values: Iterable[str],
+    *,
+    limit: int = 5,
+) -> dict[str, object]:
+    species: list[str] = []
+    for value in values:
+        cleaned = str(value).strip()
+        if cleaned and cleaned not in species:
+            species.append(cleaned)
+    return {
+        "species_preview": species[:limit],
+        "species_truncated": len(species) > limit,
+    }
+
+
+def _append_unique(values: list[str], value: str) -> None:
+    cleaned = str(value).strip()
+    if cleaned and cleaned not in values:
+        values.append(cleaned)
+
+
 def validate_external_genomes(
     records: Iterable[ExternalGenomeRecord],
     *,
