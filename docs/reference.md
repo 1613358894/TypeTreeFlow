@@ -1957,11 +1957,11 @@ workflow-output writes, manifest mutation, external-genomes registration, and
 strict deliverable promotion remain disabled.
 `coverage_controller_inspection_summary` is the bounded index over the parent
 controller, controller, step-summary, preflight, handoff-next-step, and
-handoff server-validation, and route-batch packets. It lists each surface's
-availability, schema version, target argv, blocker IDs, warning IDs, and
-execution boundary so a parent process can inspect one compact table before
-expanding nested packets. It is also metadata only and does not authorize
-target command execution.
+handoff server-validation packet/runbook, and route-batch packets. It lists
+each surface's availability, schema version, target argv, blocker IDs, warning
+IDs, and execution boundary so a parent process can inspect one compact table
+before expanding nested packets. It is also metadata only and does not
+authorize target command execution.
 `coverage_controller_runbook_packet` converts the parent-controller
 recommendation and inspection summary into an ordered metadata-only checklist
 for parent processes: inspect controller surfaces, inspect the recommended
