@@ -286,7 +286,9 @@ summaries also expose execution-gate counts for controller-level triage.
 Queue rows also carry `operator_execution_gate` and `review_input_packet` so
 controllers can route required local inputs without first expanding a selected
 packet; the queue and priority summaries count review-input schemas for the
-same reason. Opportunity and queue rows carry the same structured
+same reason. They also summarize recommended request targets, such as
+`manual-review validate` or `provider-request draft`, without rendering or
+executing those requests. Opportunity and queue rows carry the same structured
 `recommended_request` objects used by `commands render` / `commands plan`, but
 they still require normal planning or preflight before execution. They also carry
 bounded species previews so an AI/operator can see which records start each

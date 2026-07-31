@@ -607,6 +607,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}": 3,
             "provider_handoff.v1": 1,
         },
+        "recommended_request_target_counts": {
+            "manual-review validate": 3,
+            "provider-request draft": 1,
+        },
         "manual_or_curator_input_required_count": 1,
         "provider_handoff_required_count": 1,
         "public_metadata_review_required_count": 2,
@@ -645,6 +649,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                         "input": "<review.tsv>",
                     },
                 ),
+                "recommended_request_target": "manual-review validate",
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -681,6 +686,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                         "input": "<review.tsv>",
                     },
                 ),
+                "recommended_request_target": "manual-review validate",
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -717,6 +723,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                         "input": "<review.tsv>",
                     },
                 ),
+                "recommended_request_target": "manual-review validate",
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -745,6 +752,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "review_input_schema_record_counts": {
             f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}": 3,
             "provider_handoff.v1": 1,
+        },
+        "recommended_request_target_record_counts": {
+            "manual-review validate": 3,
+            "provider-request draft": 1,
         },
         "provider_automation_level_record_counts": {
             "metadata_review": 6,
