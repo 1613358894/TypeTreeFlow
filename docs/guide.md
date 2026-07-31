@@ -535,6 +535,10 @@ confirmations so a server agent can fill an authorized bounded-validation
 result without inventing field names. It remains metadata-only and does not
 write files, validate artifacts, dispatch target commands, contact providers,
 or download genomes.
+The server-validation packet, runbook, result contract, and result template also
+carry the same structured `recommended_request` as the handoff next-step packet
+when it is available, allowing AI controllers to pass the packet directly to
+`commands render` or `commands plan` for metadata-only argv/preflight review.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage

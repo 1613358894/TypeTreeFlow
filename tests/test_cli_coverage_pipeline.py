@@ -590,6 +590,9 @@ def _assert_handoff_next_step_packet(
     assert server_validation["recommended_request_target"] == packet[
         "recommended_request_target"
     ]
+    assert server_validation["recommended_request"] == packet[
+        "recommended_request"
+    ]
     assert server_validation["recommended_argv"] == packet["target_argv"]
     assert server_validation["preflight_decision"] == packet["preflight_decision"]
     assert server_validation["blocking_ids"] == packet["blocking_ids"]
@@ -646,6 +649,9 @@ def _assert_handoff_next_step_packet(
     assert server_runbook["next_artifact"] == server_validation["next_artifact"]
     assert server_runbook["recommended_request_target"] == server_validation[
         "recommended_request_target"
+    ]
+    assert server_runbook["recommended_request"] == server_validation[
+        "recommended_request"
     ]
     assert server_runbook["recommended_argv"] == server_validation[
         "recommended_argv"
@@ -807,6 +813,9 @@ def _assert_handoff_next_step_packet(
     assert result_contract["recommended_request_target"] == server_validation[
         "recommended_request_target"
     ]
+    assert result_contract["recommended_request"] == server_validation[
+        "recommended_request"
+    ]
     assert result_contract["recommended_argv"] == server_validation[
         "recommended_argv"
     ]
@@ -910,6 +919,9 @@ def _assert_handoff_next_step_packet(
     assert result_template["recommended_request_target"] == (
         result_contract["recommended_request_target"]
     )
+    assert result_template["recommended_request"] == result_contract[
+        "recommended_request"
+    ]
     assert result_template["recommended_argv"] == result_contract[
         "recommended_argv"
     ]
