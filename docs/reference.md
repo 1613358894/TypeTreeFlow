@@ -706,8 +706,11 @@ stable top-level JSON field, schema version, and purpose for command outputs
 that include AI/operator handoff packets. Some contracts also list
 `summary_fields` when a compact summary has stable AI-routing fields; for
 example `coverage_plan_packet.v1` lists provider route count fields such as
-`operator_route_counts` and `provider_route_groups`. Other contracts describe
-AI/operator handoff packets such as
+`operator_route_counts` and `provider_route_groups`. Provider-handoff,
+provider-request, and external-genomes readiness contracts use the same pattern
+for route counts, readiness counts, required inputs, and recommended next
+requests when those fields are stable. Other contracts describe AI/operator
+handoff packets such as
 `provider_request_readiness_packet`, `external_genomes_readiness_packet`, and
 `operator_chain_readiness_packets`.
 `commands recognize`, `commands render`, `commands plan`, and

@@ -47,11 +47,12 @@ The catalog command emits the stable command surface for AI operators. The
 catalog entries also list stable `output_contracts`, `output_contract_names`,
 and `output_contract_count` for AI/operator packet fields such as readiness and
 operator-chain handoff packets. Contracts may include `summary_fields` for
-stable compact routing summaries, such as coverage-plan operator-route counts.
-The recognize, render, plan, and preflight commands echo the recognized target
-command's output-contract metadata in their own JSON envelope so an AI operator
-can route the expected handoff packet without a second catalog lookup or full
-contract scan.
+stable compact routing summaries across the coverage-plan, provider-handoff,
+provider-request, and external-genomes handoff chain. The recognize, render,
+plan, and preflight commands echo the recognized target command's
+output-contract metadata in their own JSON envelope so an AI operator can route
+the expected handoff packet without a second catalog lookup or full contract
+scan.
 
 The recognize command emits one compact JSON object describing a proposed argv
 shape, including recognized command, mode, write-output declaration, and outdir
