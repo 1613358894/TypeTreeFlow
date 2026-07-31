@@ -861,6 +861,13 @@ def _run_status(
             ),
         )
     )
+    coverage_handoff_server_validation_result_template_packet = (
+        _coverage_handoff_server_validation_result_template_packet(
+            coverage_handoff_server_validation_result_contract_packet=(
+                coverage_handoff_server_validation_result_contract_packet
+            ),
+        )
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -961,6 +968,9 @@ def _run_status(
             coverage_handoff_server_validation_result_contract_packet=(
                 coverage_handoff_server_validation_result_contract_packet
             ),
+            coverage_handoff_server_validation_result_template_packet=(
+                coverage_handoff_server_validation_result_template_packet
+            ),
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
     )
@@ -1024,6 +1034,9 @@ def _run_status(
         ),
         "coverage_handoff_server_validation_result_contract_packet": (
             coverage_handoff_server_validation_result_contract_packet
+        ),
+        "coverage_handoff_server_validation_result_template_packet": (
+            coverage_handoff_server_validation_result_template_packet
         ),
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -2220,6 +2233,13 @@ def _payload(
             ),
         )
     )
+    coverage_handoff_server_validation_result_template_packet = (
+        _coverage_handoff_server_validation_result_template_packet(
+            coverage_handoff_server_validation_result_contract_packet=(
+                coverage_handoff_server_validation_result_contract_packet
+            ),
+        )
+    )
     coverage_next_action_groups = _coverage_next_action_groups(
         coverage_plan.actions
     )
@@ -2320,6 +2340,9 @@ def _payload(
             ),
             coverage_handoff_server_validation_result_contract_packet=(
                 coverage_handoff_server_validation_result_contract_packet
+            ),
+            coverage_handoff_server_validation_result_template_packet=(
+                coverage_handoff_server_validation_result_template_packet
             ),
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
@@ -2654,6 +2677,9 @@ def _payload(
         ),
         "coverage_handoff_server_validation_result_contract_packet": (
             coverage_handoff_server_validation_result_contract_packet
+        ),
+        "coverage_handoff_server_validation_result_template_packet": (
+            coverage_handoff_server_validation_result_template_packet
         ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -3728,6 +3754,127 @@ def _coverage_handoff_server_validation_result_contract_packet(
         "external_genomes_registration_applied": False,
         "execution_boundary": (
             "metadata_only_handoff_server_validation_result_contract_no_execution"
+        ),
+    }
+
+
+def _coverage_handoff_server_validation_result_template_packet(
+    *,
+    coverage_handoff_server_validation_result_contract_packet: Mapping[
+        str, object
+    ],
+) -> dict[str, object]:
+    available = bool(
+        coverage_handoff_server_validation_result_contract_packet.get("available")
+    )
+    boundary_confirmations = {
+        "filesystem_probe_performed": False,
+        "artifact_validation_performed": False,
+        "target_command_execution_authorized": False,
+        "provider_contact_allowed": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+    }
+    result_template = {
+        "schema_version": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "expected_result_schema_version", ""
+            )
+        ),
+        "status": "blocked",
+        "validation_status": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "validation_status", "no_action"
+            )
+        ),
+        "checked_surface_names": _string_list_field(
+            coverage_handoff_server_validation_result_contract_packet,
+            "checked_surface_names",
+        ),
+        "input_readiness_status": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "input_readiness_status", ""
+            )
+        ),
+        "blocking_ids": [],
+        "warning_ids": [],
+        "boundary_confirmations": boundary_confirmations,
+        "diagnostics": [],
+        "summary": (
+            "Fill after an explicitly authorized bounded server-validation "
+            "inspection; keep blocked until evidence proves otherwise."
+        ),
+    }
+    return {
+        "schema_version": (
+            "coverage_handoff_server_validation_result_template_packet.v1"
+        ),
+        "available": available,
+        "template_status": (
+            "operator_review_required" if available else "no_action"
+        ),
+        "result_filename": "coverage_handoff_server_validation_result.json",
+        "expected_result_schema_version": result_template["schema_version"],
+        "expected_result_statuses": _string_list_field(
+            coverage_handoff_server_validation_result_contract_packet,
+            "expected_result_statuses",
+        ),
+        "required_result_fields": _string_list_field(
+            coverage_handoff_server_validation_result_contract_packet,
+            "required_result_fields",
+        ),
+        "required_result_field_count": _safe_int(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "required_result_field_count", 0
+            )
+        ),
+        "checked_surface_names": result_template["checked_surface_names"],
+        "checked_surface_count": len(result_template["checked_surface_names"]),
+        "boundary_confirmation_keys": list(boundary_confirmations),
+        "boundary_confirmation_count": len(boundary_confirmations),
+        "result_template": result_template,
+        "result_template_default_status": "blocked",
+        "result_template_requires_operator_completion": True,
+        "result_template_is_schema_shape_only": True,
+        "result_template_may_be_used_without_execution": True,
+        "source_contract_schema_version": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "schema_version", ""
+            )
+        ),
+        "recommended_request_target": str(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "recommended_request_target", ""
+            )
+        ),
+        "recommended_argv": _string_list_field(
+            coverage_handoff_server_validation_result_contract_packet,
+            "recommended_argv",
+        ),
+        "target_command_execution_authorized": False,
+        "provider_contact_allowed": False,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": (
+            "operator_review_required" if available else "no_action"
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "metadata_only_handoff_server_validation_result_template_no_execution"
         ),
     }
 
@@ -5694,6 +5841,7 @@ def _coverage_controller_inspection_summary(
     coverage_handoff_server_validation_packet: Mapping[str, object],
     coverage_handoff_server_validation_runbook_packet: Mapping[str, object],
     coverage_handoff_server_validation_result_contract_packet: Mapping[str, object],
+    coverage_handoff_server_validation_result_template_packet: Mapping[str, object],
     coverage_route_next_batch_packet: Mapping[str, object],
 ) -> dict[str, object]:
     surfaces = [
@@ -5734,6 +5882,11 @@ def _coverage_controller_inspection_summary(
         _controller_inspection_surface_item(
             "coverage_handoff_server_validation_result_contract_packet",
             coverage_handoff_server_validation_result_contract_packet,
+            argv_key="recommended_argv",
+        ),
+        _controller_inspection_surface_item(
+            "coverage_handoff_server_validation_result_template_packet",
+            coverage_handoff_server_validation_result_template_packet,
             argv_key="recommended_argv",
         ),
         _controller_inspection_surface_item(
@@ -7088,6 +7241,13 @@ def _failure(code: str, message: str) -> dict[str, object]:
             ),
         )
     )
+    empty_handoff_server_validation_result_template_packet = (
+        _coverage_handoff_server_validation_result_template_packet(
+            coverage_handoff_server_validation_result_contract_packet=(
+                empty_handoff_server_validation_result_contract_packet
+            ),
+        )
+    )
     empty_parent_controller_packet = _coverage_parent_controller_packet(
         coverage_controller_packet=empty_controller_packet,
         coverage_controller_step_summary=empty_controller_step_summary,
@@ -7119,6 +7279,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
             ),
             coverage_handoff_server_validation_result_contract_packet=(
                 empty_handoff_server_validation_result_contract_packet
+            ),
+            coverage_handoff_server_validation_result_template_packet=(
+                empty_handoff_server_validation_result_template_packet
             ),
             coverage_route_next_batch_packet=empty_route_next_batch_packet,
         )
@@ -7363,6 +7526,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_handoff_server_validation_result_contract_packet": (
             empty_handoff_server_validation_result_contract_packet
         ),
+        "coverage_handoff_server_validation_result_template_packet": (
+            empty_handoff_server_validation_result_template_packet
+        ),
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -7439,6 +7605,7 @@ def _rendered_outputs(
             "coverage_handoff_server_validation_packet",
             "coverage_handoff_server_validation_runbook_packet",
             "coverage_handoff_server_validation_result_contract_packet",
+            "coverage_handoff_server_validation_result_template_packet",
             "coverage_operator_queue_preview",
             "coverage_operator_route_summary",
             "coverage_controller_packet",
