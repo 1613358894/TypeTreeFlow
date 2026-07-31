@@ -1523,8 +1523,9 @@ keys before summary counting. Recognized hints are additive across supported
 fields, so an unrecognized local source label does not mask a later canonical
 provider name in another field.
 Archive-candidate source fields such as `archive_source` and
-`archive_source_name` may also normalize public archive names such as ENA,
-DDBJ, GenBank, and RefSeq to metadata-only provider hints.
+`archive_source_name` may also normalize public archive or genome-portal names
+such as ENA, DDBJ, GenBank, RefSeq, BV-BRC, and PATRIC to metadata-only
+provider hints.
 The field is a provider handoff hint only; it does not confirm type-strain
 status, contact providers, authorize terms, or trigger downloads.
 
@@ -1542,7 +1543,7 @@ Supported statuses are `archive_candidate_for_public_linkage_review`,
 `archive_candidate_insufficient_type_linkage`, `archive_candidate_conflict`,
 `archive_candidate_missing_accession`, and `archive_candidate_malformed`.
 Known `archive_source` aliases such as ENA, European Nucleotide Archive,
-DDBJ, GenBank, and RefSeq are normalized to canonical registry keys in output
+DDBJ, GenBank, RefSeq, BV-BRC, and PATRIC are normalized to canonical registry keys in output
 rows; unknown source labels remain lower-case review metadata and do not create
 provider or download capability.
 Archive candidate summaries always preserve `downloads_triggered=0`,
