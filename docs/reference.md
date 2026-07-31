@@ -1928,10 +1928,13 @@ compact command-plan diagnostics:
 `output_contracts`, `output_contract_names`, and `output_contract_count`. These
 fields make blocked preview items routeable without copying diagnostic messages
 or requiring a separate command-catalog lookup. The preview object also
-includes `queue_snapshot_sha256`, a deterministic digest of the current
-coverage action queue metadata, and `preview_item_ids`, the item IDs included
-in the bounded preview. Controllers can compare the digest before resuming a
-previously inspected queue. Passing `--queue-item-id` selects the current
+includes `preview_output_contract_names`, `preview_output_contract_counts`, and
+`preview_output_contract_count`, which summarize output-contract routes across
+the bounded preview prefix. It includes `queue_snapshot_sha256`, a deterministic
+digest of the current coverage action queue metadata, and `preview_item_ids`,
+the item IDs included in the bounded preview. Controllers can compare the
+digest before resuming a previously inspected queue. Passing `--queue-item-id`
+selects the current
 packet, command plan, recipe, and `current_coverage_action_queue_item`, but it
 does not change this bounded preview prefix. It is a routing preview, not a
 queue runner.

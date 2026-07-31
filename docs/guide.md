@@ -296,10 +296,12 @@ AI/operator controller needs a larger or smaller no-execution preview. Each
 preview item also carries compact command-plan status plus blocker/warning
 counts and IDs, plus output contract names and counts, so a controller can
 route blocked items without executing, copying full diagnostic messages, or
-performing a separate command-catalog lookup. The preview object includes
-`queue_snapshot_sha256` and `preview_item_ids` so a controller can detect
-whether the queued metadata changed before resuming a previously inspected
-item. To resume a specific stable queue item, pass
+performing a separate command-catalog lookup. The preview object also summarizes
+output contracts across the bounded prefix with `preview_output_contract_names`,
+`preview_output_contract_counts`, and `preview_output_contract_count`. It
+includes `queue_snapshot_sha256` and `preview_item_ids` so a controller can
+detect whether the queued metadata changed before resuming a previously
+inspected item. To resume a specific stable queue item, pass
 `--queue-item-id <queue_item_id>` to `preview`, `build`, or `status`; this only
 selects `current_coverage_action_queue_item`,
 `coverage_next_task_packet`, `coverage_next_command_plan`, and

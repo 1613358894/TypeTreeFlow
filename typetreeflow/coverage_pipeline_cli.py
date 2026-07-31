@@ -2794,6 +2794,7 @@ def _coverage_operator_queue_preview(
     limit: int = 3,
 ) -> dict[str, object]:
     items: list[dict[str, object]] = []
+    output_contract_counts: dict[str, int] = {}
     queue_snapshot_sha256 = _coverage_queue_snapshot_sha256(coverage_action_queue)
     for item in coverage_action_queue[:limit]:
         packet = _coverage_next_task_packet([item])
@@ -2802,6 +2803,11 @@ def _coverage_operator_queue_preview(
         blocking_ids = _diagnostic_ids(recipe.get("blocking", []))
         warning_ids = _diagnostic_ids(recipe.get("warnings", []))
         output_contracts = _safe_output_contracts(recipe.get("output_contracts", []))
+        output_contract_names = _output_contract_names(output_contracts)
+        for contract_name in output_contract_names:
+            output_contract_counts[contract_name] = (
+                output_contract_counts.get(contract_name, 0) + 1
+            )
         items.append(
             {
                 "queue_position": _safe_int(recipe.get("queue_position", 0)),
@@ -2830,7 +2836,7 @@ def _coverage_operator_queue_preview(
                 ),
                 "command_plan_status": str(command_plan.get("status", "")),
                 "output_contracts": output_contracts,
-                "output_contract_names": _output_contract_names(output_contracts),
+                "output_contract_names": output_contract_names,
                 "output_contract_count": len(output_contracts),
                 "blocking_count": len(blocking_ids),
                 "blocking_ids": blocking_ids,
@@ -2857,6 +2863,12 @@ def _coverage_operator_queue_preview(
             for item in items
             if str(item.get("queue_item_id", ""))
         ],
+        "preview_output_contract_names": sorted(output_contract_counts),
+        "preview_output_contract_counts": {
+            contract_name: output_contract_counts[contract_name]
+            for contract_name in sorted(output_contract_counts)
+        },
+        "preview_output_contract_count": len(output_contract_counts),
         "truncated": len(coverage_action_queue) > limit,
         "items": items,
         "audit_only": True,
