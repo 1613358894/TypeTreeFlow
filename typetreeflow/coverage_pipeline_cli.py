@@ -1679,6 +1679,60 @@ def _copy_stage_summary_details(
             stage[f"summary_{field}"] = summary[field]
 
 
+def _safe_count_map(value: object) -> dict[str, int]:
+    if not isinstance(value, Mapping):
+        return {}
+    return _sorted_count_map(
+        {
+            str(key): _safe_int(raw_count)
+            for key, raw_count in value.items()
+            if str(key)
+        }
+    )
+
+
+def _safe_nested_count_maps(value: object) -> dict[str, dict[str, int]]:
+    if not isinstance(value, Mapping):
+        return {}
+    count_maps: dict[str, dict[str, int]] = {}
+    for key, raw_counts in value.items():
+        name = str(key)
+        counts = _safe_count_map(raw_counts)
+        if name and counts:
+            count_maps[name] = counts
+    return {key: count_maps[key] for key in sorted(count_maps)}
+
+
+def _stage_summary_count_maps(
+    stages: Sequence[Mapping[str, object]],
+    summary_field: str,
+) -> dict[str, dict[str, int]]:
+    count_maps: dict[str, dict[str, int]] = {}
+    for stage in stages:
+        stage_name = str(stage.get("stage", ""))
+        raw_counts = stage.get(f"summary_{summary_field}")
+        if not stage_name or not isinstance(raw_counts, Mapping):
+            continue
+        counts = {
+            str(key): _safe_int(value)
+            for key, value in raw_counts.items()
+            if str(key)
+        }
+        if counts:
+            count_maps[stage_name] = _sorted_count_map(counts)
+    return count_maps
+
+
+def _merge_stage_count_maps(
+    stage_count_maps: Mapping[str, Mapping[str, int]],
+) -> dict[str, int]:
+    merged: dict[str, int] = {}
+    for counts in stage_count_maps.values():
+        for key, value in counts.items():
+            merged[str(key)] = _safe_int(merged.get(str(key), 0)) + _safe_int(value)
+    return _sorted_count_map(merged)
+
+
 def _operator_chain_readiness_packets_from_stages(
     stages: Sequence[Mapping[str, object]],
 ) -> dict[str, object]:
@@ -3289,6 +3343,16 @@ def _coverage_handoff_readiness_summary(
         and isinstance(next_stage.get("recommended_request"), Mapping)
         else None
     )
+    provider_status_counts_by_stage = _stage_summary_count_maps(
+        handoff_stages, "provider_status_counts"
+    )
+    provider_automation_level_counts_by_stage = _stage_summary_count_maps(
+        handoff_stages, "provider_automation_level_counts"
+    )
+    provider_route_stage_names = sorted(
+        set(provider_status_counts_by_stage)
+        | set(provider_automation_level_counts_by_stage)
+    )
     return {
         "schema_version": "coverage_handoff_readiness_summary.v1",
         "stage_names": list(_HANDOFF_STAGE_NAMES),
@@ -3318,6 +3382,18 @@ def _coverage_handoff_readiness_summary(
             str(stage.get("stage", "")): _safe_int(stage.get("record_count", 0))
             for stage in handoff_stages
         },
+        "provider_route_stage_names": provider_route_stage_names,
+        "provider_route_stage_count": len(provider_route_stage_names),
+        "provider_status_counts_by_stage": provider_status_counts_by_stage,
+        "provider_automation_level_counts_by_stage": (
+            provider_automation_level_counts_by_stage
+        ),
+        "provider_status_counts": _merge_stage_count_maps(
+            provider_status_counts_by_stage
+        ),
+        "provider_automation_level_counts": _merge_stage_count_maps(
+            provider_automation_level_counts_by_stage
+        ),
         "provider_contact_allowed": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -3388,6 +3464,24 @@ def _coverage_handoff_next_step_packet(
         ),
         "unavailable_stage_count": _safe_int(
             handoff_summary.get("unavailable_stage_count", 0)
+        ),
+        "provider_route_stage_names": _string_list_field(
+            handoff_summary, "provider_route_stage_names"
+        ),
+        "provider_route_stage_count": _safe_int(
+            handoff_summary.get("provider_route_stage_count", 0)
+        ),
+        "provider_status_counts_by_stage": _safe_nested_count_maps(
+            handoff_summary.get("provider_status_counts_by_stage")
+        ),
+        "provider_automation_level_counts_by_stage": _safe_nested_count_maps(
+            handoff_summary.get("provider_automation_level_counts_by_stage")
+        ),
+        "provider_status_counts": _safe_count_map(
+            handoff_summary.get("provider_status_counts")
+        ),
+        "provider_automation_level_counts": _safe_count_map(
+            handoff_summary.get("provider_automation_level_counts")
         ),
         "provider_contact_allowed": False,
         "safe_for_unattended_execution": False,
@@ -3640,6 +3734,30 @@ def _coverage_handoff_runbook_packet(
         "unavailable_stage_names": _string_list_field(
             coverage_handoff_readiness_summary, "unavailable_stage_names"
         ),
+        "provider_route_stage_names": _string_list_field(
+            coverage_handoff_next_step_packet, "provider_route_stage_names"
+        ),
+        "provider_route_stage_count": _safe_int(
+            coverage_handoff_next_step_packet.get("provider_route_stage_count", 0)
+        ),
+        "provider_status_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_next_step_packet.get(
+                "provider_status_counts_by_stage"
+            )
+        ),
+        "provider_automation_level_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_next_step_packet.get(
+                "provider_automation_level_counts_by_stage"
+            )
+        ),
+        "provider_status_counts": _safe_count_map(
+            coverage_handoff_next_step_packet.get("provider_status_counts")
+        ),
+        "provider_automation_level_counts": _safe_count_map(
+            coverage_handoff_next_step_packet.get(
+                "provider_automation_level_counts"
+            )
+        ),
         "input_readiness_status": str(
             coverage_handoff_input_readiness_packet.get("readiness_status", "")
         ),
@@ -3764,6 +3882,30 @@ def _coverage_handoff_server_validation_packet(
         "warning_ids": _string_list_field(
             coverage_handoff_next_step_packet,
             "warning_ids",
+        ),
+        "provider_route_stage_names": _string_list_field(
+            coverage_handoff_next_step_packet, "provider_route_stage_names"
+        ),
+        "provider_route_stage_count": _safe_int(
+            coverage_handoff_next_step_packet.get("provider_route_stage_count", 0)
+        ),
+        "provider_status_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_next_step_packet.get(
+                "provider_status_counts_by_stage"
+            )
+        ),
+        "provider_automation_level_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_next_step_packet.get(
+                "provider_automation_level_counts_by_stage"
+            )
+        ),
+        "provider_status_counts": _safe_count_map(
+            coverage_handoff_next_step_packet.get("provider_status_counts")
+        ),
+        "provider_automation_level_counts": _safe_count_map(
+            coverage_handoff_next_step_packet.get(
+                "provider_automation_level_counts"
+            )
         ),
         "allowed_validation_actions": allowed_validation_actions,
         "runbook_step_ids": [
@@ -3958,6 +4100,35 @@ def _coverage_handoff_server_validation_runbook_packet(
                 "input_readiness_status", ""
             )
         ),
+        "provider_route_stage_names": _string_list_field(
+            coverage_handoff_server_validation_packet,
+            "provider_route_stage_names",
+        ),
+        "provider_route_stage_count": _safe_int(
+            coverage_handoff_server_validation_packet.get(
+                "provider_route_stage_count", 0
+            )
+        ),
+        "provider_status_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_server_validation_packet.get(
+                "provider_status_counts_by_stage"
+            )
+        ),
+        "provider_automation_level_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_server_validation_packet.get(
+                "provider_automation_level_counts_by_stage"
+            )
+        ),
+        "provider_status_counts": _safe_count_map(
+            coverage_handoff_server_validation_packet.get(
+                "provider_status_counts"
+            )
+        ),
+        "provider_automation_level_counts": _safe_count_map(
+            coverage_handoff_server_validation_packet.get(
+                "provider_automation_level_counts"
+            )
+        ),
         "handoff_runbook_step_ids": _string_list_field(
             coverage_handoff_server_validation_packet,
             "runbook_step_ids",
@@ -4076,6 +4247,35 @@ def _coverage_handoff_server_validation_result_contract_packet(
                 "input_readiness_status", ""
             )
         ),
+        "provider_route_stage_names": _string_list_field(
+            coverage_handoff_server_validation_packet,
+            "provider_route_stage_names",
+        ),
+        "provider_route_stage_count": _safe_int(
+            coverage_handoff_server_validation_packet.get(
+                "provider_route_stage_count", 0
+            )
+        ),
+        "provider_status_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_server_validation_packet.get(
+                "provider_status_counts_by_stage"
+            )
+        ),
+        "provider_automation_level_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_server_validation_packet.get(
+                "provider_automation_level_counts_by_stage"
+            )
+        ),
+        "provider_status_counts": _safe_count_map(
+            coverage_handoff_server_validation_packet.get(
+                "provider_status_counts"
+            )
+        ),
+        "provider_automation_level_counts": _safe_count_map(
+            coverage_handoff_server_validation_packet.get(
+                "provider_automation_level_counts"
+            )
+        ),
         "recommended_request_target": str(
             coverage_handoff_server_validation_packet.get(
                 "recommended_request_target", ""
@@ -4181,6 +4381,20 @@ def _coverage_handoff_server_validation_result_template_packet(
                 "input_readiness_status", ""
             )
         ),
+        "provider_route_stage_names": _string_list_field(
+            coverage_handoff_server_validation_result_contract_packet,
+            "provider_route_stage_names",
+        ),
+        "provider_status_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "provider_status_counts_by_stage"
+            )
+        ),
+        "provider_automation_level_counts_by_stage": _safe_nested_count_maps(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "provider_automation_level_counts_by_stage"
+            )
+        ),
         "blocking_ids": [],
         "warning_ids": [],
         "boundary_confirmations": boundary_confirmations,
@@ -4222,6 +4436,28 @@ def _coverage_handoff_server_validation_result_template_packet(
         ),
         "checked_surface_names": result_template["checked_surface_names"],
         "checked_surface_count": len(result_template["checked_surface_names"]),
+        "provider_route_stage_names": result_template[
+            "provider_route_stage_names"
+        ],
+        "provider_route_stage_count": len(
+            result_template["provider_route_stage_names"]
+        ),
+        "provider_status_counts_by_stage": result_template[
+            "provider_status_counts_by_stage"
+        ],
+        "provider_automation_level_counts_by_stage": result_template[
+            "provider_automation_level_counts_by_stage"
+        ],
+        "provider_status_counts": _safe_count_map(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "provider_status_counts"
+            )
+        ),
+        "provider_automation_level_counts": _safe_count_map(
+            coverage_handoff_server_validation_result_contract_packet.get(
+                "provider_automation_level_counts"
+            )
+        ),
         "boundary_confirmation_keys": list(boundary_confirmations),
         "boundary_confirmation_count": len(boundary_confirmations),
         "result_template": result_template,
@@ -6435,6 +6671,43 @@ def _coverage_parent_controller_packet(
         ),
         "handoff_server_validation_argv": _string_list_field(
             coverage_handoff_server_validation_packet, "recommended_argv"
+        ),
+        "handoff_server_validation_provider_route_stage_names": (
+            _string_list_field(
+                coverage_handoff_server_validation_packet,
+                "provider_route_stage_names",
+            )
+        ),
+        "handoff_server_validation_provider_route_stage_count": _safe_int(
+            coverage_handoff_server_validation_packet.get(
+                "provider_route_stage_count", 0
+            )
+        ),
+        "handoff_server_validation_provider_status_counts_by_stage": (
+            _safe_nested_count_maps(
+                coverage_handoff_server_validation_packet.get(
+                    "provider_status_counts_by_stage"
+                )
+            )
+        ),
+        "handoff_server_validation_provider_automation_level_counts_by_stage": (
+            _safe_nested_count_maps(
+                coverage_handoff_server_validation_packet.get(
+                    "provider_automation_level_counts_by_stage"
+                )
+            )
+        ),
+        "handoff_server_validation_provider_status_counts": _safe_count_map(
+            coverage_handoff_server_validation_packet.get(
+                "provider_status_counts"
+            )
+        ),
+        "handoff_server_validation_provider_automation_level_counts": (
+            _safe_count_map(
+                coverage_handoff_server_validation_packet.get(
+                    "provider_automation_level_counts"
+                )
+            )
         ),
         "handoff_server_validation_result_contract_available": bool(
             coverage_handoff_server_validation_result_contract_packet.get(

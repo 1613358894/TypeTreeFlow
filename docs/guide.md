@@ -583,6 +583,9 @@ The server-validation packet, runbook, result contract, and result template also
 carry the same structured `recommended_request` as the handoff next-step packet
 when it is available, allowing AI controllers to pass the packet directly to
 `commands render` or `commands plan` for metadata-only argv/preflight review.
+They also carry by-stage provider-status and provider automation-level count
+maps as route context for bounded server validation, not as completion metrics,
+strict evidence, or provider-contact authorization.
 After a bounded server validation run writes a result JSON, validate only its
 shape and no-execution boundary contract with:
 
