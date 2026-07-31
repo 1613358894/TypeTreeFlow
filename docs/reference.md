@@ -1645,7 +1645,10 @@ and default network enablement, plus `required_inputs`,
 offline `provider-request draft` step. Unknown providers still fail closed as
 planning-only rows under the supplied value. Without `--write`, it writes nothing. With `--write`, it writes only
 `provider_handoff.tsv` and `provider_handoff_summary.json` into the explicitly
-supplied directory. Existing output directories are refused by default;
+supplied directory. On successful writes, stdout's `recommended_request` points
+to that written `provider_handoff.tsv` for a later local
+`provider-request draft` command; dry-run output keeps the generic handoff
+filename template. Existing output directories are refused by default;
 `--force` replaces only an owned pair with matching schemas. Missing,
 unreadable, malformed, provider-key-empty input, or rows missing `species`,
 `source_lane`, or `action_code` block the command with exit code `2`;

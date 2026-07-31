@@ -90,6 +90,7 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
         "subcommand": "draft",
         "provider_handoff_tsv": "provider_handoff.tsv",
     }
+    assert payload["recommended_request_target"] == "provider-request draft"
     assert payload["recommended_next_command"].startswith(
         "typetreeflow provider-request draft --provider-handoff-tsv"
     )
@@ -117,12 +118,23 @@ def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):
     outdir = tmp_path / "isolated-provider-handoff"
     _write_coverage_plan(coverage_plan, provider_keys="dsmz")
 
-    assert _run(
+    code, payload, _ = _run(
         ["--coverage-plan-tsv", str(coverage_plan), "--write", "--outdir", str(outdir)],
         capsys,
-    )[0] == 0
-    assert (outdir / "provider_handoff.tsv").exists()
+    )
+    assert code == 0
+    handoff_path = outdir / "provider_handoff.tsv"
+    assert handoff_path.exists()
     assert (outdir / "provider_handoff_summary.json").exists()
+    assert payload["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": str(handoff_path),
+    }
+    assert payload["recommended_request_target"] == "provider-request draft"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow provider-request draft --provider-handoff-tsv {handoff_path}"
+    )
     summary = json.loads((outdir / "provider_handoff_summary.json").read_text())
     assert summary["provider_status_counts"] == {"planning_only": 1}
     assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
@@ -139,6 +151,25 @@ def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):
     assert summary["network_supported_count"] == 0
     assert summary["required_inputs"] == ["provider_handoff.tsv"]
     assert summary["recommended_request"]["command"] == "provider-request"
+
+    assert (
+        cli.main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(payload["recommended_request"], separators=(",", ":")),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        str(handoff_path),
+    ]
 
     assert _run(
         [
