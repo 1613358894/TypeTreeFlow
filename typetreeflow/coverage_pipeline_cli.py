@@ -50,6 +50,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     build_external_genome_install_plan,
+    read_external_genome_registration_results,
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
 )
@@ -651,6 +652,15 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         required_member="external_genome_install_plan.tsv",
         tsv_record_count=True,
     )
+    _apply_registration_dry_run_stage_details(
+        stages,
+        directory=_status_stage_dir(
+            args.registration_run_dir,
+            coverage_dir,
+            "external_genomes_registration_dry_run",
+        ),
+        diagnostics=diagnostics,
+    )
     next_stage = _next_unavailable_stage(stages)
     available_stage_names = [
         str(stage.get("stage", "")) for stage in stages if stage.get("available")
@@ -842,6 +852,37 @@ def _copy_stage_summary_details(
     for field in detail_fields:
         if field in summary:
             stage[f"summary_{field}"] = summary[field]
+
+
+def _apply_registration_dry_run_stage_details(
+    stages: list[dict[str, object]],
+    *,
+    directory: str | None,
+    diagnostics: list[dict[str, object]],
+) -> None:
+    stage = _find_stage(stages, "external_genomes_registration_dry_run")
+    if stage is None or not directory:
+        return
+    results_path = Path(directory) / "external_genome_registration_results.tsv"
+    if not results_path.is_file():
+        return
+    try:
+        rows = read_external_genome_registration_results(results_path)
+    except (OSError, UnicodeError, csv.Error, ValueError):
+        diagnostics.append(
+            _diagnostic("external_genomes_registration_dry_run", "artifact_malformed")
+        )
+        return
+    status_counts = Counter(row.status for row in rows if row.status)
+    route_counts = summarize_external_genome_route_metadata(rows)
+    stage["summary_valid_count"] = sum(1 for row in rows if row.valid)
+    stage["summary_invalid_count"] = sum(1 for row in rows if not row.valid)
+    stage["summary_registration_status_counts"] = dict(sorted(status_counts.items()))
+    stage["summary_operator_route_counts"] = route_counts["operator_route_counts"]
+    stage["summary_next_input_class_counts"] = route_counts["next_input_class_counts"]
+    stage["summary_automation_boundary_counts"] = route_counts[
+        "automation_boundary_counts"
+    ]
 
 
 def _find_stage(

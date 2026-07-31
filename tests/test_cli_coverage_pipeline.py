@@ -10,7 +10,10 @@ from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_FIELDS,
     ARCHIVE_CANDIDATE_SCHEMA_VERSION,
 )
-from typetreeflow.external_genomes import calculate_sha256
+from typetreeflow.external_genomes import (
+    EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
+    calculate_sha256,
+)
 from typetreeflow.manifest import write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
@@ -1462,8 +1465,27 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     )
     _write_tsv(
         registration_dir / "external_genome_registration_results.tsv",
-        ("species", "status"),
-        [{"species": "Clostridium alpha", "status": "planned"}],
+        EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
+        [
+            {
+                "species": "Clostridium alpha",
+                "strain": "DSM 1",
+                "type_strain_id": "DSM 1",
+                "external_source": "dsmz",
+                "external_genome_id": "DSM-1",
+                "genome_fasta_path": "local/provider/DSM-1.fna",
+                "sha256": "0" * 64,
+                "computed_sha256": "0" * 64,
+                "status": "external_genome_registered",
+                "valid": "true",
+                "message": "registered",
+                "notes": (
+                    "operator_route=provider_handoff; "
+                    "next_input_class=permitted_local_fasta_terms_provenance; "
+                    "automation_boundary=planning_handoff_no_provider_contact"
+                ),
+            }
+        ],
     )
 
     code, payload, captured = _run(
@@ -1600,6 +1622,26 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "external_genome_install_planned": 1,
     }
     assert payload["operator_chain_stages"][7]["record_count"] == 1
+    assert payload["operator_chain_stages"][7]["summary_valid_count"] == 1
+    assert payload["operator_chain_stages"][7]["summary_invalid_count"] == 0
+    assert payload["operator_chain_stages"][7][
+        "summary_registration_status_counts"
+    ] == {
+        "external_genome_registered": 1
+    }
+    assert payload["operator_chain_stages"][7]["summary_operator_route_counts"] == {
+        "provider_handoff": 1
+    }
+    assert payload["operator_chain_stages"][7][
+        "summary_next_input_class_counts"
+    ] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert payload["operator_chain_stages"][7][
+        "summary_automation_boundary_counts"
+    ] == {
+        "planning_handoff_no_provider_contact": 1
+    }
 
 
 def test_coverage_pipeline_status_preserves_blocked_validation_stage_details(
