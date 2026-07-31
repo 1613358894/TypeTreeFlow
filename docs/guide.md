@@ -165,7 +165,8 @@ FASTA existence, and SHA-256 match. It emits compact JSON with ready/blocked
 counts, blocker counts, and inherited route counts from draft row notes when
 available, but it does not echo local FASTA paths, hashes, provider notes, or
 sequence contents. It also includes the next offline
-`provider-request external-genomes-handoff` request. With `--write`, it publishes only
+`provider-request external-genomes-handoff` request plus a compact
+`provider_request_readiness_packet` for AI/operator controllers. With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated
 directory. Passing validation only means the rows are ready for
@@ -187,7 +188,9 @@ The command reuses the same provider-request validation guards and writes an
 local FASTA paths for later `external-genomes validate` use, but stdout
 previews omit local paths, hashes, notes, and sequence contents. Stdout and the
 summary JSON include exported route counts plus the next `external-genomes
-validate` and `external-genomes install-plan` requests. Controlled route
+validate` and `external-genomes install-plan` requests, and the matching
+`provider_request_readiness_packet` exposes those requests only when every row
+is ready. Controlled route
 metadata may be copied into `external_genomes.tsv` notes, but raw provider or
 curator notes are not copied. This is still only a handoff input: it does not
 register external genomes, copy FASTA files, mutate manifests, contact
@@ -208,7 +211,8 @@ With `--write`, the command always writes
 readiness guards. The bundle directory can be supplied later with
 `--coverage-pipeline-dir`, or its two child directories can be supplied
 explicitly. The compact handoff payload retains validation route counts for
-AI/operator routing continuity. This remains an isolated handoff convenience
+AI/operator routing continuity and includes a readiness packet for the next
+explicit `external-genomes validate` step when the bundle is complete. This remains an isolated handoff convenience
 only: no workflow outputs, provider contact, downloads, FASTA copying,
 external-genome registration, manifest mutation, completion credit, or strict
 deliverable promotion.

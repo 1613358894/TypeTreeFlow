@@ -49,6 +49,9 @@ COMMAND = "provider-request draft"
 VALIDATE_COMMAND = "provider-request validate"
 EXTERNAL_GENOMES_DRAFT_COMMAND = "provider-request external-genomes-draft"
 EXTERNAL_GENOMES_HANDOFF_COMMAND = "provider-request external-genomes-handoff"
+PROVIDER_REQUEST_READINESS_PACKET_SCHEMA_VERSION = (
+    "provider_request_readiness_packet.v1"
+)
 OUTPUT_NAMES = {
     "request": "provider_request.tsv",
     "summary": "provider_request_draft_summary.json",
@@ -561,12 +564,18 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
 
 
 def _validate_payload(validation) -> dict[str, object]:
-    return provider_request_validation_payload(
+    payload = provider_request_validation_payload(
         validation,
         command=VALIDATE_COMMAND,
         dry_run=True,
         preview_limit=_PREVIEW_LIMIT,
     )
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="validate",
+        payload=payload,
+        next_stage="provider_request_external_genomes_handoff",
+    )
+    return payload
 
 
 def _external_genomes_payload(draft) -> dict[str, object]:
@@ -580,7 +589,7 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         }
         for record in draft.records[:_PREVIEW_LIMIT]
     ]
-    return {
+    payload = {
         "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
         "status": "pass" if draft.valid else "blocked",
         "command": EXTERNAL_GENOMES_DRAFT_COMMAND,
@@ -616,6 +625,12 @@ def _external_genomes_payload(draft) -> dict[str, object]:
             else "Provider request external-genomes draft blocked"
         ),
     }
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="external_genomes_draft",
+        payload=payload,
+        next_stage="external_genomes_validate",
+    )
+    return payload
 
 
 def _external_genomes_handoff_payload(
@@ -628,7 +643,7 @@ def _external_genomes_handoff_payload(
         validation_payload.get("status") == "pass"
         and external_payload.get("status") == "pass"
     )
-    return {
+    payload = {
         "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
         "status": "pass" if passed else "blocked",
         "command": EXTERNAL_GENOMES_HANDOFF_COMMAND,
@@ -716,6 +731,93 @@ def _external_genomes_handoff_payload(
             else "Provider request external-genomes handoff blocked"
         ),
     }
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="external_genomes_handoff",
+        payload=payload,
+        next_stage="external_genomes_validate",
+    )
+    return payload
+
+
+def _provider_request_readiness_packet(
+    *,
+    stage: str,
+    payload: Mapping[str, object],
+    next_stage: str,
+) -> dict[str, object]:
+    record_count = _safe_int(payload.get("record_count", 0))
+    status_value = str(payload.get("status", "blocked"))
+    ready_count = _safe_int(payload.get("ready_count", payload.get("exported_count", 0)))
+    blocked_count = _safe_int(
+        payload.get("blocked_count", max(record_count - ready_count, 0))
+    )
+    diagnostic_count = _safe_int(payload.get("diagnostic_count", 0))
+    if status_value == "pass":
+        status = "ready_for_next_stage"
+    elif status_value == "failed":
+        status = "failed"
+    elif diagnostic_count:
+        status = "blocked"
+    elif record_count == 0:
+        status = "no_records"
+    else:
+        status = "blocked"
+    ready = status == "ready_for_next_stage"
+    recommended_request = payload.get("recommended_request")
+    if not isinstance(recommended_request, Mapping):
+        recommended_request = None
+    install_plan_request = payload.get("install_plan_recommended_request")
+    if not isinstance(install_plan_request, Mapping):
+        install_plan_request = None
+    return {
+        "schema_version": PROVIDER_REQUEST_READINESS_PACKET_SCHEMA_VERSION,
+        "stage": stage,
+        "status": status,
+        "record_count": record_count,
+        "ready_count": ready_count,
+        "blocked_count": blocked_count,
+        "exported_count": _safe_int(payload.get("exported_count", 0)),
+        "diagnostic_count": diagnostic_count,
+        "next_stage": next_stage if ready else "",
+        "required_inputs": (
+            list(payload.get("required_inputs", []))
+            if isinstance(payload.get("required_inputs"), list)
+            else []
+        ),
+        "recommended_request": dict(recommended_request) if ready else None,
+        "recommended_next_command": (
+            str(payload.get("recommended_next_command", "")) if ready else ""
+        ),
+        "install_plan_recommended_request": (
+            dict(install_plan_request) if ready and install_plan_request else None
+        ),
+        "install_plan_recommended_next_command": (
+            str(payload.get("install_plan_recommended_next_command", ""))
+            if ready
+            else ""
+        ),
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "metadata_only_provider_request_readiness_no_execution",
+    }
+
+
+def _safe_int(value: object) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _external_genomes_recommendation_fields(input_path: str | Path) -> dict[str, object]:
@@ -787,7 +889,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
 
 
 def _external_genomes_failure(code: str) -> dict[str, object]:
-    return {
+    payload = {
         "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
         "status": "failed",
         "command": EXTERNAL_GENOMES_DRAFT_COMMAND,
@@ -835,10 +937,16 @@ def _external_genomes_failure(code: str) -> dict[str, object]:
         },
         "summary": "Provider request external-genomes draft failed",
     }
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="external_genomes_draft",
+        payload=payload,
+        next_stage="external_genomes_validate",
+    )
+    return payload
 
 
 def _external_genomes_handoff_failure(code: str) -> dict[str, object]:
-    return {
+    payload = {
         "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
         "status": "failed",
         "command": EXTERNAL_GENOMES_HANDOFF_COMMAND,
@@ -883,10 +991,16 @@ def _external_genomes_handoff_failure(code: str) -> dict[str, object]:
         },
         "summary": "Provider request external-genomes handoff failed",
     }
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="external_genomes_handoff",
+        payload=payload,
+        next_stage="external_genomes_validate",
+    )
+    return payload
 
 
 def _validate_failure(code: str) -> dict[str, object]:
-    return {
+    payload = {
         "schema_version": PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION,
         "status": "failed",
         "command": VALIDATE_COMMAND,
@@ -920,6 +1034,12 @@ def _validate_failure(code: str) -> dict[str, object]:
         "output_paths": {key: None for key in PROVIDER_REQUEST_VALIDATION_OUTPUT_NAMES},
         "summary": "Provider request validation failed",
     }
+    payload["provider_request_readiness_packet"] = _provider_request_readiness_packet(
+        stage="validate",
+        payload=payload,
+        next_stage="provider_request_external_genomes_handoff",
+    )
+    return payload
 
 
 def _diagnostic(component: str, code: str) -> dict[str, object]:

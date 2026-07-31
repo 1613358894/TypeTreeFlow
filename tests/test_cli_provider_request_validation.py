@@ -105,6 +105,45 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
         "write": True,
         "outdir": "<isolated-provider-request-external-genomes-directory>",
     }
+    assert payload["provider_request_readiness_packet"] == {
+        "schema_version": "provider_request_readiness_packet.v1",
+        "stage": "validate",
+        "status": "ready_for_next_stage",
+        "record_count": 1,
+        "ready_count": 1,
+        "blocked_count": 0,
+        "exported_count": 0,
+        "diagnostic_count": 0,
+        "next_stage": "provider_request_external_genomes_handoff",
+        "required_inputs": ["provider_request.tsv"],
+        "recommended_request": {
+            "command": "provider-request",
+            "subcommand": "external-genomes-handoff",
+            "input": "provider_request.tsv",
+            "write": True,
+            "outdir": "<isolated-provider-request-external-genomes-directory>",
+        },
+        "recommended_next_command": (
+            "review ready rows before copying accepted local FASTA evidence into "
+            "external_genomes.tsv for --register-external-genomes"
+        ),
+        "install_plan_recommended_request": None,
+        "install_plan_recommended_next_command": "",
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "metadata_only_provider_request_readiness_no_execution",
+    }
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
 
@@ -182,6 +221,11 @@ def test_provider_request_validate_blocked_returns_two(tmp_path, capsys):
     assert payload["status"] == "blocked"
     assert payload["blocked_count"] == 1
     assert payload["diagnostic_count"] >= 1
+    packet = payload["provider_request_readiness_packet"]
+    assert packet["status"] == "blocked"
+    assert packet["next_stage"] == ""
+    assert packet["recommended_request"] is None
+    assert packet["recommended_next_command"] == ""
     assert payload["blocker_counts"]["local_fasta_missing"] == 1
     assert payload["blocker_counts"]["manual_review_required"] == 1
     assert not (tmp_path / "manifest.tsv").exists()
