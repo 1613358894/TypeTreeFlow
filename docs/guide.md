@@ -312,14 +312,15 @@ the preview is truncated. It defaults to three items; use
 `--queue-preview-limit <1..10>` on `preview`, `build`, or `status` when an
 AI/operator controller needs a larger or smaller no-execution preview. Each
 preview item also carries compact command-plan status plus blocker/warning
-counts and IDs, plus output contract names and counts, so a controller can
-route blocked items without executing, copying full diagnostic messages, or
-performing a separate command-catalog lookup. The preview object also summarizes
-output contracts across the bounded prefix with `preview_output_contract_names`,
-`preview_output_contract_counts`, and `preview_output_contract_count`. It
-also includes bounded-prefix route, next-input, command-plan status, decision,
-blocking-item, and warning-item summaries so a controller can triage the queue
-without expanding every item first. It includes `queue_snapshot_sha256` and
+counts and IDs, `operator_execution_gate`, plus output contract names and
+counts, so a controller can route blocked items without executing, copying full
+diagnostic messages, or performing a separate command-catalog lookup. The
+preview object also summarizes output contracts across the bounded prefix with
+`preview_output_contract_names`, `preview_output_contract_counts`, and
+`preview_output_contract_count`. It also includes bounded-prefix route,
+next-input, command-plan status, decision, execution-gate status, blocking-item,
+and warning-item summaries so a controller can triage the queue without
+expanding every item first. It includes `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata
 changed before resuming a previously inspected item. To resume a specific
 stable queue item, pass

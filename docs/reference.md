@@ -1943,8 +1943,9 @@ metadata only:
 set of queue items. By default it previews the first three items; operators can
 pass `--queue-preview-limit <1..10>` to `preview`, `build`, or `status` to
 request a larger or smaller bounded preview. It lists each item's
-`queue_item_id`, route, required inputs, `review_input_packet`, rendered argv,
-preflight decision, and `safe_for_unattended_execution=false`, with
+`queue_item_id`, route, required inputs, `review_input_packet`,
+`operator_execution_gate`, rendered argv, preflight decision, and
+`safe_for_unattended_execution=false`, with
 `truncated=true` when additional queue items exist. Each item also carries
 compact command-plan diagnostics:
 `command_plan_status`, `blocking_count`, `blocking_ids`, `warning_count`, and
@@ -1957,7 +1958,8 @@ includes `preview_output_contract_names`, `preview_output_contract_counts`, and
 the bounded preview prefix. It also includes
 `preview_operator_route_counts`, `preview_next_input_class_counts`,
 `preview_command_plan_status_counts`, `preview_command_plan_decision_counts`,
-`preview_blocking_item_count`, `preview_blocking_item_ids`,
+`preview_execution_gate_status_counts`, `preview_blocking_item_count`,
+`preview_blocking_item_ids`,
 `preview_warning_item_count`, and `preview_warning_item_ids`, so controllers can
 route the preview prefix without expanding every item first. It includes
 `queue_snapshot_sha256`, a deterministic

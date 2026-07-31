@@ -2881,6 +2881,7 @@ def _coverage_operator_queue_preview(
     next_input_class_counts: dict[str, int] = {}
     command_plan_status_counts: dict[str, int] = {}
     command_plan_decision_counts: dict[str, int] = {}
+    execution_gate_status_counts: dict[str, int] = {}
     output_contract_counts: dict[str, int] = {}
     preview_blocking_item_ids: list[str] = []
     preview_warning_item_ids: list[str] = []
@@ -2893,6 +2894,21 @@ def _coverage_operator_queue_preview(
         warning_ids = _diagnostic_ids(recipe.get("warnings", []))
         output_contracts = _safe_output_contracts(recipe.get("output_contracts", []))
         output_contract_names = _output_contract_names(output_contracts)
+        raw_gate = recipe.get("operator_execution_gate")
+        operator_execution_gate = (
+            dict(raw_gate)
+            if isinstance(raw_gate, Mapping)
+            else _coverage_operator_execution_gate(
+                available=bool(packet.get("available")),
+                recommended_request=packet.get("recommended_request")
+                if isinstance(packet.get("recommended_request"), Mapping)
+                else None,
+            )
+        )
+        _count_preview_value(
+            execution_gate_status_counts,
+            str(operator_execution_gate.get("gate_status", "")),
+        )
         queue_item_id = str(recipe.get("queue_item_id", ""))
         command_plan_decision = str(recipe.get("command_plan_decision", ""))
         command_plan_status = str(command_plan.get("status", ""))
@@ -2937,6 +2953,7 @@ def _coverage_operator_queue_preview(
                     if isinstance(packet.get("recommended_request"), Mapping)
                     else None,
                 ),
+                "operator_execution_gate": operator_execution_gate,
                 "command_plan_decision": command_plan_decision,
                 "command_plan_status": command_plan_status,
                 "output_contracts": output_contracts,
@@ -2976,6 +2993,9 @@ def _coverage_operator_queue_preview(
         ),
         "preview_command_plan_decision_counts": _sorted_count_map(
             command_plan_decision_counts
+        ),
+        "preview_execution_gate_status_counts": _sorted_count_map(
+            execution_gate_status_counts
         ),
         "preview_blocking_item_count": len(preview_blocking_item_ids),
         "preview_blocking_item_ids": preview_blocking_item_ids,
