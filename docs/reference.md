@@ -1853,6 +1853,13 @@ bounded three-step operator recipe: review required local inputs, inspect the
 command plan, then invoke the target CLI separately only after review. It always
 reports `safe_for_unattended_execution=false` and
 `execution_boundary=metadata_only_operator_recipe_no_execution`.
+`coverage_queue_resume_packet` is a compact AI/controller handoff view over the
+selected queue item. It repeats the selected `queue_item_id`, current queue
+snapshot digest, expected digest, digest match state, target argv, command-plan
+status, preflight decision, blocker/warning IDs, and the exact values to reuse
+as `--queue-item-id` and `--expected-queue-snapshot-sha256` on a later metadata
+call. It is still metadata only:
+`execution_boundary=metadata_only_queue_resume_packet_no_execution`.
 `coverage_operator_queue_preview` extends that no-execution view to a bounded
 set of queue items. By default it previews the first three items; operators can
 pass `--queue-preview-limit <1..10>` to `preview`, `build`, or `status` to
