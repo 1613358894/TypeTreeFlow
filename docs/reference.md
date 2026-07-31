@@ -1992,8 +1992,9 @@ The payload also exposes `primary_next_action_group`,
 sorted action group.
 `operator_chain_stages` is a bounded AI/operator checklist for the same local
 chain. Each row reports `stage`, `artifact`, `available`, `record_count`,
-`recommended_next_command`, and `boundary`; it is metadata only and does not
-discover files outside the explicit pipeline inputs or output directory.
+`recommended_request_target`, `recommended_next_command`, and `boundary`; it is
+metadata only and does not discover files outside the explicit pipeline inputs
+or output directory.
 The external-genomes draft recommendation points to the explicit local handoff
 step after provider-request validation, and the install-plan recommendation
 points to the local planning step before registration dry-run. The separate
@@ -2055,18 +2056,20 @@ include `required_inputs`, a bounded list of local artifact paths or
 curator-supplied input categories needed before that stage can be treated as
 available. Stage rows also include `recommended_request`, a structured
 `commands render`/`commands plan` request object when a deterministic next CLI
-request exists; otherwise the value is `null`. These request objects are
-metadata only and must still pass `commands plan` or `commands preflight`
-before an operator runs the rendered argv. `preview`, `build`, and `status`
-also emit
+request exists; otherwise the value is `null`. The compact
+`recommended_request_target` repeats the command/subcommand target, or an empty
+string when no structured request exists. These request objects are metadata
+only and must still pass `commands plan` or `commands preflight` before an
+operator runs the rendered argv. `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
 executing the target command, plus `coverage_next_operator_recipe` for the same
 metadata-only next-step recipe and `coverage_operator_queue_preview` for the
 bounded queue preview. `operator_chain_next_step_packet` similarly renders and
 preflights the current operator-chain `next_stage.recommended_request` into a
-single metadata-only packet with target argv, decision, blocker/warning IDs, and
-the stage boundary. It also repeats `operator_chain_snapshot_sha256`, a
+single metadata-only packet with `recommended_request_target`, target argv,
+decision, blocker/warning IDs, and the stage boundary. It also repeats
+`operator_chain_snapshot_sha256`, a
 deterministic digest of the current operator-chain stage rows, so controllers
 can bind a proposed next local step to the exact checklist state they inspected.
 The packet also exposes `resume_with_stage` and

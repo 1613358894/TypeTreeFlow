@@ -1168,6 +1168,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "write": True,
         "outdir": "<isolated-install-plan-directory>",
     }
+    assert payload["operator_chain_stages"][6][
+        "recommended_request_target"
+    ] == "external-genomes install-plan"
     assert "no FASTA copy" in payload["operator_chain_stages"][6]["boundary"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
@@ -2030,6 +2033,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "write": True,
         "outdir": "<isolated-provider-request-external-genomes-directory>",
     }
+    assert next_step["recommended_request_target"] == (
+        "provider-request external-genomes-handoff"
+    )
     assert next_step["target_argv"] == [
         "provider-request",
         "external-genomes-handoff",
@@ -2790,6 +2796,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "record_count": 0,
         "required_inputs": [],
         "recommended_request": None,
+        "recommended_request_target": "",
         "recommended_next_command": "",
         "boundary": "",
         "operator_chain_snapshot_sha256": payload["operator_chain_snapshot_sha256"],
