@@ -48,9 +48,9 @@ catalog entries also list stable `output_contracts`, `output_contract_names`,
 `output_contract_count`, `output_contract_summary_fields`, and
 `output_contract_summary_field_count` for AI/operator packet fields such as
 readiness and operator-chain handoff packets. Contracts may include
-`summary_fields` for stable compact routing summaries across the coverage-plan,
-provider-handoff, provider-request, external-genomes handoff, and server
-validation result-validation chain. The
+`summary_fields` for stable compact routing summaries across acquisition
+worklists, coverage-plan, provider-handoff, provider-request, external-genomes
+handoff, and server validation result-validation chain. The
 recognize, render, plan, and preflight commands echo the recognized target
 command's output-contract metadata in their own JSON envelope so an AI operator
 can route the expected handoff packet and summary fields without a second
@@ -104,7 +104,9 @@ typetreeflow acquisition-worklist build --checklist-tsv <species.tsv> \
 The command is a planning aid only. It does not contact providers, download
 genomes, merge manifests, or grant strict scientific deliverable status.
 Command metadata reports `acquisition_worklist_packet.v1` for the generated
-worklist pair.
+worklist pair, including stable summary fields for record count, lane counts,
+review-signal counts, candidate provider-key counts, diagnostic count, output
+paths, and no-download boundary flags.
 Its summary includes lane counts and review-signal counts so AI or curator
 operators can prioritize candidate, conflict, gap, archive/INSDC, BioSample,
 BacDive/DSMZ, NCBI, expanded-discovery candidate, manual-supplement, and

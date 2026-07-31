@@ -687,6 +687,23 @@ _SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS: list[str] = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+_ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    "lane_counts",
+    "review_signal_counts",
+    "candidate_provider_key_counts",
+    "diagnostic_count",
+    "rows_truncated",
+    "audit_only",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "strict_scientific_deliverable",
+    "downloads_triggered",
+    "providers_contacted",
+    "manifest_mutated",
+    "output_paths",
+]
 _OUTPUT_CONTRACT_CATALOG: dict[
     tuple[str, str | None],
     tuple[dict[str, object], ...],
@@ -707,6 +724,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "acquisition_worklist_packet",
             "schema_version": "acquisition_worklist_packet.v1",
             "purpose": "offline acquisition worklist pair and summary",
+            "summary_fields": _ACQUISITION_WORKLIST_SUMMARY_FIELDS,
         },
     ),
     ("coverage-plan", "build"): (
