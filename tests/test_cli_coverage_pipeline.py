@@ -960,6 +960,123 @@ def test_coverage_pipeline_queue_item_id_selects_current_task_metadata(
     assert status_payload["selected_coverage_queue_item_found"] is True
 
 
+def test_coverage_pipeline_expected_queue_snapshot_guard(capsys, tmp_path):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--queue-item-id",
+            "cq003_review_public_type_linkage",
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    digest = payload["current_queue_snapshot_sha256"]
+    assert digest == payload["coverage_operator_queue_preview"][
+        "queue_snapshot_sha256"
+    ]
+    assert payload["expected_queue_snapshot_sha256"] == ""
+    assert payload["queue_snapshot_matches_expected"] is True
+
+    outdir = tmp_path / "pipeline_outputs"
+    code, build_payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--expected-queue-snapshot-sha256",
+            digest,
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert build_payload["expected_queue_snapshot_sha256"] == digest
+    assert build_payload["current_queue_snapshot_sha256"] == digest
+    assert build_payload["queue_snapshot_matches_expected"] is True
+
+    code, status_payload, captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--expected-queue-snapshot-sha256",
+            digest,
+            "--queue-item-id",
+            "cq004_prepare_provider_handoff",
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert status_payload["expected_queue_snapshot_sha256"] == digest
+    assert status_payload["current_queue_snapshot_sha256"] == digest
+    assert status_payload["queue_snapshot_matches_expected"] is True
+    assert status_payload["coverage_next_task_packet"]["queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+
+
+def test_coverage_pipeline_rejects_queue_snapshot_mismatch(capsys, tmp_path):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    wrong_digest = "0" * 64
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--expected-queue-snapshot-sha256",
+            wrong_digest,
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["expected_queue_snapshot_sha256"] == wrong_digest
+    assert payload["current_queue_snapshot_sha256"] != wrong_digest
+    assert payload["queue_snapshot_matches_expected"] is False
+    assert {
+        "schema_version": payload["schema_version"],
+        "component": "coverage_action_queue",
+        "severity": "error",
+        "diagnostic_code": "queue_snapshot_mismatch",
+    } in payload["diagnostics"]
+
+
 def test_coverage_pipeline_rejects_unknown_queue_item_id(capsys, tmp_path):
     checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
 

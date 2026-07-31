@@ -1151,6 +1151,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "repeatable": False,
             "purpose": "select a stable coverage queue item for task packet metadata",
         },
+        {
+            "name": "--expected-queue-snapshot-sha256",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "fail closed when coverage queue metadata digest changed",
+        },
     ],
     ("coverage-pipeline", "build"): [
         {
@@ -1251,6 +1258,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "select a stable coverage queue item for task packet metadata",
         },
         {
+            "name": "--expected-queue-snapshot-sha256",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "fail closed when coverage queue metadata digest changed",
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -1328,6 +1342,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "select a stable coverage queue item for task packet metadata",
+        },
+        {
+            "name": "--expected-queue-snapshot-sha256",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "fail closed when coverage queue metadata digest changed",
         },
         {
             "name": "--require-complete",
@@ -2600,6 +2621,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "registration_run_dir",
                     "queue_preview_limit",
                     "queue_item_id",
+                    "expected_queue_snapshot_sha256",
                     "require_complete",
                     "json",
                 },
@@ -2633,6 +2655,17 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             queue_item_id = _optional_string(request, "queue_item_id")
             if queue_item_id:
                 argv.extend(["--queue-item-id", queue_item_id])
+            expected_queue_snapshot = _optional_string(
+                request,
+                "expected_queue_snapshot_sha256",
+            )
+            if expected_queue_snapshot:
+                argv.extend(
+                    [
+                        "--expected-queue-snapshot-sha256",
+                        expected_queue_snapshot,
+                    ]
+                )
             return _with_flags(
                 argv,
                 request,
@@ -2653,6 +2686,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "manual_supplement_hints_tsv",
             "queue_preview_limit",
             "queue_item_id",
+            "expected_queue_snapshot_sha256",
         }
         if subcommand == "build":
             allowed.update(
@@ -2686,6 +2720,17 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         queue_item_id = _optional_string(request, "queue_item_id")
         if queue_item_id:
             argv.extend(["--queue-item-id", queue_item_id])
+        expected_queue_snapshot = _optional_string(
+            request,
+            "expected_queue_snapshot_sha256",
+        )
+        if expected_queue_snapshot:
+            argv.extend(
+                [
+                    "--expected-queue-snapshot-sha256",
+                    expected_queue_snapshot,
+                ]
+            )
         if subcommand == "build":
             if _bool_flag(request, "validate_provider_request"):
                 argv.append("--validate-provider-request")

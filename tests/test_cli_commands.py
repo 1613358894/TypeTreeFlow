@@ -987,6 +987,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                     '"registration_run_dir":"registration",'
                     '"queue_preview_limit":"5",'
                     '"queue_item_id":"cq004_prepare_provider_handoff",'
+                    '"expected_queue_snapshot_sha256":'
+                    '"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",'
                     '"require_complete":true,"json":true}'
                 ),
             ]
@@ -1014,6 +1016,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "5",
         "--queue-item-id",
         "cq004_prepare_provider_handoff",
+        "--expected-queue-snapshot-sha256",
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "--require-complete",
         "--json",
     ]

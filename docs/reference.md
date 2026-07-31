@@ -1774,9 +1774,9 @@ recommended next command for reviewing `provider/proposed_external_genomes.tsv`.
 The isolated coverage pipeline adapter is:
 
 ```text
-typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--json] [--write --outdir <dir> [--force]]
-typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--require-complete] [--json]
+typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--expected-queue-snapshot-sha256 <sha256>] [--json]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--expected-queue-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--expected-queue-snapshot-sha256 <sha256>] [--require-complete] [--json]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
@@ -1837,6 +1837,10 @@ can pass the request through `commands render`, `commands plan`, or
 `commands preflight` before any local operator action. It is metadata only and
 always reports `safe_for_unattended_download=false`. Unknown queue item IDs are
 refused with `diagnostic_code=queue_item_id_not_found` and exit code `2`.
+Controllers can also pass `--expected-queue-snapshot-sha256 <sha256>` with the
+previously observed `coverage_operator_queue_preview.queue_snapshot_sha256`.
+If the current queue digest differs, the command refuses the stale resume
+attempt with `diagnostic_code=queue_snapshot_mismatch` and exit code `2`.
 `coverage_next_command_plan` is a no-dispatch planning companion for that
 packet. It renders the packet's structured `recommended_request`, records the
 target argv, embeds the `commands preflight` decision, and repeats the
