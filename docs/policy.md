@@ -391,7 +391,10 @@ local FASTA paths, hashes, provider notes, curator values, or sequence
 contents. Optional `--write` mode may publish only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in an explicit isolated output
-directory. The optional report/package
+directory. It may parse controlled route metadata from draft row notes only to
+emit aggregate AI/operator routing counts and bounded preview fields; that
+metadata must not affect readiness, registration, completion, or strict
+scientific status. The optional report/package
 `--provider-request-validation-dir` surface may read and copy only that pair,
 package it under `provider_request_validation/`, and mark copied members with
 audit-only artifact-scope rows. A ready validation row means local
