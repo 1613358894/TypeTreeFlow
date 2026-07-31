@@ -2648,7 +2648,7 @@ do not write `name_map.tsv`, do not create `manifest.tsv`, do not create
 `external_genomes.tsv`, and do not write `cache/ncbi/download_plan.tsv`.
 External registered genomes must not change this boundary. Provider-native IDs remain external identifiers. They must not be written to NCBI `assembly_accession`.
 The default provider registry includes static fail-closed entries for ATCC
-Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC, KCTC, CECT,
+Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, CECT,
 CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR, CICC, and IFO;
 and public archives ENA, DDBJ, GenBank, and NCBI RefSeq. Culture-collection
 entries are `planning_only`; public archive entries are `metadata_only`.
@@ -2656,7 +2656,7 @@ Coverage action planning may use explicit
 `provider_keys`, `candidate_provider_keys`, `preferred_provider_keys`, or
 `provider_key` hints from local rows and normalizes known aliases to canonical
 provider keys. Provider hint fields may also contain recognizable standalone
-culture-collection tokens such as `ATCC`, `DSMZ`, or `KCTC`; these are still
+culture-collection tokens such as `ATCC`, `DSMZ`, `NITE`, or `KCTC`; these are still
 normalized only as review hints. These statuses and hints describe review
 guidance only and do not enable provider network access, automatic downloads,
 credentials, terms acceptance, or strict type-strain confirmation.

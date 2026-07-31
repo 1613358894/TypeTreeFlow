@@ -1313,7 +1313,7 @@ Genome Portal, scrape pages, purchase access, accept terms, download FASTA,
 install files, write manifests, write NCBI download plans, or change completion
 metrics.
 The provider registry includes static planning-only entries for ATCC Genome
-Portal and common culture collections including DSMZ, JCM, NCTC, CGMCC, NBRC,
+Portal and common culture collections including DSMZ, JCM, NCTC, CGMCC, NBRC/NITE,
 KCTC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB, BCRC, CCRC, NCCB, CSUR,
 CICC, and IFO, plus metadata-only public archive entries for ENA, DDBJ,
 GenBank, and NCBI RefSeq. Coverage planning can carry explicit provider hints
