@@ -1889,7 +1889,10 @@ bounded `summary_*` fields such as `summary_status`, `summary_ready_count`,
 `summary_blocked_count`, `summary_exported_count`, or
 `summary_install_planned_count`; bounded count dictionaries such as
 `summary_blocker_counts`, `summary_provider_counts`, and
-`summary_install_plan_status_counts` may also be included. These are routing
+`summary_install_plan_status_counts` may also be included. External-genomes
+child stages may also carry `summary_operator_route_counts`,
+`summary_next_input_class_counts`, and `summary_automation_boundary_counts`
+when controlled route metadata is available. These are routing
 hints only and do not change the `available` gate. It also includes
 `completion_gate` with `passed`, `required`, `blocking_stage_count`,
 `blocking_stage_names`, and `blocking_diagnostic_code`. By default, an
