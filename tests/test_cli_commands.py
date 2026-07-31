@@ -235,14 +235,33 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         for parameter in entry["parameters"]
     )
     assert all(
-        set(contract) == {
-            "name",
-            "schema_version",
-            "purpose",
-        }
+        {"name", "schema_version", "purpose"} <= set(contract)
+        and set(contract) <= {"name", "schema_version", "purpose", "summary_fields"}
         for entry in catalog
         for contract in entry["output_contracts"]
     )
+    coverage_plan = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"]) == ("coverage-plan", "build")
+    )
+    assert coverage_plan["output_contracts"] == [
+        {
+            "name": "coverage_plan_packet",
+            "schema_version": "coverage_plan_packet.v1",
+            "purpose": "offline coverage action plan pair and route summary",
+            "summary_fields": [
+                "action_counts",
+                "provider_key_counts",
+                "provider_status_counts",
+                "provider_automation_level_counts",
+                "operator_route_counts",
+                "next_input_class_counts",
+                "automation_boundary_counts",
+                "provider_route_groups",
+            ],
+        }
+    ]
     verify_genus = next(
         entry for entry in catalog if (entry["command"], entry["subcommand"]) == ("verify-genus", None)
     )
@@ -1465,6 +1484,16 @@ def test_commands_render_emits_normalized_coverage_plan_argv(capsys):
     assert payload["recognized"]["mode"] == "coverage_plan"
     assert payload["recognized"]["requires_outdir"] is True
     assert _output_contract_names(payload) == {"coverage_plan_packet"}
+    assert payload["output_contracts"][0]["summary_fields"] == [
+        "action_counts",
+        "provider_key_counts",
+        "provider_status_counts",
+        "provider_automation_level_counts",
+        "operator_route_counts",
+        "next_input_class_counts",
+        "automation_boundary_counts",
+        "provider_route_groups",
+    ]
 
 
 def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
