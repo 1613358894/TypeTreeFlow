@@ -1847,11 +1847,13 @@ bounded three-step operator recipe: review required local inputs, inspect the
 command plan, then invoke the target CLI separately only after review. It always
 reports `safe_for_unattended_execution=false` and
 `execution_boundary=metadata_only_operator_recipe_no_execution`.
-`coverage_operator_queue_preview` extends that no-execution view to the first
-three queue items. It lists each item's `queue_item_id`, route, required inputs,
-rendered argv, preflight decision, and `safe_for_unattended_execution=false`, with
-`truncated=true` when additional queue items exist. It is a routing preview, not
-a queue runner.
+`coverage_operator_queue_preview` extends that no-execution view to a bounded
+set of queue items. By default it previews the first three items; operators can
+pass `--queue-preview-limit <1..10>` to `preview`, `build`, or `status` to
+request a larger or smaller bounded preview. It lists each item's
+`queue_item_id`, route, required inputs, rendered argv, preflight decision, and
+`safe_for_unattended_execution=false`, with `truncated=true` when additional
+queue items exist. It is a routing preview, not a queue runner.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

@@ -266,8 +266,10 @@ they still require normal planning or preflight before execution. It also carrie
 input requirement, rendered argv, preflight decision, and review-only recipe
 without executing the target command.
 `coverage_operator_queue_preview` applies the same metadata-only routing view
-to the first three queue items, including their `queue_item_id` values, and
-reports whether the preview is truncated.
+to a bounded queue prefix, including `queue_item_id` values, and reports whether
+the preview is truncated. It defaults to three items; use
+`--queue-preview-limit <1..10>` on `preview`, `build`, or `status` when an
+AI/operator controller needs a larger or smaller no-execution preview.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
