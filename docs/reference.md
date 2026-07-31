@@ -1676,7 +1676,12 @@ status, blocker codes, route metadata, and boolean local evidence checks. They
 do not echo local FASTA paths, hashes, provider notes, curator values, or
 sequence contents. The JSON and summary also include `required_inputs` plus a
 structured `recommended_request` for the next offline
-`provider-request external-genomes-handoff` step.
+`provider-request external-genomes-handoff` step. They also include
+`provider_request_readiness_packet`, a compact AI/operator handoff object with
+`stage=validate`, status/count fields, audit-only boundary flags, and
+`next_stage=provider_request_external_genomes_handoff` only when every row is
+ready. Blocked or failed validation packets keep `recommended_request=null` and
+an empty `recommended_next_command`.
 
 Successful fully ready validation exits `0`; schema/input/readiness blockers
 exit `2`; unexpected internal or write failures exit `1`. Without `--write`,
@@ -1718,7 +1723,11 @@ provider request notes; they must not copy raw provider notes or curator notes.
 When `--write` succeeds, the recommended validation and install-plan requests
 point to the just-written `<dir>/external_genomes.tsv` artifact instead of the
 generic placeholder so the next local dry-run step can be rendered without
-manual path reconstruction.
+manual path reconstruction. The payload and written summary also include
+`provider_request_readiness_packet` with `stage=external_genomes_draft`; it
+sets `next_stage=external_genomes_validate` and exposes the validation and
+install-plan recommended requests only when every provider request row was
+exported.
 Existing output directories are refused by default; `--force` replaces only an
 owned pair with matching schemas.
 
@@ -1750,7 +1759,11 @@ can keep the provider-request route visible through the bundled handoff step.
 When `--write` succeeds and the draft directory is created, the returned
 recommended validation and install-plan requests point to
 `<dir>/provider_request_external_genomes/external_genomes.tsv`, the concrete
-child artifact in the isolated handoff bundle.
+child artifact in the isolated handoff bundle. The payload also includes
+`provider_request_readiness_packet` with `stage=external_genomes_handoff`; it
+uses the same audit-only boundary fields and sets
+`next_stage=external_genomes_validate` only when both validation and draft
+projection passed.
 
 The command exits `0` only when validation and external-genomes draft
 projection both pass. Validation, schema, readiness, or path-safety blockers
