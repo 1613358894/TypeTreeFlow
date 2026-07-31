@@ -1892,9 +1892,12 @@ and does not contact providers or authorize unattended execution.
 `coverage_route_next_batch_packet` derives from that provider route list and
 exposes a bounded batch selector for AI/operator controllers. It reports the
 first provider key, route priority, recommended operator action, required local
-input artifact, up to five batch items, and an operator-review gate for each
-item. It is a planning packet for local review or handoff preparation only; it
-does not dispatch commands, contact providers, download genomes, mutate
+input artifact, structured `recommended_request`,
+`recommended_request_target`, up to five batch items, and an operator-review
+gate for each item. Controllers can pass the recommended request through
+`commands render`, `commands plan`, or `commands preflight` before invoking any
+local CLI. It is a planning packet for local review or handoff preparation only;
+it does not dispatch commands, contact providers, download genomes, mutate
 manifests, or write strict deliverables.
 `coverage_action_queue` is the same opportunity set in stable queue order with
 a one-based `queue_position`, deterministic `queue_item_id`, bounded route booleans such as

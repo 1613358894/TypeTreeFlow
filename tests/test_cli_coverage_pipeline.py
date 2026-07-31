@@ -1741,6 +1741,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "prepare_provider_handoff_package"
     )
     assert next_batch["first_required_local_input"] == "provider_handoff.tsv"
+    assert next_batch["first_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+    }
+    assert next_batch["first_recommended_request_target"] == (
+        "provider-request draft"
+    )
     assert next_batch["safe_for_unattended_execution"] is False
     assert next_batch["downloads_triggered"] == 0
     assert next_batch["providers_contacted"] == 0
@@ -1758,6 +1766,19 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "network_access": False,
         "strict_scientific_deliverable": False,
     }
+    genbank_batch_item = [
+        item
+        for item in next_batch["batch_items"]
+        if item["provider_key"] == "genbank"
+    ][0]
+    assert genbank_batch_item["recommended_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "<review.tsv>",
+    }
+    assert genbank_batch_item["recommended_request_target"] == (
+        "manual-review validate"
+    )
     assert payload["provider_terms_review_required_count"] == 8
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0
@@ -2969,6 +2990,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["coverage_route_next_batch_packet"][
         "first_recommended_operator_action"
     ] == "prepare_provider_handoff_package"
+    assert summary["coverage_route_next_batch_packet"][
+        "first_recommended_request_target"
+    ] == "provider-request draft"
     assert summary["provider_request_record_count"] == 8
     assert summary["provider_request_automation_level_counts"] == {
         "metadata_review": 6,
@@ -3624,6 +3648,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert status_payload["coverage_route_next_batch_packet"][
         "first_recommended_operator_action"
     ] == "prepare_provider_handoff_package"
+    assert status_payload["coverage_route_next_batch_packet"][
+        "first_recommended_request_target"
+    ] == "provider-request draft"
     assert status_payload["coverage_priority_summary"][
         "record_counts_by_operator_route"
     ] == {
