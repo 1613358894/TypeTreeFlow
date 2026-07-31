@@ -986,6 +986,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                     '"external_genomes_install_plan_dir":"install_plan",'
                     '"registration_run_dir":"registration",'
                     '"queue_preview_limit":"5",'
+                    '"queue_item_id":"cq004_prepare_provider_handoff",'
                     '"require_complete":true,"json":true}'
                 ),
             ]
@@ -1011,6 +1012,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "registration",
         "--queue-preview-limit",
         "5",
+        "--queue-item-id",
+        "cq004_prepare_provider_handoff",
         "--require-complete",
         "--json",
     ]
