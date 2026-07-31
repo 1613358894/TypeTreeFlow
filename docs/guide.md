@@ -294,12 +294,13 @@ summaries also expose execution-gate counts for controller-level triage.
 the first item and command target for each route so controllers can choose the
 next review surface without scanning every row.
 `coverage_controller_packet` combines queue routing, queue resume metadata,
-operator-chain readiness, and operator-chain resume metadata into one compact
-AI handoff with digest guards and no-execution safety fields. Its ordered
-`controller_step_candidates` list lets a controller compare the queue item and
-operator-chain stage candidates without expanding the full queue or stage list.
-Each candidate also carries compact `route_context` metadata for routing
-explanation; the candidates still require normal planning or preflight before execution.
+route-batch command-plan metadata, operator-chain readiness, and operator-chain
+resume metadata into one compact AI handoff with digest guards and no-execution
+safety fields. Its ordered `controller_step_candidates` list lets a controller
+compare the single queue item, operator-chain stage, and provider route-batch
+candidates without expanding the full queue, route list, or stage list. Each
+candidate also carries compact `route_context` metadata for routing explanation;
+the candidates still require normal planning or preflight before execution.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
 summary for parent orchestration. `controller_digest_guard_summary` repeats the
 queue and operator-chain snapshot guards in one place so parent controllers can
@@ -379,7 +380,7 @@ next-input, command-plan status, decision, execution-gate status, blocking-item,
 and warning-item summaries so a controller can triage the queue without
 expanding every item first. Use `coverage_operator_route_summary` when the
 controller needs the same route-level view over the full queue, or
-`coverage_controller_packet` when it needs one combined queue plus
+`coverage_controller_packet` when it needs one combined queue, route-batch, plus
 operator-chain routing object. It includes
 `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata

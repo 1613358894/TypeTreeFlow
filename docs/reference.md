@@ -2066,17 +2066,20 @@ it groups records by route and keeps compact first-item and target metadata so
 an AI/controller can decide which review surface to handle next without
 scanning every queue row.
 `coverage_controller_packet` is the shortest combined handoff: it lists
-available decision surfaces, queue and operator-chain statuses, current command
-targets, snapshot match booleans, and ordered `controller_step_candidates` in
-one object while preserving the same no-execution boundaries. Each controller
-candidate repeats only compact source, target argv, digest guard, blocking,
-warning, and `route_context` metadata from the queue or operator-chain handoff;
-it is not execution authority. The route context carries operator-route /
-next-input-class metadata or provider route groups when available, plus a
+available decision surfaces, queue, route-batch, and operator-chain statuses,
+current command targets, snapshot match booleans, and ordered
+`controller_step_candidates` in one object while preserving the same
+no-execution boundaries. Each controller candidate repeats only compact source,
+target argv, digest guard, blocking, warning, and `route_context` metadata from
+the queue, route-batch, or operator-chain handoff; it is not execution
+authority. The route context carries operator-route / next-input-class metadata
+or provider route groups when available, plus a
 `first_controller_step_route_context` convenience copy. Queue-derived controller
-fields also include `coverage_queue_next_input_package`, and the first candidate
-is copied to `first_controller_step_next_input_package`, so controllers can read
-the next local input schema and artifact without expanding candidate internals.
+fields also include `coverage_queue_next_input_package`, route-batch controller
+fields include the first provider key and first target argv, and the first
+candidate is copied to `first_controller_step_next_input_package`, so
+controllers can read the next local input schema and artifact without expanding
+candidate internals.
 The packet also exposes
 `controller_status`, `controller_decision`,
 and aggregate blocker/warning IDs so controllers can fail closed without
