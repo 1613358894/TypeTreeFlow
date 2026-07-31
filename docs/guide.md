@@ -293,6 +293,9 @@ executing those requests. Opportunity and queue rows carry the same structured
 they still require normal planning or preflight before execution. They also carry
 bounded species previews so an AI/operator can see which records start each
 action group without treating the preview as a replacement for the source TSVs.
+The top-level `primary_action_recommended_request_target` repeats the first
+action group's compact command target for controllers that only need the next
+route label.
 It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` so an AI/operator can see the current local
@@ -424,8 +427,9 @@ public-archive audit triplet. It adds compact archive-candidate counts for
 operator routing but does not query archives, download genomes, create
 `external_genomes.tsv`, register files, or change strict evidence. The status
 payload reports `operator_chain_stages`, `stage_status_counts`, available and
-unavailable stage names, the first unavailable stage, and the recommended next
-command. Like `preview` and `build`, it also reports
+unavailable stage names, the first unavailable stage, compact
+`recommended_request_target`, and the recommended next command. Like `preview`
+and `build`, it also reports
 `operator_chain_next_step_packet`, a metadata-only handoff object that renders
 and preflights the next unavailable local stage's structured request without
 dispatching it. The packet repeats the compact `recommended_request_target` and

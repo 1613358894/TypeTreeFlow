@@ -762,6 +762,7 @@ def _run_status(
     }
     next_required_inputs: list[str] = []
     next_recommended_request: dict[str, object] | None = None
+    next_recommended_request_target = ""
     if next_stage:
         raw_required_inputs = next_stage.get("required_inputs")
         if isinstance(raw_required_inputs, list):
@@ -769,6 +770,9 @@ def _run_status(
         raw_recommended_request = next_stage.get("recommended_request")
         if isinstance(raw_recommended_request, Mapping):
             next_recommended_request = dict(raw_recommended_request)
+            next_recommended_request_target = _coverage_recommended_request_target(
+                next_recommended_request
+            )
     operator_chain_snapshot_sha256 = _operator_chain_snapshot_sha256(stages)
     operator_chain_snapshot_matches = _validate_expected_operator_chain_snapshot(
         current_sha256=operator_chain_snapshot_sha256,
@@ -843,6 +847,7 @@ def _run_status(
         "next_stage": next_stage,
         "required_inputs": next_required_inputs,
         "recommended_request": next_recommended_request,
+        "recommended_request_target": next_recommended_request_target,
         "recommended_next_command": (
             str(next_stage.get("recommended_next_command", ""))
             if next_stage
@@ -1746,6 +1751,7 @@ def _payload(
     )
     primary_action_required_inputs: list[str] = []
     primary_action_recommended_request: dict[str, object] | None = None
+    primary_action_recommended_request_target = ""
     primary_action_recommended_next_command = ""
     if primary_next_action_group:
         raw_required_inputs = primary_next_action_group.get("required_inputs")
@@ -1758,6 +1764,11 @@ def _payload(
         )
         if isinstance(raw_recommended_request, Mapping):
             primary_action_recommended_request = dict(raw_recommended_request)
+            primary_action_recommended_request_target = (
+                _coverage_recommended_request_target(
+                    primary_action_recommended_request
+                )
+            )
         primary_action_recommended_next_command = str(
             primary_next_action_group.get("recommended_next_command", "")
         )
@@ -1801,6 +1812,9 @@ def _payload(
         "primary_next_action_group": primary_next_action_group,
         "primary_action_required_inputs": primary_action_required_inputs,
         "primary_action_recommended_request": primary_action_recommended_request,
+        "primary_action_recommended_request_target": (
+            primary_action_recommended_request_target
+        ),
         "primary_action_recommended_next_command": (
             primary_action_recommended_next_command
         ),
@@ -3490,6 +3504,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
         "primary_action_recommended_request": None,
+        "primary_action_recommended_request_target": "",
         "primary_action_recommended_next_command": "",
         "provider_handoff_record_count": 0,
         "provider_key_counts": {},
@@ -3643,6 +3658,7 @@ def _rendered_outputs(
             "primary_next_action_group",
             "primary_action_required_inputs",
             "primary_action_recommended_request",
+            "primary_action_recommended_request_target",
             "primary_action_recommended_next_command",
             "provider_handoff_record_count",
             "provider_key_counts",
