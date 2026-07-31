@@ -380,6 +380,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     coverage_pipeline_contracts = {
         "coverage_next_task_packet",
         "coverage_next_command_plan",
+        "coverage_stage_command_plans",
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
@@ -1181,6 +1182,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
     assert _output_contract_names(payload) == {
         "coverage_next_task_packet",
         "coverage_next_command_plan",
+        "coverage_stage_command_plans",
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",
@@ -1242,6 +1244,7 @@ def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_al
     assert _output_contract_names(payload) == {
         "coverage_next_task_packet",
         "coverage_next_command_plan",
+        "coverage_stage_command_plans",
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",
         "coverage_operator_queue_preview",

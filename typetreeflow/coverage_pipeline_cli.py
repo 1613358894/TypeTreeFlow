@@ -1471,6 +1471,39 @@ _DEFAULT_STAGE_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
     },
 }
 
+_COVERAGE_STAGE_COMMAND_PLAN_SOURCES: tuple[tuple[str, str, str], ...] = (
+    (
+        "provider_request",
+        "provider_handoff",
+        "provider_request_recommended_request",
+    ),
+    (
+        "provider_request_validation",
+        "provider_request",
+        "provider_request_validation_recommended_request",
+    ),
+    (
+        "provider_request_external_genomes",
+        "provider_request_external_genomes",
+        "provider_request_external_genomes_recommended_request",
+    ),
+    (
+        "provider_request_external_genomes_install_plan",
+        "external_genomes_install_plan",
+        "provider_request_external_genomes_install_plan_recommended_request",
+    ),
+    (
+        "external_genomes_registration_dry_run",
+        "external_genomes_registration_dry_run",
+        "external_genomes_registration_dry_run_recommended_request",
+    ),
+    (
+        "provider_request_external_genomes_handoff",
+        "provider_request_validation",
+        "provider_request_external_genomes_handoff_recommended_request",
+    ),
+)
+
 
 _COVERAGE_ACTION_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
     "resolve_curator_conflict": {
@@ -1818,6 +1851,7 @@ def _payload(
         "primary_action_recommended_next_command": (
             primary_action_recommended_next_command
         ),
+        "coverage_stage_command_plans": _coverage_stage_command_plans(),
         "provider_handoff_record_count": provider_summary["record_count"],
         "provider_key_counts": provider_summary["provider_key_counts"],
         "provider_status_counts": provider_summary["provider_status_counts"],
@@ -2880,6 +2914,13 @@ def _coverage_stage_command_plan(
     )
 
 
+def _coverage_stage_command_plans() -> dict[str, dict[str, object]]:
+    return {
+        key: _coverage_stage_command_plan(stage_name, request_source)
+        for key, stage_name, request_source in _COVERAGE_STAGE_COMMAND_PLAN_SOURCES
+    }
+
+
 def _coverage_next_operator_recipe(
     packet: Mapping[str, object],
     command_plan: Mapping[str, object],
@@ -3585,6 +3626,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "primary_action_recommended_request": None,
         "primary_action_recommended_request_target": "",
         "primary_action_recommended_next_command": "",
+        "coverage_stage_command_plans": _coverage_stage_command_plans(),
         "provider_handoff_record_count": 0,
         "provider_key_counts": {},
         "provider_status_counts": {},
@@ -3803,6 +3845,7 @@ def _rendered_outputs(
             "primary_action_recommended_request",
             "primary_action_recommended_request_target",
             "primary_action_recommended_next_command",
+            "coverage_stage_command_plans",
             "provider_handoff_record_count",
             "provider_key_counts",
             "provider_status_counts",
