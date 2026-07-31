@@ -510,6 +510,26 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "public_metadata_review",
         "provider_handoff",
     ]
+    assert [
+        entry["operator_execution_gate"] for entry in payload["coverage_action_queue"]
+    ] == [
+        _expected_operator_execution_gate(
+            available=True,
+            has_recommended_request=True,
+        ),
+        _expected_operator_execution_gate(
+            available=True,
+            has_recommended_request=True,
+        ),
+        _expected_operator_execution_gate(
+            available=True,
+            has_recommended_request=True,
+        ),
+        _expected_operator_execution_gate(
+            available=True,
+            has_recommended_request=True,
+        ),
+    ]
     assert payload["coverage_action_queue"][0]["requires_curator_input"] is True
     assert (
         payload["coverage_action_queue"][1]["requires_public_metadata_review"]
@@ -873,6 +893,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "subcommand": "validate",
         "input": "<review.tsv>",
     }
+    assert payload["current_coverage_action_queue_item"][
+        "operator_execution_gate"
+    ] == _expected_operator_execution_gate(
+        available=True,
+        has_recommended_request=True,
+    )
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
     assert payload["provider_automation_level_counts"] == {
