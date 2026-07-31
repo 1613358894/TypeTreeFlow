@@ -53,6 +53,13 @@ def _row(**overrides: str) -> dict[str, str]:
     return row
 
 
+ROUTE_NOTES = (
+    "curator registered; operator_route=provider_handoff; "
+    "next_input_class=permitted_local_fasta_terms_provenance; "
+    "automation_boundary=planning_handoff_no_provider_contact"
+)
+
+
 def _payload(capsys):
     output = capsys.readouterr().out
     assert output.endswith("\n")
@@ -64,7 +71,7 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     fasta = _fasta(tmp_path / "genomes" / "reference.fna")
     table = _write_external_genomes(
         tmp_path / "external_genomes.tsv",
-        [_row(sha256=calculate_sha256(fasta))],
+        [_row(sha256=calculate_sha256(fasta), notes=ROUTE_NOTES)],
     )
 
     assert main(["external-genomes", "validate", "--input", str(table)]) == 0
@@ -75,6 +82,13 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     assert payload["valid_count"] == 1
     assert payload["invalid_count"] == 0
     assert payload["status_counts"] == {"external_genome_registered": 1}
+    assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False
     assert payload["manifest_mutated"] is False
@@ -83,6 +97,35 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     assert payload["network_access"] is False
     assert payload["external_tools"] is False
     assert not (tmp_path / "manifest.tsv").exists()
+
+
+def test_external_genomes_validate_ignores_uncontrolled_route_notes(
+    tmp_path, capsys
+):
+    fasta = _fasta(tmp_path / "genomes" / "reference.fna")
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [
+            _row(
+                sha256=calculate_sha256(fasta),
+                notes=(
+                    "operator_route=local-secret-path; "
+                    "next_input_class=tokenized-private-export; "
+                    "automation_boundary=unsupported-secret-boundary"
+                ),
+            )
+        ],
+    )
+
+    assert main(["external-genomes", "validate", "--input", str(table)]) == 0
+
+    stdout = capsys.readouterr().out
+    payload = json.loads(stdout)
+    assert payload["operator_route_counts"] == {}
+    assert payload["next_input_class_counts"] == {}
+    assert payload["automation_boundary_counts"] == {}
+    assert "local-secret-path" not in stdout
+    assert "tokenized-private-export" not in stdout
 
 
 def test_external_genomes_validate_blocks_mixed_invalid_rows(tmp_path, capsys):
@@ -145,7 +188,13 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     fasta = _fasta(tmp_path / "inputs" / "genomes" / "reference.fna")
     table = _write_external_genomes(
         tmp_path / "inputs" / "external_genomes.tsv",
-        [_row(genome_fasta_path="genomes/reference.fna", sha256=calculate_sha256(fasta))],
+        [
+            _row(
+                genome_fasta_path="genomes/reference.fna",
+                sha256=calculate_sha256(fasta),
+                notes=ROUTE_NOTES,
+            )
+        ],
     )
     target_run = tmp_path / "target_run"
     isolated = tmp_path / "install_plan"
@@ -174,6 +223,13 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert payload["record_count"] == 1
     assert payload["valid_count"] == 1
     assert payload["install_planned_count"] == 1
+    assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert payload["writes_outputs"] is True
     assert payload["writes_workflow_outputs"] is False
     assert payload["target_outdir_mutated"] is False
@@ -201,6 +257,7 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert summary["recommended_request"]["command"] == "register-external-genomes"
     assert summary["recommended_request"]["external_genomes"] == input_path
     assert summary["recommended_next_command"] == payload["recommended_next_command"]
+    assert summary["operator_route_counts"] == {"provider_handoff": 1}
 
 
 def test_external_genomes_install_plan_blocks_invalid_rows_without_outputs(

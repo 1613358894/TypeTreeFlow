@@ -223,6 +223,13 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     )
     external_payload = json.loads(capsys.readouterr().out)
     assert external_payload["valid_count"] == 1
+    assert external_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert external_payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert external_payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert external_payload["writes_outputs"] is False
 
     assert (
@@ -252,6 +259,13 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     )
     assert install_plan_payload["status"] == "pass"
     assert install_plan_payload["install_planned_count"] == 1
+    assert install_plan_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert install_plan_payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert install_plan_payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert install_plan_payload["writes_outputs"] is True
     assert install_plan_payload["writes_workflow_outputs"] is False
     assert install_plan_payload["install_executed"] is False
@@ -309,6 +323,13 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert register_payload["status"] == "pass"
     assert register_payload["dry_run"] is True
     assert register_payload["valid_count"] == 1
+    assert register_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert register_payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert register_payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert register_payload["downloads_triggered"] == 0
     assert register_payload["providers_contacted"] == 0
     assert register_payload["manifest_mutated"] is False

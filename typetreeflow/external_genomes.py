@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import shutil
+from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
@@ -111,6 +112,29 @@ EXTERNAL_GENOME_INSTALL_RESULT_STATUSES = {
     "external_genome_install_skipped_existing",
     "external_genome_install_failed",
     "external_genome_install_checksum_mismatch",
+}
+
+EXTERNAL_GENOME_ROUTE_METADATA_FIELDS = (
+    "operator_route",
+    "next_input_class",
+    "automation_boundary",
+)
+EXTERNAL_GENOME_ROUTE_METADATA_ALLOWED_VALUES = {
+    "operator_route": {
+        "public_metadata_review",
+        "provider_download",
+        "provider_handoff",
+    },
+    "next_input_class": {
+        "public_accession_type_strain_linkage",
+        "explicit_download_authorization",
+        "permitted_local_fasta_terms_provenance",
+    },
+    "automation_boundary": {
+        "metadata_review_only_no_download",
+        "download_requires_explicit_enable_flags",
+        "planning_handoff_no_provider_contact",
+    },
 }
 
 
@@ -798,6 +822,45 @@ def write_external_genomes(
         for record in resolved_records:
             writer.writerow(_record_to_row(record))
     return output_path
+
+
+def external_genome_route_metadata_from_notes(notes: str) -> dict[str, str]:
+    """Extract controlled AI routing metadata from external-genome notes."""
+    values = {field: "" for field in EXTERNAL_GENOME_ROUTE_METADATA_FIELDS}
+    for part in str(notes).split(";"):
+        key, sep, value = part.strip().partition("=")
+        if not sep or key not in values:
+            continue
+        candidate = value.strip()
+        if candidate in EXTERNAL_GENOME_ROUTE_METADATA_ALLOWED_VALUES[key]:
+            values[key] = candidate
+    return values
+
+
+def summarize_external_genome_route_metadata(
+    rows: Iterable[object],
+) -> dict[str, dict[str, int]]:
+    counts = {
+        "operator_route_counts": Counter(),
+        "next_input_class_counts": Counter(),
+        "automation_boundary_counts": Counter(),
+    }
+    for row in rows:
+        metadata = external_genome_route_metadata_from_notes(
+            str(getattr(row, "notes", "") or "")
+        )
+        for field, count_key in (
+            ("operator_route", "operator_route_counts"),
+            ("next_input_class", "next_input_class_counts"),
+            ("automation_boundary", "automation_boundary_counts"),
+        ):
+            value = metadata[field]
+            if value:
+                counts[count_key][value] += 1
+    return {
+        key: dict(sorted(counter.items()))
+        for key, counter in counts.items()
+    }
 
 
 def validate_external_genomes(

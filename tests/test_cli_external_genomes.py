@@ -51,6 +51,13 @@ def _row(**overrides) -> list[str]:
     return [values[field] for field in EXTERNAL_GENOME_FIELDS]
 
 
+ROUTE_NOTES = (
+    "curator registered; operator_route=provider_handoff; "
+    "next_input_class=permitted_local_fasta_terms_provenance; "
+    "automation_boundary=planning_handoff_no_provider_contact"
+)
+
+
 def _external_genomes_tsv(path: Path, rows: list[list[str]]) -> Path:
     return _write(
         path,
@@ -138,7 +145,7 @@ def test_register_external_genomes_dry_run_valid_tsv_writes_results_and_install_
     fasta = _fasta(tmp_path / "genomes" / "reference.fna")
     external_genomes = _external_genomes_tsv(
         tmp_path / "external_genomes.tsv",
-        [_row()],
+        [_row(notes=ROUTE_NOTES)],
     )
 
     result = cli.main(
@@ -178,7 +185,7 @@ def test_register_external_genomes_dry_run_stdout_is_compact_json(tmp_path, caps
     _fasta(tmp_path / "genomes" / "reference.fna")
     external_genomes = _external_genomes_tsv(
         tmp_path / "external_genomes.tsv",
-        [_row()],
+        [_row(notes=ROUTE_NOTES)],
     )
 
     result = cli.main(
@@ -201,6 +208,13 @@ def test_register_external_genomes_dry_run_stdout_is_compact_json(tmp_path, caps
     assert payload["registration_result_count"] == 1
     assert payload["valid_count"] == 1
     assert payload["invalid_count"] == 0
+    assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert payload["install_plan_status_counts"] == {
         "external_genome_install_planned": 1
     }

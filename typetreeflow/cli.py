@@ -86,6 +86,7 @@ from typetreeflow.external_genomes import (
     execute_external_genome_install_plan,
     external_install_results_to_strain_records,
     read_external_genomes,
+    summarize_external_genome_route_metadata,
     validate_external_genome_records,
     write_external_genome_install_plan,
     write_external_genome_install_results,
@@ -4501,6 +4502,7 @@ def _format_external_genome_registration_envelope(
         "registration_status_counts": _count_external_registration_statuses(
             registration_results
         ),
+        **_external_genome_route_counts_payload(registration_results),
         "install_plan_count": len(install_plan),
         "install_plan_status_counts": _count_external_install_plan_statuses(
             install_plan
@@ -4677,6 +4679,12 @@ def _count_external_registration_statuses(
         if row.status:
             counts[row.status] = counts.get(row.status, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _external_genome_route_counts_payload(
+    rows: list[ExternalGenomeRegistrationResult],
+) -> dict[str, dict[str, int]]:
+    return summarize_external_genome_route_metadata(rows)
 
 
 def _count_external_install_plan_statuses(
