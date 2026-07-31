@@ -1848,11 +1848,21 @@ def _payload(
         "provider_request_recommended_request": _stage_recommended_request(
             "provider_handoff"
         ),
+        "provider_request_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_handoff")
+            )
+        ),
         "provider_request_recommended_next_command": (
             PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND
         ),
         "provider_request_validation_recommended_request": (
             _stage_recommended_request("provider_request")
+        ),
+        "provider_request_validation_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_request")
+            )
         ),
         "provider_request_validation_recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
@@ -1880,6 +1890,11 @@ def _payload(
         ),
         "provider_request_external_genomes_recommended_request": (
             _stage_recommended_request("provider_request_external_genomes")
+        ),
+        "provider_request_external_genomes_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_request_external_genomes")
+            )
         ),
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND
@@ -1912,6 +1927,11 @@ def _payload(
         "provider_request_external_genomes_install_plan_recommended_request": (
             _stage_recommended_request("external_genomes_install_plan")
         ),
+        "provider_request_external_genomes_install_plan_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("external_genomes_install_plan")
+            )
+        ),
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_NEXT_COMMAND
         ),
@@ -1943,6 +1963,11 @@ def _payload(
         "external_genomes_registration_dry_run_recommended_request": (
             _stage_recommended_request("external_genomes_registration_dry_run")
         ),
+        "external_genomes_registration_dry_run_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("external_genomes_registration_dry_run")
+            )
+        ),
         "external_genomes_registration_dry_run_recommended_next_command": (
             "typetreeflow --register-external-genomes "
             "provider_request_external_genomes/external_genomes.tsv "
@@ -1950,6 +1975,11 @@ def _payload(
         ),
         "provider_request_external_genomes_handoff_recommended_request": (
             _stage_recommended_request("provider_request_validation")
+        ),
+        "provider_request_external_genomes_handoff_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_request_validation")
+            )
         ),
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
@@ -3522,11 +3552,21 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_recommended_request": _stage_recommended_request(
             "provider_handoff"
         ),
+        "provider_request_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_handoff")
+            )
+        ),
         "provider_request_recommended_next_command": (
             PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND
         ),
         "provider_request_validation_recommended_request": (
             _stage_recommended_request("provider_request")
+        ),
+        "provider_request_validation_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_request")
+            )
         ),
         "provider_request_validation_recommended_next_command": (
             PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
@@ -3542,6 +3582,11 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_external_genomes_recommended_request": (
             _stage_recommended_request("provider_request_external_genomes")
         ),
+        "provider_request_external_genomes_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_request_external_genomes")
+            )
+        ),
         "provider_request_external_genomes_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND
         ),
@@ -3555,6 +3600,11 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_request_external_genomes_readiness_packet": {},
         "provider_request_external_genomes_install_plan_recommended_request": (
             _stage_recommended_request("external_genomes_install_plan")
+        ),
+        "provider_request_external_genomes_install_plan_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("external_genomes_install_plan")
+            )
         ),
         "provider_request_external_genomes_install_plan_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_INSTALL_PLAN_NEXT_COMMAND
@@ -3570,6 +3620,11 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "external_genomes_registration_dry_run_recommended_request": (
             _stage_recommended_request("external_genomes_registration_dry_run")
         ),
+        "external_genomes_registration_dry_run_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("external_genomes_registration_dry_run")
+            )
+        ),
         "external_genomes_registration_dry_run_recommended_next_command": (
             "typetreeflow --register-external-genomes "
             "provider_request_external_genomes/external_genomes.tsv "
@@ -3577,6 +3632,11 @@ def _failure(code: str, message: str) -> dict[str, object]:
         ),
         "provider_request_external_genomes_handoff_recommended_request": (
             _stage_recommended_request("provider_request_validation")
+        ),
+        "provider_request_external_genomes_handoff_recommended_request_target": (
+            _coverage_recommended_request_target(
+                _stage_recommended_request("provider_request_validation")
+            )
         ),
         "provider_request_external_genomes_handoff_recommended_next_command": (
             PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
@@ -3674,8 +3734,10 @@ def _rendered_outputs(
             "provider_request_status_counts",
             "provider_request_automation_level_counts",
             "provider_request_recommended_request",
+            "provider_request_recommended_request_target",
             "provider_request_recommended_next_command",
             "provider_request_validation_recommended_request",
+            "provider_request_validation_recommended_request_target",
             "provider_request_validation_recommended_next_command",
             "provider_request_validation_status",
             "provider_request_validation_record_count",
@@ -3684,6 +3746,7 @@ def _rendered_outputs(
             "provider_request_validation_output_paths",
             "provider_request_validation_readiness_packet",
             "provider_request_external_genomes_recommended_request",
+            "provider_request_external_genomes_recommended_request_target",
             "provider_request_external_genomes_recommended_next_command",
             "provider_request_external_genomes_status",
             "provider_request_external_genomes_record_count",
@@ -3692,6 +3755,10 @@ def _rendered_outputs(
             "provider_request_external_genomes_output_paths",
             "provider_request_external_genomes_readiness_packet",
             "provider_request_external_genomes_install_plan_recommended_request",
+            (
+                "provider_request_external_genomes_install_plan_"
+                "recommended_request_target"
+            ),
             "provider_request_external_genomes_install_plan_recommended_next_command",
             "external_genomes_install_plan_status",
             "external_genomes_install_plan_record_count",
@@ -3700,8 +3767,10 @@ def _rendered_outputs(
             "external_genomes_install_plan_output_paths",
             "external_genomes_install_plan_readiness_packet",
             "external_genomes_registration_dry_run_recommended_request",
+            "external_genomes_registration_dry_run_recommended_request_target",
             "external_genomes_registration_dry_run_recommended_next_command",
             "provider_request_external_genomes_handoff_recommended_request",
+            "provider_request_external_genomes_handoff_recommended_request_target",
             "provider_request_external_genomes_handoff_recommended_next_command",
             "operator_chain_stages",
             "diagnostic_count",
