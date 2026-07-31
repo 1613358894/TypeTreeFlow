@@ -415,6 +415,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--provider-request-external-genomes-dir",
         "--external-genomes-install-plan-dir",
         "--registration-run-dir",
+        "--stage",
         "--expected-operator-chain-snapshot-sha256",
         "--require-complete",
         "--json",
@@ -1140,6 +1141,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                     '"registration_run_dir":"registration",'
                     '"queue_preview_limit":"5",'
                     '"queue_item_id":"cq004_prepare_provider_handoff",'
+                    '"stage":"external_genomes_install_plan",'
                     '"expected_queue_snapshot_sha256":'
                     '"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",'
                     '"expected_operator_chain_snapshot_sha256":'
@@ -1171,6 +1173,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "5",
         "--queue-item-id",
         "cq004_prepare_provider_handoff",
+        "--stage",
+        "external_genomes_install_plan",
         "--expected-queue-snapshot-sha256",
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "--expected-operator-chain-snapshot-sha256",
@@ -1187,6 +1191,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "coverage_next_task_packet",
         "coverage_next_command_plan",
         "coverage_stage_command_plans",
+        "selected_operator_chain_stage_command_plan",
         "coverage_stage_readiness_summary",
         "coverage_next_operator_recipe",
         "coverage_queue_resume_packet",

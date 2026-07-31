@@ -2087,6 +2087,121 @@ def test_coverage_pipeline_queue_item_id_selects_current_task_metadata(
     assert status_payload["selected_coverage_queue_item_found"] is True
 
 
+def test_coverage_pipeline_status_stage_selects_operator_chain_command_plan(
+    capsys, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    outdir = tmp_path / "pipeline_outputs"
+
+    code, _build_payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+
+    code, payload, captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--stage",
+            "external_genomes_install_plan",
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert payload["selected_operator_chain_stage_name"] == (
+        "external_genomes_install_plan"
+    )
+    assert payload["selected_operator_chain_stage_found"] is True
+    assert payload["selected_operator_chain_stage"]["stage"] == (
+        "external_genomes_install_plan"
+    )
+    command_plan = payload["selected_operator_chain_stage_command_plan"]
+    assert command_plan["request_source"] == (
+        "selected_operator_chain_stage.recommended_request"
+    )
+    assert command_plan["available"] is True
+    assert command_plan["recommended_request_target"] == "external-genomes install-plan"
+    assert command_plan["target_argv"][:2] == ["external-genomes", "install-plan"]
+    assert command_plan["dry_run"] is True
+    assert command_plan["writes_workflow_outputs"] is False
+    assert command_plan["downloads_triggered"] == 0
+
+
+def test_coverage_pipeline_status_rejects_unknown_operator_chain_stage(
+    capsys, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    outdir = tmp_path / "pipeline_outputs"
+
+    code, _build_payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+
+    code, payload, captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--stage",
+            "missing_stage",
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert payload["status"] == "blocked"
+    assert payload["selected_operator_chain_stage_name"] == "missing_stage"
+    assert payload["selected_operator_chain_stage_found"] is False
+    assert payload["selected_operator_chain_stage"] == {}
+    assert payload["selected_operator_chain_stage_command_plan"]["available"] is False
+    assert any(
+        diagnostic["component"] == "operator_chain"
+        and diagnostic["diagnostic_code"] == "operator_chain_stage_not_found"
+        for diagnostic in payload["diagnostics"]
+    )
+
+
 def test_coverage_pipeline_expected_queue_snapshot_guard(capsys, tmp_path):
     checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
 
