@@ -83,6 +83,10 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     assert payload["invalid_count"] == 0
     assert payload["status_counts"] == {"external_genome_registered": 1}
     assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["provider_route_groups"][0]["operator_route"] == "provider_handoff"
+    assert payload["provider_route_groups"][0]["provider_key_counts"] == {
+        "atcc_genome_portal": 1
+    }
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -126,6 +130,7 @@ def test_external_genomes_validate_ignores_uncontrolled_route_notes(
     stdout = capsys.readouterr().out
     payload = json.loads(stdout)
     assert payload["operator_route_counts"] == {}
+    assert payload["provider_route_groups"] == []
     assert payload["next_input_class_counts"] == {}
     assert payload["automation_boundary_counts"] == {}
     assert "local-secret-path" not in stdout
@@ -236,6 +241,10 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert payload["valid_count"] == 1
     assert payload["install_planned_count"] == 1
     assert payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert payload["provider_route_groups"][0]["operator_route"] == "provider_handoff"
+    assert payload["provider_route_groups"][0]["provider_key_counts"] == {
+        "atcc_genome_portal": 1
+    }
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -274,6 +283,7 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert summary["recommended_request"]["external_genomes"] == input_path
     assert summary["recommended_next_command"] == payload["recommended_next_command"]
     assert summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert summary["provider_route_groups"] == payload["provider_route_groups"]
     assert summary["checksum_input_counts"] == {"provided": 1}
     assert summary["manual_review_flag_counts"] == {"manual_review_cleared": 1}
 

@@ -14,6 +14,7 @@ from typetreeflow.naming import (
     build_file_safe_id,
     make_unique_identifier,
 )
+from typetreeflow.providers.routing import provider_route_groups
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
 
 
@@ -839,15 +840,22 @@ def external_genome_route_metadata_from_notes(notes: str) -> dict[str, str]:
 
 def summarize_external_genome_route_metadata(
     rows: Iterable[object],
-) -> dict[str, dict[str, int]]:
+) -> dict[str, object]:
     counts = {
         "operator_route_counts": Counter(),
         "next_input_class_counts": Counter(),
         "automation_boundary_counts": Counter(),
     }
+    route_group_rows: list[dict[str, object]] = []
     for row in rows:
         metadata = external_genome_route_metadata_from_notes(
             str(getattr(row, "notes", "") or "")
+        )
+        route_group_rows.append(
+            {
+                "provider": str(getattr(row, "external_source", "") or ""),
+                **metadata,
+            }
         )
         for field, count_key in (
             ("operator_route", "operator_route_counts"),
@@ -857,10 +865,15 @@ def summarize_external_genome_route_metadata(
             value = metadata[field]
             if value:
                 counts[count_key][value] += 1
-    return {
+    summary = {
         key: dict(sorted(counter.items()))
         for key, counter in counts.items()
     }
+    summary["provider_route_groups"] = provider_route_groups(
+        route_group_rows,
+        provider_key_field="provider",
+    )
+    return summary
 
 
 def summarize_external_genome_packet_readiness(

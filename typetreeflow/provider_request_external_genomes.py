@@ -17,6 +17,7 @@ from typetreeflow.provider_request_validation import (
     provider_request_route_metadata_from_notes,
     validate_provider_requests_for_local_handoff,
 )
+from typetreeflow.providers.routing import provider_route_groups
 
 
 PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION = "1"
@@ -60,6 +61,7 @@ class ProviderRequestExternalGenomesDraft:
     records: tuple[ExternalGenomeRecord, ...]
     diagnostics: tuple[dict[str, object], ...]
     operator_route_counts: dict[str, int]
+    provider_route_groups: list[dict[str, object]]
     next_input_class_counts: dict[str, int]
     automation_boundary_counts: dict[str, int]
     schema_version: str = PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION
@@ -86,6 +88,7 @@ class ProviderRequestExternalGenomesDraft:
             "diagnostic_count": len(self.diagnostics),
             "provider_counts": dict(sorted(provider_counts.items())),
             "operator_route_counts": dict(sorted(self.operator_route_counts.items())),
+            "provider_route_groups": self.provider_route_groups,
             "next_input_class_counts": dict(
                 sorted(self.next_input_class_counts.items())
             ),
@@ -166,6 +169,7 @@ def build_provider_request_external_genomes_draft(
         records=tuple(external_records),
         diagnostics=tuple(diagnostics),
         operator_route_counts=route_counts["operator_route_counts"],
+        provider_route_groups=route_counts["provider_route_groups"],
         next_input_class_counts=route_counts["next_input_class_counts"],
         automation_boundary_counts=route_counts["automation_boundary_counts"],
     )
@@ -221,15 +225,25 @@ def _notes(record: ProviderRequestRecord) -> str:
     return "; ".join(parts)
 
 
-def _ready_route_counts(rows) -> dict[str, dict[str, int]]:
+def _ready_route_counts(rows) -> dict[str, object]:
     counts = {
         "operator_route_counts": {},
+        "provider_route_groups": [],
         "next_input_class_counts": {},
         "automation_boundary_counts": {},
     }
+    route_group_rows: list[dict[str, object]] = []
     for row in rows:
         if row.readiness_status != PROVIDER_REQUEST_READY_STATUS:
             continue
+        route_group_rows.append(
+            {
+                "provider": getattr(row, "provider", ""),
+                "operator_route": getattr(row, "operator_route", ""),
+                "next_input_class": getattr(row, "next_input_class", ""),
+                "automation_boundary": getattr(row, "automation_boundary", ""),
+            }
+        )
         for field, key in (
             ("operator_route", "operator_route_counts"),
             ("next_input_class", "next_input_class_counts"),
@@ -238,6 +252,10 @@ def _ready_route_counts(rows) -> dict[str, dict[str, int]]:
             value = getattr(row, field, "")
             if value:
                 counts[key][value] = counts[key].get(value, 0) + 1
+    counts["provider_route_groups"] = provider_route_groups(
+        route_group_rows,
+        provider_key_field="provider",
+    )
     return counts
 
 

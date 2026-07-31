@@ -602,6 +602,7 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         "exported_count": summary["exported_count"],
         "provider_counts": summary["provider_counts"],
         "operator_route_counts": summary["operator_route_counts"],
+        "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
         "diagnostic_counts": summary["diagnostic_counts"],
@@ -670,6 +671,9 @@ def _external_genomes_handoff_payload(
         "provider_counts": dict(validation_payload.get("provider_counts", {})),
         "operator_route_counts": dict(
             validation_payload.get("operator_route_counts", {})
+        ),
+        "provider_route_groups": list(
+            validation_payload.get("provider_route_groups", [])
         ),
         "next_input_class_counts": dict(
             validation_payload.get("next_input_class_counts", {})

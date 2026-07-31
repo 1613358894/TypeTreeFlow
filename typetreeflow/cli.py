@@ -4683,7 +4683,7 @@ def _count_external_registration_statuses(
 
 def _external_genome_route_counts_payload(
     rows: list[ExternalGenomeRegistrationResult],
-) -> dict[str, dict[str, int]]:
+) -> dict[str, object]:
     return summarize_external_genome_route_metadata(rows)
 
 
