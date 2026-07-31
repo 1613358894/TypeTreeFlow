@@ -1599,7 +1599,9 @@ It reads only the explicitly named coverage-plan TSV and expands non-empty
 `provider_keys` through the static fail-closed provider registry. Common
 provider labels and case variants such as `DSMZ`, `RefSeq`,
 `DSM`, `ATCC Genome Portal`, `BCCM-LMG`, and `BCCM/LMG` are normalized to
-canonical provider keys before counting and serialization. Acquisition
+canonical provider keys before counting and serialization. Provider-key cells
+may also contain recognizable standalone tokens embedded in longer labels, such
+as `German Collection of Microorganisms and Cell Cultures (DSMZ)`. Acquisition
 worklists use the same static registry alias and culture-collection token
 rules when deriving `candidate_provider_keys` from local rows. The compact
 JSON and summary also include
