@@ -211,10 +211,53 @@ def _assert_stage_readiness_summary(
             "required_inputs": stage["required_inputs"],
             "recommended_request_target": stage["recommended_request_target"],
             "recommended_next_command": stage["recommended_next_command"],
+            "recommended_command_plan_key": detail[
+                "recommended_command_plan_key"
+            ],
+            "recommended_command_plan_available": detail[
+                "recommended_command_plan_available"
+            ],
+            "recommended_command_plan_decision": detail[
+                "recommended_command_plan_decision"
+            ],
+            "recommended_command_plan_target_argv": detail[
+                "recommended_command_plan_target_argv"
+            ],
             "boundary": stage["boundary"],
         }
-        for stage in blocked_stages
+        for stage, detail in zip(
+            blocked_stages,
+            blocker_summary["blocked_stage_details"],
+        )
     ]
+    for detail in blocker_summary["blocked_stage_details"]:
+        plan_key = detail["recommended_command_plan_key"]
+        if plan_key:
+            plan = payload["coverage_stage_command_plans"][plan_key]
+            assert detail["recommended_command_plan_available"] is True
+            assert detail["recommended_command_plan_decision"] == plan["decision"]
+            assert detail["recommended_command_plan_target_argv"] == plan[
+                "target_argv"
+            ]
+        else:
+            assert detail["recommended_command_plan_available"] is False
+            assert detail["recommended_command_plan_decision"] == ""
+            assert detail["recommended_command_plan_target_argv"] == []
+    if blocked_stages:
+        first_detail = blocker_summary["blocked_stage_details"][0]
+        assert blocker_summary["first_blocked_recommended_command_plan_key"] == (
+            first_detail["recommended_command_plan_key"]
+        )
+        assert (
+            blocker_summary["first_blocked_recommended_command_plan_target_argv"]
+            == first_detail["recommended_command_plan_target_argv"]
+        )
+    else:
+        assert blocker_summary["first_blocked_recommended_command_plan_key"] == ""
+        assert (
+            blocker_summary["first_blocked_recommended_command_plan_target_argv"]
+            == []
+        )
     assert blocker_summary["safe_for_unattended_execution"] is False
     assert blocker_summary["audit_only"] is True
     assert blocker_summary["dry_run"] is True
@@ -4074,6 +4117,8 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
             "first_blocked_stage": "",
             "first_blocked_required_inputs": [],
             "first_blocked_recommended_request_target": "",
+            "first_blocked_recommended_command_plan_key": "",
+            "first_blocked_recommended_command_plan_target_argv": [],
             "blocked_stage_details": [],
             "safe_for_unattended_execution": False,
             "audit_only": True,

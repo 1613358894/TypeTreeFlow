@@ -1924,11 +1924,11 @@ chain for AI routing. It repeats stage counts, available and unavailable stage
 names, the first unavailable stage, the next stage's compact
 `recommended_request_target`, command-plan and preflight decisions, and blocker
 or warning IDs. Its nested `stage_blocker_summary` lists blocked stages, their
-required local inputs, recommended request targets, and boundaries so
-controllers can plan missing handoff work without expanding every stage row. It
-is metadata only and always reports no unattended execution, provider contact,
-downloads, workflow writes, manifest mutation, or strict scientific deliverable
-promotion.
+required local inputs, recommended request targets, matching command-plan keys,
+argv previews, and boundaries so controllers can plan missing handoff work
+without expanding every stage row. It is metadata only and always reports no
+unattended execution, provider contact, downloads, workflow writes, manifest
+mutation, or strict scientific deliverable promotion.
 `commands recognize`, `commands plan`, and `commands preflight` also declare
 the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
 `coverage_next_command_plan`, `coverage_stage_command_plans`,
@@ -2137,7 +2137,8 @@ current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and
 re-parsing every stage row. It also includes
 `coverage_stage_readiness_summary`, a compact AI-facing summary of the stage
 chain, first unavailable stage, next recommended target, command-plan decision,
-preflight decision, blocker/warning IDs, and blocked-stage required inputs.
+preflight decision, blocker/warning IDs, blocked-stage required inputs, and
+blocked-stage command-plan previews.
 When an explicit or conventional
 child stage
 summary is present, the matching `operator_chain_stages` row also carries
