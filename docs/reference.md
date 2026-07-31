@@ -386,7 +386,9 @@ package `artifact_scope.tsv` (and `reports/artifact_scope.tsv`) with
 `not_for=provider contact or strict deliverable gating`, and
 `source_artifact=coverage_plan_builder`. Missing input is omitted. Partial or
 malformed input copies only valid members and adds a compact warning to the
-README, handoff index, and compact JSON envelope. Failed-handoff packages
+README, handoff index, and compact JSON envelope. When summary data is valid,
+the package README and handoff index include compact provider automation-level
+and operator-route counts for AI/operator triage. Failed-handoff packages
 exclude these artifacts and rows.
 
 `--provider-handoff-dir <dir>` is accepted with `--report-only` or
