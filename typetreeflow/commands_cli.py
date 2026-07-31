@@ -703,6 +703,9 @@ _ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
     "providers_contacted",
     "manifest_mutated",
     "output_paths",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
 ]
 _OUTPUT_CONTRACT_CATALOG: dict[
     tuple[str, str | None],

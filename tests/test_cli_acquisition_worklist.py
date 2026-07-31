@@ -147,6 +147,9 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
     assert payload["writes_outputs"] is False
+    assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
+    assert payload["recommended_next_command"] == ""
     assert before == {path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
 
 
@@ -251,6 +254,16 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
     assert payload["dry_run"] is False
     assert payload["writes_outputs"] is True
     assert payload["writes_workflow_outputs"] is False
+    worklist_path = outdir / "acquisition_worklist.tsv"
+    assert payload["recommended_request"] == {
+        "command": "coverage-plan",
+        "subcommand": "build",
+        "worklist_tsv": str(worklist_path),
+    }
+    assert payload["recommended_request_target"] == "coverage-plan build"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow coverage-plan build --worklist-tsv {worklist_path}"
+    )
     assert {path.name for path in outdir.iterdir()} == {
         "acquisition_worklist.tsv",
         "acquisition_worklist_summary.json",
@@ -265,6 +278,25 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
         "atcc_genome_portal": 1,
         "dsmz": 1,
     }
+
+    assert (
+        cli.main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(payload["recommended_request"], separators=(",", ":")),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "coverage-plan",
+        "build",
+        "--worklist-tsv",
+        str(worklist_path),
+    ]
 
 
 def test_acquisition_worklist_force_only_replaces_matching_owned_pair(

@@ -707,10 +707,11 @@ passing them through `commands preflight`. Each `output_contracts` item names a
 stable top-level JSON field, schema version, and purpose for command outputs
 that include AI/operator handoff packets. Some contracts also list
 `summary_fields` when a compact summary has stable AI-routing fields; for
-example `acquisition_worklist_packet.v1` lists record, lane, review-signal, and
-candidate provider-key counts, while `coverage_plan_packet.v1` lists provider
-route count fields such as `operator_route_counts` and
-`provider_route_groups`. Provider-handoff, provider-request, and
+example `acquisition_worklist_packet.v1` lists record, lane, review-signal,
+candidate provider-key counts, output paths, and recommended coverage-plan
+request metadata, while `coverage_plan_packet.v1` lists provider route count
+fields such as `operator_route_counts` and `provider_route_groups`.
+Provider-handoff, provider-request, and
 external-genomes readiness contracts use the same pattern for route counts,
 readiness counts, required inputs, and recommended next requests when those
 fields are stable. The server-validation result validator contract lists local
@@ -1563,7 +1564,11 @@ nothing. With `--write`, it writes only `acquisition_worklist.tsv` and
 `acquisition_worklist_summary.json` into the explicitly supplied directory.
 Command metadata reports the target output contract as
 `acquisition_worklist_packet.v1`, so AI/operator controllers can route the
-worklist pair before running the command.
+worklist pair before running the command. When `--write` succeeds, stdout also
+includes `recommended_request`, `recommended_request_target`, and
+`recommended_next_command` for a later local `coverage-plan build` command that
+points to the written `acquisition_worklist.tsv`. The adapter does not run that
+next command.
 Expanded discovery and manual-supplement inputs are local TSV handoffs only:
 `matched_candidate` and `review_matched_candidates` can surface public linkage
 review, while `manual_search_required` or `provide_external_genome_fasta` can

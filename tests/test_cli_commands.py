@@ -169,6 +169,9 @@ ACQUISITION_WORKLIST_SUMMARY_FIELDS = [
     "providers_contacted",
     "manifest_mutated",
     "output_paths",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
 ]
 
 
