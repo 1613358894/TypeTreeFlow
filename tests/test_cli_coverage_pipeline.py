@@ -629,6 +629,98 @@ def _assert_controller_packet(
     assert resume_packet["execution_boundary"] == (
         "metadata_only_controller_resume_packet_no_execution"
     )
+    step_summary = payload["coverage_controller_step_summary"]
+    assert (
+        step_summary["schema_version"]
+        == "coverage_controller_step_summary.v1"
+    )
+    assert step_summary["available"] is bool(decision_surfaces)
+    assert step_summary["controller_status"] == packet["controller_status"]
+    assert step_summary["controller_decision"] == packet["controller_decision"]
+    assert step_summary["controller_has_blockers"] is packet[
+        "controller_has_blockers"
+    ]
+    assert step_summary["controller_blocking_count"] == packet[
+        "controller_blocking_count"
+    ]
+    assert step_summary["controller_warning_count"] == packet[
+        "controller_warning_count"
+    ]
+    assert step_summary["step_count"] == len(decision_surfaces)
+    assert step_summary["step_sources"] == decision_surfaces
+    if decision_surfaces:
+        first_candidate = packet["controller_step_candidates"][0]
+        assert step_summary["first_step_source"] == first_candidate["source"]
+        assert (
+            step_summary["first_step_target"]
+            == first_candidate["recommended_request_target"]
+        )
+        assert step_summary["first_step_argv"] == first_candidate["target_argv"]
+        assert (
+            step_summary["recommended_execution_mode"]
+            == "operator_review_required"
+        )
+    else:
+        assert step_summary["first_step_source"] == ""
+        assert step_summary["first_step_target"] == ""
+        assert step_summary["first_step_argv"] == []
+        assert step_summary["recommended_execution_mode"] == "no_action"
+    assert len(step_summary["items"]) == len(
+        packet["controller_step_candidates"]
+    )
+    for summary_item, candidate in zip(
+        step_summary["items"],
+        packet["controller_step_candidates"],
+    ):
+        route_context = candidate["route_context"]
+        assert summary_item["priority"] == candidate["priority"]
+        assert summary_item["source"] == candidate["source"]
+        assert summary_item["handoff_kind"] == candidate["handoff_kind"]
+        assert summary_item["status"] == candidate["status"]
+        assert summary_item["recommended_request_target"] == candidate[
+            "recommended_request_target"
+        ]
+        assert summary_item["target_argv"] == candidate["target_argv"]
+        assert summary_item["preflight_decision"] == candidate[
+            "preflight_decision"
+        ]
+        assert summary_item["blocking_count"] == len(candidate["blocking_ids"])
+        assert summary_item["blocking_ids"] == candidate["blocking_ids"]
+        assert summary_item["warning_count"] == len(candidate["warning_ids"])
+        assert summary_item["warning_ids"] == candidate["warning_ids"]
+        assert summary_item["snapshot_matches_expected"] is candidate[
+            "snapshot_matches_expected"
+        ]
+        assert summary_item["route_context_schema_version"] == route_context[
+            "schema_version"
+        ]
+        assert summary_item["route_context_operator_route"] == route_context.get(
+            "operator_route", ""
+        )
+        assert summary_item["route_context_next_input_class"] == route_context.get(
+            "next_input_class", ""
+        )
+        assert summary_item["route_context_provider_route_group_count"] == (
+            route_context.get("provider_route_group_count", 0)
+        )
+        assert summary_item["safe_for_unattended_execution"] is False
+        assert summary_item["audit_only"] is True
+        assert summary_item["dry_run"] is True
+        assert summary_item["execution_boundary"].startswith("metadata_only_")
+    assert step_summary["safe_for_unattended_execution"] is False
+    assert step_summary["audit_only"] is True
+    assert step_summary["dry_run"] is True
+    assert step_summary["writes_outputs"] is False
+    assert step_summary["writes_workflow_outputs"] is False
+    assert step_summary["downloads_triggered"] == 0
+    assert step_summary["providers_contacted"] == 0
+    assert step_summary["network_access"] is False
+    assert step_summary["external_tools"] is False
+    assert step_summary["manifest_mutated"] is False
+    assert step_summary["strict_scientific_deliverable"] is False
+    assert step_summary["execution_boundary"] == (
+        "metadata_only_controller_step_summary_no_execution"
+    )
     for candidate in packet["controller_step_candidates"]:
         route_context = candidate["route_context"]
         assert route_context["schema_version"] == "coverage_controller_route_context.v1"

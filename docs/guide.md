@@ -306,6 +306,10 @@ parent controller or server agent. It repeats the selected source, target argv,
 route context, next input package, digest guard summary, and
 `required_before_resume` checklist, but it remains metadata-only and does not
 authorize dispatch, downloads, provider contact, or workflow mutation.
+`coverage_controller_step_summary` is the table-like companion for dashboards
+and parent agents that need priority, source, target, preflight, blocker,
+warning, snapshot, and route-context labels for every candidate without
+expanding the full controller packet.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
 summary for parent orchestration. `controller_digest_guard_summary` repeats the
 queue and operator-chain snapshot guards in one place so parent controllers can
@@ -388,7 +392,8 @@ controller needs the same route-level view over the full queue, or
 `coverage_controller_packet` when it needs one combined queue, route-batch, plus
 operator-chain routing object. Use `coverage_controller_resume_packet` when the
 controller only needs the first selected candidate plus its digest and
-required-review checklist. It includes
+required-review checklist, or `coverage_controller_step_summary` when it needs
+all candidates as compact triage rows. It includes
 `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata
 changed before resuming a previously inspected item. To resume a specific
