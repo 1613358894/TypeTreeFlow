@@ -2289,6 +2289,146 @@ def _run(args, capsys, *, action="preview"):
     return code, json.loads(captured.out), captured
 
 
+def _valid_server_validation_result():
+    return {
+        "schema_version": "coverage_handoff_server_validation_result.v1",
+        "status": "pass",
+        "validation_status": "pass",
+        "checked_surface_names": [
+            "coverage_handoff_server_validation_packet",
+            "coverage_handoff_server_validation_runbook_packet",
+        ],
+        "input_readiness_status": "ready",
+        "blocking_ids": [],
+        "warning_ids": [],
+        "boundary_confirmations": {
+            "filesystem_probe_performed": False,
+            "artifact_validation_performed": False,
+            "target_command_execution_authorized": False,
+            "provider_contact_allowed": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "external_genomes_registration_applied": False,
+        },
+        "diagnostics": [],
+        "summary": "Bounded server validation passed without execution.",
+    }
+
+
+def _write_server_validation_result(path, payload):
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
+    capsys, tmp_path
+):
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path, _valid_server_validation_result())
+
+    code, payload, captured = _run(
+        ["validate", "--input", str(result_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["schema_version"] == (
+        "coverage_handoff_server_validation_result_validation.v1"
+    )
+    assert payload["command"] == "coverage-pipeline server-validation-result validate"
+    assert payload["status"] == "pass"
+    assert payload["validation_status"] == "pass"
+    assert payload["result_schema_version"] == (
+        "coverage_handoff_server_validation_result.v1"
+    )
+    assert payload["result_status"] == "pass"
+    assert payload["checked_surface_count"] == 2
+    assert payload["diagnostic_count"] == 0
+    assert payload["boundary_confirmation_status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+    assert payload["external_genomes_registration_applied"] is False
+
+
+def test_coverage_pipeline_server_validation_result_validate_blocks_missing_field(
+    capsys, tmp_path
+):
+    result = _valid_server_validation_result()
+    result.pop("boundary_confirmations")
+    result["diagnostics"] = [{"message": "do not echo this raw diagnostic"}]
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path, result)
+
+    code, payload, captured = _run(
+        ["validate", "--input", str(result_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["missing_required_fields"] == ["boundary_confirmations"]
+    assert payload["boundary_confirmation_status"] == "blocked"
+    assert "missing_boundary_confirmations" in payload["boundary_blocker_ids"]
+    assert "do not echo this raw diagnostic" not in captured.out
+
+
+def test_coverage_pipeline_server_validation_result_validate_blocks_boundary_violation(
+    capsys, tmp_path
+):
+    result = _valid_server_validation_result()
+    result["boundary_confirmations"]["downloads_triggered"] = 1
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path, result)
+
+    code, payload, captured = _run(
+        ["validate", "--input", str(result_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["boundary_confirmation_status"] == "blocked"
+    assert "boundary_downloads_triggered_not_0" in payload["boundary_blocker_ids"]
+    assert payload["downloads_triggered"] == 0
+
+
+def test_coverage_pipeline_server_validation_result_validate_blocks_missing_input(
+    capsys, tmp_path
+):
+    missing_path = tmp_path / "missing.json"
+
+    code, payload, captured = _run(
+        ["validate", "--input", str(missing_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "artifact_unreadable"
+
+
 def _write_inputs(tmp_path):
     checklist = tmp_path / "checklist.tsv"
     reconciler = tmp_path / "reconciler_audit.tsv"

@@ -539,6 +539,19 @@ The server-validation packet, runbook, result contract, and result template also
 carry the same structured `recommended_request` as the handoff next-step packet
 when it is available, allowing AI controllers to pass the packet directly to
 `commands render` or `commands plan` for metadata-only argv/preflight review.
+After a bounded server validation run writes a result JSON, validate only its
+shape and no-execution boundary contract with:
+
+```bash
+typetreeflow coverage-pipeline server-validation-result validate \
+  --input <coverage_handoff_server_validation_result.json> \
+  --json
+```
+
+This validator reads only the explicit JSON file and does not execute the
+target command, validate filesystem artifacts, contact providers, download
+genomes, mutate manifests, register external genomes, or promote strict
+scientific deliverables.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage

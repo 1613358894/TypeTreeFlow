@@ -87,10 +87,47 @@ from typetreeflow.provider_request_validation import (
 COMMAND_PREVIEW = "coverage-pipeline preview"
 COMMAND_BUILD = "coverage-pipeline build"
 COMMAND_STATUS = "coverage-pipeline status"
+COMMAND_SERVER_VALIDATION_RESULT_VALIDATE = (
+    "coverage-pipeline server-validation-result validate"
+)
 STATUS_SCHEMA_VERSION = "coverage_pipeline_status.v1"
+SERVER_VALIDATION_RESULT_SCHEMA_VERSION = "coverage_handoff_server_validation_result.v1"
+SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION = (
+    "coverage_handoff_server_validation_result_validation.v1"
+)
 QUEUE_PREVIEW_DEFAULT_LIMIT = 3
 QUEUE_PREVIEW_MAX_LIMIT = 10
 _PREVIEW_LIMIT = 10
+_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS = (
+    "schema_version",
+    "status",
+    "validation_status",
+    "checked_surface_names",
+    "input_readiness_status",
+    "blocking_ids",
+    "warning_ids",
+    "boundary_confirmations",
+    "diagnostics",
+    "summary",
+)
+_SERVER_VALIDATION_RESULT_STATUSES = ("pass", "warning", "blocked", "failed")
+_SERVER_VALIDATION_RESULT_CHECKED_SURFACES = (
+    "coverage_handoff_server_validation_packet",
+    "coverage_handoff_server_validation_runbook_packet",
+)
+_SERVER_VALIDATION_RESULT_BOUNDARIES = {
+    "filesystem_probe_performed": False,
+    "artifact_validation_performed": False,
+    "target_command_execution_authorized": False,
+    "provider_contact_allowed": False,
+    "downloads_triggered": 0,
+    "providers_contacted": 0,
+    "network_access": False,
+    "external_tools": False,
+    "manifest_mutated": False,
+    "strict_scientific_deliverable": False,
+    "external_genomes_registration_applied": False,
+}
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
     "acquisition_worklist_summary": "acquisition_worklist/acquisition_worklist_summary.json",
@@ -232,6 +269,8 @@ def run_coverage_pipeline_command(
             output,
         )
         return 2
+    if args.action == "server-validation-result-validate":
+        return _run_server_validation_result_validate(args, output)
     if args.action == "status":
         return _run_status(args, output, queue_preview_limit=queue_preview_limit)
     outdir = Path(args.outdir) if getattr(args, "outdir", None) else None
@@ -547,6 +586,24 @@ def _build_parser() -> argparse.ArgumentParser:
     status.add_argument("--expected-operator-chain-snapshot-sha256")
     status.add_argument("--require-complete", action="store_true")
     status.add_argument("--json", action="store_true")
+    result = actions.add_parser("server-validation-result", add_help=False)
+    result_actions = result.add_subparsers(
+        dest="server_validation_result_action", required=True
+    )
+    result_validate = result_actions.add_parser("validate", add_help=False)
+    result_validate.add_argument("--input", required=True)
+    result_validate.add_argument("--json", action="store_true")
+    result_validate.set_defaults(
+        action="server-validation-result-validate",
+        queue_preview_limit=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
+        write=False,
+        outdir=None,
+        force=False,
+        validate_provider_request=False,
+        provider_request_validation_base_dir=None,
+        curated_provider_request_tsv=None,
+        external_genomes_install_target_outdir=None,
+    )
     return parser
 
 
@@ -1301,6 +1358,221 @@ def _read_json_artifact(
             diagnostics.append(_diagnostic(component, "artifact_malformed"))
         return {}
     return data
+
+
+def _run_server_validation_result_validate(
+    args: argparse.Namespace, output: TextIO
+) -> int:
+    diagnostics: list[dict[str, object]] = []
+    input_path = Path(args.input)
+    try:
+        result = _read_json_artifact(
+            input_path,
+            component="server_validation_result",
+            diagnostics=diagnostics,
+            required=True,
+        )
+        validation = _validate_server_validation_result(result, diagnostics)
+        payload = _server_validation_result_validation_payload(
+            result,
+            validation,
+            diagnostics,
+            input_path=input_path,
+        )
+        _emit(payload, output)
+        return 0 if payload["status"] == "pass" else 2
+    except Exception:
+        _emit(
+            {
+                "schema_version": SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION,
+                "status": "failed",
+                "command": COMMAND_SERVER_VALIDATION_RESULT_VALIDATE,
+                "input_path": str(input_path),
+                "validation_status": "failed",
+                "summary": "Coverage server validation result validation failed unexpectedly",
+                "diagnostic_count": 1,
+                "diagnostics": [
+                    _diagnostic("server_validation_result", "internal_error")
+                ],
+                "dry_run": True,
+                "writes_outputs": False,
+                "writes_workflow_outputs": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "external_genomes_registration_applied": False,
+                "execution_boundary": (
+                    "local_result_shape_validation_only_no_target_execution"
+                ),
+            },
+            output,
+        )
+        return 1
+
+
+def _validate_server_validation_result(
+    result: Mapping[str, object],
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object]:
+    missing_fields = [
+        field
+        for field in _SERVER_VALIDATION_RESULT_REQUIRED_FIELDS
+        if field not in result
+    ]
+    for field in missing_fields:
+        diagnostics.append(
+            _diagnostic("server_validation_result", f"missing_{field}")
+        )
+
+    invalid_fields: list[str] = []
+    if result.get("schema_version") != SERVER_VALIDATION_RESULT_SCHEMA_VERSION:
+        invalid_fields.append("schema_version")
+        diagnostics.append(
+            _diagnostic("server_validation_result", "invalid_schema_version")
+        )
+    if result.get("status") not in _SERVER_VALIDATION_RESULT_STATUSES:
+        invalid_fields.append("status")
+        diagnostics.append(_diagnostic("server_validation_result", "invalid_status"))
+
+    checked_surface_names = result.get("checked_surface_names")
+    missing_surfaces: list[str] = []
+    if not isinstance(checked_surface_names, list):
+        invalid_fields.append("checked_surface_names")
+        diagnostics.append(
+            _diagnostic("server_validation_result", "invalid_checked_surface_names")
+        )
+    else:
+        checked_surface_set = {str(item) for item in checked_surface_names}
+        missing_surfaces = [
+            surface
+            for surface in _SERVER_VALIDATION_RESULT_CHECKED_SURFACES
+            if surface not in checked_surface_set
+        ]
+        for surface in missing_surfaces:
+            diagnostics.append(
+                _diagnostic(
+                    "server_validation_result",
+                    f"missing_checked_surface_{surface}",
+                )
+            )
+
+    for field in ("blocking_ids", "warning_ids", "diagnostics"):
+        if field in result and not isinstance(result.get(field), list):
+            invalid_fields.append(field)
+            diagnostics.append(
+                _diagnostic("server_validation_result", f"invalid_{field}")
+            )
+    if "summary" in result and not isinstance(result.get("summary"), str):
+        invalid_fields.append("summary")
+        diagnostics.append(_diagnostic("server_validation_result", "invalid_summary"))
+
+    boundaries = result.get("boundary_confirmations")
+    boundary_blocker_ids: list[str] = []
+    if not isinstance(boundaries, Mapping):
+        invalid_fields.append("boundary_confirmations")
+        boundary_blocker_ids.append("missing_boundary_confirmations")
+        diagnostics.append(
+            _diagnostic("server_validation_result", "missing_boundary_confirmations")
+        )
+        boundary_count = 0
+    else:
+        boundary_count = len(boundaries)
+        for key, expected in _SERVER_VALIDATION_RESULT_BOUNDARIES.items():
+            actual = boundaries.get(key, None)
+            if key not in boundaries:
+                code = f"missing_boundary_{key}"
+            elif not _server_validation_boundary_value_matches(actual, expected):
+                code = f"boundary_{key}_not_{_boundary_expected_label(expected)}"
+            else:
+                continue
+            boundary_blocker_ids.append(code)
+            diagnostics.append(_diagnostic("server_validation_result", code))
+
+    return {
+        "missing_required_fields": missing_fields,
+        "invalid_field_ids": sorted(set(invalid_fields)),
+        "missing_checked_surfaces": missing_surfaces,
+        "boundary_confirmation_count": boundary_count,
+        "boundary_blocker_ids": boundary_blocker_ids,
+    }
+
+
+def _server_validation_boundary_value_matches(
+    actual: object, expected: bool | int
+) -> bool:
+    if expected is False:
+        return actual is False
+    return isinstance(actual, int) and not isinstance(actual, bool) and actual == expected
+
+
+def _boundary_expected_label(expected: bool | int) -> str:
+    if expected is False:
+        return "false"
+    return str(expected)
+
+
+def _server_validation_result_validation_payload(
+    result: Mapping[str, object],
+    validation: Mapping[str, object],
+    diagnostics: Sequence[Mapping[str, object]],
+    *,
+    input_path: Path,
+) -> dict[str, object]:
+    status = "pass" if not diagnostics else "blocked"
+    checked_surface_names = result.get("checked_surface_names")
+    if not isinstance(checked_surface_names, list):
+        checked_surface_names = []
+    return {
+        "schema_version": SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION,
+        "status": status,
+        "command": COMMAND_SERVER_VALIDATION_RESULT_VALIDATE,
+        "input_path": str(input_path),
+        "validation_status": status,
+        "result_schema_version": str(result.get("schema_version", "")),
+        "result_status": str(result.get("status", "")),
+        "checked_surface_names": [str(item) for item in checked_surface_names],
+        "checked_surface_count": len(checked_surface_names),
+        "required_field_count": len(_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS),
+        "missing_required_fields": list(
+            validation.get("missing_required_fields", [])
+        ),
+        "invalid_field_ids": list(validation.get("invalid_field_ids", [])),
+        "missing_checked_surfaces": list(
+            validation.get("missing_checked_surfaces", [])
+        ),
+        "boundary_confirmation_count": validation.get(
+            "boundary_confirmation_count", 0
+        ),
+        "boundary_confirmation_status": (
+            "pass"
+            if not validation.get("boundary_blocker_ids", [])
+            else "blocked"
+        ),
+        "boundary_blocker_ids": list(
+            validation.get("boundary_blocker_ids", [])
+        ),
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": [dict(entry) for entry in diagnostics],
+        "summary": (
+            "Coverage server validation result passed local shape validation"
+            if status == "pass"
+            else "Coverage server validation result blocked by local shape validation"
+        ),
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "local_result_shape_validation_only_no_target_execution",
+    }
 
 
 def _apply_optional_stage(

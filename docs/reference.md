@@ -1835,11 +1835,14 @@ The isolated coverage pipeline adapter is:
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json]
 typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
+typetreeflow coverage-pipeline server-validation-result validate --input <coverage_handoff_server_validation_result.json> [--json]
 ```
 
-It reads only explicitly named local TSV files, builds an in-memory acquisition
-worklist, coverage action plan, provider handoff, and provider request draft,
-then emits one compact JSON object with lane, action, provider-key,
+`coverage-pipeline preview`, `build`, and `status` read only explicitly named
+local TSV files or isolated audit directories, build or inspect the in-memory
+acquisition worklist, coverage action plan, provider handoff, and provider
+request draft, then emit one compact JSON object with lane, action,
+provider-key,
 provider-status, provider automation-level, and provider-request draft counts
 plus `worklist_candidate_provider_key_counts`,
 `coverage_next_action_groups`, `coverage_opportunity_summary`, and
@@ -2292,6 +2295,16 @@ The server-validation packet, runbook, result contract, and result template also
 mirror the structured `recommended_request` from the handoff next-step packet
 when one exists, so `commands render` and `commands plan` can inspect or
 preflight the same request without parsing argv or executing it.
+`coverage-pipeline server-validation-result validate --input <json>` is the
+matching local result-shape validator for a filled
+`coverage_handoff_server_validation_result.json`. It reads only that explicit
+JSON file, checks required fields, accepted statuses, checked surfaces, and
+no-execution boundary confirmations, and emits one compact JSON object. It
+returns exit `0` for a contract-valid result, exit `2` for usage, input,
+schema, or boundary validation problems, and exit `1` for unexpected internal
+errors. Passing this validator does not execute the target command, validate
+filesystem artifacts, contact providers, download genomes, mutate manifests,
+register external genomes, or promote strict scientific deliverables.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
