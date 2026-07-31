@@ -1938,6 +1938,10 @@ context, next input package, digest guard summary, and
 `required_before_resume` checklist in one object for server or AI parent
 controllers; it is metadata only and still requires normal planning, preflight,
 and operator approval before any execution.
+`coverage_controller_step_summary` is the compact multi-candidate companion:
+it lists each controller candidate's priority, source, handoff kind, target
+argv, preflight decision, blocker/warning counts, snapshot match flag, and
+route-context labels without copying the full nested candidate payloads.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -2090,13 +2094,15 @@ The packet also exposes
 `controller_status`, `controller_decision`,
 and aggregate blocker/warning IDs so controllers can fail closed without
 expanding every candidate. Its nested `controller_digest_guard_summary`
-is also repeated by `coverage_controller_resume_packet`, which provides the
-first candidate's resume selector, expected snapshot digest, command target,
-route context, and required-before-resume checklist without authorizing
-dispatch.
 collects queue and operator-chain snapshot fingerprints plus mismatch sources
 so resume automation can reject stale controller context before rendering or
-executing any command.
+executing any command. That digest summary is also repeated by
+`coverage_controller_resume_packet`, which provides the first candidate's
+resume selector, expected snapshot digest, command target, route context, and
+required-before-resume checklist without authorizing dispatch.
+`coverage_controller_step_summary` provides the same candidates as a bounded
+table-like summary for dashboards and parent controllers that only need triage
+metadata.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
