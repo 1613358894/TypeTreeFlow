@@ -728,6 +728,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         "coverage_priority_summary": _optional_summary_map(
             coverage_summary, "coverage_priority_summary"
         ),
+        "coverage_next_task_packet": _optional_summary_map(
+            coverage_summary, "coverage_next_task_packet"
+        ),
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -1042,6 +1045,28 @@ _COVERAGE_ACTION_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
 }
 
 
+_COVERAGE_ACTION_REQUIRED_INPUTS: dict[str, tuple[str, ...]] = {
+    "resolve_curator_conflict": (
+        "curator conflict decision with independent review",
+    ),
+    "review_public_archive_linkage": (
+        "public accession to type-strain direct evidence chain",
+    ),
+    "review_public_type_linkage": (
+        "BioSample/accession to type-strain direct evidence chain",
+    ),
+    "review_external_registration": (
+        "approved external-genomes registration packet",
+    ),
+    "prepare_provider_handoff": (
+        "permitted local FASTA plus terms/license/provenance evidence",
+    ),
+    "build_local_evidence": (
+        "local reconciler audit and completion gap rows",
+    ),
+}
+
+
 def _stage_recommended_request(stage_name: str) -> dict[str, object]:
     return dict(_DEFAULT_STAGE_RECOMMENDED_REQUESTS[stage_name])
 
@@ -1174,6 +1199,7 @@ def _payload(
         coverage_action_queue
     )
     coverage_priority_summary = _coverage_priority_summary(coverage_action_queue)
+    coverage_next_task_packet = _coverage_next_task_packet(coverage_action_queue)
     current_coverage_action_queue_item = (
         dict(coverage_action_queue[0]) if coverage_action_queue else {}
     )
@@ -1224,6 +1250,7 @@ def _payload(
         "coverage_opportunity_summary": coverage_opportunity_summary,
         "coverage_action_queue": coverage_action_queue,
         "coverage_priority_summary": coverage_priority_summary,
+        "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "primary_next_action_group": primary_next_action_group,
@@ -1838,6 +1865,63 @@ def _coverage_priority_summary(
     }
 
 
+def _coverage_next_task_packet(
+    coverage_action_queue: list[dict[str, object]],
+) -> dict[str, object]:
+    if not coverage_action_queue:
+        return {
+            "available": False,
+            "packet_status": "no_action",
+            "queue_position": 0,
+            "action_code": "",
+            "operator_route": "",
+            "next_input_class": "",
+            "automation_boundary": "next_task_only_no_execution",
+            "record_count": 0,
+            "required_inputs": [],
+            "recommended_request": None,
+            "recommended_next_command": "",
+            "safe_for_unattended_download": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": "metadata_only_run_commands_plan_or_preflight_first",
+        }
+    item = coverage_action_queue[0]
+    raw_request = item.get("recommended_request")
+    recommended_request = (
+        dict(raw_request) if isinstance(raw_request, Mapping) else None
+    )
+    return {
+        "available": True,
+        "packet_status": "ready_for_operator_review",
+        "queue_position": _safe_int(item.get("queue_position", 0)),
+        "action_code": str(item.get("action_code", "")),
+        "operator_route": str(item.get("operator_route", "")),
+        "next_input_class": str(item.get("next_input_class", "")),
+        "automation_boundary": str(
+            item.get("automation_boundary", "next_task_only_no_execution")
+        ),
+        "record_count": _safe_int(item.get("record_count", 0)),
+        "required_inputs": _coverage_action_required_inputs(
+            str(item.get("action_code", ""))
+        ),
+        "recommended_request": recommended_request,
+        "recommended_next_command": str(item.get("recommended_next_command", "")),
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_run_commands_plan_or_preflight_first",
+    }
+
+
+def _coverage_action_required_inputs(action_code: str) -> list[str]:
+    return list(_COVERAGE_ACTION_REQUIRED_INPUTS.get(action_code, ()))
+
+
 def _coverage_action_recommended_request(
     action_code: str,
 ) -> dict[str, object] | None:
@@ -1876,6 +1960,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             "safe_for_unattended_download_count": 0,
         },
         "coverage_priority_summary": _coverage_priority_summary([]),
+        "coverage_next_task_packet": _coverage_next_task_packet([]),
         "current_coverage_action_queue_item": {},
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
@@ -2010,6 +2095,7 @@ def _rendered_outputs(
             "coverage_action_queue",
             "coverage_action_queue_summary",
             "coverage_priority_summary",
+            "coverage_next_task_packet",
             "current_coverage_action_queue_item",
             "primary_next_action_group",
             "primary_action_required_inputs",
