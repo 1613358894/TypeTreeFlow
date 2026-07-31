@@ -1500,6 +1500,49 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "outdir": "<run>",
         "dry_run": True,
     }
+    next_step = summary["operator_chain_next_step_packet"]
+    assert next_step["schema_version"] == "operator_chain_next_step_packet.v1"
+    assert next_step["available"] is True
+    assert next_step["stage"] == "provider_request_validation"
+    assert next_step["artifact"] == (
+        "provider_request_validation/provider_request_validation_summary.json"
+    )
+    assert next_step["required_inputs"] == [
+        "provider_request/provider_request.tsv",
+        (
+            "curator-completed local FASTA path, SHA-256, terms, "
+            "and provenance fields"
+        ),
+    ]
+    assert next_step["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": "provider_request/provider_request.tsv",
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
+    assert next_step["target_argv"] == [
+        "provider-request",
+        "external-genomes-handoff",
+        "--input",
+        "provider_request/provider_request.tsv",
+        "--write",
+        "--outdir",
+        "<isolated-provider-request-external-genomes-directory>",
+    ]
+    assert next_step["status"] == "blocked"
+    assert next_step["decision"] == "block"
+    assert next_step["preflight_decision"] == "block"
+    assert next_step["blocking_count"] == 1
+    assert next_step["blocking_ids"] == ["write_not_allowed"]
+    assert next_step["warning_count"] == 0
+    assert next_step["audit_only"] is True
+    assert next_step["downloads_triggered"] == 0
+    assert next_step["providers_contacted"] == 0
+    assert next_step["manifest_mutated"] is False
+    assert next_step["execution_boundary"] == (
+        "metadata_only_operator_chain_next_step_no_execution"
+    )
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
         "kctc": 1,
