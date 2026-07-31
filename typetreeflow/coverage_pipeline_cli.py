@@ -2188,6 +2188,8 @@ def _coverage_operator_queue_preview(
         packet = _coverage_next_task_packet([item])
         command_plan = _coverage_next_command_plan(packet)
         recipe = _coverage_next_operator_recipe(packet, command_plan)
+        blocking_ids = _diagnostic_ids(recipe.get("blocking", []))
+        warning_ids = _diagnostic_ids(recipe.get("warnings", []))
         items.append(
             {
                 "queue_position": _safe_int(recipe.get("queue_position", 0)),
@@ -2202,6 +2204,11 @@ def _coverage_operator_queue_preview(
                 "command_plan_decision": str(
                     recipe.get("command_plan_decision", "")
                 ),
+                "command_plan_status": str(command_plan.get("status", "")),
+                "blocking_count": len(blocking_ids),
+                "blocking_ids": blocking_ids,
+                "warning_count": len(warning_ids),
+                "warning_ids": warning_ids,
                 "target_argv": list(recipe.get("target_argv", []))
                 if isinstance(recipe.get("target_argv"), list)
                 else [],
@@ -2231,6 +2238,18 @@ def _coverage_operator_queue_preview(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_queue_preview_no_execution",
     }
+
+
+def _diagnostic_ids(entries: object) -> list[str]:
+    if not isinstance(entries, list):
+        return []
+    ids: list[str] = []
+    for entry in entries:
+        if isinstance(entry, Mapping):
+            value = str(entry.get("id", ""))
+            if value:
+                ids.append(value)
+    return ids
 
 
 def _coverage_queue_item_id(queue_position: int, action_code: str) -> str:

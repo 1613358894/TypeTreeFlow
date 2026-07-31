@@ -269,7 +269,10 @@ without executing the target command.
 to a bounded queue prefix, including `queue_item_id` values, and reports whether
 the preview is truncated. It defaults to three items; use
 `--queue-preview-limit <1..10>` on `preview`, `build`, or `status` when an
-AI/operator controller needs a larger or smaller no-execution preview.
+AI/operator controller needs a larger or smaller no-execution preview. Each
+preview item also carries compact command-plan status plus blocker/warning
+counts and IDs so a controller can route blocked items without executing or
+copying full diagnostic messages.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so

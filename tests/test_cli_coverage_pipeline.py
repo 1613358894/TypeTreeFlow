@@ -564,6 +564,18 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         for item in payload["coverage_operator_queue_preview"]["items"]
     )
     assert all(
+        item["command_plan_status"] == "pass"
+        for item in payload["coverage_operator_queue_preview"]["items"]
+    )
+    assert all(
+        item["blocking_count"] == 0 and item["blocking_ids"] == []
+        for item in payload["coverage_operator_queue_preview"]["items"]
+    )
+    assert all(
+        item["warning_count"] == 0 and item["warning_ids"] == []
+        for item in payload["coverage_operator_queue_preview"]["items"]
+    )
+    assert all(
         item["safe_for_unattended_execution"] is False
         for item in payload["coverage_operator_queue_preview"]["items"]
     )
