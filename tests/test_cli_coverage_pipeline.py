@@ -541,6 +541,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "subcommand": "draft",
         "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
     }
+    assert payload["coverage_action_queue"][1]["review_input_packet"][
+        "input_schema"
+    ] == f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}"
+    assert payload["coverage_action_queue"][1]["review_input_packet"][
+        "evidence_focus"
+    ] == "public archive accession to species type-strain direct evidence chain"
     assert all(
         entry["safe_for_unattended_download"] is False
         for entry in payload["coverage_action_queue"]
@@ -899,6 +905,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         available=True,
         has_recommended_request=True,
     )
+    assert payload["current_coverage_action_queue_item"]["review_input_packet"][
+        "input_artifact"
+    ] == "<review.tsv>"
     assert payload["provider_handoff_record_count"] == 8
     assert payload["provider_status_counts"] == {"metadata_only": 6, "planning_only": 2}
     assert payload["provider_automation_level_counts"] == {
