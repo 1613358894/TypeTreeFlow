@@ -2177,6 +2177,37 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["required_inputs"] == []
     assert payload["recommended_request"] is None
     assert payload["recommended_next_command"] == ""
+    assert payload["operator_chain_next_step_packet"] == {
+        "schema_version": "operator_chain_next_step_packet.v1",
+        "available": False,
+        "status": "no_action",
+        "decision": "none",
+        "stage": "",
+        "artifact": "",
+        "record_count": 0,
+        "required_inputs": [],
+        "recommended_request": None,
+        "recommended_next_command": "",
+        "boundary": "",
+        "target_argv": [],
+        "recognized": {},
+        "preflight_decision": "none",
+        "blocking_count": 0,
+        "blocking_ids": [],
+        "warning_count": 0,
+        "warning_ids": [],
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_chain_next_step_no_execution",
+    }
     assert payload["coverage_opportunity_summary"][3][
         "provider_automation_level_counts"
     ] == {"planning_handoff": 2}
@@ -2488,6 +2519,39 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
         "--input provider_request_external_genomes/external_genomes.tsv "
         "--target-outdir <run> "
         "--write --outdir <isolated-install-plan-directory>"
+    )
+    next_step = payload["operator_chain_next_step_packet"]
+    assert next_step["schema_version"] == "operator_chain_next_step_packet.v1"
+    assert next_step["available"] is True
+    assert next_step["stage"] == "external_genomes_install_plan"
+    assert next_step["artifact"] == (
+        "external_genomes_install_plan/external_genome_install_plan.tsv"
+    )
+    assert next_step["required_inputs"] == [
+        "provider_request_external_genomes/external_genomes.tsv",
+        "target workflow run outdir",
+    ]
+    assert next_step["recommended_request"] == payload["recommended_request"]
+    assert next_step["target_argv"] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        "provider_request_external_genomes/external_genomes.tsv",
+        "--target-outdir",
+        "<run>",
+        "--write",
+        "--outdir",
+        "<isolated-install-plan-directory>",
+    ]
+    assert next_step["status"] == "blocked"
+    assert next_step["decision"] == "block"
+    assert next_step["preflight_decision"] == "block"
+    assert next_step["blocking_ids"] == ["write_not_allowed"]
+    assert next_step["downloads_triggered"] == 0
+    assert next_step["providers_contacted"] == 0
+    assert next_step["manifest_mutated"] is False
+    assert next_step["execution_boundary"] == (
+        "metadata_only_operator_chain_next_step_no_execution"
     )
 
     code, payload, _captured = _run(
