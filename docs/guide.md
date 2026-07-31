@@ -322,9 +322,9 @@ contact, downloads, workflow-output writes, manifest mutation, registration,
 and strict deliverable promotion disabled.
 `coverage_controller_inspection_summary` is the compact surface index for
 parent agents. It lists the parent-controller, controller, step-summary,
-preflight, handoff-next-step, handoff server-validation, and route-batch
-packets with availability, target argv, blocker IDs, warning IDs, and
-execution boundaries before the parent expands a specific nested packet.
+preflight, handoff-next-step, handoff server-validation packet/runbook, and
+route-batch packets with availability, target argv, blocker IDs, warning IDs,
+and execution boundaries before the parent expands a specific nested packet.
 `coverage_controller_runbook_packet` is the ordered metadata-only checklist for
 parent agents. It starts with the inspection summary, expands the recommended
 surface, and only then points at a `commands plan` or `commands preflight`

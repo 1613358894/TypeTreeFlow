@@ -1386,6 +1386,7 @@ def _assert_controller_packet(
         "coverage_controller_preflight_handoff_packet",
         "coverage_handoff_next_step_packet",
         "coverage_handoff_server_validation_packet",
+        "coverage_handoff_server_validation_runbook_packet",
         "coverage_route_next_batch_packet",
     ]
     assert inspection_summary["surface_count"] == len(expected_surface_names)
@@ -1460,6 +1461,11 @@ def _assert_controller_packet(
     assert surface_by_name["coverage_handoff_server_validation_packet"][
         "target_argv"
     ] == payload["coverage_handoff_server_validation_packet"]["recommended_argv"]
+    assert surface_by_name["coverage_handoff_server_validation_runbook_packet"][
+        "target_argv"
+    ] == payload["coverage_handoff_server_validation_runbook_packet"][
+        "recommended_argv"
+    ]
     assert surface_by_name["coverage_route_next_batch_packet"]["target_argv"] == (
         payload["coverage_route_next_batch_packet"].get("first_target_argv", [])
     )
