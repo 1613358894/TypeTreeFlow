@@ -928,6 +928,14 @@ def _run_status(
             ),
         )
     )
+    coverage_handoff_server_validation_result_template_artifact_packet = (
+        _coverage_handoff_server_validation_result_template_artifact_packet(
+            coverage_dir,
+            coverage_handoff_server_validation_result_template_packet=(
+                coverage_handoff_server_validation_result_template_packet
+            ),
+        )
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -1103,6 +1111,9 @@ def _run_status(
         ),
         "coverage_handoff_server_validation_result_template_packet": (
             coverage_handoff_server_validation_result_template_packet
+        ),
+        "coverage_handoff_server_validation_result_template_artifact_packet": (
+            coverage_handoff_server_validation_result_template_artifact_packet
         ),
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -4265,6 +4276,123 @@ def _coverage_handoff_server_validation_result_template_packet(
         "execution_boundary": (
             "metadata_only_handoff_server_validation_result_template_no_execution"
         ),
+    }
+
+
+def _coverage_handoff_server_validation_result_template_artifact_packet(
+    coverage_dir: Path,
+    *,
+    coverage_handoff_server_validation_result_template_packet: Mapping[str, object],
+) -> dict[str, object]:
+    relative_path = OUTPUT_PATHS["server_validation_result_template"]
+    artifact_path = coverage_dir / relative_path
+    base = {
+        "schema_version": (
+            "coverage_handoff_server_validation_result_template_artifact_packet.v1"
+        ),
+        "available": False,
+        "status": "no_action",
+        "artifact_path": str(artifact_path),
+        "relative_path": relative_path,
+        "artifact_size_bytes": 0,
+        "artifact_sha256": "",
+        "result_schema_version": "",
+        "result_status": "",
+        "validation_status": "no_action",
+        "checked_surface_count": 0,
+        "boundary_confirmation_count": 0,
+        "template_matches_embedded_packet": False,
+        "diagnostic_count": 0,
+        "diagnostics": [],
+        "result_validation_recommended_request_target": (
+            "coverage-pipeline server-validation-result validate"
+        ),
+        "result_validation_recommended_request": (
+            _coverage_server_validation_result_validation_request(str(artifact_path))
+        ),
+        "result_validation_recommended_argv": (
+            _coverage_server_validation_result_validation_argv(str(artifact_path))
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "metadata_only_server_validation_result_template_artifact_status"
+        ),
+    }
+    if not artifact_path.exists():
+        return base
+    local_diagnostics: list[dict[str, object]] = []
+    try:
+        if not artifact_path.is_file() or artifact_path.is_symlink():
+            raise OSError("unsafe artifact")
+        raw = artifact_path.read_bytes()
+        result = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        diagnostic = _diagnostic(
+            "server_validation_result_template_artifact",
+            "artifact_unreadable",
+        )
+        local_diagnostics.append(diagnostic)
+        return {
+            **base,
+            "available": True,
+            "status": "blocked",
+            "validation_status": "blocked",
+            "diagnostic_count": len(local_diagnostics),
+            "diagnostics": local_diagnostics,
+        }
+    if not isinstance(result, dict):
+        diagnostic = _diagnostic(
+            "server_validation_result_template_artifact",
+            "artifact_malformed",
+        )
+        local_diagnostics.append(diagnostic)
+        result = {}
+    _validate_server_validation_result(result, local_diagnostics)
+    validation_valid = not local_diagnostics
+    embedded_template = coverage_handoff_server_validation_result_template_packet.get(
+        "result_template"
+    )
+    template_matches = isinstance(embedded_template, Mapping) and (
+        result == dict(embedded_template)
+    )
+    if not template_matches:
+        diagnostic = _diagnostic(
+            "server_validation_result_template_artifact",
+            "embedded_template_mismatch",
+        )
+        local_diagnostics.append(diagnostic)
+    return {
+        **base,
+        "available": True,
+        "status": "pass" if validation_valid and template_matches else "blocked",
+        "artifact_size_bytes": len(raw),
+        "artifact_sha256": hashlib.sha256(raw).hexdigest(),
+        "result_schema_version": str(result.get("schema_version", "")),
+        "result_status": str(result.get("status", "")),
+        "validation_status": "pass" if validation_valid else "blocked",
+        "checked_surface_count": len(
+            result.get("checked_surface_names", [])
+            if isinstance(result.get("checked_surface_names"), list)
+            else []
+        ),
+        "boundary_confirmation_count": len(
+            result.get("boundary_confirmations", {})
+            if isinstance(result.get("boundary_confirmations"), Mapping)
+            else {}
+        ),
+        "template_matches_embedded_packet": template_matches,
+        "diagnostic_count": len(local_diagnostics),
+        "diagnostics": local_diagnostics,
     }
 
 

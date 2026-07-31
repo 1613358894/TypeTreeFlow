@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import json
 import os
 import socket
@@ -4757,6 +4758,45 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ]["result_template"]
     assert result_template["status"] == "blocked"
     assert result_template["boundary_confirmations"]["downloads_triggered"] == 0
+    code, status_payload, status_captured = _run(
+        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        capsys,
+        action="status",
+    )
+    template_artifact = status_payload[
+        "coverage_handoff_server_validation_result_template_artifact_packet"
+    ]
+    assert code == 0
+    assert status_captured.out.count("\n") == 1
+    assert template_artifact["available"] is True
+    assert template_artifact["status"] == "pass"
+    assert template_artifact["artifact_path"] == str(result_template_path)
+    assert template_artifact["relative_path"] == (
+        "server_validation/coverage_handoff_server_validation_result_template.json"
+    )
+    assert template_artifact["artifact_size_bytes"] == len(
+        result_template_path.read_bytes()
+    )
+    assert template_artifact["artifact_sha256"] == hashlib.sha256(
+        result_template_path.read_bytes()
+    ).hexdigest()
+    assert template_artifact["result_schema_version"] == (
+        "coverage_handoff_server_validation_result.v1"
+    )
+    assert template_artifact["result_status"] == "blocked"
+    assert template_artifact["validation_status"] == "pass"
+    assert template_artifact["template_matches_embedded_packet"] is True
+    assert template_artifact["result_validation_recommended_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "validate",
+        "--input",
+        str(result_template_path),
+        "--json",
+    ]
+    assert template_artifact["dry_run"] is True
+    assert template_artifact["downloads_triggered"] == 0
+    assert template_artifact["providers_contacted"] == 0
     result_template["status"] = "pass"
     result_template["summary"] = "Bounded local server validation passed."
     result_template_path.write_text(json.dumps(result_template), encoding="utf-8")
