@@ -333,7 +333,9 @@ command. It also reports `completion_gate`,
 `provider_request_automation_level_counts`, and preserves
 `coverage_opportunity_summary` so automation can read whether any stage remains
 blocking and how much provider handoff is planning-only versus metadata-review
-without parsing all stage rows. It does not scan workflow outputs, contact
+without parsing all stage rows. When external-genomes child summaries include
+controlled route counts, status keeps those counts as `summary_*` stage fields
+for routing context only. It does not scan workflow outputs, contact
 providers, download genomes, copy FASTA, mutate manifests, or grant completion
 credit.
 When a child stage summary is present, status preserves compact `summary_*`

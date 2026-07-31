@@ -50,6 +50,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     build_external_genome_install_plan,
+    summarize_external_genome_route_metadata,
     validate_external_genome_records,
 )
 from typetreeflow.provider_plan import (
@@ -601,6 +602,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             "exported_count",
             "diagnostic_count",
             "provider_counts",
+            "operator_route_counts",
+            "next_input_class_counts",
+            "automation_boundary_counts",
             "diagnostic_counts",
         ),
         diagnostics=diagnostics,
@@ -625,6 +629,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             "install_skipped_count",
             "diagnostic_count",
             "registration_status_counts",
+            "operator_route_counts",
+            "next_input_class_counts",
+            "automation_boundary_counts",
             "install_plan_status_counts",
         ),
         diagnostics=diagnostics,
@@ -2110,6 +2117,7 @@ def _external_genomes_install_plan_payload(
     ]
     registration_counts = Counter(result.status for result in registration_results)
     install_counts = Counter(item.status for item in install_plan)
+    route_counts = summarize_external_genome_route_metadata(registration_results)
     planned_count = install_counts.get("external_genome_install_planned", 0)
     return {
         "schema_version": INSTALL_PLAN_SCHEMA_VERSION,
@@ -2120,6 +2128,9 @@ def _external_genomes_install_plan_payload(
         "valid_count": sum(1 for result in registration_results if result.valid),
         "invalid_count": sum(1 for result in registration_results if not result.valid),
         "registration_status_counts": dict(sorted(registration_counts.items())),
+        "operator_route_counts": route_counts["operator_route_counts"],
+        "next_input_class_counts": route_counts["next_input_class_counts"],
+        "automation_boundary_counts": route_counts["automation_boundary_counts"],
         "install_plan_count": len(install_plan),
         "install_planned_count": planned_count,
         "install_skipped_count": len(install_plan) - planned_count,
