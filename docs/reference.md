@@ -1909,10 +1909,17 @@ download/provider/manifest denials. Unknown queue item IDs are refused with
 planned target command's `recommended_request_target` and `output_contracts` so
 controllers can route readiness or handoff packets without a separate catalog
 lookup.
+`coverage_stage_readiness_summary` is a compact, stable view of the same stage
+chain for AI routing. It repeats stage counts, available and unavailable stage
+names, the first unavailable stage, the next stage's compact
+`recommended_request_target`, command-plan and preflight decisions, and blocker
+or warning IDs. It is metadata only and always reports no unattended execution,
+provider contact, downloads, workflow writes, manifest mutation, or strict
+scientific deliverable promotion.
 `commands recognize`, `commands plan`, and `commands preflight` also declare
 the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
 `coverage_next_command_plan`, `coverage_stage_command_plans`,
-`coverage_next_operator_recipe`,
+`coverage_stage_readiness_summary`, `coverage_next_operator_recipe`,
 `coverage_queue_resume_packet`, and `coverage_operator_queue_preview`, plus
 operator-chain packets when present.
 The packet also includes `review_input_packet`, a bounded local-input handoff
@@ -2089,7 +2096,11 @@ The payload also includes
 `required_inputs` and `recommended_request` as convenience copies from the
 current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
-re-parsing every stage row. When an explicit or conventional child stage
+re-parsing every stage row. It also includes
+`coverage_stage_readiness_summary`, a compact AI-facing summary of the stage
+chain, first unavailable stage, next recommended target, command-plan decision,
+preflight decision, and blocker/warning IDs. When an explicit or conventional
+child stage
 summary is present, the matching `operator_chain_stages` row also carries
 bounded `summary_*` fields such as `summary_status`, `summary_ready_count`,
 `summary_blocked_count`, `summary_exported_count`, or

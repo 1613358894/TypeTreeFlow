@@ -156,6 +156,53 @@ def _assert_stage_command_plan_map(payload):
     ]
 
 
+def _assert_stage_readiness_summary(
+    payload,
+    *,
+    completed_stage_count,
+    blocked_stage_count,
+    first_unavailable_stage,
+    next_stage,
+    next_stage_target,
+    next_stage_decision,
+):
+    summary = payload["coverage_stage_readiness_summary"]
+    assert summary["schema_version"] == "coverage_stage_readiness_summary.v1"
+    assert summary["stage_count"] == payload.get(
+        "stage_count",
+        len(payload["operator_chain_stages"]),
+    )
+    assert summary["completed_stage_count"] == completed_stage_count
+    assert summary["blocked_stage_count"] == blocked_stage_count
+    assert summary["stage_status_counts"] == {
+        "available": completed_stage_count,
+        "unavailable": blocked_stage_count,
+    }
+    assert summary["available_stage_names"] == [
+        stage["stage"] for stage in payload["operator_chain_stages"]
+        if stage["available"]
+    ]
+    assert summary["unavailable_stage_names"] == [
+        stage["stage"] for stage in payload["operator_chain_stages"]
+        if not stage["available"]
+    ]
+    assert summary["first_unavailable_stage"] == first_unavailable_stage
+    assert summary["next_stage"] == next_stage
+    assert summary["next_stage_recommended_request_target"] == next_stage_target
+    assert summary["next_stage_command_plan_decision"] == next_stage_decision
+    assert summary["next_stage_blocking_ids"] == (
+        payload["operator_chain_next_step_packet"]["blocking_ids"]
+    )
+    assert summary["safe_for_unattended_execution"] is False
+    assert summary["audit_only"] is True
+    assert summary["dry_run"] is True
+    assert summary["writes_outputs"] is False
+    assert summary["downloads_triggered"] == 0
+    assert summary["providers_contacted"] == 0
+    assert summary["network_access"] is False
+    assert summary["strict_scientific_deliverable"] is False
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -1271,6 +1318,15 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         False,
         False,
     ]
+    _assert_stage_readiness_summary(
+        payload,
+        completed_stage_count=4,
+        blocked_stage_count=4,
+        first_unavailable_stage="provider_request_validation",
+        next_stage="provider_request_validation",
+        next_stage_target="provider-request external-genomes-handoff",
+        next_stage_decision="block",
+    )
     assert payload["operator_chain_stages"][6]["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input provider_request_external_genomes/external_genomes.tsv "
@@ -2248,6 +2304,16 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert next_step["execution_boundary"] == (
         "metadata_only_operator_chain_next_step_no_execution"
     )
+    _assert_stage_readiness_summary(
+        summary,
+        completed_stage_count=4,
+        blocked_stage_count=4,
+        first_unavailable_stage="provider_request_validation",
+        next_stage="provider_request_validation",
+        next_stage_target="provider-request external-genomes-handoff",
+        next_stage_decision="block",
+    )
+    assert summary["coverage_stage_readiness_summary"]["chain_complete"] is False
     assert summary["worklist_candidate_provider_key_counts"] == {
         "dsmz": 1,
         "kctc": 1,
@@ -3044,6 +3110,16 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_chain_next_step_no_execution",
     }
+    _assert_stage_readiness_summary(
+        payload,
+        completed_stage_count=8,
+        blocked_stage_count=0,
+        first_unavailable_stage="",
+        next_stage="",
+        next_stage_target="",
+        next_stage_decision="none",
+    )
+    assert payload["coverage_stage_readiness_summary"]["chain_complete"] is True
     assert payload["coverage_opportunity_summary"][3][
         "provider_automation_level_counts"
     ] == {"planning_handoff": 2}
@@ -3514,6 +3590,38 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
     assert payload["command"] == "coverage-pipeline status"
     assert payload["status"] == "blocked"
     assert payload["writes_outputs"] is False
+    assert payload["coverage_stage_readiness_summary"] == {
+        "schema_version": "coverage_stage_readiness_summary.v1",
+        "stage_count": 0,
+        "completed_stage_count": 0,
+        "blocked_stage_count": 0,
+        "stage_status_counts": {"available": 0, "unavailable": 0},
+        "available_stage_names": [],
+        "unavailable_stage_names": [],
+        "first_unavailable_stage": "",
+        "next_stage": "",
+        "next_stage_artifact": "",
+        "next_stage_record_count": 0,
+        "next_stage_recommended_request_target": "",
+        "next_stage_recommended_next_command": "",
+        "next_stage_command_plan_decision": "none",
+        "next_stage_preflight_decision": "none",
+        "next_stage_blocking_ids": [],
+        "next_stage_warning_ids": [],
+        "chain_complete": False,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_stage_readiness_summary_no_execution",
+    }
     assert payload["diagnostics"][0]["component"] == "coverage_pipeline_status"
     assert payload["diagnostics"][0]["diagnostic_code"] == "artifact_unreadable"
 

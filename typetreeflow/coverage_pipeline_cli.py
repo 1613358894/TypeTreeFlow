@@ -787,6 +787,10 @@ def _run_status(
         next_stage,
         operator_chain_snapshot_sha256=operator_chain_snapshot_sha256,
     )
+    coverage_stage_readiness_summary = _coverage_stage_readiness_summary(
+        stages,
+        operator_chain_next_step_packet,
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -861,6 +865,7 @@ def _run_status(
             operator_chain_snapshot_matches
         ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
+        "coverage_stage_readiness_summary": coverage_stage_readiness_summary,
         "operator_chain_readiness_packets": (
             _operator_chain_readiness_packets_from_stages(stages)
         ),
@@ -1179,6 +1184,71 @@ def _operator_chain_readiness_packets_from_stages(
                 packets[stage_name] = dict(packet)
                 break
     return packets
+
+
+def _coverage_stage_readiness_summary(
+    stages: Sequence[Mapping[str, object]],
+    next_step_packet: Mapping[str, object],
+) -> dict[str, object]:
+    available_stage_names = [
+        str(stage.get("stage", "")) for stage in stages if stage.get("available")
+    ]
+    unavailable_stage_names = [
+        str(stage.get("stage", "")) for stage in stages if not stage.get("available")
+    ]
+    first_unavailable_stage = (
+        unavailable_stage_names[0] if unavailable_stage_names else ""
+    )
+    next_stage = str(next_step_packet.get("stage", ""))
+    return {
+        "schema_version": "coverage_stage_readiness_summary.v1",
+        "stage_count": len(stages),
+        "completed_stage_count": len(available_stage_names),
+        "blocked_stage_count": len(unavailable_stage_names),
+        "stage_status_counts": {
+            "available": len(available_stage_names),
+            "unavailable": len(unavailable_stage_names),
+        },
+        "available_stage_names": available_stage_names,
+        "unavailable_stage_names": unavailable_stage_names,
+        "first_unavailable_stage": first_unavailable_stage,
+        "next_stage": next_stage,
+        "next_stage_artifact": str(next_step_packet.get("artifact", "")),
+        "next_stage_record_count": _safe_int(
+            next_step_packet.get("record_count", 0)
+        ),
+        "next_stage_recommended_request_target": str(
+            next_step_packet.get("recommended_request_target", "")
+        ),
+        "next_stage_recommended_next_command": str(
+            next_step_packet.get("recommended_next_command", "")
+        ),
+        "next_stage_command_plan_decision": str(
+            next_step_packet.get("decision", "")
+        ),
+        "next_stage_preflight_decision": str(
+            next_step_packet.get("preflight_decision", "")
+        ),
+        "next_stage_blocking_ids": list(next_step_packet.get("blocking_ids", []))
+        if isinstance(next_step_packet.get("blocking_ids"), list)
+        else [],
+        "next_stage_warning_ids": list(next_step_packet.get("warning_ids", []))
+        if isinstance(next_step_packet.get("warning_ids"), list)
+        else [],
+        "chain_complete": bool(stages) and not unavailable_stage_names,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_stage_readiness_summary_no_execution",
+    }
 
 
 def _provider_request_readiness_packet(
@@ -1704,6 +1774,10 @@ def _payload(
         _next_unavailable_stage(operator_chain_stages),
         operator_chain_snapshot_sha256=operator_chain_snapshot_sha256,
     )
+    coverage_stage_readiness_summary = _coverage_stage_readiness_summary(
+        operator_chain_stages,
+        operator_chain_next_step_packet,
+    )
     provider_request_validation_readiness_packet = _payload_map(
         provider_request_validation,
         "provider_request_readiness_packet",
@@ -2061,6 +2135,7 @@ def _payload(
             operator_chain_snapshot_matches
         ),
         "operator_chain_next_step_packet": operator_chain_next_step_packet,
+        "coverage_stage_readiness_summary": coverage_stage_readiness_summary,
         "operator_chain_readiness_packets": operator_chain_readiness_packets,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -3773,6 +3848,12 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "operator_chain_next_step_packet": _empty_operator_chain_next_step_packet(
             operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
         ),
+        "coverage_stage_readiness_summary": _coverage_stage_readiness_summary(
+            [],
+            _empty_operator_chain_next_step_packet(
+                operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
+            ),
+        ),
         "operator_chain_readiness_packets": {},
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
@@ -3837,6 +3918,7 @@ def _rendered_outputs(
             "expected_operator_chain_snapshot_sha256",
             "operator_chain_snapshot_matches_expected",
             "operator_chain_next_step_packet",
+            "coverage_stage_readiness_summary",
             "operator_chain_readiness_packets",
             "coverage_operator_queue_preview",
             "current_coverage_action_queue_item",
