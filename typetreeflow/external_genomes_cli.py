@@ -19,6 +19,7 @@ from typetreeflow.external_genomes import (
     read_external_genome_install_plan,
     read_external_genome_registration_results,
     read_external_genomes,
+    summarize_external_genome_packet_readiness,
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
     write_external_genome_install_plan,
@@ -84,11 +85,11 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
         )
     except ValueError as error:
         diagnostics.append(_input_diagnostic(str(error)))
-        _emit(_validate_payload([], diagnostics=diagnostics), output)
+        _emit(_validate_payload([], records=[], diagnostics=diagnostics), output)
         return 2
     except (OSError, UnicodeError):
         diagnostics.append(_diagnostic("external_genomes_validate", "input_unreadable"))
-        _emit(_validate_payload([], diagnostics=diagnostics), output)
+        _emit(_validate_payload([], records=[], diagnostics=diagnostics), output)
         return 2
 
     results = validate_external_genome_records(records, base_dir=input_path.parent)
@@ -102,7 +103,7 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
                 )
             )
 
-    _emit(_validate_payload(results, diagnostics=diagnostics), output)
+    _emit(_validate_payload(results, records=records, diagnostics=diagnostics), output)
     return 0 if not diagnostics else 2
 
 
@@ -140,7 +141,10 @@ def _run_install_plan(args: argparse.Namespace, output: TextIO) -> int:
                 schema_version=INSTALL_PLAN_SCHEMA_VERSION,
             )
         )
-        _emit(_install_plan_payload([], [], diagnostics=diagnostics, args=args), output)
+        _emit(
+            _install_plan_payload([], [], records=[], diagnostics=diagnostics, args=args),
+            output,
+        )
         return 2
     except (OSError, UnicodeError):
         diagnostics.append(
@@ -150,7 +154,10 @@ def _run_install_plan(args: argparse.Namespace, output: TextIO) -> int:
                 schema_version=INSTALL_PLAN_SCHEMA_VERSION,
             )
         )
-        _emit(_install_plan_payload([], [], diagnostics=diagnostics, args=args), output)
+        _emit(
+            _install_plan_payload([], [], records=[], diagnostics=diagnostics, args=args),
+            output,
+        )
         return 2
 
     results = validate_external_genome_records(records, base_dir=input_path.parent)
@@ -169,6 +176,7 @@ def _run_install_plan(args: argparse.Namespace, output: TextIO) -> int:
     payload = _install_plan_payload(
         results,
         install_plan,
+        records=records,
         diagnostics=diagnostics,
         args=args,
     )
@@ -222,10 +230,16 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _validate_payload(results, *, diagnostics: list[dict[str, object]]) -> dict[str, object]:
+def _validate_payload(
+    results,
+    *,
+    records,
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object]:
     status_counts = Counter(result.status for result in results)
     valid_count = sum(1 for result in results if result.valid)
     route_counts = summarize_external_genome_route_metadata(results)
+    packet_counts = summarize_external_genome_packet_readiness(records)
     preview = [
         {
             "species": result.species,
@@ -246,6 +260,10 @@ def _validate_payload(results, *, diagnostics: list[dict[str, object]]) -> dict[
         "operator_route_counts": route_counts["operator_route_counts"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
         "automation_boundary_counts": route_counts["automation_boundary_counts"],
+        "external_source_counts": packet_counts["external_source_counts"],
+        "checksum_input_counts": packet_counts["checksum_input_counts"],
+        "type_material_counts": packet_counts["type_material_counts"],
+        "manual_review_flag_counts": packet_counts["manual_review_flag_counts"],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "result_preview": preview,
@@ -273,12 +291,14 @@ def _install_plan_payload(
     registration_results,
     install_plan,
     *,
+    records,
     diagnostics: list[dict[str, object]],
     args: argparse.Namespace,
 ) -> dict[str, object]:
     registration_counts = Counter(result.status for result in registration_results)
     install_counts = Counter(item.status for item in install_plan)
     route_counts = summarize_external_genome_route_metadata(registration_results)
+    packet_counts = summarize_external_genome_packet_readiness(records)
     planned_count = install_counts.get("external_genome_install_planned", 0)
     skipped_count = len(install_plan) - planned_count
     external_genomes_input = _command_path(args.input, fallback="external_genomes.tsv")
@@ -301,6 +321,10 @@ def _install_plan_payload(
         "operator_route_counts": route_counts["operator_route_counts"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
         "automation_boundary_counts": route_counts["automation_boundary_counts"],
+        "external_source_counts": packet_counts["external_source_counts"],
+        "checksum_input_counts": packet_counts["checksum_input_counts"],
+        "type_material_counts": packet_counts["type_material_counts"],
+        "manual_review_flag_counts": packet_counts["manual_review_flag_counts"],
         "install_plan_count": len(install_plan),
         "install_planned_count": planned_count,
         "install_skipped_count": skipped_count,
@@ -337,7 +361,9 @@ def _install_plan_payload(
 
 def _failure(code: str, message: str) -> dict[str, object]:
     payload = _validate_payload(
-        [], diagnostics=[_diagnostic("external_genomes_validate_cli", code)]
+        [],
+        records=[],
+        diagnostics=[_diagnostic("external_genomes_validate_cli", code)],
     )
     payload.update(status="failed", summary=message)
     return payload
@@ -353,6 +379,7 @@ def _install_plan_failure(code: str, message: str) -> dict[str, object]:
     payload = _install_plan_payload(
         [],
         [],
+        records=[],
         diagnostics=[
             _diagnostic(
                 "external_genomes_install_plan_cli",

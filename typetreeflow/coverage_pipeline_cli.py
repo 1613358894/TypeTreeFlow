@@ -51,6 +51,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     build_external_genome_install_plan,
     read_external_genome_registration_results,
+    summarize_external_genome_packet_readiness,
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
 )
@@ -313,6 +314,7 @@ def run_coverage_pipeline_command(
                         _external_genomes_install_plan_payload(
                             registration_results,
                             install_plan,
+                            records=external_genomes.records,
                             target_outdir=Path(
                                 args.external_genomes_install_target_outdir
                             ),
@@ -636,6 +638,10 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
             "operator_route_counts",
             "next_input_class_counts",
             "automation_boundary_counts",
+            "external_source_counts",
+            "checksum_input_counts",
+            "type_material_counts",
+            "manual_review_flag_counts",
             "install_plan_status_counts",
         ),
         diagnostics=diagnostics,
@@ -2151,6 +2157,7 @@ def _external_genomes_install_plan_payload(
     registration_results,
     install_plan,
     *,
+    records,
     target_outdir: Path,
     dry_run: bool,
 ) -> dict[str, object]:
@@ -2162,6 +2169,7 @@ def _external_genomes_install_plan_payload(
     registration_counts = Counter(result.status for result in registration_results)
     install_counts = Counter(item.status for item in install_plan)
     route_counts = summarize_external_genome_route_metadata(registration_results)
+    packet_counts = summarize_external_genome_packet_readiness(records)
     planned_count = install_counts.get("external_genome_install_planned", 0)
     return {
         "schema_version": INSTALL_PLAN_SCHEMA_VERSION,
@@ -2175,6 +2183,10 @@ def _external_genomes_install_plan_payload(
         "operator_route_counts": route_counts["operator_route_counts"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
         "automation_boundary_counts": route_counts["automation_boundary_counts"],
+        "external_source_counts": packet_counts["external_source_counts"],
+        "checksum_input_counts": packet_counts["checksum_input_counts"],
+        "type_material_counts": packet_counts["type_material_counts"],
+        "manual_review_flag_counts": packet_counts["manual_review_flag_counts"],
         "install_plan_count": len(install_plan),
         "install_planned_count": planned_count,
         "install_skipped_count": len(install_plan) - planned_count,

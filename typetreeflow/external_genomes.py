@@ -863,6 +863,32 @@ def summarize_external_genome_route_metadata(
     }
 
 
+def summarize_external_genome_packet_readiness(
+    records: Iterable[ExternalGenomeRecord],
+) -> dict[str, dict[str, int]]:
+    counts = {
+        "external_source_counts": Counter(),
+        "checksum_input_counts": Counter(),
+        "type_material_counts": Counter(),
+        "manual_review_flag_counts": Counter(),
+    }
+    for record in records:
+        source = (record.external_source or "").strip().casefold() or "missing"
+        counts["external_source_counts"][source] += 1
+        counts["checksum_input_counts"][
+            "provided" if record.sha256 else "computed_or_missing"
+        ] += 1
+        counts["type_material_counts"][
+            "type_material" if record.is_type_material else "not_type_material"
+        ] += 1
+        counts["manual_review_flag_counts"][
+            "manual_review_required"
+            if record.requires_manual_review
+            else "manual_review_cleared"
+        ] += 1
+    return {key: dict(sorted(counter.items())) for key, counter in counts.items()}
+
+
 def validate_external_genomes(
     records: Iterable[ExternalGenomeRecord],
     *,

@@ -89,6 +89,10 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
     assert payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert payload["external_source_counts"] == {"atcc_genome_portal": 1}
+    assert payload["checksum_input_counts"] == {"provided": 1}
+    assert payload["type_material_counts"] == {"type_material": 1}
+    assert payload["manual_review_flag_counts"] == {"manual_review_cleared": 1}
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False
     assert payload["manifest_mutated"] is False
@@ -156,6 +160,14 @@ def test_external_genomes_validate_blocks_mixed_invalid_rows(tmp_path, capsys):
     assert payload["valid_count"] == 1
     assert payload["invalid_count"] == 3
     assert payload["diagnostic_count"] == 3
+    assert payload["checksum_input_counts"] == {
+        "computed_or_missing": 3,
+        "provided": 1,
+    }
+    assert payload["manual_review_flag_counts"] == {
+        "manual_review_cleared": 3,
+        "manual_review_required": 1,
+    }
     assert [diagnostic["diagnostic_code"] for diagnostic in payload["diagnostics"]] == [
         "external_genome_missing_file",
         "external_genome_checksum_mismatch",
@@ -230,6 +242,10 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert payload["external_source_counts"] == {"atcc_genome_portal": 1}
+    assert payload["checksum_input_counts"] == {"provided": 1}
+    assert payload["type_material_counts"] == {"type_material": 1}
+    assert payload["manual_review_flag_counts"] == {"manual_review_cleared": 1}
     assert payload["writes_outputs"] is True
     assert payload["writes_workflow_outputs"] is False
     assert payload["target_outdir_mutated"] is False
@@ -258,6 +274,8 @@ def test_external_genomes_install_plan_writes_isolated_plan_only(tmp_path, capsy
     assert summary["recommended_request"]["external_genomes"] == input_path
     assert summary["recommended_next_command"] == payload["recommended_next_command"]
     assert summary["operator_route_counts"] == {"provider_handoff": 1}
+    assert summary["checksum_input_counts"] == {"provided": 1}
+    assert summary["manual_review_flag_counts"] == {"manual_review_cleared": 1}
 
 
 def test_external_genomes_install_plan_blocks_invalid_rows_without_outputs(
