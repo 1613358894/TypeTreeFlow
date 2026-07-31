@@ -354,6 +354,7 @@ def run_coverage_pipeline_command(
         command=COMMAND_BUILD if args.action == "build" else COMMAND_PREVIEW,
         dry_run=not args.write,
         queue_preview_limit=queue_preview_limit,
+        queue_item_id=args.queue_item_id,
     )
     if args.write and not diagnostics:
         try:
@@ -474,6 +475,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--queue-preview-limit",
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
+    preview.add_argument("--queue-item-id")
     preview.add_argument("--json", action="store_true")
     preview.set_defaults(
         write=False,
@@ -500,6 +502,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--queue-preview-limit",
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
+    build.add_argument("--queue-item-id")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -515,6 +518,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--queue-preview-limit",
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
+    status.add_argument("--queue-item-id")
     status.add_argument("--require-complete", action="store_true")
     status.add_argument("--json", action="store_true")
     return parser
@@ -740,8 +744,17 @@ def _run_status(
         raw_recommended_request = next_stage.get("recommended_request")
         if isinstance(raw_recommended_request, Mapping):
             next_recommended_request = dict(raw_recommended_request)
-    coverage_next_task_packet = _optional_summary_map(
-        coverage_summary, "coverage_next_task_packet"
+    coverage_action_queue = _optional_summary_list(
+        coverage_summary, "coverage_action_queue"
+    )
+    selected_queue_item = _selected_coverage_queue_item(
+        coverage_action_queue,
+        getattr(args, "queue_item_id", None),
+        diagnostics=diagnostics,
+    )
+    selected_queue = [selected_queue_item] if selected_queue_item else []
+    coverage_next_task_packet = _coverage_next_task_packet(
+        selected_queue,
     )
     coverage_next_command_plan = _coverage_next_command_plan(
         coverage_next_task_packet
@@ -751,7 +764,7 @@ def _run_status(
         coverage_next_command_plan,
     )
     coverage_operator_queue_preview = _coverage_operator_queue_preview(
-        _optional_summary_list(coverage_summary, "coverage_action_queue"),
+        coverage_action_queue,
         limit=queue_preview_limit,
     )
     payload = {
@@ -793,8 +806,13 @@ def _run_status(
             coverage_summary, "coverage_action_queue_summary"
         ),
         "current_coverage_action_queue_item": _optional_summary_map(
-            coverage_summary, "current_coverage_action_queue_item"
+            {"current_coverage_action_queue_item": selected_queue_item or {}},
+            "current_coverage_action_queue_item",
         ),
+        "selected_coverage_queue_item_id": str(
+            getattr(args, "queue_item_id", "") or ""
+        ),
+        "selected_coverage_queue_item_found": bool(selected_queue_item),
         "provider_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_automation_level_counts"
         ),
@@ -1223,6 +1241,7 @@ def _payload(
     command: str,
     dry_run: bool,
     queue_preview_limit: int,
+    queue_item_id: str | None,
 ) -> dict[str, object]:
     worklist_summary = worklist.summary
     coverage_summary = coverage_plan.summary
@@ -1258,7 +1277,13 @@ def _payload(
         coverage_action_queue
     )
     coverage_priority_summary = _coverage_priority_summary(coverage_action_queue)
-    coverage_next_task_packet = _coverage_next_task_packet(coverage_action_queue)
+    selected_queue_item = _selected_coverage_queue_item(
+        coverage_action_queue,
+        queue_item_id,
+        diagnostics=diagnostics,
+    )
+    selected_queue = [selected_queue_item] if selected_queue_item else []
+    coverage_next_task_packet = _coverage_next_task_packet(selected_queue)
     coverage_next_command_plan = _coverage_next_command_plan(coverage_next_task_packet)
     coverage_next_operator_recipe = _coverage_next_operator_recipe(
         coverage_next_task_packet,
@@ -1268,9 +1293,7 @@ def _payload(
         coverage_action_queue,
         limit=queue_preview_limit,
     )
-    current_coverage_action_queue_item = (
-        dict(coverage_action_queue[0]) if coverage_action_queue else {}
-    )
+    current_coverage_action_queue_item = dict(selected_queue_item or {})
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
         if coverage_next_action_groups
@@ -1324,6 +1347,8 @@ def _payload(
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
+        "selected_coverage_queue_item_id": str(queue_item_id or ""),
+        "selected_coverage_queue_item_found": bool(selected_queue_item),
         "primary_next_action_group": primary_next_action_group,
         "primary_action_required_inputs": primary_action_required_inputs,
         "primary_action_recommended_request": primary_action_recommended_request,
@@ -2246,6 +2271,27 @@ def _coverage_operator_queue_preview(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_queue_preview_no_execution",
     }
+
+
+def _selected_coverage_queue_item(
+    coverage_action_queue: Sequence[object],
+    queue_item_id: str | None,
+    *,
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object] | None:
+    requested_id = str(queue_item_id or "").strip()
+    items = [
+        dict(item)
+        for item in coverage_action_queue
+        if isinstance(item, Mapping)
+    ]
+    if not requested_id:
+        return items[0] if items else None
+    for item in items:
+        if str(item.get("queue_item_id", "")) == requested_id:
+            return item
+    diagnostics.append(_diagnostic("coverage_action_queue", "queue_item_id_not_found"))
+    return None
 
 
 def _coverage_queue_snapshot_sha256(

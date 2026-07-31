@@ -1774,9 +1774,9 @@ recommended next command for reviewing `provider/proposed_external_genomes.tsv`.
 The isolated coverage pipeline adapter is:
 
 ```text
-typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--json] [--write --outdir <dir> [--force]]
-typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--require-complete] [--json]
+typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--json]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--require-complete] [--json]
 ```
 
 It reads only explicitly named local TSV files, builds an in-memory acquisition
@@ -1829,12 +1829,14 @@ next-input class, provider automation-level record counts, and
 metadata only and does not authorize provider access, downloads, registration,
 manifest mutation, or strict completion.
 `coverage_next_task_packet` is the single current-task packet derived from the
-first queued item. It repeats the action code, route, next-input class, required
-inputs, structured `recommended_request`, recommended command, and explicit
-no-execution safety fields so AI controllers can pass the request through
-`commands render`, `commands plan`, or `commands preflight` before any local
-operator action. It is metadata only and always reports
-`safe_for_unattended_download=false`.
+first queued item, or from the stable queue item selected by
+`--queue-item-id <queue_item_id>`. It repeats the action code, route,
+next-input class, required inputs, structured `recommended_request`,
+recommended command, and explicit no-execution safety fields so AI controllers
+can pass the request through `commands render`, `commands plan`, or
+`commands preflight` before any local operator action. It is metadata only and
+always reports `safe_for_unattended_download=false`. Unknown queue item IDs are
+refused with `diagnostic_code=queue_item_id_not_found` and exit code `2`.
 `coverage_next_command_plan` is a no-dispatch planning companion for that
 packet. It renders the packet's structured `recommended_request`, records the
 target argv, embeds the `commands preflight` decision, and repeats the
@@ -1860,7 +1862,10 @@ copying diagnostic messages into the queue preview. The preview object also
 includes `queue_snapshot_sha256`, a deterministic digest of the current
 coverage action queue metadata, and `preview_item_ids`, the item IDs included
 in the bounded preview. Controllers can compare the digest before resuming a
-previously inspected queue. It is a routing preview, not a queue runner.
+previously inspected queue. Passing `--queue-item-id` selects the current
+packet, command plan, recipe, and `current_coverage_action_queue_item`, but it
+does not change this bounded preview prefix. It is a routing preview, not a
+queue runner.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any

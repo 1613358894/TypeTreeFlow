@@ -858,6 +858,145 @@ def test_coverage_pipeline_queue_preview_limit_controls_preview_and_status(
     )
 
 
+def test_coverage_pipeline_queue_item_id_selects_current_task_metadata(
+    capsys, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--queue-preview-limit",
+            "2",
+            "--queue-item-id",
+            "cq004_prepare_provider_handoff",
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert payload["selected_coverage_queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+    assert payload["selected_coverage_queue_item_found"] is True
+    assert payload["coverage_next_task_packet"]["queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+    assert payload["current_coverage_action_queue_item"]["queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+    assert payload["coverage_next_operator_recipe"]["operator_route"] == (
+        "provider_handoff"
+    )
+    assert payload["coverage_next_operator_recipe"]["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        "provider_handoff/provider_handoff.tsv",
+    ]
+    assert payload["coverage_operator_queue_preview"]["preview_item_ids"] == [
+        "cq001_resolve_curator_conflict",
+        "cq002_review_public_archive_linkage",
+    ]
+
+    outdir = tmp_path / "pipeline_outputs"
+    code, build_payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--queue-item-id",
+            "cq003_review_public_type_linkage",
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert build_payload["coverage_next_task_packet"]["queue_item_id"] == (
+        "cq003_review_public_type_linkage"
+    )
+    assert build_payload["selected_coverage_queue_item_found"] is True
+
+    code, status_payload, captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--queue-item-id",
+            "cq004_prepare_provider_handoff",
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert status_payload["coverage_next_task_packet"]["queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+    assert status_payload["current_coverage_action_queue_item"]["queue_item_id"] == (
+        "cq004_prepare_provider_handoff"
+    )
+    assert status_payload["selected_coverage_queue_item_found"] is True
+
+
+def test_coverage_pipeline_rejects_unknown_queue_item_id(capsys, tmp_path):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--queue-item-id",
+            "cq999_missing",
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["selected_coverage_queue_item_id"] == "cq999_missing"
+    assert payload["selected_coverage_queue_item_found"] is False
+    assert payload["coverage_next_task_packet"]["available"] is False
+    assert payload["diagnostics"] == [
+        {
+            "schema_version": payload["schema_version"],
+            "component": "coverage_action_queue",
+            "severity": "error",
+            "diagnostic_code": "queue_item_id_not_found",
+        }
+    ]
+
+
 def test_coverage_pipeline_rejects_invalid_queue_preview_limit(capsys):
     code, payload, captured = _run(
         ["--queue-preview-limit", "0", "--json"],

@@ -275,7 +275,12 @@ counts and IDs so a controller can route blocked items without executing or
 copying full diagnostic messages. The preview object includes
 `queue_snapshot_sha256` and `preview_item_ids` so a controller can detect
 whether the queued metadata changed before resuming a previously inspected
-item.
+item. To resume a specific stable queue item, pass
+`--queue-item-id <queue_item_id>` to `preview`, `build`, or `status`; this only
+selects `current_coverage_action_queue_item`,
+`coverage_next_task_packet`, `coverage_next_command_plan`, and
+`coverage_next_operator_recipe` metadata. It does not change the bounded preview
+prefix, execute the target command, or authorize provider access/downloads.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
@@ -324,7 +329,8 @@ To inspect the current local operator chain without writing anything:
 
 ```bash
 typetreeflow coverage-pipeline status \
-  --coverage-pipeline-dir <isolated-coverage-pipeline-directory> [--json]
+  --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
+  [--queue-item-id <queue_item_id>] [--json]
 ```
 
 The status command reads standard downstream child directories under the same
