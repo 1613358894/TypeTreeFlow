@@ -14,6 +14,7 @@ from typetreeflow.external_genomes import (
 from typetreeflow.provider_plan import ProviderRequestRecord
 from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_READY_STATUS,
+    provider_request_route_metadata_from_notes,
     validate_provider_requests_for_local_handoff,
 )
 
@@ -58,6 +59,9 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND = (
 class ProviderRequestExternalGenomesDraft:
     records: tuple[ExternalGenomeRecord, ...]
     diagnostics: tuple[dict[str, object], ...]
+    operator_route_counts: dict[str, int]
+    next_input_class_counts: dict[str, int]
+    automation_boundary_counts: dict[str, int]
     schema_version: str = PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION
 
     @property
@@ -81,6 +85,13 @@ class ProviderRequestExternalGenomesDraft:
             "exported_count": len(self.records),
             "diagnostic_count": len(self.diagnostics),
             "provider_counts": dict(sorted(provider_counts.items())),
+            "operator_route_counts": dict(sorted(self.operator_route_counts.items())),
+            "next_input_class_counts": dict(
+                sorted(self.next_input_class_counts.items())
+            ),
+            "automation_boundary_counts": dict(
+                sorted(self.automation_boundary_counts.items())
+            ),
             "diagnostic_counts": dict(sorted(diagnostic_counts.items())),
             "audit_only": True,
             "dry_run": True,
@@ -139,6 +150,7 @@ def build_provider_request_external_genomes_draft(
     if not source_records:
         diagnostics.append(_diagnostic("no_provider_request_rows"))
     rows_by_request = {row.request_id: row for row in validation.rows}
+    route_counts = _ready_route_counts(validation.rows)
     external_records: list[ExternalGenomeRecord] = []
     for record in source_records:
         validation_row = rows_by_request.get(record.request_id)
@@ -153,6 +165,9 @@ def build_provider_request_external_genomes_draft(
     return ProviderRequestExternalGenomesDraft(
         records=tuple(external_records),
         diagnostics=tuple(diagnostics),
+        operator_route_counts=route_counts["operator_route_counts"],
+        next_input_class_counts=route_counts["next_input_class_counts"],
+        automation_boundary_counts=route_counts["automation_boundary_counts"],
     )
 
 
@@ -190,6 +205,7 @@ def _resolve_local_path(value: str, base_dir: Path) -> Path:
 
 
 def _notes(record: ProviderRequestRecord) -> str:
+    route_metadata = provider_request_route_metadata_from_notes(record.notes)
     parts = [
         "source=provider_request",
         f"request_id={record.request_id}",
@@ -199,7 +215,30 @@ def _notes(record: ProviderRequestRecord) -> str:
     ]
     if record.provider_artifact_version:
         parts.append(f"provider_artifact_version={record.provider_artifact_version}")
+    for key in ("operator_route", "next_input_class", "automation_boundary"):
+        if route_metadata[key]:
+            parts.append(f"{key}={route_metadata[key]}")
     return "; ".join(parts)
+
+
+def _ready_route_counts(rows) -> dict[str, dict[str, int]]:
+    counts = {
+        "operator_route_counts": {},
+        "next_input_class_counts": {},
+        "automation_boundary_counts": {},
+    }
+    for row in rows:
+        if row.readiness_status != PROVIDER_REQUEST_READY_STATUS:
+            continue
+        for field, key in (
+            ("operator_route", "operator_route_counts"),
+            ("next_input_class", "next_input_class_counts"),
+            ("automation_boundary", "automation_boundary_counts"),
+        ):
+            value = getattr(row, field, "")
+            if value:
+                counts[key][value] = counts[key].get(value, 0) + 1
+    return counts
 
 
 def _external_genome_row(record: ExternalGenomeRecord) -> dict[str, str]:

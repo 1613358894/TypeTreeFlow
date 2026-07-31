@@ -44,7 +44,11 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "is_type_material": "true",
             "requires_manual_review": "false",
             "curator": "curator-a",
-            "notes": "local handoff",
+            "notes": (
+                "local handoff; operator_route=provider_handoff; "
+                "next_input_class=permitted_local_fasta_terms_provenance; "
+                "automation_boundary=planning_handoff_no_provider_contact"
+            ),
         }
     )
     values.update(overrides)
@@ -97,7 +101,11 @@ def _write_ready_provider_request_from_template(
             "is_type_material": "true",
             "requires_manual_review": "false",
             "curator": "curator-a",
-            "notes": "local handoff",
+            "notes": (
+                "local handoff; operator_route=provider_handoff; "
+                "next_input_class=permitted_local_fasta_terms_provenance; "
+                "automation_boundary=planning_handoff_no_provider_contact"
+            ),
         }
     )
     return _write(
@@ -188,6 +196,13 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     draft_payload = json.loads(draft_stdout)
     external_genomes = external_draft_dir / "external_genomes.tsv"
     assert draft_payload["exported_count"] == 1
+    assert draft_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert draft_payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert draft_payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert draft_payload["writes_workflow_outputs"] is False
     assert draft_payload["external_genomes_registration_applied"] is False
     assert str(fasta) not in draft_stdout
@@ -383,6 +398,13 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
     assert handoff_payload["status"] == "pass"
     assert handoff_payload["ready_count"] == 1
     assert handoff_payload["exported_count"] == 1
+    assert handoff_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert handoff_payload["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert handoff_payload["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
     assert handoff_payload["recommended_request"]["input"] == handoff_external_genomes
     assert (
         handoff_payload["install_plan_recommended_request"]["input"]

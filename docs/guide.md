@@ -186,10 +186,12 @@ The command reuses the same provider-request validation guards and writes an
 `external_genomes.tsv` only when every row is ready. The draft records resolved
 local FASTA paths for later `external-genomes validate` use, but stdout
 previews omit local paths, hashes, notes, and sequence contents. Stdout and the
-summary JSON include the next `external-genomes validate` and
-`external-genomes install-plan` requests. This is still only a handoff input:
-it does not register external genomes, copy FASTA files, mutate manifests,
-contact providers, download data, or create strict scientific deliverables.
+summary JSON include exported route counts plus the next `external-genomes
+validate` and `external-genomes install-plan` requests. Controlled route
+metadata may be copied into `external_genomes.tsv` notes, but raw provider or
+curator notes are not copied. This is still only a handoff input: it does not
+register external genomes, copy FASTA files, mutate manifests, contact
+providers, download data, or create strict scientific deliverables.
 
 For AI/operator handoff, the validation and external-genomes draft steps can
 also be bundled into one isolated local command:
@@ -205,10 +207,11 @@ With `--write`, the command always writes
 `provider_request_external_genomes/` only when every row passes the local
 readiness guards. The bundle directory can be supplied later with
 `--coverage-pipeline-dir`, or its two child directories can be supplied
-explicitly. This remains an isolated handoff convenience only: no workflow
-outputs, provider contact, downloads, FASTA copying, external-genome
-registration, manifest mutation, completion credit, or strict deliverable
-promotion.
+explicitly. The compact handoff payload retains validation route counts for
+AI/operator routing continuity. This remains an isolated handoff convenience
+only: no workflow outputs, provider contact, downloads, FASTA copying,
+external-genome registration, manifest mutation, completion credit, or strict
+deliverable promotion.
 
 Preview the full offline coverage planning chain in one no-write command:
 

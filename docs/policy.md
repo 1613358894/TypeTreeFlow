@@ -411,10 +411,12 @@ only `external_genomes.tsv` plus
 directory. The draft may contain resolved local FASTA paths because those are
 the intended inputs for later local external-genomes validation, but compact
 stdout must not display paths, hashes, provider notes, curator values, or
-sequence contents. This command must not register external genomes, copy FASTA
-files, contact providers, accept terms, download data, mutate manifests,
-change completion metrics, or reinterpret provider-request rows as strict
-scientific deliverables.
+sequence contents. It may carry controlled route metadata from provider-request
+notes into aggregate counts and external-genomes notes, but it must not copy
+raw provider notes or curator notes. This command must not register external
+genomes, copy FASTA files, contact providers, accept terms, download data,
+mutate manifests, change completion metrics, or reinterpret provider-request
+rows as strict scientific deliverables.
 The optional report/package `--provider-request-external-genomes-dir` surface
 may read and copy only that external-genomes draft pair, package it under
 `provider_request_external_genomes/`, and mark copied members with audit-only
@@ -429,9 +431,10 @@ write mode it may publish `provider_request_validation/` and, only when all
 rows are ready, `provider_request_external_genomes/` under the explicit output
 directory. A blocked bundle may preserve validation diagnostics, but it must
 not create an external-genomes draft directory. The bundle remains a local
-handoff convenience and must not register external genomes, copy FASTA files,
-contact providers, accept terms, download data, mutate manifests, change
-completion metrics, or reinterpret rows as strict scientific deliverables.
+handoff convenience; route counts are AI/operator context only. It must not
+register external genomes, copy FASTA files, contact providers, accept terms,
+download data, mutate manifests, change completion metrics, or reinterpret
+rows as strict scientific deliverables.
 
 The `coverage-pipeline preview` / `coverage-pipeline build` CLI is an isolated
 shortcut over the same offline chain: acquisition worklist, coverage action

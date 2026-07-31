@@ -1693,13 +1693,15 @@ SHA-256 values, provider notes, curator values, or sequence contents. Without
 `--write`, it writes nothing. With `--write`, it writes only
 `external_genomes.tsv` and
 `provider_request_external_genomes_summary.json` into the explicitly supplied
-directory. The JSON and summary include `recommended_request` for
-`external-genomes validate` plus `install_plan_recommended_request` for the
-offline `external-genomes install-plan` step. The install-plan recommended
-request includes `write=true` and
+directory. The JSON and summary include route counts for exported ready rows,
+`recommended_request` for `external-genomes validate`, plus
+`install_plan_recommended_request` for the offline `external-genomes
+install-plan` step. The install-plan recommended request includes `write=true` and
 `outdir=<isolated-install-plan-directory>` so AI/operator controllers can
 materialize the next audit directory explicitly; this is still only an
 isolated-output write, not workflow-output mutation or download execution.
+The draft row notes may carry controlled route metadata copied from the
+provider request notes; they must not copy raw provider notes or curator notes.
 When `--write` succeeds, the recommended validation and install-plan requests
 point to the just-written `<dir>/external_genomes.tsv` artifact instead of the
 generic placeholder so the next local dry-run step can be rendered without
@@ -1730,6 +1732,8 @@ rendered as an external-genomes handoff draft. Blocked runs therefore preserve
 validation diagnostics without creating a draft external-genomes directory.
 The command emits one compact JSON object and does not echo local FASTA paths,
 SHA-256 values, provider notes, curator values, or sequence contents.
+The handoff payload includes validation route counts so AI/operator controllers
+can keep the provider-request route visible through the bundled handoff step.
 When `--write` succeeds and the draft directory is created, the returned
 recommended validation and install-plan requests point to
 `<dir>/provider_request_external_genomes/external_genomes.tsv`, the concrete
