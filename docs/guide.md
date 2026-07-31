@@ -281,6 +281,9 @@ selects `current_coverage_action_queue_item`,
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` metadata. It does not change the bounded preview
 prefix, execute the target command, or authorize provider access/downloads.
+Controllers that persist `queue_snapshot_sha256` can pass
+`--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a
+mismatch is refused with exit code `2` so stale queue selections fail closed.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
@@ -330,6 +333,7 @@ To inspect the current local operator chain without writing anything:
 ```bash
 typetreeflow coverage-pipeline status \
   --coverage-pipeline-dir <isolated-coverage-pipeline-directory> \
+  [--expected-queue-snapshot-sha256 <sha256>] \
   [--queue-item-id <queue_item_id>] [--json]
 ```
 

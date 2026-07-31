@@ -355,6 +355,7 @@ def run_coverage_pipeline_command(
         dry_run=not args.write,
         queue_preview_limit=queue_preview_limit,
         queue_item_id=args.queue_item_id,
+        expected_queue_snapshot_sha256=args.expected_queue_snapshot_sha256,
     )
     if args.write and not diagnostics:
         try:
@@ -476,6 +477,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     preview.add_argument("--queue-item-id")
+    preview.add_argument("--expected-queue-snapshot-sha256")
     preview.add_argument("--json", action="store_true")
     preview.set_defaults(
         write=False,
@@ -503,6 +505,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     build.add_argument("--queue-item-id")
+    build.add_argument("--expected-queue-snapshot-sha256")
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -519,6 +522,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     status.add_argument("--queue-item-id")
+    status.add_argument("--expected-queue-snapshot-sha256")
     status.add_argument("--require-complete", action="store_true")
     status.add_argument("--json", action="store_true")
     return parser
@@ -747,6 +751,14 @@ def _run_status(
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
+    queue_snapshot_sha256 = _coverage_queue_snapshot_sha256(
+        [dict(item) for item in coverage_action_queue if isinstance(item, Mapping)]
+    )
+    snapshot_matches = _validate_expected_queue_snapshot(
+        current_sha256=queue_snapshot_sha256,
+        expected_sha256=getattr(args, "expected_queue_snapshot_sha256", None),
+        diagnostics=diagnostics,
+    )
     selected_queue_item = _selected_coverage_queue_item(
         coverage_action_queue,
         getattr(args, "queue_item_id", None),
@@ -813,6 +825,11 @@ def _run_status(
             getattr(args, "queue_item_id", "") or ""
         ),
         "selected_coverage_queue_item_found": bool(selected_queue_item),
+        "expected_queue_snapshot_sha256": str(
+            getattr(args, "expected_queue_snapshot_sha256", "") or ""
+        ),
+        "current_queue_snapshot_sha256": queue_snapshot_sha256,
+        "queue_snapshot_matches_expected": snapshot_matches,
         "provider_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_automation_level_counts"
         ),
@@ -1242,6 +1259,7 @@ def _payload(
     dry_run: bool,
     queue_preview_limit: int,
     queue_item_id: str | None,
+    expected_queue_snapshot_sha256: str | None,
 ) -> dict[str, object]:
     worklist_summary = worklist.summary
     coverage_summary = coverage_plan.summary
@@ -1277,6 +1295,12 @@ def _payload(
         coverage_action_queue
     )
     coverage_priority_summary = _coverage_priority_summary(coverage_action_queue)
+    queue_snapshot_sha256 = _coverage_queue_snapshot_sha256(coverage_action_queue)
+    snapshot_matches = _validate_expected_queue_snapshot(
+        current_sha256=queue_snapshot_sha256,
+        expected_sha256=expected_queue_snapshot_sha256,
+        diagnostics=diagnostics,
+    )
     selected_queue_item = _selected_coverage_queue_item(
         coverage_action_queue,
         queue_item_id,
@@ -1349,6 +1373,9 @@ def _payload(
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "selected_coverage_queue_item_id": str(queue_item_id or ""),
         "selected_coverage_queue_item_found": bool(selected_queue_item),
+        "expected_queue_snapshot_sha256": str(expected_queue_snapshot_sha256 or ""),
+        "current_queue_snapshot_sha256": queue_snapshot_sha256,
+        "queue_snapshot_matches_expected": snapshot_matches,
         "primary_next_action_group": primary_next_action_group,
         "primary_action_required_inputs": primary_action_required_inputs,
         "primary_action_recommended_request": primary_action_recommended_request,
@@ -2292,6 +2319,24 @@ def _selected_coverage_queue_item(
             return item
     diagnostics.append(_diagnostic("coverage_action_queue", "queue_item_id_not_found"))
     return None
+
+
+def _validate_expected_queue_snapshot(
+    *,
+    current_sha256: str,
+    expected_sha256: str | None,
+    diagnostics: list[dict[str, object]],
+) -> bool:
+    expected = str(expected_sha256 or "").strip().lower()
+    if not expected:
+        return True
+    if len(expected) != 64 or any(character not in "0123456789abcdef" for character in expected):
+        diagnostics.append(_diagnostic("coverage_action_queue", "queue_snapshot_mismatch"))
+        return False
+    if expected != current_sha256:
+        diagnostics.append(_diagnostic("coverage_action_queue", "queue_snapshot_mismatch"))
+        return False
+    return True
 
 
 def _coverage_queue_snapshot_sha256(
