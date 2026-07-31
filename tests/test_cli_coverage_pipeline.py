@@ -68,6 +68,42 @@ def _expected_operator_execution_gate(*, available, has_recommended_request):
     }
 
 
+def _expected_manual_review_input_packet(
+    *,
+    action_code,
+    operator_route,
+    next_input_class,
+    evidence_focus,
+    recommended_request,
+):
+    return {
+        "schema_version": "coverage_review_input_packet.v1",
+        "available": True,
+        "action_code": action_code,
+        "operator_route": operator_route,
+        "next_input_class": next_input_class,
+        "record_count": 1,
+        "input_artifact": "<review.tsv>",
+        "input_schema": f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}",
+        "required_fields": list(MANUAL_REVIEW_FIELDS),
+        "allowed_statuses": list(MANUAL_REVIEW_STATUSES),
+        "evidence_focus": evidence_focus,
+        "recommended_request": recommended_request,
+        "review_only": True,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_review_input_packet_no_execution",
+    }
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -567,6 +603,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "execution_gate_status_counts": {
             "operator_review_required": 4,
         },
+        "review_input_schema_counts": {
+            f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}": 3,
+            "provider_handoff.v1": 1,
+        },
         "manual_or_curator_input_required_count": 1,
         "provider_handoff_required_count": 1,
         "public_metadata_review_required_count": 2,
@@ -592,6 +632,19 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                     available=True,
                     has_recommended_request=True,
                 ),
+                "review_input_packet": _expected_manual_review_input_packet(
+                    action_code="resolve_curator_conflict",
+                    operator_route="curator_decision",
+                    next_input_class="curator_conflict_decision",
+                    evidence_focus=(
+                        "curator conflict resolution with independent review"
+                    ),
+                    recommended_request={
+                        "command": "manual-review",
+                        "subcommand": "validate",
+                        "input": "<review.tsv>",
+                    },
+                ),
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -614,6 +667,20 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                     available=True,
                     has_recommended_request=True,
                 ),
+                "review_input_packet": _expected_manual_review_input_packet(
+                    action_code="review_public_archive_linkage",
+                    operator_route="public_metadata_review",
+                    next_input_class="public_accession_type_strain_linkage",
+                    evidence_focus=(
+                        "public archive accession to species type-strain "
+                        "direct evidence chain"
+                    ),
+                    recommended_request={
+                        "command": "manual-review",
+                        "subcommand": "validate",
+                        "input": "<review.tsv>",
+                    },
+                ),
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
                     "command": "manual-review",
@@ -635,6 +702,20 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
                 "operator_execution_gate": _expected_operator_execution_gate(
                     available=True,
                     has_recommended_request=True,
+                ),
+                "review_input_packet": _expected_manual_review_input_packet(
+                    action_code="review_public_type_linkage",
+                    operator_route="public_metadata_review",
+                    next_input_class="biosample_accession_type_strain_linkage",
+                    evidence_focus=(
+                        "BioSample/accession to species type-strain direct "
+                        "evidence chain"
+                    ),
+                    recommended_request={
+                        "command": "manual-review",
+                        "subcommand": "validate",
+                        "input": "<review.tsv>",
+                    },
                 ),
                 "recommended_next_command": "manual-review validate --input <review.tsv>",
                 "recommended_request": {
@@ -660,6 +741,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         },
         "execution_gate_status_record_counts": {
             "operator_review_required": 4,
+        },
+        "review_input_schema_record_counts": {
+            f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}": 3,
+            "provider_handoff.v1": 1,
         },
         "provider_automation_level_record_counts": {
             "metadata_review": 6,
