@@ -322,9 +322,11 @@ route label.
 `coverage_stage_readiness_summary` provides the matching compact stage-chain
 view for controllers that need only readiness counts, available/unavailable
 stage names, the first unavailable stage, the next command target, and
-blocker/warning IDs. It is metadata only and does not authorize execution,
-provider contact, downloads, workflow writes, manifest mutation, or strict
-deliverable promotion.
+blocker/warning IDs. Its nested `stage_blocker_summary` lists each unavailable
+stage, required local inputs, and the recommended request target so parent
+controllers can queue missing handoff work without re-parsing every stage row.
+It is metadata only and does not authorize execution, provider contact,
+downloads, workflow writes, manifest mutation, or strict deliverable promotion.
 It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` so an AI/operator can see the current local

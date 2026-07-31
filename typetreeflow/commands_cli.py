@@ -436,7 +436,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         {
             "name": "coverage_stage_readiness_summary",
             "schema_version": "coverage_stage_readiness_summary.v1",
-            "purpose": "compact coverage stage readiness summary for AI routing",
+            "purpose": "compact coverage stage readiness and blocker summary for AI routing",
         },
         {
             "name": "coverage_next_operator_recipe",
@@ -493,7 +493,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         {
             "name": "coverage_stage_readiness_summary",
             "schema_version": "coverage_stage_readiness_summary.v1",
-            "purpose": "compact coverage stage readiness summary for AI routing",
+            "purpose": "compact coverage stage readiness and blocker summary for AI routing",
         },
         {
             "name": "coverage_next_operator_recipe",
@@ -555,7 +555,7 @@ _OUTPUT_CONTRACT_CATALOG: dict[
         {
             "name": "coverage_stage_readiness_summary",
             "schema_version": "coverage_stage_readiness_summary.v1",
-            "purpose": "compact coverage stage readiness summary for AI routing",
+            "purpose": "compact coverage stage readiness and blocker summary for AI routing",
         },
         {
             "name": "coverage_next_operator_recipe",
