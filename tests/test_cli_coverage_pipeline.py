@@ -510,11 +510,31 @@ def _assert_controller_packet(
             == first_candidate["recommended_request_target"]
         )
         assert packet["first_controller_step_argv"] == first_candidate["target_argv"]
+        assert (
+            packet["first_controller_step_route_context"]
+            == first_candidate["route_context"]
+        )
     else:
         assert packet["first_controller_step_source"] == ""
         assert packet["first_controller_step_target"] == ""
         assert packet["first_controller_step_argv"] == []
+        assert packet["first_controller_step_route_context"] == {}
     for candidate in packet["controller_step_candidates"]:
+        route_context = candidate["route_context"]
+        assert route_context["schema_version"] == "coverage_controller_route_context.v1"
+        assert route_context["safe_for_unattended_execution"] is False
+        assert route_context["audit_only"] is True
+        assert route_context["dry_run"] is True
+        assert route_context["execution_boundary"] == (
+            "metadata_only_controller_route_context_no_execution"
+        )
+        if candidate["source"] == "coverage_action_queue":
+            assert route_context["operator_route"] == candidate["operator_route"]
+            assert route_context["next_input_class"] == candidate["next_input_class"]
+        if candidate["source"] == "operator_chain_stage":
+            assert route_context["provider_route_group_count"] == len(
+                route_context["provider_route_groups"]
+            )
         assert candidate["safe_for_unattended_execution"] is False
         assert candidate["audit_only"] is True
         assert candidate["dry_run"] is True
@@ -3841,6 +3861,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "stage": "",
         "artifact": "",
         "record_count": 0,
+        "provider_route_groups": [],
         "required_inputs": [],
         "recommended_request": None,
         "recommended_request_target": "",
@@ -4406,6 +4427,7 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
         "next_stage": "",
         "next_stage_artifact": "",
         "next_stage_record_count": 0,
+        "next_stage_provider_route_groups": [],
         "next_stage_recommended_request_target": "",
         "next_stage_recommended_next_command": "",
         "next_stage_command_plan_decision": "none",
@@ -4433,6 +4455,7 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
         "stage": "",
         "artifact": "",
         "record_count": 0,
+        "provider_route_groups": [],
         "recommended_request_target": "",
         "target_argv": [],
         "command_plan_decision": "none",

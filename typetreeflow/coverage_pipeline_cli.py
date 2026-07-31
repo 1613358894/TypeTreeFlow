@@ -1009,6 +1009,9 @@ def _operator_chain_next_step_packet(
         "stage": str(next_stage.get("stage", "")),
         "artifact": str(next_stage.get("artifact", "")),
         "record_count": _safe_int(next_stage.get("record_count", 0)),
+        "provider_route_groups": _safe_mapping_list(
+            next_stage.get("summary_provider_route_groups", [])
+        ),
         "required_inputs": required_inputs,
         "recommended_request": recommended_request,
         "recommended_request_target": recommended_request_target,
@@ -1089,6 +1092,7 @@ def _empty_operator_chain_next_step_packet(
         "stage": "",
         "artifact": "",
         "record_count": 0,
+        "provider_route_groups": [],
         "required_inputs": [],
         "recommended_request": None,
         "recommended_request_target": "",
@@ -1344,6 +1348,9 @@ def _coverage_stage_readiness_summary(
         "next_stage_record_count": _safe_int(
             next_step_packet.get("record_count", 0)
         ),
+        "next_stage_provider_route_groups": _safe_mapping_list(
+            next_step_packet.get("provider_route_groups", [])
+        ),
         "next_stage_recommended_request_target": str(
             next_step_packet.get("recommended_request_target", "")
         ),
@@ -1404,6 +1411,9 @@ def _operator_chain_resume_packet(
         "stage": str(next_step_packet.get("stage", "")),
         "artifact": str(next_step_packet.get("artifact", "")),
         "record_count": _safe_int(next_step_packet.get("record_count", 0)),
+        "provider_route_groups": _safe_mapping_list(
+            next_step_packet.get("provider_route_groups", [])
+        ),
         "recommended_request_target": str(
             next_step_packet.get("recommended_request_target", "")
         ),
@@ -3085,6 +3095,12 @@ def _string_list_field(packet: Mapping[str, object], key: str) -> list[str]:
     return [str(item) for item in value]
 
 
+def _safe_mapping_list(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, Mapping)]
+
+
 def _dedupe_strings(values: Sequence[str]) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
@@ -3094,6 +3110,32 @@ def _dedupe_strings(values: Sequence[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
+
+
+def _controller_route_context(
+    *,
+    operator_route: str = "",
+    next_input_class: str = "",
+    provider_route_groups: object = None,
+) -> dict[str, object]:
+    groups = _safe_mapping_list(provider_route_groups)
+    provider_keys: list[str] = []
+    for group in groups:
+        raw_keys = group.get("provider_keys", [])
+        if isinstance(raw_keys, list):
+            provider_keys.extend(str(value) for value in raw_keys if str(value))
+    return {
+        "schema_version": "coverage_controller_route_context.v1",
+        "operator_route": operator_route,
+        "next_input_class": next_input_class,
+        "provider_route_group_count": len(groups),
+        "provider_route_groups": groups,
+        "provider_keys": _dedupe_strings(provider_keys),
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "execution_boundary": "metadata_only_controller_route_context_no_execution",
+    }
 
 
 def _coverage_controller_packet(
@@ -3127,6 +3169,17 @@ def _coverage_controller_packet(
                 ),
                 "operator_route": str(
                     coverage_queue_resume_packet.get("operator_route", "")
+                ),
+                "next_input_class": str(
+                    coverage_queue_resume_packet.get("next_input_class", "")
+                ),
+                "route_context": _controller_route_context(
+                    operator_route=str(
+                        coverage_queue_resume_packet.get("operator_route", "")
+                    ),
+                    next_input_class=str(
+                        coverage_queue_resume_packet.get("next_input_class", "")
+                    ),
                 ),
                 "recommended_request_target": str(
                     coverage_queue_resume_packet.get(
@@ -3175,6 +3228,11 @@ def _coverage_controller_packet(
                 "status": str(operator_chain_resume_packet.get("status", "")),
                 "stage": str(operator_chain_resume_packet.get("stage", "")),
                 "artifact": str(operator_chain_resume_packet.get("artifact", "")),
+                "route_context": _controller_route_context(
+                    provider_route_groups=operator_chain_resume_packet.get(
+                        "provider_route_groups", []
+                    ),
+                ),
                 "recommended_request_target": str(
                     operator_chain_resume_packet.get(
                         "recommended_request_target", ""
@@ -3334,6 +3392,16 @@ def _coverage_controller_packet(
         )
         if controller_step_candidates
         else [],
+        "first_controller_step_route_context": (
+            dict(controller_step_candidates[0].get("route_context", {}))
+            if isinstance(
+                controller_step_candidates[0].get("route_context", {}),
+                Mapping,
+            )
+            else {}
+        )
+        if controller_step_candidates
+        else {},
         "coverage_queue_handoff_available": queue_handoff_available,
         "coverage_queue_status": str(coverage_queue_resume_packet.get("status", "")),
         "coverage_queue_item_count": _safe_int(

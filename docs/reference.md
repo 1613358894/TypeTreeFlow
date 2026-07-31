@@ -1903,7 +1903,8 @@ review. It is for AI routing and does not authorize unattended execution.
 resume packet, operator-chain stage readiness summary, and operator-chain resume
 packet into one compact controller handoff. It reports which decision surfaces
 are available, the first queue route and item, queue and operator-chain digest
-guards, current command targets, and explicit no-execution safety fields.
+guards, current command targets, per-candidate `route_context`, and explicit
+no-execution safety fields.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.
@@ -2039,9 +2040,12 @@ scanning every queue row.
 available decision surfaces, queue and operator-chain statuses, current command
 targets, snapshot match booleans, and ordered `controller_step_candidates` in
 one object while preserving the same no-execution boundaries. Each controller
-candidate repeats only compact source, target argv, digest guard, blocking, and
-warning metadata from the queue or operator-chain handoff; it is not execution
-authority. The packet also exposes `controller_status`, `controller_decision`,
+candidate repeats only compact source, target argv, digest guard, blocking,
+warning, and `route_context` metadata from the queue or operator-chain handoff;
+it is not execution authority. The route context carries operator-route /
+next-input-class metadata or provider route groups when available, plus a
+`first_controller_step_route_context` convenience copy. The packet also exposes
+`controller_status`, `controller_decision`,
 and aggregate blocker/warning IDs so controllers can fail closed without
 expanding every candidate. Its nested `controller_digest_guard_summary`
 collects queue and operator-chain snapshot fingerprints plus mismatch sources

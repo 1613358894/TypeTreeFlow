@@ -297,8 +297,9 @@ next review surface without scanning every row.
 operator-chain readiness, and operator-chain resume metadata into one compact
 AI handoff with digest guards and no-execution safety fields. Its ordered
 `controller_step_candidates` list lets a controller compare the queue item and
-operator-chain stage candidates without expanding the full queue or stage list;
-the candidates still require normal planning or preflight before execution.
+operator-chain stage candidates without expanding the full queue or stage list.
+Each candidate also carries compact `route_context` metadata for routing
+explanation; the candidates still require normal planning or preflight before execution.
 `controller_status` and aggregate blocker IDs provide a compact fail-closed
 summary for parent orchestration. `controller_digest_guard_summary` repeats the
 queue and operator-chain snapshot guards in one place so parent controllers can
