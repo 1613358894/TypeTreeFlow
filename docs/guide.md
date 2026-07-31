@@ -85,7 +85,10 @@ typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv>
 
 This is an audit aid only. It does not query archives, download genomes, write
 `external_genomes.tsv`, or make archive type-material signals strict. It
-surfaces public linkage candidates for curator or AI review.
+surfaces public linkage candidates for curator or AI review. When `--write`
+succeeds, stdout and `archive_candidates_summary.json` include a structured
+`coverage-pipeline build` recommended request that points to the written
+`archive_candidates.tsv`; the adapter does not run that next command.
 
 Then classify existing local checklist, reconciler, completion-gap,
 external-genome, and archive-candidate rows into one review lane per species:
