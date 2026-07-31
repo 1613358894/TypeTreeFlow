@@ -45,14 +45,15 @@ typetreeflow providers catalog
 
 The catalog command emits the stable command surface for AI operators. The
 catalog entries also list stable `output_contracts`, `output_contract_names`,
-and `output_contract_count` for AI/operator packet fields such as readiness and
-operator-chain handoff packets. Contracts may include `summary_fields` for
-stable compact routing summaries across the coverage-plan, provider-handoff,
-provider-request, and external-genomes handoff chain. The recognize, render,
-plan, and preflight commands echo the recognized target command's
-output-contract metadata in their own JSON envelope so an AI operator can route
-the expected handoff packet without a second catalog lookup or full contract
-scan.
+`output_contract_count`, `output_contract_summary_fields`, and
+`output_contract_summary_field_count` for AI/operator packet fields such as
+readiness and operator-chain handoff packets. Contracts may include
+`summary_fields` for stable compact routing summaries across the coverage-plan,
+provider-handoff, provider-request, and external-genomes handoff chain. The
+recognize, render, plan, and preflight commands echo the recognized target
+command's output-contract metadata in their own JSON envelope so an AI operator
+can route the expected handoff packet and summary fields without a second
+catalog lookup or full contract scan.
 
 The recognize command emits one compact JSON object describing a proposed argv
 shape, including recognized command, mode, write-output declaration, and outdir
@@ -407,15 +408,17 @@ the preview is truncated. It defaults to three items; use
 AI/operator controller needs a larger or smaller no-execution preview. Each
 preview item also carries compact command-plan status plus blocker/warning
 counts and IDs, `operator_execution_gate`, compact `recommended_request_target`,
-plus output contract names and counts, so a controller can route blocked items
-without executing, copying full diagnostic messages, or performing a separate
-command-catalog lookup. The
-preview object also summarizes output contracts across the bounded prefix with
-`preview_output_contract_names`, `preview_output_contract_counts`, and
-`preview_output_contract_count`. It also includes bounded-prefix route,
-next-input, command-plan status, decision, execution-gate status, blocking-item,
-and warning-item summaries so a controller can triage the queue without
-expanding every item first. Use `coverage_operator_route_summary` when the
+plus output contract names, counts, and summary fields, so a controller can
+route blocked items without executing, copying full diagnostic messages, or
+performing a separate command-catalog lookup. The preview object also summarizes
+output contracts across the bounded prefix with `preview_output_contract_names`,
+`preview_output_contract_counts`, `preview_output_contract_count`,
+`preview_output_contract_summary_fields`,
+`preview_output_contract_summary_field_counts`, and
+`preview_output_contract_summary_field_count`. It also includes bounded-prefix
+route, next-input, command-plan status, decision, execution-gate status,
+blocking-item, and warning-item summaries so a controller can triage the queue
+without expanding every item first. Use `coverage_operator_route_summary` when the
 controller needs the same route-level view over the full queue, or
 `coverage_controller_packet` when it needs one combined queue, route-batch, plus
 operator-chain routing object. Use `coverage_controller_resume_packet` when the

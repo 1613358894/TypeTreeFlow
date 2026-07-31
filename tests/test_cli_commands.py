@@ -23,6 +23,15 @@ def _assert_output_contract_summary(payload):
     names = sorted(_output_contract_names(payload))
     assert payload["output_contract_names"] == names
     assert payload["output_contract_count"] == len(payload["output_contracts"])
+    summary_fields = []
+    seen = set()
+    for contract in payload["output_contracts"]:
+        for field in contract.get("summary_fields", []):
+            if field not in seen:
+                summary_fields.append(field)
+                seen.add(field)
+    assert payload["output_contract_summary_fields"] == summary_fields
+    assert payload["output_contract_summary_field_count"] == len(summary_fields)
 
 
 ROUTE_SUMMARY_FIELDS = [
@@ -152,6 +161,8 @@ def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
     assert payload["output_contracts"] == []
     assert payload["output_contract_names"] == []
     assert payload["output_contract_count"] == 0
+    assert payload["output_contract_summary_fields"] == []
+    assert payload["output_contract_summary_field_count"] == 0
 
 
 def test_commands_recognize_echoes_target_output_contracts(capsys):
@@ -317,6 +328,8 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "output_contracts",
             "output_contract_names",
             "output_contract_count",
+            "output_contract_summary_fields",
+            "output_contract_summary_field_count",
         }
         for entry in catalog
     )
@@ -1634,6 +1647,10 @@ def test_commands_render_emits_normalized_coverage_plan_argv(capsys):
     assert payload["recognized"]["requires_outdir"] is True
     assert _output_contract_names(payload) == {"coverage_plan_packet"}
     assert payload["output_contracts"][0]["summary_fields"] == (
+        COVERAGE_PLAN_SUMMARY_FIELDS
+    )
+    assert payload["output_contract_summary_fields"] == COVERAGE_PLAN_SUMMARY_FIELDS
+    assert payload["output_contract_summary_field_count"] == len(
         COVERAGE_PLAN_SUMMARY_FIELDS
     )
 
