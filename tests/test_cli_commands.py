@@ -19,6 +19,12 @@ def _output_contract_names(payload):
     return {contract["name"] for contract in payload["output_contracts"]}
 
 
+def _assert_output_contract_summary(payload):
+    names = sorted(_output_contract_names(payload))
+    assert payload["output_contract_names"] == names
+    assert payload["output_contract_count"] == len(payload["output_contracts"])
+
+
 def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
     assert (
         main(
@@ -49,6 +55,8 @@ def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
     assert payload["recognized"]["mode"] == "report_only"
     assert payload["recognized"]["requires_outdir"] is True
     assert payload["output_contracts"] == []
+    assert payload["output_contract_names"] == []
+    assert payload["output_contract_count"] == 0
 
 
 def test_commands_recognize_echoes_target_output_contracts(capsys):
@@ -74,6 +82,7 @@ def test_commands_recognize_echoes_target_output_contracts(capsys):
             "purpose": "provider-request validation readiness handoff",
         }
     ]
+    _assert_output_contract_summary(payload)
 
 
 def test_commands_recognize_provider_request_draft_output_contract(capsys):
@@ -102,6 +111,7 @@ def test_commands_recognize_provider_request_draft_output_contract(capsys):
             "purpose": "provider request draft handoff",
         }
     ]
+    _assert_output_contract_summary(payload)
 
 
 def test_commands_recognize_accepts_remainder_argv(capsys):
@@ -208,6 +218,8 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "boundary",
             "parameters",
             "output_contracts",
+            "output_contract_names",
+            "output_contract_count",
         }
         for entry in catalog
     )
@@ -336,6 +348,8 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         }
         for entry in catalog
     }
+    for entry in catalog:
+        _assert_output_contract_summary(entry)
     assert "provider_request_readiness_packet" in contract_names[
         ("provider-request", "validate")
     ]
@@ -1173,6 +1187,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "operator_chain_next_step_packet",
         "operator_chain_readiness_packets",
     }
+    _assert_output_contract_summary(payload)
 
 
 def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_allowance(
@@ -1234,6 +1249,8 @@ def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_al
         "operator_chain_readiness_packets",
     }
     assert payload["preflight"]["output_contracts"] == payload["output_contracts"]
+    _assert_output_contract_summary(payload)
+    _assert_output_contract_summary(payload["preflight"])
 
 
 def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
@@ -2263,6 +2280,7 @@ def test_commands_preflight_echoes_target_output_contracts_when_blocked(capsys):
     assert _output_contract_names(payload) == {
         "external_genomes_readiness_packet",
     }
+    _assert_output_contract_summary(payload)
 
 
 def test_commands_preflight_allows_declared_non_workflow_write(capsys):

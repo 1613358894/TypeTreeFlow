@@ -2245,6 +2245,7 @@ def run_commands_command(
         "blocking": [],
         "warnings": [],
     }
+    _attach_output_contract_summary(payload)
     _emit(payload, output)
     return 0
 
@@ -2448,6 +2449,7 @@ def _catalog_entry(entry: dict[str, object]) -> dict[str, object]:
         entry["command"],
         entry["subcommand"],
     )
+    _attach_output_contract_summary(payload)
     return payload
 
 
@@ -2471,12 +2473,31 @@ def _output_contracts_for_recognized(
     )
 
 
+def _output_contract_names(contracts: Sequence[dict[str, object]]) -> list[str]:
+    return sorted(
+        str(contract.get("name", "")).strip()
+        for contract in contracts
+        if str(contract.get("name", "")).strip()
+    )
+
+
+def _attach_output_contract_summary(payload: dict[str, object]) -> None:
+    contracts = payload.get("output_contracts", [])
+    if not isinstance(contracts, list):
+        contracts = []
+    contract_maps = [
+        contract for contract in contracts if isinstance(contract, dict)
+    ]
+    payload["output_contract_names"] = _output_contract_names(contract_maps)
+    payload["output_contract_count"] = len(contract_maps)
+
+
 def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
     request = dict(parsed["request"])
     effective_request = _effective_render_request(request)
     target_argv = _render_target_argv(effective_request)
     recognized = recognize_cli_command(target_argv)
-    return {
+    payload = {
         "command": COMMAND_RENDER,
         "schema_version": "1",
         "status": "pass",
@@ -2495,6 +2516,8 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
         "blocking": [],
         "warnings": [],
     }
+    _attach_output_contract_summary(payload)
+    return payload
 
 
 def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
@@ -2514,7 +2537,7 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
     )
     decision = str(preflight["decision"])
     target_risk = dict(preflight["risk"])
-    return {
+    payload = {
         "command": COMMAND_PLAN,
         "schema_version": "1",
         "status": "pass" if decision == "allow" else "blocked",
@@ -2554,6 +2577,8 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
         "blocking": preflight["blocking"],
         "warnings": preflight["warnings"],
     }
+    _attach_output_contract_summary(payload)
+    return payload
 
 
 def _effective_render_request(request: dict[str, object]) -> dict[str, object]:
@@ -3451,7 +3476,7 @@ def _preflight_payload(parsed: dict[str, object]) -> dict[str, object]:
     risk = _preflight_risk(target_argv, recognized)
     blocking = _preflight_blocking(parsed, recognized, risk)
     decision = "block" if blocking else "allow"
-    return {
+    payload = {
         "command": COMMAND_PREFLIGHT,
         "schema_version": "1",
         "status": "pass" if decision == "allow" else "blocked",
@@ -3480,6 +3505,8 @@ def _preflight_payload(parsed: dict[str, object]) -> dict[str, object]:
         "blocking": blocking,
         "warnings": _preflight_warnings(risk),
     }
+    _attach_output_contract_summary(payload)
+    return payload
 
 
 def _preflight_risk(
