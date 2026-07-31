@@ -69,6 +69,7 @@ def test_archive_candidates_dry_run_single_json_and_no_writes(tmp_path, capsys):
     assert payload["recommended_request"] is None
     assert payload["recommended_request_target"] == ""
     assert payload["recommended_next_command"] == ""
+    assert payload["recommended_command_plan"] is None
     assert before == {
         path: path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()
     }
@@ -107,6 +108,26 @@ def test_archive_candidates_write_publishes_owned_triplet(tmp_path, capsys):
         f"{candidates_path} --write "
         "--outdir <isolated-coverage-pipeline-directory>"
     )
+    plan = payload["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == "archive_candidates_summary.recommended_request"
+    assert plan["recommended_request"] == payload["recommended_request"]
+    assert plan["recommended_request_target"] == "coverage-pipeline build"
+    assert plan["target_argv"] == [
+        "coverage-pipeline",
+        "build",
+        "--archive-candidates-tsv",
+        str(candidates_path),
+        "--write",
+        "--outdir",
+        "<isolated-coverage-pipeline-directory>",
+    ]
+    assert plan["decision"] == "block"
+    assert plan["preflight_decision"] == "block"
+    assert [item["id"] for item in plan["blocking"]] == ["write_not_allowed"]
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
     summary = json.loads(
         (outdir / "archive_candidates_summary.json").read_text(encoding="utf-8")
     )
@@ -114,6 +135,9 @@ def test_archive_candidates_write_publishes_owned_triplet(tmp_path, capsys):
     assert summary["recommended_request"] == payload["recommended_request"]
     assert summary["recommended_request_target"] == payload[
         "recommended_request_target"
+    ]
+    assert summary["recommended_command_plan"] == payload[
+        "recommended_command_plan"
     ]
 
 

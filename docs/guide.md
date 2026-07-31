@@ -88,7 +88,9 @@ This is an audit aid only. It does not query archives, download genomes, write
 surfaces public linkage candidates for curator or AI review. When `--write`
 succeeds, stdout and `archive_candidates_summary.json` include a structured
 `coverage-pipeline build` recommended request that points to the written
-`archive_candidates.tsv`; the adapter does not run that next command.
+`archive_candidates.tsv`, plus a metadata-only command plan that remains
+blocked until an operator explicitly allows writes; the adapter does not run
+that next command.
 
 Then classify existing local checklist, reconciler, completion-gap,
 external-genome, and archive-candidate rows into one review lane per species:
