@@ -370,6 +370,102 @@ def _assert_handoff_next_step_packet(
     assert packet["execution_boundary"] == (
         "metadata_only_handoff_next_step_no_execution"
     )
+    runbook = payload["coverage_handoff_runbook_packet"]
+    assert runbook["schema_version"] == "coverage_handoff_runbook_packet.v1"
+    assert runbook["available"] is packet["available"]
+    assert runbook["next_stage"] == packet["stage"]
+    assert runbook["next_artifact"] == packet["artifact"]
+    assert runbook["required_inputs"] == packet["required_inputs"]
+    assert runbook["recommended_request_target"] == packet[
+        "recommended_request_target"
+    ]
+    assert runbook["recommended_next_command"] == packet[
+        "recommended_next_command"
+    ]
+    assert runbook["recommended_argv"] == packet["target_argv"]
+    assert runbook["decision"] == packet["decision"]
+    assert runbook["preflight_decision"] == packet["preflight_decision"]
+    assert runbook["blocking_ids"] == packet["blocking_ids"]
+    assert runbook["blocking_count"] == packet["blocking_count"]
+    assert runbook["warning_ids"] == packet["warning_ids"]
+    assert runbook["warning_count"] == packet["warning_count"]
+    assert runbook["chain_complete"] is summary["chain_complete"]
+    assert runbook["available_stage_names"] == summary["available_stage_names"]
+    assert runbook["unavailable_stage_names"] == summary["unavailable_stage_names"]
+    if available:
+        expected_step_count = 3 if packet["target_argv"] else 2
+        assert runbook["runbook_status"] == "operator_review_required"
+        assert runbook["step_count"] == expected_step_count
+        assert [step["position"] for step in runbook["steps"]] == list(
+            range(1, expected_step_count + 1)
+        )
+        assert runbook["next_step_id"] == "inspect_handoff_readiness"
+        assert runbook["next_step_action"] == (
+            "inspect coverage_handoff_readiness_summary"
+        )
+        assert runbook["steps"][0]["surface_name"] == (
+            "coverage_handoff_readiness_summary"
+        )
+        assert runbook["steps"][1]["surface_name"] == (
+            "coverage_handoff_next_step_packet"
+        )
+        assert runbook["steps"][1]["required_before_step"] == [
+            "confirm required local inputs exist",
+            "confirm provider contact remains disabled",
+        ]
+        if packet["target_argv"]:
+            assert runbook["steps"][2]["step_id"] == "run_handoff_metadata_gate"
+            assert runbook["steps"][2]["argv"] == packet["target_argv"]
+    else:
+        assert runbook["runbook_status"] == "no_action"
+        assert runbook["step_count"] == 0
+        assert runbook["steps"] == []
+        assert runbook["next_step_id"] == ""
+        assert runbook["next_step_action"] == "no_action"
+    assert runbook["stop_conditions"] == [
+        "handoff chain complete",
+        "next provider/external stage unavailable",
+        "required local input missing",
+        "commands plan or preflight returns block",
+        "operator approval missing",
+        "target command would contact provider or download genomes",
+    ]
+    assert runbook["target_command_execution_authorized"] is False
+    assert runbook["provider_contact_allowed"] is False
+    assert runbook["safe_for_unattended_execution"] is False
+    assert runbook["recommended_execution_mode"] == (
+        "operator_review_required" if available else "no_action"
+    )
+    assert runbook["audit_only"] is True
+    assert runbook["dry_run"] is True
+    assert runbook["writes_outputs"] is False
+    assert runbook["writes_workflow_outputs"] is False
+    assert runbook["downloads_triggered"] == 0
+    assert runbook["providers_contacted"] == 0
+    assert runbook["network_access"] is False
+    assert runbook["external_tools"] is False
+    assert runbook["manifest_mutated"] is False
+    assert runbook["strict_scientific_deliverable"] is False
+    assert runbook["external_genomes_registration_applied"] is False
+    assert runbook["execution_boundary"] == "metadata_only_handoff_runbook_no_execution"
+    for step in runbook["steps"]:
+        assert step["target_command_execution_authorized"] is False
+        assert step["provider_contact_allowed"] is False
+        assert step["safe_for_unattended_execution"] is False
+        assert step["audit_only"] is True
+        assert step["dry_run"] is True
+        assert step["writes_outputs"] is False
+        assert step["writes_workflow_outputs"] is False
+        assert step["downloads_triggered"] == 0
+        assert step["providers_contacted"] == 0
+        assert step["network_access"] is False
+        assert step["external_tools"] is False
+        assert step["manifest_mutated"] is False
+        assert step["strict_scientific_deliverable"] is False
+        assert step["external_genomes_registration_applied"] is False
+        assert step["execution_boundary"] == (
+            "metadata_only_handoff_runbook_step_no_execution"
+        )
 
 
 def _assert_operator_chain_resume_packet(
