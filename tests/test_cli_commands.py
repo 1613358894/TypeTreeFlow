@@ -2221,6 +2221,53 @@ def test_commands_plan_accepts_coverage_next_task_packet(capsys):
     assert payload["preflight"]["decision"] == "allow"
 
 
+def test_commands_render_and_plan_accept_server_validation_template_packet(capsys):
+    request = json.dumps(
+        {
+            "schema_version": (
+                "coverage_handoff_server_validation_result_template_packet.v1"
+            ),
+            "available": True,
+            "template_status": "operator_review_required",
+            "result_filename": "coverage_handoff_server_validation_result.json",
+            "recommended_request": {
+                "command": "coverage-pipeline",
+                "subcommand": "status",
+                "coverage_pipeline_dir": "<coverage-pipeline-dir>",
+                "json": True,
+            },
+            "recommended_request_target": "coverage-pipeline status",
+            "result_template_default_status": "blocked",
+            "target_command_execution_authorized": False,
+        },
+        separators=(",", ":"),
+    )
+
+    assert main(["commands", "render", "--request-json", request]) == 0
+
+    render_payload, _output = _stdout_payload(capsys)
+    assert render_payload["request_unwrapped_from"] == "recommended_request"
+    assert render_payload["target_argv"] == [
+        "coverage-pipeline",
+        "status",
+        "--coverage-pipeline-dir",
+        "<coverage-pipeline-dir>",
+        "--json",
+    ]
+    assert render_payload["recognized"]["command"] == "coverage-pipeline"
+    assert render_payload["recognized"]["subcommand"] == "status"
+
+    assert main(["commands", "plan", "--request-json", request]) == 0
+
+    plan_payload, _output = _stdout_payload(capsys)
+    assert plan_payload["request_unwrapped_from"] == "recommended_request"
+    assert plan_payload["decision"] == "allow"
+    assert plan_payload["target_argv"] == render_payload["target_argv"]
+    assert plan_payload["preflight"]["decision"] == "allow"
+    assert plan_payload["target_network_declared"] is False
+    assert plan_payload["target_external_tools_declared"] is False
+
+
 def test_commands_render_rejects_packet_without_recommended_request(capsys):
     assert (
         main(

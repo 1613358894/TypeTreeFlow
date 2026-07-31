@@ -3379,6 +3379,14 @@ def _coverage_handoff_server_validation_packet(
         coverage_handoff_next_step_packet,
         "target_argv",
     )
+    raw_recommended_request = coverage_handoff_next_step_packet.get(
+        "recommended_request"
+    )
+    recommended_request = (
+        dict(raw_recommended_request)
+        if isinstance(raw_recommended_request, Mapping)
+        else None
+    )
     available = bool(coverage_handoff_next_step_packet.get("available"))
     if blocking_ids:
         validation_status = "blocked"
@@ -3425,6 +3433,7 @@ def _coverage_handoff_server_validation_packet(
         "recommended_request_target": str(
             coverage_handoff_next_step_packet.get("recommended_request_target", "")
         ),
+        "recommended_request": recommended_request,
         "recommended_argv": target_argv,
         "preflight_decision": str(
             coverage_handoff_next_step_packet.get("preflight_decision", "")
@@ -3518,6 +3527,14 @@ def _coverage_handoff_server_validation_runbook_packet(
         coverage_handoff_server_validation_packet,
         "recommended_argv",
     )
+    raw_recommended_request = coverage_handoff_server_validation_packet.get(
+        "recommended_request"
+    )
+    recommended_request = (
+        dict(raw_recommended_request)
+        if isinstance(raw_recommended_request, Mapping)
+        else None
+    )
     steps: list[dict[str, object]] = []
     if available:
         steps.append(
@@ -3593,6 +3610,7 @@ def _coverage_handoff_server_validation_runbook_packet(
                 "recommended_request_target", ""
             )
         ),
+        "recommended_request": recommended_request,
         "recommended_argv": recommended_argv,
         "preflight_decision": str(
             coverage_handoff_server_validation_packet.get(
@@ -3735,6 +3753,16 @@ def _coverage_handoff_server_validation_result_contract_packet(
                 "recommended_request_target", ""
             )
         ),
+        "recommended_request": (
+            dict(coverage_handoff_server_validation_packet["recommended_request"])
+            if isinstance(
+                coverage_handoff_server_validation_packet.get(
+                    "recommended_request"
+                ),
+                Mapping,
+            )
+            else None
+        ),
         "recommended_argv": _string_list_field(
             coverage_handoff_server_validation_packet,
             "recommended_argv",
@@ -3863,6 +3891,20 @@ def _coverage_handoff_server_validation_result_template_packet(
             coverage_handoff_server_validation_result_contract_packet.get(
                 "recommended_request_target", ""
             )
+        ),
+        "recommended_request": (
+            dict(
+                coverage_handoff_server_validation_result_contract_packet[
+                    "recommended_request"
+                ]
+            )
+            if isinstance(
+                coverage_handoff_server_validation_result_contract_packet.get(
+                    "recommended_request"
+                ),
+                Mapping,
+            )
+            else None
         ),
         "recommended_argv": _string_list_field(
             coverage_handoff_server_validation_result_contract_packet,

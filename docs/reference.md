@@ -2288,6 +2288,10 @@ template for that result contract. The embedded template defaults to
 server agent can fill an authorized bounded-validation result without guessing
 field names. It remains metadata-only and does not validate artifacts, write
 files, dispatch target commands, contact providers, or download genomes.
+The server-validation packet, runbook, result contract, and result template also
+mirror the structured `recommended_request` from the handoff next-step packet
+when one exists, so `commands render` and `commands plan` can inspect or
+preflight the same request without parsing argv or executing it.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
