@@ -837,6 +837,9 @@ def _run_status(
         coverage_action_queue,
         limit=queue_preview_limit,
     )
+    coverage_operator_route_summary = _coverage_operator_route_summary(
+        coverage_action_queue
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -887,6 +890,7 @@ def _run_status(
         "coverage_next_operator_recipe": coverage_next_operator_recipe,
         "coverage_queue_resume_packet": coverage_queue_resume_packet,
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
+        "coverage_operator_route_summary": coverage_operator_route_summary,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -1922,6 +1926,9 @@ def _payload(
         coverage_action_queue,
         limit=queue_preview_limit,
     )
+    coverage_operator_route_summary = _coverage_operator_route_summary(
+        coverage_action_queue
+    )
     current_coverage_action_queue_item = dict(selected_queue_item or {})
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
@@ -1981,6 +1988,7 @@ def _payload(
         "coverage_next_operator_recipe": coverage_next_operator_recipe,
         "coverage_queue_resume_packet": coverage_queue_resume_packet,
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
+        "coverage_operator_route_summary": coverage_operator_route_summary,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "selected_coverage_queue_item_id": str(queue_item_id or ""),
@@ -2782,6 +2790,121 @@ def _coverage_priority_summary(
             safe_for_unattended_download_count
         ),
         "automation_boundary": "prioritization_only_no_execution",
+    }
+
+
+def _coverage_operator_route_summary(
+    coverage_action_queue: Sequence[object],
+) -> dict[str, object]:
+    route_items: dict[str, dict[str, object]] = {}
+    route_order: list[str] = []
+    for item in coverage_action_queue:
+        if not isinstance(item, Mapping):
+            continue
+        route = str(item.get("operator_route", ""))
+        if not route:
+            continue
+        record_count = _safe_int(item.get("record_count", 0))
+        route_summary = route_items.get(route)
+        if route_summary is None:
+            route_summary = {
+                "operator_route": route,
+                "queue_item_count": 0,
+                "record_count": 0,
+                "first_queue_position": _safe_int(item.get("queue_position", 0)),
+                "first_queue_item_id": str(item.get("queue_item_id", "")),
+                "first_action_code": str(item.get("action_code", "")),
+                "first_next_input_class": str(item.get("next_input_class", "")),
+                "first_recommended_request_target": (
+                    _coverage_recommended_request_target(
+                        item.get("recommended_request")
+                    )
+                ),
+                "next_input_class_counts": {},
+                "recommended_request_target_counts": {},
+                "automation_boundary_counts": {},
+                "requires_curator_input": False,
+                "requires_public_metadata_review": False,
+                "requires_provider_handoff": False,
+                "requires_external_registration_review": False,
+                "safe_for_unattended_download_count": 0,
+            }
+            route_items[route] = route_summary
+            route_order.append(route)
+        route_summary["queue_item_count"] = (
+            _safe_int(route_summary.get("queue_item_count", 0)) + 1
+        )
+        route_summary["record_count"] = (
+            _safe_int(route_summary.get("record_count", 0)) + record_count
+        )
+        _count_weighted_value(
+            route_summary["next_input_class_counts"],
+            str(item.get("next_input_class", "")),
+            record_count,
+        )
+        _count_weighted_value(
+            route_summary["recommended_request_target_counts"],
+            _coverage_recommended_request_target(item.get("recommended_request")),
+            record_count,
+        )
+        _count_weighted_value(
+            route_summary["automation_boundary_counts"],
+            str(item.get("automation_boundary", "")),
+            record_count,
+        )
+        for key in (
+            "requires_curator_input",
+            "requires_public_metadata_review",
+            "requires_provider_handoff",
+            "requires_external_registration_review",
+        ):
+            route_summary[key] = bool(route_summary.get(key)) or bool(item.get(key))
+        if item.get("safe_for_unattended_download"):
+            route_summary["safe_for_unattended_download_count"] = (
+                _safe_int(route_summary.get("safe_for_unattended_download_count", 0))
+                + record_count
+            )
+    routes: list[dict[str, object]] = []
+    for route in route_order:
+        route_summary = dict(route_items[route])
+        route_summary["next_input_class_counts"] = _sorted_count_map(
+            route_summary["next_input_class_counts"]
+        )
+        route_summary["recommended_request_target_counts"] = _sorted_count_map(
+            route_summary["recommended_request_target_counts"]
+        )
+        route_summary["automation_boundary_counts"] = _sorted_count_map(
+            route_summary["automation_boundary_counts"]
+        )
+        route_summary["safe_for_unattended_execution"] = False
+        route_summary["audit_only"] = True
+        route_summary["dry_run"] = True
+        routes.append(route_summary)
+    first_route = routes[0] if routes else {}
+    return {
+        "schema_version": "coverage_operator_route_summary.v1",
+        "route_count": len(routes),
+        "queue_item_count": sum(
+            _safe_int(route.get("queue_item_count", 0)) for route in routes
+        ),
+        "record_count": sum(
+            _safe_int(route.get("record_count", 0)) for route in routes
+        ),
+        "first_operator_route": str(first_route.get("operator_route", "")),
+        "first_queue_item_id": str(first_route.get("first_queue_item_id", "")),
+        "routes": routes,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_operator_route_summary_no_execution",
     }
 
 
@@ -3588,6 +3711,12 @@ def _count_preview_value(counts: dict[str, int], value: str) -> None:
         counts[normalized] = counts.get(normalized, 0) + 1
 
 
+def _count_weighted_value(counts: object, value: str, amount: int) -> None:
+    normalized = value.strip()
+    if isinstance(counts, dict) and normalized:
+        counts[normalized] = _safe_int(counts.get(normalized, 0)) + amount
+
+
 def _sorted_count_map(counts: Mapping[str, int]) -> dict[str, int]:
     return {key: counts[key] for key in sorted(counts)}
 
@@ -3763,6 +3892,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             queue_snapshot_matches_expected=True,
         ),
         "coverage_operator_queue_preview": _coverage_operator_queue_preview([]),
+        "coverage_operator_route_summary": _coverage_operator_route_summary([]),
         "current_coverage_action_queue_item": {},
         "selected_coverage_queue_item_id": "",
         "selected_coverage_queue_item_found": False,
@@ -4000,6 +4130,7 @@ def _rendered_outputs(
             "coverage_stage_readiness_summary",
             "operator_chain_readiness_packets",
             "coverage_operator_queue_preview",
+            "coverage_operator_route_summary",
             "current_coverage_action_queue_item",
             "primary_next_action_group",
             "primary_action_required_inputs",
