@@ -519,6 +519,14 @@ def _write_coverage_plan_pair(directory: Path) -> None:
                     "refseq": 2,
                     "dsmz": 1,
                 },
+                "provider_automation_level_counts": {
+                    "metadata_review": 4,
+                    "planning_handoff": 1,
+                },
+                "operator_route_counts": {
+                    "public_metadata_review": 4,
+                    "provider_handoff": 1,
+                },
                 "audit_only": True,
                 "strict_scientific_deliverable": False,
                 "downloads_triggered": 0,
@@ -591,6 +599,10 @@ def test_coverage_plan_audit_section_is_explicit_bounded_and_audit_only(
     assert "| prepare_provider_handoff | 1 |" in markdown
     assert "| genbank | 2 |" in markdown
     assert "| dsmz | 1 |" in markdown
+    assert "| metadata_review | 4 |" in markdown
+    assert "| planning_handoff | 1 |" in markdown
+    assert "| public_metadata_review | 4 |" in markdown
+    assert "| provider_handoff | 1 |" in markdown
     assert "private action detail" not in markdown
     assert "Clostridium alpha" not in markdown
 

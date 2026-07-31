@@ -359,6 +359,8 @@ class CoveragePlanAuditSummary:
     warnings: list[str]
     action_counts: list[tuple[str, int]]
     provider_counts: list[tuple[str, int]]
+    automation_level_counts: list[tuple[str, int]]
+    operator_route_counts: list[tuple[str, int]]
 
 
 @dataclass(frozen=True)
@@ -891,6 +893,8 @@ def read_optional_coverage_plan_audit(
     counts: dict[str, object] = {}
     action_counts: list[tuple[str, int]] = []
     provider_counts: list[tuple[str, int]] = []
+    automation_level_counts: list[tuple[str, int]] = []
+    operator_route_counts: list[tuple[str, int]] = []
     summary_data: dict[str, object] | None = None
     observed_rows: int | None = None
 
@@ -922,6 +926,12 @@ def read_optional_coverage_plan_audit(
                 raise ValueError("invalid count maps")
             parsed_action_counts = _parse_nonnegative_int_map(raw_action_counts)
             parsed_provider_counts = _parse_nonnegative_int_map(raw_provider_counts)
+            parsed_automation_level_counts = _parse_nonnegative_int_map(
+                _optional_dict(loaded, "provider_automation_level_counts")
+            )
+            parsed_operator_route_counts = _parse_nonnegative_int_map(
+                _optional_dict(loaded, "operator_route_counts")
+            )
             if loaded.get("audit_only") is not True:
                 raise ValueError("audit_only boundary violation")
             if loaded.get("strict_scientific_deliverable") is not False:
@@ -957,6 +967,12 @@ def read_optional_coverage_plan_audit(
                 ),
                 key=lambda item: (-item[1], item[0]),
             )
+            automation_level_counts = _sorted_nonzero_counts(
+                parsed_automation_level_counts
+            )
+            operator_route_counts = _sorted_nonzero_counts(
+                parsed_operator_route_counts
+            )
             valid_files.append(summary_path.name)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
             warnings.append("coverage_plan_summary.json malformed")
@@ -988,6 +1004,8 @@ def read_optional_coverage_plan_audit(
         warnings=warnings,
         action_counts=action_counts,
         provider_counts=provider_counts,
+        automation_level_counts=automation_level_counts,
+        operator_route_counts=operator_route_counts,
     )
 
 
@@ -3624,6 +3642,32 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(provider)} | {count} |"
                         for provider, count in coverage_plan_audit.provider_counts[:5]
+                    ],
+                ]
+            )
+        if coverage_plan_audit.automation_level_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Provider Automation Level | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(level)} | {count} |"
+                        for level, count in coverage_plan_audit.automation_level_counts[
+                            :5
+                        ]
+                    ],
+                ]
+            )
+        if coverage_plan_audit.operator_route_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Operator Route | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(route)} | {count} |"
+                        for route, count in coverage_plan_audit.operator_route_counts[:5]
                     ],
                 ]
             )
