@@ -10,10 +10,16 @@ from __future__ import annotations
 import csv
 import io
 import json
+from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
 from typetreeflow.providers.registry import build_default_provider_registry
+from typetreeflow.providers.routing import (
+    provider_automation_level,
+    provider_route,
+    provider_route_groups,
+)
 
 
 COVERAGE_PLAN_SCHEMA_VERSION = "1"
@@ -75,16 +81,30 @@ class CoveragePlan:
     @property
     def summary(self) -> dict[str, object]:
         action_counts: dict[str, int] = {}
-        provider_counts: dict[str, int] = {}
+        provider_route_records = _provider_route_records(self.actions)
         for action in self.actions:
             action_counts[action.action_code] = action_counts.get(action.action_code, 0) + 1
-            for provider_key in _split_keys(action.provider_keys):
-                provider_counts[provider_key] = provider_counts.get(provider_key, 0) + 1
         return {
             "schema_version": self.schema_version,
             "record_count": len(self.actions),
             "action_counts": dict(sorted(action_counts.items())),
-            "provider_key_counts": dict(sorted(provider_counts.items())),
+            "provider_key_counts": _count_field(provider_route_records, "provider_key"),
+            "provider_status_counts": _count_field(
+                provider_route_records, "provider_status"
+            ),
+            "provider_automation_level_counts": _count_field(
+                provider_route_records, "provider_automation_level"
+            ),
+            "operator_route_counts": _count_field(
+                provider_route_records, "operator_route"
+            ),
+            "next_input_class_counts": _count_field(
+                provider_route_records, "next_input_class"
+            ),
+            "automation_boundary_counts": _count_field(
+                provider_route_records, "automation_boundary"
+            ),
+            "provider_route_groups": provider_route_groups(provider_route_records),
             "audit_only": True,
             "strict_scientific_deliverable": False,
             "downloads_triggered": 0,
@@ -202,6 +222,33 @@ def _sort_key(action: CoveragePlanAction) -> tuple[int, str]:
 
 def _split_keys(value: str) -> tuple[str, ...]:
     return tuple(part.strip() for part in value.split(";") if part.strip())
+
+
+def _provider_route_records(
+    actions: Iterable[CoveragePlanAction],
+) -> list[dict[str, object]]:
+    registry = build_default_provider_registry()
+    records: list[dict[str, object]] = []
+    for action in actions:
+        for provider_key in _split_keys(action.provider_keys):
+            entry = registry.get(provider_key)
+            automation_level = provider_automation_level(entry)
+            route = provider_route(automation_level)
+            records.append(
+                {
+                    "provider_key": entry.provider_key,
+                    "provider_status": entry.capability.status.value,
+                    "provider_automation_level": automation_level,
+                    **route,
+                }
+            )
+    return records
+
+
+def _count_field(records: Iterable[Mapping[str, object]], field: str) -> dict[str, int]:
+    counts = Counter(str(record.get(field, "")).strip() for record in records)
+    counts.pop("", None)
+    return dict(sorted(counts.items()))
 
 
 def _provider_keys_from_row(row: Mapping[str, object]) -> str:

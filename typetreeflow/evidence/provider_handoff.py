@@ -11,7 +11,11 @@ from typing import Iterable, Mapping
 
 from typetreeflow.providers.base import ProviderContext
 from typetreeflow.providers.registry import ProviderRegistry, build_default_provider_registry
-from typetreeflow.providers.routing import provider_route, provider_route_groups
+from typetreeflow.providers.routing import (
+    provider_automation_level,
+    provider_route,
+    provider_route_groups,
+)
 
 
 PROVIDER_HANDOFF_SCHEMA_VERSION = "1"
@@ -201,7 +205,7 @@ def build_provider_handoff(
         for provider_key in provider_keys:
             entry = provider_registry.get(provider_key)
             capability = entry.capability
-            automation_level = _provider_automation_level(entry)
+            automation_level = provider_automation_level(entry)
             route = provider_route(automation_level)
             rows.append(
                 ProviderHandoffRow(
@@ -243,15 +247,6 @@ def _provider_guidance_notes(entry) -> str:
         except Exception:
             notes.append("provider_guidance=unavailable")
     return "; ".join(_clean(note) for note in notes if str(note).strip())
-
-
-def _provider_automation_level(entry) -> str:
-    capability = entry.capability
-    if capability.status.value == "download_enabled":
-        return "download_enabled"
-    if "metadata_review" in capability.allowed_modes:
-        return "metadata_review"
-    return "planning_handoff"
 
 
 def _value(row: Mapping[str, object], field: str) -> str:

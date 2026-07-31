@@ -1571,6 +1571,12 @@ schema and audit-only boundary fields, then emits exactly one compact JSON
 object. Without `--write`, it writes nothing. With `--write`, it writes only
 `coverage_plan.tsv` and `coverage_plan_summary.json` into the explicitly
 supplied directory.
+The compact JSON and written summary include provider route aggregates such as
+`provider_automation_level_counts`, `operator_route_counts`,
+`next_input_class_counts`, `automation_boundary_counts`, and
+`provider_route_groups`, so AI/operator controllers can distinguish
+public-metadata review from user-assisted provider handoff before generating
+the provider-handoff pair.
 Command metadata reports the target output contract as
 `coverage_plan_packet.v1`, so controllers can route the coverage-plan pair
 before running the command.

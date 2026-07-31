@@ -75,6 +75,16 @@ def test_coverage_plan_dry_run_is_single_json_and_writes_nothing(tmp_path, capsy
     assert payload["action_counts"]["resolve_curator_conflict"] == 1
     assert payload["action_counts"]["review_public_archive_linkage"] == 1
     assert payload["provider_key_counts"]["ena"] == 1
+    assert payload["provider_automation_level_counts"] == {
+        "metadata_review": 4,
+        "planning_handoff": 7,
+    }
+    assert payload["operator_route_counts"] == {
+        "provider_handoff": 7,
+        "public_metadata_review": 4,
+    }
+    assert payload["provider_route_groups"][0]["operator_route"] == "provider_handoff"
+    assert payload["provider_route_groups"][0]["safe_for_unattended_execution"] is False
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
@@ -146,6 +156,10 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
     }
     summary = json.loads((outdir / "coverage_plan_summary.json").read_text(encoding="utf-8"))
     assert summary["strict_scientific_deliverable"] is False
+    assert summary["operator_route_counts"] == {
+        "provider_handoff": 7,
+        "public_metadata_review": 4,
+    }
 
 
 def test_coverage_plan_force_only_replaces_matching_owned_pair(tmp_path, capsys):

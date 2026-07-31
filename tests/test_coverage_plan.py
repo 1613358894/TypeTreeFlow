@@ -53,6 +53,26 @@ def test_coverage_plan_orders_actions_and_preserves_audit_boundaries():
     assert summary["provider_key_counts"]["ena"] == 1
     assert summary["provider_key_counts"]["atcc_genome_portal"] == 1
     assert summary["provider_key_counts"]["dsmz"] == 1
+    assert summary["provider_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 7,
+    }
+    assert summary["operator_route_counts"] == {
+        "provider_handoff": 7,
+        "public_metadata_review": 6,
+    }
+    assert summary["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 7,
+        "public_accession_type_strain_linkage": 6,
+    }
+    assert summary["automation_boundary_counts"] == {
+        "metadata_review_only_no_download": 6,
+        "planning_handoff_no_provider_contact": 7,
+    }
+    assert [group["operator_route"] for group in summary["provider_route_groups"]] == [
+        "provider_handoff",
+        "public_metadata_review",
+    ]
 
 
 def test_coverage_plan_serializers_are_stable():
@@ -111,6 +131,14 @@ def test_coverage_plan_uses_canonical_provider_hints_when_present():
         "ena": 1,
         "kctc": 2,
         "refseq": 1,
+    }
+    assert summary["provider_automation_level_counts"] == {
+        "metadata_review": 3,
+        "planning_handoff": 4,
+    }
+    assert summary["operator_route_counts"] == {
+        "provider_handoff": 4,
+        "public_metadata_review": 3,
     }
 
 
