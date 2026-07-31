@@ -253,10 +253,12 @@ automation-level counts and controlled `operator_route`, `next_input_class`,
 and `automation_boundary` routing fields to each action group. The matching
 `coverage_action_queue` keeps the same priority order and adds boolean route
 flags such as `requires_curator_input`, `requires_public_metadata_review`, and
-`requires_provider_handoff` for AI/operator queueing. The
+`requires_provider_handoff` plus deterministic `queue_item_id` values for
+AI/operator queueing. The
 `coverage_action_queue_summary` and `current_coverage_action_queue_item` fields
 let an AI controller read queue pressure and the first queued item without
-recomputing counts. Opportunity and queue rows carry the same structured
+recomputing counts or inventing its own item keys. Opportunity and queue rows
+carry the same structured
 `recommended_request` objects used by `commands render` / `commands plan`, but
 they still require normal planning or preflight before execution. It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
@@ -264,7 +266,8 @@ they still require normal planning or preflight before execution. It also carrie
 input requirement, rendered argv, preflight decision, and review-only recipe
 without executing the target command.
 `coverage_operator_queue_preview` applies the same metadata-only routing view
-to the first three queue items and reports whether the preview is truncated.
+to the first three queue items, including their `queue_item_id` values, and
+reports whether the preview is truncated.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so

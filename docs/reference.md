@@ -1808,7 +1808,7 @@ surface, such as curator decisions, public metadata linkage review, provider
 handoff preparation, or external-registration review. They are not execution
 authorization.
 `coverage_action_queue` is the same opportunity set in stable queue order with
-a one-based `queue_position`, bounded route booleans such as
+a one-based `queue_position`, deterministic `queue_item_id`, bounded route booleans such as
 `requires_curator_input`, `requires_public_metadata_review`,
 `requires_provider_handoff`, and `requires_external_registration_review`, plus
 `safe_for_unattended_download=false` on every row. The queue is for
@@ -1818,6 +1818,9 @@ by `operator_route` and `next_input_class`, plus route-specific counts such as
 `manual_or_curator_input_required_count`, `public_metadata_review_required_count`,
 and `provider_handoff_required_count`. `current_coverage_action_queue_item`
 copies the first queued item or an empty object when no coverage action remains.
+`queue_item_id` is derived from the current queue position and action code so
+controllers can trace the same item across packet, recipe, preview, and status
+payloads without inventing their own keys.
 `coverage_priority_summary` is a shorter AI/operator dashboard over the same
 queue. It reports total actionable records, the top action code, top route, top
 next-input class, up to three top queue items, record-count maps by route and
@@ -1845,8 +1848,8 @@ command plan, then invoke the target CLI separately only after review. It always
 reports `safe_for_unattended_execution=false` and
 `execution_boundary=metadata_only_operator_recipe_no_execution`.
 `coverage_operator_queue_preview` extends that no-execution view to the first
-three queue items. It lists each item's route, required inputs, rendered argv,
-preflight decision, and `safe_for_unattended_execution=false`, with
+three queue items. It lists each item's `queue_item_id`, route, required inputs,
+rendered argv, preflight decision, and `safe_for_unattended_execution=false`, with
 `truncated=true` when additional queue items exist. It is a routing preview, not
 a queue runner.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
