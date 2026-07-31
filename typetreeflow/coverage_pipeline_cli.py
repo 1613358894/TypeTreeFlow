@@ -926,6 +926,12 @@ def _run_status(
             coverage_controller_preflight_handoff_packet
         ),
         coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
+        coverage_handoff_server_validation_packet=(
+            coverage_handoff_server_validation_packet
+        ),
+        coverage_handoff_server_validation_runbook_packet=(
+            coverage_handoff_server_validation_runbook_packet
+        ),
     )
     coverage_controller_inspection_summary = (
         _coverage_controller_inspection_summary(
@@ -2264,6 +2270,12 @@ def _payload(
             coverage_controller_preflight_handoff_packet
         ),
         coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
+        coverage_handoff_server_validation_packet=(
+            coverage_handoff_server_validation_packet
+        ),
+        coverage_handoff_server_validation_runbook_packet=(
+            coverage_handoff_server_validation_runbook_packet
+        ),
     )
     coverage_controller_inspection_summary = (
         _coverage_controller_inspection_summary(
@@ -5325,6 +5337,8 @@ def _coverage_parent_controller_packet(
     coverage_controller_step_summary: Mapping[str, object],
     coverage_controller_preflight_handoff_packet: Mapping[str, object],
     coverage_handoff_next_step_packet: Mapping[str, object],
+    coverage_handoff_server_validation_packet: Mapping[str, object],
+    coverage_handoff_server_validation_runbook_packet: Mapping[str, object],
 ) -> dict[str, object]:
     controller_available = bool(coverage_controller_packet.get("available"))
     controller_preflight_available = bool(
@@ -5408,6 +5422,30 @@ def _coverage_parent_controller_packet(
         ),
         "handoff_next_argv": _string_list_field(
             coverage_handoff_next_step_packet, "target_argv"
+        ),
+        "handoff_server_validation_available": bool(
+            coverage_handoff_server_validation_packet.get("available")
+        ),
+        "handoff_server_validation_status": str(
+            coverage_handoff_server_validation_packet.get(
+                "validation_status", "no_action"
+            )
+        ),
+        "handoff_server_validation_input_readiness_status": str(
+            coverage_handoff_server_validation_packet.get(
+                "input_readiness_status", ""
+            )
+        ),
+        "handoff_server_validation_runbook_available": bool(
+            coverage_handoff_server_validation_runbook_packet.get("available")
+        ),
+        "handoff_server_validation_next_step_id": str(
+            coverage_handoff_server_validation_runbook_packet.get(
+                "next_step_id", ""
+            )
+        ),
+        "handoff_server_validation_argv": _string_list_field(
+            coverage_handoff_server_validation_packet, "recommended_argv"
         ),
         "recommended_surface": recommended_surface,
         "recommended_action": recommended_action,
@@ -6895,6 +6933,12 @@ def _failure(code: str, message: str) -> dict[str, object]:
             empty_controller_preflight_handoff_packet
         ),
         coverage_handoff_next_step_packet=empty_handoff_next_step_packet,
+        coverage_handoff_server_validation_packet=(
+            empty_handoff_server_validation_packet
+        ),
+        coverage_handoff_server_validation_runbook_packet=(
+            empty_handoff_server_validation_runbook_packet
+        ),
     )
     empty_controller_inspection_summary = (
         _coverage_controller_inspection_summary(

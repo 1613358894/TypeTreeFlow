@@ -1299,6 +1299,28 @@ def _assert_controller_packet(
         "recommended_request_target"
     ]
     assert parent_packet["handoff_next_argv"] == handoff_next_step["target_argv"]
+    server_validation_packet = payload["coverage_handoff_server_validation_packet"]
+    server_validation_runbook = payload[
+        "coverage_handoff_server_validation_runbook_packet"
+    ]
+    assert parent_packet["handoff_server_validation_available"] is (
+        server_validation_packet["available"]
+    )
+    assert parent_packet["handoff_server_validation_status"] == (
+        server_validation_packet["validation_status"]
+    )
+    assert parent_packet["handoff_server_validation_input_readiness_status"] == (
+        server_validation_packet["input_readiness_status"]
+    )
+    assert parent_packet["handoff_server_validation_runbook_available"] is (
+        server_validation_runbook["available"]
+    )
+    assert parent_packet["handoff_server_validation_next_step_id"] == (
+        server_validation_runbook["next_step_id"]
+    )
+    assert parent_packet["handoff_server_validation_argv"] == (
+        server_validation_packet["recommended_argv"]
+    )
     if preflight_handoff["available"]:
         assert (
             parent_packet["recommended_surface"]
