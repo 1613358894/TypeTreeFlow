@@ -429,6 +429,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "purpose": "rendered target command plan and preflight decision",
         },
         {
+            "name": "coverage_stage_command_plans",
+            "schema_version": "coverage_stage_command_plans.v1",
+            "purpose": "stage-keyed command plans for coverage pipeline handoffs",
+        },
+        {
             "name": "coverage_next_operator_recipe",
             "schema_version": "coverage_next_operator_recipe.v1",
             "purpose": "metadata-only operator checklist for selected coverage action",
@@ -459,6 +464,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_next_command_plan",
             "schema_version": "coverage_next_command_plan.v1",
             "purpose": "rendered target command plan and preflight decision",
+        },
+        {
+            "name": "coverage_stage_command_plans",
+            "schema_version": "coverage_stage_command_plans.v1",
+            "purpose": "stage-keyed command plans for coverage pipeline handoffs",
         },
         {
             "name": "coverage_next_operator_recipe",
@@ -496,6 +506,11 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "name": "coverage_next_command_plan",
             "schema_version": "coverage_next_command_plan.v1",
             "purpose": "rendered target command plan and preflight decision",
+        },
+        {
+            "name": "coverage_stage_command_plans",
+            "schema_version": "coverage_stage_command_plans.v1",
+            "purpose": "stage-keyed command plans for coverage pipeline handoffs",
         },
         {
             "name": "coverage_next_operator_recipe",

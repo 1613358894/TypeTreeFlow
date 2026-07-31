@@ -126,6 +126,36 @@ def _assert_stage_command_plan(
     )
 
 
+def _assert_stage_command_plan_map(payload):
+    plans = payload["coverage_stage_command_plans"]
+    assert sorted(plans) == [
+        "external_genomes_registration_dry_run",
+        "provider_request",
+        "provider_request_external_genomes",
+        "provider_request_external_genomes_handoff",
+        "provider_request_external_genomes_install_plan",
+        "provider_request_validation",
+    ]
+    assert plans["provider_request"] == payload[
+        "provider_request_recommended_command_plan"
+    ]
+    assert plans["provider_request_validation"] == payload[
+        "provider_request_validation_recommended_command_plan"
+    ]
+    assert plans["provider_request_external_genomes"] == payload[
+        "provider_request_external_genomes_recommended_command_plan"
+    ]
+    assert plans["provider_request_external_genomes_install_plan"] == payload[
+        "provider_request_external_genomes_install_plan_recommended_command_plan"
+    ]
+    assert plans["external_genomes_registration_dry_run"] == payload[
+        "external_genomes_registration_dry_run_recommended_command_plan"
+    ]
+    assert plans["provider_request_external_genomes_handoff"] == payload[
+        "provider_request_external_genomes_handoff_recommended_command_plan"
+    ]
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -1084,6 +1114,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["primary_action_recommended_next_command"] == (
         "manual-review validate --input <review.tsv>"
     )
+    _assert_stage_command_plan_map(payload)
     assert payload["provider_request_recommended_request"] == {
         "command": "provider-request",
         "subcommand": "draft",
@@ -2006,6 +2037,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         summary["primary_action_recommended_request_target"]
         == "manual-review validate"
     )
+    _assert_stage_command_plan_map(summary)
     assert summary["provider_request_recommended_request"] == {
         "command": "provider-request",
         "subcommand": "draft",
@@ -3524,6 +3556,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
     assert payload["primary_action_recommended_request"] is None
     assert payload["primary_action_recommended_request_target"] == ""
     assert payload["primary_action_recommended_next_command"] == ""
+    _assert_stage_command_plan_map(payload)
     assert (
         payload["provider_request_recommended_request_target"]
         == "provider-request draft"

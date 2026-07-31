@@ -299,7 +299,10 @@ bounded species previews so an AI/operator can see which records start each
 action group without treating the preview as a replacement for the source TSVs.
 Stage-specific top-level command-plan companions preflight those same requests
 without dispatching them; write-capable stages remain blocked until an operator
-or parent controller grants the corresponding allowance.
+or parent controller grants the corresponding allowance. The
+`coverage_stage_command_plans` map repeats those companions by stage key so
+controllers can inspect the stage chain without hard-coding every top-level
+field name.
 The top-level `primary_action_recommended_request_target` repeats the first
 action group's compact command target for controllers that only need the next
 route label.

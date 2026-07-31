@@ -1840,7 +1840,9 @@ plus `worklist_candidate_provider_key_counts`,
 `provider_request_recommended_next_command`, their matching
 `*_recommended_request` structured request drafts, matching
 `*_recommended_request_target` compact command/subcommand labels, and bounded
-`*_recommended_command_plan` no-dispatch planning companions. Action
+`*_recommended_command_plan` no-dispatch planning companions. The same
+companions are also collected in the stage-keyed `coverage_stage_command_plans`
+map for controllers that prefer one contract field. Action
 groups are sorted by priority and summarize action code, record count, source
 lanes, provider keys, required inputs, a structured `recommended_request` draft,
 and the recommended next command for AI/operator routing. Required inputs are
@@ -1909,7 +1911,8 @@ controllers can route readiness or handoff packets without a separate catalog
 lookup.
 `commands recognize`, `commands plan`, and `commands preflight` also declare
 the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
-`coverage_next_command_plan`, `coverage_next_operator_recipe`,
+`coverage_next_command_plan`, `coverage_stage_command_plans`,
+`coverage_next_operator_recipe`,
 `coverage_queue_resume_packet`, and `coverage_operator_queue_preview`, plus
 operator-chain packets when present.
 The packet also includes `review_input_packet`, a bounded local-input handoff
