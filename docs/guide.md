@@ -122,8 +122,10 @@ TSV handoffs only; this command does not run discovery, query providers, or
 auto-select any accession.
 When `--write` succeeds, stdout includes a structured `recommended_request`
 for `coverage-plan build` using the written `acquisition_worklist.tsv`. That
-request is only an AI/operator handoff for a later local command; this step
-does not run coverage-plan or write workflow outputs.
+request is only an AI/operator handoff for a later local command. The matching
+`recommended_command_plan` is metadata-only and reports rendered argv plus the
+preflight decision; this step does not run coverage-plan or write workflow
+outputs.
 
 Turn an acquisition worklist into a prioritized offline action plan:
 
@@ -143,8 +145,10 @@ Command metadata reports `coverage_plan_packet.v1` for the generated
 coverage-plan pair.
 When `--write` succeeds, stdout includes a structured `recommended_request`
 for `provider-handoff build` using the written `coverage_plan.tsv`. That
-request is only an AI/operator handoff for a later local command; this step
-does not run provider-handoff or contact providers.
+request is only an AI/operator handoff for a later local command. The matching
+`recommended_command_plan` is metadata-only and reports rendered argv plus the
+preflight decision; this step does not run provider-handoff or contact
+providers.
 
 Turn coverage-plan provider keys into a provider-specific offline handoff:
 
@@ -164,6 +168,8 @@ Command metadata reports `provider_handoff_packet.v1` for the generated
 provider-handoff pair.
 When `--write` succeeds, stdout's `recommended_request` points to the written
 `provider_handoff.tsv` for a later local `provider-request draft` command.
+Dry-run and write payloads also include a metadata-only
+`recommended_command_plan` companion for that provider-request draft handoff.
 It blocks rows missing species, source lane, or action code, and does not
 contact providers, download genomes, mutate manifests, or claim strict
 scientific delivery.

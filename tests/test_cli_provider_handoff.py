@@ -91,6 +91,23 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
         "provider_handoff_tsv": "provider_handoff.tsv",
     }
     assert payload["recommended_request_target"] == "provider-request draft"
+    plan = payload["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == "provider_handoff_summary.recommended_request"
+    assert plan["recommended_request"] == payload["recommended_request"]
+    assert plan["recommended_request_target"] == "provider-request draft"
+    assert plan["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        "provider_handoff.tsv",
+    ]
+    assert plan["decision"] == "allow"
+    assert plan["preflight_decision"] == "allow"
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
+    assert plan["strict_scientific_deliverable"] is False
     assert payload["recommended_next_command"].startswith(
         "typetreeflow provider-request draft --provider-handoff-tsv"
     )
@@ -132,6 +149,23 @@ def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):
         "provider_handoff_tsv": str(handoff_path),
     }
     assert payload["recommended_request_target"] == "provider-request draft"
+    plan = payload["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == "provider_handoff_summary.recommended_request"
+    assert plan["recommended_request"] == payload["recommended_request"]
+    assert plan["recommended_request_target"] == "provider-request draft"
+    assert plan["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        str(handoff_path),
+    ]
+    assert plan["decision"] == "allow"
+    assert plan["preflight_decision"] == "allow"
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
+    assert plan["strict_scientific_deliverable"] is False
     assert payload["recommended_next_command"] == (
         f"typetreeflow provider-request draft --provider-handoff-tsv {handoff_path}"
     )

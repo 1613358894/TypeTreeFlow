@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
+from typetreeflow.command_plan_packets import recommended_command_plan
 from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_FIELDS,
     COVERAGE_PLAN_SCHEMA_VERSION,
@@ -130,6 +131,10 @@ def run_provider_handoff_command(
             str(outdir / OUTPUT_NAMES["handoff"])
         )
         payload["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
+        payload["recommended_command_plan"] = recommended_command_plan(
+            payload["recommended_request"],
+            request_source="provider_handoff_summary.recommended_request",
+        )
         payload["recommended_next_command"] = (
             "typetreeflow provider-request draft --provider-handoff-tsv "
             f"{outdir / OUTPUT_NAMES['handoff']}"
@@ -213,6 +218,10 @@ def _payload(handoff, *, diagnostics: list[dict[str, object]], dry_run: bool) ->
         "required_inputs": summary["required_inputs"],
         "recommended_request": summary["recommended_request"],
         "recommended_request_target": RECOMMENDED_REQUEST_TARGET,
+        "recommended_command_plan": recommended_command_plan(
+            summary["recommended_request"],
+            request_source="provider_handoff_summary.recommended_request",
+        ),
         "recommended_next_command": summary["recommended_next_command"],
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -258,6 +267,10 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "required_inputs": list(PROVIDER_HANDOFF_REQUIRED_INPUTS),
         "recommended_request": dict(PROVIDER_HANDOFF_RECOMMENDED_REQUEST),
         "recommended_request_target": RECOMMENDED_REQUEST_TARGET,
+        "recommended_command_plan": recommended_command_plan(
+            PROVIDER_HANDOFF_RECOMMENDED_REQUEST,
+            request_source="provider_handoff_summary.recommended_request",
+        ),
         "recommended_next_command": PROVIDER_HANDOFF_RECOMMENDED_NEXT_COMMAND,
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("provider_handoff_cli", code)],
