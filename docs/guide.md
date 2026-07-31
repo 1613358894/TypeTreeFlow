@@ -419,11 +419,12 @@ authorize provider contact or downloads. `coverage_route_next_batch_packet`
 turns that ranked route list into a bounded next-batch selector with a first
 provider key, recommended operator action, required local input artifact, and
 per-item operator-review gates. Each item also carries a structured
-`recommended_request` and compact `recommended_request_target`, so controllers
-can route it through `commands render`, `commands plan`, or
-`commands preflight` before any local CLI invocation. It is for local review
-planning only and still does not dispatch commands, contact providers, or
-download genomes. The payload
+`recommended_request`, compact `recommended_request_target`, metadata-only
+`recommended_command_plan`, target argv, preflight decision, and blocker or
+warning IDs, so controllers can inspect it through `commands render`,
+`commands plan`, or `commands preflight` before any local CLI invocation. It is
+for local review planning only and still does not dispatch commands, contact
+providers, or download genomes. The payload
 also reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
