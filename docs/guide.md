@@ -288,7 +288,11 @@ controllers can route required local inputs without first expanding a selected
 packet; the queue and priority summaries count review-input schemas for the
 same reason. They also summarize recommended request targets, such as
 `manual-review validate` or `provider-request draft`, without rendering or
-executing those requests. Opportunity and queue rows carry the same structured
+executing those requests. The top-level stage-specific
+`*_recommended_request` drafts also carry matching
+`*_recommended_request_target` labels for provider-request, external-genomes,
+install-plan, registration dry-run, and handoff routing. Opportunity and queue
+rows carry the same structured
 `recommended_request` objects used by `commands render` / `commands plan`, but
 they still require normal planning or preflight before execution. They also carry
 bounded species previews so an AI/operator can see which records start each

@@ -1838,7 +1838,9 @@ plus `worklist_candidate_provider_key_counts`,
 `external_genomes_registration_dry_run_recommended_next_command` plus
 `provider_request_external_genomes_handoff_recommended_next_command` plus
 `provider_request_recommended_next_command`, their matching
-`*_recommended_request` structured request drafts, and bounded previews. Action
+`*_recommended_request` structured request drafts, matching
+`*_recommended_request_target` compact command/subcommand labels, and bounded
+previews. Action
 groups are sorted by priority and summarize action code, record count, source
 lanes, provider keys, required inputs, a structured `recommended_request` draft,
 and the recommended next command for AI/operator routing. Required inputs are
