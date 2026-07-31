@@ -323,9 +323,10 @@ contact, downloads, workflow-output writes, manifest mutation, registration,
 and strict deliverable promotion disabled.
 `coverage_controller_inspection_summary` is the compact surface index for
 parent agents. It lists the parent-controller, controller, step-summary,
-preflight, handoff-next-step, handoff server-validation packet/runbook, and
-route-batch packets with availability, target argv, blocker IDs, warning IDs,
-and execution boundaries before the parent expands a specific nested packet.
+preflight, handoff-next-step, handoff server-validation
+packet/runbook/result-contract, and route-batch packets with availability,
+target argv, blocker IDs, warning IDs, and execution boundaries before the
+parent expands a specific nested packet.
 `coverage_controller_runbook_packet` is the ordered metadata-only checklist for
 parent agents. It starts with the inspection summary, expands the recommended
 surface, and only then points at a `commands plan` or `commands preflight`
@@ -521,6 +522,10 @@ server-validation packet, expands the handoff runbook, and only then points at
 a `commands plan` or `commands preflight` metadata gate. It still stops before
 filesystem artifact validation, provider contact, download, or target command
 execution.
+`coverage_handoff_server_validation_result_contract_packet` declares the
+expected result shape for that bounded server handoff. It lists required result
+fields, checked surfaces, accepted status labels, and boundary confirmations
+without writing result files, validating artifacts, or authorizing dispatch.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage

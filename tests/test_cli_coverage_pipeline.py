@@ -750,6 +750,106 @@ def _assert_handoff_next_step_packet(
         assert step["execution_boundary"] == (
             "metadata_only_handoff_server_validation_runbook_step_no_execution"
         )
+    result_contract = payload[
+        "coverage_handoff_server_validation_result_contract_packet"
+    ]
+    assert (
+        result_contract["schema_version"]
+        == "coverage_handoff_server_validation_result_contract_packet.v1"
+    )
+    assert result_contract["available"] is server_validation["available"]
+    assert result_contract["contract_status"] == (
+        "operator_review_required" if server_validation["available"] else "no_action"
+    )
+    assert (
+        result_contract["expected_result_schema_version"]
+        == "coverage_handoff_server_validation_result.v1"
+    )
+    assert result_contract["expected_result_statuses"] == [
+        "pass",
+        "warning",
+        "blocked",
+        "failed",
+    ]
+    assert result_contract["required_result_fields"] == [
+        "schema_version",
+        "status",
+        "validation_status",
+        "checked_surface_names",
+        "input_readiness_status",
+        "blocking_ids",
+        "warning_ids",
+        "boundary_confirmations",
+        "diagnostics",
+        "summary",
+    ]
+    assert result_contract["required_result_field_count"] == len(
+        result_contract["required_result_fields"]
+    )
+    assert result_contract["checked_surface_names"] == [
+        "coverage_handoff_server_validation_packet",
+        "coverage_handoff_server_validation_runbook_packet",
+    ]
+    assert result_contract["checked_surface_count"] == 2
+    assert result_contract["source_packet_schema_version"] == server_validation[
+        "schema_version"
+    ]
+    assert result_contract["source_runbook_schema_version"] == server_runbook[
+        "schema_version"
+    ]
+    assert result_contract["validation_status"] == server_validation[
+        "validation_status"
+    ]
+    assert result_contract["runbook_status"] == server_runbook["runbook_status"]
+    assert result_contract["input_readiness_status"] == server_validation[
+        "input_readiness_status"
+    ]
+    assert result_contract["recommended_request_target"] == server_validation[
+        "recommended_request_target"
+    ]
+    assert result_contract["recommended_argv"] == server_validation[
+        "recommended_argv"
+    ]
+    assert result_contract["required_boundary_confirmations"] == [
+        "filesystem_probe_performed=false",
+        "artifact_validation_performed=false",
+        "target_command_execution_authorized=false",
+        "provider_contact_allowed=false",
+        "downloads_triggered=0",
+        "providers_contacted=0",
+        "network_access=false",
+        "external_tools=false",
+        "manifest_mutated=false",
+        "strict_scientific_deliverable=false",
+        "external_genomes_registration_applied=false",
+    ]
+    assert result_contract["required_boundary_confirmation_count"] == len(
+        result_contract["required_boundary_confirmations"]
+    )
+    assert result_contract["result_may_write_files"] is False
+    assert result_contract["result_may_mutate_workflow_outputs"] is False
+    assert result_contract["result_may_contact_providers"] is False
+    assert result_contract["result_may_download_genomes"] is False
+    assert result_contract["target_command_execution_authorized"] is False
+    assert result_contract["provider_contact_allowed"] is False
+    assert result_contract["safe_for_unattended_execution"] is False
+    assert result_contract["recommended_execution_mode"] == (
+        "operator_review_required" if server_validation["available"] else "no_action"
+    )
+    assert result_contract["audit_only"] is True
+    assert result_contract["dry_run"] is True
+    assert result_contract["writes_outputs"] is False
+    assert result_contract["writes_workflow_outputs"] is False
+    assert result_contract["downloads_triggered"] == 0
+    assert result_contract["providers_contacted"] == 0
+    assert result_contract["network_access"] is False
+    assert result_contract["external_tools"] is False
+    assert result_contract["manifest_mutated"] is False
+    assert result_contract["strict_scientific_deliverable"] is False
+    assert result_contract["external_genomes_registration_applied"] is False
+    assert result_contract["execution_boundary"] == (
+        "metadata_only_handoff_server_validation_result_contract_no_execution"
+    )
 
 
 def _assert_operator_chain_resume_packet(
@@ -1409,6 +1509,7 @@ def _assert_controller_packet(
         "coverage_handoff_next_step_packet",
         "coverage_handoff_server_validation_packet",
         "coverage_handoff_server_validation_runbook_packet",
+        "coverage_handoff_server_validation_result_contract_packet",
         "coverage_route_next_batch_packet",
     ]
     assert inspection_summary["surface_count"] == len(expected_surface_names)
@@ -1488,6 +1589,11 @@ def _assert_controller_packet(
     ] == payload["coverage_handoff_server_validation_runbook_packet"][
         "recommended_argv"
     ]
+    assert surface_by_name[
+        "coverage_handoff_server_validation_result_contract_packet"
+    ]["target_argv"] == payload[
+        "coverage_handoff_server_validation_result_contract_packet"
+    ]["recommended_argv"]
     assert surface_by_name["coverage_route_next_batch_packet"]["target_argv"] == (
         payload["coverage_route_next_batch_packet"].get("first_target_argv", [])
     )

@@ -1957,11 +1957,11 @@ It is metadata only:
 workflow-output writes, manifest mutation, external-genomes registration, and
 strict deliverable promotion remain disabled.
 `coverage_controller_inspection_summary` is the bounded index over the parent
-controller, controller, step-summary, preflight, handoff-next-step, and
-handoff server-validation packet/runbook, and route-batch packets. It lists
-each surface's availability, schema version, target argv, blocker IDs, warning
-IDs, and execution boundary so a parent process can inspect one compact table
-before expanding nested packets. It is also metadata only and does not
+controller, controller, step-summary, preflight, handoff-next-step, handoff
+server-validation packet/runbook/result-contract, and route-batch packets. It
+lists each surface's availability, schema version, target argv, blocker IDs,
+warning IDs, and execution boundary so a parent process can inspect one compact
+table before expanding nested packets. It is also metadata only and does not
 authorize target command execution.
 `coverage_controller_runbook_packet` converts the parent-controller
 recommendation and inspection summary into an ordered metadata-only checklist
@@ -2273,6 +2273,11 @@ inspect the handoff runbook, and, only when argv exists, run a `commands plan`
 or `commands preflight` metadata gate. It remains metadata-only and still
 stops before filesystem artifact validation, provider contact, downloads, or
 target command execution.
+`coverage_handoff_server_validation_result_contract_packet` declares the
+expected bounded-validation result shape for a parent/server handoff. It lists
+required result fields, checked surfaces, accepted status labels, and boundary
+confirmations, but it does not write a result, validate artifacts, dispatch the
+target command, or authorize server execution.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
