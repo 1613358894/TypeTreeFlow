@@ -47,6 +47,14 @@ INSTALL_PLAN_RECOMMENDED_REQUEST: dict[str, object] = {
     "outdir": "<run>",
     "dry_run": True,
 }
+VALIDATE_INSTALL_PLAN_WRITE_RECOMMENDED_REQUEST: dict[str, object] = {
+    "command": "external-genomes",
+    "subcommand": "install-plan",
+    "input": "external_genomes.tsv",
+    "target_outdir": "<run>",
+    "write": True,
+    "outdir": "<isolated-install-plan-directory>",
+}
 _PREVIEW_LIMIT = 20
 
 
@@ -273,6 +281,8 @@ def _validate_payload(
     ready_for_next_step = bool(results) and not diagnostics
     recommended_request = None
     recommended_next_command = ""
+    install_plan_recommended_request = None
+    install_plan_recommended_next_command = ""
     if ready_for_next_step:
         recommended_request = {
             "command": "external-genomes",
@@ -283,6 +293,15 @@ def _validate_payload(
         recommended_next_command = (
             "typetreeflow external-genomes install-plan "
             f"--input {input_value} --target-outdir <run>"
+        )
+        install_plan_recommended_request = {
+            **VALIDATE_INSTALL_PLAN_WRITE_RECOMMENDED_REQUEST,
+            "input": input_value,
+        }
+        install_plan_recommended_next_command = (
+            "typetreeflow external-genomes install-plan "
+            f"--input {input_value} --target-outdir <run> "
+            "--write --outdir <isolated-install-plan-directory>"
         )
     preview = [
         {
@@ -336,6 +355,17 @@ def _validate_payload(
         "recommended_request": recommended_request,
         "recommended_request_target": recommended_request_target(recommended_request),
         "recommended_next_command": recommended_next_command,
+        "install_plan_recommended_request": install_plan_recommended_request,
+        "install_plan_recommended_request_target": recommended_request_target(
+            install_plan_recommended_request
+        ),
+        "install_plan_recommended_next_command": (
+            install_plan_recommended_next_command
+        ),
+        "install_plan_recommended_command_plan": recommended_command_plan(
+            install_plan_recommended_request,
+            request_source="external_genomes_validate.install_plan_recommended_request",
+        ),
         "audit_only": True,
         "dry_run": True,
         "writes_outputs": False,

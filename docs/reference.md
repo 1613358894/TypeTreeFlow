@@ -2585,7 +2585,14 @@ always keeps `safe_for_unattended_execution=false`. Ready packets include
 the next structured request for AI/operator routing. The top-level validate
 payload mirrors the same concrete `required_inputs`, `recommended_request`,
 `recommended_request_target`, and `recommended_next_command` fields for
-controllers that do not inspect nested packets.
+controllers that do not inspect nested packets. Ready validate payloads also
+include `install_plan_recommended_request`,
+`install_plan_recommended_request_target`,
+`install_plan_recommended_next_command`, and
+`install_plan_recommended_command_plan` for the optional isolated
+`external-genomes install-plan --write --outdir <dir>` audit triplet. This
+write-oriented plan remains blocked until an operator or controller explicitly
+allows writes; it is still an isolated audit output, not workflow mutation.
 `external-genomes install-plan --input <external_genomes.tsv> --target-outdir
 <run>` is the AI/operator handoff between validation and workflow
 registration. It validates the same explicit TSV and referenced local FASTA
