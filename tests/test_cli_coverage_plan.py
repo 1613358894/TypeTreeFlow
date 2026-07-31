@@ -160,6 +160,23 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
         "coverage_plan_tsv": str(plan_path),
     }
     assert payload["recommended_request_target"] == "provider-handoff build"
+    plan = payload["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == "coverage_plan_summary.recommended_request"
+    assert plan["recommended_request"] == payload["recommended_request"]
+    assert plan["recommended_request_target"] == "provider-handoff build"
+    assert plan["target_argv"] == [
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        str(plan_path),
+    ]
+    assert plan["decision"] == "allow"
+    assert plan["preflight_decision"] == "allow"
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
+    assert plan["strict_scientific_deliverable"] is False
     assert payload["recommended_next_command"] == (
         f"typetreeflow provider-handoff build --coverage-plan-tsv {plan_path}"
     )

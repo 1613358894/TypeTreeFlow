@@ -1588,8 +1588,10 @@ Command metadata reports the target output contract as
 worklist pair before running the command. When `--write` succeeds, stdout also
 includes `recommended_request`, `recommended_request_target`, and
 `recommended_next_command` for a later local `coverage-plan build` command that
-points to the written `acquisition_worklist.tsv`. The adapter does not run that
-next command.
+points to the written `acquisition_worklist.tsv`. It also includes a
+metadata-only `recommended_command_plan` companion for that request, with the
+rendered argv and preflight decision. The adapter does not run that next
+command.
 Expanded discovery and manual-supplement inputs are local TSV handoffs only:
 `matched_candidate` and `review_matched_candidates` can surface public linkage
 review, while `manual_search_required` or `provide_external_genome_fasta` can
@@ -1630,8 +1632,10 @@ Command metadata reports the target output contract as
 before running the command. When `--write` succeeds, stdout also includes
 `recommended_request`, `recommended_request_target`, and
 `recommended_next_command` for a later local `provider-handoff build` command
-that points to the written `coverage_plan.tsv`. The adapter does not run that
-next command.
+that points to the written `coverage_plan.tsv`. It also includes a
+metadata-only `recommended_command_plan` companion for that request, with the
+rendered argv and preflight decision. The adapter does not run that next
+command.
 Existing output directories are refused by default;
 `--force` replaces only an owned pair with matching schemas. Missing,
 unreadable, malformed, wrong-schema, or boundary-violating input blocks the
@@ -1672,7 +1676,10 @@ planning-only rows under the supplied value. Without `--write`, it writes nothin
 supplied directory. On successful writes, stdout's `recommended_request` points
 to that written `provider_handoff.tsv` for a later local
 `provider-request draft` command; dry-run output keeps the generic handoff
-filename template. Existing output directories are refused by default;
+filename template. Both dry-run and successful write payloads include a
+metadata-only `recommended_command_plan` companion for the provider-request
+draft handoff, with rendered argv and preflight decision. Existing output
+directories are refused by default;
 `--force` replaces only an owned pair with matching schemas. Missing,
 unreadable, malformed, provider-key-empty input, or rows missing `species`,
 `source_lane`, or `action_code` block the command with exit code `2`;

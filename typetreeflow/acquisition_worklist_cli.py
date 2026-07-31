@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
+from typetreeflow.command_plan_packets import recommended_command_plan
 from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_FIELDS,
     ACQUISITION_WORKLIST_SCHEMA_VERSION,
@@ -157,6 +158,10 @@ def run_acquisition_worklist_command(
             str(outdir / OUTPUT_NAMES["worklist"])
         )
         payload["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
+        payload["recommended_command_plan"] = recommended_command_plan(
+            payload["recommended_request"],
+            request_source="acquisition_worklist_summary.recommended_request",
+        )
         payload["recommended_next_command"] = (
             "typetreeflow coverage-plan build --worklist-tsv "
             f"{outdir / OUTPUT_NAMES['worklist']}"
@@ -236,6 +241,7 @@ def _payload(report, *, diagnostics: list[dict[str, object]], dry_run: bool) -> 
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "recommended_request": None,
         "recommended_request_target": "",
+        "recommended_command_plan": None,
         "recommended_next_command": "",
         "summary": (
             "Acquisition worklist build passed"
@@ -270,6 +276,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "output_paths": {key: None for key in OUTPUT_NAMES},
         "recommended_request": None,
         "recommended_request_target": "",
+        "recommended_command_plan": None,
         "recommended_next_command": "",
         "summary": message,
     }

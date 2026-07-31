@@ -268,6 +268,23 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
         "worklist_tsv": str(worklist_path),
     }
     assert payload["recommended_request_target"] == "coverage-plan build"
+    plan = payload["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == "acquisition_worklist_summary.recommended_request"
+    assert plan["recommended_request"] == payload["recommended_request"]
+    assert plan["recommended_request_target"] == "coverage-plan build"
+    assert plan["target_argv"] == [
+        "coverage-plan",
+        "build",
+        "--worklist-tsv",
+        str(worklist_path),
+    ]
+    assert plan["decision"] == "allow"
+    assert plan["preflight_decision"] == "allow"
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
+    assert plan["strict_scientific_deliverable"] is False
     assert payload["recommended_next_command"] == (
         f"typetreeflow coverage-plan build --worklist-tsv {worklist_path}"
     )
