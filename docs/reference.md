@@ -1653,6 +1653,9 @@ The compact JSON and `provider_request_draft_summary.json` include
 `next_input_class_counts`, `automation_boundary_counts`,
 `curator_completion_required_count`, `curator_completion_template_counts`,
 `curator_completion_field_counts`, and `curator_completion_blocker_counts`.
+`commands recognize`, `commands plan`, and `commands preflight` report the
+target output contract as `provider_request_draft_packet.v1`, so AI/operator
+controllers can route the draft pair without running the command first.
 The row notes include `provider_automation_level`, `operator_route`,
 `next_input_class`, `automation_boundary`, `curator_completion_template`, and
 `required_curator_fields` so an AI/operator can distinguish provider/local
@@ -1904,7 +1907,8 @@ downloads, workflow mutation, or strict deliverable promotion.
 `coverage_next_operator_recipe` wraps the same packet and command plan as a
 bounded three-step operator recipe: review required local inputs, inspect the
 command plan, then invoke the target CLI separately only after review. It always
-reports `safe_for_unattended_execution=false` and
+repeats the selected `review_input_packet`, reports
+`safe_for_unattended_execution=false`, and
 `execution_boundary=metadata_only_operator_recipe_no_execution`.
 `coverage_queue_resume_packet` is a compact AI/controller handoff view over the
 selected queue item. It repeats the selected `queue_item_id`, current queue

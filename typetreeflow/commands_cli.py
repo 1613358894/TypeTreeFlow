@@ -465,6 +465,13 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "purpose": "provider-request validation readiness handoff",
         },
     ),
+    ("provider-request", "draft"): (
+        {
+            "name": "provider_request_draft_packet",
+            "schema_version": "provider_request_draft_packet.v1",
+            "purpose": "provider request draft handoff",
+        },
+    ),
     ("provider-request", "external-genomes-draft"): (
         {
             "name": "provider_request_readiness_packet",
