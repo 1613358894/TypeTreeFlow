@@ -306,6 +306,12 @@ field name.
 The top-level `primary_action_recommended_request_target` repeats the first
 action group's compact command target for controllers that only need the next
 route label.
+`coverage_stage_readiness_summary` provides the matching compact stage-chain
+view for controllers that need only readiness counts, available/unavailable
+stage names, the first unavailable stage, the next command target, and
+blocker/warning IDs. It is metadata only and does not authorize execution,
+provider contact, downloads, workflow writes, manifest mutation, or strict
+deliverable promotion.
 It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` so an AI/operator can see the current local
@@ -438,7 +444,9 @@ operator routing but does not query archives, download genomes, create
 `external_genomes.tsv`, register files, or change strict evidence. The status
 payload reports `operator_chain_stages`, `stage_status_counts`, available and
 unavailable stage names, the first unavailable stage, compact
-`recommended_request_target`, and the recommended next command. Like `preview`
+`recommended_request_target`, and the recommended next command. It also reports
+`coverage_stage_readiness_summary` as a compact AI-facing chain summary with
+the next command-plan decision and blocker or warning IDs. Like `preview`
 and `build`, it also reports
 `operator_chain_next_step_packet`, a metadata-only handoff object that renders
 and preflights the next unavailable local stage's structured request without
