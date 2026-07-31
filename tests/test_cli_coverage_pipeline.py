@@ -1055,6 +1055,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "subcommand": "validate",
         "input": "<review.tsv>",
     }
+    assert (
+        payload["primary_action_recommended_request_target"]
+        == "manual-review validate"
+    )
     assert payload["primary_action_recommended_next_command"] == (
         "manual-review validate --input <review.tsv>"
     )
@@ -1912,6 +1916,10 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "subcommand": "validate",
         "input": "<review.tsv>",
     }
+    assert (
+        summary["primary_action_recommended_request_target"]
+        == "manual-review validate"
+    )
     assert summary["provider_request_recommended_request"] == {
         "command": "provider-request",
         "subcommand": "draft",
@@ -2814,6 +2822,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["next_stage"] is None
     assert payload["required_inputs"] == []
     assert payload["recommended_request"] is None
+    assert payload["recommended_request_target"] == ""
     assert payload["recommended_next_command"] == ""
     assert len(payload["operator_chain_snapshot_sha256"]) == 64
     assert payload["operator_chain_next_step_packet"] == {
@@ -3171,6 +3180,9 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
         "write": True,
         "outdir": "<isolated-install-plan-directory>",
     }
+    assert payload["next_stage"]["recommended_request_target"] == (
+        "external-genomes install-plan"
+    )
     assert payload["recommended_request"] == {
         "command": "external-genomes",
         "subcommand": "install-plan",
@@ -3179,6 +3191,7 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
         "write": True,
         "outdir": "<isolated-install-plan-directory>",
     }
+    assert payload["recommended_request_target"] == "external-genomes install-plan"
     assert payload["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input provider_request_external_genomes/external_genomes.tsv "
@@ -3359,6 +3372,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
     assert payload["primary_next_action_group"] is None
     assert payload["primary_action_required_inputs"] == []
     assert payload["primary_action_recommended_request"] is None
+    assert payload["primary_action_recommended_request_target"] == ""
     assert payload["primary_action_recommended_next_command"] == ""
     assert payload["coverage_next_task_packet"] == {
         "available": False,

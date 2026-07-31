@@ -1989,7 +1989,8 @@ same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
 rendered argv.
 The payload also exposes `primary_next_action_group`,
-`primary_action_required_inputs`, `primary_action_recommended_request`, and
+`primary_action_required_inputs`, `primary_action_recommended_request`,
+`primary_action_recommended_request_target`, and
 `primary_action_recommended_next_command` as convenience copies from the first
 sorted action group.
 `operator_chain_stages` is a bounded AI/operator checklist for the same local
@@ -2048,9 +2049,10 @@ directory, and optional downstream directory overrides. When
 only, including archive source, accession kind, and review input class counts;
 it does not query public archives, download genomes, create
 `external_genomes.tsv`, or change strict evidence. It then re-emits
-`operator_chain_stages`, the current unavailable stage, and the recommended
-next command as compact JSON. It also preserves top-level provider automation
-counts from `coverage_pipeline_summary.json` as
+`operator_chain_stages`, the current unavailable stage, the compact
+`recommended_request_target`, and the recommended next command as compact JSON.
+It also preserves top-level provider automation counts from
+`coverage_pipeline_summary.json` as
 `provider_automation_level_counts` and
 `provider_request_automation_level_counts`, and preserves
 `coverage_opportunity_summary` for routing. Each stage row and the derived `next_stage`
