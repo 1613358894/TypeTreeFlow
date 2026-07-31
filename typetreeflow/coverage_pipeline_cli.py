@@ -818,6 +818,9 @@ def _run_status(
         )
     )
     coverage_handoff_readiness_summary = _coverage_handoff_readiness_summary(stages)
+    coverage_handoff_next_step_packet = _coverage_handoff_next_step_packet(
+        coverage_handoff_readiness_summary
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -929,6 +932,7 @@ def _run_status(
             selected_operator_chain_stage_command_plan
         ),
         "coverage_handoff_readiness_summary": coverage_handoff_readiness_summary,
+        "coverage_handoff_next_step_packet": coverage_handoff_next_step_packet,
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
         ),
@@ -2076,6 +2080,9 @@ def _payload(
     coverage_handoff_readiness_summary = _coverage_handoff_readiness_summary(
         operator_chain_stages
     )
+    coverage_handoff_next_step_packet = _coverage_handoff_next_step_packet(
+        coverage_handoff_readiness_summary
+    )
     coverage_next_action_groups = _coverage_next_action_groups(
         coverage_plan.actions
     )
@@ -2453,6 +2460,7 @@ def _payload(
             selected_operator_chain_stage_command_plan
         ),
         "coverage_handoff_readiness_summary": coverage_handoff_readiness_summary,
+        "coverage_handoff_next_step_packet": coverage_handoff_next_step_packet,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "worklist_preview": [row.to_row() for row in worklist.rows[:_PREVIEW_LIMIT]],
@@ -2768,6 +2776,83 @@ def _coverage_handoff_readiness_summary(
         "audit_only": True,
         "dry_run": True,
         "execution_boundary": "metadata_only_handoff_readiness_no_execution",
+    }
+
+
+def _coverage_handoff_next_step_packet(
+    handoff_summary: Mapping[str, object],
+) -> dict[str, object]:
+    recommended_request = (
+        dict(handoff_summary.get("next_recommended_request", {}))
+        if isinstance(handoff_summary.get("next_recommended_request"), Mapping)
+        else None
+    )
+    available = bool(recommended_request) and not bool(
+        handoff_summary.get("chain_complete")
+    )
+    command_plan = _coverage_next_command_plan(
+        {
+            "available": available,
+            "recommended_request": recommended_request,
+        },
+        request_source="coverage_handoff_readiness_summary.next_recommended_request",
+    )
+    blocking_ids = _diagnostic_ids(command_plan.get("blocking", []))
+    warning_ids = _diagnostic_ids(command_plan.get("warnings", []))
+    return {
+        "schema_version": "coverage_handoff_next_step_packet.v1",
+        "available": available,
+        "status": (
+            "ready_for_operator_review"
+            if available and command_plan.get("decision") == "allow"
+            else str(command_plan.get("status", "no_action"))
+        ),
+        "decision": str(command_plan.get("decision", "none")),
+        "stage": str(handoff_summary.get("next_stage", "")),
+        "artifact": str(handoff_summary.get("next_artifact", "")),
+        "required_inputs": (
+            list(handoff_summary.get("next_required_inputs", []))
+            if isinstance(handoff_summary.get("next_required_inputs"), list)
+            else []
+        ),
+        "recommended_request": recommended_request,
+        "recommended_request_target": str(
+            command_plan.get("recommended_request_target", "")
+        ),
+        "recommended_next_command": str(
+            handoff_summary.get("next_recommended_next_command", "")
+        ),
+        "target_argv": _string_list_field(command_plan, "target_argv"),
+        "command_plan": command_plan,
+        "preflight_decision": str(command_plan.get("preflight_decision", "")),
+        "blocking_count": len(blocking_ids),
+        "blocking_ids": blocking_ids,
+        "warning_count": len(warning_ids),
+        "warning_ids": warning_ids,
+        "chain_complete": bool(handoff_summary.get("chain_complete")),
+        "available_stage_count": _safe_int(
+            handoff_summary.get("available_stage_count", 0)
+        ),
+        "unavailable_stage_count": _safe_int(
+            handoff_summary.get("unavailable_stage_count", 0)
+        ),
+        "provider_contact_allowed": False,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": (
+            "operator_review_required" if available else "no_action"
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "metadata_only_handoff_next_step_no_execution",
     }
 
 
@@ -5819,6 +5904,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         ),
         "operator_chain_readiness_packets": {},
         "coverage_handoff_readiness_summary": _coverage_handoff_readiness_summary([]),
+        "coverage_handoff_next_step_packet": _coverage_handoff_next_step_packet(
+            _coverage_handoff_readiness_summary([])
+        ),
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -5889,6 +5977,7 @@ def _rendered_outputs(
             "coverage_stage_readiness_summary",
             "operator_chain_readiness_packets",
             "coverage_handoff_readiness_summary",
+            "coverage_handoff_next_step_packet",
             "coverage_operator_queue_preview",
             "coverage_operator_route_summary",
             "coverage_controller_packet",

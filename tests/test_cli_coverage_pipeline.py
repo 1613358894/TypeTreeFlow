@@ -315,6 +315,63 @@ def _assert_stage_readiness_summary(
     assert summary["strict_scientific_deliverable"] is False
 
 
+def _assert_handoff_next_step_packet(
+    payload,
+    *,
+    available,
+    stage,
+    target,
+    decision,
+    blocking_ids=(),
+):
+    summary = payload["coverage_handoff_readiness_summary"]
+    packet = payload["coverage_handoff_next_step_packet"]
+    assert packet["schema_version"] == "coverage_handoff_next_step_packet.v1"
+    assert packet["available"] is available
+    assert packet["stage"] == stage
+    assert packet["artifact"] == summary["next_artifact"]
+    assert packet["required_inputs"] == summary["next_required_inputs"]
+    assert packet["recommended_request"] == summary["next_recommended_request"]
+    assert packet["recommended_request_target"] == target
+    assert packet["recommended_next_command"] == summary[
+        "next_recommended_next_command"
+    ]
+    assert packet["decision"] == decision
+    assert packet["preflight_decision"] == packet["command_plan"][
+        "preflight_decision"
+    ]
+    assert packet["target_argv"] == packet["command_plan"]["target_argv"]
+    assert packet["blocking_ids"] == list(blocking_ids)
+    assert packet["blocking_count"] == len(blocking_ids)
+    assert packet["chain_complete"] is summary["chain_complete"]
+    assert packet["available_stage_count"] == summary["available_stage_count"]
+    assert packet["unavailable_stage_count"] == summary["unavailable_stage_count"]
+    if available:
+        assert packet["command_plan"]["available"] is True
+        assert packet["command_plan"]["recommended_request_target"] == target
+        assert packet["recommended_execution_mode"] == "operator_review_required"
+    else:
+        assert packet["command_plan"]["available"] is False
+        assert packet["target_argv"] == []
+        assert packet["recommended_execution_mode"] == "no_action"
+    assert packet["provider_contact_allowed"] is False
+    assert packet["safe_for_unattended_execution"] is False
+    assert packet["audit_only"] is True
+    assert packet["dry_run"] is True
+    assert packet["writes_outputs"] is False
+    assert packet["writes_workflow_outputs"] is False
+    assert packet["downloads_triggered"] == 0
+    assert packet["providers_contacted"] == 0
+    assert packet["network_access"] is False
+    assert packet["external_tools"] is False
+    assert packet["manifest_mutated"] is False
+    assert packet["strict_scientific_deliverable"] is False
+    assert packet["external_genomes_registration_applied"] is False
+    assert packet["execution_boundary"] == (
+        "metadata_only_handoff_next_step_no_execution"
+    )
+
+
 def _assert_operator_chain_resume_packet(
     payload,
     *,
@@ -2446,6 +2503,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     }
     assert handoff_readiness["providers_contacted"] == 0
     assert handoff_readiness["manifest_mutated"] is False
+    _assert_handoff_next_step_packet(
+        payload,
+        available=True,
+        stage="provider_request_validation",
+        target="provider-request external-genomes-handoff",
+        decision="block",
+        blocking_ids=("write_not_allowed",),
+    )
     assert payload["operator_chain_stages"][6]["recommended_next_command"] == (
         "typetreeflow external-genomes install-plan "
         "--input provider_request_external_genomes/external_genomes.tsv "
@@ -4584,6 +4649,13 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "external_genomes_install_plan": 1,
         "external_genomes_registration_dry_run": 1,
     }
+    _assert_handoff_next_step_packet(
+        payload,
+        available=False,
+        stage="",
+        target="",
+        decision="none",
+    )
     assert payload["coverage_opportunity_summary"][3][
         "provider_automation_level_counts"
     ] == {"planning_handoff": 2}

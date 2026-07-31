@@ -2201,7 +2201,13 @@ request exists; otherwise the value is `null`. The compact
 `recommended_request_target` repeats the command/subcommand target, or an empty
 string when no structured request exists. These request objects are metadata
 only and must still pass `commands plan` or `commands preflight` before an
-operator runs the rendered argv. `preview`, `build`, and `status` also emit
+operator runs the rendered argv. The same commands emit
+`coverage_handoff_next_step_packet`, which renders the next provider/external
+handoff request into a metadata-only command plan with target argv,
+preflight decision, blocker/warning IDs, and provider/download/registration
+guards. It is a local handoff planning packet only; it does not contact
+providers, register external genomes, copy FASTA files, or authorize execution.
+`preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
 executing the target command, plus `coverage_next_operator_recipe` for the same
