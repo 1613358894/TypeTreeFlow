@@ -252,17 +252,18 @@ def _count_field(records: Iterable[Mapping[str, object]], field: str) -> dict[st
 
 
 def _provider_keys_from_row(row: Mapping[str, object]) -> str:
-    raw_keys = _value(
-        row,
+    provider_keys: list[str] = []
+    registry = build_default_provider_registry()
+    for field in (
         "provider_keys",
         "candidate_provider_keys",
         "preferred_provider_keys",
         "provider_key",
-    )
-    if not raw_keys:
-        return ""
-    registry = build_default_provider_registry()
-    return "; ".join(registry.keys_from_hints(raw_keys))
+    ):
+        for provider_key in registry.keys_from_hints(_value(row, field)):
+            if provider_key and provider_key not in provider_keys:
+                provider_keys.append(provider_key)
+    return "; ".join(provider_keys)
 
 
 def _value(row: Mapping[str, object], *fields: str) -> str:
