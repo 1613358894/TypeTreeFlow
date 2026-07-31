@@ -413,206 +413,93 @@ _CATALOG_ENTRIES = (
         "boundary": "structured request rendering plus preflight only; no dispatch authority",
     },
 )
+_COVERAGE_PIPELINE_BASE_OUTPUT_CONTRACTS: tuple[dict[str, object], ...] = (
+    {
+        "name": "coverage_next_task_packet",
+        "schema_version": "coverage_next_task_packet.v1",
+        "purpose": "selected coverage action handoff for AI/operator review",
+    },
+    {
+        "name": "coverage_next_command_plan",
+        "schema_version": "coverage_next_command_plan.v1",
+        "purpose": "rendered target command plan and preflight decision",
+    },
+    {
+        "name": "coverage_stage_command_plans",
+        "schema_version": "coverage_stage_command_plans.v1",
+        "purpose": "stage-keyed command plans for coverage pipeline handoffs",
+    },
+    {
+        "name": "selected_operator_chain_stage_command_plan",
+        "schema_version": "coverage_next_command_plan.v1",
+        "purpose": "command plan for the explicitly selected operator-chain stage",
+    },
+    {
+        "name": "coverage_stage_readiness_summary",
+        "schema_version": "coverage_stage_readiness_summary.v1",
+        "purpose": "compact coverage stage readiness, blocker, and command-plan summary for AI routing",
+    },
+    {
+        "name": "coverage_provider_route_opportunity_summary",
+        "schema_version": "coverage_provider_route_opportunity_summary.v1",
+        "purpose": "provider-key route opportunity summary for platform handoff triage",
+    },
+    {
+        "name": "coverage_route_next_batch_packet",
+        "schema_version": "coverage_route_next_batch_packet.v1",
+        "purpose": "bounded next-batch provider route selector for AI/operator review",
+    },
+    {
+        "name": "coverage_next_operator_recipe",
+        "schema_version": "coverage_next_operator_recipe.v1",
+        "purpose": "metadata-only operator checklist for selected coverage action",
+    },
+    {
+        "name": "coverage_queue_resume_packet",
+        "schema_version": "coverage_queue_resume_packet.v1",
+        "purpose": "stable queue-item resume handoff with digest guard",
+    },
+    {
+        "name": "coverage_operator_queue_preview",
+        "schema_version": "coverage_operator_queue_preview.v1",
+        "purpose": "bounded coverage queue routing preview",
+    },
+    {
+        "name": "coverage_operator_route_summary",
+        "schema_version": "coverage_operator_route_summary.v1",
+        "purpose": "operator-route grouped coverage queue summary for AI routing",
+    },
+    {
+        "name": "coverage_controller_packet",
+        "schema_version": "coverage_controller_packet.v1",
+        "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
+    },
+    {
+        "name": "operator_chain_next_step_packet",
+        "schema_version": "operator_chain_next_step_packet.v1",
+        "purpose": "metadata-only next operator-chain command preview",
+    },
+    {
+        "name": "operator_chain_resume_packet",
+        "schema_version": "operator_chain_resume_packet.v1",
+        "purpose": "compact stage resume handoff with operator-chain digest guard",
+    },
+)
+_COVERAGE_PIPELINE_WRITTEN_OUTPUT_CONTRACTS: tuple[dict[str, object], ...] = (
+    *_COVERAGE_PIPELINE_BASE_OUTPUT_CONTRACTS,
+    {
+        "name": "operator_chain_readiness_packets",
+        "schema_version": "operator_chain_readiness_packets.v1",
+        "purpose": "stage-keyed provider/external-genomes readiness packet map",
+    },
+)
 _OUTPUT_CONTRACT_CATALOG: dict[
     tuple[str, str | None],
     tuple[dict[str, object], ...],
 ] = {
-    ("coverage-pipeline", "preview"): (
-        {
-            "name": "coverage_next_task_packet",
-            "schema_version": "coverage_next_task_packet.v1",
-            "purpose": "selected coverage action handoff for AI/operator review",
-        },
-        {
-            "name": "coverage_next_command_plan",
-            "schema_version": "coverage_next_command_plan.v1",
-            "purpose": "rendered target command plan and preflight decision",
-        },
-        {
-            "name": "coverage_stage_command_plans",
-            "schema_version": "coverage_stage_command_plans.v1",
-            "purpose": "stage-keyed command plans for coverage pipeline handoffs",
-        },
-        {
-            "name": "selected_operator_chain_stage_command_plan",
-            "schema_version": "coverage_next_command_plan.v1",
-            "purpose": "command plan for the explicitly selected operator-chain stage",
-        },
-        {
-            "name": "coverage_stage_readiness_summary",
-            "schema_version": "coverage_stage_readiness_summary.v1",
-            "purpose": "compact coverage stage readiness, blocker, and command-plan summary for AI routing",
-        },
-        {
-            "name": "coverage_next_operator_recipe",
-            "schema_version": "coverage_next_operator_recipe.v1",
-            "purpose": "metadata-only operator checklist for selected coverage action",
-        },
-        {
-            "name": "coverage_queue_resume_packet",
-            "schema_version": "coverage_queue_resume_packet.v1",
-            "purpose": "stable queue-item resume handoff with digest guard",
-        },
-        {
-            "name": "coverage_operator_queue_preview",
-            "schema_version": "coverage_operator_queue_preview.v1",
-            "purpose": "bounded coverage queue routing preview",
-        },
-        {
-            "name": "coverage_operator_route_summary",
-            "schema_version": "coverage_operator_route_summary.v1",
-            "purpose": "operator-route grouped coverage queue summary for AI routing",
-        },
-        {
-            "name": "coverage_controller_packet",
-            "schema_version": "coverage_controller_packet.v1",
-            "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
-        },
-        {
-            "name": "operator_chain_next_step_packet",
-            "schema_version": "operator_chain_next_step_packet.v1",
-            "purpose": "metadata-only next operator-chain command preview",
-        },
-        {
-            "name": "operator_chain_resume_packet",
-            "schema_version": "operator_chain_resume_packet.v1",
-            "purpose": "compact stage resume handoff with operator-chain digest guard",
-        },
-    ),
-    ("coverage-pipeline", "build"): (
-        {
-            "name": "coverage_next_task_packet",
-            "schema_version": "coverage_next_task_packet.v1",
-            "purpose": "selected coverage action handoff for AI/operator review",
-        },
-        {
-            "name": "coverage_next_command_plan",
-            "schema_version": "coverage_next_command_plan.v1",
-            "purpose": "rendered target command plan and preflight decision",
-        },
-        {
-            "name": "coverage_stage_command_plans",
-            "schema_version": "coverage_stage_command_plans.v1",
-            "purpose": "stage-keyed command plans for coverage pipeline handoffs",
-        },
-        {
-            "name": "selected_operator_chain_stage_command_plan",
-            "schema_version": "coverage_next_command_plan.v1",
-            "purpose": "command plan for the explicitly selected operator-chain stage",
-        },
-        {
-            "name": "coverage_stage_readiness_summary",
-            "schema_version": "coverage_stage_readiness_summary.v1",
-            "purpose": "compact coverage stage readiness, blocker, and command-plan summary for AI routing",
-        },
-        {
-            "name": "coverage_next_operator_recipe",
-            "schema_version": "coverage_next_operator_recipe.v1",
-            "purpose": "metadata-only operator checklist for selected coverage action",
-        },
-        {
-            "name": "coverage_queue_resume_packet",
-            "schema_version": "coverage_queue_resume_packet.v1",
-            "purpose": "stable queue-item resume handoff with digest guard",
-        },
-        {
-            "name": "coverage_operator_queue_preview",
-            "schema_version": "coverage_operator_queue_preview.v1",
-            "purpose": "bounded coverage queue routing preview",
-        },
-        {
-            "name": "coverage_operator_route_summary",
-            "schema_version": "coverage_operator_route_summary.v1",
-            "purpose": "operator-route grouped coverage queue summary for AI routing",
-        },
-        {
-            "name": "coverage_controller_packet",
-            "schema_version": "coverage_controller_packet.v1",
-            "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
-        },
-        {
-            "name": "operator_chain_next_step_packet",
-            "schema_version": "operator_chain_next_step_packet.v1",
-            "purpose": "metadata-only next operator-chain command preview",
-        },
-        {
-            "name": "operator_chain_resume_packet",
-            "schema_version": "operator_chain_resume_packet.v1",
-            "purpose": "compact stage resume handoff with operator-chain digest guard",
-        },
-        {
-            "name": "operator_chain_readiness_packets",
-            "schema_version": "operator_chain_readiness_packets.v1",
-            "purpose": "stage-keyed provider/external-genomes readiness packet map",
-        },
-    ),
-    ("coverage-pipeline", "status"): (
-        {
-            "name": "coverage_next_task_packet",
-            "schema_version": "coverage_next_task_packet.v1",
-            "purpose": "selected coverage action handoff for AI/operator review",
-        },
-        {
-            "name": "coverage_next_command_plan",
-            "schema_version": "coverage_next_command_plan.v1",
-            "purpose": "rendered target command plan and preflight decision",
-        },
-        {
-            "name": "coverage_stage_command_plans",
-            "schema_version": "coverage_stage_command_plans.v1",
-            "purpose": "stage-keyed command plans for coverage pipeline handoffs",
-        },
-        {
-            "name": "selected_operator_chain_stage_command_plan",
-            "schema_version": "coverage_next_command_plan.v1",
-            "purpose": "command plan for the explicitly selected operator-chain stage",
-        },
-        {
-            "name": "coverage_stage_readiness_summary",
-            "schema_version": "coverage_stage_readiness_summary.v1",
-            "purpose": "compact coverage stage readiness, blocker, and command-plan summary for AI routing",
-        },
-        {
-            "name": "coverage_next_operator_recipe",
-            "schema_version": "coverage_next_operator_recipe.v1",
-            "purpose": "metadata-only operator checklist for selected coverage action",
-        },
-        {
-            "name": "coverage_queue_resume_packet",
-            "schema_version": "coverage_queue_resume_packet.v1",
-            "purpose": "stable queue-item resume handoff with digest guard",
-        },
-        {
-            "name": "coverage_operator_queue_preview",
-            "schema_version": "coverage_operator_queue_preview.v1",
-            "purpose": "bounded coverage queue routing preview",
-        },
-        {
-            "name": "coverage_operator_route_summary",
-            "schema_version": "coverage_operator_route_summary.v1",
-            "purpose": "operator-route grouped coverage queue summary for AI routing",
-        },
-        {
-            "name": "coverage_controller_packet",
-            "schema_version": "coverage_controller_packet.v1",
-            "purpose": "compact combined queue and operator-chain controller handoff with status and digest guards",
-        },
-        {
-            "name": "operator_chain_next_step_packet",
-            "schema_version": "operator_chain_next_step_packet.v1",
-            "purpose": "metadata-only next operator-chain command preview",
-        },
-        {
-            "name": "operator_chain_resume_packet",
-            "schema_version": "operator_chain_resume_packet.v1",
-            "purpose": "compact stage resume handoff with operator-chain digest guard",
-        },
-        {
-            "name": "operator_chain_readiness_packets",
-            "schema_version": "operator_chain_readiness_packets.v1",
-            "purpose": "stage-keyed provider/external-genomes readiness packet map",
-        },
-    ),
+    ("coverage-pipeline", "preview"): _COVERAGE_PIPELINE_BASE_OUTPUT_CONTRACTS,
+    ("coverage-pipeline", "build"): _COVERAGE_PIPELINE_WRITTEN_OUTPUT_CONTRACTS,
+    ("coverage-pipeline", "status"): _COVERAGE_PIPELINE_WRITTEN_OUTPUT_CONTRACTS,
     ("acquisition-worklist", "build"): (
         {
             "name": "acquisition_worklist_packet",
