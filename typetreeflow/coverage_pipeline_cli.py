@@ -843,6 +843,14 @@ def _run_status(
             coverage_handoff_runbook_packet=coverage_handoff_runbook_packet,
         )
     )
+    coverage_handoff_server_validation_runbook_packet = (
+        _coverage_handoff_server_validation_runbook_packet(
+            coverage_handoff_server_validation_packet=(
+                coverage_handoff_server_validation_packet
+            ),
+            coverage_handoff_runbook_packet=coverage_handoff_runbook_packet,
+        )
+    )
     coverage_action_queue = _optional_summary_list(
         coverage_summary, "coverage_action_queue"
     )
@@ -988,6 +996,9 @@ def _run_status(
         "coverage_handoff_runbook_packet": coverage_handoff_runbook_packet,
         "coverage_handoff_server_validation_packet": (
             coverage_handoff_server_validation_packet
+        ),
+        "coverage_handoff_server_validation_runbook_packet": (
+            coverage_handoff_server_validation_runbook_packet
         ),
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -2166,6 +2177,14 @@ def _payload(
             coverage_handoff_runbook_packet=coverage_handoff_runbook_packet,
         )
     )
+    coverage_handoff_server_validation_runbook_packet = (
+        _coverage_handoff_server_validation_runbook_packet(
+            coverage_handoff_server_validation_packet=(
+                coverage_handoff_server_validation_packet
+            ),
+            coverage_handoff_runbook_packet=coverage_handoff_runbook_packet,
+        )
+    )
     coverage_next_action_groups = _coverage_next_action_groups(
         coverage_plan.actions
     )
@@ -2582,6 +2601,9 @@ def _payload(
         "coverage_handoff_runbook_packet": coverage_handoff_runbook_packet,
         "coverage_handoff_server_validation_packet": (
             coverage_handoff_server_validation_packet
+        ),
+        "coverage_handoff_server_validation_runbook_packet": (
+            coverage_handoff_server_validation_runbook_packet
         ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -3356,6 +3378,192 @@ def _coverage_handoff_server_validation_packet(
         "external_genomes_registration_applied": False,
         "execution_boundary": (
             "metadata_only_handoff_server_validation_no_execution"
+        ),
+    }
+
+
+def _coverage_handoff_server_validation_runbook_step(
+    *,
+    position: int,
+    step_id: str,
+    action: str,
+    surface_name: str,
+    argv: Sequence[str] = (),
+    required_before_step: Sequence[str] = (),
+    expected_result: str = "",
+) -> dict[str, object]:
+    return {
+        "position": position,
+        "step_id": step_id,
+        "action": action,
+        "surface_name": surface_name,
+        "argv": [str(value) for value in argv],
+        "required_before_step": [str(value) for value in required_before_step],
+        "expected_result": expected_result,
+        "target_command_execution_authorized": False,
+        "provider_contact_allowed": False,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "metadata_only_handoff_server_validation_runbook_step_no_execution"
+        ),
+    }
+
+
+def _coverage_handoff_server_validation_runbook_packet(
+    *,
+    coverage_handoff_server_validation_packet: Mapping[str, object],
+    coverage_handoff_runbook_packet: Mapping[str, object],
+) -> dict[str, object]:
+    available = bool(coverage_handoff_server_validation_packet.get("available"))
+    recommended_argv = _string_list_field(
+        coverage_handoff_server_validation_packet,
+        "recommended_argv",
+    )
+    steps: list[dict[str, object]] = []
+    if available:
+        steps.append(
+            _coverage_handoff_server_validation_runbook_step(
+                position=len(steps) + 1,
+                step_id="inspect_server_validation_packet",
+                action="inspect coverage_handoff_server_validation_packet",
+                surface_name="coverage_handoff_server_validation_packet",
+                required_before_step=("read current JSON payload",),
+                expected_result=(
+                    "confirm validation status and no-execution boundary"
+                ),
+            )
+        )
+        steps.append(
+            _coverage_handoff_server_validation_runbook_step(
+                position=len(steps) + 1,
+                step_id="inspect_handoff_runbook",
+                action="inspect coverage_handoff_runbook_packet",
+                surface_name="coverage_handoff_runbook_packet",
+                required_before_step=(
+                    "inspect coverage_handoff_server_validation_packet",
+                    "confirm filesystem probe remains disabled",
+                ),
+                expected_result="confirm ordered metadata-only handoff steps",
+            )
+        )
+        if recommended_argv:
+            steps.append(
+                _coverage_handoff_server_validation_runbook_step(
+                    position=len(steps) + 1,
+                    step_id="run_server_validation_metadata_gate",
+                    action="run commands plan or commands preflight metadata gate",
+                    surface_name="coverage_handoff_server_validation_packet",
+                    argv=recommended_argv,
+                    required_before_step=(
+                        "operator review of server validation packet",
+                        "no target command execution",
+                    ),
+                    expected_result=(
+                        "metadata gate result is reviewed before dispatch"
+                    ),
+                )
+            )
+    stop_conditions = [
+        "server validation packet unavailable",
+        "validation_status is blocked",
+        "operator input missing",
+        "filesystem artifact validation would be required",
+        "commands plan or preflight returns block",
+        "operator approval missing",
+        "target command would contact provider or download genomes",
+    ]
+    return {
+        "schema_version": (
+            "coverage_handoff_server_validation_runbook_packet.v1"
+        ),
+        "available": available,
+        "runbook_status": "operator_review_required" if available else "no_action",
+        "validation_status": str(
+            coverage_handoff_server_validation_packet.get(
+                "validation_status", "no_action"
+            )
+        ),
+        "next_stage": str(
+            coverage_handoff_server_validation_packet.get("next_stage", "")
+        ),
+        "next_artifact": str(
+            coverage_handoff_server_validation_packet.get("next_artifact", "")
+        ),
+        "recommended_request_target": str(
+            coverage_handoff_server_validation_packet.get(
+                "recommended_request_target", ""
+            )
+        ),
+        "recommended_argv": recommended_argv,
+        "preflight_decision": str(
+            coverage_handoff_server_validation_packet.get(
+                "preflight_decision", ""
+            )
+        ),
+        "allowed_validation_actions": _string_list_field(
+            coverage_handoff_server_validation_packet,
+            "allowed_validation_actions",
+        ),
+        "blocking_ids": _string_list_field(
+            coverage_handoff_server_validation_packet,
+            "blocking_ids",
+        ),
+        "blocking_count": _safe_int(
+            coverage_handoff_server_validation_packet.get("blocking_count", 0)
+        ),
+        "warning_ids": _string_list_field(
+            coverage_handoff_server_validation_packet,
+            "warning_ids",
+        ),
+        "input_readiness_status": str(
+            coverage_handoff_server_validation_packet.get(
+                "input_readiness_status", ""
+            )
+        ),
+        "handoff_runbook_step_ids": _string_list_field(
+            coverage_handoff_server_validation_packet,
+            "runbook_step_ids",
+        ),
+        "handoff_runbook_status": str(
+            coverage_handoff_runbook_packet.get("runbook_status", "")
+        ),
+        "step_count": len(steps),
+        "steps": steps,
+        "next_step_id": str(steps[0]["step_id"]) if steps else "",
+        "next_step_action": str(steps[0]["action"]) if steps else "no_action",
+        "stop_conditions": stop_conditions,
+        "filesystem_probe_performed": False,
+        "artifact_validation_performed": False,
+        "target_command_execution_authorized": False,
+        "provider_contact_allowed": False,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": (
+            "operator_review_required" if available else "no_action"
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "metadata_only_handoff_server_validation_runbook_no_execution"
         ),
     }
 
@@ -6660,6 +6868,14 @@ def _failure(code: str, message: str) -> dict[str, object]:
             coverage_handoff_runbook_packet=empty_handoff_runbook_packet,
         )
     )
+    empty_handoff_server_validation_runbook_packet = (
+        _coverage_handoff_server_validation_runbook_packet(
+            coverage_handoff_server_validation_packet=(
+                empty_handoff_server_validation_packet
+            ),
+            coverage_handoff_runbook_packet=empty_handoff_runbook_packet,
+        )
+    )
     empty_parent_controller_packet = _coverage_parent_controller_packet(
         coverage_controller_packet=empty_controller_packet,
         coverage_controller_step_summary=empty_controller_step_summary,
@@ -6917,6 +7133,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_handoff_server_validation_packet": (
             empty_handoff_server_validation_packet
         ),
+        "coverage_handoff_server_validation_runbook_packet": (
+            empty_handoff_server_validation_runbook_packet
+        ),
         "diagnostic_count": 1,
         "diagnostics": [_diagnostic("coverage_pipeline_cli", code)],
         "worklist_preview": [],
@@ -6991,6 +7210,7 @@ def _rendered_outputs(
             "coverage_handoff_input_readiness_packet",
             "coverage_handoff_runbook_packet",
             "coverage_handoff_server_validation_packet",
+            "coverage_handoff_server_validation_runbook_packet",
             "coverage_operator_queue_preview",
             "coverage_operator_route_summary",
             "coverage_controller_packet",
