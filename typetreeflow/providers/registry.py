@@ -48,6 +48,21 @@ class ProviderRegistry:
         canonical = self._aliases.get(_alias_key(normalized), normalized)
         return canonical if canonical in self._entries else None
 
+    def keys_from_hints(self, text: str) -> tuple[str, ...]:
+        provider_keys: list[str] = []
+        for token in re.split(r"[;,|]", text):
+            cleaned = token.strip()
+            if not cleaned:
+                continue
+            canonical = self.canonical_key(cleaned)
+            token_keys = (canonical,) if canonical else self.keys_from_text(cleaned)
+            if not token_keys:
+                token_keys = (self.get(cleaned).provider_key,)
+            for provider_key in token_keys:
+                if provider_key and provider_key not in provider_keys:
+                    provider_keys.append(provider_key)
+        return tuple(provider_keys)
+
     def keys_from_text(self, text: str) -> tuple[str, ...]:
         normalized = text.upper()
         provider_keys: list[str] = []

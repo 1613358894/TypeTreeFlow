@@ -84,6 +84,14 @@ def test_coverage_plan_uses_canonical_provider_hints_when_present():
                 provider_keys="KCTC, DSMZ; RefSeq | KCTC",
             ),
             _row(
+                "Clostridium embeddedum",
+                "external_fasta_required",
+                candidate_provider_keys=(
+                    "German Collection of Microorganisms and Cell Cultures "
+                    "(DSMZ); Korean Collection for Type Cultures (KCTC)"
+                ),
+            ),
+            _row(
                 "Clostridium archiveum",
                 "public_linkage_review",
                 reason_code="public_archive_insdc_candidate_review",
@@ -94,13 +102,14 @@ def test_coverage_plan_uses_canonical_provider_hints_when_present():
 
     by_species = {action.species: action for action in plan.actions}
     assert by_species["Clostridium hintedum"].provider_keys == "kctc; dsmz; refseq"
+    assert by_species["Clostridium embeddedum"].provider_keys == "dsmz; kctc"
     assert by_species["Clostridium archiveum"].provider_keys == "ena; ddbj"
     summary = json.loads(plan.summary_json())
     assert summary["provider_key_counts"] == {
         "ddbj": 1,
-        "dsmz": 1,
+        "dsmz": 2,
         "ena": 1,
-        "kctc": 1,
+        "kctc": 2,
         "refseq": 1,
     }
 

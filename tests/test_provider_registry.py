@@ -116,6 +116,16 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
     assert registry.canonical_key("unregistered provider") is None
 
 
+def test_provider_registry_normalizes_provider_hint_fields_with_embedded_tokens():
+    registry = build_default_provider_registry()
+
+    assert registry.keys_from_hints(
+        "German Collection of Microorganisms and Cell Cultures (DSMZ); "
+        "Korean Collection for Type Cultures (KCTC); RefSeq"
+    ) == ("dsmz", "kctc", "refseq")
+    assert registry.keys_from_hints("new provider; DSMZ") == ("new provider", "dsmz")
+
+
 def test_unknown_provider_still_fails_closed():
     entry = build_default_provider_registry().get("new_provider")
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 import csv
 import io
 import json
-import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
@@ -216,15 +215,7 @@ def _provider_keys_from_row(row: Mapping[str, object]) -> str:
     if not raw_keys:
         return ""
     registry = build_default_provider_registry()
-    provider_keys: list[str] = []
-    for raw_key in re.split(r"[;,|]", raw_keys):
-        cleaned = raw_key.strip()
-        if not cleaned:
-            continue
-        canonical = registry.get(cleaned).provider_key
-        if canonical and canonical not in provider_keys:
-            provider_keys.append(canonical)
-    return "; ".join(provider_keys)
+    return "; ".join(registry.keys_from_hints(raw_keys))
 
 
 def _value(row: Mapping[str, object], *fields: str) -> str:

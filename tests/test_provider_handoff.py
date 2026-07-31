@@ -131,7 +131,9 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
 def test_build_provider_handoff_canonicalizes_provider_aliases():
     rows = _coverage_rows()
     rows[0]["provider_keys"] = "RefSeq; NCBI GenBank"
-    rows[1]["provider_keys"] = "DSMZ; BCCM-LMG; Korean Collection for Type Cultures"
+    rows[1]["provider_keys"] = (
+        "DSMZ; BCCM-LMG; Korean Collection for Type Cultures (KCTC)"
+    )
 
     handoff = build_provider_handoff(rows)
 

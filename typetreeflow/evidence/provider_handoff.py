@@ -195,7 +195,9 @@ def build_provider_handoff(
     provider_registry = registry or build_default_provider_registry()
     rows: list[ProviderHandoffRow] = []
     for plan_row in coverage_plan_rows:
-        provider_keys = _split_keys(_value(plan_row, "provider_keys"))
+        provider_keys = provider_registry.keys_from_hints(
+            _value(plan_row, "provider_keys")
+        )
         for provider_key in provider_keys:
             entry = provider_registry.get(provider_key)
             capability = entry.capability
@@ -229,10 +231,6 @@ def build_provider_handoff(
 
 def _sort_key(row: ProviderHandoffRow) -> tuple[str, str, str]:
     return (row.provider_key, row.species.casefold(), row.source_action_code)
-
-
-def _split_keys(value: str) -> tuple[str, ...]:
-    return tuple(part.strip() for part in value.split(";") if part.strip())
 
 
 def _provider_guidance_notes(entry) -> str:
