@@ -286,6 +286,9 @@ summaries also expose execution-gate counts for controller-level triage.
 `coverage_operator_route_summary` groups that same queue by route, preserving
 the first item and command target for each route so controllers can choose the
 next review surface without scanning every row.
+`coverage_controller_packet` combines queue routing, queue resume metadata,
+operator-chain readiness, and operator-chain resume metadata into one compact
+AI handoff with digest guards and no-execution safety fields.
 Queue rows also carry `operator_execution_gate` and `review_input_packet` so
 controllers can route required local inputs without first expanding a selected
 packet; the queue and priority summaries count review-input schemas for the
@@ -351,7 +354,9 @@ preview object also summarizes output contracts across the bounded prefix with
 next-input, command-plan status, decision, execution-gate status, blocking-item,
 and warning-item summaries so a controller can triage the queue without
 expanding every item first. Use `coverage_operator_route_summary` when the
-controller needs the same route-level view over the full queue. It includes
+controller needs the same route-level view over the full queue, or
+`coverage_controller_packet` when it needs one combined queue plus
+operator-chain routing object. It includes
 `queue_snapshot_sha256` and
 `preview_item_ids` so a controller can detect whether the queued metadata
 changed before resuming a previously inspected item. To resume a specific

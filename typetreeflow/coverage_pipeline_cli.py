@@ -840,6 +840,14 @@ def _run_status(
     coverage_operator_route_summary = _coverage_operator_route_summary(
         coverage_action_queue
     )
+    coverage_controller_packet = _coverage_controller_packet(
+        coverage_stage_readiness_summary,
+        operator_chain_resume_packet,
+        coverage_operator_route_summary,
+        coverage_queue_resume_packet,
+        operator_chain_snapshot_matches_expected=operator_chain_snapshot_matches,
+        queue_snapshot_matches_expected=snapshot_matches,
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -891,6 +899,7 @@ def _run_status(
         "coverage_queue_resume_packet": coverage_queue_resume_packet,
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_operator_route_summary": coverage_operator_route_summary,
+        "coverage_controller_packet": coverage_controller_packet,
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -1929,6 +1938,14 @@ def _payload(
     coverage_operator_route_summary = _coverage_operator_route_summary(
         coverage_action_queue
     )
+    coverage_controller_packet = _coverage_controller_packet(
+        coverage_stage_readiness_summary,
+        operator_chain_resume_packet,
+        coverage_operator_route_summary,
+        coverage_queue_resume_packet,
+        operator_chain_snapshot_matches_expected=operator_chain_snapshot_matches,
+        queue_snapshot_matches_expected=snapshot_matches,
+    )
     current_coverage_action_queue_item = dict(selected_queue_item or {})
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
@@ -1989,6 +2006,7 @@ def _payload(
         "coverage_queue_resume_packet": coverage_queue_resume_packet,
         "coverage_operator_queue_preview": coverage_operator_queue_preview,
         "coverage_operator_route_summary": coverage_operator_route_summary,
+        "coverage_controller_packet": coverage_controller_packet,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "selected_coverage_queue_item_id": str(queue_item_id or ""),
@@ -2905,6 +2923,105 @@ def _coverage_operator_route_summary(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_route_summary_no_execution",
+    }
+
+
+def _coverage_controller_packet(
+    stage_readiness_summary: Mapping[str, object],
+    operator_chain_resume_packet: Mapping[str, object],
+    operator_route_summary: Mapping[str, object],
+    coverage_queue_resume_packet: Mapping[str, object],
+    *,
+    operator_chain_snapshot_matches_expected: bool,
+    queue_snapshot_matches_expected: bool,
+) -> dict[str, object]:
+    queue_handoff_available = bool(coverage_queue_resume_packet.get("available"))
+    operator_chain_handoff_available = bool(
+        operator_chain_resume_packet.get("available")
+    )
+    decision_surfaces: list[str] = []
+    if queue_handoff_available:
+        decision_surfaces.append("coverage_action_queue")
+    if operator_chain_handoff_available:
+        decision_surfaces.append("operator_chain_stage")
+    return {
+        "schema_version": "coverage_controller_packet.v1",
+        "available": bool(decision_surfaces),
+        "decision_surface_count": len(decision_surfaces),
+        "decision_surfaces": decision_surfaces,
+        "coverage_queue_handoff_available": queue_handoff_available,
+        "coverage_queue_status": str(coverage_queue_resume_packet.get("status", "")),
+        "coverage_queue_item_count": _safe_int(
+            operator_route_summary.get("queue_item_count", 0)
+        ),
+        "coverage_queue_record_count": _safe_int(
+            operator_route_summary.get("record_count", 0)
+        ),
+        "coverage_queue_route_count": _safe_int(
+            operator_route_summary.get("route_count", 0)
+        ),
+        "coverage_queue_first_operator_route": str(
+            operator_route_summary.get("first_operator_route", "")
+        ),
+        "coverage_queue_first_queue_item_id": str(
+            operator_route_summary.get("first_queue_item_id", "")
+        ),
+        "coverage_queue_recommended_request_target": str(
+            coverage_queue_resume_packet.get("recommended_request_target", "")
+        ),
+        "coverage_queue_target_argv": list(
+            coverage_queue_resume_packet.get("target_argv", [])
+        )
+        if isinstance(coverage_queue_resume_packet.get("target_argv"), list)
+        else [],
+        "coverage_queue_snapshot_sha256": str(
+            coverage_queue_resume_packet.get("queue_snapshot_sha256", "")
+        ),
+        "coverage_queue_snapshot_matches_expected": queue_snapshot_matches_expected,
+        "operator_chain_handoff_available": operator_chain_handoff_available,
+        "operator_chain_status": str(operator_chain_resume_packet.get("status", "")),
+        "operator_chain_stage_count": _safe_int(
+            stage_readiness_summary.get("stage_count", 0)
+        ),
+        "operator_chain_completed_stage_count": _safe_int(
+            stage_readiness_summary.get("completed_stage_count", 0)
+        ),
+        "operator_chain_blocked_stage_count": _safe_int(
+            stage_readiness_summary.get("blocked_stage_count", 0)
+        ),
+        "operator_chain_complete": bool(
+            stage_readiness_summary.get("chain_complete")
+        ),
+        "operator_chain_next_stage": str(
+            operator_chain_resume_packet.get("stage", "")
+        ),
+        "operator_chain_recommended_request_target": str(
+            operator_chain_resume_packet.get("recommended_request_target", "")
+        ),
+        "operator_chain_target_argv": list(
+            operator_chain_resume_packet.get("target_argv", [])
+        )
+        if isinstance(operator_chain_resume_packet.get("target_argv"), list)
+        else [],
+        "operator_chain_snapshot_sha256": str(
+            operator_chain_resume_packet.get("operator_chain_snapshot_sha256", "")
+        ),
+        "operator_chain_snapshot_matches_expected": (
+            operator_chain_snapshot_matches_expected
+        ),
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": "operator_review_required",
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_controller_packet_no_execution",
     }
 
 
@@ -3893,6 +4010,30 @@ def _failure(code: str, message: str) -> dict[str, object]:
         ),
         "coverage_operator_queue_preview": _coverage_operator_queue_preview([]),
         "coverage_operator_route_summary": _coverage_operator_route_summary([]),
+        "coverage_controller_packet": _coverage_controller_packet(
+            _coverage_stage_readiness_summary(
+                [],
+                _empty_operator_chain_next_step_packet(
+                    operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
+                ),
+            ),
+            _operator_chain_resume_packet(
+                _empty_operator_chain_next_step_packet(
+                    operator_chain_snapshot_sha256=empty_operator_chain_snapshot_sha256
+                )
+            ),
+            _coverage_operator_route_summary([]),
+            _coverage_queue_resume_packet(
+                empty_packet,
+                empty_command_plan,
+                empty_recipe,
+                queue_snapshot_sha256=empty_queue_snapshot_sha256,
+                expected_queue_snapshot_sha256=None,
+                queue_snapshot_matches_expected=True,
+            ),
+            operator_chain_snapshot_matches_expected=True,
+            queue_snapshot_matches_expected=True,
+        ),
         "current_coverage_action_queue_item": {},
         "selected_coverage_queue_item_id": "",
         "selected_coverage_queue_item_found": False,
@@ -4122,6 +4263,7 @@ def _rendered_outputs(
             "coverage_next_task_packet",
             "coverage_next_command_plan",
             "coverage_next_operator_recipe",
+            "coverage_queue_resume_packet",
             "operator_chain_snapshot_sha256",
             "expected_operator_chain_snapshot_sha256",
             "operator_chain_snapshot_matches_expected",
@@ -4131,7 +4273,13 @@ def _rendered_outputs(
             "operator_chain_readiness_packets",
             "coverage_operator_queue_preview",
             "coverage_operator_route_summary",
+            "coverage_controller_packet",
             "current_coverage_action_queue_item",
+            "selected_coverage_queue_item_id",
+            "selected_coverage_queue_item_found",
+            "expected_queue_snapshot_sha256",
+            "current_queue_snapshot_sha256",
+            "queue_snapshot_matches_expected",
             "primary_next_action_group",
             "primary_action_required_inputs",
             "primary_action_recommended_request",
