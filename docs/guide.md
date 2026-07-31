@@ -317,7 +317,8 @@ candidate and controller blockers, and keeps
 `target_command_execution_authorized=false`.
 `coverage_parent_controller_packet` is the parent-agent envelope for this same
 surface. It selects the next recommended metadata surface, repeats the selected
-argv and required-review checklist, and keeps target execution, provider
+argv, provider/external handoff next step, server-validation status/runbook
+summary, and required-review checklist, and keeps target execution, provider
 contact, downloads, workflow-output writes, manifest mutation, registration,
 and strict deliverable promotion disabled.
 `coverage_controller_inspection_summary` is the compact surface index for

@@ -1949,8 +1949,9 @@ candidate and controller blockers, but it does not execute the target command
 or authorize execution after preflight.
 `coverage_parent_controller_packet` is the top-level parent-controller
 envelope. It repeats the controller status, step summary, first controller
-candidate, preflight argv, provider/external handoff next step, and the
-recommended surface to inspect next. It is metadata only:
+candidate, preflight argv, provider/external handoff next step, server
+validation status/runbook summary, and the recommended surface to inspect next.
+It is metadata only:
 `target_command_execution_authorized=false`,
 `safe_for_unattended_execution=false`, and provider contact, downloads,
 workflow-output writes, manifest mutation, external-genomes registration, and
