@@ -864,11 +864,16 @@ def _run_status(
     coverage_operator_route_summary = _coverage_operator_route_summary(
         coverage_action_queue
     )
+    coverage_route_next_batch_packet = _optional_summary_map(
+        coverage_summary,
+        "coverage_route_next_batch_packet",
+    )
     coverage_controller_packet = _coverage_controller_packet(
         coverage_stage_readiness_summary,
         operator_chain_resume_packet,
         coverage_operator_route_summary,
         coverage_queue_resume_packet,
+        coverage_route_next_batch_packet,
         operator_chain_snapshot_matches_expected=operator_chain_snapshot_matches,
         queue_snapshot_matches_expected=snapshot_matches,
     )
@@ -922,10 +927,7 @@ def _run_status(
             coverage_summary,
             "coverage_provider_route_opportunity_summary",
         ),
-        "coverage_route_next_batch_packet": _optional_summary_map(
-            coverage_summary,
-            "coverage_route_next_batch_packet",
-        ),
+        "coverage_route_next_batch_packet": coverage_route_next_batch_packet,
         "coverage_action_queue": _optional_summary_list(
             coverage_summary, "coverage_action_queue"
         ),
@@ -2116,6 +2118,7 @@ def _payload(
         operator_chain_resume_packet,
         coverage_operator_route_summary,
         coverage_queue_resume_packet,
+        coverage_route_next_batch_packet,
         operator_chain_snapshot_matches_expected=operator_chain_snapshot_matches,
         queue_snapshot_matches_expected=snapshot_matches,
     )
@@ -3740,6 +3743,7 @@ def _coverage_controller_packet(
     operator_chain_resume_packet: Mapping[str, object],
     operator_route_summary: Mapping[str, object],
     coverage_queue_resume_packet: Mapping[str, object],
+    coverage_route_next_batch_packet: Mapping[str, object] | None = None,
     *,
     operator_chain_snapshot_matches_expected: bool,
     queue_snapshot_matches_expected: bool,
@@ -3748,11 +3752,19 @@ def _coverage_controller_packet(
     operator_chain_handoff_available = bool(
         operator_chain_resume_packet.get("available")
     )
+    route_batch_packet = (
+        dict(coverage_route_next_batch_packet)
+        if isinstance(coverage_route_next_batch_packet, Mapping)
+        else {}
+    )
+    route_batch_handoff_available = bool(route_batch_packet.get("available"))
     decision_surfaces: list[str] = []
     if queue_handoff_available:
         decision_surfaces.append("coverage_action_queue")
     if operator_chain_handoff_available:
         decision_surfaces.append("operator_chain_stage")
+    if route_batch_handoff_available:
+        decision_surfaces.append("coverage_route_next_batch")
     controller_step_candidates: list[dict[str, object]] = []
     if queue_handoff_available:
         controller_step_candidates.append(
@@ -3878,6 +3890,67 @@ def _coverage_controller_packet(
                 ),
             }
         )
+    if route_batch_handoff_available:
+        controller_step_candidates.append(
+            {
+                "source": "coverage_route_next_batch",
+                "priority": 3,
+                "handoff_kind": "route_batch",
+                "status": str(route_batch_packet.get("batch_status", "")),
+                "batch_item_count": _safe_int(
+                    route_batch_packet.get("batch_item_count", 0)
+                ),
+                "batch_record_count": _safe_int(
+                    route_batch_packet.get("batch_record_count", 0)
+                ),
+                "provider_key": str(route_batch_packet.get("first_provider_key", "")),
+                "route_priority": str(
+                    route_batch_packet.get("first_route_priority", "")
+                ),
+                "recommended_operator_action": str(
+                    route_batch_packet.get("first_recommended_operator_action", "")
+                ),
+                "required_local_input": str(
+                    route_batch_packet.get("first_required_local_input", "")
+                ),
+                "route_context": _controller_route_context(
+                    operator_route=str(
+                        route_batch_packet.get("first_route_priority", "")
+                    ),
+                    provider_route_groups=[],
+                ),
+                "recommended_request_target": str(
+                    route_batch_packet.get("first_recommended_request_target", "")
+                ),
+                "target_argv": _string_list_field(
+                    route_batch_packet, "first_target_argv"
+                ),
+                "snapshot_sha256": "",
+                "snapshot_matches_expected": True,
+                "resume_selector": str(
+                    route_batch_packet.get("first_provider_key", "")
+                ),
+                "resume_expected_snapshot_sha256": "",
+                "preflight_decision": str(
+                    route_batch_packet.get("first_preflight_decision", "")
+                ),
+                "blocking_ids": _string_list_field(
+                    route_batch_packet, "first_blocking_ids"
+                ),
+                "warning_ids": _string_list_field(
+                    route_batch_packet, "first_warning_ids"
+                ),
+                "safe_for_unattended_execution": False,
+                "audit_only": True,
+                "dry_run": True,
+                "execution_boundary": str(
+                    route_batch_packet.get(
+                        "execution_boundary",
+                        "metadata_only_route_next_batch_no_execution",
+                    )
+                ),
+            }
+        )
     controller_blocking_ids: list[str] = []
     controller_warning_ids: list[str] = []
     for candidate in controller_step_candidates:
@@ -3938,6 +4011,19 @@ def _coverage_controller_packet(
                 "resume_selector": str(
                     operator_chain_resume_packet.get("resume_with_stage", "")
                 ),
+            }
+        )
+    if route_batch_handoff_available:
+        digest_guard_sources.append(
+            {
+                "source": "coverage_route_next_batch",
+                "snapshot_sha256": "",
+                "expected_snapshot_sha256": "",
+                "matches_expected": True,
+                "resume_selector": str(
+                    route_batch_packet.get("first_provider_key", "")
+                ),
+                "guard_type": "derived_coverage_summary_metadata",
             }
         )
     digest_mismatch_sources = [
@@ -4017,6 +4103,29 @@ def _coverage_controller_packet(
         )
         if controller_step_candidates
         else {},
+        "route_batch_handoff_available": route_batch_handoff_available,
+        "route_batch_status": str(route_batch_packet.get("batch_status", "")),
+        "route_batch_item_count": _safe_int(
+            route_batch_packet.get("batch_item_count", 0)
+        ),
+        "route_batch_record_count": _safe_int(
+            route_batch_packet.get("batch_record_count", 0)
+        ),
+        "route_batch_first_provider_key": str(
+            route_batch_packet.get("first_provider_key", "")
+        ),
+        "route_batch_first_route_priority": str(
+            route_batch_packet.get("first_route_priority", "")
+        ),
+        "route_batch_recommended_request_target": str(
+            route_batch_packet.get("first_recommended_request_target", "")
+        ),
+        "route_batch_target_argv": _string_list_field(
+            route_batch_packet, "first_target_argv"
+        ),
+        "route_batch_preflight_decision": str(
+            route_batch_packet.get("first_preflight_decision", "")
+        ),
         "coverage_queue_handoff_available": queue_handoff_available,
         "coverage_queue_status": str(coverage_queue_resume_packet.get("status", "")),
         "coverage_queue_item_count": _safe_int(
@@ -5223,6 +5332,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
                 expected_queue_snapshot_sha256=None,
                 queue_snapshot_matches_expected=True,
             ),
+            _coverage_route_next_batch_packet({}),
             operator_chain_snapshot_matches_expected=True,
             queue_snapshot_matches_expected=True,
         ),

@@ -561,10 +561,57 @@ def _assert_controller_packet(
             assert route_context["provider_route_group_count"] == len(
                 route_context["provider_route_groups"]
             )
+        if candidate["source"] == "coverage_route_next_batch":
+            assert route_context["operator_route"] == candidate["route_priority"]
+            assert route_context["provider_route_groups"] == []
         assert candidate["safe_for_unattended_execution"] is False
         assert candidate["audit_only"] is True
         assert candidate["dry_run"] is True
         assert candidate["execution_boundary"].startswith("metadata_only_")
+    route_batch_packet = payload["coverage_route_next_batch_packet"]
+    assert packet["route_batch_handoff_available"] is (
+        "coverage_route_next_batch" in decision_surfaces
+    )
+    assert packet["route_batch_status"] == (
+        route_batch_packet["batch_status"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else ""
+    )
+    assert packet["route_batch_item_count"] == (
+        route_batch_packet["batch_item_count"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else 0
+    )
+    assert packet["route_batch_record_count"] == (
+        route_batch_packet["batch_record_count"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else 0
+    )
+    assert packet["route_batch_first_provider_key"] == (
+        route_batch_packet["first_provider_key"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else ""
+    )
+    assert packet["route_batch_first_route_priority"] == (
+        route_batch_packet["first_route_priority"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else ""
+    )
+    assert packet["route_batch_recommended_request_target"] == (
+        route_batch_packet["first_recommended_request_target"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else ""
+    )
+    assert packet["route_batch_target_argv"] == (
+        route_batch_packet["first_target_argv"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else []
+    )
+    assert packet["route_batch_preflight_decision"] == (
+        route_batch_packet["first_preflight_decision"]
+        if "coverage_route_next_batch" in decision_surfaces
+        else ""
+    )
     assert packet["coverage_queue_handoff_available"] is (
         "coverage_action_queue" in decision_surfaces
     )
@@ -649,6 +696,64 @@ def _assert_controller_packet(
         ]["resume_with_queue_item_id"]
     else:
         assert queue_candidates == []
+    route_batch_candidates = [
+        candidate
+        for candidate in packet["controller_step_candidates"]
+        if candidate["source"] == "coverage_route_next_batch"
+    ]
+    if "coverage_route_next_batch" in decision_surfaces:
+        assert len(route_batch_candidates) == 1
+        assert route_batch_candidates[0]["priority"] == 3
+        assert route_batch_candidates[0]["handoff_kind"] == "route_batch"
+        assert route_batch_candidates[0]["status"] == route_batch_packet[
+            "batch_status"
+        ]
+        assert route_batch_candidates[0]["batch_item_count"] == route_batch_packet[
+            "batch_item_count"
+        ]
+        assert route_batch_candidates[0]["batch_record_count"] == route_batch_packet[
+            "batch_record_count"
+        ]
+        assert route_batch_candidates[0]["provider_key"] == route_batch_packet[
+            "first_provider_key"
+        ]
+        assert route_batch_candidates[0]["route_priority"] == route_batch_packet[
+            "first_route_priority"
+        ]
+        assert route_batch_candidates[0]["recommended_request_target"] == (
+            route_batch_packet["first_recommended_request_target"]
+        )
+        assert route_batch_candidates[0]["target_argv"] == route_batch_packet[
+            "first_target_argv"
+        ]
+        assert route_batch_candidates[0]["snapshot_matches_expected"] is True
+        assert route_batch_candidates[0]["resume_selector"] == route_batch_packet[
+            "first_provider_key"
+        ]
+        assert route_batch_candidates[0]["preflight_decision"] == route_batch_packet[
+            "first_preflight_decision"
+        ]
+        assert route_batch_candidates[0]["blocking_ids"] == route_batch_packet[
+            "first_blocking_ids"
+        ]
+        assert route_batch_candidates[0]["warning_ids"] == route_batch_packet[
+            "first_warning_ids"
+        ]
+        route_batch_digest_sources = [
+            source
+            for source in digest_guard["sources"]
+            if source["source"] == "coverage_route_next_batch"
+        ]
+        assert len(route_batch_digest_sources) == 1
+        assert route_batch_digest_sources[0]["matches_expected"] is True
+        assert route_batch_digest_sources[0]["resume_selector"] == route_batch_packet[
+            "first_provider_key"
+        ]
+        assert route_batch_digest_sources[0]["guard_type"] == (
+            "derived_coverage_summary_metadata"
+        )
+    else:
+        assert route_batch_candidates == []
     assert packet["operator_chain_handoff_available"] is (
         "operator_chain_stage" in decision_surfaces
     )
@@ -2031,7 +2136,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     )
     _assert_controller_packet(
         payload,
-        decision_surfaces=["coverage_action_queue", "operator_chain_stage"],
+        decision_surfaces=[
+            "coverage_action_queue",
+            "operator_chain_stage",
+            "coverage_route_next_batch",
+        ],
         queue_status="ready_for_operator_review",
         operator_chain_status="blocked",
         operator_chain_complete=False,
@@ -3284,7 +3393,11 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     )
     _assert_controller_packet(
         summary,
-        decision_surfaces=["coverage_action_queue", "operator_chain_stage"],
+        decision_surfaces=[
+            "coverage_action_queue",
+            "operator_chain_stage",
+            "coverage_route_next_batch",
+        ],
         queue_status="ready_for_operator_review",
         operator_chain_status="blocked",
         operator_chain_complete=False,
@@ -4177,7 +4290,10 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     )
     _assert_controller_packet(
         payload,
-        decision_surfaces=["coverage_action_queue"],
+        decision_surfaces=[
+            "coverage_action_queue",
+            "coverage_route_next_batch",
+        ],
         queue_status="ready_for_operator_review",
         operator_chain_status="no_action",
         operator_chain_complete=True,
