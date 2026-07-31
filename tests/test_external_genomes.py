@@ -421,6 +421,49 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
     assert plan["downloads_triggered"] == 0
     assert plan["providers_contacted"] == 0
     assert plan["manifest_mutated"] is False
+    assert payload["install_plan_recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": path.as_posix(),
+        "target_outdir": "<run>",
+        "write": True,
+        "outdir": "<isolated-install-plan-directory>",
+    }
+    assert (
+        payload["install_plan_recommended_request_target"]
+        == "external-genomes install-plan"
+    )
+    assert payload["install_plan_recommended_next_command"] == (
+        "typetreeflow external-genomes install-plan "
+        f"--input {path.as_posix()} --target-outdir <run> "
+        "--write --outdir <isolated-install-plan-directory>"
+    )
+    install_plan = payload["install_plan_recommended_command_plan"]
+    assert install_plan["schema_version"] == "recommended_command_plan.v1"
+    assert install_plan["request_source"] == (
+        "external_genomes_validate.install_plan_recommended_request"
+    )
+    assert install_plan["recommended_request_target"] == (
+        "external-genomes install-plan"
+    )
+    assert install_plan["decision"] == "block"
+    assert install_plan["target_argv"] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        path.as_posix(),
+        "--target-outdir",
+        "<run>",
+        "--write",
+        "--outdir",
+        "<isolated-install-plan-directory>",
+    ]
+    assert [item["id"] for item in install_plan["blocking"]] == [
+        "write_not_allowed"
+    ]
+    assert install_plan["downloads_triggered"] == 0
+    assert install_plan["providers_contacted"] == 0
+    assert install_plan["manifest_mutated"] is False
 
 
 def test_external_genomes_install_plan_emits_registration_readiness_packet(

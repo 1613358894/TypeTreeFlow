@@ -1355,10 +1355,14 @@ metadata-only handoff that says whether the packet is ready for the next local
 stage and, when ready, carries the structured next request, compact
 `recommended_request_target`, and renderable `recommended_next_command`.
 `validate` uses the explicit `--input` path in its install-plan recommendation;
-blocked packets leave those next-step fields empty. It also carries
-`provider_route_groups` when reviewed notes include controlled route metadata.
-It always keeps `safe_for_unattended_execution=false`; an AI/operator must still
-review the packet before invoking the next CLI command.
+blocked packets leave those next-step fields empty. Successful validate payloads
+also expose an `install_plan_recommended_command_plan` for the optional
+`external-genomes install-plan --write --outdir <isolated-directory>` audit
+triplet; that write-oriented plan remains blocked until writes are explicitly
+allowed. It also carries `provider_route_groups` when reviewed notes include
+controlled route metadata. It always keeps `safe_for_unattended_execution=false`;
+an AI/operator must still review the packet before invoking the next CLI
+command.
 When `register-external-genomes --dry-run` passes without invalid rows, its JSON
 also carries a structured non-dry-run `recommended_request` plus compact
 `recommended_request_target` and renderable `recommended_next_command`; warning,
