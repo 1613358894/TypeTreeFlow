@@ -2500,6 +2500,84 @@ def test_coverage_pipeline_server_validation_result_validate_blocks_missing_inpu
     assert payload["diagnostics"][0]["diagnostic_code"] == "artifact_unreadable"
 
 
+def test_coverage_pipeline_server_validation_result_handoff_renders_and_validates(
+    capsys, monkeypatch, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+
+    code, preview_payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    template_packet = preview_payload[
+        "coverage_handoff_server_validation_result_template_packet"
+    ]
+    request = template_packet["result_validation_recommended_request"]
+    assert request == {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result validate",
+        "input": "coverage_handoff_server_validation_result.json",
+        "json": True,
+    }
+    result = dict(template_packet["result_template"])
+    result["status"] = "pass"
+    result["summary"] = "Bounded server validation completed without execution."
+    _write_server_validation_result(tmp_path / str(request["input"]), result)
+
+    monkeypatch.chdir(tmp_path)
+    assert (
+        cli.main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(request),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == template_packet[
+        "result_validation_recommended_argv"
+    ]
+    assert render_payload["recognized"]["command"] == "coverage-pipeline"
+    assert (
+        render_payload["recognized"]["subcommand"]
+        == "server-validation-result validate"
+    )
+
+    assert cli.main(render_payload["target_argv"]) == 0
+    validation_payload = json.loads(capsys.readouterr().out)
+    assert validation_payload["status"] == "pass"
+    assert validation_payload["command"] == (
+        "coverage-pipeline server-validation-result validate"
+    )
+    assert validation_payload["result_schema_version"] == (
+        "coverage_handoff_server_validation_result.v1"
+    )
+    assert validation_payload["boundary_confirmation_status"] == "pass"
+    assert validation_payload["downloads_triggered"] == 0
+    assert validation_payload["providers_contacted"] == 0
+    assert validation_payload["network_access"] is False
+    assert validation_payload["external_tools"] is False
+    assert validation_payload["manifest_mutated"] is False
+    assert validation_payload["strict_scientific_deliverable"] is False
+    assert validation_payload["external_genomes_registration_applied"] is False
+
+
 def _write_inputs(tmp_path):
     checklist = tmp_path / "checklist.tsv"
     reconciler = tmp_path / "reconciler_audit.tsv"
