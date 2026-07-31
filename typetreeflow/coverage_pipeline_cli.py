@@ -725,6 +725,9 @@ def _run_status(args: argparse.Namespace, output: TextIO) -> int:
         "coverage_action_queue": _optional_summary_list(
             coverage_summary, "coverage_action_queue"
         ),
+        "coverage_priority_summary": _optional_summary_map(
+            coverage_summary, "coverage_priority_summary"
+        ),
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -1170,6 +1173,7 @@ def _payload(
     coverage_action_queue_summary = _coverage_action_queue_summary(
         coverage_action_queue
     )
+    coverage_priority_summary = _coverage_priority_summary(coverage_action_queue)
     current_coverage_action_queue_item = (
         dict(coverage_action_queue[0]) if coverage_action_queue else {}
     )
@@ -1219,6 +1223,7 @@ def _payload(
         "coverage_next_action_groups": coverage_next_action_groups,
         "coverage_opportunity_summary": coverage_opportunity_summary,
         "coverage_action_queue": coverage_action_queue,
+        "coverage_priority_summary": coverage_priority_summary,
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "primary_next_action_group": primary_next_action_group,
@@ -1757,6 +1762,82 @@ def _coverage_action_queue_summary(
     }
 
 
+def _coverage_priority_summary(
+    coverage_action_queue: list[dict[str, object]],
+) -> dict[str, object]:
+    record_counts_by_route: dict[str, int] = {}
+    record_counts_by_input: dict[str, int] = {}
+    provider_automation_record_counts: dict[str, int] = {}
+    actionable_record_count = 0
+    safe_for_unattended_download_count = 0
+    top_items: list[dict[str, object]] = []
+    for item in coverage_action_queue:
+        record_count = _safe_int(item.get("record_count", 0))
+        actionable_record_count += record_count
+        route = str(item.get("operator_route", ""))
+        input_class = str(item.get("next_input_class", ""))
+        if route:
+            record_counts_by_route[route] = (
+                record_counts_by_route.get(route, 0) + record_count
+            )
+        if input_class:
+            record_counts_by_input[input_class] = (
+                record_counts_by_input.get(input_class, 0) + record_count
+            )
+        raw_automation_counts = item.get("provider_automation_level_counts")
+        if isinstance(raw_automation_counts, Mapping):
+            for key, value in raw_automation_counts.items():
+                automation_level = str(key)
+                if automation_level:
+                    provider_automation_record_counts[automation_level] = (
+                        provider_automation_record_counts.get(automation_level, 0)
+                        + _safe_int(value)
+                    )
+        if item.get("safe_for_unattended_download"):
+            safe_for_unattended_download_count += record_count
+        if len(top_items) < 3:
+            raw_recommended_request = item.get("recommended_request")
+            recommended_request = (
+                dict(raw_recommended_request)
+                if isinstance(raw_recommended_request, Mapping)
+                else None
+            )
+            top_items.append(
+                {
+                    "queue_position": _safe_int(item.get("queue_position", 0)),
+                    "action_code": str(item.get("action_code", "")),
+                    "operator_route": route,
+                    "next_input_class": input_class,
+                    "automation_boundary": str(
+                        item.get("automation_boundary", "")
+                    ),
+                    "record_count": record_count,
+                    "recommended_next_command": str(
+                        item.get("recommended_next_command", "")
+                    ),
+                    "recommended_request": recommended_request,
+                }
+            )
+    top_item = dict(top_items[0]) if top_items else {}
+    return {
+        "queue_item_count": len(coverage_action_queue),
+        "actionable_record_count": actionable_record_count,
+        "top_queue_items": top_items,
+        "top_action_code": top_item.get("action_code", ""),
+        "top_operator_route": top_item.get("operator_route", ""),
+        "top_next_input_class": top_item.get("next_input_class", ""),
+        "record_counts_by_operator_route": dict(sorted(record_counts_by_route.items())),
+        "record_counts_by_next_input_class": dict(sorted(record_counts_by_input.items())),
+        "provider_automation_level_record_counts": dict(
+            sorted(provider_automation_record_counts.items())
+        ),
+        "safe_for_unattended_download_record_count": (
+            safe_for_unattended_download_count
+        ),
+        "automation_boundary": "prioritization_only_no_execution",
+    }
+
+
 def _coverage_action_recommended_request(
     action_code: str,
 ) -> dict[str, object] | None:
@@ -1794,6 +1875,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
             "external_registration_review_required_count": 0,
             "safe_for_unattended_download_count": 0,
         },
+        "coverage_priority_summary": _coverage_priority_summary([]),
         "current_coverage_action_queue_item": {},
         "primary_next_action_group": None,
         "primary_action_required_inputs": [],
@@ -1927,6 +2009,7 @@ def _rendered_outputs(
             "coverage_opportunity_summary",
             "coverage_action_queue",
             "coverage_action_queue_summary",
+            "coverage_priority_summary",
             "current_coverage_action_queue_item",
             "primary_next_action_group",
             "primary_action_required_inputs",

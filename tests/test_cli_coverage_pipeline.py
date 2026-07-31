@@ -395,6 +395,74 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "external_registration_review_required_count": 0,
         "safe_for_unattended_download_count": 0,
     }
+    assert payload["coverage_priority_summary"] == {
+        "queue_item_count": 4,
+        "actionable_record_count": 4,
+        "top_queue_items": [
+            {
+                "queue_position": 1,
+                "action_code": "resolve_curator_conflict",
+                "operator_route": "curator_decision",
+                "next_input_class": "curator_conflict_decision",
+                "automation_boundary": "manual_review_required",
+                "record_count": 1,
+                "recommended_next_command": "manual-review validate --input <review.tsv>",
+                "recommended_request": {
+                    "command": "manual-review",
+                    "subcommand": "validate",
+                    "input": "<review.tsv>",
+                },
+            },
+            {
+                "queue_position": 2,
+                "action_code": "review_public_archive_linkage",
+                "operator_route": "public_metadata_review",
+                "next_input_class": "public_accession_type_strain_linkage",
+                "automation_boundary": "metadata_review_only_no_download",
+                "record_count": 1,
+                "recommended_next_command": "manual-review validate --input <review.tsv>",
+                "recommended_request": {
+                    "command": "manual-review",
+                    "subcommand": "validate",
+                    "input": "<review.tsv>",
+                },
+            },
+            {
+                "queue_position": 3,
+                "action_code": "review_public_type_linkage",
+                "operator_route": "public_metadata_review",
+                "next_input_class": "biosample_accession_type_strain_linkage",
+                "automation_boundary": "metadata_review_only_no_download",
+                "record_count": 1,
+                "recommended_next_command": "manual-review validate --input <review.tsv>",
+                "recommended_request": {
+                    "command": "manual-review",
+                    "subcommand": "validate",
+                    "input": "<review.tsv>",
+                },
+            },
+        ],
+        "top_action_code": "resolve_curator_conflict",
+        "top_operator_route": "curator_decision",
+        "top_next_input_class": "curator_conflict_decision",
+        "record_counts_by_operator_route": {
+            "curator_decision": 1,
+            "provider_handoff": 1,
+            "public_metadata_review": 2,
+        },
+        "record_counts_by_next_input_class": {
+            "biosample_accession_type_strain_linkage": 1,
+            "curator_conflict_decision": 1,
+            "permitted_local_fasta_terms_provenance": 1,
+            "public_accession_type_strain_linkage": 1,
+        },
+        "provider_automation_level_record_counts": {
+            "metadata_review": 6,
+            "planning_handoff": 2,
+        },
+        "safe_for_unattended_download_record_count": 0,
+        "automation_boundary": "prioritization_only_no_execution",
+    }
     assert payload["current_coverage_action_queue_item"]["action_code"] == (
         "resolve_curator_conflict"
     )
@@ -1191,6 +1259,16 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         status_payload["operator_chain_stages"][6]["summary_install_planned_count"]
         == 1
     )
+    assert status_payload["coverage_priority_summary"]["top_action_code"] == (
+        "resolve_curator_conflict"
+    )
+    assert status_payload["coverage_priority_summary"][
+        "record_counts_by_operator_route"
+    ] == {
+        "curator_decision": 1,
+        "provider_handoff": 1,
+        "public_metadata_review": 2,
+    }
     assert status_payload["operator_chain_stages"][6]["summary_operator_route_counts"] == {
         "provider_handoff": 1
     }
