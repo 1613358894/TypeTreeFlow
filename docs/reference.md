@@ -1885,7 +1885,10 @@ a one-based `queue_position`, deterministic `queue_item_id`, bounded route boole
 `requires_curator_input`, `requires_public_metadata_review`,
 `requires_provider_handoff`, and `requires_external_registration_review`, plus
 `safe_for_unattended_download=false`, `operator_execution_gate`, and
-`review_input_packet` on every row. The queue is for
+`review_input_packet` on every row. The selected packet, operator recipe, queue
+resume packet, preview items, and controller queue candidates also expose
+`next_input_package`, a compact metadata-only summary of the next input schema,
+artifact, field/status counts, route, and recommended request target. The queue is for
 AI/operator prioritization only; it does not grant unattended download or
 provider access. `coverage_action_queue_summary` reports bounded queue counts
 by `operator_route`, `next_input_class`, execution-gate status, and review-input
@@ -1904,7 +1907,9 @@ resume packet, operator-chain stage readiness summary, and operator-chain resume
 packet into one compact controller handoff. It reports which decision surfaces
 are available, the first queue route and item, queue and operator-chain digest
 guards, current command targets, per-candidate `route_context`, and explicit
-no-execution safety fields.
+no-execution safety fields. Queue candidates repeat `next_input_package` so a
+controller can choose the next local input surface without expanding the full
+review-input field list.
 `queue_item_id` is derived from the current queue position and action code so
 controllers can trace the same item across packet, recipe, preview, and status
 payloads without inventing their own keys.

@@ -104,6 +104,27 @@ def _expected_manual_review_input_packet(
     }
 
 
+def _expected_next_input_package(review_input_packet, *, recommended_request_target):
+    return {
+        "schema_version": "coverage_next_input_package.v1",
+        "available": bool(review_input_packet["available"]),
+        "action_code": review_input_packet["action_code"],
+        "operator_route": review_input_packet["operator_route"],
+        "next_input_class": review_input_packet["next_input_class"],
+        "record_count": review_input_packet["record_count"],
+        "input_schema": review_input_packet["input_schema"],
+        "input_artifact": review_input_packet["input_artifact"],
+        "required_field_count": len(review_input_packet["required_fields"]),
+        "allowed_status_count": len(review_input_packet["allowed_statuses"]),
+        "evidence_focus": review_input_packet["evidence_focus"],
+        "recommended_request_target": recommended_request_target,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "execution_boundary": "metadata_only_next_input_package_no_execution",
+    }
+
+
 def _assert_stage_command_plan(
     payload,
     key,
@@ -588,6 +609,12 @@ def _assert_controller_packet(
         assert queue_candidates[0]["target_argv"] == payload[
             "coverage_queue_resume_packet"
         ]["target_argv"]
+        assert queue_candidates[0]["next_input_package"] == payload[
+            "coverage_queue_resume_packet"
+        ]["next_input_package"]
+        assert queue_candidates[0]["next_input_package"][
+            "recommended_request_target"
+        ] == queue_candidates[0]["recommended_request_target"]
         assert queue_candidates[0]["snapshot_sha256"] == payload[
             "coverage_queue_resume_packet"
         ]["queue_snapshot_sha256"]
@@ -1351,7 +1378,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "safe_for_unattended_download_record_count": 0,
         "automation_boundary": "prioritization_only_no_execution",
     }
-    assert payload["coverage_next_task_packet"] == {
+    next_task_packet = dict(payload["coverage_next_task_packet"])
+    assert next_task_packet.pop("next_input_package") == _expected_next_input_package(
+        payload["coverage_next_task_packet"]["review_input_packet"],
+        recommended_request_target="manual-review validate",
+    )
+    assert next_task_packet == {
         "available": True,
         "packet_status": "ready_for_operator_review",
         "queue_position": 1,
@@ -4621,7 +4653,12 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         decision="block",
         blocking_ids=("write_not_allowed",),
     )
-    assert payload["coverage_next_task_packet"] == {
+    next_task_packet = dict(payload["coverage_next_task_packet"])
+    assert next_task_packet.pop("next_input_package") == _expected_next_input_package(
+        payload["coverage_next_task_packet"]["review_input_packet"],
+        recommended_request_target="",
+    )
+    assert next_task_packet == {
         "available": False,
         "packet_status": "no_action",
         "queue_position": 0,
@@ -4704,7 +4741,14 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_command_plan_no_dispatch_no_execution",
     }
-    assert payload["coverage_next_operator_recipe"] == {
+    next_operator_recipe = dict(payload["coverage_next_operator_recipe"])
+    assert next_operator_recipe.pop(
+        "next_input_package"
+    ) == _expected_next_input_package(
+        payload["coverage_next_operator_recipe"]["review_input_packet"],
+        recommended_request_target="",
+    )
+    assert next_operator_recipe == {
         "schema_version": "coverage_next_operator_recipe.v1",
         "available": False,
         "status": "no_action",
@@ -4772,7 +4816,12 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_recipe_no_execution",
     }
-    assert payload["coverage_queue_resume_packet"] == {
+    queue_resume_packet = dict(payload["coverage_queue_resume_packet"])
+    assert queue_resume_packet.pop("next_input_package") == _expected_next_input_package(
+        payload["coverage_queue_resume_packet"]["review_input_packet"],
+        recommended_request_target="",
+    )
+    assert queue_resume_packet == {
         "schema_version": "coverage_queue_resume_packet.v1",
         "available": False,
         "status": "no_action",
