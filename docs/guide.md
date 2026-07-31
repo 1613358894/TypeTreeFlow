@@ -323,8 +323,9 @@ route label.
 view for controllers that need only readiness counts, available/unavailable
 stage names, the first unavailable stage, the next command target, and
 blocker/warning IDs. Its nested `stage_blocker_summary` lists each unavailable
-stage, required local inputs, and the recommended request target so parent
-controllers can queue missing handoff work without re-parsing every stage row.
+stage, required local inputs, the recommended request target, and the matching
+command-plan key plus argv preview so parent controllers can queue missing
+handoff work without re-parsing every stage row.
 It is metadata only and does not authorize execution, provider contact,
 downloads, workflow writes, manifest mutation, or strict deliverable promotion.
 It also carries

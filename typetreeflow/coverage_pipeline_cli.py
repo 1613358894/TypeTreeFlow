@@ -1221,9 +1221,25 @@ def _coverage_stage_readiness_summary(
     for stage in stages:
         if stage.get("available"):
             continue
+        stage_name = str(stage.get("stage", ""))
+        command_plan_key = _COVERAGE_STAGE_COMMAND_PLAN_KEY_BY_STAGE.get(
+            stage_name,
+            "",
+        )
+        recommended_command_plan = (
+            _coverage_stage_command_plan(
+                stage_name,
+                _COVERAGE_STAGE_COMMAND_PLAN_REQUEST_SOURCE_BY_STAGE.get(
+                    stage_name,
+                    f"{stage_name}_recommended_request",
+                ),
+            )
+            if command_plan_key
+            else {}
+        )
         blocked_stage_details.append(
             {
-                "stage": str(stage.get("stage", "")),
+                "stage": stage_name,
                 "artifact": str(stage.get("artifact", "")),
                 "required_inputs": _string_list_field(stage, "required_inputs"),
                 "recommended_request_target": str(
@@ -1231,6 +1247,15 @@ def _coverage_stage_readiness_summary(
                 ),
                 "recommended_next_command": str(
                     stage.get("recommended_next_command", "")
+                ),
+                "recommended_command_plan_key": command_plan_key,
+                "recommended_command_plan_available": bool(recommended_command_plan),
+                "recommended_command_plan_decision": str(
+                    recommended_command_plan.get("decision", "")
+                ),
+                "recommended_command_plan_target_argv": _string_list_field(
+                    recommended_command_plan,
+                    "target_argv",
                 ),
                 "boundary": str(stage.get("boundary", "")),
             }
@@ -1249,6 +1274,17 @@ def _coverage_stage_readiness_summary(
         "first_blocked_recommended_request_target": str(
             first_blocked_stage.get("recommended_request_target", "")
         ),
+        "first_blocked_recommended_command_plan_key": str(
+            first_blocked_stage.get("recommended_command_plan_key", "")
+        ),
+        "first_blocked_recommended_command_plan_target_argv": list(
+            first_blocked_stage.get("recommended_command_plan_target_argv", [])
+        )
+        if isinstance(
+            first_blocked_stage.get("recommended_command_plan_target_argv"),
+            list,
+        )
+        else [],
         "blocked_stage_details": blocked_stage_details,
         "safe_for_unattended_execution": False,
         "audit_only": True,
@@ -1700,6 +1736,15 @@ _COVERAGE_STAGE_COMMAND_PLAN_SOURCES: tuple[tuple[str, str, str], ...] = (
         "provider_request_external_genomes_handoff_recommended_request",
     ),
 )
+
+_COVERAGE_STAGE_COMMAND_PLAN_KEY_BY_STAGE: dict[str, str] = {
+    stage_name: key
+    for key, stage_name, _request_source in _COVERAGE_STAGE_COMMAND_PLAN_SOURCES
+}
+_COVERAGE_STAGE_COMMAND_PLAN_REQUEST_SOURCE_BY_STAGE: dict[str, str] = {
+    stage_name: request_source
+    for _key, stage_name, request_source in _COVERAGE_STAGE_COMMAND_PLAN_SOURCES
+}
 
 
 _COVERAGE_ACTION_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
