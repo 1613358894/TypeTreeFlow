@@ -498,12 +498,17 @@ that next missing provider/external stage. It carries the next stage, artifact,
 required inputs, structured request, rendered argv, preflight decision, and
 blocker or warning IDs while keeping provider contact, downloads, registration,
 FASTA copying, manifest mutation, and strict promotion disabled.
+`coverage_handoff_input_readiness_packet` classifies the next stage's required
+inputs as pipeline artifacts, operator-supplied context, curator/local evidence,
+or workflow target outdir placeholders without reading the filesystem. Use it
+to decide whether a bounded local validation can proceed or operator input is
+still missing.
 `coverage_handoff_runbook_packet` turns that provider/external next-step into
 an ordered metadata-only checklist for parent agents. It tells the parent to
-inspect handoff readiness, inspect the next-step packet, then run only a
-`commands plan` or `commands preflight` metadata gate. It stops before any
-provider contact, download, registration, FASTA copy, manifest mutation, or
-strict promotion.
+inspect handoff readiness, inspect input readiness, inspect the next-step
+packet, then run only a `commands plan` or `commands preflight` metadata gate.
+It stops before any provider contact, download, registration, FASTA copy,
+manifest mutation, or strict promotion.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
