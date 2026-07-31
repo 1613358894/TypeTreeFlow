@@ -280,8 +280,8 @@ action group without treating the preview as a replacement for the source TSVs.
 It also carries
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` so an AI/operator can see the current local
-input requirement, rendered argv, preflight decision, and review-only recipe
-without executing the target command.
+input requirement, rendered argv, preflight decision, output contracts, and
+review-only recipe without executing the target command.
 The selected task packet also carries `review_input_packet`, which names the
 local review schema and required TSV fields for the queued action. For public
 archive linkage actions this points to the manual-review TSV contract and the

@@ -1873,6 +1873,9 @@ can pass the request through `commands render`, `commands plan`, or
 `commands preflight` before any local operator action. It is metadata only and
 always reports `safe_for_unattended_download=false`. Unknown queue item IDs are
 refused with `diagnostic_code=queue_item_id_not_found` and exit code `2`.
+`coverage_next_command_plan` and `coverage_next_operator_recipe` echo the
+planned target command's `output_contracts` so controllers can route readiness
+or handoff packets without a separate catalog lookup.
 The packet also includes `review_input_packet`, a bounded local-input handoff
 for the selected action. For manual-review actions it names the
 `manual_review.v1` schema, required manual-review TSV fields, allowed

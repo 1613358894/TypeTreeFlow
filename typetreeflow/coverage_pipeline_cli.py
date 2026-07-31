@@ -2523,6 +2523,7 @@ def _coverage_next_command_plan(
             "recommended_request": None,
             "target_argv": [],
             "recognized": {},
+            "output_contracts": [],
             "preflight_decision": "none",
             "blocking": [],
             "warnings": [],
@@ -2553,6 +2554,7 @@ def _coverage_next_command_plan(
             "recommended_request": dict(raw_request),
             "target_argv": [],
             "recognized": {},
+            "output_contracts": [],
             "preflight_decision": "block",
             "blocking": [
                 {
@@ -2585,6 +2587,9 @@ def _coverage_next_command_plan(
         "recommended_request": dict(raw_request),
         "target_argv": list(plan["target_argv"]),
         "recognized": dict(plan["recognized"]),
+        "output_contracts": [
+            dict(contract) for contract in plan.get("output_contracts", [])
+        ],
         "preflight_decision": plan["preflight"]["decision"],
         "blocking": list(plan["blocking"]),
         "warnings": list(plan["warnings"]),
@@ -2616,6 +2621,12 @@ def _coverage_next_operator_recipe(
     target_argv = (
         [str(value) for value in raw_target_argv if str(value)]
         if isinstance(raw_target_argv, list)
+        else []
+    )
+    raw_output_contracts = command_plan.get("output_contracts", [])
+    output_contracts = (
+        [dict(contract) for contract in raw_output_contracts if isinstance(contract, Mapping)]
+        if isinstance(raw_output_contracts, list)
         else []
     )
     available = bool(packet.get("available")) and bool(command_plan.get("available"))
@@ -2674,6 +2685,7 @@ def _coverage_next_operator_recipe(
         "required_inputs": required_inputs,
         "command_plan_decision": decision,
         "target_argv": target_argv,
+        "output_contracts": output_contracts,
         "step_count": len(steps),
         "steps": steps,
         "blocking": list(command_plan.get("blocking", []))

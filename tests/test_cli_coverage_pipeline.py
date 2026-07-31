@@ -5,6 +5,10 @@ import socket
 import subprocess
 
 from typetreeflow import cli
+from typetreeflow.coverage_pipeline_cli import (
+    _coverage_next_command_plan,
+    _coverage_next_operator_recipe,
+)
 from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
     ARCHIVE_CANDIDATE_FIELDS,
@@ -31,6 +35,40 @@ def _write_tsv(path, fields, rows):
         writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def test_coverage_command_plan_and_recipe_copy_output_contracts():
+    packet = {
+        "available": True,
+        "queue_position": 1,
+        "queue_item_id": "cq001_validate_provider_request",
+        "action_code": "validate_provider_request",
+        "operator_route": "provider_handoff",
+        "next_input_class": "provider_request_validation",
+        "record_count": 1,
+        "species_count": 1,
+        "recommended_request": {
+            "command": "provider-request",
+            "subcommand": "validate",
+            "input": "provider_request.tsv",
+        },
+    }
+
+    plan = _coverage_next_command_plan(packet)
+    recipe = _coverage_next_operator_recipe(packet, plan)
+
+    assert plan["decision"] == "allow"
+    assert plan["output_contracts"] == [
+        {
+            "name": "provider_request_readiness_packet",
+            "schema_version": "provider_request_readiness_packet.v1",
+            "purpose": "provider-request validation readiness handoff",
+        }
+    ]
+    assert recipe["output_contracts"] == plan["output_contracts"]
+    assert recipe["downloads_triggered"] == 0
+    assert recipe["providers_contacted"] == 0
+    assert recipe["manifest_mutated"] is False
 
 
 def _read_tsv(path):
@@ -575,6 +613,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "<review.tsv>",
     ]
     assert payload["coverage_next_command_plan"]["preflight_decision"] == "allow"
+    assert payload["coverage_next_command_plan"]["output_contracts"] == []
     assert payload["coverage_next_command_plan"]["downloads_triggered"] == 0
     assert payload["coverage_next_command_plan"]["providers_contacted"] == 0
     assert payload["coverage_next_command_plan"]["manifest_mutated"] is False
@@ -595,6 +634,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "--input",
         "<review.tsv>",
     ]
+    assert payload["coverage_next_operator_recipe"]["output_contracts"] == []
     assert payload["coverage_next_operator_recipe"]["safe_for_unattended_execution"] is False
     assert payload["coverage_next_operator_recipe"]["step_count"] == 3
     assert [step["action"] for step in payload["coverage_next_operator_recipe"]["steps"]] == [
@@ -2484,6 +2524,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     ]
     assert payload["coverage_next_command_plan"]["writes_outputs"] is False
     assert payload["coverage_next_command_plan"]["writes_workflow_outputs"] is False
+    assert payload["coverage_next_command_plan"]["output_contracts"] == []
     assert payload["coverage_next_operator_recipe"]["status"] == (
         "ready_for_operator_review"
     )
@@ -2493,6 +2534,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "--input",
         "<review.tsv>",
     ]
+    assert payload["coverage_next_operator_recipe"]["output_contracts"] == []
     assert payload["coverage_next_operator_recipe"]["downloads_triggered"] == 0
     assert payload["coverage_next_operator_recipe"]["providers_contacted"] == 0
     assert payload["coverage_operator_queue_preview"]["preview_item_count"] == 3
@@ -3002,6 +3044,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "recommended_request": None,
         "target_argv": [],
         "recognized": {},
+        "output_contracts": [],
         "preflight_decision": "none",
         "blocking": [],
         "warnings": [],
@@ -3033,6 +3076,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "required_inputs": [],
         "command_plan_decision": "none",
         "target_argv": [],
+        "output_contracts": [],
         "step_count": 0,
         "steps": [],
         "blocking": [],
