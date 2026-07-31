@@ -2528,6 +2528,7 @@ def _coverage_next_task_packet(
             "species_truncated": False,
             "required_inputs": [],
             "recommended_request": None,
+            "recommended_request_target": "",
             "recommended_next_command": "",
             "operator_execution_gate": operator_execution_gate,
             "review_input_packet": _coverage_review_input_packet(
@@ -2546,6 +2547,9 @@ def _coverage_next_task_packet(
     raw_request = item.get("recommended_request")
     recommended_request = (
         dict(raw_request) if isinstance(raw_request, Mapping) else None
+    )
+    recommended_request_target = _coverage_recommended_request_target(
+        recommended_request
     )
     action_code = str(item.get("action_code", ""))
     operator_execution_gate = _coverage_item_execution_gate(item)
@@ -2568,6 +2572,7 @@ def _coverage_next_task_packet(
         "species_truncated": bool(item.get("species_truncated")),
         "required_inputs": _coverage_action_required_inputs(action_code),
         "recommended_request": recommended_request,
+        "recommended_request_target": recommended_request_target,
         "recommended_next_command": str(item.get("recommended_next_command", "")),
         "operator_execution_gate": operator_execution_gate,
         "review_input_packet": _coverage_review_input_packet(
@@ -2669,6 +2674,7 @@ def _coverage_next_command_plan(
             "request_source": "coverage_next_task_packet.recommended_request",
             "request_unwrapped_from": "",
             "recommended_request": None,
+            "recommended_request_target": "",
             "target_argv": [],
             "recognized": {},
             "output_contracts": [],
@@ -2700,6 +2706,9 @@ def _coverage_next_command_plan(
             "request_source": "coverage_next_task_packet.recommended_request",
             "request_unwrapped_from": "recommended_request",
             "recommended_request": dict(raw_request),
+            "recommended_request_target": _coverage_recommended_request_target(
+                raw_request
+            ),
             "target_argv": [],
             "recognized": {},
             "output_contracts": [],
@@ -2733,6 +2742,9 @@ def _coverage_next_command_plan(
         "request_source": "coverage_next_task_packet.recommended_request",
         "request_unwrapped_from": plan["request_unwrapped_from"],
         "recommended_request": dict(raw_request),
+        "recommended_request_target": _coverage_recommended_request_target(
+            raw_request
+        ),
         "target_argv": list(plan["target_argv"]),
         "recognized": dict(plan["recognized"]),
         "output_contracts": [
@@ -2783,6 +2795,9 @@ def _coverage_next_operator_recipe(
         packet.get("recommended_request")
         if isinstance(packet.get("recommended_request"), Mapping)
         else None
+    )
+    recommended_request_target = _coverage_recommended_request_target(
+        recommended_request
     )
     review_input_packet = _coverage_review_input_packet(
         action_code,
@@ -2854,6 +2869,7 @@ def _coverage_next_operator_recipe(
         "required_inputs": required_inputs,
         "review_input_packet": review_input_packet,
         "operator_execution_gate": operator_execution_gate,
+        "recommended_request_target": recommended_request_target,
         "command_plan_decision": decision,
         "target_argv": target_argv,
         "output_contracts": output_contracts,
@@ -2942,6 +2958,14 @@ def _coverage_queue_resume_packet(
         else [],
         "review_input_packet": review_input_packet,
         "operator_execution_gate": operator_execution_gate,
+        "recommended_request_target": str(
+            recipe.get("recommended_request_target", "")
+        )
+        or _coverage_recommended_request_target(
+            packet.get("recommended_request")
+            if isinstance(packet.get("recommended_request"), Mapping)
+            else None
+        ),
         "target_argv": list(recipe.get("target_argv", []))
         if isinstance(recipe.get("target_argv"), list)
         else [],
@@ -3059,6 +3083,9 @@ def _coverage_operator_queue_preview(
                     else None,
                 ),
                 "operator_execution_gate": operator_execution_gate,
+                "recommended_request_target": str(
+                    recipe.get("recommended_request_target", "")
+                ),
                 "command_plan_decision": command_plan_decision,
                 "command_plan_status": command_plan_status,
                 "output_contracts": output_contracts,

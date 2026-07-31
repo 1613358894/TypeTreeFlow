@@ -1889,9 +1889,10 @@ manifest mutation, or strict completion.
 first queued item, or from the stable queue item selected by
 `--queue-item-id <queue_item_id>`. It repeats the action code, route,
 next-input class, required inputs, structured `recommended_request`,
-recommended command, and explicit no-execution safety fields so AI controllers
-can pass the request through `commands render`, `commands plan`, or
-`commands preflight` before any local operator action. It is metadata only and
+compact `recommended_request_target`, recommended command, and explicit
+no-execution safety fields so AI controllers can pass the request through
+`commands render`, `commands plan`, or `commands preflight` before any local
+operator action. It is metadata only and
 always reports `safe_for_unattended_download=false`. It also carries
 `operator_execution_gate`, a compact metadata-only gate with `gate_status`,
 `has_recommended_request`, `required_before_execution`,
@@ -1899,8 +1900,9 @@ always reports `safe_for_unattended_download=false`. It also carries
 download/provider/manifest denials. Unknown queue item IDs are refused with
 `diagnostic_code=queue_item_id_not_found` and exit code `2`.
 `coverage_next_command_plan` and `coverage_next_operator_recipe` echo the
-planned target command's `output_contracts` so controllers can route readiness
-or handoff packets without a separate catalog lookup.
+planned target command's `recommended_request_target` and `output_contracts` so
+controllers can route readiness or handoff packets without a separate catalog
+lookup.
 `commands recognize`, `commands plan`, and `commands preflight` also declare
 the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
 `coverage_next_command_plan`, `coverage_next_operator_recipe`,
@@ -1926,7 +1928,8 @@ differs, the metadata call refuses the stale handoff with
 `diagnostic_code=operator_chain_snapshot_mismatch` and exit code `2`.
 `coverage_next_command_plan` is a no-dispatch planning companion for that
 packet. It renders the packet's structured `recommended_request`, records the
-target argv, embeds the `commands preflight` decision, and repeats the
+compact `recommended_request_target`, target argv, embeds the `commands
+preflight` decision, and repeats the
 no-download/no-provider/no-manifest-mutation boundary fields. It is metadata
 only: `decision=allow` means the rendered argv passed the local preflight gate,
 not that TypeTreeFlow executed the command or authorized provider access,
@@ -1934,15 +1937,16 @@ downloads, workflow mutation, or strict deliverable promotion.
 `coverage_next_operator_recipe` wraps the same packet and command plan as a
 bounded three-step operator recipe: review required local inputs, inspect the
 command plan, then invoke the target CLI separately only after review. It always
-repeats the selected `review_input_packet` and `operator_execution_gate`, reports
-`safe_for_unattended_execution=false`, and
+repeats the selected `review_input_packet`, `operator_execution_gate`, and
+`recommended_request_target`, reports `safe_for_unattended_execution=false`, and
 `execution_boundary=metadata_only_operator_recipe_no_execution`.
 `coverage_queue_resume_packet` is a compact AI/controller handoff view over the
 selected queue item. It repeats the selected `queue_item_id`, current queue
 snapshot digest, expected digest, digest match state, target argv, command-plan
 status, preflight decision, blocker/warning IDs, `output_contracts`,
 `output_contract_names`, `output_contract_count`, `review_input_packet`,
-`operator_execution_gate`, and the exact values to reuse as `--queue-item-id` and
+`operator_execution_gate`, `recommended_request_target`, and the exact values to
+reuse as `--queue-item-id` and
 `--expected-queue-snapshot-sha256` on a later metadata call. It is still
 metadata only:
 `execution_boundary=metadata_only_queue_resume_packet_no_execution`.
@@ -1951,7 +1955,8 @@ set of queue items. By default it previews the first three items; operators can
 pass `--queue-preview-limit <1..10>` to `preview`, `build`, or `status` to
 request a larger or smaller bounded preview. It lists each item's
 `queue_item_id`, route, required inputs, `review_input_packet`,
-`operator_execution_gate`, rendered argv, preflight decision, and
+`operator_execution_gate`, compact `recommended_request_target`, rendered argv,
+preflight decision, and
 `safe_for_unattended_execution=false`, with
 `truncated=true` when additional queue items exist. Each item also carries
 compact command-plan diagnostics:
