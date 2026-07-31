@@ -388,7 +388,9 @@ must happen before any separate CLI invocation. The recipe repeats the
 same `review_input_packet` as the selected task packet, so it can be handed to a
 controller as a complete no-execution operator checklist. Command metadata also
 declares these coverage-pipeline stdout contracts, including queue resume and
-operator queue preview packets, before the command is executed.
+operator queue preview packets, plus parent-controller, controller-inspection,
+server-validation result-contract, and server-validation result-template
+surfaces, before the command is executed.
 The selected task packet also carries `review_input_packet`, which names the
 local review schema and required TSV fields for the queued action. For public
 archive linkage actions this points to the manual-review TSV contract and the

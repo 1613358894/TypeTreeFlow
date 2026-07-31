@@ -2020,8 +2020,9 @@ the coverage-pipeline stdout contracts for `coverage_next_task_packet`,
 `coverage_provider_route_opportunity_summary`,
 `coverage_route_next_batch_packet`, `coverage_next_operator_recipe`,
 `coverage_queue_resume_packet`, `coverage_operator_queue_preview`, and
-`coverage_operator_route_summary`, plus the controller packet and operator-chain
-packets when present. `operator_chain_resume_packet` is the compact counterpart
+`coverage_operator_route_summary`, plus the controller packet, parent-controller,
+controller-inspection, server-validation result-contract/template, and
+operator-chain packets when present. `operator_chain_resume_packet` is the compact counterpart
 to `operator_chain_next_step_packet`: it carries the next stage, command target,
 rendered argv, command-plan/preflight decisions, blocker IDs, and
 `resume_with_expected_operator_chain_snapshot_sha256` digest guard for later
