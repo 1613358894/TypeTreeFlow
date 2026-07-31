@@ -298,10 +298,11 @@ It also carries
 `coverage_next_operator_recipe` so an AI/operator can see the current local
 input requirement, rendered argv, preflight decision, output contracts and their
 name/count summaries, and review-only recipe without executing the target
-command. The next-task packet and recipe also carry `operator_execution_gate`,
-a compact no-execution gate that tells controllers whether a structured
-recommended request exists and which planning/review steps must happen before
-any separate CLI invocation. The recipe repeats the
+command. The next-task packet, command plan, and recipe also carry the compact
+`recommended_request_target`, while the next-task packet and recipe carry
+`operator_execution_gate`, a compact no-execution gate that tells controllers
+whether a structured recommended request exists and which planning/review steps
+must happen before any separate CLI invocation. The recipe repeats the
 same `review_input_packet` as the selected task packet, so it can be handed to a
 controller as a complete no-execution operator checklist. Command metadata also
 declares these coverage-pipeline stdout contracts, including queue resume and
@@ -318,9 +319,10 @@ the preview is truncated. It defaults to three items; use
 `--queue-preview-limit <1..10>` on `preview`, `build`, or `status` when an
 AI/operator controller needs a larger or smaller no-execution preview. Each
 preview item also carries compact command-plan status plus blocker/warning
-counts and IDs, `operator_execution_gate`, plus output contract names and
-counts, so a controller can route blocked items without executing, copying full
-diagnostic messages, or performing a separate command-catalog lookup. The
+counts and IDs, `operator_execution_gate`, compact `recommended_request_target`,
+plus output contract names and counts, so a controller can route blocked items
+without executing, copying full diagnostic messages, or performing a separate
+command-catalog lookup. The
 preview object also summarizes output contracts across the bounded prefix with
 `preview_output_contract_names`, `preview_output_contract_counts`, and
 `preview_output_contract_count`. It also includes bounded-prefix route,
@@ -336,9 +338,10 @@ selects `current_coverage_action_queue_item`,
 `coverage_next_operator_recipe` metadata, and the matching
 `coverage_queue_resume_packet` repeats the selected item ID, digest guard,
 target argv, output contracts, output-contract name/count summaries,
-`review_input_packet`, `operator_execution_gate`, and no-execution boundary in
-one compact object. The matching next-task packet, recipe, and resume packet
-retain `operator_execution_gate` metadata; the resume packet remains a
+`review_input_packet`, `operator_execution_gate`, `recommended_request_target`,
+and no-execution boundary in one compact object. The matching next-task packet,
+recipe, and resume packet retain `operator_execution_gate` metadata; the resume
+packet remains a
 digest-guarded handoff and does not authorize execution. It does not change the
 bounded preview prefix, execute
 the target command, or authorize provider access/downloads.

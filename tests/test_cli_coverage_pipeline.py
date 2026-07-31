@@ -783,6 +783,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "subcommand": "validate",
             "input": "<review.tsv>",
         },
+        "recommended_request_target": "manual-review validate",
         "recommended_next_command": "manual-review validate --input <review.tsv>",
         "operator_execution_gate": _expected_operator_execution_gate(
             available=True,
@@ -838,6 +839,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["coverage_next_command_plan"]["request_unwrapped_from"] == (
         "recommended_request"
     )
+    assert (
+        payload["coverage_next_command_plan"]["recommended_request_target"]
+        == "manual-review validate"
+    )
     assert payload["coverage_next_command_plan"]["target_argv"] == [
         "manual-review",
         "validate",
@@ -863,6 +868,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         payload["coverage_next_task_packet"]["review_input_packet"]
     )
     assert payload["coverage_next_operator_recipe"]["command_plan_decision"] == "allow"
+    assert (
+        payload["coverage_next_operator_recipe"]["recommended_request_target"]
+        == "manual-review validate"
+    )
     assert payload["coverage_next_operator_recipe"]["target_argv"] == [
         "manual-review",
         "validate",
@@ -971,6 +980,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         )
         for item in payload["coverage_operator_queue_preview"]["items"]
     )
+    assert [
+        item["recommended_request_target"]
+        for item in payload["coverage_operator_queue_preview"]["items"]
+    ] == [
+        "manual-review validate",
+        "manual-review validate",
+        "manual-review validate",
+    ]
     public_archive_packet = payload["coverage_operator_queue_preview"]["items"][1][
         "review_input_packet"
     ]
@@ -1308,6 +1325,18 @@ def test_coverage_pipeline_queue_item_id_selects_current_task_metadata(
     assert payload["coverage_next_operator_recipe"]["operator_route"] == (
         "provider_handoff"
     )
+    assert (
+        payload["coverage_next_task_packet"]["recommended_request_target"]
+        == "provider-request draft"
+    )
+    assert (
+        payload["coverage_next_command_plan"]["recommended_request_target"]
+        == "provider-request draft"
+    )
+    assert (
+        payload["coverage_next_operator_recipe"]["recommended_request_target"]
+        == "provider-request draft"
+    )
     assert payload["coverage_next_operator_recipe"]["target_argv"] == [
         "provider-request",
         "draft",
@@ -1317,6 +1346,7 @@ def test_coverage_pipeline_queue_item_id_selects_current_task_metadata(
     resume_packet = payload["coverage_queue_resume_packet"]
     assert resume_packet["schema_version"] == "coverage_queue_resume_packet.v1"
     assert resume_packet["queue_item_id"] == "cq004_prepare_provider_handoff"
+    assert resume_packet["recommended_request_target"] == "provider-request draft"
     assert resume_packet["target_argv"] == [
         "provider-request",
         "draft",
@@ -2806,8 +2836,16 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "subcommand": "validate",
         "input": "<review.tsv>",
     }
+    assert (
+        payload["coverage_next_task_packet"]["recommended_request_target"]
+        == "manual-review validate"
+    )
     assert payload["coverage_next_task_packet"]["downloads_triggered"] == 0
     assert payload["coverage_next_command_plan"]["decision"] == "allow"
+    assert (
+        payload["coverage_next_command_plan"]["recommended_request_target"]
+        == "manual-review validate"
+    )
     assert payload["coverage_next_command_plan"]["target_argv"] == [
         "manual-review",
         "validate",
@@ -2819,6 +2857,10 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_next_command_plan"]["output_contracts"] == []
     assert payload["coverage_next_operator_recipe"]["status"] == (
         "ready_for_operator_review"
+    )
+    assert (
+        payload["coverage_next_operator_recipe"]["recommended_request_target"]
+        == "manual-review validate"
     )
     assert payload["coverage_next_operator_recipe"]["target_argv"] == [
         "manual-review",
@@ -2837,6 +2879,12 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "--input",
         "<review.tsv>",
     ]
+    assert (
+        payload["coverage_operator_queue_preview"]["items"][0][
+            "recommended_request_target"
+        ]
+        == "manual-review validate"
+    )
     assert payload["coverage_operator_queue_preview"]["items"][0][
         "execution_boundary"
     ] == "metadata_only_operator_queue_preview"
@@ -3290,6 +3338,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "species_truncated": False,
         "required_inputs": [],
         "recommended_request": None,
+        "recommended_request_target": "",
         "recommended_next_command": "",
         "operator_execution_gate": _expected_operator_execution_gate(
             available=False,
@@ -3338,6 +3387,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "request_source": "coverage_next_task_packet.recommended_request",
         "request_unwrapped_from": "",
         "recommended_request": None,
+        "recommended_request_target": "",
         "target_argv": [],
         "recognized": {},
         "output_contracts": [],
@@ -3402,6 +3452,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
             available=False,
             has_recommended_request=False,
         ),
+        "recommended_request_target": "",
         "command_plan_decision": "none",
         "target_argv": [],
         "output_contracts": [],
@@ -3469,6 +3520,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
             available=False,
             has_recommended_request=False,
         ),
+        "recommended_request_target": "",
         "target_argv": [],
         "command_plan_status": "no_action",
         "command_plan_decision": "none",
