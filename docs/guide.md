@@ -263,6 +263,8 @@ they still require normal planning or preflight before execution. It also carrie
 `coverage_next_operator_recipe` so an AI/operator can see the current local
 input requirement, rendered argv, preflight decision, and review-only recipe
 without executing the target command.
+`coverage_operator_queue_preview` applies the same metadata-only routing view
+to the first three queue items and reports whether the preview is truncated.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so

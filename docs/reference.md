@@ -1844,6 +1844,11 @@ bounded three-step operator recipe: review required local inputs, inspect the
 command plan, then invoke the target CLI separately only after review. It always
 reports `safe_for_unattended_execution=false` and
 `execution_boundary=metadata_only_operator_recipe_no_execution`.
+`coverage_operator_queue_preview` extends that no-execution view to the first
+three queue items. It lists each item's route, required inputs, rendered argv,
+preflight decision, and `safe_for_unattended_execution=false`, with
+`truncated=true` when additional queue items exist. It is a routing preview, not
+a queue runner.
 Opportunity summary rows and queue rows also carry `recommended_request`, the
 same structured request draft used by `commands render` and `commands plan`;
 controllers must still run normal planning or preflight before executing any
@@ -1923,7 +1928,8 @@ before an operator runs the rendered argv. `status` also re-emits
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without
 executing the target command, plus `coverage_next_operator_recipe` for the same
-metadata-only next-step recipe. The payload also includes
+metadata-only next-step recipe and `coverage_operator_queue_preview` for the
+bounded queue preview. The payload also includes
 `required_inputs` and `recommended_request` as convenience copies from the
 current `next_stage`, plus `stage_status_counts`, `available_stage_names`, and
 `unavailable_stage_names` so AI/operator controllers can route without
