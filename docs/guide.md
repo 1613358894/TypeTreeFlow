@@ -259,6 +259,11 @@ let an AI controller read queue pressure and the first queued item without
 recomputing counts. Opportunity and queue rows carry the same structured
 `recommended_request` objects used by `commands render` / `commands plan`, but
 they still require normal planning or preflight before execution. It also carries
+`coverage_next_task_packet`, `coverage_next_command_plan`, and
+`coverage_next_operator_recipe` so an AI/operator can see the current local
+input requirement, rendered argv, preflight decision, and review-only recipe
+without executing the target command.
+The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
 AI/operator handoff pressure is visible before reading the nested artifacts. It
