@@ -413,6 +413,87 @@ _CATALOG_ENTRIES = (
         "boundary": "structured request rendering plus preflight only; no dispatch authority",
     },
 )
+_OUTPUT_CONTRACT_CATALOG: dict[
+    tuple[str, str | None],
+    tuple[dict[str, object], ...],
+] = {
+    ("coverage-pipeline", "preview"): (
+        {
+            "name": "coverage_next_task_packet",
+            "schema_version": "coverage_next_task_packet.v1",
+            "purpose": "selected coverage action handoff for AI/operator review",
+        },
+        {
+            "name": "operator_chain_next_step_packet",
+            "schema_version": "operator_chain_next_step_packet.v1",
+            "purpose": "metadata-only next operator-chain command preview",
+        },
+    ),
+    ("coverage-pipeline", "build"): (
+        {
+            "name": "coverage_next_task_packet",
+            "schema_version": "coverage_next_task_packet.v1",
+            "purpose": "selected coverage action handoff for AI/operator review",
+        },
+        {
+            "name": "operator_chain_next_step_packet",
+            "schema_version": "operator_chain_next_step_packet.v1",
+            "purpose": "metadata-only next operator-chain command preview",
+        },
+        {
+            "name": "operator_chain_readiness_packets",
+            "schema_version": "operator_chain_readiness_packets.v1",
+            "purpose": "stage-keyed provider/external-genomes readiness packet map",
+        },
+    ),
+    ("coverage-pipeline", "status"): (
+        {
+            "name": "operator_chain_next_step_packet",
+            "schema_version": "operator_chain_next_step_packet.v1",
+            "purpose": "metadata-only next operator-chain command preview",
+        },
+        {
+            "name": "operator_chain_readiness_packets",
+            "schema_version": "operator_chain_readiness_packets.v1",
+            "purpose": "stage-keyed provider/external-genomes readiness packet map",
+        },
+    ),
+    ("provider-request", "validate"): (
+        {
+            "name": "provider_request_readiness_packet",
+            "schema_version": "provider_request_readiness_packet.v1",
+            "purpose": "provider-request validation readiness handoff",
+        },
+    ),
+    ("provider-request", "external-genomes-draft"): (
+        {
+            "name": "provider_request_readiness_packet",
+            "schema_version": "provider_request_readiness_packet.v1",
+            "purpose": "external-genomes draft readiness handoff",
+        },
+    ),
+    ("provider-request", "external-genomes-handoff"): (
+        {
+            "name": "provider_request_readiness_packet",
+            "schema_version": "provider_request_readiness_packet.v1",
+            "purpose": "bundled provider-request validation and draft readiness handoff",
+        },
+    ),
+    ("external-genomes", "validate"): (
+        {
+            "name": "external_genomes_readiness_packet",
+            "schema_version": "external_genomes_readiness_packet.v1",
+            "purpose": "external-genomes validation readiness handoff",
+        },
+    ),
+    ("external-genomes", "install-plan"): (
+        {
+            "name": "external_genomes_readiness_packet",
+            "schema_version": "external_genomes_readiness_packet.v1",
+            "purpose": "external-genomes install-plan readiness handoff",
+        },
+    ),
+}
 _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
     ("doctor", None): [
         {
@@ -2267,6 +2348,9 @@ def _catalog_entry(entry: dict[str, object]) -> dict[str, object]:
     key = (str(entry["command"]), entry["subcommand"])
     payload["parameters"] = [
         dict(parameter) for parameter in _PARAMETER_CATALOG.get(key, [])
+    ]
+    payload["output_contracts"] = [
+        dict(contract) for contract in _OUTPUT_CONTRACT_CATALOG.get(key, ())
     ]
     return payload
 

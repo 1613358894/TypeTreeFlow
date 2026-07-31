@@ -44,7 +44,8 @@ typetreeflow providers catalog
 ```
 
 The catalog command emits the stable command surface for AI operators. The
-recognize command emits one compact JSON object describing a proposed argv
+catalog entries also list stable `output_contracts` for AI/operator packet
+fields such as readiness and operator-chain handoff packets. The recognize command emits one compact JSON object describing a proposed argv
 shape, including recognized command, mode, write-output declaration, and
 outdir requirement. The render command turns a conservative structured request
 into normalized argv without executing it. The plan command combines rendering
