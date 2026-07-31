@@ -40,6 +40,34 @@ def _write_tsv(path, fields, rows):
         writer.writerows(rows)
 
 
+def _expected_operator_execution_gate(*, available, has_recommended_request):
+    if not available:
+        gate_status = "no_action"
+        required_before_execution = []
+    elif not has_recommended_request:
+        gate_status = "blocked_missing_recommended_request"
+        required_before_execution = ["add_structured_recommended_request"]
+    else:
+        gate_status = "operator_review_required"
+        required_before_execution = [
+            "commands plan or commands preflight",
+            "operator approval",
+        ]
+    return {
+        "schema_version": "coverage_operator_execution_gate.v1",
+        "gate_status": gate_status,
+        "has_recommended_request": has_recommended_request,
+        "required_before_execution": required_before_execution,
+        "requires_operator_review": available,
+        "safe_for_unattended_execution": False,
+        "allows_unattended_download": False,
+        "allows_provider_contact": False,
+        "allows_manifest_mutation": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_gate_no_execution",
+    }
+
+
 def test_coverage_command_plan_and_recipe_copy_output_contracts():
     packet = {
         "available": True,
@@ -69,6 +97,10 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
         }
     ]
     assert recipe["output_contracts"] == plan["output_contracts"]
+    assert recipe["operator_execution_gate"] == _expected_operator_execution_gate(
+        available=True,
+        has_recommended_request=True,
+    )
     assert recipe["review_input_packet"]["available"] is True
     assert recipe["review_input_packet"]["input_schema"] == "provider_handoff.v1"
     assert recipe["review_input_packet"]["recommended_request"] == (
@@ -602,6 +634,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "input": "<review.tsv>",
         },
         "recommended_next_command": "manual-review validate --input <review.tsv>",
+        "operator_execution_gate": _expected_operator_execution_gate(
+            available=True,
+            has_recommended_request=True,
+        ),
         "review_input_packet": {
             "schema_version": "coverage_review_input_packet.v1",
             "available": True,
@@ -3086,6 +3122,10 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "required_inputs": [],
         "recommended_request": None,
         "recommended_next_command": "",
+        "operator_execution_gate": _expected_operator_execution_gate(
+            available=False,
+            has_recommended_request=False,
+        ),
         "review_input_packet": {
             "schema_version": "coverage_review_input_packet.v1",
             "available": False,
@@ -3189,6 +3229,10 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
                 "metadata_only_review_input_packet_no_execution"
             ),
         },
+        "operator_execution_gate": _expected_operator_execution_gate(
+            available=False,
+            has_recommended_request=False,
+        ),
         "command_plan_decision": "none",
         "target_argv": [],
         "output_contracts": [],

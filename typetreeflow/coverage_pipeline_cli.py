@@ -2440,6 +2440,10 @@ def _coverage_next_task_packet(
     coverage_action_queue: list[dict[str, object]],
 ) -> dict[str, object]:
     if not coverage_action_queue:
+        operator_execution_gate = _coverage_operator_execution_gate(
+            available=False,
+            recommended_request=None,
+        )
         return {
             "available": False,
             "packet_status": "no_action",
@@ -2456,6 +2460,7 @@ def _coverage_next_task_packet(
             "required_inputs": [],
             "recommended_request": None,
             "recommended_next_command": "",
+            "operator_execution_gate": operator_execution_gate,
             "review_input_packet": _coverage_review_input_packet(
                 "",
                 record_count=0,
@@ -2474,6 +2479,10 @@ def _coverage_next_task_packet(
         dict(raw_request) if isinstance(raw_request, Mapping) else None
     )
     action_code = str(item.get("action_code", ""))
+    operator_execution_gate = _coverage_operator_execution_gate(
+        available=True,
+        recommended_request=recommended_request,
+    )
     return {
         "available": True,
         "packet_status": "ready_for_operator_review",
@@ -2494,6 +2503,7 @@ def _coverage_next_task_packet(
         "required_inputs": _coverage_action_required_inputs(action_code),
         "recommended_request": recommended_request,
         "recommended_next_command": str(item.get("recommended_next_command", "")),
+        "operator_execution_gate": operator_execution_gate,
         "review_input_packet": _coverage_review_input_packet(
             action_code,
             record_count=_safe_int(item.get("record_count", 0)),
@@ -2505,6 +2515,39 @@ def _coverage_next_task_packet(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_run_commands_plan_or_preflight_first",
+    }
+
+
+def _coverage_operator_execution_gate(
+    *,
+    available: bool,
+    recommended_request: Mapping[str, object] | None,
+) -> dict[str, object]:
+    has_recommended_request = isinstance(recommended_request, Mapping)
+    if not available:
+        gate_status = "no_action"
+        required_before_execution: list[str] = []
+    elif not has_recommended_request:
+        gate_status = "blocked_missing_recommended_request"
+        required_before_execution = ["add_structured_recommended_request"]
+    else:
+        gate_status = "operator_review_required"
+        required_before_execution = [
+            "commands plan or commands preflight",
+            "operator approval",
+        ]
+    return {
+        "schema_version": "coverage_operator_execution_gate.v1",
+        "gate_status": gate_status,
+        "has_recommended_request": has_recommended_request,
+        "required_before_execution": required_before_execution,
+        "requires_operator_review": available,
+        "safe_for_unattended_execution": False,
+        "allows_unattended_download": False,
+        "allows_provider_contact": False,
+        "allows_manifest_mutation": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_gate_no_execution",
     }
 
 
@@ -2641,6 +2684,15 @@ def _coverage_next_operator_recipe(
         record_count=record_count,
         recommended_request=recommended_request,
     )
+    raw_gate = packet.get("operator_execution_gate")
+    operator_execution_gate = (
+        dict(raw_gate)
+        if isinstance(raw_gate, Mapping)
+        else _coverage_operator_execution_gate(
+            available=bool(packet.get("available")),
+            recommended_request=recommended_request,
+        )
+    )
     available = bool(packet.get("available")) and bool(command_plan.get("available"))
     decision = str(command_plan.get("decision", "none"))
     if not available:
@@ -2696,6 +2748,7 @@ def _coverage_next_operator_recipe(
         "species_truncated": bool(packet.get("species_truncated")),
         "required_inputs": required_inputs,
         "review_input_packet": review_input_packet,
+        "operator_execution_gate": operator_execution_gate,
         "command_plan_decision": decision,
         "target_argv": target_argv,
         "output_contracts": output_contracts,

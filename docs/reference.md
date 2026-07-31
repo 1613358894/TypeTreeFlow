@@ -1885,8 +1885,12 @@ next-input class, required inputs, structured `recommended_request`,
 recommended command, and explicit no-execution safety fields so AI controllers
 can pass the request through `commands render`, `commands plan`, or
 `commands preflight` before any local operator action. It is metadata only and
-always reports `safe_for_unattended_download=false`. Unknown queue item IDs are
-refused with `diagnostic_code=queue_item_id_not_found` and exit code `2`.
+always reports `safe_for_unattended_download=false`. It also carries
+`operator_execution_gate`, a compact metadata-only gate with `gate_status`,
+`has_recommended_request`, `required_before_execution`,
+`requires_operator_review`, `safe_for_unattended_execution=false`, and explicit
+download/provider/manifest denials. Unknown queue item IDs are refused with
+`diagnostic_code=queue_item_id_not_found` and exit code `2`.
 `coverage_next_command_plan` and `coverage_next_operator_recipe` echo the
 planned target command's `output_contracts` so controllers can route readiness
 or handoff packets without a separate catalog lookup.
@@ -1923,7 +1927,7 @@ downloads, workflow mutation, or strict deliverable promotion.
 `coverage_next_operator_recipe` wraps the same packet and command plan as a
 bounded three-step operator recipe: review required local inputs, inspect the
 command plan, then invoke the target CLI separately only after review. It always
-repeats the selected `review_input_packet`, reports
+repeats the selected `review_input_packet` and `operator_execution_gate`, reports
 `safe_for_unattended_execution=false`, and
 `execution_boundary=metadata_only_operator_recipe_no_execution`.
 `coverage_queue_resume_packet` is a compact AI/controller handoff view over the
