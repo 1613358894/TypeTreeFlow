@@ -11,6 +11,7 @@ import csv
 import io
 import json
 import re
+from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Mapping
 
@@ -97,6 +98,9 @@ class AcquisitionWorklistReport:
             "review_signal_counts": signal_counts,
             "candidate_provider_key_counts": provider_key_counts,
             "candidate_provider_status_counts": provider_status_counts,
+            "acquisition_opportunity_summary": (
+                _acquisition_opportunity_summary(self.rows)
+            ),
             "audit_only": True,
             "strict_scientific_deliverable": False,
             "downloads_triggered": 0,
@@ -398,6 +402,189 @@ def _candidate_provider_status_counts(
             status = registry.get(provider_key).capability.status.value
             counts[status] = counts.get(status, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _acquisition_opportunity_summary(
+    rows: Iterable[AcquisitionWorklistRow],
+) -> list[dict[str, object]]:
+    groups: dict[tuple[str, str], dict[str, object]] = {}
+    for row in rows:
+        key = (row.lane, row.reason_code)
+        route = _opportunity_route(row.lane, row.reason_code)
+        group = groups.setdefault(
+            key,
+            {
+                "priority": route["priority"],
+                "lane": row.lane,
+                "reason_code": row.reason_code,
+                "next_input_class": route["next_input_class"],
+                "automation_boundary": route["automation_boundary"],
+                "recommended_next_command": route["recommended_next_command"],
+                "record_count": 0,
+                "species": [],
+                "source_artifact_counts": Counter(),
+                "candidate_provider_key_counts": Counter(),
+                "candidate_provider_status_counts": Counter(),
+            },
+        )
+        group["record_count"] = int(group["record_count"]) + 1
+        species = group["species"]
+        if isinstance(species, list):
+            _append_unique(species, row.species)
+        for artifact in _split_values(row.source_artifacts):
+            _counter(group["source_artifact_counts"])[artifact] += 1
+        for provider_key in _split_values(row.candidate_provider_keys):
+            _counter(group["candidate_provider_key_counts"])[provider_key] += 1
+        for status in _candidate_status_values(row.candidate_provider_statuses):
+            _counter(group["candidate_provider_status_counts"])[status] += 1
+
+    summary: list[dict[str, object]] = []
+    for group in sorted(
+        groups.values(),
+        key=lambda item: (
+            int(item["priority"]),
+            str(item["lane"]),
+            str(item["reason_code"]),
+        ),
+    ):
+        species_values = [
+            species for species in group["species"] if _clean(species).strip()  # type: ignore[index]
+        ]
+        summary.append(
+            {
+                "priority": group["priority"],
+                "lane": group["lane"],
+                "reason_code": group["reason_code"],
+                "next_input_class": group["next_input_class"],
+                "automation_boundary": group["automation_boundary"],
+                "record_count": group["record_count"],
+                "species_count": len({_species_key(species) for species in species_values}),
+                **_bounded_species_preview(species_values),
+                "source_artifact_counts": _sorted_counter(
+                    group["source_artifact_counts"]
+                ),
+                "candidate_provider_key_counts": _sorted_counter(
+                    group["candidate_provider_key_counts"]
+                ),
+                "candidate_provider_status_counts": _sorted_counter(
+                    group["candidate_provider_status_counts"]
+                ),
+                "recommended_next_command": group["recommended_next_command"],
+                "safe_for_unattended_download": False,
+            }
+        )
+    return summary
+
+
+def _opportunity_route(lane: str, reason_code: str) -> dict[str, object]:
+    if lane == "no_action_strict_complete":
+        return {
+            "priority": 90,
+            "next_input_class": "none",
+            "automation_boundary": "no_acquisition_action_required",
+            "recommended_next_command": "",
+        }
+    if lane == "curator_conflict_resolution":
+        return {
+            "priority": 10,
+            "next_input_class": "manual_review.tsv",
+            "automation_boundary": "manual_conflict_resolution_required",
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        }
+    if lane == "public_linkage_review":
+        return {
+            "priority": _public_linkage_priority(reason_code),
+            "next_input_class": "manual_review.tsv",
+            "automation_boundary": "public_metadata_review_only_no_download",
+            "recommended_next_command": "manual-review validate --input <review.tsv>",
+        }
+    if lane == "external_registration_ready":
+        return {
+            "priority": 40,
+            "next_input_class": "external_genomes.tsv",
+            "automation_boundary": "local_external_registration_review",
+            "recommended_next_command": (
+                "external-genomes validate --input <external_genomes.tsv>"
+            ),
+        }
+    if lane == "external_fasta_required":
+        return {
+            "priority": 50,
+            "next_input_class": "provider_request.tsv or external_genomes.tsv",
+            "automation_boundary": "provider_handoff_or_local_fasta_required",
+            "recommended_next_command": (
+                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+            ),
+        }
+    return {
+        "priority": 80,
+        "next_input_class": "reconciler_audit.tsv",
+        "automation_boundary": "local_evidence_generation_required",
+        "recommended_next_command": (
+            "verify-genus <genus> --dry-run with existing local evidence"
+        ),
+    }
+
+
+def _public_linkage_priority(reason_code: str) -> int:
+    priorities = {
+        "public_candidate_biosample_linkage_review": 20,
+        "public_candidate_bacdive_or_dsmz_review": 25,
+        "public_candidate_ncbi_type_material_review": 30,
+        "public_archive_insdc_candidate_review": 35,
+        "expanded_discovery_matched_candidate_review": 36,
+        "public_selected_accession_type_linkage_review": 37,
+        "public_candidate_needs_type_linkage_review": 38,
+    }
+    return priorities.get(reason_code, 39)
+
+
+def _split_values(value: str) -> tuple[str, ...]:
+    return tuple(
+        item.strip()
+        for item in re.split(r"[;,]", value)
+        if item.strip()
+    )
+
+
+def _candidate_status_values(value: str) -> tuple[str, ...]:
+    statuses: list[str] = []
+    for item in _split_values(value):
+        if "=" in item:
+            statuses.append(item.split("=", 1)[1].strip())
+    return tuple(status for status in statuses if status)
+
+
+def _counter(value: object) -> Counter[str]:
+    if isinstance(value, Counter):
+        return value
+    raise TypeError("expected Counter")
+
+
+def _sorted_counter(value: object) -> dict[str, int]:
+    return dict(sorted(_counter(value).items()))
+
+
+def _bounded_species_preview(
+    values: Iterable[str],
+    *,
+    limit: int = 5,
+) -> dict[str, object]:
+    species: list[str] = []
+    for value in values:
+        cleaned = _clean(value).strip()
+        if cleaned and cleaned not in species:
+            species.append(cleaned)
+    return {
+        "species_preview": species[:limit],
+        "species_truncated": len(species) > limit,
+    }
+
+
+def _append_unique(values: list[str], value: str) -> None:
+    cleaned = _clean(value).strip()
+    if cleaned and cleaned not in values:
+        values.append(cleaned)
 
 
 def _candidate_provider_statuses(candidate_provider_keys: str) -> str:

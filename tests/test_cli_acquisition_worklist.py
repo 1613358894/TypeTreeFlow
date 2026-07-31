@@ -149,6 +149,38 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
         "metadata_only": 1,
         "planning_only": 2,
     }
+    opportunities = payload["acquisition_opportunity_summary"]
+    assert [
+        (item["priority"], item["lane"], item["reason_code"])
+        for item in opportunities
+    ] == [
+        (10, "curator_conflict_resolution", "conflict_blocks_automatic_use"),
+        (
+            35,
+            "public_linkage_review",
+            "public_archive_insdc_candidate_review",
+        ),
+        (40, "external_registration_ready", "reviewed_external_fasta_ready"),
+        (50, "external_fasta_required", "no_public_strict_genome_linkage"),
+        (90, "no_action_strict_complete", "strict_usable_present"),
+    ]
+    assert opportunities[1]["candidate_provider_key_counts"] == {"ena": 1}
+    assert opportunities[1]["candidate_provider_status_counts"] == {
+        "metadata_only": 1
+    }
+    assert opportunities[1]["source_artifact_counts"] == {
+        "archive_candidates": 1
+    }
+    assert opportunities[3]["candidate_provider_key_counts"] == {
+        "atcc_genome_portal": 1,
+        "dsmz": 1,
+    }
+    assert opportunities[3]["recommended_next_command"] == (
+        "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+    )
+    assert all(
+        item["safe_for_unattended_download"] is False for item in opportunities
+    )
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
@@ -307,6 +339,9 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
         "metadata_only": 1,
         "planning_only": 2,
     }
+    assert summary["acquisition_opportunity_summary"] == payload[
+        "acquisition_opportunity_summary"
+    ]
 
     assert (
         cli.main(
