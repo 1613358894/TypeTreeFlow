@@ -99,9 +99,13 @@ expanded-discovery bridge maps only existing `matched_candidate` rows with a
 public accession and does not copy raw expanded-discovery notes. Archive
 candidate summaries preserve the bridge as `source_input_kind_counts` and
 `expanded_discovery_candidate_count`, so later coverage-pipeline status can
-show that provenance without parsing row notes. When `--write` succeeds, stdout
-and `archive_candidates_summary.json` include a structured `coverage-pipeline
-build` recommended request that points to the written `archive_candidates.tsv`,
+show that provenance without parsing row notes. They also expose a bounded
+`public_archive_opportunity_packet` that groups rows by review input class,
+archive source, accession class, and input provenance for AI/operator triage;
+it remains metadata review only and is not a download authorization. When
+`--write` succeeds, stdout and `archive_candidates_summary.json` include a
+structured `coverage-pipeline build` recommended request that points to the
+written `archive_candidates.tsv`,
 plus a metadata-only command plan that remains
 blocked until an operator explicitly allows writes; the adapter does not run
 that next command.

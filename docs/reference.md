@@ -1553,7 +1553,12 @@ Archive candidate summaries always preserve `downloads_triggered=0`,
 `expanded_discovery_candidate_count` so AI/operator handoff can distinguish
 public archive source, available accession class, the next local review input,
 and whether candidates came from the expanded-discovery bridge without reading
-row-level notes.
+row-level notes. The same summary includes
+`public_archive_opportunity_packet`, a bounded audit-only packet that groups
+rows by local review input class, public archive source, accession class, and
+source input kind. Its `safe_for_unattended_download=false` boundary is fixed:
+the packet ranks review opportunities for later curator/AI inspection, but it
+does not authorize downloads or strict deliverable promotion.
 
 The isolated archive candidate CLI adapter is:
 

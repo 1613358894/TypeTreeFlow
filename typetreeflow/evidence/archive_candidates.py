@@ -200,6 +200,9 @@ class ArchiveCandidateReport:
             "expanded_discovery_candidate_count": source_input_kind_counts.get(
                 "expanded_discovery_results", 0
             ),
+            "public_archive_opportunity_packet": (
+                _public_archive_opportunity_packet(self.rows)
+            ),
             "downloads_triggered": 0,
             "providers_contacted": 0,
             "manifest_mutated": False,
@@ -524,6 +527,161 @@ def _source_input_kind_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, 
     for row in rows:
         counts[_source_input_kind(row)] += 1
     return dict(sorted(counts.items()))
+
+
+def _public_archive_opportunity_packet(
+    rows: Iterable[ArchiveCandidateRow],
+) -> dict[str, object]:
+    groups: dict[str, dict[str, object]] = {}
+    for row in rows:
+        review_class = _review_input_class(row)
+        group = groups.setdefault(
+            review_class,
+            {
+                "priority": _review_input_class_priority(review_class),
+                "review_input_class": review_class,
+                "record_count": 0,
+                "species": [],
+                "candidate_status_counts": Counter(),
+                "archive_source_counts": Counter(),
+                "accession_kind_counts": Counter(),
+                "source_input_kind_counts": Counter(),
+                "recommended_next_input": _recommended_next_input(review_class),
+                "recommended_action": _recommended_group_action(review_class),
+                "automation_boundary": "metadata_review_only_no_download",
+            },
+        )
+        group["record_count"] = int(group["record_count"]) + 1
+        species = group["species"]
+        if isinstance(species, list):
+            _append_unique(species, row.species)
+        _counter(group["candidate_status_counts"])[row.candidate_status] += 1
+        for source, count in _archive_source_counts((row,)).items():
+            _counter(group["archive_source_counts"])[source] += count
+        for accession_kind, count in _accession_kind_counts((row,)).items():
+            _counter(group["accession_kind_counts"])[accession_kind] += count
+        _counter(group["source_input_kind_counts"])[_source_input_kind(row)] += 1
+
+    opportunities: list[dict[str, object]] = []
+    for group in sorted(
+        groups.values(),
+        key=lambda item: (int(item["priority"]), str(item["review_input_class"])),
+    ):
+        species_values = [
+            species for species in group["species"] if _cell(species)  # type: ignore[index]
+        ]
+        opportunities.append(
+            {
+                "priority": group["priority"],
+                "review_input_class": group["review_input_class"],
+                "record_count": group["record_count"],
+                "species_count": len({_species_key(species) for species in species_values}),
+                **_bounded_species_preview(species_values),
+                "candidate_status_counts": _sorted_counter(
+                    group["candidate_status_counts"]
+                ),
+                "archive_source_counts": _sorted_counter(
+                    group["archive_source_counts"]
+                ),
+                "accession_kind_counts": _sorted_counter(
+                    group["accession_kind_counts"]
+                ),
+                "source_input_kind_counts": _sorted_counter(
+                    group["source_input_kind_counts"]
+                ),
+                "recommended_next_input": group["recommended_next_input"],
+                "recommended_action": group["recommended_action"],
+                "automation_boundary": group["automation_boundary"],
+            }
+        )
+    return {
+        "schema_version": "public_archive_opportunity_packet.v1",
+        "opportunity_count": len(opportunities),
+        "opportunities": opportunities,
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "audit_only": True,
+        "strict_scientific_deliverable": False,
+    }
+
+
+def _counter(value: object) -> Counter[str]:
+    if isinstance(value, Counter):
+        return value
+    raise TypeError("expected Counter")
+
+
+def _sorted_counter(value: object) -> dict[str, int]:
+    return dict(sorted(_counter(value).items()))
+
+
+def _review_input_class_priority(review_class: str) -> int:
+    priorities = {
+        "direct_evidence_chain_review": 10,
+        "lpsn_token_overlap_required": 20,
+        "direct_type_material_signal_required": 30,
+        "conflict_resolution_required": 40,
+        "public_accession_required": 50,
+        "metadata_fix_required": 60,
+    }
+    return priorities.get(review_class, 90)
+
+
+def _recommended_next_input(review_class: str) -> str:
+    if review_class in {
+        "direct_evidence_chain_review",
+        "lpsn_token_overlap_required",
+        "direct_type_material_signal_required",
+        "conflict_resolution_required",
+    }:
+        return "manual_review.tsv"
+    return "archive_candidates_input.tsv"
+
+
+def _recommended_group_action(review_class: str) -> str:
+    actions = {
+        "direct_evidence_chain_review": (
+            "review accession-to-type-strain evidence chain before manual import"
+        ),
+        "lpsn_token_overlap_required": (
+            "compare archive strain tokens with LPSN type-strain tokens"
+        ),
+        "direct_type_material_signal_required": (
+            "find direct type-material signal before manual import"
+        ),
+        "conflict_resolution_required": (
+            "resolve duplicate or conflicting archive candidate rows"
+        ),
+        "public_accession_required": (
+            "supply assembly, BioSample, nuccore, or WGS accession"
+        ),
+        "metadata_fix_required": "fix archive candidate metadata",
+    }
+    return actions.get(review_class, "review archive candidate metadata")
+
+
+def _bounded_species_preview(
+    values: Iterable[str],
+    *,
+    limit: int = 5,
+) -> dict[str, object]:
+    species: list[str] = []
+    for value in values:
+        cleaned = _cell(value)
+        if cleaned and cleaned not in species:
+            species.append(cleaned)
+    return {
+        "species_preview": species[:limit],
+        "species_truncated": len(species) > limit,
+    }
+
+
+def _append_unique(values: list[str], value: str) -> None:
+    cleaned = _cell(value)
+    if cleaned and cleaned not in values:
+        values.append(cleaned)
 
 
 def _source_input_kind(row: ArchiveCandidateRow) -> str:
