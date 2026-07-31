@@ -272,7 +272,10 @@ the preview is truncated. It defaults to three items; use
 AI/operator controller needs a larger or smaller no-execution preview. Each
 preview item also carries compact command-plan status plus blocker/warning
 counts and IDs so a controller can route blocked items without executing or
-copying full diagnostic messages.
+copying full diagnostic messages. The preview object includes
+`queue_snapshot_sha256` and `preview_item_ids` so a controller can detect
+whether the queued metadata changed before resuming a previously inspected
+item.
 The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so

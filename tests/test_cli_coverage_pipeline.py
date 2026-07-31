@@ -540,8 +540,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "operator_execute_after_review",
     ]
     assert payload["coverage_operator_queue_preview"]["queue_item_count"] == 4
+    assert len(payload["coverage_operator_queue_preview"]["queue_snapshot_sha256"]) == 64
     assert payload["coverage_operator_queue_preview"]["preview_limit"] == 3
     assert payload["coverage_operator_queue_preview"]["preview_item_count"] == 3
+    assert payload["coverage_operator_queue_preview"]["preview_item_ids"] == [
+        "cq001_resolve_curator_conflict",
+        "cq002_review_public_archive_linkage",
+        "cq003_review_public_type_linkage",
+    ]
     assert payload["coverage_operator_queue_preview"]["truncated"] is True
     assert [
         item["queue_item_id"]
@@ -781,6 +787,12 @@ def test_coverage_pipeline_queue_preview_limit_controls_preview_and_status(
     assert captured.err == ""
     assert payload["coverage_operator_queue_preview"]["preview_limit"] == 4
     assert payload["coverage_operator_queue_preview"]["preview_item_count"] == 4
+    assert payload["coverage_operator_queue_preview"]["preview_item_ids"] == [
+        "cq001_resolve_curator_conflict",
+        "cq002_review_public_archive_linkage",
+        "cq003_review_public_type_linkage",
+        "cq004_prepare_provider_handoff",
+    ]
     assert payload["coverage_operator_queue_preview"]["truncated"] is False
     assert [
         item["queue_item_id"]
@@ -819,6 +831,9 @@ def test_coverage_pipeline_queue_preview_limit_controls_preview_and_status(
     assert build_payload["coverage_operator_queue_preview"]["preview_limit"] == 2
     assert build_payload["coverage_operator_queue_preview"]["preview_item_count"] == 2
     assert build_payload["coverage_operator_queue_preview"]["truncated"] is True
+    build_digest = build_payload["coverage_operator_queue_preview"][
+        "queue_snapshot_sha256"
+    ]
 
     code, status_payload, captured = _run(
         [
@@ -837,6 +852,10 @@ def test_coverage_pipeline_queue_preview_limit_controls_preview_and_status(
     assert status_payload["coverage_operator_queue_preview"]["preview_limit"] == 4
     assert status_payload["coverage_operator_queue_preview"]["preview_item_count"] == 4
     assert status_payload["coverage_operator_queue_preview"]["truncated"] is False
+    assert (
+        status_payload["coverage_operator_queue_preview"]["queue_snapshot_sha256"]
+        == build_digest
+    )
 
 
 def test_coverage_pipeline_rejects_invalid_queue_preview_limit(capsys):
@@ -2395,8 +2414,12 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "schema_version": "coverage_operator_queue_preview.v1",
         "available": False,
         "queue_item_count": 0,
+        "queue_snapshot_sha256": (
+            "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        ),
         "preview_limit": 3,
         "preview_item_count": 0,
+        "preview_item_ids": [],
         "truncated": False,
         "items": [],
         "audit_only": True,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import os
@@ -2184,6 +2185,7 @@ def _coverage_operator_queue_preview(
     limit: int = 3,
 ) -> dict[str, object]:
     items: list[dict[str, object]] = []
+    queue_snapshot_sha256 = _coverage_queue_snapshot_sha256(coverage_action_queue)
     for item in coverage_action_queue[:limit]:
         packet = _coverage_next_task_packet([item])
         command_plan = _coverage_next_command_plan(packet)
@@ -2222,8 +2224,14 @@ def _coverage_operator_queue_preview(
         "schema_version": "coverage_operator_queue_preview.v1",
         "available": bool(items),
         "queue_item_count": len(coverage_action_queue),
+        "queue_snapshot_sha256": queue_snapshot_sha256,
         "preview_limit": limit,
         "preview_item_count": len(items),
+        "preview_item_ids": [
+            str(item.get("queue_item_id", ""))
+            for item in items
+            if str(item.get("queue_item_id", ""))
+        ],
         "truncated": len(coverage_action_queue) > limit,
         "items": items,
         "audit_only": True,
@@ -2238,6 +2246,18 @@ def _coverage_operator_queue_preview(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_queue_preview_no_execution",
     }
+
+
+def _coverage_queue_snapshot_sha256(
+    coverage_action_queue: list[dict[str, object]],
+) -> str:
+    canonical = json.dumps(
+        coverage_action_queue,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _diagnostic_ids(entries: object) -> list[str]:
