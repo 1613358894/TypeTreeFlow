@@ -1821,8 +1821,8 @@ recommended next command for reviewing `provider/proposed_external_genomes.tsv`.
 The isolated coverage pipeline adapter is:
 
 ```text
-typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
 ```
 
@@ -1842,8 +1842,9 @@ plus `worklist_candidate_provider_key_counts`,
 `*_recommended_request_target` compact command/subcommand labels, and bounded
 `*_recommended_command_plan` no-dispatch planning companions. The same
 companions are also collected in the stage-keyed `coverage_stage_command_plans`
-map for controllers that prefer one contract field. `coverage-pipeline status`
-can also take `--stage <operator_chain_stage>` and return
+map for controllers that prefer one contract field. `coverage-pipeline`
+`preview`, `build`, and `status` can also take
+`--stage <operator_chain_stage>` and return
 `selected_operator_chain_stage`, `selected_operator_chain_stage_found`, and
 `selected_operator_chain_stage_command_plan` for a single explicit stage; an
 unknown stage is a compact JSON blocked result with
@@ -2048,8 +2049,8 @@ sorted action group.
 chain. Each row reports `stage`, `artifact`, `available`, `record_count`,
 `recommended_request_target`, `recommended_next_command`, and `boundary`; it is
 metadata only and does not discover files outside the explicit pipeline inputs
-or output directory. `coverage-pipeline status --stage <operator_chain_stage>`
-selects one row by exact stage name and emits a matching
+or output directory. `coverage-pipeline <preview|build|status>
+--stage <operator_chain_stage>` selects one row by exact stage name and emits a matching
 `selected_operator_chain_stage_command_plan` using that row's structured
 `recommended_request`. This stage selection is metadata-only: it does not
 dispatch the rendered command, write outputs, contact providers, download
