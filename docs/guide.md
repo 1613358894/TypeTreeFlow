@@ -119,12 +119,13 @@ typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> \
 ```
 
 The command expands provider keys through the static provider registry and
-records provider status, terms-review, credential, and network-disabled
-boundaries, with compact readiness counts and the next offline
-`provider-request draft` request in stdout and the summary JSON. It
-blocks rows missing species, source lane, or action code, and does not contact
-providers, download genomes, mutate manifests, or claim strict scientific
-delivery.
+records provider status, automation level, controlled operator route, next
+input class, automation boundary, terms-review, credential, and
+network-disabled boundaries, with compact readiness and route counts plus the
+next offline `provider-request draft` request in stdout and the summary JSON.
+It blocks rows missing species, source lane, or action code, and does not
+contact providers, download genomes, mutate manifests, or claim strict
+scientific delivery.
 
 Draft a review-only provider request TSV from a provider handoff:
 

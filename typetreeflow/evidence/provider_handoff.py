@@ -11,6 +11,7 @@ from typing import Iterable, Mapping
 
 from typetreeflow.providers.base import ProviderContext
 from typetreeflow.providers.registry import ProviderRegistry, build_default_provider_registry
+from typetreeflow.providers.routing import provider_route
 
 
 PROVIDER_HANDOFF_SCHEMA_VERSION = "1"
@@ -20,6 +21,9 @@ PROVIDER_HANDOFF_FIELDS: tuple[str, ...] = (
     "provider_name",
     "provider_status",
     "provider_automation_level",
+    "operator_route",
+    "next_input_class",
+    "automation_boundary",
     "species",
     "source_action_code",
     "source_lane",
@@ -54,6 +58,9 @@ class ProviderHandoffRow:
     provider_name: str
     provider_status: str
     provider_automation_level: str
+    operator_route: str
+    next_input_class: str
+    automation_boundary: str
     species: str
     source_action_code: str
     source_lane: str
@@ -77,6 +84,9 @@ class ProviderHandoffRow:
             "provider_name": _clean(self.provider_name),
             "provider_status": self.provider_status,
             "provider_automation_level": self.provider_automation_level,
+            "operator_route": self.operator_route,
+            "next_input_class": self.next_input_class,
+            "automation_boundary": self.automation_boundary,
             "species": _clean(self.species),
             "source_action_code": self.source_action_code,
             "source_lane": self.source_lane,
@@ -104,6 +114,9 @@ class ProviderHandoff:
         provider_counts: dict[str, int] = {}
         status_counts: dict[str, int] = {}
         automation_level_counts: dict[str, int] = {}
+        operator_route_counts: dict[str, int] = {}
+        next_input_class_counts: dict[str, int] = {}
+        automation_boundary_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
         terms_review_required_count = 0
         credentials_required_count = 0
@@ -114,6 +127,15 @@ class ProviderHandoff:
             status_counts[row.provider_status] = status_counts.get(row.provider_status, 0) + 1
             automation_level_counts[row.provider_automation_level] = (
                 automation_level_counts.get(row.provider_automation_level, 0) + 1
+            )
+            operator_route_counts[row.operator_route] = (
+                operator_route_counts.get(row.operator_route, 0) + 1
+            )
+            next_input_class_counts[row.next_input_class] = (
+                next_input_class_counts.get(row.next_input_class, 0) + 1
+            )
+            automation_boundary_counts[row.automation_boundary] = (
+                automation_boundary_counts.get(row.automation_boundary, 0) + 1
             )
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
@@ -133,6 +155,11 @@ class ProviderHandoff:
             "provider_status_counts": dict(sorted(status_counts.items())),
             "provider_automation_level_counts": dict(
                 sorted(automation_level_counts.items())
+            ),
+            "operator_route_counts": dict(sorted(operator_route_counts.items())),
+            "next_input_class_counts": dict(sorted(next_input_class_counts.items())),
+            "automation_boundary_counts": dict(
+                sorted(automation_boundary_counts.items())
             ),
             "source_action_counts": dict(sorted(action_counts.items())),
             "terms_review_required_count": terms_review_required_count,
@@ -169,12 +196,17 @@ def build_provider_handoff(
         for provider_key in provider_keys:
             entry = provider_registry.get(provider_key)
             capability = entry.capability
+            automation_level = _provider_automation_level(entry)
+            route = provider_route(automation_level)
             rows.append(
                 ProviderHandoffRow(
                     provider_key=entry.provider_key,
                     provider_name=entry.provider_name,
                     provider_status=capability.status.value,
-                    provider_automation_level=_provider_automation_level(entry),
+                    provider_automation_level=automation_level,
+                    operator_route=route["operator_route"],
+                    next_input_class=route["next_input_class"],
+                    automation_boundary=route["automation_boundary"],
                     species=_value(plan_row, "species"),
                     source_action_code=_value(plan_row, "action_code"),
                     source_lane=_value(plan_row, "source_lane"),

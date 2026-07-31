@@ -12,6 +12,7 @@ from typing import TextIO
 
 from typetreeflow.providers.base import ProviderContext
 from typetreeflow.providers.registry import build_default_provider_registry
+from typetreeflow.providers.routing import provider_route
 
 
 COMMAND = "providers catalog"
@@ -80,7 +81,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def _entry_payload(entry, *, aliases: tuple[str, ...]) -> dict[str, object]:
     capability = entry.capability
     automation_level = _automation_level(entry)
-    route = _provider_route(automation_level)
+    route = provider_route(automation_level)
     return {
         "provider_key": entry.provider_key,
         "provider_name": entry.provider_name,
@@ -221,26 +222,6 @@ def _automation_level(entry) -> str:
     if "metadata_review" in capability.allowed_modes:
         return "metadata_review"
     return "planning_handoff"
-
-
-def _provider_route(automation_level: str) -> dict[str, str]:
-    if automation_level == "metadata_review":
-        return {
-            "operator_route": "public_metadata_review",
-            "next_input_class": "public_accession_type_strain_linkage",
-            "automation_boundary": "metadata_review_only_no_download",
-        }
-    if automation_level == "download_enabled":
-        return {
-            "operator_route": "provider_download",
-            "next_input_class": "explicit_download_authorization",
-            "automation_boundary": "download_requires_explicit_enable_flags",
-        }
-    return {
-        "operator_route": "provider_handoff",
-        "next_input_class": "permitted_local_fasta_terms_provenance",
-        "automation_boundary": "planning_handoff_no_provider_contact",
-    }
 
 
 def _guidance_notes(entry) -> list[str]:
