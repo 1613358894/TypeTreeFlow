@@ -939,6 +939,10 @@ def _operator_chain_next_step_packet(
         ),
         "boundary": str(next_stage.get("boundary", "")),
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
+        "resume_with_stage": str(next_stage.get("stage", "")),
+        "resume_with_expected_operator_chain_snapshot_sha256": (
+            operator_chain_snapshot_sha256
+        ),
         "audit_only": True,
         "dry_run": True,
         "writes_outputs": False,
@@ -1012,6 +1016,10 @@ def _empty_operator_chain_next_step_packet(
         "recommended_next_command": "",
         "boundary": "",
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
+        "resume_with_stage": "",
+        "resume_with_expected_operator_chain_snapshot_sha256": (
+            operator_chain_snapshot_sha256
+        ),
         "target_argv": [],
         "recognized": {},
         "preflight_decision": "none",

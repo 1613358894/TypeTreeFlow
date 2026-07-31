@@ -1562,6 +1562,10 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert next_step["operator_chain_snapshot_sha256"] == summary[
         "operator_chain_snapshot_sha256"
     ]
+    assert next_step["resume_with_stage"] == "provider_request_validation"
+    assert next_step["resume_with_expected_operator_chain_snapshot_sha256"] == (
+        summary["operator_chain_snapshot_sha256"]
+    )
     assert next_step["available"] is True
     assert next_step["stage"] == "provider_request_validation"
     assert next_step["artifact"] == (
@@ -2294,6 +2298,10 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "recommended_next_command": "",
         "boundary": "",
         "operator_chain_snapshot_sha256": payload["operator_chain_snapshot_sha256"],
+        "resume_with_stage": "",
+        "resume_with_expected_operator_chain_snapshot_sha256": (
+            payload["operator_chain_snapshot_sha256"]
+        ),
         "target_argv": [],
         "recognized": {},
         "preflight_decision": "none",
@@ -2631,6 +2639,10 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
     assert next_step["operator_chain_snapshot_sha256"] == payload[
         "operator_chain_snapshot_sha256"
     ]
+    assert next_step["resume_with_stage"] == "external_genomes_install_plan"
+    assert next_step["resume_with_expected_operator_chain_snapshot_sha256"] == (
+        payload["operator_chain_snapshot_sha256"]
+    )
     assert next_step["available"] is True
     assert next_step["stage"] == "external_genomes_install_plan"
     assert next_step["artifact"] == (
