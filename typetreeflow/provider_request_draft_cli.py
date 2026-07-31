@@ -78,6 +78,9 @@ _REQUIRED_HANDOFF_ROW_FIELDS = (
     "provider_name",
     "provider_status",
     "provider_automation_level",
+    "operator_route",
+    "next_input_class",
+    "automation_boundary",
     "species",
 )
 
@@ -519,6 +522,9 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "provider_automation_level_counts": summary[
             "provider_automation_level_counts"
         ],
+        "operator_route_counts": summary["operator_route_counts"],
+        "next_input_class_counts": summary["next_input_class_counts"],
+        "automation_boundary_counts": summary["automation_boundary_counts"],
         "source_action_counts": summary["source_action_counts"],
         "curator_completion_template_counts": summary[
             "curator_completion_template_counts"
@@ -740,6 +746,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_key_counts": {},
         "provider_status_counts": {},
         "provider_automation_level_counts": {},
+        "operator_route_counts": {},
+        "next_input_class_counts": {},
+        "automation_boundary_counts": {},
         "source_action_counts": {},
         "curator_completion_template_counts": {},
         "curator_completion_required_count": 0,

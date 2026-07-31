@@ -139,12 +139,14 @@ provider record, strain, local FASTA, hash, license, and retrieval fields
 blank for review. It is a bridge to `plan-provider-registration`, not provider
 contact, terms acceptance, download execution, manifest mutation, completion
 credit, or strict scientific delivery. Input rows with missing provider key,
-provider name, provider status, or species are blocked instead of producing
-empty provider request rows. The compact JSON and summary include
-`curator_completion_template_counts`, `curator_completion_field_counts`, and
-`curator_completion_blocker_counts` so AI/operator routing can see which
-curator-owned fields still block later provider-registration planning. Each
-draft row note also carries a `curator_completion_template` such as
+provider name, provider status, route metadata, or species are blocked instead
+of producing empty provider request rows. The compact JSON and summary include
+`operator_route_counts`, `next_input_class_counts`,
+`automation_boundary_counts`, `curator_completion_template_counts`,
+`curator_completion_field_counts`, and `curator_completion_blocker_counts` so
+AI/operator routing can see both the inherited route and the curator-owned
+fields still blocking later provider-registration planning. Each draft row note
+also carries a `curator_completion_template` such as
 `provider_local_fasta_handoff` or `public_archive_linkage_review`; the template
 is only a fill-in recipe and does not make the row provider-ready.
 

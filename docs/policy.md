@@ -357,9 +357,9 @@ The `provider-request draft` CLI remains an isolated adapter over an explicit
 directory. Draft rows are intentionally incomplete: curator-owned strain,
 type-strain ID, provider record, local FASTA, hash, license, retrieval, and
 curator fields must remain blank until separately reviewed. Rows missing
-provider key, provider name, provider status, or species must be blocked rather
-than converted into empty provider requests. The command must not scan workflow
-directories, read credentials, contact providers,
+provider key, provider name, provider status, route metadata, or species must
+be blocked rather than converted into empty provider requests. The command must
+not scan workflow directories, read credentials, contact providers,
 authenticate, accept terms, trigger downloads, mutate manifests, change
 completion metrics, or reinterpret provider handoff rows as strict scientific
 deliverables.
@@ -376,12 +376,13 @@ credit, manifest mutation, or strict deliverable promotion. Failed-handoff
 packages exclude these provider-request artifacts.
 Provider request draft summaries may count missing curator-owned fields and
 blocker categories for later registration planning. They may also report
-`curator_completion_template_counts` and row-level fill-in templates such as
-`provider_local_fasta_handoff` or `public_archive_linkage_review`. Those
-counts and templates are AI routing diagnostics only. They must not be
-interpreted as provider readiness, terms approval, FASTA availability,
-checksum validation, completion credit, or strict scientific deliverable
-status.
+`operator_route_counts`, `next_input_class_counts`,
+`automation_boundary_counts`, `curator_completion_template_counts`, and
+row-level fill-in templates such as `provider_local_fasta_handoff` or
+`public_archive_linkage_review`. Those counts and templates are AI routing
+diagnostics only. They must not be interpreted as provider readiness, terms
+approval, FASTA availability, checksum validation, completion credit, or strict
+scientific deliverable status.
 
 The `provider-request validate` CLI is the only provider-request surface that
 may read curator-referenced local FASTA files, and it may do so only to confirm

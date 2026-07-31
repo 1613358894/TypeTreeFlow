@@ -65,6 +65,9 @@ class ProviderRequestDraftRow:
     source_lane: str = ""
     provider_status: str = ""
     provider_automation_level: str = ""
+    operator_route: str = ""
+    next_input_class: str = ""
+    automation_boundary: str = ""
     provider_guidance_notes: str = ""
 
     def to_provider_request_row(self) -> dict[str, str]:
@@ -102,6 +105,9 @@ class ProviderRequestDraft:
         provider_counts: dict[str, int] = {}
         status_counts: dict[str, int] = {}
         automation_level_counts: dict[str, int] = {}
+        operator_route_counts: dict[str, int] = {}
+        next_input_class_counts: dict[str, int] = {}
+        automation_boundary_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
         template_counts = {template: 0 for template in CURATOR_COMPLETION_TEMPLATES}
         field_counts = {field: 0 for field in CURATOR_COMPLETION_FIELD_KEYS}
@@ -113,6 +119,15 @@ class ProviderRequestDraft:
             )
             automation_level_counts[row.provider_automation_level] = (
                 automation_level_counts.get(row.provider_automation_level, 0) + 1
+            )
+            operator_route_counts[row.operator_route] = (
+                operator_route_counts.get(row.operator_route, 0) + 1
+            )
+            next_input_class_counts[row.next_input_class] = (
+                next_input_class_counts.get(row.next_input_class, 0) + 1
+            )
+            automation_boundary_counts[row.automation_boundary] = (
+                automation_boundary_counts.get(row.automation_boundary, 0) + 1
             )
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
@@ -131,6 +146,11 @@ class ProviderRequestDraft:
             "provider_status_counts": dict(sorted(status_counts.items())),
             "provider_automation_level_counts": dict(
                 sorted(automation_level_counts.items())
+            ),
+            "operator_route_counts": dict(sorted(operator_route_counts.items())),
+            "next_input_class_counts": dict(sorted(next_input_class_counts.items())),
+            "automation_boundary_counts": dict(
+                sorted(automation_boundary_counts.items())
             ),
             "source_action_counts": dict(sorted(action_counts.items())),
             "curator_completion_template_counts": {
@@ -174,6 +194,9 @@ def build_provider_request_draft(
                 source_lane=_value(row, "source_lane"),
                 provider_status=_value(row, "provider_status"),
                 provider_automation_level=_value(row, "provider_automation_level"),
+                operator_route=_value(row, "operator_route"),
+                next_input_class=_value(row, "next_input_class"),
+                automation_boundary=_value(row, "automation_boundary"),
                 provider_guidance_notes=_value(row, "provider_guidance_notes"),
             )
         )
@@ -208,6 +231,9 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         ("source_lane", row.source_lane),
         ("provider_status", row.provider_status),
         ("provider_automation_level", row.provider_automation_level),
+        ("operator_route", row.operator_route),
+        ("next_input_class", row.next_input_class),
+        ("automation_boundary", row.automation_boundary),
         ("provider_guidance", row.provider_guidance_notes),
     ]
     for key, value in optional_parts:
