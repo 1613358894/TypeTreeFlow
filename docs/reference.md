@@ -2496,7 +2496,10 @@ summaries can contribute `summary_external_genomes_readiness_packet`.
 `operator_chain_readiness_packets` collects those bounded packets by stage so
 an AI/operator controller can inspect child-stage readiness without opening the
 child summary files. Ready readiness packets include compact
-`recommended_request_target` labels. Provider-request readiness packets can
+`recommended_request_target` labels. A ready external-genomes install-plan
+readiness packet also carries the concrete `register-external-genomes` dry-run
+request using the reviewed external-genomes TSV path and target workflow
+outdir recorded by the install-plan step. Provider-request readiness packets can
 also include `install_plan_recommended_request_target` when the child summary
 exposes a downstream install-plan companion; these are routing hints only and
 do not change the `available` gate. It also includes
