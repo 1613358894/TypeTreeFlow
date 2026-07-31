@@ -3181,6 +3181,14 @@ def _coverage_controller_packet(
                         coverage_queue_resume_packet.get("next_input_class", "")
                     ),
                 ),
+                "next_input_package": (
+                    dict(coverage_queue_resume_packet.get("next_input_package", {}))
+                    if isinstance(
+                        coverage_queue_resume_packet.get("next_input_package", {}),
+                        Mapping,
+                    )
+                    else {}
+                ),
                 "recommended_request_target": str(
                     coverage_queue_resume_packet.get(
                         "recommended_request_target", ""
@@ -3486,6 +3494,11 @@ def _coverage_next_task_packet(
             available=False,
             recommended_request=None,
         )
+        review_input_packet = _coverage_review_input_packet(
+            "",
+            record_count=0,
+            recommended_request=None,
+        )
         return {
             "available": False,
             "packet_status": "no_action",
@@ -3504,10 +3517,10 @@ def _coverage_next_task_packet(
             "recommended_request_target": "",
             "recommended_next_command": "",
             "operator_execution_gate": operator_execution_gate,
-            "review_input_packet": _coverage_review_input_packet(
-                "",
-                record_count=0,
-                recommended_request=None,
+            "review_input_packet": review_input_packet,
+            "next_input_package": _coverage_next_input_package(
+                review_input_packet,
+                recommended_request_target="",
             ),
             "safe_for_unattended_download": False,
             "downloads_triggered": 0,
@@ -3526,6 +3539,11 @@ def _coverage_next_task_packet(
     )
     action_code = str(item.get("action_code", ""))
     operator_execution_gate = _coverage_item_execution_gate(item)
+    review_input_packet = _coverage_review_input_packet(
+        action_code,
+        record_count=_safe_int(item.get("record_count", 0)),
+        recommended_request=recommended_request,
+    )
     return {
         "available": True,
         "packet_status": "ready_for_operator_review",
@@ -3548,10 +3566,10 @@ def _coverage_next_task_packet(
         "recommended_request_target": recommended_request_target,
         "recommended_next_command": str(item.get("recommended_next_command", "")),
         "operator_execution_gate": operator_execution_gate,
-        "review_input_packet": _coverage_review_input_packet(
-            action_code,
-            record_count=_safe_int(item.get("record_count", 0)),
-            recommended_request=recommended_request,
+        "review_input_packet": review_input_packet,
+        "next_input_package": _coverage_next_input_package(
+            review_input_packet,
+            recommended_request_target=recommended_request_target,
         ),
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
@@ -3879,6 +3897,10 @@ def _coverage_next_operator_recipe(
         "species_truncated": bool(packet.get("species_truncated")),
         "required_inputs": required_inputs,
         "review_input_packet": review_input_packet,
+        "next_input_package": _coverage_next_input_package(
+            review_input_packet,
+            recommended_request_target=recommended_request_target,
+        ),
         "operator_execution_gate": operator_execution_gate,
         "recommended_request_target": recommended_request_target,
         "command_plan_decision": decision,
@@ -3949,6 +3971,13 @@ def _coverage_queue_resume_packet(
         status = "blocked"
     else:
         status = str(recipe.get("status", ""))
+    recommended_request_target = str(recipe.get("recommended_request_target", "")) or (
+        _coverage_recommended_request_target(
+            packet.get("recommended_request")
+            if isinstance(packet.get("recommended_request"), Mapping)
+            else None
+        )
+    )
     return {
         "schema_version": "coverage_queue_resume_packet.v1",
         "available": available,
@@ -3969,13 +3998,10 @@ def _coverage_queue_resume_packet(
         else [],
         "review_input_packet": review_input_packet,
         "operator_execution_gate": operator_execution_gate,
-        "recommended_request_target": str(
-            recipe.get("recommended_request_target", "")
-        )
-        or _coverage_recommended_request_target(
-            packet.get("recommended_request")
-            if isinstance(packet.get("recommended_request"), Mapping)
-            else None
+        "recommended_request_target": recommended_request_target,
+        "next_input_package": _coverage_next_input_package(
+            review_input_packet,
+            recommended_request_target=recommended_request_target,
         ),
         "target_argv": list(recipe.get("target_argv", []))
         if isinstance(recipe.get("target_argv"), list)
@@ -4070,6 +4096,18 @@ def _coverage_operator_queue_preview(
             preview_blocking_item_ids.append(queue_item_id)
         if warning_ids and queue_item_id:
             preview_warning_item_ids.append(queue_item_id)
+        review_input_packet = (
+            dict(recipe.get("review_input_packet", {}))
+            if isinstance(recipe.get("review_input_packet"), Mapping)
+            else _coverage_review_input_packet(
+                str(recipe.get("action_code", "")),
+                record_count=_safe_int(recipe.get("record_count", 0)),
+                recommended_request=packet.get("recommended_request")
+                if isinstance(packet.get("recommended_request"), Mapping)
+                else None,
+            )
+        )
+        recommended_request_target = str(recipe.get("recommended_request_target", ""))
         items.append(
             {
                 "queue_position": _safe_int(recipe.get("queue_position", 0)),
@@ -4086,17 +4124,13 @@ def _coverage_operator_queue_preview(
                 "required_inputs": list(recipe.get("required_inputs", []))
                 if isinstance(recipe.get("required_inputs"), list)
                 else [],
-                "review_input_packet": _coverage_review_input_packet(
-                    str(recipe.get("action_code", "")),
-                    record_count=_safe_int(recipe.get("record_count", 0)),
-                    recommended_request=packet.get("recommended_request")
-                    if isinstance(packet.get("recommended_request"), Mapping)
-                    else None,
+                "review_input_packet": review_input_packet,
+                "next_input_package": _coverage_next_input_package(
+                    review_input_packet,
+                    recommended_request_target=recommended_request_target,
                 ),
                 "operator_execution_gate": operator_execution_gate,
-                "recommended_request_target": str(
-                    recipe.get("recommended_request_target", "")
-                ),
+                "recommended_request_target": recommended_request_target,
                 "command_plan_decision": command_plan_decision,
                 "command_plan_status": command_plan_status,
                 "output_contracts": output_contracts,
@@ -4440,6 +4474,41 @@ def _coverage_review_input_packet(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_review_input_packet_no_execution",
+    }
+
+
+def _coverage_next_input_package(
+    review_input_packet: Mapping[str, object],
+    *,
+    recommended_request_target: str,
+) -> dict[str, object]:
+    required_fields = (
+        list(review_input_packet.get("required_fields", []))
+        if isinstance(review_input_packet.get("required_fields"), list)
+        else []
+    )
+    allowed_statuses = (
+        list(review_input_packet.get("allowed_statuses", []))
+        if isinstance(review_input_packet.get("allowed_statuses"), list)
+        else []
+    )
+    return {
+        "schema_version": "coverage_next_input_package.v1",
+        "available": bool(review_input_packet.get("available")),
+        "action_code": str(review_input_packet.get("action_code", "")),
+        "operator_route": str(review_input_packet.get("operator_route", "")),
+        "next_input_class": str(review_input_packet.get("next_input_class", "")),
+        "record_count": _safe_int(review_input_packet.get("record_count", 0)),
+        "input_schema": str(review_input_packet.get("input_schema", "")),
+        "input_artifact": str(review_input_packet.get("input_artifact", "")),
+        "required_field_count": len(required_fields),
+        "allowed_status_count": len(allowed_statuses),
+        "evidence_focus": str(review_input_packet.get("evidence_focus", "")),
+        "recommended_request_target": recommended_request_target,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "execution_boundary": "metadata_only_next_input_package_no_execution",
     }
 
 
