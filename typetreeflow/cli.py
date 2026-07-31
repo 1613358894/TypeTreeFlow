@@ -4534,6 +4534,12 @@ def _format_external_genome_registration_envelope(
             error=error,
             status=status,
         ),
+        **_external_genome_registration_recommendation(
+            config=config,
+            result=result,
+            error=error,
+            status=status,
+        ),
         "writes_outputs": result is not None,
         "writes_workflow_outputs": result is not None,
         "downloads_triggered": 0,
@@ -4546,6 +4552,56 @@ def _format_external_genome_registration_envelope(
         "strict_scientific_deliverable": False,
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def _external_genome_registration_recommendation(
+    *,
+    config: AppConfig,
+    result: ExternalGenomeRegistrationStageResult | None,
+    error: Exception | None,
+    status: str,
+) -> dict[str, object]:
+    if (
+        error is not None
+        or result is None
+        or not config.dry_run
+        or status != "pass"
+    ):
+        return {
+            "required_inputs": [],
+            "recommended_request": None,
+            "recommended_request_target": "",
+            "recommended_next_command": "",
+        }
+
+    input_path = _command_path(config.register_external_genomes)
+    outdir = _command_path(config.outdir)
+    request: dict[str, object] = {
+        "command": "register-external-genomes",
+        "external_genomes": input_path,
+        "outdir": outdir,
+    }
+    command = (
+        f"typetreeflow --register-external-genomes {input_path} --outdir {outdir}"
+    )
+    if config.force:
+        request["force"] = True
+        command += " --force"
+    if config.merge_manifest:
+        request["merge_manifest"] = True
+        command += " --merge-manifest"
+    return {
+        "required_inputs": [input_path],
+        "recommended_request": request,
+        "recommended_request_target": "register-external-genomes",
+        "recommended_next_command": command,
+    }
+
+
+def _command_path(value: Path | str | None) -> str:
+    if value is None:
+        return ""
+    return Path(value).as_posix()
 
 
 def _external_genome_registration_status(

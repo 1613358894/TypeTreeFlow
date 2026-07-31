@@ -1323,6 +1323,11 @@ blocked packets leave those next-step fields empty. It also carries
 `provider_route_groups` when reviewed notes include controlled route metadata.
 It always keeps `safe_for_unattended_execution=false`; an AI/operator must still
 review the packet before invoking the next CLI command.
+When `register-external-genomes --dry-run` passes without invalid rows, its JSON
+also carries a structured non-dry-run `recommended_request` plus compact
+`recommended_request_target` and renderable `recommended_next_command`; warning,
+blocked, failed, and already non-dry-run registration payloads leave those
+fields empty.
 When provider handoff route metadata is present in reviewed row notes, validate,
 install-plan, and registration dry-run JSON summarize only controlled route
 counts and provider route groups. These fields are operator context; they do
