@@ -409,6 +409,12 @@ The payload also carries
 `worklist_candidate_provider_key_counts` from the worklist layer plus provider
 automation-level counts from the handoff and request-draft layers so
 AI/operator handoff pressure is visible before reading the nested artifacts. It
+also includes `coverage_provider_route_opportunity_summary`, which groups the
+provider handoff rows by provider key, status, automation level, source action,
+operator route, and next input class. Use it to see which platforms are only
+public metadata review pressure and which platforms need a provider handoff
+package; it is still audit-only and does not authorize provider contact or
+downloads. The payload
 also reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus

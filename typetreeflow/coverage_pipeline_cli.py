@@ -918,6 +918,10 @@ def _run_status(
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
         ),
+        "coverage_provider_route_opportunity_summary": _optional_summary_map(
+            coverage_summary,
+            "coverage_provider_route_opportunity_summary",
+        ),
         "coverage_action_queue": _optional_summary_list(
             coverage_summary, "coverage_action_queue"
         ),
@@ -2059,6 +2063,9 @@ def _payload(
         coverage_next_action_groups,
         provider_handoff.rows,
     )
+    coverage_provider_route_opportunity_summary = (
+        _coverage_provider_route_opportunity_summary(provider_handoff.rows)
+    )
     coverage_action_queue = _coverage_action_queue(coverage_opportunity_summary)
     coverage_action_queue_summary = _coverage_action_queue_summary(
         coverage_action_queue
@@ -2157,6 +2164,9 @@ def _payload(
         "coverage_provider_key_counts": coverage_summary["provider_key_counts"],
         "coverage_next_action_groups": coverage_next_action_groups,
         "coverage_opportunity_summary": coverage_opportunity_summary,
+        "coverage_provider_route_opportunity_summary": (
+            coverage_provider_route_opportunity_summary
+        ),
         "coverage_action_queue": coverage_action_queue,
         "coverage_priority_summary": coverage_priority_summary,
         "coverage_next_task_packet": coverage_next_task_packet,
@@ -2803,6 +2813,193 @@ def _coverage_opportunity_summary(
             }
         )
     return summary
+
+
+def _coverage_provider_route_opportunity_summary(
+    provider_handoff_rows,
+) -> dict[str, object]:
+    provider_key_counts: dict[str, int] = {}
+    provider_status_counts: dict[str, int] = {}
+    provider_automation_level_counts: dict[str, int] = {}
+    source_action_counts: dict[str, int] = {}
+    operator_route_counts: dict[str, int] = {}
+    next_input_class_counts: dict[str, int] = {}
+    provider_rows: dict[str, dict[str, object]] = {}
+
+    for row in provider_handoff_rows:
+        provider_key = str(row.provider_key)
+        if not provider_key:
+            continue
+        provider_key_counts[provider_key] = (
+            provider_key_counts.get(provider_key, 0) + 1
+        )
+        _count_preview_value(provider_status_counts, str(row.provider_status))
+        _count_preview_value(
+            provider_automation_level_counts,
+            str(row.provider_automation_level),
+        )
+        _count_preview_value(source_action_counts, str(row.source_action_code))
+        _count_preview_value(operator_route_counts, str(row.operator_route))
+        _count_preview_value(next_input_class_counts, str(row.next_input_class))
+
+        item = provider_rows.setdefault(
+            provider_key,
+            {
+                "provider_key": provider_key,
+                "provider_name": str(row.provider_name),
+                "record_count": 0,
+                "species": [],
+                "provider_status_counts": {},
+                "provider_automation_level_counts": {},
+                "source_action_counts": {},
+                "operator_route_counts": {},
+                "next_input_class_counts": {},
+                "terms_review_required_count": 0,
+                "credentials_required_count": 0,
+                "network_supported_count": 0,
+                "default_network_enabled_count": 0,
+            },
+        )
+        item["record_count"] = _safe_int(item.get("record_count", 0)) + 1
+        species_values = item.get("species")
+        if isinstance(species_values, list):
+            _append_unique(species_values, str(row.species))
+        _count_weighted_value(
+            item.get("provider_status_counts"),
+            str(row.provider_status),
+            1,
+        )
+        _count_weighted_value(
+            item.get("provider_automation_level_counts"),
+            str(row.provider_automation_level),
+            1,
+        )
+        _count_weighted_value(
+            item.get("source_action_counts"),
+            str(row.source_action_code),
+            1,
+        )
+        _count_weighted_value(
+            item.get("operator_route_counts"),
+            str(row.operator_route),
+            1,
+        )
+        _count_weighted_value(
+            item.get("next_input_class_counts"),
+            str(row.next_input_class),
+            1,
+        )
+        if row.terms_review_required:
+            item["terms_review_required_count"] = (
+                _safe_int(item.get("terms_review_required_count", 0)) + 1
+            )
+        if row.credentials_required:
+            item["credentials_required_count"] = (
+                _safe_int(item.get("credentials_required_count", 0)) + 1
+            )
+        if row.network_supported:
+            item["network_supported_count"] = (
+                _safe_int(item.get("network_supported_count", 0)) + 1
+            )
+        if row.default_network_enabled:
+            item["default_network_enabled_count"] = (
+                _safe_int(item.get("default_network_enabled_count", 0)) + 1
+            )
+
+    route_rows: list[dict[str, object]] = []
+    planning_handoff_provider_keys: list[str] = []
+    metadata_review_provider_keys: list[str] = []
+    for provider_key in sorted(provider_rows):
+        item = provider_rows[provider_key]
+        automation_counts = (
+            _sorted_count_map(item.get("provider_automation_level_counts", {}))
+            if isinstance(item.get("provider_automation_level_counts"), Mapping)
+            else {}
+        )
+        if _safe_int(automation_counts.get("planning_handoff", 0)) > 0:
+            planning_handoff_provider_keys.append(provider_key)
+        if _safe_int(automation_counts.get("metadata_review", 0)) > 0:
+            metadata_review_provider_keys.append(provider_key)
+        species_values = item.get("species")
+        route_rows.append(
+            {
+                "provider_key": provider_key,
+                "provider_name": str(item.get("provider_name", "")),
+                "record_count": _safe_int(item.get("record_count", 0)),
+                **_bounded_species_preview(
+                    species_values if isinstance(species_values, list) else []
+                ),
+                "provider_status_counts": (
+                    _sorted_count_map(item.get("provider_status_counts", {}))
+                    if isinstance(item.get("provider_status_counts"), Mapping)
+                    else {}
+                ),
+                "provider_automation_level_counts": automation_counts,
+                "source_action_counts": (
+                    _sorted_count_map(item.get("source_action_counts", {}))
+                    if isinstance(item.get("source_action_counts"), Mapping)
+                    else {}
+                ),
+                "operator_route_counts": (
+                    _sorted_count_map(item.get("operator_route_counts", {}))
+                    if isinstance(item.get("operator_route_counts"), Mapping)
+                    else {}
+                ),
+                "next_input_class_counts": (
+                    _sorted_count_map(item.get("next_input_class_counts", {}))
+                    if isinstance(item.get("next_input_class_counts"), Mapping)
+                    else {}
+                ),
+                "terms_review_required_count": _safe_int(
+                    item.get("terms_review_required_count", 0)
+                ),
+                "credentials_required_count": _safe_int(
+                    item.get("credentials_required_count", 0)
+                ),
+                "network_supported_count": _safe_int(
+                    item.get("network_supported_count", 0)
+                ),
+                "default_network_enabled_count": _safe_int(
+                    item.get("default_network_enabled_count", 0)
+                ),
+                "needs_provider_request_draft": (
+                    _safe_int(automation_counts.get("planning_handoff", 0)) > 0
+                ),
+                "metadata_review_only": (
+                    _safe_int(automation_counts.get("metadata_review", 0)) > 0
+                    and _safe_int(automation_counts.get("planning_handoff", 0)) == 0
+                ),
+            }
+        )
+
+    return {
+        "schema_version": "coverage_provider_route_opportunity_summary.v1",
+        "record_count": sum(provider_key_counts.values()),
+        "provider_count": len(provider_key_counts),
+        "provider_keys": sorted(provider_key_counts),
+        "provider_key_record_counts": _sorted_count_map(provider_key_counts),
+        "provider_status_counts": _sorted_count_map(provider_status_counts),
+        "provider_automation_level_counts": _sorted_count_map(
+            provider_automation_level_counts
+        ),
+        "source_action_counts": _sorted_count_map(source_action_counts),
+        "operator_route_counts": _sorted_count_map(operator_route_counts),
+        "next_input_class_counts": _sorted_count_map(next_input_class_counts),
+        "planning_handoff_provider_keys": planning_handoff_provider_keys,
+        "metadata_review_provider_keys": metadata_review_provider_keys,
+        "provider_route_rows": route_rows,
+        "requires_operator_review": bool(provider_key_counts),
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_provider_route_opportunity_no_execution",
+    }
 
 
 def _coverage_action_route(action_code: str) -> dict[str, str]:
@@ -4643,6 +4840,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_provider_key_counts": {},
         "coverage_next_action_groups": [],
         "coverage_opportunity_summary": [],
+        "coverage_provider_route_opportunity_summary": (
+            _coverage_provider_route_opportunity_summary(())
+        ),
         "coverage_action_queue": [],
         "coverage_action_queue_summary": {
             "queue_item_count": 0,
@@ -4921,6 +5121,7 @@ def _rendered_outputs(
             "coverage_provider_key_counts",
             "coverage_next_action_groups",
             "coverage_opportunity_summary",
+            "coverage_provider_route_opportunity_summary",
             "coverage_action_queue",
             "coverage_action_queue_summary",
             "coverage_priority_summary",

@@ -1654,6 +1654,55 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "metadata_review": 6,
         "planning_handoff": 2,
     }
+    provider_route_summary = payload["coverage_provider_route_opportunity_summary"]
+    assert provider_route_summary["schema_version"] == (
+        "coverage_provider_route_opportunity_summary.v1"
+    )
+    assert provider_route_summary["record_count"] == 8
+    assert provider_route_summary["provider_keys"] == [
+        "ddbj",
+        "dsmz",
+        "ena",
+        "genbank",
+        "kctc",
+        "refseq",
+    ]
+    assert provider_route_summary["provider_key_record_counts"] == {
+        "ddbj": 1,
+        "dsmz": 1,
+        "ena": 1,
+        "genbank": 2,
+        "kctc": 1,
+        "refseq": 2,
+    }
+    assert provider_route_summary["provider_automation_level_counts"] == {
+        "metadata_review": 6,
+        "planning_handoff": 2,
+    }
+    assert provider_route_summary["planning_handoff_provider_keys"] == [
+        "dsmz",
+        "kctc",
+    ]
+    assert provider_route_summary["metadata_review_provider_keys"] == [
+        "ddbj",
+        "ena",
+        "genbank",
+        "refseq",
+    ]
+    assert provider_route_summary["safe_for_unattended_execution"] is False
+    assert provider_route_summary["downloads_triggered"] == 0
+    assert provider_route_summary["providers_contacted"] == 0
+    assert provider_route_summary["strict_scientific_deliverable"] is False
+    dsmz_route = [
+        row
+        for row in provider_route_summary["provider_route_rows"]
+        if row["provider_key"] == "dsmz"
+    ][0]
+    assert dsmz_route["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
+    assert dsmz_route["needs_provider_request_draft"] is True
+    assert dsmz_route["metadata_review_only"] is False
     assert payload["provider_terms_review_required_count"] == 8
     assert payload["provider_credentials_required_count"] == 0
     assert payload["provider_network_supported_count"] == 0
@@ -2850,6 +2899,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "metadata_review": 6,
         "planning_handoff": 2,
     }
+    assert summary["coverage_provider_route_opportunity_summary"][
+        "planning_handoff_provider_keys"
+    ] == ["dsmz", "kctc"]
+    assert summary["coverage_provider_route_opportunity_summary"][
+        "provider_key_record_counts"
+    ]["genbank"] == 2
     assert summary["provider_request_record_count"] == 8
     assert summary["provider_request_automation_level_counts"] == {
         "metadata_review": 6,
