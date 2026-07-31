@@ -2721,6 +2721,7 @@ def _coverage_queue_resume_packet(
 ) -> dict[str, object]:
     blocking_ids = _diagnostic_ids(recipe.get("blocking", []))
     warning_ids = _diagnostic_ids(recipe.get("warnings", []))
+    output_contracts = _safe_output_contracts(recipe.get("output_contracts", []))
     available = bool(packet.get("available")) and bool(recipe.get("available"))
     if not available:
         status = "no_action"
@@ -2759,6 +2760,9 @@ def _coverage_queue_resume_packet(
         "command_plan_status": str(command_plan.get("status", "")),
         "command_plan_decision": str(command_plan.get("decision", "")),
         "preflight_decision": str(command_plan.get("preflight_decision", "")),
+        "output_contracts": output_contracts,
+        "output_contract_names": _output_contract_names(output_contracts),
+        "output_contract_count": len(output_contracts),
         "blocking_count": len(blocking_ids),
         "blocking_ids": blocking_ids,
         "warning_count": len(warning_ids),
@@ -2797,6 +2801,7 @@ def _coverage_operator_queue_preview(
         recipe = _coverage_next_operator_recipe(packet, command_plan)
         blocking_ids = _diagnostic_ids(recipe.get("blocking", []))
         warning_ids = _diagnostic_ids(recipe.get("warnings", []))
+        output_contracts = _safe_output_contracts(recipe.get("output_contracts", []))
         items.append(
             {
                 "queue_position": _safe_int(recipe.get("queue_position", 0)),
@@ -2824,6 +2829,9 @@ def _coverage_operator_queue_preview(
                     recipe.get("command_plan_decision", "")
                 ),
                 "command_plan_status": str(command_plan.get("status", "")),
+                "output_contracts": output_contracts,
+                "output_contract_names": _output_contract_names(output_contracts),
+                "output_contract_count": len(output_contracts),
                 "blocking_count": len(blocking_ids),
                 "blocking_ids": blocking_ids,
                 "warning_count": len(warning_ids),
@@ -2970,6 +2978,24 @@ def _diagnostic_ids(entries: object) -> list[str]:
             if value:
                 ids.append(value)
     return ids
+
+
+def _safe_output_contracts(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [
+        dict(contract)
+        for contract in value
+        if isinstance(contract, Mapping)
+    ]
+
+
+def _output_contract_names(contracts: Sequence[Mapping[str, object]]) -> list[str]:
+    return sorted(
+        str(contract.get("name", "")).strip()
+        for contract in contracts
+        if str(contract.get("name", "")).strip()
+    )
 
 
 def _coverage_queue_item_id(queue_position: int, action_code: str) -> str:

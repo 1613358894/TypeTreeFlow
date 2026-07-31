@@ -8,6 +8,9 @@ from typetreeflow import cli
 from typetreeflow.coverage_pipeline_cli import (
     _coverage_next_command_plan,
     _coverage_next_operator_recipe,
+    _coverage_operator_queue_preview,
+    _coverage_queue_resume_packet,
+    _coverage_queue_snapshot_sha256,
 )
 from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
@@ -66,6 +69,26 @@ def test_coverage_command_plan_and_recipe_copy_output_contracts():
         }
     ]
     assert recipe["output_contracts"] == plan["output_contracts"]
+    preview = _coverage_operator_queue_preview([packet])
+    assert preview["items"][0]["output_contracts"] == plan["output_contracts"]
+    assert preview["items"][0]["output_contract_names"] == [
+        "provider_request_readiness_packet"
+    ]
+    assert preview["items"][0]["output_contract_count"] == 1
+    digest = _coverage_queue_snapshot_sha256([packet])
+    resume_packet = _coverage_queue_resume_packet(
+        packet,
+        plan,
+        recipe,
+        queue_snapshot_sha256=digest,
+        expected_queue_snapshot_sha256=digest,
+        queue_snapshot_matches_expected=True,
+    )
+    assert resume_packet["output_contracts"] == plan["output_contracts"]
+    assert resume_packet["output_contract_names"] == [
+        "provider_request_readiness_packet"
+    ]
+    assert resume_packet["output_contract_count"] == 1
     assert recipe["downloads_triggered"] == 0
     assert recipe["providers_contacted"] == 0
     assert recipe["manifest_mutated"] is False
@@ -3141,6 +3164,9 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "command_plan_status": "no_action",
         "command_plan_decision": "none",
         "preflight_decision": "none",
+        "output_contracts": [],
+        "output_contract_names": [],
+        "output_contract_count": 0,
         "blocking_count": 0,
         "blocking_ids": [],
         "warning_count": 0,

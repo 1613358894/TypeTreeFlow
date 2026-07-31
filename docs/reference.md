@@ -1909,8 +1909,9 @@ reports `safe_for_unattended_execution=false` and
 `coverage_queue_resume_packet` is a compact AI/controller handoff view over the
 selected queue item. It repeats the selected `queue_item_id`, current queue
 snapshot digest, expected digest, digest match state, target argv, command-plan
-status, preflight decision, blocker/warning IDs, `review_input_packet`, and the
-exact values to reuse as `--queue-item-id` and
+status, preflight decision, blocker/warning IDs, `output_contracts`,
+`output_contract_names`, `output_contract_count`, `review_input_packet`, and
+the exact values to reuse as `--queue-item-id` and
 `--expected-queue-snapshot-sha256` on a later metadata call. It is still
 metadata only:
 `execution_boundary=metadata_only_queue_resume_packet_no_execution`.
@@ -1923,8 +1924,10 @@ preflight decision, and `safe_for_unattended_execution=false`, with
 `truncated=true` when additional queue items exist. Each item also carries
 compact command-plan diagnostics:
 `command_plan_status`, `blocking_count`, `blocking_ids`, `warning_count`, and
-`warning_ids`. These fields make blocked preview items routeable without
-copying diagnostic messages into the queue preview. The preview object also
+`warning_ids`, plus compact output-contract routing metadata:
+`output_contracts`, `output_contract_names`, and `output_contract_count`. These
+fields make blocked preview items routeable without copying diagnostic messages
+or requiring a separate command-catalog lookup. The preview object also
 includes `queue_snapshot_sha256`, a deterministic digest of the current
 coverage action queue metadata, and `preview_item_ids`, the item IDs included
 in the bounded preview. Controllers can compare the digest before resuming a
