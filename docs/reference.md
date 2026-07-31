@@ -718,11 +718,14 @@ catalog a dispatch authority.
 keys, names, common aliases, capability statuses, allowed modes, and
 fail-closed network/download fields as one compact JSON object. It also emits
 top-level provider status counts, `automation_level_counts`,
-`operator_route_counts`, allowed-mode counts, and provider-key lists for
-planning-only, metadata-only, planning-handoff, metadata-review, download-enabled, network-supported,
-credential-gated, terms-review-gated, default-network-enabled, and
-adapter-present entries so AI operators can route provider handoffs without
-scanning every row. Per-provider `automation_level` is AI planning metadata:
+`operator_route_counts`, `provider_route_groups`, allowed-mode counts, and
+provider-key lists for planning-only, metadata-only, planning-handoff,
+metadata-review, download-enabled, network-supported, credential-gated,
+terms-review-gated, default-network-enabled, and adapter-present entries so AI
+operators can route provider handoffs without scanning every row.
+`provider_route_groups` aggregates provider keys and counts by
+`operator_route`, including status, automation-level, next-input, and boundary
+counts. Per-provider `automation_level` is AI planning metadata:
 `planning_handoff` means user-assisted or curator-assisted handoff only,
 `metadata_review` means public archive metadata review only, and
 `download_enabled` is reserved for future gated adapters. It also emits

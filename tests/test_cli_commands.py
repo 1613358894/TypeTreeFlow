@@ -583,6 +583,7 @@ def test_providers_catalog_failure_keeps_stable_summary_shape(capsys):
     assert payload["provider_status_counts"] == {}
     assert payload["automation_level_counts"] == {}
     assert payload["allowed_mode_counts"] == {}
+    assert payload["provider_route_groups"] == []
     assert payload["planning_only_provider_keys"] == []
     assert payload["metadata_only_provider_keys"] == []
     assert payload["planning_handoff_provider_keys"] == []
