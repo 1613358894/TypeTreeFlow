@@ -329,10 +329,11 @@ selects `current_coverage_action_queue_item`,
 `coverage_next_operator_recipe` metadata, and the matching
 `coverage_queue_resume_packet` repeats the selected item ID, digest guard,
 target argv, output contracts, output-contract name/count summaries,
-`review_input_packet`, and no-execution boundary in one compact object. The
-matching next-task packet and recipe retain `operator_execution_gate` metadata;
-the resume packet remains a digest-guarded handoff and does not authorize
-execution. It does not change the bounded preview prefix, execute
+`review_input_packet`, `operator_execution_gate`, and no-execution boundary in
+one compact object. The matching next-task packet, recipe, and resume packet
+retain `operator_execution_gate` metadata; the resume packet remains a
+digest-guarded handoff and does not authorize execution. It does not change the
+bounded preview prefix, execute
 the target command, or authorize provider access/downloads.
 Controllers that persist `queue_snapshot_sha256` can pass
 `--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a

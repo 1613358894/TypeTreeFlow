@@ -1934,8 +1934,8 @@ repeats the selected `review_input_packet` and `operator_execution_gate`, report
 selected queue item. It repeats the selected `queue_item_id`, current queue
 snapshot digest, expected digest, digest match state, target argv, command-plan
 status, preflight decision, blocker/warning IDs, `output_contracts`,
-`output_contract_names`, `output_contract_count`, `review_input_packet`, and
-the exact values to reuse as `--queue-item-id` and
+`output_contract_names`, `output_contract_count`, `review_input_packet`,
+`operator_execution_gate`, and the exact values to reuse as `--queue-item-id` and
 `--expected-queue-snapshot-sha256` on a later metadata call. It is still
 metadata only:
 `execution_boundary=metadata_only_queue_resume_packet_no_execution`.
