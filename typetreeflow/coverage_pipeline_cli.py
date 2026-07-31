@@ -897,6 +897,18 @@ def _run_status(
         ),
         coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
     )
+    coverage_controller_inspection_summary = (
+        _coverage_controller_inspection_summary(
+            coverage_parent_controller_packet=coverage_parent_controller_packet,
+            coverage_controller_packet=coverage_controller_packet,
+            coverage_controller_step_summary=coverage_controller_step_summary,
+            coverage_controller_preflight_handoff_packet=(
+                coverage_controller_preflight_handoff_packet
+            ),
+            coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
+            coverage_route_next_batch_packet=coverage_route_next_batch_packet,
+        )
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -968,6 +980,9 @@ def _run_status(
             coverage_controller_preflight_handoff_packet
         ),
         "coverage_parent_controller_packet": coverage_parent_controller_packet,
+        "coverage_controller_inspection_summary": (
+            coverage_controller_inspection_summary
+        ),
         "coverage_action_queue_summary": _optional_summary_map(
             coverage_summary, "coverage_action_queue_summary"
         ),
@@ -2169,6 +2184,18 @@ def _payload(
         ),
         coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
     )
+    coverage_controller_inspection_summary = (
+        _coverage_controller_inspection_summary(
+            coverage_parent_controller_packet=coverage_parent_controller_packet,
+            coverage_controller_packet=coverage_controller_packet,
+            coverage_controller_step_summary=coverage_controller_step_summary,
+            coverage_controller_preflight_handoff_packet=(
+                coverage_controller_preflight_handoff_packet
+            ),
+            coverage_handoff_next_step_packet=coverage_handoff_next_step_packet,
+            coverage_route_next_batch_packet=coverage_route_next_batch_packet,
+        )
+    )
     current_coverage_action_queue_item = dict(selected_queue_item or {})
     primary_next_action_group = (
         dict(coverage_next_action_groups[0])
@@ -2240,6 +2267,9 @@ def _payload(
             coverage_controller_preflight_handoff_packet
         ),
         "coverage_parent_controller_packet": coverage_parent_controller_packet,
+        "coverage_controller_inspection_summary": (
+            coverage_controller_inspection_summary
+        ),
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "selected_coverage_queue_item_id": str(queue_item_id or ""),
@@ -4733,6 +4763,169 @@ def _coverage_parent_controller_packet(
     }
 
 
+def _controller_inspection_surface_item(
+    name: str,
+    packet: Mapping[str, object],
+    *,
+    argv_key: str = "",
+) -> dict[str, object]:
+    blocking_ids = _string_list_field(packet, "blocking_ids")
+    if not blocking_ids:
+        blocking_ids = _string_list_field(packet, "controller_blocking_ids")
+    warning_ids = _string_list_field(packet, "warning_ids")
+    if not warning_ids:
+        warning_ids = _string_list_field(packet, "controller_warning_ids")
+    target_argv: list[str] = []
+    if argv_key:
+        target_argv = _string_list_field(packet, argv_key)
+    if not target_argv:
+        target_argv = _string_list_field(packet, "recommended_argv")
+    if not target_argv:
+        target_argv = _string_list_field(packet, "preflight_argv")
+    if not target_argv:
+        target_argv = _string_list_field(packet, "target_argv")
+    if not target_argv:
+        target_argv = _string_list_field(packet, "first_step_argv")
+    available = bool(packet.get("available"))
+    return {
+        "name": name,
+        "schema_version": str(packet.get("schema_version", "")),
+        "available": available,
+        "status": str(
+            packet.get(
+                "controller_status",
+                packet.get("batch_status", packet.get("status", "")),
+            )
+        ),
+        "decision": str(
+            packet.get(
+                "controller_decision",
+                packet.get("decision", packet.get("preflight_decision", "")),
+            )
+        ),
+        "recommended_execution_mode": str(
+            packet.get(
+                "recommended_execution_mode",
+                "operator_review_required" if available else "no_action",
+            )
+        ),
+        "target_argv": target_argv,
+        "blocking_ids": blocking_ids,
+        "blocking_count": len(blocking_ids),
+        "warning_ids": warning_ids,
+        "warning_count": len(warning_ids),
+        "execution_boundary": str(packet.get("execution_boundary", "")),
+        "target_command_execution_authorized": False,
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+    }
+
+
+def _coverage_controller_inspection_summary(
+    *,
+    coverage_parent_controller_packet: Mapping[str, object],
+    coverage_controller_packet: Mapping[str, object],
+    coverage_controller_step_summary: Mapping[str, object],
+    coverage_controller_preflight_handoff_packet: Mapping[str, object],
+    coverage_handoff_next_step_packet: Mapping[str, object],
+    coverage_route_next_batch_packet: Mapping[str, object],
+) -> dict[str, object]:
+    surfaces = [
+        _controller_inspection_surface_item(
+            "coverage_parent_controller_packet",
+            coverage_parent_controller_packet,
+            argv_key="recommended_argv",
+        ),
+        _controller_inspection_surface_item(
+            "coverage_controller_packet",
+            coverage_controller_packet,
+        ),
+        _controller_inspection_surface_item(
+            "coverage_controller_step_summary",
+            coverage_controller_step_summary,
+            argv_key="first_step_argv",
+        ),
+        _controller_inspection_surface_item(
+            "coverage_controller_preflight_handoff_packet",
+            coverage_controller_preflight_handoff_packet,
+            argv_key="preflight_argv",
+        ),
+        _controller_inspection_surface_item(
+            "coverage_handoff_next_step_packet",
+            coverage_handoff_next_step_packet,
+            argv_key="target_argv",
+        ),
+        _controller_inspection_surface_item(
+            "coverage_route_next_batch_packet",
+            coverage_route_next_batch_packet,
+            argv_key="first_target_argv",
+        ),
+    ]
+    available_surface_names = [
+        str(item["name"]) for item in surfaces if bool(item["available"])
+    ]
+    blocking_surface_names = [
+        str(item["name"])
+        for item in surfaces
+        if _safe_int(item.get("blocking_count", 0)) > 0
+    ]
+    warning_surface_names = [
+        str(item["name"])
+        for item in surfaces
+        if _safe_int(item.get("warning_count", 0)) > 0
+    ]
+    return {
+        "schema_version": "coverage_controller_inspection_summary.v1",
+        "available": bool(available_surface_names),
+        "surface_count": len(surfaces),
+        "available_surface_count": len(available_surface_names),
+        "available_surface_names": available_surface_names,
+        "blocking_surface_count": len(blocking_surface_names),
+        "blocking_surface_names": blocking_surface_names,
+        "warning_surface_count": len(warning_surface_names),
+        "warning_surface_names": warning_surface_names,
+        "recommended_surface": str(
+            coverage_parent_controller_packet.get("recommended_surface", "")
+        ),
+        "recommended_action": str(
+            coverage_parent_controller_packet.get("recommended_action", "")
+        ),
+        "recommended_argv": _string_list_field(
+            coverage_parent_controller_packet, "recommended_argv"
+        ),
+        "required_before_action": _string_list_field(
+            coverage_parent_controller_packet, "required_before_action"
+        ),
+        "surfaces": surfaces,
+        "target_command_execution_authorized": False,
+        "safe_for_unattended_execution": False,
+        "recommended_execution_mode": (
+            "operator_review_required" if available_surface_names else "no_action"
+        ),
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": "metadata_only_controller_inspection_no_execution",
+    }
+
+
 def _coverage_next_task_packet(
     coverage_action_queue: list[dict[str, object]],
 ) -> dict[str, object]:
@@ -5801,6 +5994,10 @@ def _failure(code: str, message: str) -> dict[str, object]:
         expected_queue_snapshot_sha256=None,
         queue_snapshot_matches_expected=True,
     )
+    empty_provider_route_summary = _coverage_provider_route_opportunity_summary(())
+    empty_route_next_batch_packet = _coverage_route_next_batch_packet(
+        empty_provider_route_summary
+    )
     empty_controller_packet = _coverage_controller_packet(
         _coverage_stage_readiness_summary(
             [],
@@ -5809,7 +6006,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         empty_operator_chain_resume_packet,
         _coverage_operator_route_summary([]),
         empty_queue_resume_packet,
-        _coverage_route_next_batch_packet({}),
+        empty_route_next_batch_packet,
         operator_chain_snapshot_matches_expected=True,
         queue_snapshot_matches_expected=True,
     )
@@ -5821,6 +6018,26 @@ def _failure(code: str, message: str) -> dict[str, object]:
     )
     empty_handoff_next_step_packet = _coverage_handoff_next_step_packet(
         _coverage_handoff_readiness_summary([])
+    )
+    empty_parent_controller_packet = _coverage_parent_controller_packet(
+        coverage_controller_packet=empty_controller_packet,
+        coverage_controller_step_summary=empty_controller_step_summary,
+        coverage_controller_preflight_handoff_packet=(
+            empty_controller_preflight_handoff_packet
+        ),
+        coverage_handoff_next_step_packet=empty_handoff_next_step_packet,
+    )
+    empty_controller_inspection_summary = (
+        _coverage_controller_inspection_summary(
+            coverage_parent_controller_packet=empty_parent_controller_packet,
+            coverage_controller_packet=empty_controller_packet,
+            coverage_controller_step_summary=empty_controller_step_summary,
+            coverage_controller_preflight_handoff_packet=(
+                empty_controller_preflight_handoff_packet
+            ),
+            coverage_handoff_next_step_packet=empty_handoff_next_step_packet,
+            coverage_route_next_batch_packet=empty_route_next_batch_packet,
+        )
     )
     return {
         "schema_version": ACQUISITION_WORKLIST_SCHEMA_VERSION,
@@ -5835,12 +6052,8 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_provider_key_counts": {},
         "coverage_next_action_groups": [],
         "coverage_opportunity_summary": [],
-        "coverage_provider_route_opportunity_summary": (
-            _coverage_provider_route_opportunity_summary(())
-        ),
-        "coverage_route_next_batch_packet": _coverage_route_next_batch_packet(
-            _coverage_provider_route_opportunity_summary(())
-        ),
+        "coverage_provider_route_opportunity_summary": empty_provider_route_summary,
+        "coverage_route_next_batch_packet": empty_route_next_batch_packet,
         "coverage_action_queue": [],
         "coverage_action_queue_summary": {
             "queue_item_count": 0,
@@ -5870,13 +6083,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_controller_preflight_handoff_packet": (
             empty_controller_preflight_handoff_packet
         ),
-        "coverage_parent_controller_packet": _coverage_parent_controller_packet(
-            coverage_controller_packet=empty_controller_packet,
-            coverage_controller_step_summary=empty_controller_step_summary,
-            coverage_controller_preflight_handoff_packet=(
-                empty_controller_preflight_handoff_packet
-            ),
-            coverage_handoff_next_step_packet=empty_handoff_next_step_packet,
+        "coverage_parent_controller_packet": empty_parent_controller_packet,
+        "coverage_controller_inspection_summary": (
+            empty_controller_inspection_summary
         ),
         "current_coverage_action_queue_item": {},
         "selected_coverage_queue_item_id": "",
@@ -6130,6 +6339,7 @@ def _rendered_outputs(
             "coverage_controller_step_summary",
             "coverage_controller_preflight_handoff_packet",
             "coverage_parent_controller_packet",
+            "coverage_controller_inspection_summary",
             "current_coverage_action_queue_item",
             "selected_coverage_queue_item_id",
             "selected_coverage_queue_item_found",
