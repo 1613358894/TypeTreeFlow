@@ -355,6 +355,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         3,
         4,
     ]
+    assert [entry["queue_item_id"] for entry in payload["coverage_action_queue"]] == [
+        "cq001_resolve_curator_conflict",
+        "cq002_review_public_archive_linkage",
+        "cq003_review_public_type_linkage",
+        "cq004_prepare_provider_handoff",
+    ]
     assert [entry["operator_route"] for entry in payload["coverage_action_queue"]] == [
         "curator_decision",
         "public_metadata_review",
@@ -401,6 +407,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "top_queue_items": [
             {
                 "queue_position": 1,
+                "queue_item_id": "cq001_resolve_curator_conflict",
                 "action_code": "resolve_curator_conflict",
                 "operator_route": "curator_decision",
                 "next_input_class": "curator_conflict_decision",
@@ -415,6 +422,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             },
             {
                 "queue_position": 2,
+                "queue_item_id": "cq002_review_public_archive_linkage",
                 "action_code": "review_public_archive_linkage",
                 "operator_route": "public_metadata_review",
                 "next_input_class": "public_accession_type_strain_linkage",
@@ -429,6 +437,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             },
             {
                 "queue_position": 3,
+                "queue_item_id": "cq003_review_public_type_linkage",
                 "action_code": "review_public_type_linkage",
                 "operator_route": "public_metadata_review",
                 "next_input_class": "biosample_accession_type_strain_linkage",
@@ -467,6 +476,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "available": True,
         "packet_status": "ready_for_operator_review",
         "queue_position": 1,
+        "queue_item_id": "cq001_resolve_curator_conflict",
         "action_code": "resolve_curator_conflict",
         "operator_route": "curator_decision",
         "next_input_class": "curator_conflict_decision",
@@ -512,6 +522,9 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["coverage_next_operator_recipe"]["operator_route"] == (
         "curator_decision"
     )
+    assert payload["coverage_next_operator_recipe"]["queue_item_id"] == (
+        "cq001_resolve_curator_conflict"
+    )
     assert payload["coverage_next_operator_recipe"]["command_plan_decision"] == "allow"
     assert payload["coverage_next_operator_recipe"]["target_argv"] == [
         "manual-review",
@@ -530,6 +543,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert payload["coverage_operator_queue_preview"]["preview_limit"] == 3
     assert payload["coverage_operator_queue_preview"]["preview_item_count"] == 3
     assert payload["coverage_operator_queue_preview"]["truncated"] is True
+    assert [
+        item["queue_item_id"]
+        for item in payload["coverage_operator_queue_preview"]["items"]
+    ] == [
+        "cq001_resolve_curator_conflict",
+        "cq002_review_public_archive_linkage",
+        "cq003_review_public_type_linkage",
+    ]
     assert [
         item["action_code"]
         for item in payload["coverage_operator_queue_preview"]["items"]
@@ -2188,6 +2209,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "available": False,
         "packet_status": "no_action",
         "queue_position": 0,
+        "queue_item_id": "",
         "action_code": "",
         "operator_route": "",
         "next_input_class": "",
@@ -2233,6 +2255,7 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "available": False,
         "status": "no_action",
         "queue_position": 0,
+        "queue_item_id": "",
         "action_code": "",
         "operator_route": "",
         "next_input_class": "",

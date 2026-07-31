@@ -1735,6 +1735,7 @@ def _coverage_action_queue(
 ) -> list[dict[str, object]]:
     queue: list[dict[str, object]] = []
     for index, opportunity in enumerate(opportunity_summary, start=1):
+        action_code = str(opportunity.get("action_code", ""))
         operator_route = str(opportunity.get("operator_route", ""))
         automation_boundary = str(opportunity.get("automation_boundary", ""))
         raw_automation_counts = opportunity.get("provider_automation_level_counts")
@@ -1752,7 +1753,8 @@ def _coverage_action_queue(
         queue.append(
             {
                 "queue_position": index,
-                "action_code": str(opportunity.get("action_code", "")),
+                "queue_item_id": _coverage_queue_item_id(index, action_code),
+                "action_code": action_code,
                 "operator_route": operator_route,
                 "next_input_class": str(opportunity.get("next_input_class", "")),
                 "automation_boundary": automation_boundary,
@@ -1858,6 +1860,7 @@ def _coverage_priority_summary(
             top_items.append(
                 {
                     "queue_position": _safe_int(item.get("queue_position", 0)),
+                    "queue_item_id": str(item.get("queue_item_id", "")),
                     "action_code": str(item.get("action_code", "")),
                     "operator_route": route,
                     "next_input_class": input_class,
@@ -1899,6 +1902,7 @@ def _coverage_next_task_packet(
             "available": False,
             "packet_status": "no_action",
             "queue_position": 0,
+            "queue_item_id": "",
             "action_code": "",
             "operator_route": "",
             "next_input_class": "",
@@ -1923,6 +1927,7 @@ def _coverage_next_task_packet(
         "available": True,
         "packet_status": "ready_for_operator_review",
         "queue_position": _safe_int(item.get("queue_position", 0)),
+        "queue_item_id": str(item.get("queue_item_id", "")),
         "action_code": str(item.get("action_code", "")),
         "operator_route": str(item.get("operator_route", "")),
         "next_input_class": str(item.get("next_input_class", "")),
@@ -2097,6 +2102,7 @@ def _coverage_next_operator_recipe(
         "available": available,
         "status": status,
         "queue_position": _safe_int(packet.get("queue_position", 0)),
+        "queue_item_id": str(packet.get("queue_item_id", "")),
         "action_code": str(packet.get("action_code", "")),
         "operator_route": str(packet.get("operator_route", "")),
         "next_input_class": str(packet.get("next_input_class", "")),
@@ -2141,6 +2147,7 @@ def _coverage_operator_queue_preview(
         items.append(
             {
                 "queue_position": _safe_int(recipe.get("queue_position", 0)),
+                "queue_item_id": str(recipe.get("queue_item_id", "")),
                 "action_code": str(recipe.get("action_code", "")),
                 "operator_route": str(recipe.get("operator_route", "")),
                 "next_input_class": str(recipe.get("next_input_class", "")),
@@ -2180,6 +2187,17 @@ def _coverage_operator_queue_preview(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_queue_preview_no_execution",
     }
+
+
+def _coverage_queue_item_id(queue_position: int, action_code: str) -> str:
+    normalized = "".join(
+        character if character.isalnum() else "_"
+        for character in action_code.strip().lower()
+    ).strip("_")
+    while "__" in normalized:
+        normalized = normalized.replace("__", "_")
+    suffix = normalized or "unknown_action"
+    return f"cq{queue_position:03d}_{suffix}"
 
 
 def _coverage_action_required_inputs(action_code: str) -> list[str]:
