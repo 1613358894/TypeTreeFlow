@@ -149,6 +149,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "requires_outdir",
             "boundary",
             "parameters",
+            "output_contracts",
         }
         for entry in catalog
     )
@@ -162,6 +163,15 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         }
         for entry in catalog
         for parameter in entry["parameters"]
+    )
+    assert all(
+        set(contract) == {
+            "name",
+            "schema_version",
+            "purpose",
+        }
+        for entry in catalog
+        for contract in entry["output_contracts"]
     )
     verify_genus = next(
         entry for entry in catalog if (entry["command"], entry["subcommand"]) == ("verify-genus", None)
@@ -219,6 +229,13 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     )
     assert external_validate["write_behavior"] == "none"
     assert external_validate["requires_outdir"] is False
+    assert external_validate["output_contracts"] == [
+        {
+            "name": "external_genomes_readiness_packet",
+            "schema_version": "external_genomes_readiness_packet.v1",
+            "purpose": "external-genomes validation readiness handoff",
+        }
+    ]
     assert [parameter["name"] for parameter in external_validate["parameters"]] == [
         "--input",
         "--json",
@@ -231,6 +248,9 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     )
     assert external_install_plan["write_behavior"] == "optional_isolated_install_plan"
     assert external_install_plan["requires_outdir"] is False
+    assert external_install_plan["output_contracts"][0]["name"] == (
+        "external_genomes_readiness_packet"
+    )
     assert [parameter["name"] for parameter in external_install_plan["parameters"]] == [
         "--input",
         "--target-outdir",
@@ -252,6 +272,27 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         ("strict-gating", "evaluate"),
     ):
         assert {"--write", "--outdir", "--force"} <= parameter_names[key]
+    contract_names = {
+        (entry["command"], entry["subcommand"]): {
+            contract["name"] for contract in entry["output_contracts"]
+        }
+        for entry in catalog
+    }
+    assert "provider_request_readiness_packet" in contract_names[
+        ("provider-request", "validate")
+    ]
+    assert "provider_request_readiness_packet" in contract_names[
+        ("provider-request", "external-genomes-draft")
+    ]
+    assert "provider_request_readiness_packet" in contract_names[
+        ("provider-request", "external-genomes-handoff")
+    ]
+    assert "operator_chain_readiness_packets" in contract_names[
+        ("coverage-pipeline", "build")
+    ]
+    assert "operator_chain_readiness_packets" in contract_names[
+        ("coverage-pipeline", "status")
+    ]
     for key in (
         ("acquisition-worklist", "build"),
         ("coverage-pipeline", "preview"),
