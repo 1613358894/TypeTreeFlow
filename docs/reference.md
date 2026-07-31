@@ -1837,6 +1837,15 @@ can pass the request through `commands render`, `commands plan`, or
 `commands preflight` before any local operator action. It is metadata only and
 always reports `safe_for_unattended_download=false`. Unknown queue item IDs are
 refused with `diagnostic_code=queue_item_id_not_found` and exit code `2`.
+The packet also includes `review_input_packet`, a bounded local-input handoff
+for the selected action. For manual-review actions it names the
+`manual_review.v1` schema, required manual-review TSV fields, allowed
+manual-review statuses, and the evidence focus, such as public archive
+accession-to-type-strain linkage or conflict resolution. Provider-handoff and
+external-registration actions name their existing local TSV schemas instead.
+This packet is review metadata only: it always reports no downloads, no
+provider contact, no workflow-output writes, no manifest mutation, and no strict
+scientific deliverable.
 Controllers can also pass `--expected-queue-snapshot-sha256 <sha256>` with the
 previously observed `coverage_operator_queue_preview.queue_snapshot_sha256`.
 If the current queue digest differs, the command refuses the stale resume
@@ -1861,17 +1870,19 @@ reports `safe_for_unattended_execution=false` and
 `coverage_queue_resume_packet` is a compact AI/controller handoff view over the
 selected queue item. It repeats the selected `queue_item_id`, current queue
 snapshot digest, expected digest, digest match state, target argv, command-plan
-status, preflight decision, blocker/warning IDs, and the exact values to reuse
-as `--queue-item-id` and `--expected-queue-snapshot-sha256` on a later metadata
-call. It is still metadata only:
+status, preflight decision, blocker/warning IDs, `review_input_packet`, and the
+exact values to reuse as `--queue-item-id` and
+`--expected-queue-snapshot-sha256` on a later metadata call. It is still
+metadata only:
 `execution_boundary=metadata_only_queue_resume_packet_no_execution`.
 `coverage_operator_queue_preview` extends that no-execution view to a bounded
 set of queue items. By default it previews the first three items; operators can
 pass `--queue-preview-limit <1..10>` to `preview`, `build`, or `status` to
 request a larger or smaller bounded preview. It lists each item's
-`queue_item_id`, route, required inputs, rendered argv, preflight decision, and
-`safe_for_unattended_execution=false`, with `truncated=true` when additional
-queue items exist. Each item also carries compact command-plan diagnostics:
+`queue_item_id`, route, required inputs, `review_input_packet`, rendered argv,
+preflight decision, and `safe_for_unattended_execution=false`, with
+`truncated=true` when additional queue items exist. Each item also carries
+compact command-plan diagnostics:
 `command_plan_status`, `blocking_count`, `blocking_ids`, `warning_count`, and
 `warning_ids`. These fields make blocked preview items routeable without
 copying diagnostic messages into the queue preview. The preview object also

@@ -265,6 +265,12 @@ they still require normal planning or preflight before execution. It also carrie
 `coverage_next_operator_recipe` so an AI/operator can see the current local
 input requirement, rendered argv, preflight decision, and review-only recipe
 without executing the target command.
+The selected task packet also carries `review_input_packet`, which names the
+local review schema and required TSV fields for the queued action. For public
+archive linkage actions this points to the manual-review TSV contract and the
+direct type-strain evidence focus. It is metadata only and does not authorize
+provider access, downloads, workflow-output writes, manifest mutation, or strict
+completion.
 `coverage_operator_queue_preview` applies the same metadata-only routing view
 to a bounded queue prefix, including `queue_item_id` values, and reports whether
 the preview is truncated. It defaults to three items; use
@@ -281,9 +287,9 @@ selects `current_coverage_action_queue_item`,
 `coverage_next_task_packet`, `coverage_next_command_plan`, and
 `coverage_next_operator_recipe` metadata, and the matching
 `coverage_queue_resume_packet` repeats the selected item ID, digest guard,
-target argv, and no-execution boundary in one compact object. It does not
-change the bounded preview prefix, execute the target command, or authorize
-provider access/downloads.
+target argv, `review_input_packet`, and no-execution boundary in one compact
+object. It does not change the bounded preview prefix, execute the target
+command, or authorize provider access/downloads.
 Controllers that persist `queue_snapshot_sha256` can pass
 `--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a
 mismatch is refused with exit code `2` so stale queue selections fail closed.

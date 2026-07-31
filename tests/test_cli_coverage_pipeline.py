@@ -10,6 +10,11 @@ from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_FIELDS,
     ARCHIVE_CANDIDATE_SCHEMA_VERSION,
 )
+from typetreeflow.evidence.manual_review import (
+    MANUAL_REVIEW_FIELDS,
+    MANUAL_REVIEW_SCHEMA_VERSION,
+    MANUAL_REVIEW_STATUSES,
+)
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     calculate_sha256,
@@ -489,6 +494,40 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "input": "<review.tsv>",
         },
         "recommended_next_command": "manual-review validate --input <review.tsv>",
+        "review_input_packet": {
+            "schema_version": "coverage_review_input_packet.v1",
+            "available": True,
+            "action_code": "resolve_curator_conflict",
+            "operator_route": "curator_decision",
+            "next_input_class": "curator_conflict_decision",
+            "record_count": 1,
+            "input_artifact": "<review.tsv>",
+            "input_schema": f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}",
+            "required_fields": list(MANUAL_REVIEW_FIELDS),
+            "allowed_statuses": list(MANUAL_REVIEW_STATUSES),
+            "evidence_focus": (
+                "curator conflict resolution with independent review"
+            ),
+            "recommended_request": {
+                "command": "manual-review",
+                "subcommand": "validate",
+                "input": "<review.tsv>",
+            },
+            "review_only": True,
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_review_input_packet_no_execution"
+            ),
+        },
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -585,6 +624,22 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         item["safe_for_unattended_execution"] is False
         for item in payload["coverage_operator_queue_preview"]["items"]
     )
+    public_archive_packet = payload["coverage_operator_queue_preview"]["items"][1][
+        "review_input_packet"
+    ]
+    assert public_archive_packet["available"] is True
+    assert public_archive_packet["action_code"] == "review_public_archive_linkage"
+    assert public_archive_packet["input_schema"] == (
+        f"manual_review.v{MANUAL_REVIEW_SCHEMA_VERSION}"
+    )
+    assert public_archive_packet["required_fields"] == list(MANUAL_REVIEW_FIELDS)
+    assert public_archive_packet["allowed_statuses"] == list(MANUAL_REVIEW_STATUSES)
+    assert public_archive_packet["evidence_focus"] == (
+        "public archive accession to species type-strain direct evidence chain"
+    )
+    assert public_archive_packet["downloads_triggered"] == 0
+    assert public_archive_packet["providers_contacted"] == 0
+    assert public_archive_packet["strict_scientific_deliverable"] is False
     assert payload["current_coverage_action_queue_item"]["action_code"] == (
         "resolve_curator_conflict"
     )
@@ -2821,6 +2876,34 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "required_inputs": [],
         "recommended_request": None,
         "recommended_next_command": "",
+        "review_input_packet": {
+            "schema_version": "coverage_review_input_packet.v1",
+            "available": False,
+            "action_code": "",
+            "operator_route": "local_evidence_build",
+            "next_input_class": "local_reconciler_completion_gap_evidence",
+            "record_count": 0,
+            "input_artifact": "",
+            "input_schema": "",
+            "required_fields": [],
+            "allowed_statuses": [],
+            "evidence_focus": "",
+            "recommended_request": None,
+            "review_only": True,
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_review_input_packet_no_execution"
+            ),
+        },
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -2895,6 +2978,34 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
         "next_input_class": "",
         "record_count": 0,
         "required_inputs": [],
+        "review_input_packet": {
+            "schema_version": "coverage_review_input_packet.v1",
+            "available": False,
+            "action_code": "",
+            "operator_route": "local_evidence_build",
+            "next_input_class": "local_reconciler_completion_gap_evidence",
+            "record_count": 0,
+            "input_artifact": "",
+            "input_schema": "",
+            "required_fields": [],
+            "allowed_statuses": [],
+            "evidence_focus": "",
+            "recommended_request": None,
+            "review_only": True,
+            "audit_only": True,
+            "dry_run": True,
+            "writes_outputs": False,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "execution_boundary": (
+                "metadata_only_review_input_packet_no_execution"
+            ),
+        },
         "target_argv": [],
         "command_plan_status": "no_action",
         "command_plan_decision": "none",
