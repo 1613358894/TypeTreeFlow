@@ -48,6 +48,8 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "curator": "curator-a",
             "notes": (
                 "private curator note omitted from draft; "
+                "provider_status=planning_only; "
+                "provider_automation_level=planning_handoff; "
                 "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
                 "automation_boundary=planning_handoff_no_provider_contact"
@@ -87,6 +89,10 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     assert draft.summary["record_count"] == 1
     assert draft.summary["exported_count"] == 1
     assert draft.summary["provider_counts"] == {"dsmz": 1}
+    assert draft.summary["provider_status_counts"] == {"planning_only": 1}
+    assert draft.summary["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert draft.summary["operator_route_counts"] == {"provider_handoff": 1}
     assert draft.summary["provider_route_groups"] == [
         {
@@ -94,8 +100,8 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
             "record_count": 1,
             "provider_keys": ["dsmz"],
             "provider_key_counts": {"dsmz": 1},
-            "provider_status_counts": {},
-            "automation_level_counts": {},
+            "provider_status_counts": {"planning_only": 1},
+            "automation_level_counts": {"planning_handoff": 1},
             "next_input_class_counts": {
                 "permitted_local_fasta_terms_provenance": 1
             },
@@ -138,6 +144,8 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     assert record.requires_manual_review is False
     assert record.status == "external_genome_registered"
     assert "request_id=REQ-001" in record.notes
+    assert "provider_status=planning_only" in record.notes
+    assert "provider_automation_level=planning_handoff" in record.notes
     assert "operator_route=provider_handoff" in record.notes
     assert "next_input_class=permitted_local_fasta_terms_provenance" in record.notes
     assert "automation_boundary=planning_handoff_no_provider_contact" in record.notes

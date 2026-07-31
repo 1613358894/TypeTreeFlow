@@ -39,7 +39,9 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "requires_manual_review": "false",
             "curator": "curator-a",
             "notes": (
-                "local handoff; operator_route=provider_handoff; "
+                "local handoff; provider_status=planning_only; "
+                "provider_automation_level=planning_handoff; "
+                "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
                 "automation_boundary=planning_handoff_no_provider_contact"
             ),
@@ -79,6 +81,10 @@ def test_provider_request_ready_when_local_fasta_and_curator_fields_match(
     assert result.summary["blocked_count"] == 0
     assert result.summary["local_fasta_checked_count"] == 1
     assert result.summary["local_sha256_matched_count"] == 1
+    assert result.summary["provider_status_counts"] == {"planning_only": 1}
+    assert result.summary["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert result.summary["operator_route_counts"] == {"provider_handoff": 1}
     assert result.summary["provider_route_groups"] == [
         {
@@ -86,8 +92,8 @@ def test_provider_request_ready_when_local_fasta_and_curator_fields_match(
             "record_count": 1,
             "provider_keys": ["dsmz"],
             "provider_key_counts": {"dsmz": 1},
-            "provider_status_counts": {},
-            "automation_level_counts": {},
+            "provider_status_counts": {"planning_only": 1},
+            "automation_level_counts": {"planning_handoff": 1},
             "next_input_class_counts": {
                 "permitted_local_fasta_terms_provenance": 1
             },
@@ -204,6 +210,8 @@ def test_provider_request_validation_preview_omits_paths_and_hashes(tmp_path):
     preview = result.rows[0].to_preview_dict()
     assert "local_fasta_path" not in preview
     assert "local_sha256" not in preview
+    assert preview["provider_status"] == "planning_only"
+    assert preview["provider_automation_level"] == "planning_handoff"
     assert preview["operator_route"] == "provider_handoff"
     assert preview["next_input_class"] == "permitted_local_fasta_terms_provenance"
     assert preview["automation_boundary"] == "planning_handoff_no_provider_contact"

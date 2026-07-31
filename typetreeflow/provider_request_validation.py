@@ -58,6 +58,8 @@ class ProviderRequestValidationRow:
     blocking_reasons: tuple[str, ...]
     local_fasta_checked: bool
     local_sha256_matches: bool
+    provider_status: str = ""
+    provider_automation_level: str = ""
     operator_route: str = ""
     next_input_class: str = ""
     automation_boundary: str = ""
@@ -75,6 +77,8 @@ class ProviderRequestValidationRow:
             "blocking_reasons": list(self.blocking_reasons),
             "local_fasta_checked": self.local_fasta_checked,
             "local_sha256_matches": self.local_sha256_matches,
+            "provider_status": self.provider_status,
+            "provider_automation_level": self.provider_automation_level,
             "operator_route": self.operator_route,
             "next_input_class": self.next_input_class,
             "automation_boundary": self.automation_boundary,
@@ -94,6 +98,8 @@ class ProviderRequestValidation:
     def summary(self) -> dict[str, object]:
         status_counts: dict[str, int] = {}
         provider_counts: dict[str, int] = {}
+        provider_status_counts: dict[str, int] = {}
+        provider_automation_level_counts: dict[str, int] = {}
         operator_route_counts: dict[str, int] = {}
         next_input_class_counts: dict[str, int] = {}
         automation_boundary_counts: dict[str, int] = {}
@@ -103,6 +109,17 @@ class ProviderRequestValidation:
                 status_counts.get(row.readiness_status, 0) + 1
             )
             provider_counts[row.provider] = provider_counts.get(row.provider, 0) + 1
+            if row.provider_status:
+                provider_status_counts[row.provider_status] = (
+                    provider_status_counts.get(row.provider_status, 0) + 1
+                )
+            if row.provider_automation_level:
+                provider_automation_level_counts[row.provider_automation_level] = (
+                    provider_automation_level_counts.get(
+                        row.provider_automation_level, 0
+                    )
+                    + 1
+                )
             if row.operator_route:
                 operator_route_counts[row.operator_route] = (
                     operator_route_counts.get(row.operator_route, 0) + 1
@@ -125,6 +142,10 @@ class ProviderRequestValidation:
             "blocked_count": len(self.rows) - ready_count,
             "status_counts": dict(sorted(status_counts.items())),
             "provider_counts": dict(sorted(provider_counts.items())),
+            "provider_status_counts": dict(sorted(provider_status_counts.items())),
+            "provider_automation_level_counts": dict(
+                sorted(provider_automation_level_counts.items())
+            ),
             "operator_route_counts": dict(sorted(operator_route_counts.items())),
             "provider_route_groups": provider_route_groups(
                 (_provider_route_group_row(row) for row in self.rows),
@@ -176,6 +197,8 @@ def validate_provider_requests_for_local_handoff(
 def _provider_route_group_row(row: ProviderRequestValidationRow) -> dict[str, object]:
     return {
         "provider": row.provider,
+        "provider_status": row.provider_status,
+        "provider_automation_level": row.provider_automation_level,
         "operator_route": row.operator_route,
         "next_input_class": row.next_input_class,
         "automation_boundary": row.automation_boundary,
@@ -218,6 +241,10 @@ def provider_request_validation_payload(
         "blocked_count": summary["blocked_count"],
         "status_counts": summary["status_counts"],
         "provider_counts": summary["provider_counts"],
+        "provider_status_counts": summary["provider_status_counts"],
+        "provider_automation_level_counts": (
+            summary["provider_automation_level_counts"]
+        ),
         "operator_route_counts": summary["operator_route_counts"],
         "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
@@ -360,6 +387,8 @@ def _validate_record(
         blocking_reasons=unique_blockers,
         local_fasta_checked=local_fasta_checked,
         local_sha256_matches=local_sha256_matches,
+        provider_status=route_metadata["provider_status"],
+        provider_automation_level=route_metadata["provider_automation_level"],
         operator_route=route_metadata["operator_route"],
         next_input_class=route_metadata["next_input_class"],
         automation_boundary=route_metadata["automation_boundary"],
@@ -369,6 +398,8 @@ def _validate_record(
 def provider_request_route_metadata_from_notes(notes: str) -> dict[str, str]:
     """Extract controlled AI routing metadata from provider-request notes."""
     values = {
+        "provider_status": "",
+        "provider_automation_level": "",
         "operator_route": "",
         "next_input_class": "",
         "automation_boundary": "",

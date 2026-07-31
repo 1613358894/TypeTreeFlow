@@ -1734,11 +1734,12 @@ The compact JSON and `provider_request_draft_summary.json` include
 `commands recognize`, `commands plan`, and `commands preflight` report the
 target output contract as `provider_request_draft_packet.v1`, so AI/operator
 controllers can route the draft pair without running the command first.
-The row notes include `provider_automation_level`, `operator_route`,
-`next_input_class`, `automation_boundary`, `curator_completion_template`, and
-`required_curator_fields` so an AI/operator can distinguish provider/local
-FASTA handoff from public-archive linkage review without losing the provider
-automation boundary from the handoff step. These counts and templates are
+The row notes include `provider_status`, `provider_automation_level`,
+`operator_route`, `next_input_class`, `automation_boundary`,
+`curator_completion_template`, and `required_curator_fields` so an AI/operator
+can distinguish provider/local FASTA handoff from public-archive linkage
+review without losing the provider status and automation boundary from the
+handoff step. These counts and templates are
 planning diagnostics for missing curator-owned fields such as strain,
 type-strain ID, provider-record/artifact ID, local FASTA path, SHA-256, terms
 review, license, retrieval date, and curator name. They are not completion
@@ -1760,10 +1761,11 @@ valid retrieval date, curator field, `is_type_material=true`,
 non-symlink path, SHA-256 shape, and checksum match. It emits one compact JSON
 object with `ready_count`, `blocked_count`, `blocker_counts`,
 `local_fasta_checked_count`, `local_sha256_matched_count`,
+`provider_status_counts`, `provider_automation_level_counts`,
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`, and
 `automation_boundary_counts` when those controlled values are present in draft
 row notes. Row previews include only request ID, species, provider, readiness
-status, blocker codes, route metadata, and boolean local evidence checks. They
+status, blocker codes, provider/route metadata, and boolean local evidence checks. They
 do not echo local FASTA paths, hashes, provider notes, curator values, or
 sequence contents. The JSON and summary also include `required_inputs` plus a
 structured `recommended_request` for the next offline
@@ -1817,8 +1819,9 @@ SHA-256 values, provider notes, curator values, or sequence contents. Without
 `external_genomes.tsv` and
 `provider_request_external_genomes_summary.json` into the explicitly supplied
 directory. The JSON and summary include route counts for exported ready rows,
-`provider_route_groups`, `recommended_request` for `external-genomes validate`, plus
-`install_plan_recommended_request` for the offline `external-genomes
+`provider_status_counts`, `provider_automation_level_counts`,
+`provider_route_groups`, `recommended_request` for `external-genomes validate`,
+plus `install_plan_recommended_request` for the offline `external-genomes
 install-plan` step. The install-plan recommended request includes `write=true` and
 `outdir=<isolated-install-plan-directory>` so AI/operator controllers can
 materialize the next audit directory explicitly; this is still only an

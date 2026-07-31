@@ -60,6 +60,8 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND = (
 class ProviderRequestExternalGenomesDraft:
     records: tuple[ExternalGenomeRecord, ...]
     diagnostics: tuple[dict[str, object], ...]
+    provider_status_counts: dict[str, int]
+    provider_automation_level_counts: dict[str, int]
     operator_route_counts: dict[str, int]
     provider_route_groups: list[dict[str, object]]
     next_input_class_counts: dict[str, int]
@@ -87,6 +89,10 @@ class ProviderRequestExternalGenomesDraft:
             "exported_count": len(self.records),
             "diagnostic_count": len(self.diagnostics),
             "provider_counts": dict(sorted(provider_counts.items())),
+            "provider_status_counts": dict(sorted(self.provider_status_counts.items())),
+            "provider_automation_level_counts": dict(
+                sorted(self.provider_automation_level_counts.items())
+            ),
             "operator_route_counts": dict(sorted(self.operator_route_counts.items())),
             "provider_route_groups": self.provider_route_groups,
             "next_input_class_counts": dict(
@@ -168,6 +174,10 @@ def build_provider_request_external_genomes_draft(
     return ProviderRequestExternalGenomesDraft(
         records=tuple(external_records),
         diagnostics=tuple(diagnostics),
+        provider_status_counts=route_counts["provider_status_counts"],
+        provider_automation_level_counts=route_counts[
+            "provider_automation_level_counts"
+        ],
         operator_route_counts=route_counts["operator_route_counts"],
         provider_route_groups=route_counts["provider_route_groups"],
         next_input_class_counts=route_counts["next_input_class_counts"],
@@ -219,7 +229,13 @@ def _notes(record: ProviderRequestRecord) -> str:
     ]
     if record.provider_artifact_version:
         parts.append(f"provider_artifact_version={record.provider_artifact_version}")
-    for key in ("operator_route", "next_input_class", "automation_boundary"):
+    for key in (
+        "provider_status",
+        "provider_automation_level",
+        "operator_route",
+        "next_input_class",
+        "automation_boundary",
+    ):
         if route_metadata[key]:
             parts.append(f"{key}={route_metadata[key]}")
     return "; ".join(parts)
@@ -227,6 +243,8 @@ def _notes(record: ProviderRequestRecord) -> str:
 
 def _ready_route_counts(rows) -> dict[str, object]:
     counts = {
+        "provider_status_counts": {},
+        "provider_automation_level_counts": {},
         "operator_route_counts": {},
         "provider_route_groups": [],
         "next_input_class_counts": {},
@@ -239,12 +257,18 @@ def _ready_route_counts(rows) -> dict[str, object]:
         route_group_rows.append(
             {
                 "provider": getattr(row, "provider", ""),
+                "provider_status": getattr(row, "provider_status", ""),
+                "provider_automation_level": getattr(
+                    row, "provider_automation_level", ""
+                ),
                 "operator_route": getattr(row, "operator_route", ""),
                 "next_input_class": getattr(row, "next_input_class", ""),
                 "automation_boundary": getattr(row, "automation_boundary", ""),
             }
         )
         for field, key in (
+            ("provider_status", "provider_status_counts"),
+            ("provider_automation_level", "provider_automation_level_counts"),
             ("operator_route", "operator_route_counts"),
             ("next_input_class", "next_input_class_counts"),
             ("automation_boundary", "automation_boundary_counts"),

@@ -36,7 +36,9 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "requires_manual_review": "false",
             "curator": "curator-a",
             "notes": (
-                "local handoff; operator_route=provider_handoff; "
+                "local handoff; provider_status=planning_only; "
+                "provider_automation_level=planning_handoff; "
+                "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
                 "automation_boundary=planning_handoff_no_provider_contact"
             ),
@@ -82,9 +84,17 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert payload["status"] == "pass"
     assert payload["ready_count"] == 1
     assert payload["blocked_count"] == 0
+    assert payload["provider_status_counts"] == {"planning_only": 1}
+    assert payload["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert payload["operator_route_counts"] == {"provider_handoff": 1}
     assert payload["provider_route_groups"][0]["operator_route"] == "provider_handoff"
     assert payload["provider_route_groups"][0]["provider_key_counts"] == {"dsmz": 1}
+    assert payload["provider_route_groups"][0]["provider_status_counts"] == {
+        "planning_only": 1
+    }
+    assert payload["provider_route_groups"][0]["automation_level_counts"] == {
+        "planning_handoff": 1
+    }
     assert payload["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
@@ -228,6 +238,8 @@ def test_provider_request_validate_write_outputs_audit_pair(tmp_path, capsys):
     )
     assert summary["writes_outputs"] is True
     assert summary["ready_count"] == 1
+    assert summary["provider_status_counts"] == {"planning_only": 1}
+    assert summary["provider_automation_level_counts"] == {"planning_handoff": 1}
     assert summary["operator_route_counts"] == {"provider_handoff": 1}
     assert summary["provider_route_groups"] == payload["provider_route_groups"]
     assert summary["next_input_class_counts"] == {
