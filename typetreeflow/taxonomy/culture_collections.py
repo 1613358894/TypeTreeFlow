@@ -20,6 +20,7 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "CIP",
     "LMG",
     "KCTC",
+    "KACC",
     "NBRC",
     "CCUG",
     "CCM",

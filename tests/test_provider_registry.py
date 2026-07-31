@@ -12,6 +12,7 @@ def test_default_registry_contains_planning_only_culture_collections():
         "cgmcc",
         "nbrc",
         "kctc",
+        "kacc",
         "cect",
         "cip",
         "ccug",
@@ -64,6 +65,8 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "BCCM-LMG": "bccm_lmg",
         "BCCM/LMG": "bccm_lmg",
         "Korean Collection for Type Cultures": "kctc",
+        "KACC": "kacc",
+        "Korean Agricultural Culture Collection": "kacc",
         "Spanish Type Culture Collection": "cect",
         "Collection de l'Institut Pasteur": "cip",
         "Culture Collection University of Gothenburg": "ccug",
@@ -101,8 +104,9 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
     registry = build_default_provider_registry()
 
     assert registry.keys_from_text(
-        "ATCC 1001; DSMZ 2002; DSM-2003; BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006"
-    ) == ("atcc_genome_portal", "dsmz", "bccm_lmg")
+        "ATCC 1001; DSMZ 2002; DSM-2003; KACC 12345; "
+        "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006"
+    ) == ("atcc_genome_portal", "dsmz", "kacc", "bccm_lmg")
     assert registry.keys_from_text("ATCC; DSMZ; JCM") == (
         "atcc_genome_portal",
         "dsmz",
