@@ -1564,10 +1564,12 @@ Without `--write`, it writes nothing. With `--write`, it writes only
 directory. Successful writes also include `recommended_request`,
 `recommended_request_target=coverage-pipeline build`, and
 `recommended_next_command` fields that point a later local coverage-pipeline run
-at the written `archive_candidates.tsv`. The adapter does not run that next
-command, query public archives, write `external_genomes.tsv`, mutate workflow
-outputs, contact providers, trigger downloads, or grant strict type-strain
-status.
+at the written `archive_candidates.tsv`. They also include a
+`recommended_command_plan` for that request; because the handoff is a write
+request, the embedded plan remains blocked until an operator or controller
+explicitly allows writes. The adapter does not run that next command, query
+public archives, write `external_genomes.tsv`, mutate workflow outputs, contact
+providers, trigger downloads, or grant strict type-strain status.
 
 The isolated CLI adapter is:
 

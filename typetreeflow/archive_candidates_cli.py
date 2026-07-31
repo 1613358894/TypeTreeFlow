@@ -11,7 +11,10 @@ import uuid
 from pathlib import Path
 from typing import Sequence, TextIO
 
-from typetreeflow.command_plan_packets import recommended_request_target
+from typetreeflow.command_plan_packets import (
+    recommended_command_plan,
+    recommended_request_target,
+)
 from typetreeflow.evidence.archive_candidates import (
     build_archive_candidate_report,
     read_archive_candidate_input,
@@ -100,6 +103,7 @@ def run_archive_candidates_command(
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
+        "recommended_command_plan": None,
         "summary": (
             "Archive candidate audit passed"
             if report.valid
@@ -125,6 +129,10 @@ def run_archive_candidates_command(
                 "typetreeflow coverage-pipeline build --archive-candidates-tsv "
                 f"{candidates_path} --write "
                 "--outdir <isolated-coverage-pipeline-directory>"
+            ),
+            "recommended_command_plan": recommended_command_plan(
+                recommended_request,
+                request_source="archive_candidates_summary.recommended_request",
             ),
         }
         try:
@@ -221,6 +229,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
+        "recommended_command_plan": None,
         "summary": message,
     }
 
