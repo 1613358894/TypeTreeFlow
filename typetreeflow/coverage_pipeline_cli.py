@@ -2282,6 +2282,10 @@ def _coverage_action_queue(
             if isinstance(raw_recommended_request, Mapping)
             else None
         )
+        operator_execution_gate = _coverage_operator_execution_gate(
+            available=True,
+            recommended_request=recommended_request,
+        )
         queue.append(
             {
                 "queue_position": index,
@@ -2306,6 +2310,7 @@ def _coverage_action_queue(
                     operator_route == "external_registration_review"
                 ),
                 "safe_for_unattended_download": False,
+                "operator_execution_gate": operator_execution_gate,
                 "recommended_next_command": str(
                     opportunity.get("recommended_next_command", "")
                 ),
@@ -2333,13 +2338,7 @@ def _coverage_action_queue_summary(
             route_counts[route] = route_counts.get(route, 0) + 1
         if input_class:
             input_counts[input_class] = input_counts.get(input_class, 0) + 1
-        raw_recommended_request = item.get("recommended_request")
-        gate = _coverage_operator_execution_gate(
-            available=True,
-            recommended_request=raw_recommended_request
-            if isinstance(raw_recommended_request, Mapping)
-            else None,
-        )
+        gate = _coverage_item_execution_gate(item)
         _count_preview_value(gate_status_counts, str(gate.get("gate_status", "")))
         if item.get("requires_curator_input"):
             manual_or_curator_count += 1
@@ -2385,10 +2384,7 @@ def _coverage_priority_summary(
             if isinstance(raw_recommended_request, Mapping)
             else None
         )
-        gate = _coverage_operator_execution_gate(
-            available=True,
-            recommended_request=recommended_request,
-        )
+        gate = _coverage_item_execution_gate(item)
         gate_status = str(gate.get("gate_status", ""))
         if gate_status:
             gate_status_record_counts[gate_status] = (
@@ -2503,10 +2499,7 @@ def _coverage_next_task_packet(
         dict(raw_request) if isinstance(raw_request, Mapping) else None
     )
     action_code = str(item.get("action_code", ""))
-    operator_execution_gate = _coverage_operator_execution_gate(
-        available=True,
-        recommended_request=recommended_request,
-    )
+    operator_execution_gate = _coverage_item_execution_gate(item)
     return {
         "available": True,
         "packet_status": "ready_for_operator_review",
@@ -2573,6 +2566,20 @@ def _coverage_operator_execution_gate(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_gate_no_execution",
     }
+
+
+def _coverage_item_execution_gate(item: Mapping[str, object]) -> dict[str, object]:
+    raw_gate = item.get("operator_execution_gate")
+    if isinstance(raw_gate, Mapping):
+        return dict(raw_gate)
+    raw_request = item.get("recommended_request")
+    recommended_request = (
+        dict(raw_request) if isinstance(raw_request, Mapping) else None
+    )
+    return _coverage_operator_execution_gate(
+        available=True,
+        recommended_request=recommended_request,
+    )
 
 
 def _coverage_next_command_plan(

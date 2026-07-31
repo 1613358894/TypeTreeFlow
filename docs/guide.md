@@ -283,7 +283,8 @@ AI/operator queueing. The
 let an AI controller read queue pressure and the first queued item without
 recomputing counts or inventing its own item keys; the queue and priority
 summaries also expose execution-gate counts for controller-level triage.
-Opportunity and queue rows carry the same structured
+Queue rows also carry `operator_execution_gate`. Opportunity and queue rows carry
+the same structured
 `recommended_request` objects used by `commands render` / `commands plan`, but
 they still require normal planning or preflight before execution. They also carry
 bounded species previews so an AI/operator can see which records start each
