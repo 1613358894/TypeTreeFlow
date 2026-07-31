@@ -2135,6 +2135,7 @@ def run_commands_command(
         _emit(payload, output)
         return 0 if payload["decision"] == "allow" else 2
 
+    recognized = recognize_cli_command(target_argv)
     payload = {
         "command": COMMAND_RECOGNIZE,
         "schema_version": "1",
@@ -2145,7 +2146,8 @@ def run_commands_command(
         "writes_workflow_outputs": False,
         "network_access": False,
         "external_tools": False,
-        "recognized": recognize_cli_command(target_argv),
+        "recognized": recognized,
+        "output_contracts": _output_contracts_for_recognized(recognized),
         "target_argv": target_argv,
         "blocking": [],
         "warnings": [],
@@ -2349,10 +2351,31 @@ def _catalog_entry(entry: dict[str, object]) -> dict[str, object]:
     payload["parameters"] = [
         dict(parameter) for parameter in _PARAMETER_CATALOG.get(key, [])
     ]
-    payload["output_contracts"] = [
-        dict(contract) for contract in _OUTPUT_CONTRACT_CATALOG.get(key, ())
-    ]
+    payload["output_contracts"] = _output_contracts_for_command(
+        entry["command"],
+        entry["subcommand"],
+    )
     return payload
+
+
+def _output_contracts_for_command(
+    command: object,
+    subcommand: object,
+) -> list[dict[str, object]]:
+    normalized_subcommand = subcommand if subcommand not in {"", None} else None
+    key = (str(command), normalized_subcommand)
+    return [dict(contract) for contract in _OUTPUT_CONTRACT_CATALOG.get(key, ())]
+
+
+def _output_contracts_for_recognized(
+    recognized: dict[str, object],
+) -> list[dict[str, object]]:
+    if recognized.get("unknown") or recognized.get("invalid"):
+        return []
+    return _output_contracts_for_command(
+        recognized.get("command"),
+        recognized.get("subcommand"),
+    )
 
 
 def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
@@ -2375,6 +2398,7 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
         "request_unwrapped_from": _request_unwrapped_from(request),
         "target_argv": target_argv,
         "recognized": recognized,
+        "output_contracts": _output_contracts_for_recognized(recognized),
         "blocking": [],
         "warnings": [],
     }
@@ -2432,6 +2456,7 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
         "request_unwrapped_from": _request_unwrapped_from(request),
         "target_argv": target_argv,
         "recognized": preflight["recognized"],
+        "output_contracts": preflight["output_contracts"],
         "preflight": preflight,
         "blocking": preflight["blocking"],
         "warnings": preflight["warnings"],
@@ -3349,6 +3374,7 @@ def _preflight_payload(parsed: dict[str, object]) -> dict[str, object]:
         "network_access": False,
         "external_tools": False,
         "recognized": recognized,
+        "output_contracts": _output_contracts_for_recognized(recognized),
         "target_argv": target_argv,
         "allowances": {
             "allow_write": bool(parsed["allow_write"]),

@@ -15,6 +15,10 @@ def _stdout_payload(capsys):
     return json.loads(output), output
 
 
+def _output_contract_names(payload):
+    return {contract["name"] for contract in payload["output_contracts"]}
+
+
 def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
     assert (
         main(
@@ -44,6 +48,32 @@ def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
     assert payload["recognized"]["command"] == "verify-genus"
     assert payload["recognized"]["mode"] == "report_only"
     assert payload["recognized"]["requires_outdir"] is True
+    assert payload["output_contracts"] == []
+
+
+def test_commands_recognize_echoes_target_output_contracts(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "recognize",
+                "--argv-json",
+                '["provider-request","validate","--input","provider_request.tsv"]',
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["recognized"]["command"] == "provider-request"
+    assert payload["recognized"]["subcommand"] == "validate"
+    assert payload["output_contracts"] == [
+        {
+            "name": "provider_request_readiness_packet",
+            "schema_version": "provider_request_readiness_packet.v1",
+            "purpose": "provider-request validation readiness handoff",
+        }
+    ]
 
 
 def test_commands_recognize_accepts_remainder_argv(capsys):
@@ -1076,6 +1106,10 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
     assert payload["recognized"]["mode"] == "coverage_pipeline"
     assert payload["recognized"]["writes_outputs_declared"] is False
     assert payload["recognized"]["requires_outdir"] is False
+    assert _output_contract_names(payload) == {
+        "operator_chain_next_step_packet",
+        "operator_chain_readiness_packets",
+    }
 
 
 def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_allowance(
@@ -1127,6 +1161,12 @@ def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_al
     assert payload["preflight"]["risk"]["external_tools_declared"] is False
     assert payload["target_allowances"]["allow_write"] is True
     assert payload["target_allowances"]["allow_workflow_outputs"] is False
+    assert _output_contract_names(payload) == {
+        "coverage_next_task_packet",
+        "operator_chain_next_step_packet",
+        "operator_chain_readiness_packets",
+    }
+    assert payload["preflight"]["output_contracts"] == payload["output_contracts"]
 
 
 def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
@@ -1297,6 +1337,9 @@ def test_commands_render_emits_normalized_provider_request_validate_argv(capsys)
     assert payload["recognized"]["mode"] == "provider_request"
     assert payload["recognized"]["writes_outputs_declared"] is True
     assert payload["recognized"]["requires_outdir"] is True
+    assert _output_contract_names(payload) == {
+        "provider_request_readiness_packet",
+    }
 
 
 def test_commands_render_emits_normalized_provider_request_external_genomes_argv(capsys):
@@ -2129,6 +2172,28 @@ def test_commands_preflight_blocks_declared_writes_without_allowance(capsys):
             "message": "Command declares output writes but --allow-write is absent.",
         }
     ]
+
+
+def test_commands_preflight_echoes_target_output_contracts_when_blocked(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--argv-json",
+                '["external-genomes","install-plan","--input","external.tsv","--target-outdir","registered","--write","--outdir","install_plan"]',
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "block"
+    assert payload["recognized"]["command"] == "external-genomes"
+    assert payload["recognized"]["subcommand"] == "install-plan"
+    assert _output_contract_names(payload) == {
+        "external_genomes_readiness_packet",
+    }
 
 
 def test_commands_preflight_allows_declared_non_workflow_write(capsys):

@@ -703,6 +703,11 @@ stable top-level JSON field, schema version, and purpose for command outputs
 that include AI/operator handoff packets, such as
 `provider_request_readiness_packet`, `external_genomes_readiness_packet`, and
 `operator_chain_readiness_packets`.
+`commands recognize`, `commands render`, `commands plan`, and
+`commands preflight` also echo the recognized target command's
+`output_contracts` at the top level; unknown or invalid target commands return
+an empty list. This is metadata only and does not authorize writes, workflow
+mutation, network access, downloads, or external tools.
 The same JSON envelope also includes `early_dispatch_order`, the ordered list
 of isolated top-level commands that `typetreeflow.cli.main` checks before
 loading the full workflow parser. This is metadata only; it does not make the
