@@ -2012,6 +2012,9 @@ and the recommended next command for AI/operator routing. Required inputs are
 metadata-only evidence requirements copied from coverage-plan actions. The
 request draft is also metadata only; operators should still pass it through
 `commands render`, `commands plan`, or `commands preflight` before execution.
+For provider handoff action groups, the request draft is a filtered
+`provider-handoff build` request with the grouped provider keys, so controllers
+prepare the bounded handoff before drafting provider requests.
 Action groups also carry a bounded species list: `species` on
 `coverage_next_action_groups`, and `species_count`, `species_preview`, and
 `species_truncated` on the downstream compact summaries and packets. The preview
@@ -2065,7 +2068,7 @@ AI/operator prioritization only; it does not grant unattended download or
 provider access. `coverage_action_queue_summary` reports bounded queue counts
 by `operator_route`, `next_input_class`, execution-gate status, and review-input
 schema, plus recommended-request target counts such as `manual-review validate`
-or `provider-request draft`, and route-specific counts such as
+or `provider-handoff build`, and route-specific counts such as
 `manual_or_curator_input_required_count`, `public_metadata_review_required_count`, and
 `provider_handoff_required_count`. `current_coverage_action_queue_item`
 copies the first queued item or an empty object when no coverage action remains.

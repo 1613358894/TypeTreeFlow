@@ -203,7 +203,8 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
             ),
             required_input="permitted local FASTA plus terms/license/provenance evidence",
             recommended_next_command=(
-                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+                "provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> "
+                "[--provider-key <key> ...]"
             ),
             input_artifacts=input_artifacts,
         )

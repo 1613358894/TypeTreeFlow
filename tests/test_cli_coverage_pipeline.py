@@ -1253,11 +1253,11 @@ def _assert_operator_route_summary(payload):
             "first_queue_item_id": "cq004_prepare_provider_handoff",
             "first_action_code": "prepare_provider_handoff",
             "first_next_input_class": "permitted_local_fasta_terms_provenance",
-            "first_recommended_request_target": "provider-request draft",
+            "first_recommended_request_target": "provider-handoff build",
             "next_input_class_counts": {
                 "permitted_local_fasta_terms_provenance": 1,
             },
-            "recommended_request_target_counts": {"provider-request draft": 1},
+            "recommended_request_target_counts": {"provider-handoff build": 1},
             "automation_boundary_counts": {
                 "planning_handoff_no_provider_contact": 1,
             },
@@ -3092,12 +3092,14 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
             "provider_keys": ["dsmz", "kctc"],
             "provider_automation_level_counts": {"planning_handoff": 2},
             "recommended_next_command": (
-                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+                "provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> "
+                "[--provider-key <key> ...]"
             ),
             "recommended_request": {
-                "command": "provider-request",
-                "subcommand": "draft",
-                "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+                "command": "provider-handoff",
+                "subcommand": "build",
+                "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+                "provider_keys": ["dsmz", "kctc"],
             },
         },
     ]
@@ -3146,9 +3148,10 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     )
     assert payload["coverage_action_queue"][3]["requires_provider_handoff"] is True
     assert payload["coverage_action_queue"][3]["recommended_request"] == {
-        "command": "provider-request",
-        "subcommand": "draft",
-        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+        "provider_keys": ["dsmz", "kctc"],
     }
     assert payload["coverage_action_queue"][1]["review_input_packet"][
         "input_schema"
@@ -3182,7 +3185,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         },
         "recommended_request_target_counts": {
             "manual-review validate": 3,
-            "provider-request draft": 1,
+            "provider-handoff build": 1,
         },
         "manual_or_curator_input_required_count": 1,
         "provider_handoff_required_count": 1,
@@ -3329,12 +3332,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         },
         "recommended_request_target_record_counts": {
             "manual-review validate": 3,
-            "provider-request draft": 1,
+            "provider-handoff build": 1,
         },
-            "provider_automation_level_record_counts": {
-                "metadata_review": 3,
-                "planning_handoff": 2,
-            },
+        "provider_automation_level_record_counts": {
+            "metadata_review": 3,
+            "planning_handoff": 2,
+        },
         "safe_for_unattended_download_record_count": 0,
         "automation_boundary": "prioritization_only_no_execution",
     }
@@ -4218,31 +4221,39 @@ def test_coverage_pipeline_queue_item_id_selects_current_task_metadata(
     )
     assert (
         payload["coverage_next_task_packet"]["recommended_request_target"]
-        == "provider-request draft"
+        == "provider-handoff build"
     )
     assert (
         payload["coverage_next_command_plan"]["recommended_request_target"]
-        == "provider-request draft"
+        == "provider-handoff build"
     )
     assert (
         payload["coverage_next_operator_recipe"]["recommended_request_target"]
-        == "provider-request draft"
+        == "provider-handoff build"
     )
     assert payload["coverage_next_operator_recipe"]["target_argv"] == [
-        "provider-request",
-        "draft",
-        "--provider-handoff-tsv",
-        "provider_handoff/provider_handoff.tsv",
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        "coverage_plan/coverage_plan.tsv",
+        "--provider-key",
+        "dsmz",
+        "--provider-key",
+        "kctc",
     ]
     resume_packet = payload["coverage_queue_resume_packet"]
     assert resume_packet["schema_version"] == "coverage_queue_resume_packet.v1"
     assert resume_packet["queue_item_id"] == "cq004_prepare_provider_handoff"
-    assert resume_packet["recommended_request_target"] == "provider-request draft"
+    assert resume_packet["recommended_request_target"] == "provider-handoff build"
     assert resume_packet["target_argv"] == [
-        "provider-request",
-        "draft",
-        "--provider-handoff-tsv",
-        "provider_handoff/provider_handoff.tsv",
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        "coverage_plan/coverage_plan.tsv",
+        "--provider-key",
+        "dsmz",
+        "--provider-key",
+        "kctc",
     ]
     assert resume_packet["queue_snapshot_sha256"] == payload[
         "current_queue_snapshot_sha256"
@@ -4958,12 +4969,14 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
                 "permitted local FASTA plus terms/license/provenance evidence",
             ],
             "recommended_request": {
-                "command": "provider-request",
-                "subcommand": "draft",
-                "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+                "command": "provider-handoff",
+                "subcommand": "build",
+                "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+                "provider_keys": ["dsmz", "kctc"],
             },
             "recommended_next_command": (
-                "provider-request draft --provider-handoff-tsv <provider_handoff.tsv>"
+                "provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> "
+                "[--provider-key <key> ...]"
             ),
         },
     ]
@@ -5218,9 +5231,10 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "planning_handoff": 2
     }
     assert summary["coverage_action_queue"][3]["recommended_request"] == {
-        "command": "provider-request",
-        "subcommand": "draft",
-        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+        "provider_keys": ["dsmz", "kctc"],
     }
     assert summary["coverage_action_queue_summary"][
         "public_metadata_review_required_count"
@@ -6549,9 +6563,10 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["coverage_action_queue"][3]["requires_provider_handoff"] is True
     assert payload["coverage_action_queue"][3]["safe_for_unattended_download"] is False
     assert payload["coverage_action_queue"][3]["recommended_request"] == {
-        "command": "provider-request",
-        "subcommand": "draft",
-        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+        "provider_keys": ["dsmz", "kctc"],
     }
     assert payload["coverage_action_queue_summary"][
         "safe_for_unattended_download_count"

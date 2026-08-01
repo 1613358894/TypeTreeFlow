@@ -2447,9 +2447,10 @@ _COVERAGE_ACTION_RECOMMENDED_REQUESTS: dict[str, dict[str, object]] = {
         "include": "reports",
     },
     "prepare_provider_handoff": {
-        "command": "provider-request",
-        "subcommand": "draft",
-        "provider_handoff_tsv": OUTPUT_PATHS["provider_handoff"],
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": OUTPUT_PATHS["coverage_plan"],
+        "provider_keys": [],
     },
     "build_local_evidence": {
         "command": "verify-genus",
@@ -4984,6 +4985,16 @@ def _coverage_next_action_groups(actions) -> list[dict[str, object]]:
             _append_unique(group["provider_keys"], provider_key.strip())
         if not group["recommended_next_command"] and action.recommended_next_command:
             group["recommended_next_command"] = action.recommended_next_command
+    for group in grouped.values():
+        if str(group.get("action_code", "")) == "prepare_provider_handoff":
+            group["recommended_request"] = {
+                "command": "provider-handoff",
+                "subcommand": "build",
+                "coverage_plan_tsv": OUTPUT_PATHS["coverage_plan"],
+                "provider_keys": list(group.get("provider_keys", []))
+                if isinstance(group.get("provider_keys"), list)
+                else [],
+            }
     return sorted(
         grouped.values(),
         key=lambda group: (int(group["priority"]), str(group["action_code"])),
