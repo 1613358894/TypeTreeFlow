@@ -2633,8 +2633,18 @@ field names. It also carries `result_validation_recommended_request`,
 `result_validation_recommended_argv`, and
 `result_validation_expected_output_schema_version` for the local
 `coverage-pipeline server-validation-result validate` shape validator. It
-remains metadata-only and does not validate artifacts, write files, dispatch
-target commands, contact providers, or download genomes.
+also includes optional observed external-registration realization fields
+(`external_genomes_registration_realized`,
+`external_genomes_registration_manifest_available`,
+`external_genomes_registration_manifest_record_count`,
+`external_genomes_registration_external_manifest_record_count`, and
+`external_genomes_registration_install_succeeded_count`) so an explicitly
+authorized bounded server inspection can report whether the target workflow run
+already contains external registered manifest rows. These are result-observation
+fields only; `external_genomes_registration_applied` remains a no-execution
+boundary confirmation and must stay `false`. The template remains metadata-only
+and does not validate artifacts, write files, dispatch target commands, contact
+providers, or download genomes.
 When `coverage-pipeline status` is pointed at an isolated build directory, it
 also emits `coverage_handoff_server_validation_result_template_artifact_packet`
 for the written
@@ -2664,7 +2674,8 @@ schema, or boundary validation problems, and exit `1` for unexpected internal
 errors. The command contract exposes stable summary fields for validation
 status, result status, checked-surface count, boundary confirmation status,
 diagnostic count, optional source commit, TypeTreeFlow version, runtime Python,
-evidence run path, check count, failed count, and no-execution boundary flags.
+evidence run path, check count, failed count, optional observed
+external-registration realization fields, and no-execution boundary flags.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.
@@ -2673,11 +2684,12 @@ same explicit result JSON to the pipeline status payload as
 `coverage_handoff_server_validation_result_artifact_packet`. The packet reports
 the result path, SHA-256, schema/status, checked-surface count, boundary count,
 optional source commit, TypeTreeFlow version, runtime Python, evidence run
-path, check count, failed count, and validation diagnostics. Invalid explicit
-results make status fail closed; omitting the option leaves the packet at
-`status=no_action`. This is still a local result-shape/status read and does not
-execute the target command, contact providers, download genomes, mutate
-manifests, or register external genomes.
+path, check count, failed count, optional observed external-registration
+realization fields, and validation diagnostics. Invalid explicit results make
+status fail closed; omitting the option leaves the packet at `status=no_action`.
+This is still a local result-shape/status read and does not execute the target
+command, contact providers, download genomes, mutate manifests, or register
+external genomes.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without

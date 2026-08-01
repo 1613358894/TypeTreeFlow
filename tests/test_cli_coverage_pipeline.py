@@ -1108,6 +1108,11 @@ def _assert_handoff_next_step_packet(
         "provider_automation_level_counts_by_stage": result_contract[
             "provider_automation_level_counts_by_stage"
         ],
+        "external_genomes_registration_realized": False,
+        "external_genomes_registration_manifest_available": False,
+        "external_genomes_registration_manifest_record_count": 0,
+        "external_genomes_registration_external_manifest_record_count": 0,
+        "external_genomes_registration_install_succeeded_count": 0,
         "blocking_ids": [],
         "warning_ids": [],
         "boundary_confirmations": {
@@ -2517,6 +2522,11 @@ def _valid_server_validation_result():
         "evidence_run_path": "/icdc/Users/example/codex_runs/run",
         "check_count": 31,
         "failed_count": 0,
+        "external_genomes_registration_realized": True,
+        "external_genomes_registration_manifest_available": True,
+        "external_genomes_registration_manifest_record_count": 2,
+        "external_genomes_registration_external_manifest_record_count": 1,
+        "external_genomes_registration_install_succeeded_count": 1,
         "checked_surface_names": [
             "coverage_handoff_server_validation_packet",
             "coverage_handoff_server_validation_runbook_packet",
@@ -2582,6 +2592,11 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["evidence_run_path"] == "/icdc/Users/example/codex_runs/run"
     assert payload["check_count"] == 31
     assert payload["failed_count"] == 0
+    assert payload["external_genomes_registration_realized"] is True
+    assert payload["external_genomes_registration_manifest_available"] is True
+    assert payload["external_genomes_registration_manifest_record_count"] == 2
+    assert payload["external_genomes_registration_external_manifest_record_count"] == 1
+    assert payload["external_genomes_registration_install_succeeded_count"] == 1
     assert payload["checked_surface_count"] == 2
     assert payload["diagnostic_count"] == 0
     assert payload["boundary_confirmation_status"] == "pass"
@@ -2652,6 +2667,11 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     result["check_count"] = "31"
     result["failed_count"] = -1
     result["source_commit"] = ["not", "a", "string"]
+    result["external_genomes_registration_realized"] = "true"
+    result["external_genomes_registration_manifest_available"] = 1
+    result["external_genomes_registration_manifest_record_count"] = "2"
+    result["external_genomes_registration_external_manifest_record_count"] = -1
+    result["external_genomes_registration_install_succeeded_count"] = True
     result_path = tmp_path / "coverage_handoff_server_validation_result.json"
     _write_server_validation_result(result_path, result)
 
@@ -2667,12 +2687,22 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["status"] == "blocked"
     assert payload["invalid_field_ids"] == [
         "check_count",
+        "external_genomes_registration_external_manifest_record_count",
+        "external_genomes_registration_install_succeeded_count",
+        "external_genomes_registration_manifest_available",
+        "external_genomes_registration_manifest_record_count",
+        "external_genomes_registration_realized",
         "failed_count",
         "source_commit",
     ]
     assert payload["check_count"] == 0
     assert payload["failed_count"] == 0
     assert payload["source_commit"] == ""
+    assert payload["external_genomes_registration_realized"] is False
+    assert payload["external_genomes_registration_manifest_available"] is False
+    assert payload["external_genomes_registration_manifest_record_count"] == 0
+    assert payload["external_genomes_registration_external_manifest_record_count"] == 0
+    assert payload["external_genomes_registration_install_succeeded_count"] == 0
 
 
 def test_coverage_pipeline_server_validation_result_validate_blocks_missing_input(
@@ -5532,6 +5562,11 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     result_template["evidence_run_path"] = "/icdc/Users/example/codex_runs/run"
     result_template["check_count"] = 31
     result_template["failed_count"] = 0
+    result_template["external_genomes_registration_realized"] = True
+    result_template["external_genomes_registration_manifest_available"] = True
+    result_template["external_genomes_registration_manifest_record_count"] = 2
+    result_template["external_genomes_registration_external_manifest_record_count"] = 1
+    result_template["external_genomes_registration_install_succeeded_count"] = 1
     result_template_path.write_text(json.dumps(result_template), encoding="utf-8")
     code, validation_payload, validation_captured = _run(
         ["validate", "--input", str(result_template_path), "--json"],
@@ -5575,6 +5610,18 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_artifact["typetreeflow_version"] == "typetreeflow 2.2.40"
     assert result_artifact["check_count"] == 31
     assert result_artifact["failed_count"] == 0
+    assert result_artifact["external_genomes_registration_realized"] is True
+    assert (
+        result_artifact["external_genomes_registration_manifest_available"] is True
+    )
+    assert result_artifact["external_genomes_registration_manifest_record_count"] == 2
+    assert (
+        result_artifact[
+            "external_genomes_registration_external_manifest_record_count"
+        ]
+        == 1
+    )
+    assert result_artifact["external_genomes_registration_install_succeeded_count"] == 1
     assert result_artifact["checked_surface_count"] == 2
     assert result_artifact["boundary_confirmation_count"] == 11
     assert result_artifact["diagnostic_count"] == 0
