@@ -4020,6 +4020,49 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "ncbi_biosample": 1,
         "refseq": 1,
     }
+    assert payload["provider_request_provider_batch_count"] == 7
+    batch_by_provider = {
+        batch["provider_key"]: batch
+        for batch in payload["provider_request_provider_batches"]
+    }
+    dsmz_batch = batch_by_provider["dsmz"]
+    assert dsmz_batch["record_count"] == 1
+    assert dsmz_batch["validate_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "validate",
+        "input": "provider_request/provider_request.tsv",
+        "provider_keys": ["dsmz"],
+    }
+    assert dsmz_batch["validate_recommended_request_target"] == (
+        "provider-request validate"
+    )
+    assert dsmz_batch["validate_recommended_next_command"] == (
+        "typetreeflow provider-request validate "
+        "--input provider_request/provider_request.tsv --provider-key dsmz"
+    )
+    assert dsmz_batch["validate_recommended_command_plan"]["decision"] == "allow"
+    assert dsmz_batch["handoff_recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "external-genomes-handoff",
+        "input": "provider_request/provider_request.tsv",
+        "provider_keys": ["dsmz"],
+        "write": True,
+        "outdir": "<isolated-provider-request-external-genomes-directory>",
+    }
+    assert dsmz_batch["handoff_recommended_request_target"] == (
+        "provider-request external-genomes-handoff"
+    )
+    assert dsmz_batch["handoff_recommended_next_command"] == (
+        "typetreeflow provider-request external-genomes-handoff "
+        "--input provider_request/provider_request.tsv --provider-key dsmz "
+        "--write --outdir <isolated-provider-request-external-genomes-directory>"
+    )
+    assert dsmz_batch["handoff_recommended_command_plan"]["decision"] == "block"
+    assert dsmz_batch["handoff_recommended_command_plan"]["blocking"][0]["id"] == (
+        "write_not_allowed"
+    )
+    assert dsmz_batch["downloads_triggered"] == 0
+    assert dsmz_batch["providers_contacted"] == 0
     assert payload["provider_request_automation_level_counts"] == {
         "metadata_review": 5,
         "planning_handoff": 2,
@@ -5600,6 +5643,11 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "first_recommended_request_target"
     ] == "provider-handoff build"
     assert summary["provider_request_record_count"] == 7
+    assert summary["provider_request_provider_batch_count"] == 7
+    assert summary["provider_request_provider_batches"][0]["provider_key"] == "dsmz"
+    assert summary["provider_request_provider_batches"][0][
+        "validate_recommended_request"
+    ]["provider_keys"] == ["dsmz"]
     assert summary["provider_request_automation_level_counts"] == {
         "metadata_review": 5,
         "planning_handoff": 2,

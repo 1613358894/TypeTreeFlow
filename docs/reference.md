@@ -2086,7 +2086,8 @@ provider-key,
 provider-status, provider automation-level, and provider-request draft counts
 plus `worklist_candidate_provider_key_counts`,
 `worklist_candidate_provider_status_counts`,
-`coverage_next_action_groups`, `coverage_opportunity_summary`, and
+`coverage_next_action_groups`, `coverage_opportunity_summary`,
+`provider_request_provider_batches`, and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
 `provider_request_external_genomes_install_plan_recommended_next_command` plus
@@ -2102,7 +2103,11 @@ uses an isolated pipeline child artifact such as
 `provider_request/provider_request.tsv`, the matching recommended command is
 rendered from that same request instead of reverting to a generic
 `<provider_request.tsv>` placeholder, so file-based controllers can resume
-without inferring paths from prose. `coverage-pipeline`
+without inferring paths from prose. `provider_request_provider_batches`
+contains one audit-only item per provider key in the generated provider request
+draft, including provider-key-filtered validation and external-genomes handoff
+requests plus command plans. Handoff write plans remain blocked until explicit
+write allowance is supplied. `coverage-pipeline`
 `preview`, `build`, and `status` can also take
 `--stage <operator_chain_stage>` and return
 `selected_operator_chain_stage`, `selected_operator_chain_stage_found`, and

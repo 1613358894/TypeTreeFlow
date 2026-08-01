@@ -648,8 +648,15 @@ choice of the outdir and does not change the packet's default no-write
 `recommended_request`. The `coverage-plan build --write` payload also uses
 prioritized provider-handoff items for its top-level `recommended_request`, so
 the immediate next provider-handoff command is filtered to a bounded batch of up
-to three provider keys by default. The payload
-also reports provider request draft counts and
+to three provider keys by default. The payload also reports provider request
+draft counts and `provider_request_provider_batches`, one audit-only item per
+provider key in the generated `provider_request.tsv`. Each batch carries
+provider-key-filtered `provider-request validate` and
+`provider-request external-genomes-handoff` requests plus matching command
+plans, so a controller can split combined provider review into
+provider-specific local batches without rerunning coverage planning. Handoff
+batch write plans remain blocked until explicit write allowance is supplied.
+The payload also reports
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
 `provider_request_external_genomes_install_plan_recommended_next_command` plus

@@ -2772,6 +2772,95 @@ def _stage_recommended_next_command(stage_name: str, fallback: str) -> str:
     return "typetreeflow " + " ".join(str(token) for token in argv)
 
 
+def _provider_request_provider_batches(
+    provider_key_counts: Mapping[str, object],
+) -> list[dict[str, object]]:
+    batches: list[dict[str, object]] = []
+    for provider_key, count in sorted(provider_key_counts.items()):
+        key = str(provider_key).strip()
+        if not key:
+            continue
+        record_count = _safe_int(count)
+        validate_request = {
+            "command": "provider-request",
+            "subcommand": "validate",
+            "input": OUTPUT_PATHS["provider_request"],
+            "provider_keys": [key],
+        }
+        handoff_request = {
+            "command": "provider-request",
+            "subcommand": "external-genomes-handoff",
+            "input": OUTPUT_PATHS["provider_request"],
+            "provider_keys": [key],
+            "write": True,
+            "outdir": "<isolated-provider-request-external-genomes-directory>",
+        }
+        batches.append(
+            {
+                "schema_version": "provider_request_provider_batch.v1",
+                "provider_key": key,
+                "provider_keys": [key],
+                "record_count": record_count,
+                "validate_recommended_request": validate_request,
+                "validate_recommended_request_target": (
+                    _coverage_recommended_request_target(validate_request)
+                ),
+                "validate_recommended_command_plan": (
+                    _coverage_command_plan_for_recommended_request(
+                        validate_request,
+                        (
+                            "provider_request_provider_batches."
+                            f"{key}.validate_recommended_request"
+                        ),
+                    )
+                ),
+                "validate_recommended_next_command": (
+                    _recommended_next_command_from_request(validate_request)
+                ),
+                "handoff_recommended_request": handoff_request,
+                "handoff_recommended_request_target": (
+                    _coverage_recommended_request_target(handoff_request)
+                ),
+                "handoff_recommended_command_plan": (
+                    _coverage_command_plan_for_recommended_request(
+                        handoff_request,
+                        (
+                            "provider_request_provider_batches."
+                            f"{key}.handoff_recommended_request"
+                        ),
+                    )
+                ),
+                "handoff_recommended_next_command": (
+                    _recommended_next_command_from_request(handoff_request)
+                ),
+                "safe_for_unattended_execution": False,
+                "recommended_execution_mode": "operator_review_required",
+                "audit_only": True,
+                "dry_run": True,
+                "writes_outputs": False,
+                "writes_workflow_outputs": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+            }
+        )
+    return batches
+
+
+def _recommended_next_command_from_request(request: Mapping[str, object]) -> str:
+    try:
+        rendered = render_command_request(dict(request))
+    except (TypeError, ValueError):
+        return ""
+    argv = rendered.get("target_argv")
+    if not isinstance(argv, list) or not argv:
+        return ""
+    return "typetreeflow " + " ".join(str(token) for token in argv)
+
+
 def _tsv_record_count(
     path: Path,
     component: str,
@@ -3174,6 +3263,9 @@ def _payload(
         primary_action_recommended_next_command = str(
             primary_next_action_group.get("recommended_next_command", "")
         )
+    provider_request_provider_batches = _provider_request_provider_batches(
+        request_summary["provider_key_counts"]
+    )
     validation_output_paths = (
         {
             key: None
@@ -3262,6 +3354,10 @@ def _payload(
         "provider_request_provider_key_counts": request_summary[
             "provider_key_counts"
         ],
+        "provider_request_provider_batch_count": len(
+            provider_request_provider_batches
+        ),
+        "provider_request_provider_batches": provider_request_provider_batches,
         "provider_request_status_counts": request_summary[
             "provider_status_counts"
         ],
@@ -9488,6 +9584,8 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "provider_default_network_enabled_count": 0,
         "provider_request_record_count": 0,
         "provider_request_provider_key_counts": {},
+        "provider_request_provider_batch_count": 0,
+        "provider_request_provider_batches": [],
         "provider_request_status_counts": {},
         "provider_request_automation_level_counts": {},
         "provider_request_route_groups": [],
@@ -9764,6 +9862,8 @@ def _rendered_outputs(
             "provider_default_network_enabled_count",
             "provider_request_record_count",
             "provider_request_provider_key_counts",
+            "provider_request_provider_batch_count",
+            "provider_request_provider_batches",
             "provider_request_status_counts",
             "provider_request_automation_level_counts",
             "provider_request_recommended_request",
