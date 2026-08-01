@@ -1637,10 +1637,10 @@ JSON object, including `review_signal_counts` and
 hints. The summary also includes `unrouted_type_strain_token_counts` and
 bounded `unrouted_type_strain_token_examples` for provider-like type-strain or
 culture-collection prefixes that were visible in local evidence but did not
-match the static provider registry. Plain strain codes and lower/mixed-case
-strain-note prefixes are filtered out where possible. These fields are
-audit-only platform expansion signals, not provider keys or download routes.
-The summary also
+match the static provider registry. Plain strain codes, lower/mixed-case
+strain-note prefixes, and known legacy or cross-deposit strain-designation
+prefixes are filtered out where possible. These fields are audit-only platform
+expansion signals, not provider keys or download routes. The summary also
 includes `acquisition_opportunity_summary`, a stable lane/reason-code grouping
 with bounded species previews, source-artifact counts, provider hint counts,
 and the next local input class. It is intended for

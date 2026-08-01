@@ -65,11 +65,16 @@ UNROUTED_TYPE_STRAIN_TOKEN_SKIP_PREFIXES = {
     "ID",
     "IDS",
     "ISOLATE",
+    "LCDC",
+    "MSJ",
+    "NSJ",
     "NOT",
     "NO",
     "NUMBER",
     "STRAIN",
+    "SYSU",
     "TYPE",
+    "VPI",
 }
 
 
