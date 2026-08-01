@@ -571,6 +571,48 @@ def test_worklist_external_fasta_lane_recognizes_joined_collection_numbers():
     }
 
 
+def test_worklist_external_fasta_lane_uses_reconciler_type_token_fields():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium auditproviderum"}],
+        reconciler_rows=[
+            _row(
+                "Clostridium auditproviderum",
+                reconciled_evidence_tier="missing_public_genome",
+                matched_lpsn_type_tokens="DSM123; JCM9876",
+                culture_collection_tokens="ATCC700964; LMG4006",
+                authority_sources="DSMZ",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium auditproviderum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == (
+        "dsmz; atcc_genome_portal; jcm; bccm_lmg"
+    )
+    assert row.candidate_provider_statuses == (
+        "dsmz=planning_only; atcc_genome_portal=planning_only; "
+        "jcm=planning_only; bccm_lmg=planning_only"
+    )
+    opportunity = report.summary["acquisition_opportunity_summary"][0]
+    assert opportunity["candidate_provider_key_counts"] == {
+        "atcc_genome_portal": 1,
+        "bccm_lmg": 1,
+        "dsmz": 1,
+        "jcm": 1,
+    }
+    assert opportunity["candidate_provider_status_counts"] == {
+        "planning_only": 4
+    }
+    assert opportunity["safe_for_unattended_download"] is False
+
+
 def test_worklist_explicit_provider_hints_accept_registry_display_names():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium aliasesum"}],
