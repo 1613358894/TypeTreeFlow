@@ -28,6 +28,8 @@ def test_default_registry_contains_planning_only_culture_collections():
         "ncaim",
         "hambi",
         "kmm",
+        "gtc",
+        "pagu",
         "bcrc",
         "ccrc",
         "nccb",
@@ -104,6 +106,9 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "Helsinki Collection of Microbial Cultures": "hambi",
         "KMM": "kmm",
         "Collection of Marine Microorganisms": "kmm",
+        "GTC": "gtc",
+        "Gifu Type Culture Collection": "gtc",
+        "PAGU": "pagu",
         "BCRC": "bcrc",
         "CCRC": "ccrc",
         "NCCB": "nccb",
@@ -147,6 +152,7 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "VKM B-1787; MCCC 1K07510; GDMCC 1.2529; CCTCC AB 12345; "
         "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; "
         "NRRL B-1; NCAIM B.01001; HAMBI 100; KMM 902; "
+        "GTC 21791; PAGU 1796; "
         "PATRIC genome 123; IMG/M 3300000000"
     ) == (
         "atcc_genome_portal",
@@ -161,6 +167,8 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "ncaim",
         "hambi",
         "kmm",
+        "gtc",
+        "pagu",
         "bv_brc",
         "img_jgi",
     )

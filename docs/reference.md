@@ -1532,7 +1532,7 @@ For `external_fasta_required` rows, `candidate_provider_keys` may be derived
 from explicit local provider hints or recognizable culture-collection tokens
 such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, KACC, VKM, MCCC,
 GDMCC, CCTCC, CECT, CIP, CCUG, CCM, LMG, NCIMB, NCIB, NRRL, NCAIM,
-HAMBI, KMM, BCRC, CCRC, NCCB, CSUR, CICC, and IFO.
+HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC, and IFO.
 Explicit provider hints may use canonical provider keys, common abbreviations,
 or static registry display names; they are normalized to canonical provider
 keys before summary counting. Recognized hints are additive across supported
@@ -2702,7 +2702,8 @@ External registered genomes must not change this boundary. Provider-native IDs r
 The default provider registry includes static fail-closed entries for ATCC
 Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC/NITE, KCTC,
 KACC, VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB,
-NCIB, NRRL, NCAIM, HAMBI, KMM, BCRC, CCRC, NCCB, CSUR, CICC, and IFO;
+NCIB, NRRL, NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC,
+and IFO;
 public archives ENA, DDBJ, GenBank, and NCBI RefSeq; BV-BRC/PATRIC; and
 IMG/JGI. Culture-collection and IMG/JGI entries are `planning_only`; public
 archive and BV-BRC/PATRIC entries are `metadata_only`.
