@@ -747,6 +747,15 @@ def _run_status(
         ),
         boundary="public archive audit review only; no archive query or download",
     )
+    _apply_archive_manual_review_template_details(
+        stages,
+        directory=_status_stage_dir(
+            args.archive_candidates_dir,
+            coverage_dir,
+            "archive_candidates",
+        ),
+        diagnostics=diagnostics,
+    )
     _apply_optional_stage(
         stages,
         stage_name="provider_request_validation",
@@ -1786,6 +1795,50 @@ def _copy_stage_summary_details(
     for field in detail_fields:
         if field in summary:
             stage[f"summary_{field}"] = summary[field]
+
+
+def _apply_archive_manual_review_template_details(
+    stages: list[dict[str, object]],
+    *,
+    directory: str | None,
+    diagnostics: list[dict[str, object]],
+) -> None:
+    stage = _find_stage(stages, "archive_candidates")
+    if stage is None or not directory:
+        return
+    template = Path(directory) / "manual_review.tsv"
+    stage["summary_manual_review_template_available"] = False
+    if not template.exists():
+        return
+    if not template.is_file() or template.is_symlink():
+        diagnostics.append(
+            _diagnostic("archive_candidates", "manual_review_template_malformed")
+        )
+        return
+    try:
+        with template.open(encoding="utf-8", newline="") as handle:
+            header = handle.readline().rstrip("\r\n")
+    except (OSError, UnicodeError):
+        diagnostics.append(
+            _diagnostic("archive_candidates", "manual_review_template_unreadable")
+        )
+        return
+    if header != "\t".join(MANUAL_REVIEW_FIELDS):
+        diagnostics.append(
+            _diagnostic("archive_candidates", "manual_review_template_malformed")
+        )
+        return
+    stage["summary_manual_review_template_available"] = True
+    stage["required_inputs"] = ["archive_candidates/manual_review.tsv"]
+    stage["recommended_request"] = {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "archive_candidates/manual_review.tsv",
+    }
+    stage["recommended_next_command"] = (
+        "typetreeflow manual-review validate "
+        "--input archive_candidates/manual_review.tsv"
+    )
 
 
 def _safe_count_map(value: object) -> dict[str, int]:

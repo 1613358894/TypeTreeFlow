@@ -733,7 +733,9 @@ for later report and package handoff. This is only public-archive linkage
 review visibility; it does not query archives or make rows download-ready. If
 the archive audit has manual-review skeleton rows, the isolated child directory
 also keeps `archive_candidates/manual_review.tsv` as an incomplete next-input
-template.
+template. `coverage-pipeline status` then routes the `archive_candidates` stage
+to `manual-review validate --input archive_candidates/manual_review.tsv` so the
+next local review step is explicit.
 `build --validate-provider-request --write` also writes the local provider
 request validation audit pair under `provider_request_validation/` in the same
 isolated directory. This is the same offline readiness check as
