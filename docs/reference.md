@@ -2701,6 +2701,14 @@ recommended local repair actions, a bounded `repair_template_row` shaped like
 The queue is only a repair guide for the reviewed `external_genomes.tsv` input;
 it is not installation permission, provider authorization, registration, or
 completion credit.
+`external-genomes repair-template --input <external_genomes.tsv>` renders those
+invalid-row templates as compact JSON. With `--write --out
+<external_genomes_repair_template.tsv>`, it writes only that isolated editable
+TSV using the exact `external_genomes.tsv` schema; existing outputs require
+`--force`, and the output path may not replace the input. Valid commands exit
+`0`; input or usage errors exit `2`; output write failures exit `1`. The command
+does not validate provider terms, contact providers, download data, register
+genomes, mutate manifests, or create strict scientific deliverables.
 The validate payload also includes `external_genomes_readiness_packet`. When
 every row is valid, that packet reports `status=ready_for_next_stage`,
 `next_stage=external_genomes_install_plan`, and a structured request for

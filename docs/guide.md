@@ -1471,6 +1471,15 @@ allowed. It also carries `provider_route_groups` when reviewed notes include
 controlled route metadata. It always keeps `safe_for_unattended_execution=false`;
 an AI/operator must still review the packet before invoking the next CLI
 command.
+To write the blocked-row repair rows as an isolated editable TSV, use:
+
+```bash
+typetreeflow external-genomes repair-template --input <external_genomes.tsv> \
+  --write --out <external_genomes_repair_template.tsv>
+```
+
+Without `--write --out`, this command emits only compact JSON. The TSV keeps
+the `external_genomes.tsv` schema and remains a local repair aid only.
 When `register-external-genomes --dry-run` passes without invalid rows, its JSON
 also carries a structured non-dry-run `recommended_request` plus compact
 `recommended_request_target` and renderable `recommended_next_command`; warning,

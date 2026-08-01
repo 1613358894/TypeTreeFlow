@@ -20,6 +20,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     build_external_genome_install_plan,
+    external_genome_repair_template_rows,
     read_external_genome_install_plan,
     read_external_genome_registration_results,
     read_external_genomes,
@@ -28,6 +29,7 @@ from typetreeflow.external_genomes import (
     summarize_external_genome_repair_queue,
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
+    write_external_genome_repair_template,
     write_external_genome_install_plan,
     write_external_genome_registration_results,
 )
@@ -37,6 +39,8 @@ VALIDATE_COMMAND = "external-genomes validate"
 VALIDATE_SCHEMA_VERSION = "external_genomes_validate.v1"
 INSTALL_PLAN_COMMAND = "external-genomes install-plan"
 INSTALL_PLAN_SCHEMA_VERSION = "external_genomes_install_plan.v1"
+REPAIR_TEMPLATE_COMMAND = "external-genomes repair-template"
+REPAIR_TEMPLATE_SCHEMA_VERSION = "external_genomes_repair_template.v1"
 INSTALL_PLAN_OUTPUT_NAMES = {
     "registration_results": "external_genome_registration_results.tsv",
     "install_plan": "external_genome_install_plan.tsv",
@@ -85,6 +89,8 @@ def run_external_genomes_command(
 
     if args.action == "install-plan":
         return _run_install_plan(args, output)
+    if args.action == "repair-template":
+        return _run_repair_template(args, output)
     return _run_validate(args, output)
 
 
@@ -250,6 +256,119 @@ def _run_install_plan(args: argparse.Namespace, output: TextIO) -> int:
     return 0 if not diagnostics else 2
 
 
+def _run_repair_template(args: argparse.Namespace, output: TextIO) -> int:
+    if (args.write and not args.out) or (args.out and not args.write):
+        _emit(
+            _repair_template_failure(
+                "invalid_command_usage",
+                "--write and --out must be used together",
+            ),
+            output,
+        )
+        return 2
+    if args.force and not args.write:
+        _emit(
+            _repair_template_failure(
+                "invalid_command_usage",
+                "--force requires --write",
+            ),
+            output,
+        )
+        return 2
+
+    input_path = Path(args.input)
+    diagnostics: list[dict[str, object]] = []
+    try:
+        records = read_external_genomes(
+            input_path,
+            base_dir=input_path.parent,
+            validate=False,
+        )
+    except ValueError as error:
+        diagnostics.append(
+            _input_diagnostic(
+                str(error),
+                component="external_genomes_repair_template",
+                schema_version=REPAIR_TEMPLATE_SCHEMA_VERSION,
+            )
+        )
+        _emit(
+            _repair_template_payload(
+                [],
+                [],
+                input_path=input_path,
+                output_path=Path(args.out) if args.out else None,
+                diagnostics=diagnostics,
+            ),
+            output,
+        )
+        return 2
+    except (OSError, UnicodeError):
+        diagnostics.append(
+            _diagnostic(
+                "external_genomes_repair_template",
+                "input_unreadable",
+                schema_version=REPAIR_TEMPLATE_SCHEMA_VERSION,
+            )
+        )
+        _emit(
+            _repair_template_payload(
+                [],
+                [],
+                input_path=input_path,
+                output_path=Path(args.out) if args.out else None,
+                diagnostics=diagnostics,
+            ),
+            output,
+        )
+        return 2
+
+    results = validate_external_genome_records(records, base_dir=input_path.parent)
+    template_rows = external_genome_repair_template_rows(results)
+    payload = _repair_template_payload(
+        results,
+        template_rows,
+        input_path=input_path,
+        output_path=Path(args.out) if args.out else None,
+        diagnostics=[],
+    )
+    if args.write:
+        try:
+            output_path = _write_repair_template_output(
+                input_path=input_path,
+                output_path=Path(args.out),
+                template_rows=template_rows,
+                force=args.force,
+            )
+        except (OSError, ValueError) as error:
+            payload["status"] = "failed"
+            payload["summary"] = "External-genomes repair template output failed"
+            payload["diagnostics"] = [
+                _diagnostic(
+                    "external_genomes_repair_template",
+                    _output_error_code(str(error)),
+                    schema_version=REPAIR_TEMPLATE_SCHEMA_VERSION,
+                )
+            ]
+            payload["diagnostic_count"] = 1
+            _emit(payload, output)
+            return 1
+        payload["writes_outputs"] = True
+        payload["output_path"] = str(output_path)
+        payload["recommended_request"] = {
+            "command": "external-genomes",
+            "subcommand": "validate",
+            "input": output_path.as_posix(),
+        }
+        payload["recommended_request_target"] = "external-genomes validate"
+        payload["recommended_next_command"] = (
+            "typetreeflow external-genomes validate "
+            f"--input {output_path.as_posix()}"
+        )
+    _emit(payload, output)
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="typetreeflow", add_help=False)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -265,6 +384,12 @@ def _build_parser() -> argparse.ArgumentParser:
     install_plan.add_argument("--write", action="store_true")
     install_plan.add_argument("--outdir")
     install_plan.add_argument("--force", action="store_true")
+    repair_template = actions.add_parser("repair-template", add_help=False)
+    repair_template.add_argument("--input", required=True)
+    repair_template.add_argument("--json", action="store_true")
+    repair_template.add_argument("--write", action="store_true")
+    repair_template.add_argument("--out")
+    repair_template.add_argument("--force", action="store_true")
     return parser
 
 
@@ -497,6 +622,66 @@ def _install_plan_payload(
     }
 
 
+def _repair_template_payload(
+    registration_results,
+    template_rows: list[dict[str, str]],
+    *,
+    input_path: Path | str,
+    output_path: Path | None,
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object]:
+    registration_counts = Counter(result.status for result in registration_results)
+    input_value = _command_path(input_path, fallback="external_genomes.tsv")
+    output_value = output_path.as_posix() if output_path is not None else ""
+    recommended_request = None
+    recommended_next_command = ""
+    if output_value:
+        recommended_request = {
+            "command": "external-genomes",
+            "subcommand": "validate",
+            "input": output_value,
+        }
+        recommended_next_command = (
+            "typetreeflow external-genomes validate "
+            f"--input {output_value}"
+        )
+    return {
+        "schema_version": REPAIR_TEMPLATE_SCHEMA_VERSION,
+        "status": "pass" if not diagnostics else "blocked",
+        "command": REPAIR_TEMPLATE_COMMAND,
+        "input_path": input_value,
+        "record_count": len(registration_results),
+        "invalid_count": len(template_rows),
+        "repair_needed": bool(template_rows),
+        "repair_template_row_count": len(template_rows),
+        "repair_template_fields": list(EXTERNAL_GENOME_FIELDS),
+        "validation_status_counts": dict(sorted(registration_counts.items())),
+        "external_genomes_repair_queue": summarize_external_genome_repair_queue(
+            registration_results,
+        ),
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "recommended_request": recommended_request,
+        "recommended_request_target": recommended_request_target(recommended_request),
+        "recommended_next_command": recommended_next_command,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "summary": (
+            "External-genomes repair template prepared"
+            if not diagnostics
+            else "External-genomes repair template blocked"
+        ),
+    }
+
+
 def _external_genomes_readiness_packet(
     *,
     stage: str,
@@ -597,6 +782,24 @@ def _install_plan_failure(code: str, message: str) -> dict[str, object]:
             )
         ],
         args=argparse.Namespace(input="", target_outdir=""),
+    )
+    payload.update(status="failed", summary=message)
+    return payload
+
+
+def _repair_template_failure(code: str, message: str) -> dict[str, object]:
+    payload = _repair_template_payload(
+        [],
+        [],
+        input_path="",
+        output_path=None,
+        diagnostics=[
+            _diagnostic(
+                "external_genomes_repair_template_cli",
+                code,
+                schema_version=REPAIR_TEMPLATE_SCHEMA_VERSION,
+            )
+        ],
     )
     payload.update(status="failed", summary=message)
     return payload
@@ -712,6 +915,26 @@ def _write_install_plan_outputs(
         "install_plan": str(output_dir / INSTALL_PLAN_OUTPUT_NAMES["install_plan"]),
         "summary": str(output_dir / INSTALL_PLAN_OUTPUT_NAMES["summary"]),
     }
+
+
+def _write_repair_template_output(
+    *,
+    input_path: Path,
+    output_path: Path,
+    template_rows: list[dict[str, str]],
+    force: bool,
+) -> Path:
+    if output_path.resolve() == input_path.resolve():
+        raise ValueError("output path cannot replace the input")
+    if output_path.exists():
+        if output_path.is_dir():
+            raise ValueError("output path exists and is not a file")
+        if output_path.is_symlink():
+            raise ValueError("output path is unsafe")
+        if not force:
+            raise ValueError("existing output requires --force")
+    write_external_genome_repair_template(template_rows, output_path)
+    return output_path
 
 
 def _validate_install_plan_outdir(
