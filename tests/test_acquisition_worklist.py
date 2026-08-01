@@ -1091,6 +1091,41 @@ def test_worklist_tbrc_tistr_tokens_route_to_provider_handoff():
     assert report.summary["unrouted_type_strain_token_counts"] == {}
 
 
+def test_worklist_ccos_ccam_tokens_route_to_provider_handoff():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium additionalhandoffum",
+                "type_strain_names": "CCOS 1877; CCAM 531",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium additionalhandoffum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium additionalhandoffum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == "ccos; ccam"
+    assert row.candidate_provider_statuses == (
+        "ccos=planning_only; ccam=planning_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "ccam": 1,
+        "ccos": 1,
+    }
+    assert report.summary["unrouted_type_strain_token_counts"] == {}
+
+
 def test_worklist_conflict_overrides_archive_candidate():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium conflictum"}],
