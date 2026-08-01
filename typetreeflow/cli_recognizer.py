@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from typetreeflow.providers.registry import build_default_provider_registry
+
 
 _DIAGNOSTIC_COMMANDS = {"doctor", "status", "next-step"}
 _WORKFLOW_COMMANDS = {"verify-genus", "verify-release-genus"}
@@ -333,12 +335,14 @@ def _provider_key_filter(
     if command != "provider-handoff" or subcommand != "build":
         return []
     values: list[str] = []
+    registry = build_default_provider_registry()
     index = 0
     while index < len(tokens):
         if tokens[index] == "--provider-key" and index + 1 < len(tokens):
             value = tokens[index + 1]
-            if value and value not in values:
-                values.append(value)
+            for provider_key in registry.keys_from_hints(value):
+                if provider_key and provider_key not in values:
+                    values.append(provider_key)
             index += 2
             continue
         index += 1

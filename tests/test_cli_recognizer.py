@@ -75,7 +75,7 @@ from typetreeflow.cli_recognizer import recognize_cli_command
         (["coverage-plan", "build", "--worklist-tsv", "worklist.tsv"], {"command": "coverage-plan", "subcommand": "build", "mode": "coverage_plan", "is_coverage_plan": True, "writes_outputs_declared": False, "requires_outdir": False}),
         (["coverage-plan", "build", "--worklist-tsv", "worklist.tsv", "--write", "--outdir", "coverage"], {"command": "coverage-plan", "subcommand": "build", "mode": "coverage_plan", "is_coverage_plan": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "provider_key_filter": [], "provider_key_filter_count": 0, "writes_outputs_declared": False, "requires_outdir": False}),
-        (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv", "--provider-key", "DSMZ"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "provider_key_filter": ["DSMZ"], "provider_key_filter_count": 1, "writes_outputs_declared": False, "requires_outdir": False}),
+        (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv", "--provider-key", "DSMZ"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "provider_key_filter": ["dsmz"], "provider_key_filter_count": 1, "writes_outputs_declared": False, "requires_outdir": False}),
         (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv", "--write", "--outdir", "handoff"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["provider-request", "draft", "--provider-handoff-tsv", "handoff.tsv"], {"command": "provider-request", "subcommand": "draft", "mode": "provider_request", "is_provider_request": True, "writes_outputs_declared": False, "requires_outdir": False}),
         (["provider-request", "draft", "--provider-handoff-tsv", "handoff.tsv", "--write", "--outdir", "requests"], {"command": "provider-request", "subcommand": "draft", "mode": "provider_request", "is_provider_request": True, "writes_outputs_declared": True, "requires_outdir": True}),
@@ -302,13 +302,15 @@ def test_provider_handoff_recognizer_exposes_provider_key_filter():
             "KCTC",
             "--provider-key",
             "DSMZ",
+            "--provider-key",
+            "new provider",
         ]
     )
 
     assert result["command"] == "provider-handoff"
     assert result["subcommand"] == "build"
-    assert result["provider_key_filter"] == ["DSMZ", "KCTC"]
-    assert result["provider_key_filter_count"] == 2
+    assert result["provider_key_filter"] == ["dsmz", "kctc", "new provider"]
+    assert result["provider_key_filter_count"] == 3
     assert result["writes_outputs_declared"] is False
 
 
