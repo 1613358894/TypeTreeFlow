@@ -475,6 +475,11 @@ _COVERAGE_PIPELINE_BASE_OUTPUT_CONTRACTS: tuple[dict[str, object], ...] = (
         "purpose": "command plan for the explicitly selected operator-chain stage",
     },
     {
+        "name": "selected_operator_chain_stage_route_context",
+        "schema_version": "coverage_controller_route_context.v1",
+        "purpose": "route context for the explicitly selected operator-chain stage",
+    },
+    {
         "name": "coverage_stage_readiness_summary",
         "schema_version": "coverage_stage_readiness_summary.v1",
         "purpose": "compact coverage stage readiness, blocker, and command-plan summary for AI routing",

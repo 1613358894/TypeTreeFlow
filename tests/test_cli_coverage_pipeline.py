@@ -6706,6 +6706,8 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "artifact": "",
         "record_count": 0,
         "provider_route_groups": [],
+        "coverage_priority_route_counts": {},
+        "coverage_priority_route_summary": [],
         "required_inputs": [],
         "recommended_request": None,
         "recommended_request_target": "",
@@ -7002,7 +7004,11 @@ def test_coverage_pipeline_status_preserves_blocked_validation_stage_details(
     assert code == 0
 
     code, payload, captured = _run(
-        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--json",
+        ],
         capsys,
         action="status",
     )
@@ -7068,7 +7074,11 @@ def test_coverage_pipeline_status_reads_conventional_child_dirs(capsys, tmp_path
     )
 
     code, payload, captured = _run(
-        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--json",
+        ],
         capsys,
         action="status",
     )
@@ -7219,7 +7229,13 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
     _write_archive_candidates_output(pipeline_dir / "archive_candidates")
 
     code, payload, captured = _run(
-        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--stage",
+            "archive_candidates",
+            "--json",
+        ],
         capsys,
         action="status",
     )
@@ -7275,6 +7291,24 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
         "expanded_discovery_results": 1
     }
     assert archive_stage["summary_expanded_discovery_candidate_count"] == 1
+    assert payload["selected_operator_chain_stage_name"] == "archive_candidates"
+    assert payload["selected_operator_chain_stage_found"] is True
+    route_context = payload["selected_operator_chain_stage_route_context"]
+    assert route_context["schema_version"] == "coverage_controller_route_context.v1"
+    assert route_context["coverage_priority_route_count"] == 1
+    assert route_context["coverage_priority_route_counts"] == {
+        "public_archive_metadata_review": 1
+    }
+    assert route_context["first_coverage_priority_route"] == (
+        "public_archive_metadata_review"
+    )
+    assert route_context["coverage_priority_route_summary"] == (
+        archive_stage["summary_coverage_priority_route_summary"]
+    )
+    assert route_context["provider_route_group_count"] == 0
+    assert route_context["safe_for_unattended_execution"] is False
+    assert route_context["audit_only"] is True
+    assert route_context["dry_run"] is True
     assert "archive_candidates" in payload["available_stage_names"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
@@ -7355,6 +7389,8 @@ def test_coverage_pipeline_status_blocks_missing_required_pipeline_dir(
         "artifact": "",
         "record_count": 0,
         "provider_route_groups": [],
+        "coverage_priority_route_counts": {},
+        "coverage_priority_route_summary": [],
         "recommended_request_target": "",
         "target_argv": [],
         "command_plan_decision": "none",

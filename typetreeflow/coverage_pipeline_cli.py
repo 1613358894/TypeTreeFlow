@@ -1157,6 +1157,9 @@ def _run_status(
         "selected_operator_chain_stage_name": str(getattr(args, "stage", "") or ""),
         "selected_operator_chain_stage_found": bool(selected_operator_chain_stage),
         "selected_operator_chain_stage": dict(selected_operator_chain_stage or {}),
+        "selected_operator_chain_stage_route_context": (
+            _operator_chain_stage_route_context(selected_operator_chain_stage)
+        ),
         "selected_operator_chain_stage_command_plan": (
             selected_operator_chain_stage_command_plan
         ),
@@ -1289,6 +1292,22 @@ def _operator_chain_next_step_packet(
         if isinstance(next_stage.get("required_inputs"), list)
         else []
     )
+    coverage_priority_route_counts = (
+        _sorted_count_map(
+            {
+                str(key): _safe_int(value)
+                for key, value in next_stage[
+                    "summary_coverage_priority_route_counts"
+                ].items()
+                if str(key)
+            }
+        )
+        if isinstance(
+            next_stage.get("summary_coverage_priority_route_counts"),
+            Mapping,
+        )
+        else {}
+    )
     base = {
         "schema_version": "operator_chain_next_step_packet.v1",
         "available": True,
@@ -1297,6 +1316,10 @@ def _operator_chain_next_step_packet(
         "record_count": _safe_int(next_stage.get("record_count", 0)),
         "provider_route_groups": _safe_mapping_list(
             next_stage.get("summary_provider_route_groups", [])
+        ),
+        "coverage_priority_route_counts": coverage_priority_route_counts,
+        "coverage_priority_route_summary": _safe_mapping_list(
+            next_stage.get("summary_coverage_priority_route_summary", [])
         ),
         "required_inputs": required_inputs,
         "recommended_request": recommended_request,
@@ -1379,6 +1402,8 @@ def _empty_operator_chain_next_step_packet(
         "artifact": "",
         "record_count": 0,
         "provider_route_groups": [],
+        "coverage_priority_route_counts": {},
+        "coverage_priority_route_summary": [],
         "required_inputs": [],
         "recommended_request": None,
         "recommended_request_target": "",
@@ -2078,6 +2103,25 @@ def _operator_chain_resume_packet(
         "record_count": _safe_int(next_step_packet.get("record_count", 0)),
         "provider_route_groups": _safe_mapping_list(
             next_step_packet.get("provider_route_groups", [])
+        ),
+        "coverage_priority_route_counts": (
+            _sorted_count_map(
+                {
+                    str(key): _safe_int(value)
+                    for key, value in next_step_packet[
+                        "coverage_priority_route_counts"
+                    ].items()
+                    if str(key)
+                }
+            )
+            if isinstance(
+                next_step_packet.get("coverage_priority_route_counts"),
+                Mapping,
+            )
+            else {}
+        ),
+        "coverage_priority_route_summary": _safe_mapping_list(
+            next_step_packet.get("coverage_priority_route_summary", [])
         ),
         "recommended_request_target": str(
             next_step_packet.get("recommended_request_target", "")
@@ -3277,6 +3321,9 @@ def _payload(
         "selected_operator_chain_stage_name": str(stage_name or ""),
         "selected_operator_chain_stage_found": bool(selected_operator_chain_stage),
         "selected_operator_chain_stage": dict(selected_operator_chain_stage or {}),
+        "selected_operator_chain_stage_route_context": (
+            _operator_chain_stage_route_context(selected_operator_chain_stage)
+        ),
         "selected_operator_chain_stage_command_plan": (
             selected_operator_chain_stage_command_plan
         ),
@@ -6206,8 +6253,22 @@ def _controller_route_context(
     operator_route: str = "",
     next_input_class: str = "",
     provider_route_groups: object = None,
+    coverage_priority_route_counts: object = None,
+    coverage_priority_route_summary: object = None,
 ) -> dict[str, object]:
     groups = _safe_mapping_list(provider_route_groups)
+    priority_counts = (
+        _sorted_count_map(
+            {
+                str(key): _safe_int(value)
+                for key, value in coverage_priority_route_counts.items()
+                if str(key)
+            }
+        )
+        if isinstance(coverage_priority_route_counts, Mapping)
+        else {}
+    )
+    priority_summary = _safe_mapping_list(coverage_priority_route_summary)
     provider_keys: list[str] = []
     for group in groups:
         raw_keys = group.get("provider_keys", [])
@@ -6220,11 +6281,33 @@ def _controller_route_context(
         "provider_route_group_count": len(groups),
         "provider_route_groups": groups,
         "provider_keys": _dedupe_strings(provider_keys),
+        "coverage_priority_route_count": len(priority_counts),
+        "coverage_priority_route_counts": priority_counts,
+        "coverage_priority_route_summary": priority_summary,
+        "first_coverage_priority_route": _primary_count_key(priority_counts),
         "safe_for_unattended_execution": False,
         "audit_only": True,
         "dry_run": True,
         "execution_boundary": "metadata_only_controller_route_context_no_execution",
     }
+
+
+def _operator_chain_stage_route_context(
+    stage: Mapping[str, object] | None,
+) -> dict[str, object]:
+    if not isinstance(stage, Mapping):
+        return _controller_route_context()
+    return _controller_route_context(
+        provider_route_groups=stage.get("summary_provider_route_groups", []),
+        coverage_priority_route_counts=stage.get(
+            "summary_coverage_priority_route_counts",
+            {},
+        ),
+        coverage_priority_route_summary=stage.get(
+            "summary_coverage_priority_route_summary",
+            [],
+        ),
+    )
 
 
 def _coverage_controller_packet(
@@ -6337,6 +6420,18 @@ def _coverage_controller_packet(
                 "route_context": _controller_route_context(
                     provider_route_groups=operator_chain_resume_packet.get(
                         "provider_route_groups", []
+                    ),
+                    coverage_priority_route_counts=(
+                        operator_chain_resume_packet.get(
+                            "coverage_priority_route_counts",
+                            {},
+                        )
+                    ),
+                    coverage_priority_route_summary=(
+                        operator_chain_resume_packet.get(
+                            "coverage_priority_route_summary",
+                            [],
+                        )
                     ),
                 ),
                 "recommended_request_target": str(
