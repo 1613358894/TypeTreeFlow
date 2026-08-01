@@ -5659,6 +5659,9 @@ def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
     assert payload["output_paths"]["archive_candidates"] == str(
         outdir / "archive_candidates" / "archive_candidates.tsv"
     )
+    assert payload["output_paths"]["archive_candidates_manual_review_template"] == str(
+        outdir / "archive_candidates" / "manual_review.tsv"
+    )
     assert (outdir / "archive_candidates" / "archive_candidates.tsv").exists()
     assert (
         outdir / "archive_candidates" / "archive_candidates_summary.json"
@@ -5666,6 +5669,15 @@ def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
     assert (
         outdir / "archive_candidates" / "archive_candidates_diagnostics.tsv"
     ).exists()
+    manual_review_template = outdir / "archive_candidates" / "manual_review.tsv"
+    assert manual_review_template.exists()
+    with manual_review_template.open(encoding="utf-8") as handle:
+        template_rows = list(csv.DictReader(handle, delimiter="\t"))
+    assert tuple(template_rows[0]) == MANUAL_REVIEW_FIELDS
+    assert template_rows[0]["species"] == "Clostridium gamma"
+    assert template_rows[0]["selected_accession"] == "GCA_000003.1"
+    assert template_rows[0]["review_status"] == ""
+    assert "not_a_review_decision" in template_rows[0]["decision_notes"]
     summary = json.loads(
         (
             outdir / "archive_candidates" / "archive_candidates_summary.json"

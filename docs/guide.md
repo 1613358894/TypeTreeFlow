@@ -730,7 +730,10 @@ result without parsing diagnostics.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
-review visibility; it does not query archives or make rows download-ready.
+review visibility; it does not query archives or make rows download-ready. If
+the archive audit has manual-review skeleton rows, the isolated child directory
+also keeps `archive_candidates/manual_review.tsv` as an incomplete next-input
+template.
 `build --validate-provider-request --write` also writes the local provider
 request validation audit pair under `provider_request_validation/` in the same
 isolated directory. This is the same offline readiness check as

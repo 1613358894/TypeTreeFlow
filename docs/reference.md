@@ -2459,7 +2459,10 @@ directory with matching schemas.
 When `--archive-candidates-tsv` points at a complete archive-candidates audit
 TSV, `build --write` also publishes the standard `archive_candidates/` triplet
 inside the isolated coverage-pipeline directory so later
-`--coverage-pipeline-dir` handoffs can see it without an extra path.
+`--coverage-pipeline-dir` handoffs can see it without an extra path. If the
+archive audit can render manual-review skeleton rows, the same directory also
+keeps `archive_candidates/manual_review.tsv`; that template is incomplete and
+does not represent a completed review decision.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline
 directory, and optional downstream directory overrides. When
