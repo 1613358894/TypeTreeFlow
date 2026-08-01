@@ -174,6 +174,9 @@ OPTIONAL_OUTPUT_PATHS = {
     "archive_candidates_manual_review_template": (
         "archive_candidates/manual_review.tsv"
     ),
+    "archive_candidates_input_template": (
+        "archive_candidates/archive_candidates_input_template.tsv"
+    ),
     "provider_request_validation_summary": (
         "provider_request_validation/provider_request_validation_summary.json"
     ),
@@ -757,6 +760,15 @@ def _run_status(
         boundary="public archive audit review only; no archive query or download",
     )
     _apply_archive_manual_review_template_details(
+        stages,
+        directory=_status_stage_dir(
+            args.archive_candidates_dir,
+            coverage_dir,
+            "archive_candidates",
+        ),
+        diagnostics=diagnostics,
+    )
+    _apply_archive_candidates_input_template_details(
         stages,
         directory=_status_stage_dir(
             args.archive_candidates_dir,
@@ -1954,6 +1966,67 @@ def _apply_archive_manual_review_template_details(
         "typetreeflow manual-review validate "
         "--input archive_candidates/manual_review.tsv"
     )
+
+
+def _apply_archive_candidates_input_template_details(
+    stages: list[dict[str, object]],
+    *,
+    directory: str | None,
+    diagnostics: list[dict[str, object]],
+) -> None:
+    stage = _find_stage(stages, "archive_candidates")
+    if stage is None or not directory:
+        return
+    template = Path(directory) / "archive_candidates_input_template.tsv"
+    stage["summary_archive_candidates_input_template_available"] = False
+    if not template.exists():
+        return
+    if not template.is_file() or template.is_symlink():
+        diagnostics.append(
+            _diagnostic("archive_candidates", "input_template_malformed")
+        )
+        return
+    try:
+        with template.open(encoding="utf-8", newline="") as handle:
+            header = handle.readline().rstrip("\r\n")
+    except (OSError, UnicodeError):
+        diagnostics.append(
+            _diagnostic("archive_candidates", "input_template_unreadable")
+        )
+        return
+    if header != "\t".join(ARCHIVE_CANDIDATE_INPUT_FIELDS):
+        diagnostics.append(
+            _diagnostic("archive_candidates", "input_template_malformed")
+        )
+        return
+    stage["summary_archive_candidates_input_template_available"] = True
+    stage["summary_archive_candidates_input_template_required_input"] = (
+        "archive_candidates/archive_candidates_input_template.tsv"
+    )
+    stage["summary_archive_candidates_input_template_recommended_request"] = {
+        "command": "archive-candidates",
+        "subcommand": "build",
+        "input_tsv": "archive_candidates/archive_candidates_input_template.tsv",
+        "write": True,
+        "outdir": "<isolated-archive-candidates-directory>",
+    }
+    stage["summary_archive_candidates_input_template_recommended_next_command"] = (
+        "typetreeflow archive-candidates build "
+        "--input-tsv archive_candidates/archive_candidates_input_template.tsv "
+        "--write --outdir <isolated-archive-candidates-directory>"
+    )
+    if not stage.get("summary_manual_review_template_available"):
+        stage["required_inputs"] = [
+            "archive_candidates/archive_candidates_input_template.tsv"
+        ]
+        stage["recommended_request"] = (
+            stage["summary_archive_candidates_input_template_recommended_request"]
+        )
+        stage["recommended_next_command"] = (
+            stage[
+                "summary_archive_candidates_input_template_recommended_next_command"
+            ]
+        )
 
 
 def _safe_count_map(value: object) -> dict[str, int]:
@@ -10068,6 +10141,7 @@ def _rendered_outputs(
             )
     if archive_candidate_report is not None:
         manual_review_template = archive_candidate_report.manual_review_template_tsv()
+        input_template = archive_candidate_report.archive_candidates_input_template_tsv()
         rendered.update(
             {
                 "archive_candidates": archive_candidate_report.candidates_tsv(),
@@ -10083,6 +10157,8 @@ def _rendered_outputs(
             rendered["archive_candidates_manual_review_template"] = (
                 manual_review_template
             )
+        if _has_tsv_data_rows(input_template):
+            rendered["archive_candidates_input_template"] = input_template
     return rendered
 
 
@@ -10096,9 +10172,12 @@ def _archive_candidate_output_path_keys(archive_candidate_report) -> tuple[str, 
         "archive_candidates_summary",
         "archive_candidates_diagnostics",
     )
+    optional = []
     if _has_tsv_data_rows(archive_candidate_report.manual_review_template_tsv()):
-        return (*keys, "archive_candidates_manual_review_template")
-    return keys
+        optional.append("archive_candidates_manual_review_template")
+    if _has_tsv_data_rows(archive_candidate_report.archive_candidates_input_template_tsv()):
+        optional.append("archive_candidates_input_template")
+    return (*keys, *optional)
 
 
 def _archive_candidate_report_for_output(rows: Sequence[Mapping[str, object]]):
@@ -10465,11 +10544,15 @@ def _validate_owned_output_dir(outdir: Path) -> None:
     archive_candidates_manual_review_template = outdir / OPTIONAL_OUTPUT_PATHS[
         "archive_candidates_manual_review_template"
     ]
+    archive_candidates_input_template = outdir / OPTIONAL_OUTPUT_PATHS[
+        "archive_candidates_input_template"
+    ]
     if (
         archive_candidates.exists()
         or archive_candidates_summary.exists()
         or archive_candidates_diagnostics.exists()
         or archive_candidates_manual_review_template.exists()
+        or archive_candidates_input_template.exists()
     ):
         _validate_existing_member(archive_candidates, ARCHIVE_CANDIDATE_FIELDS)
         _validate_existing_json(
@@ -10484,6 +10567,11 @@ def _validate_owned_output_dir(outdir: Path) -> None:
             _validate_existing_member(
                 archive_candidates_manual_review_template,
                 MANUAL_REVIEW_FIELDS,
+            )
+        if archive_candidates_input_template.exists():
+            _validate_existing_member(
+                archive_candidates_input_template,
+                ARCHIVE_CANDIDATE_INPUT_FIELDS,
             )
     install_registration_results = outdir / OPTIONAL_OUTPUT_PATHS[
         "external_genomes_install_plan_registration_results"

@@ -30,9 +30,11 @@ OUTPUT_NAMES = {
     "diagnostics": "archive_candidates_diagnostics.tsv",
 }
 MANUAL_REVIEW_TEMPLATE_NAME = "manual_review.tsv"
+INPUT_TEMPLATE_NAME = "archive_candidates_input_template.tsv"
 ALL_OUTPUT_NAMES = {
     **OUTPUT_NAMES,
     "manual_review_template": MANUAL_REVIEW_TEMPLATE_NAME,
+    "archive_candidates_input_template": INPUT_TEMPLATE_NAME,
 }
 _PROTECTED_OUTPUT_TERMS = {
     "manifest",
@@ -85,6 +87,7 @@ def run_archive_candidates_command(
         or (outdir is not None and not args.write)
         or (args.force and not args.write)
         or (args.include_manual_review_template and not args.write)
+        or (args.include_input_template and not args.write)
     ):
         _emit(
             _failure(
@@ -118,6 +121,9 @@ def run_archive_candidates_command(
         "manual_review_template_row_count": 0,
         "manual_review_template_written": False,
         "manual_review_template_path": None,
+        "archive_candidates_input_template_row_count": 0,
+        "archive_candidates_input_template_written": False,
+        "archive_candidates_input_template_path": None,
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
@@ -137,6 +143,8 @@ def run_archive_candidates_command(
         manual_review_template_row_count = _tsv_data_row_count(
             manual_review_template
         )
+        input_template = report.archive_candidates_input_template_tsv()
+        input_template_row_count = _tsv_data_row_count(input_template)
         rendered = {
             "candidates": report.candidates_tsv(),
             "summary": "",
@@ -144,6 +152,8 @@ def run_archive_candidates_command(
         }
         if args.include_manual_review_template:
             rendered["manual_review_template"] = manual_review_template
+        if args.include_input_template:
+            rendered["archive_candidates_input_template"] = input_template
         output_paths = {
             key: str(outdir / name)
             for key, name in ALL_OUTPUT_NAMES.items()
@@ -162,6 +172,15 @@ def run_archive_candidates_command(
             "manual_review_template_path": (
                 str(outdir / MANUAL_REVIEW_TEMPLATE_NAME)
                 if args.include_manual_review_template
+                else None
+            ),
+            "archive_candidates_input_template_row_count": input_template_row_count,
+            "archive_candidates_input_template_written": bool(
+                args.include_input_template
+            ),
+            "archive_candidates_input_template_path": (
+                str(outdir / INPUT_TEMPLATE_NAME)
+                if args.include_input_template
                 else None
             ),
             "recommended_request": recommended_request,
@@ -235,6 +254,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
     build.add_argument("--include-manual-review-template", action="store_true")
+    build.add_argument("--include-input-template", action="store_true")
     build.add_argument("--force", action="store_true")
     return parser
 
@@ -277,6 +297,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "manual_review_template_row_count": 0,
         "manual_review_template_written": False,
         "manual_review_template_path": None,
+        "archive_candidates_input_template_row_count": 0,
+        "archive_candidates_input_template_written": False,
+        "archive_candidates_input_template_path": None,
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
@@ -331,6 +354,15 @@ def _publish(
                 handle.write(rendered["manual_review_template"])
                 handle.flush()
                 os.fsync(handle.fileno())
+        if "archive_candidates_input_template" in rendered:
+            with (stage / INPUT_TEMPLATE_NAME).open(
+                "x",
+                encoding="utf-8",
+                newline="",
+            ) as handle:
+                handle.write(rendered["archive_candidates_input_template"])
+                handle.flush()
+                os.fsync(handle.fileno())
         if outdir.exists():
             os.replace(outdir, backup)
             backed_up = True
@@ -375,9 +407,11 @@ def _validate_outdir(
         if not outdir.is_dir():
             raise ValueError("output path is not a directory")
         expected = {name for name in OUTPUT_NAMES.values()}
-        expected_with_template = expected | {MANUAL_REVIEW_TEMPLATE_NAME}
+        optional = {MANUAL_REVIEW_TEMPLATE_NAME, INPUT_TEMPLATE_NAME}
         existing = {child.name for child in outdir.iterdir()}
-        if existing and existing != expected and existing != expected_with_template:
+        if existing and (
+            not expected.issubset(existing) or not existing.issubset(expected | optional)
+        ):
             raise ValueError("existing output directory does not match archive schema")
         if existing and not force:
             raise ValueError("use --force to overwrite archive candidate outputs")

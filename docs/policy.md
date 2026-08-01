@@ -131,6 +131,9 @@ INSDC, GenBank, RefSeq, or similar public archive metadata, including already
 written expanded-discovery `matched_candidate` rows, into isolated audit files
 for linkage review, but it must not query archives, download genomes, write
 `external_genomes.tsv`, mutate manifests, or create completion credit.
+Editable archive-candidate input templates may preserve missing-accession or
+metadata-repair rows for a later local rerun, but they remain repair aids only
+and must not be treated as evidence decisions or download authorization.
 Archive `type material` signals, assembly/BioSample flags, organism names,
 strain text, and culture-collection token overlap remain candidate evidence
 until strict selected-genome linkage to the species type-strain equivalence set
@@ -468,7 +471,9 @@ If `coverage-pipeline build` receives a complete archive-candidates audit TSV,
 it may republish that audit triplet under its isolated output directory for
 later explicit handoff. This remains passive audit visibility only and must not
 query archives, create `external_genomes.tsv`, or make public accessions
-download-ready.
+download-ready. If it republishes `archive_candidates_input_template.tsv`, that
+file is only a local repair aid for rerunning `archive-candidates build` after
+operator edits.
 If `coverage-pipeline build` receives `--curated-provider-request-tsv`, that
 file is an explicit local curator handoff only. The pipeline may validate it
 and, if all rows pass, render `provider_request_external_genomes/` as an

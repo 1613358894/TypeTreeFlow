@@ -17,6 +17,7 @@ from typetreeflow.coverage_pipeline_cli import (
 from typetreeflow.evidence.archive_candidates import (
     ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
     ARCHIVE_CANDIDATE_FIELDS,
+    ARCHIVE_CANDIDATE_INPUT_FIELDS,
     ARCHIVE_CANDIDATE_SCHEMA_VERSION,
 )
 from typetreeflow.evidence.manual_review import (
@@ -7825,6 +7826,114 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
     assert route_context["safe_for_unattended_execution"] is False
     assert route_context["audit_only"] is True
     assert route_context["dry_run"] is True
+    assert "archive_candidates" in payload["available_stage_names"]
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
+
+
+def test_coverage_pipeline_build_publishes_archive_candidate_input_template(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, _ = _write_inputs(tmp_path)
+    archive_source = tmp_path / "archive-source"
+    archive_source.mkdir()
+    _write_tsv(
+        archive_source / "archive_candidates.tsv",
+        ARCHIVE_CANDIDATE_FIELDS,
+        [
+            {
+                "schema_version": ARCHIVE_CANDIDATE_SCHEMA_VERSION,
+                "species": "Clostridium missingum",
+                "strain": "DSM 9",
+                "type_strain_id": "DSM 9",
+                "archive_source": "ena",
+                "archive_source_name": "European Nucleotide Archive",
+                "assembly_accession": "",
+                "biosample_accession": "",
+                "nuccore_accession": "",
+                "wgs_accession": "",
+                "organism_name": "Clostridium missingum DSM 9",
+                "strain_designation": "DSM 9",
+                "culture_collection_tokens": "DSM 9",
+                "archive_type_material_signal": "archive_type_material",
+                "lpsn_token_overlap": "DSM 9",
+                "source_url": "",
+                "evidence_notes": "fixture missing public accession",
+                "candidate_status": "archive_candidate_missing_accession",
+                "requires_manual_review": "true",
+                "recommended_action": "supply public archive accession",
+                "audit_only": "true",
+                "strict_scientific_deliverable": "false",
+            }
+        ],
+    )
+    outdir = tmp_path / "pipeline_outputs"
+
+    code, payload, _captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive_source / "archive_candidates.tsv"),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    input_template = (
+        outdir / "archive_candidates" / "archive_candidates_input_template.tsv"
+    )
+    assert payload["output_paths"]["archive_candidates_input_template"] == str(
+        input_template
+    )
+    assert input_template.exists()
+    with input_template.open(encoding="utf-8") as handle:
+        template_rows = list(csv.DictReader(handle, delimiter="\t"))
+    assert tuple(template_rows[0]) == ARCHIVE_CANDIDATE_INPUT_FIELDS
+    assert template_rows[0]["species"] == "Clostridium missingum"
+    assert template_rows[0]["assembly_accession"] == ""
+    assert "archive_candidates_input_template" in template_rows[0]["evidence_notes"]
+
+    code, payload, _ = _run(
+        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    archive_stage = next(
+        stage
+        for stage in payload["operator_chain_stages"]
+        if stage["stage"] == "archive_candidates"
+    )
+    assert archive_stage["summary_manual_review_template_available"] is False
+    assert archive_stage["summary_archive_candidates_input_template_available"] is True
+    assert archive_stage["required_inputs"] == [
+        "archive_candidates/archive_candidates_input_template.tsv",
+    ]
+    assert archive_stage["recommended_request"] == {
+        "command": "archive-candidates",
+        "subcommand": "build",
+        "input_tsv": "archive_candidates/archive_candidates_input_template.tsv",
+        "write": True,
+        "outdir": "<isolated-archive-candidates-directory>",
+    }
+    assert archive_stage["recommended_next_command"] == (
+        "typetreeflow archive-candidates build "
+        "--input-tsv archive_candidates/archive_candidates_input_template.tsv "
+        "--write --outdir <isolated-archive-candidates-directory>"
+    )
     assert "archive_candidates" in payload["available_stage_names"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0

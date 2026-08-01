@@ -259,6 +259,36 @@ def test_archive_candidate_manual_review_template_is_incomplete_skeleton():
     }
 
 
+def test_archive_candidate_input_template_keeps_missing_accession_rows_editable():
+    report = build_archive_candidate_report(
+        [
+            _row(),
+            _row(
+                species="Clostridium missingum",
+                assembly_accession="",
+                biosample_accession="",
+                evidence_notes="existing operator note",
+            ),
+        ]
+    )
+
+    parsed = list(
+        csv.DictReader(
+            io.StringIO(report.archive_candidates_input_template_tsv()),
+            delimiter="\t",
+        )
+    )
+
+    assert tuple(parsed[0]) == ARCHIVE_CANDIDATE_INPUT_FIELDS
+    assert len(parsed) == 1
+    assert parsed[0]["species"] == "Clostridium missingum"
+    assert parsed[0]["assembly_accession"] == ""
+    assert parsed[0]["biosample_accession"] == ""
+    assert "existing operator note" in parsed[0]["evidence_notes"]
+    assert "archive_candidates_input_template" in parsed[0]["evidence_notes"]
+    assert "not_a_review_decision" in parsed[0]["evidence_notes"]
+
+
 def test_archive_candidate_source_aliases_are_canonicalized():
     report = build_archive_candidate_report(
         [

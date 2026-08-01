@@ -254,6 +254,21 @@ class ArchiveCandidateReport:
         ]
         return _write_tsv(MANUAL_REVIEW_FIELDS, rows)
 
+    def archive_candidates_input_template_tsv(self) -> str:
+        """Render editable archive-candidate input rows for metadata repair.
+
+        These rows preserve the input schema for candidate rows whose next
+        local step is to supply a public accession or repair archive metadata.
+        They are not decisions and do not trigger downloads.
+        """
+
+        rows = [
+            _archive_candidates_input_template_row(row)
+            for row in self.rows
+            if _include_archive_candidates_input_template_row(row)
+        ]
+        return _write_tsv(ARCHIVE_CANDIDATE_INPUT_FIELDS, rows)
+
 
 def read_archive_candidate_input(
     path: str,
@@ -893,6 +908,11 @@ def _include_manual_review_template_row(row: ArchiveCandidateRow) -> bool:
     )
 
 
+def _include_archive_candidates_input_template_row(row: ArchiveCandidateRow) -> bool:
+    review_class = _review_input_class(row)
+    return _recommended_next_input(review_class) == "archive_candidates_input.tsv"
+
+
 def _selected_accession(row: ArchiveCandidateRow) -> str:
     return (
         row.assembly_accession
@@ -944,6 +964,38 @@ def _manual_review_template_row(
             "strict_upgrade_applied=false; strict_scientific_deliverable=false"
         ),
     }
+
+
+def _archive_candidates_input_template_row(
+    row: ArchiveCandidateRow,
+) -> dict[str, object]:
+    values = {
+        "species": row.species,
+        "strain": row.strain,
+        "type_strain_id": row.type_strain_id,
+        "archive_source": row.archive_source,
+        "archive_source_name": row.archive_source_name,
+        "assembly_accession": row.assembly_accession,
+        "biosample_accession": row.biosample_accession,
+        "nuccore_accession": row.nuccore_accession,
+        "wgs_accession": row.wgs_accession,
+        "organism_name": row.organism_name,
+        "strain_designation": row.strain_designation,
+        "culture_collection_tokens": row.culture_collection_tokens,
+        "archive_type_material_signal": row.archive_type_material_signal,
+        "lpsn_token_overlap": row.lpsn_token_overlap,
+        "source_url": row.source_url,
+        "evidence_notes": row.evidence_notes,
+    }
+    note = (
+        "archive_candidates_input_template; not_a_review_decision; "
+        f"review_input_class={_review_input_class(row)}; "
+        "fill missing public accession or metadata, then rerun "
+        "archive-candidates build"
+    )
+    existing_notes = _cell(values["evidence_notes"])
+    values["evidence_notes"] = f"{existing_notes}; {note}" if existing_notes else note
+    return values
 
 
 def _write_tsv(fields: tuple[str, ...], rows: Iterable[Mapping[str, object]]) -> str:
