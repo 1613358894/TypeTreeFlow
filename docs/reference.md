@@ -791,6 +791,11 @@ fields aligned with coverage-pipeline queue metadata.
 are offline planning hints, not provider authorization or executable download
 instructions. It does not contact providers, read credentials, write outputs,
 or enable provider download behavior.
+Provider-key extraction recognizes canonical keys, common abbreviations, and
+controlled long aliases such as full culture-collection names when routing
+free-text evidence into coverage/provider handoff. Alias recognition is only a
+handoff signal; it does not create strict evidence, provider authorization, or
+download permission.
 
 `commands recognize` and `commands preflight` require `--argv-json` as a JSON
 string array or target argv tokens after `--`. Their JSON envelopes include

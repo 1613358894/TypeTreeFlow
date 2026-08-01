@@ -302,6 +302,18 @@ def test_provider_registry_extracts_prefixes_joined_to_collection_numbers():
     assert registry.keys_from_text("PDSM123 is not a collection token") == ()
 
 
+def test_provider_registry_extracts_long_aliases_from_free_text():
+    registry = build_default_provider_registry()
+
+    assert registry.keys_from_text(
+        "Deposited at Collection de l'Institut Pasteur 123, "
+        "Culture Collection University of Gothenburg 44, "
+        "Spanish Type Culture Collection 55, "
+        "Bacterial and Viral Bioinformatics Resource Center metadata, and "
+        "Integrated Microbial Genomes project 3300000000."
+    ) == ("cect", "cip", "ccug", "bv_brc", "img_jgi")
+
+
 def test_provider_registry_normalizes_provider_hint_fields_with_embedded_tokens():
     registry = build_default_provider_registry()
 
