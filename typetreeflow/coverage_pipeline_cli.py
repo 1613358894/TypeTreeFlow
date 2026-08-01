@@ -1258,6 +1258,9 @@ def _run_status(
         coverage_parent_controller_packet=coverage_parent_controller_packet,
         coverage_controller_inspection_summary=coverage_controller_inspection_summary,
     )
+    external_registration_realization_summary = (
+        _external_registration_realization_summary(stages)
+    )
     payload = {
         "schema_version": STATUS_SCHEMA_VERSION,
         "status": "pass" if not diagnostics else "blocked",
@@ -1398,6 +1401,7 @@ def _run_status(
             "provider_request_external_genomes/external_genomes.tsv "
             "--outdir <run> --dry-run"
         ),
+        **external_registration_realization_summary,
         "operator_chain_stages": stages,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
@@ -1419,6 +1423,33 @@ def _run_status(
     }
     _emit(payload, output)
     return 0 if not diagnostics else 2
+
+
+def _external_registration_realization_summary(
+    stages: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    stage = _find_stage(list(stages), "external_genomes_registration_dry_run")
+    manifest_available = False
+    manifest_record_count = 0
+    install_succeeded_count = 0
+    if stage is not None:
+        manifest_available = bool(stage.get("summary_manifest_available", False))
+        manifest_record_count = _safe_int(
+            stage.get("summary_manifest_record_count", 0)
+        )
+        install_succeeded_count = _safe_int(
+            stage.get("summary_install_succeeded_count", 0)
+        )
+    return {
+        "external_genomes_registration_realized": (
+            manifest_available and manifest_record_count > 0
+        ),
+        "external_genomes_registration_manifest_available": manifest_available,
+        "external_genomes_registration_manifest_record_count": manifest_record_count,
+        "external_genomes_registration_install_succeeded_count": (
+            install_succeeded_count
+        ),
+    }
 
 
 def _operator_chain_next_step_packet(
