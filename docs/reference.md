@@ -1873,6 +1873,7 @@ valid retrieval date, curator field, `is_type_material=true`,
 `requires_manual_review=false`, local FASTA existence, nonempty file size,
 non-symlink path, SHA-256 shape, and checksum match. It emits one compact JSON
 object with `ready_count`, `blocked_count`, `blocker_counts`,
+`blocker_guidance`,
 `local_fasta_checked_count`, `local_sha256_matched_count`,
 `provider_status_counts`, `provider_automation_level_counts`,
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`, and
@@ -1902,6 +1903,10 @@ packet's `recommended_request`. The command-plan companion also repeats
 nested request object. Because that request writes an isolated audit directory,
 the companion remains blocked until an operator or parent agent explicitly
 grants write allowance.
+`blocker_guidance` maps each blocker code to an operator action, affected row
+count, severity, and fixed no-download/no-provider/no-strict-deliverable
+boundary flags so a controller can repair `provider_request.tsv` without
+inferring fixes from prose.
 
 Successful fully ready validation exits `0`; schema/input/readiness blockers
 exit `2`; unexpected internal or write failures exit `1`. Without `--write`,

@@ -81,6 +81,7 @@ def test_provider_request_ready_when_local_fasta_and_curator_fields_match(
     assert result.summary["blocked_count"] == 0
     assert result.summary["local_fasta_checked_count"] == 1
     assert result.summary["local_sha256_matched_count"] == 1
+    assert result.summary["blocker_guidance"] == []
     assert result.summary["provider_status_counts"] == {"planning_only": 1}
     assert result.summary["provider_automation_level_counts"] == {
         "planning_handoff": 1
@@ -164,6 +165,25 @@ def test_provider_request_blocks_incomplete_curator_handoff(tmp_path):
     assert "manual_review_required" in blockers
     assert "local_fasta_path_missing" in blockers
     assert result.summary["blocker_counts"]["manual_review_required"] == 1
+    guidance_by_blocker = {
+        item["blocker"]: item for item in result.summary["blocker_guidance"]
+    }
+    assert guidance_by_blocker["terms_review_required"] == {
+        "blocker": "terms_review_required",
+        "count": 1,
+        "severity": "error",
+        "recommended_operator_action": (
+            "set terms_review_status to reviewed_allowed after permitted-use review"
+        ),
+        "audit_only": True,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "strict_scientific_deliverable": False,
+    }
+    assert guidance_by_blocker["local_fasta_path_missing"][
+        "recommended_operator_action"
+    ] == "provide a local FASTA path"
     assert result.summary["operator_route_counts"] == {"provider_handoff": 1}
 
 

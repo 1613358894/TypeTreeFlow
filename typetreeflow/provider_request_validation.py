@@ -47,6 +47,30 @@ PROVIDER_REQUEST_VALIDATION_RECOMMENDED_REQUEST_TARGET = (
 PROVIDER_REQUEST_READY_STATUS = "provider_request_ready_for_external_genome_review"
 PROVIDER_REQUEST_BLOCKED_STATUS = "provider_request_blocked"
 _PREVIEW_LIMIT = 20
+_BLOCKER_GUIDANCE = {
+    "missing_required_field": "complete all required provider request value fields",
+    "provider_record_id_or_provider_artifact_id_missing": (
+        "supply a provider record ID or provider artifact ID"
+    ),
+    "terms_review_required": (
+        "set terms_review_status to reviewed_allowed after permitted-use review"
+    ),
+    "unsupported_artifact_type": "use a supported provider artifact type",
+    "license_notes_missing": "add license and permitted-use notes",
+    "retrieval_date_missing_or_invalid": "add an ISO retrieval date",
+    "curator_missing": "add a curator or reviewer identifier",
+    "not_type_material": (
+        "mark is_type_material=true only after type-material evidence review"
+    ),
+    "manual_review_required": "resolve manual review before handoff",
+    "local_fasta_path_missing": "provide a local FASTA path",
+    "local_sha256_missing": "provide the local FASTA SHA-256",
+    "local_sha256_invalid": "replace the local SHA-256 with a 64-character hex digest",
+    "local_fasta_symlink_refused": "replace the symlink with a regular FASTA file",
+    "local_fasta_missing": "make the declared local FASTA file available",
+    "local_fasta_empty": "replace the empty FASTA with the intended sequence file",
+    "local_sha256_mismatch": "recalculate or correct the local FASTA SHA-256",
+}
 
 
 @dataclass(frozen=True)
@@ -156,6 +180,7 @@ class ProviderRequestValidation:
                 sorted(automation_boundary_counts.items())
             ),
             "blocker_counts": dict(sorted(blocker_counts.items())),
+            "blocker_guidance": _blocker_guidance(blocker_counts),
             "local_fasta_checked_count": sum(
                 1 for row in self.rows if row.local_fasta_checked
             ),
@@ -250,6 +275,7 @@ def provider_request_validation_payload(
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
         "blocker_counts": summary["blocker_counts"],
+        "blocker_guidance": summary["blocker_guidance"],
         "local_fasta_checked_count": summary["local_fasta_checked_count"],
         "local_sha256_matched_count": summary["local_sha256_matched_count"],
         "diagnostic_count": len(diagnostics),
@@ -310,6 +336,28 @@ def provider_request_validation_diagnostics_tsv(
             )
         )
     return "\n".join(lines) + "\n"
+
+
+def _blocker_guidance(blocker_counts: Mapping[str, int]) -> list[dict[str, object]]:
+    items: list[dict[str, object]] = []
+    for blocker, count in sorted(blocker_counts.items()):
+        items.append(
+            {
+                "blocker": blocker,
+                "count": int(count),
+                "severity": "error",
+                "recommended_operator_action": _BLOCKER_GUIDANCE.get(
+                    blocker,
+                    "review and correct the provider request row",
+                ),
+                "audit_only": True,
+                "writes_workflow_outputs": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "strict_scientific_deliverable": False,
+            }
+        )
+    return items
 
 
 def _diagnostic(component: str, code: str) -> dict[str, object]:
