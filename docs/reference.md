@@ -2125,7 +2125,12 @@ rendered from that same request instead of reverting to a generic
 without inferring paths from prose. `provider_request_provider_batches`
 contains one audit-only item per provider key in the generated provider request
 draft, including provider-key-filtered validation and external-genomes handoff
-requests plus command plans. Handoff write plans remain blocked until explicit
+requests plus command plans. Each provider batch also carries route context
+counts from the generated request rows, including provider status, automation
+level, operator route, next input class, automation boundary, source action,
+primary route/action labels, and booleans such as `requires_provider_handoff`
+and `metadata_review_only`, so controllers can batch provider work without
+parsing row-level notes. Handoff write plans remain blocked until explicit
 write allowance is supplied. `coverage-pipeline`
 `preview`, `build`, and `status` can also take
 `--stage <operator_chain_stage>` and return

@@ -3059,13 +3059,25 @@ def _stage_recommended_next_command(stage_name: str, fallback: str) -> str:
 
 def _provider_request_provider_batches(
     provider_key_counts: Mapping[str, object],
+    provider_request_rows: Sequence[object] = (),
 ) -> list[dict[str, object]]:
     batches: list[dict[str, object]] = []
+    route_context_by_provider = _provider_request_route_context_by_provider(
+        provider_request_rows
+    )
     for provider_key, count in sorted(provider_key_counts.items()):
         key = str(provider_key).strip()
         if not key:
             continue
         record_count = _safe_int(count)
+        route_context = route_context_by_provider.get(key, {})
+        operator_route_counts = route_context.get("operator_route_counts", {})
+        provider_handoff_count = _safe_int(
+            operator_route_counts.get("provider_handoff", 0)
+        )
+        public_metadata_count = _safe_int(
+            operator_route_counts.get("public_metadata_review", 0)
+        )
         validate_request = {
             "command": "provider-request",
             "subcommand": "validate",
@@ -3086,6 +3098,34 @@ def _provider_request_provider_batches(
                 "provider_key": key,
                 "provider_keys": [key],
                 "record_count": record_count,
+                "provider_status_counts": route_context.get(
+                    "provider_status_counts", {}
+                ),
+                "provider_automation_level_counts": route_context.get(
+                    "provider_automation_level_counts", {}
+                ),
+                "operator_route_counts": operator_route_counts,
+                "next_input_class_counts": route_context.get(
+                    "next_input_class_counts", {}
+                ),
+                "automation_boundary_counts": route_context.get(
+                    "automation_boundary_counts", {}
+                ),
+                "source_action_counts": route_context.get("source_action_counts", {}),
+                "source_priority_counts": route_context.get(
+                    "source_priority_counts", {}
+                ),
+                "primary_operator_route": _primary_count_key(operator_route_counts),
+                "primary_next_input_class": _primary_count_key(
+                    route_context.get("next_input_class_counts", {})
+                ),
+                "primary_source_action": _primary_count_key(
+                    route_context.get("source_action_counts", {})
+                ),
+                "requires_provider_handoff": provider_handoff_count > 0,
+                "metadata_review_only": (
+                    public_metadata_count > 0 and provider_handoff_count == 0
+                ),
                 "validate_recommended_request": validate_request,
                 "validate_recommended_request_target": (
                     _coverage_recommended_request_target(validate_request)
@@ -3133,6 +3173,51 @@ def _provider_request_provider_batches(
             }
         )
     return batches
+
+
+def _provider_request_route_context_by_provider(
+    provider_request_rows: Sequence[object],
+) -> dict[str, dict[str, dict[str, int]]]:
+    grouped: dict[str, dict[str, Counter[str]]] = {}
+    for row in provider_request_rows:
+        provider_key = _object_value(row, "provider").strip()
+        if not provider_key:
+            continue
+        context = grouped.setdefault(
+            provider_key,
+            {
+                "provider_status_counts": Counter(),
+                "provider_automation_level_counts": Counter(),
+                "operator_route_counts": Counter(),
+                "next_input_class_counts": Counter(),
+                "automation_boundary_counts": Counter(),
+                "source_action_counts": Counter(),
+                "source_priority_counts": Counter(),
+            },
+        )
+        for field, counter_name in (
+            ("provider_status", "provider_status_counts"),
+            ("provider_automation_level", "provider_automation_level_counts"),
+            ("operator_route", "operator_route_counts"),
+            ("next_input_class", "next_input_class_counts"),
+            ("automation_boundary", "automation_boundary_counts"),
+            ("source_action_code", "source_action_counts"),
+            ("source_priority", "source_priority_counts"),
+        ):
+            item = _object_value(row, field).strip()
+            if item:
+                context[counter_name][item] += 1
+    return {
+        provider_key: {
+            field: _sorted_count_map(dict(counts))
+            for field, counts in context.items()
+        }
+        for provider_key, context in grouped.items()
+    }
+
+
+def _object_value(value: object, field: str) -> str:
+    return str(getattr(value, field, "") or "")
 
 
 def _recommended_next_command_from_request(request: Mapping[str, object]) -> str:
@@ -3549,7 +3634,8 @@ def _payload(
             primary_next_action_group.get("recommended_next_command", "")
         )
     provider_request_provider_batches = _provider_request_provider_batches(
-        request_summary["provider_key_counts"]
+        request_summary["provider_key_counts"],
+        provider_request.rows,
     )
     validation_output_paths = (
         {
