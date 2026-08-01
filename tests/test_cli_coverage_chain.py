@@ -165,7 +165,7 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
         "command": "provider-handoff",
         "subcommand": "build",
         "coverage_plan_tsv": str(coverage_plan_tsv),
-        "provider_keys": ["dsmz"],
+        "provider_keys": ["dsmz", "img_jgi"],
     }
     priority_items = plan_payload["priority_provider_route_items"]
     priority_by_provider = {item["provider_key"]: item for item in priority_items}
@@ -189,6 +189,8 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
         str(coverage_plan_tsv),
         "--provider-key",
         "dsmz",
+        "--provider-key",
+        "img_jgi",
     ]
 
     handoff_dir = tmp_path / "handoff_out"
@@ -204,14 +206,14 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
         "subcommand": "draft",
         "provider_handoff_tsv": str(provider_handoff_tsv),
     }
-    assert handoff_payload["provider_key_counts"] == {"dsmz": 1}
+    assert handoff_payload["provider_key_counts"] == {"dsmz": 1, "img_jgi": 1}
     assert handoff_payload["provider_automation_level_counts"] == {
-        "planning_handoff": 1
+        "planning_handoff": 2
     }
-    assert handoff_payload["provider_key_filter"] == ["dsmz"]
-    assert handoff_payload["provider_key_filter_count"] == 1
+    assert handoff_payload["provider_key_filter"] == ["dsmz", "img_jgi"]
+    assert handoff_payload["provider_key_filter_count"] == 2
     assert handoff_payload["filtered"] is True
-    assert handoff_payload["credentials_required_count"] == 0
+    assert handoff_payload["credentials_required_count"] == 1
     assert handoff_payload["network_supported_count"] == 0
     assert handoff_payload["default_network_enabled_count"] == 0
     assert handoff_payload["downloads_triggered"] == 0
@@ -234,11 +236,11 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
     )
     provider_request_tsv = request_dir / "provider_request.tsv"
     assert request_code == 0
-    assert request_payload["provider_key_counts"] == {"dsmz": 1}
+    assert request_payload["provider_key_counts"] == {"dsmz": 1, "img_jgi": 1}
     assert request_payload["provider_automation_level_counts"] == {
-        "planning_handoff": 1
+        "planning_handoff": 2
     }
-    assert request_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert request_payload["operator_route_counts"] == {"provider_handoff": 2}
     assert request_payload["downloads_triggered"] == 0
     assert request_payload["providers_contacted"] == 0
     assert request_payload["writes_workflow_outputs"] is False
