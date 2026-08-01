@@ -755,9 +755,33 @@ def _candidate_provider_keys(
     registry = build_default_provider_registry()
     for rows in row_groups:
         for row in rows:
+            _extend_provider_keys_from_source_fields(provider_keys, row, registry)
             _extend_provider_keys_from_explicit_hints(provider_keys, row, registry)
             _extend_provider_keys_from_tokens(provider_keys, row, registry)
     return "; ".join(provider_keys)
+
+
+def _extend_provider_keys_from_source_fields(
+    provider_keys: list[str],
+    row: Mapping[str, object],
+    registry: ProviderRegistry,
+) -> None:
+    for provider_key, fields in (
+        (
+            "bacdive",
+            (
+                "matched_bacdive_accessions",
+                "bacdive_accessions",
+                "bacdive_accession",
+                "bacdive_ids",
+                "bacdive_id",
+            ),
+        ),
+    ):
+        if provider_key in provider_keys or not registry.canonical_key(provider_key):
+            continue
+        if any(_value(row, field) for field in fields):
+            provider_keys.append(provider_key)
 
 
 def _extend_provider_keys_from_explicit_hints(

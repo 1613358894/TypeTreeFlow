@@ -183,6 +183,9 @@ directly to the collection number, such as `DSM 123`, `DSM-123`, `DSM123`, or
 does not enable provider contact or downloads.
 Compound explicit source labels such as `BacDive/DSMZ` may add both the
 metadata-only BacDive review key and the planning-only DSMZ handoff key.
+Rows with BacDive accession/id fields such as `matched_bacdive_accessions`
+also carry the metadata-only BacDive review key even when no separate source
+label is present.
 The same provider-hint extraction also applies to local reconciler audit token
 fields such as `matched_lpsn_type_tokens` and `culture_collection_tokens`,
 which helps gap rows retain provider handoff context even when checklist text
