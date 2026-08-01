@@ -34,6 +34,10 @@ PLANNING_HANDOFF_KEYS = (
     "csur",
     "cicc",
     "ifo",
+    "mtcc",
+    "mcc",
+    "ccbau",
+    "nbimcc",
     "img_jgi",
 )
 
@@ -128,6 +132,14 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "CSUR": "csur",
         "CICC": "cicc",
         "IFO": "ifo",
+        "MTCC": "mtcc",
+        "Microbial Type Culture Collection and Gene Bank": "mtcc",
+        "MCC": "mcc",
+        "Microbial Culture Collection": "mcc",
+        "CCBAU": "ccbau",
+        "Culture Collection of Beijing Agricultural University": "ccbau",
+        "NBIMCC": "nbimcc",
+        "National Bank for Industrial Microorganisms and Cell Cultures": "nbimcc",
         "BV-BRC": "bv_brc",
         "PATRIC": "bv_brc",
         "Bacterial and Viral Bioinformatics Resource Center": "bv_brc",
@@ -166,6 +178,7 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; "
         "NRRL B-1; NCAIM B.01001; HAMBI 100; KMM 902; "
         "GTC 21791; PAGU 1796; "
+        "MTCC1234; MCC 555; CCBAU 1001; NBIMCC 2002; "
         "PATRIC genome 123; IMG/M 3300000000"
     ) == (
         "atcc_genome_portal",
@@ -182,6 +195,10 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "kmm",
         "gtc",
         "pagu",
+        "mtcc",
+        "mcc",
+        "ccbau",
+        "nbimcc",
         "bv_brc",
         "img_jgi",
     )

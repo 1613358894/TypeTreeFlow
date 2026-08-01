@@ -484,7 +484,8 @@ def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
                 "full_name": "Clostridium expandedproviderum",
                 "type_strain_names": (
                     "CCTCC AB 12345; NRRL B-1; NCAIM B.01001; "
-                    "HAMBI 100; KMM 902; GTC 21791; PAGU 1796"
+                    "HAMBI 100; KMM 902; GTC 21791; PAGU 1796; "
+                    "MTCC1234; MCC 555; CCBAU 1001; NBIMCC 2002"
                 ),
             }
         ],
@@ -505,19 +506,24 @@ def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
     row = report.rows[0]
     assert row.lane == "external_fasta_required"
     assert row.candidate_provider_keys == (
-        "cctcc; nrrl; ncaim; hambi; kmm; gtc; pagu"
+        "cctcc; nrrl; ncaim; hambi; kmm; gtc; pagu; mtcc; mcc; ccbau; nbimcc"
     )
     assert row.candidate_provider_statuses == (
         "cctcc=planning_only; nrrl=planning_only; ncaim=planning_only; "
         "hambi=planning_only; kmm=planning_only; gtc=planning_only; "
-        "pagu=planning_only"
+        "pagu=planning_only; mtcc=planning_only; mcc=planning_only; "
+        "ccbau=planning_only; nbimcc=planning_only"
     )
     assert report.summary["candidate_provider_key_counts"] == {
+        "ccbau": 1,
         "cctcc": 1,
         "gtc": 1,
         "hambi": 1,
         "kmm": 1,
+        "mcc": 1,
+        "mtcc": 1,
         "ncaim": 1,
+        "nbimcc": 1,
         "nrrl": 1,
         "pagu": 1,
     }
