@@ -147,6 +147,31 @@ def test_coverage_plan_uses_canonical_provider_hints_when_present():
         "provider_handoff": 5,
         "public_metadata_review": 4,
     }
+    priority_items = summary["priority_provider_route_items"]
+    assert [item["provider_key"] for item in priority_items[:3]] == [
+        "dsmz",
+        "kctc",
+        "img_jgi",
+    ]
+    img_jgi = next(item for item in priority_items if item["provider_key"] == "img_jgi")
+    assert img_jgi["priority"] == 3
+    assert img_jgi["route_priority"] == "provider_handoff"
+    assert img_jgi["primary_provider_automation_level"] == "planning_handoff"
+    assert img_jgi["primary_source_action"] == "prepare_provider_handoff"
+    assert img_jgi["primary_operator_route"] == "provider_handoff"
+    assert img_jgi["primary_next_input_class"] == (
+        "permitted_local_fasta_terms_provenance"
+    )
+    assert img_jgi["needs_provider_request_draft"] is True
+    assert img_jgi["metadata_review_only"] is False
+    assert img_jgi["credentials_required_count"] == 1
+    assert img_jgi["network_supported_count"] == 0
+    assert img_jgi["safe_for_unattended_execution"] is False
+    assert img_jgi["downloads_triggered"] == 0
+    assert img_jgi["providers_contacted"] == 0
+    ena = next(item for item in priority_items if item["provider_key"] == "ena")
+    assert ena["route_priority"] == "public_metadata_review"
+    assert ena["metadata_review_only"] is True
 
 
 def test_coverage_plan_provider_hints_are_additive_across_fields():
