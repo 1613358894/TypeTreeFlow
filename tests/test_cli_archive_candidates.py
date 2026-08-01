@@ -163,6 +163,10 @@ def test_archive_candidates_write_publishes_owned_triplet(tmp_path, capsys):
     assert payload["manual_review_template_written"] is False
     assert payload["manual_review_template_path"] is None
     assert payload["output_paths"]["manual_review_template"] is None
+    assert payload["archive_candidates_input_template_row_count"] == 0
+    assert payload["archive_candidates_input_template_written"] is False
+    assert payload["archive_candidates_input_template_path"] is None
+    assert payload["output_paths"]["archive_candidates_input_template"] is None
     assert not (outdir / "evidence").exists()
     assert not (outdir / "external_genomes.tsv").exists()
     candidates_path = outdir / "archive_candidates.tsv"
@@ -273,6 +277,69 @@ def test_archive_candidates_can_write_manual_review_template(tmp_path, capsys):
     assert summary["manual_review_template_written"] is True
     assert summary["manual_review_template_row_count"] == 1
     assert summary["strict_scientific_deliverable"] is False
+    assert summary["downloads_triggered"] == 0
+
+
+def test_archive_candidates_can_write_input_template_for_missing_accessions(
+    tmp_path, capsys
+):
+    input_tsv = _write_input(
+        tmp_path / "archive_candidates.tsv",
+        rows=[
+            _row(),
+            _row(
+                species="Clostridium missingum",
+                assembly_accession="",
+                biosample_accession="",
+            ),
+        ],
+    )
+    outdir = tmp_path / "archive_audit"
+
+    code, payload, _ = _run(
+        [
+            "--input-tsv",
+            str(input_tsv),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--include-input-template",
+        ],
+        capsys,
+    )
+
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert payload["archive_candidates_input_template_row_count"] == 1
+    assert payload["archive_candidates_input_template_written"] is True
+    assert payload["archive_candidates_input_template_path"] == str(
+        outdir / "archive_candidates_input_template.tsv"
+    )
+    assert payload["output_paths"]["archive_candidates_input_template"] == str(
+        outdir / "archive_candidates_input_template.tsv"
+    )
+    assert {path.name for path in outdir.iterdir()} == {
+        "archive_candidates.tsv",
+        "archive_candidates_summary.json",
+        "archive_candidates_diagnostics.tsv",
+        "archive_candidates_input_template.tsv",
+    }
+    with (outdir / "archive_candidates_input_template.tsv").open(
+        encoding="utf-8"
+    ) as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    assert tuple(rows[0]) == ARCHIVE_CANDIDATE_INPUT_FIELDS
+    assert len(rows) == 1
+    assert rows[0]["species"] == "Clostridium missingum"
+    assert rows[0]["assembly_accession"] == ""
+    assert rows[0]["biosample_accession"] == ""
+    assert "archive_candidates_input_template" in rows[0]["evidence_notes"]
+    assert "not_a_review_decision" in rows[0]["evidence_notes"]
+    summary = json.loads(
+        (outdir / "archive_candidates_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["archive_candidates_input_template_written"] is True
+    assert summary["archive_candidates_input_template_row_count"] == 1
     assert summary["downloads_triggered"] == 0
 
 

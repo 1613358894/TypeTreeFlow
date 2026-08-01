@@ -1633,7 +1633,7 @@ downloads or strict deliverable promotion.
 The isolated archive candidate CLI adapter is:
 
 ```text
-typetreeflow archive-candidates build (--input-tsv <archive_candidates_input.tsv> | --expanded-discovery-results-tsv <expanded_discovery_results.tsv>) [--json] [--write --outdir <dir> [--include-manual-review-template] [--force]]
+typetreeflow archive-candidates build (--input-tsv <archive_candidates_input.tsv> | --expanded-discovery-results-tsv <expanded_discovery_results.tsv>) [--json] [--write --outdir <dir> [--include-manual-review-template] [--include-input-template] [--force]]
 ```
 
 Exactly one input source is required. `--input-tsv` reads the archive-candidate
@@ -1653,7 +1653,13 @@ template-only evidence notes, but leaves review status, reviewer, date,
 second-review, and conflict-resolution fields blank. It is not a curator
 decision, will not validate as a completed manual-review TSV, and cannot grant
 strict status until a curator or AI reviewer completes and validates it
-separately. Successful writes also include `recommended_request`,
+separately. With `--include-input-template`, the isolated directory also
+receives `archive_candidates_input_template.tsv` for rows whose next local step
+is to supply a missing public accession or repair archive metadata. That file
+uses the archive-candidate input schema and is intended for local editing before
+rerunning `archive-candidates build`; it is not a review decision, workflow
+output, download authorization, or strict deliverable signal. Successful writes
+also include `recommended_request`,
 `recommended_request_target=coverage-pipeline build`, and
 `recommended_next_command` fields that point a later local coverage-pipeline run
 at the written `archive_candidates.tsv`. They also include a
@@ -2524,7 +2530,13 @@ archive audit can render manual-review skeleton rows, the same directory also
 keeps `archive_candidates/manual_review.tsv`; that template is incomplete and
 does not represent a completed review decision. `status` exposes that template
 as the `archive_candidates` stage `required_inputs` and recommends
-`manual-review validate --input archive_candidates/manual_review.tsv`.
+`manual-review validate --input archive_candidates/manual_review.tsv`. If the
+archive audit instead renders rows whose next local step is public accession or
+metadata repair, the same directory keeps
+`archive_candidates/archive_candidates_input_template.tsv`; `status` exposes
+that editable archive-candidate input template and recommends rerunning
+`archive-candidates build --input-tsv
+archive_candidates/archive_candidates_input_template.tsv` after local edits.
 If explicit or conventional `manual_review_import/` or `strict_gating/`
 directories are present, `status` adds read-only operator stages for those
 audit triplets. These stages report accepted decision, strict-gate, blocker,

@@ -97,7 +97,7 @@ already collected ENA/DDBJ/INSDC/GenBank-style metadata:
 ```bash
 typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv> \
   [--json] [--write --outdir <isolated-directory> \
-  [--include-manual-review-template] [--force]]
+  [--include-manual-review-template] [--include-input-template] [--force]]
 ```
 
 You can also bridge already written expanded-discovery results into the same
@@ -107,7 +107,7 @@ archive-candidate review surface:
 typetreeflow archive-candidates build \
   --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
   [--json] [--write --outdir <isolated-directory> \
-  [--include-manual-review-template] [--force]]
+  [--include-manual-review-template] [--include-input-template] [--force]]
 ```
 
 This is an audit aid only. It does not query archives, download genomes, write
@@ -136,7 +136,12 @@ that next command. Add `--include-manual-review-template` to write a companion
 That skeleton pre-fills species/accession context but intentionally leaves
 review status, reviewer, date, and conflict-resolution fields blank; it is not
 a review decision and cannot promote any strict deliverable until a curator or
-AI reviewer completes and validates it separately.
+AI reviewer completes and validates it separately. Add `--include-input-template`
+to also write `archive_candidates_input_template.tsv` for rows whose next local
+step is to supply a missing public accession or repair archive metadata. That
+file keeps the archive-candidate input schema so an operator can edit the
+missing fields and rerun `archive-candidates build`; it remains metadata repair
+only and does not query archives or authorize downloads.
 
 Then classify existing local checklist, reconciler, completion-gap,
 external-genome, and archive-candidate rows into one review lane per species:
@@ -765,10 +770,15 @@ the archive audit has manual-review skeleton rows, the isolated child directory
 also keeps `archive_candidates/manual_review.tsv` as an incomplete next-input
 template. `coverage-pipeline status` then routes the `archive_candidates` stage
 to `manual-review validate --input archive_candidates/manual_review.tsv` so the
-next local review step is explicit. If a later isolated `manual_review_import/`
-or `strict_gating/` directory is supplied or stored under the same coverage
-pipeline directory, `status` reads those audit summaries as additional
-operator-chain stages without running the import or evaluator.
+next local review step is explicit. If the archive audit instead has rows that
+need public accession or metadata repair, the isolated child directory keeps
+`archive_candidates/archive_candidates_input_template.tsv`; `status` routes the
+stage back to `archive-candidates build --input-tsv
+archive_candidates/archive_candidates_input_template.tsv` after local editing.
+If a later isolated `manual_review_import/` or `strict_gating/` directory is
+supplied or stored under the same coverage pipeline directory, `status` reads
+those audit summaries as additional operator-chain stages without running the
+import or evaluator.
 `build --validate-provider-request --write` also writes the local provider
 request validation audit pair under `provider_request_validation/` in the same
 isolated directory. This is the same offline readiness check as
