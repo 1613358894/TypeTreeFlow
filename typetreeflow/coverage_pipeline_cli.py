@@ -1400,6 +1400,15 @@ def _run_status(
         "provider_request_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_request_automation_level_counts"
         ),
+        "provider_request_record_count": _safe_int(
+            coverage_summary.get("provider_request_record_count", 0)
+        ),
+        "provider_request_provider_key_counts": _optional_summary_map(
+            coverage_summary, "provider_request_provider_key_counts"
+        ),
+        "provider_request_status_counts": _optional_summary_map(
+            coverage_summary, "provider_request_status_counts"
+        ),
         "provider_request_provider_batch_count": _safe_int(
             coverage_summary.get("provider_request_provider_batch_count", 0)
         ),
