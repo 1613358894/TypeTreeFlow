@@ -6413,6 +6413,14 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
         action="status",
     )
     assert code == 0
+    assert status_payload["external_genomes_registration_realized"] is False
+    assert (
+        status_payload["external_genomes_registration_manifest_available"] is False
+    )
+    assert status_payload["external_genomes_registration_manifest_record_count"] == 0
+    assert (
+        status_payload["external_genomes_registration_install_succeeded_count"] == 0
+    )
     assert status_payload["operator_chain_stages"][4]["summary_ready_count"] == 1
     assert status_payload["operator_chain_stages"][4][
         "summary_provider_status_counts"
@@ -7242,6 +7250,10 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["downloads_triggered"] == 0
     assert payload["completed_stage_count"] == payload["stage_count"]
     assert payload["stage_status_counts"] == {"available": 8, "unavailable": 0}
+    assert payload["external_genomes_registration_realized"] is True
+    assert payload["external_genomes_registration_manifest_available"] is True
+    assert payload["external_genomes_registration_manifest_record_count"] == 1
+    assert payload["external_genomes_registration_install_succeeded_count"] == 1
     assert payload["available_stage_names"] == [
         "acquisition_worklist",
         "coverage_plan",
