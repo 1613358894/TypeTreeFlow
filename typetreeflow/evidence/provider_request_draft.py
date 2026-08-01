@@ -46,6 +46,7 @@ CURATOR_COMPLETION_BLOCKER_KEYS = (
 CURATOR_COMPLETION_TEMPLATES = (
     "provider_local_fasta_handoff",
     "public_archive_linkage_review",
+    "type_material_metadata_linkage_review",
     "provider_request_completion",
 )
 CURATOR_COMPLETION_REQUIRED_FIELDS = (
@@ -237,6 +238,10 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         parts.append(
             "recipe=review_public_archive_type_linkage_then_supply_local_fasta"
         )
+    elif template == "type_material_metadata_linkage_review":
+        parts.append(
+            "recipe=review_type_material_metadata_linkage_then_supply_direct_evidence"
+        )
     elif template == "provider_local_fasta_handoff":
         parts.append("recipe=obtain_permitted_provider_or_local_type_material_fasta")
     else:
@@ -273,6 +278,12 @@ def _curator_completion_template(row: ProviderRequestDraftRow) -> str:
     action = row.source_action_code.strip()
     lane = row.source_lane.strip()
     provider_status = row.provider_status.strip()
+    guidance = row.provider_guidance_notes.strip()
+    if provider_status == "metadata_only" and (
+        row.provider.strip() == "bacdive"
+        or "type_material_database_metadata_review" in guidance
+    ):
+        return "type_material_metadata_linkage_review"
     if action == "review_public_archive_linkage" or lane == "public_linkage_review":
         return "public_archive_linkage_review"
     if action == "prepare_provider_handoff" or lane == "external_fasta_required":

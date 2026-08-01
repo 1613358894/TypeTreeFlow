@@ -64,6 +64,45 @@ def test_provider_request_draft_builds_review_only_provider_request_rows():
     assert "recipe=review_public_archive_type_linkage_then_supply_local_fasta" in rows[1]["notes"]
 
 
+def test_provider_request_draft_marks_bacdive_as_type_material_metadata_review():
+    draft = build_provider_request_draft(
+        [
+            {
+                "provider_key": "bacdive",
+                "provider_name": "BacDive",
+                "provider_status": "metadata_only",
+                "species": "Clostridium bacdiveproviderum",
+                "source_action_code": "review_public_type_linkage",
+                "source_lane": "public_linkage_review",
+                "provider_automation_level": "metadata_review",
+                "operator_route": "public_metadata_review",
+                "next_input_class": "public_accession_type_strain_linkage",
+                "automation_boundary": "metadata_review_only_no_download",
+                "provider_guidance_notes": (
+                    "provider_guidance=type_material_database_metadata_review"
+                ),
+            }
+        ]
+    )
+
+    row = draft.rows[0].to_provider_request_row()
+    assert row["provider"] == "bacdive"
+    assert "curator_completion_template=type_material_metadata_linkage_review" in (
+        row["notes"]
+    )
+    assert (
+        "recipe=review_type_material_metadata_linkage_then_supply_direct_evidence"
+        in row["notes"]
+    )
+    assert "provider_contacted=false" in row["notes"]
+    assert "downloads_triggered=0" in row["notes"]
+    assert draft.summary["curator_completion_template_counts"] == {
+        "type_material_metadata_linkage_review": 1
+    }
+    assert draft.summary["provider_status_counts"] == {"metadata_only": 1}
+    assert draft.summary["operator_route_counts"] == {"public_metadata_review": 1}
+
+
 def test_provider_request_draft_summary_and_serializers_are_stable():
     draft = build_provider_request_draft(_handoff_rows())
 
