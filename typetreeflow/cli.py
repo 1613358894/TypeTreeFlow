@@ -41,6 +41,9 @@ from typetreeflow.diagnostics import (
     plan_only_guarded_download_next_action,
     zero_accepted_checklist_next_action,
 )
+from typetreeflow.download_plan_readiness import (
+    build_download_plan_readiness_summary,
+)
 from typetreeflow.evidence.bacdive_adapter import (
     BacDiveClientProtocol,
     BacDiveHTTPTransportProtocol,
@@ -394,6 +397,11 @@ def _format_verify_genus_envelope(
             else []
         ),
     }
+    download_plan_path = paths.cache_dir / "ncbi" / "download_plan.tsv"
+    if download_plan_path.exists():
+        payload["download_plan_readiness_summary"] = (
+            build_download_plan_readiness_summary(download_plan_path)
+        )
     return json.dumps(_redact_verify_genus_payload(payload, config), sort_keys=True)
 
 

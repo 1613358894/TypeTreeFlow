@@ -1324,6 +1324,15 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert payload["counts"]["manifest_rows"] == 2
     assert payload["counts"]["selected_rows"] == 2
     assert payload["counts"]["downloaded_genomes"] == 0
+    readiness = payload["download_plan_readiness_summary"]
+    assert readiness["schema_version"] == "download_plan_readiness_summary.v1"
+    assert readiness["download_ready_ncbi_count"] == 2
+    assert readiness["public_ncbi_download_plan_ready_count"] == 2
+    assert readiness["review_or_handoff_count"] == 0
+    assert readiness["safe_for_unattended_download"] is False
+    assert readiness["downloads_triggered"] == 0
+    assert readiness["providers_contacted"] == 0
+    assert readiness["manifest_mutated"] is False
     assert payload["blocking"]
     assert payload["next_actions"][0]["id"] == "review_user_selection"
     assert paths.user_selection_path.exists()
