@@ -18,6 +18,9 @@ from typetreeflow.providers.registry import build_default_provider_registry
 from typetreeflow.taxonomy.names import canonical_species_key
 
 
+PUBLIC_ARCHIVE_PROVIDER_KEYS = frozenset(
+    {"bv_brc", "ddbj", "ena", "genbank", "refseq"}
+)
 ARCHIVE_CANDIDATE_SCHEMA_VERSION = "1"
 ARCHIVE_CANDIDATE_INPUT_FIELDS: tuple[str, ...] = (
     "species",
@@ -194,6 +197,9 @@ class ArchiveCandidateReport:
             "diagnostic_count": len(self.diagnostics),
             "status_counts": status_counts,
             "archive_source_counts": _archive_source_counts(self.rows),
+            "coverage_priority_route_counts": _coverage_priority_route_counts(
+                self.rows
+            ),
             "accession_kind_counts": _accession_kind_counts(self.rows),
             "review_input_class_counts": _review_input_class_counts(self.rows),
             "source_input_kind_counts": source_input_kind_counts,
@@ -472,6 +478,31 @@ def _archive_source_counts(rows: Iterable[ArchiveCandidateRow]) -> dict[str, int
     return dict(sorted(counts.items()))
 
 
+def _coverage_priority_route_counts(
+    rows: Iterable[ArchiveCandidateRow],
+) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for row in rows:
+        counts[_coverage_priority_route(row.archive_source)] += 1
+    return dict(sorted(counts.items()))
+
+
+def _coverage_priority_route(archive_source: str) -> str:
+    if not archive_source:
+        return "missing_archive_source"
+    registry = build_default_provider_registry()
+    entry = registry.get(archive_source)
+    if entry.provider_key in PUBLIC_ARCHIVE_PROVIDER_KEYS:
+        return "public_archive_metadata_review"
+    if entry.provider_key == "bacdive":
+        return "type_material_metadata_review"
+    if entry.capability.requires_credentials:
+        return "credential_gated_provider_handoff"
+    if entry.capability.status == ProviderStatus.PLANNING_ONLY:
+        return "culture_collection_provider_handoff"
+    return "metadata_fix_required"
+
+
 def _archive_source_key(value: str) -> str:
     cleaned = _cell(value)
     if not cleaned:
@@ -544,6 +575,7 @@ def _public_archive_opportunity_packet(
                 "species": [],
                 "candidate_status_counts": Counter(),
                 "archive_source_counts": Counter(),
+                "coverage_priority_route_counts": Counter(),
                 "accession_kind_counts": Counter(),
                 "source_input_kind_counts": Counter(),
                 "recommended_next_input": _recommended_next_input(review_class),
@@ -558,6 +590,9 @@ def _public_archive_opportunity_packet(
         _counter(group["candidate_status_counts"])[row.candidate_status] += 1
         for source, count in _archive_source_counts((row,)).items():
             _counter(group["archive_source_counts"])[source] += count
+        _counter(group["coverage_priority_route_counts"])[
+            _coverage_priority_route(row.archive_source)
+        ] += 1
         for accession_kind, count in _accession_kind_counts((row,)).items():
             _counter(group["accession_kind_counts"])[accession_kind] += count
         _counter(group["source_input_kind_counts"])[_source_input_kind(row)] += 1
@@ -583,6 +618,9 @@ def _public_archive_opportunity_packet(
                 "archive_source_counts": _sorted_counter(
                     group["archive_source_counts"]
                 ),
+                "coverage_priority_route_counts": _sorted_counter(
+                    group["coverage_priority_route_counts"]
+                ),
                 "accession_kind_counts": _sorted_counter(
                     group["accession_kind_counts"]
                 ),
@@ -598,6 +636,7 @@ def _public_archive_opportunity_packet(
         "schema_version": "public_archive_opportunity_packet.v1",
         "opportunity_count": len(opportunities),
         "opportunities": opportunities,
+        "coverage_priority_route_summary": _coverage_priority_route_summary(rows),
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -605,6 +644,119 @@ def _public_archive_opportunity_packet(
         "audit_only": True,
         "strict_scientific_deliverable": False,
     }
+
+
+def _coverage_priority_route_summary(
+    rows: Iterable[ArchiveCandidateRow],
+) -> list[dict[str, object]]:
+    groups: dict[str, dict[str, object]] = {}
+    for row in rows:
+        route = _coverage_priority_route(row.archive_source)
+        route_meta = _coverage_priority_route_metadata(route)
+        group = groups.setdefault(
+            route,
+            {
+                **route_meta,
+                "coverage_priority_route": route,
+                "record_count": 0,
+                "species": [],
+                "archive_source_counts": Counter(),
+            },
+        )
+        group["record_count"] = int(group["record_count"]) + 1
+        species = group["species"]
+        if isinstance(species, list):
+            _append_unique(species, row.species)
+        for archive_source, count in _archive_source_counts((row,)).items():
+            _counter(group["archive_source_counts"])[archive_source] += count
+
+    summary: list[dict[str, object]] = []
+    for group in sorted(
+        groups.values(),
+        key=lambda item: (
+            int(item["priority"]),
+            str(item["coverage_priority_route"]),
+        ),
+    ):
+        species_values = [
+            species for species in group["species"] if _cell(species)  # type: ignore[index]
+        ]
+        summary.append(
+            {
+                "priority": group["priority"],
+                "coverage_priority_route": group["coverage_priority_route"],
+                "record_count": group["record_count"],
+                "species_count": len(
+                    {_species_key(species) for species in species_values}
+                ),
+                **_bounded_species_preview(species_values),
+                "archive_source_counts": _sorted_counter(
+                    group["archive_source_counts"]
+                ),
+                "recommended_action": group["recommended_action"],
+                "recommended_next_input": group["recommended_next_input"],
+                "automation_boundary": group["automation_boundary"],
+                "safe_for_unattended_download": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+        )
+    return summary
+
+
+def _coverage_priority_route_metadata(route: str) -> dict[str, object]:
+    metadata = {
+        "public_archive_metadata_review": {
+            "priority": 10,
+            "recommended_action": (
+                "review public accession/type-linkage metadata before provider handoff"
+            ),
+            "recommended_next_input": "manual_review.tsv",
+            "automation_boundary": "metadata_review_only_no_download",
+        },
+        "type_material_metadata_review": {
+            "priority": 20,
+            "recommended_action": (
+                "review BacDive/DSMZ type-material metadata as candidate evidence"
+            ),
+            "recommended_next_input": "manual_review.tsv",
+            "automation_boundary": "metadata_review_only_no_download",
+        },
+        "culture_collection_provider_handoff": {
+            "priority": 30,
+            "recommended_action": (
+                "prepare user-assisted permitted-local-FASTA provider handoff"
+            ),
+            "recommended_next_input": "provider_request.tsv",
+            "automation_boundary": "planning_handoff_no_provider_contact",
+        },
+        "credential_gated_provider_handoff": {
+            "priority": 40,
+            "recommended_action": (
+                "defer until credentials, terms, and local permitted FASTA handling are approved"
+            ),
+            "recommended_next_input": "provider_request.tsv",
+            "automation_boundary": "credential_review_required_no_provider_contact",
+        },
+        "missing_archive_source": {
+            "priority": 80,
+            "recommended_action": "supply archive source metadata",
+            "recommended_next_input": "archive_candidates_input.tsv",
+            "automation_boundary": "metadata_fix_required_no_download",
+        },
+    }
+    return metadata.get(
+        route,
+        {
+            "priority": 90,
+            "recommended_action": "fix archive candidate metadata",
+            "recommended_next_input": "archive_candidates_input.tsv",
+            "automation_boundary": "metadata_fix_required_no_download",
+        },
+    )
 
 
 def _counter(value: object) -> Counter[str]:

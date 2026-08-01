@@ -118,7 +118,12 @@ candidate summaries preserve the bridge as `source_input_kind_counts` and
 show that provenance without parsing row notes. They also expose a bounded
 `public_archive_opportunity_packet` that groups rows by review input class,
 archive source, accession class, and input provenance for AI/operator triage;
-it remains metadata review only and is not a download authorization. When
+it also includes `coverage_priority_route_summary` and
+`coverage_priority_route_counts`, aligned with `providers catalog`
+coverage-priority routes, so public archive metadata review, BacDive/DSMZ
+type-material metadata review, ordinary provider handoff, and credential-gated
+handoff remain distinguishable without changing the no-download boundary. It
+remains metadata review only and is not a download authorization. When
 `--write` succeeds, stdout and `archive_candidates_summary.json` include a
 structured `coverage-pipeline build` recommended request that points to the
 written `archive_candidates.tsv`,
