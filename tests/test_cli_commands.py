@@ -74,6 +74,9 @@ PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS = [
     "record_count",
     *PROVIDER_ROUTE_SUMMARY_FIELDS,
     "source_action_counts",
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "curator_completion_template_counts",
     "curator_completion_required_count",
     "curator_completion_field_counts",
@@ -89,6 +92,9 @@ PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS = [
     "status_counts",
     "provider_counts",
     *ROUTE_SUMMARY_FIELDS,
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "blocker_counts",
     "local_fasta_checked_count",
     "local_sha256_matched_count",
@@ -102,6 +108,9 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS = [
     "exported_count",
     "provider_counts",
     *ROUTE_SUMMARY_FIELDS,
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "diagnostic_counts",
     "required_inputs",
     "recommended_request",
@@ -120,6 +129,9 @@ PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS = [
     "external_genomes_status",
     "provider_counts",
     *ROUTE_SUMMARY_FIELDS,
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "required_inputs",
     "recommended_request",
     "recommended_request_target",
@@ -2006,6 +2018,7 @@ def test_commands_render_emits_normalized_provider_request_validate_argv(capsys)
                 (
                     '{"command":"provider-request","subcommand":"validate",'
                     '"input":"provider_request.tsv","base_dir":"evidence",'
+                    '"provider_keys":["DSMZ"],'
                     '"json":true,"write":true,"outdir":"validation","force":true}'
                 ),
             ]
@@ -2019,6 +2032,8 @@ def test_commands_render_emits_normalized_provider_request_validate_argv(capsys)
         "validate",
         "--input",
         "provider_request.tsv",
+        "--provider-key",
+        "DSMZ",
         "--base-dir",
         "evidence",
         "--write",
@@ -2051,6 +2066,7 @@ def test_commands_render_emits_normalized_provider_request_external_genomes_argv
                     '{"command":"provider-request",'
                     '"subcommand":"external-genomes-draft",'
                     '"input":"provider_request.tsv","base_dir":"evidence",'
+                    '"provider_keys":["NCBI GenBank"],'
                     '"json":true,"write":true,"outdir":"external","force":true}'
                 ),
             ]
@@ -2064,6 +2080,8 @@ def test_commands_render_emits_normalized_provider_request_external_genomes_argv
         "external-genomes-draft",
         "--input",
         "provider_request.tsv",
+        "--provider-key",
+        "NCBI GenBank",
         "--base-dir",
         "evidence",
         "--write",
@@ -2098,6 +2116,7 @@ def test_commands_render_emits_normalized_provider_request_external_genomes_hand
                     '{"command":"provider-request",'
                     '"subcommand":"external-genomes-handoff",'
                     '"input":"provider_request.tsv","base_dir":"evidence",'
+                    '"provider_keys":["DSMZ"],'
                     '"json":true,"write":true,"outdir":"handoff","force":true}'
                 ),
             ]
@@ -2111,6 +2130,8 @@ def test_commands_render_emits_normalized_provider_request_external_genomes_hand
         "external-genomes-handoff",
         "--input",
         "provider_request.tsv",
+        "--provider-key",
+        "DSMZ",
         "--base-dir",
         "evidence",
         "--write",

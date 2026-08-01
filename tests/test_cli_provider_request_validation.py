@@ -59,6 +59,19 @@ def _write_provider_request(path: Path, **overrides: str) -> Path:
     )
 
 
+def _write_provider_requests(path: Path, rows: list[dict[str, str]]) -> Path:
+    return _write(
+        path,
+        "\t".join(PROVIDER_REQUEST_FIELDS)
+        + "\n"
+        + "\n".join(
+            "\t".join(row[field] for field in PROVIDER_REQUEST_FIELDS)
+            for row in rows
+        )
+        + "\n",
+    )
+
+
 def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys):
     fasta = _write(tmp_path / "local.fna", ">seq\nACGT\n")
     request = _write_provider_request(
@@ -197,6 +210,71 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert plan["manifest_mutated"] is False
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
+
+
+def test_provider_request_validate_filters_provider_key_and_preserves_next_request(
+    tmp_path,
+    capsys,
+):
+    dsmz_fasta = _write(tmp_path / "dsmz.fna", ">dsmz\nACGT\n")
+    genbank_fasta = _write(tmp_path / "genbank.fna", ">genbank\nACGT\n")
+    request = _write_provider_requests(
+        tmp_path / "provider_request.tsv",
+        [
+            _request_values(
+                local_fasta_path="dsmz.fna",
+                local_sha256=calculate_sha256(dsmz_fasta),
+            ),
+            _request_values(
+                request_id="REQ-002",
+                species="Clostridium gamma",
+                strain="ATCC 2",
+                type_strain_id="ATCC 2",
+                provider="genbank",
+                provider_name="GenBank",
+                provider_record_id="GB-2",
+                provider_record_url="https://example.org/genbank/2",
+                local_fasta_path="genbank.fna",
+                local_sha256=calculate_sha256(genbank_fasta),
+                notes=(
+                    "public archive handoff; provider_status=metadata_only; "
+                    "provider_automation_level=metadata_review; "
+                    "operator_route=public_metadata_review; "
+                    "next_input_class=public_accession_type_strain_linkage; "
+                    "automation_boundary=metadata_review_only_no_download"
+                ),
+            ),
+        ],
+    )
+
+    result = cli.main(
+        [
+            "provider-request",
+            "validate",
+            "--input",
+            str(request),
+            "--provider-key",
+            "NCBI GenBank",
+            "--json",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 0
+    assert payload["record_count"] == 1
+    assert payload["provider_counts"] == {"genbank": 1}
+    assert payload["provider_key_filter"] == ["genbank"]
+    assert payload["provider_key_filter_count"] == 1
+    assert payload["filtered"] is True
+    assert payload["request_preview"][0]["request_id"] == "REQ-002"
+    assert payload["recommended_request"]["provider_keys"] == ["genbank"]
+    assert (
+        f"--input {request} --provider-key genbank --write --outdir"
+        in payload["recommended_next_command"]
+    )
+    assert payload["provider_request_readiness_packet"]["recommended_request"][
+        "provider_keys"
+    ] == ["genbank"]
 
 
 def test_provider_request_validate_write_outputs_audit_pair(tmp_path, capsys):

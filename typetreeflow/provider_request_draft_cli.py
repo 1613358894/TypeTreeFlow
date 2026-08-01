@@ -211,6 +211,7 @@ def _build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--force", action="store_true")
     validate = actions.add_parser("validate", add_help=False)
     validate.add_argument("--input", required=True)
+    validate.add_argument("--provider-key", action="append", default=[])
     validate.add_argument("--base-dir")
     validate.add_argument("--json", action="store_true")
     validate.add_argument("--write", action="store_true")
@@ -218,6 +219,7 @@ def _build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--force", action="store_true")
     external_genomes = actions.add_parser("external-genomes-draft", add_help=False)
     external_genomes.add_argument("--input", required=True)
+    external_genomes.add_argument("--provider-key", action="append", default=[])
     external_genomes.add_argument("--base-dir")
     external_genomes.add_argument("--json", action="store_true")
     external_genomes.add_argument("--write", action="store_true")
@@ -225,6 +227,7 @@ def _build_parser() -> argparse.ArgumentParser:
     external_genomes.add_argument("--force", action="store_true")
     handoff = actions.add_parser("external-genomes-handoff", add_help=False)
     handoff.add_argument("--input", required=True)
+    handoff.add_argument("--provider-key", action="append", default=[])
     handoff.add_argument("--base-dir")
     handoff.add_argument("--json", action="store_true")
     handoff.add_argument("--write", action="store_true")
@@ -253,6 +256,7 @@ def _run_external_genomes_draft(args: argparse.Namespace, output: TextIO) -> int
         draft = build_provider_request_external_genomes_draft(
             records,
             base_dir=base_dir,
+            provider_key_filter=args.provider_key,
         )
     except Exception:
         _emit(_external_genomes_failure("internal_error"), output)
@@ -326,10 +330,12 @@ def _run_external_genomes_handoff(args: argparse.Namespace, output: TextIO) -> i
         validation = validate_provider_requests_for_local_handoff(
             records,
             base_dir=base_dir,
+            provider_key_filter=args.provider_key,
         )
         draft = build_provider_request_external_genomes_draft(
             records,
             base_dir=base_dir,
+            provider_key_filter=args.provider_key,
         )
     except Exception:
         _emit(_external_genomes_handoff_failure("internal_error"), output)
@@ -451,6 +457,7 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
         validation = validate_provider_requests_for_local_handoff(
             records,
             base_dir=base_dir,
+            provider_key_filter=args.provider_key,
         )
     except Exception:
         _emit(_validate_failure("internal_error"), output)
@@ -461,6 +468,7 @@ def _run_validate(args: argparse.Namespace, output: TextIO) -> int:
         validation_valid=validation.valid,
         input_path=input_path,
         base_dir_arg=args.base_dir,
+        provider_key_filter=payload.get("provider_key_filter", []),
     )
     if args.write:
         written_payload = {
@@ -626,6 +634,7 @@ def _apply_validation_recommendation(
     validation_valid: bool,
     input_path: Path,
     base_dir_arg: str | None,
+    provider_key_filter: object,
 ) -> None:
     if not validation_valid:
         payload["recommended_request"] = None
@@ -648,6 +657,15 @@ def _apply_validation_recommendation(
         "typetreeflow provider-request external-genomes-handoff "
         f"--input {input_path}"
     )
+    provider_keys: list[str] = []
+    if isinstance(provider_key_filter, list):
+        provider_keys = [
+            str(value) for value in provider_key_filter if str(value).strip()
+        ]
+    if provider_keys:
+        request["provider_keys"] = provider_keys
+        for provider_key in provider_keys:
+            next_command += f" --provider-key {provider_key}"
     if base_dir_arg:
         request["base_dir"] = base_dir_arg
         next_command += f" --base-dir {base_dir_arg}"
@@ -690,6 +708,9 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
+        "provider_key_filter": summary["provider_key_filter"],
+        "provider_key_filter_count": summary["provider_key_filter_count"],
+        "filtered": summary["filtered"],
         "diagnostic_counts": summary["diagnostic_counts"],
         "diagnostic_count": summary["diagnostic_count"],
         "diagnostics": list(draft.diagnostics),
@@ -766,6 +787,13 @@ def _external_genomes_handoff_payload(
         "automation_boundary_counts": dict(
             validation_payload.get("automation_boundary_counts", {})
         ),
+        "provider_key_filter": list(
+            validation_payload.get("provider_key_filter", [])
+        ),
+        "provider_key_filter_count": int(
+            validation_payload.get("provider_key_filter_count", 0)
+        ),
+        "filtered": bool(validation_payload.get("filtered", False)),
         "audit_only": True,
         "dry_run": dry_run,
         "writes_outputs": any(
@@ -1036,6 +1064,9 @@ def _external_genomes_failure(code: str) -> dict[str, object]:
         "record_count": 0,
         "exported_count": 0,
         "provider_counts": {},
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
+        "filtered": False,
         "diagnostic_counts": {code: 1},
         "diagnostic_count": 1,
         "diagnostics": [
@@ -1100,6 +1131,9 @@ def _external_genomes_handoff_failure(code: str) -> dict[str, object]:
         "external_genomes_diagnostic_count": 0,
         "diagnostic_count": 1,
         "provider_counts": {},
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
+        "filtered": False,
         "diagnostics": [
             {
                 "schema_version": PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION,
@@ -1151,6 +1185,9 @@ def _validate_failure(code: str) -> dict[str, object]:
         "blocked_count": 0,
         "status_counts": {},
         "provider_counts": {},
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
+        "filtered": False,
         "blocker_counts": {},
         "local_fasta_checked_count": 0,
         "local_sha256_matched_count": 0,

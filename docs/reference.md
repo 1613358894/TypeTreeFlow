@@ -1901,7 +1901,7 @@ metrics and do not make a draft row eligible for provider execution.
 The isolated provider request validation adapter is:
 
 ```text
-typetreeflow provider-request validate --input <provider_request.tsv> [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow provider-request validate --input <provider_request.tsv> [--provider-key <provider-key-or-alias> ...] [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named `provider_request.tsv` plus local FASTA
@@ -1917,8 +1917,10 @@ object with `ready_count`, `blocked_count`, `blocker_counts`,
 `local_fasta_checked_count`, `local_sha256_matched_count`,
 `provider_status_counts`, `provider_automation_level_counts`,
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`, and
-`automation_boundary_counts` when those controlled values are present in draft
-row notes. Row previews include only request ID, species, provider, readiness
+`automation_boundary_counts`, plus `provider_key_filter`,
+`provider_key_filter_count`, and `filtered` when a local provider subset was
+selected. Route counts are populated when the controlled values are present in
+draft row notes. Row previews include only request ID, species, provider, readiness
 status, blocker codes, provider/route metadata, and boolean local evidence checks. They
 do not echo local FASTA paths, hashes, provider notes, curator values, or
 sequence contents. The JSON and summary also include `required_inputs` plus a
@@ -1927,7 +1929,10 @@ structured `recommended_request` for the next offline
 `recommended_request_target`, and a renderable `recommended_next_command`.
 Library summaries keep a generic `<provider_request.tsv>` template; CLI stdout
 and write summaries use the explicit `--input` path and preserve `--base-dir`
-in the recommended request when supplied. They also include
+in the recommended request when supplied. They include repeated
+`--provider-key` filters in the recommended request when supplied, so a
+provider-specific validation batch can continue to a provider-specific
+`external-genomes-handoff` batch without inference. They also include
 `provider_request_readiness_packet`, a compact AI/operator handoff object with
 `stage=validate`, status/count fields, audit-only boundary flags, and
 `next_stage=provider_request_external_genomes_handoff` only when every row is
@@ -1964,13 +1969,15 @@ handoff review.
 The isolated provider request to external-genomes draft adapter is:
 
 ```text
-typetreeflow provider-request external-genomes-draft --input <provider_request.tsv> [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow provider-request external-genomes-draft --input <provider_request.tsv> [--provider-key <provider-key-or-alias> ...] [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named `provider_request.tsv` plus local FASTA
 files needed by the same validation guards used by
 `provider-request validate`. Relative FASTA paths are resolved against
 `--base-dir`, or against the input file parent when `--base-dir` is omitted.
+Repeated `--provider-key` values filter a combined provider request file to
+canonical provider keys or known aliases before validation and projection.
 The command emits one compact JSON object and never echoes local FASTA paths,
 SHA-256 values, provider notes, curator values, or sequence contents. Without
 `--write`, it writes nothing. With `--write`, it writes only
@@ -2015,7 +2022,7 @@ completion metrics, or promote strict scientific deliverables.
 The isolated provider request external-genomes handoff bundle is:
 
 ```text
-typetreeflow provider-request external-genomes-handoff --input <provider_request.tsv> [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow provider-request external-genomes-handoff --input <provider_request.tsv> [--provider-key <provider-key-or-alias> ...] [--base-dir <dir>] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads the same explicit provider request TSV and local FASTA files, then
@@ -2025,6 +2032,9 @@ one command. Without `--write`, it writes nothing. With `--write`, it writes
 `provider_request_external_genomes/` only when every row is ready and can be
 rendered as an external-genomes handoff draft. Blocked runs therefore preserve
 validation diagnostics without creating a draft external-genomes directory.
+Repeated `--provider-key` values apply to both bundled validation and
+external-genomes projection, preserving provider-specific batch boundaries in
+stdout and written summaries.
 The command emits one compact JSON object and does not echo local FASTA paths,
 SHA-256 values, provider notes, curator values, or sequence contents.
 The handoff payload includes validation route counts so AI/operator controllers
