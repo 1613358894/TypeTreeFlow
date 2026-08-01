@@ -170,6 +170,9 @@ def package_results(
     reconciler_outputs_copied: list[Path] = []
     manual_review_outputs_copied: list[Path] = []
     manual_review_audit: ManualReviewImportAuditSummary | None = None
+    manual_review_import_dir = _coverage_pipeline_component_dir(
+        manual_review_import_dir, coverage_pipeline_dir, "manual_review_import"
+    )
     acquisition_worklist_dir = _coverage_pipeline_component_dir(
         acquisition_worklist_dir, coverage_pipeline_dir, "acquisition_worklist"
     )
@@ -228,6 +231,9 @@ def package_results(
     archive_candidates_audit: ArchiveCandidatesAuditSummary | None = None
     offline_readiness_outputs_copied: list[Path] = []
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None
+    strict_gating_dir = _coverage_pipeline_component_dir(
+        strict_gating_dir, coverage_pipeline_dir, "strict_gating"
+    )
     strict_gating_outputs_copied: list[Path] = []
     strict_gating_audit: StrictGatingAuditSummary | None = None
     if "reports" in requested:

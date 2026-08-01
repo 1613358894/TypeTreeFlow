@@ -562,17 +562,18 @@ Failed-handoff packages exclude these artifacts and rows.
 `package-results`. It is an explicit read-only handoff for the isolated output
 of `coverage-pipeline build` and is never automatically discovered under the
 workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
-`coverage_plan/`, `provider_handoff/`, `provider_request/`, and
-`provider_request_validation/`, `provider_request_external_genomes/`, and
-`external_genomes_install_plan/`, and `archive_candidates/` under that
-directory when present, then applies the same report, package, warning, and
-audit-only artifact-scope contracts as the individual component directory
-options. Explicit
+`coverage_plan/`, `provider_handoff/`, `provider_request/`,
+`provider_request_validation/`, `provider_request_external_genomes/`,
+`external_genomes_install_plan/`, `archive_candidates/`,
+`manual_review_import/`, and `strict_gating/` under that directory when
+present, then applies the same report, package, warning, and audit-only
+artifact-scope contracts as the individual component directory options. Explicit
 `--acquisition-worklist-dir`, `--coverage-plan-dir`, and
 `--provider-handoff-dir`, `--provider-request-dir`, and
 `--provider-request-validation-dir`, and
-`--provider-request-external-genomes-dir`, and `--archive-candidates-dir`
-values take precedence over derived subdirectories.
+`--provider-request-external-genomes-dir`, `--archive-candidates-dir`,
+`--manual-review-import-dir`, and `--strict-gating-dir` values take precedence
+over derived subdirectories.
 The option does not rerun coverage planning, contact providers, trigger
 downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
@@ -2677,13 +2678,13 @@ download-ready.
 The written pipeline directory can be supplied later as one explicit
 read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
 `package-results --include reports|all`. TypeTreeFlow derives only
-`acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`, and
+`acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
 `provider_request/`, `provider_request_validation/`,
-`provider_request_external_genomes/`, `external_genomes_install_plan/`, and
-`archive_candidates/` under that directory and then applies the same
-audit-only report/package contracts as the individual component directory
-options. Explicit component directories take precedence over the derived
-pipeline subdirectories.
+`provider_request_external_genomes/`, `external_genomes_install_plan/`,
+`archive_candidates/`, `manual_review_import/`, and `strict_gating/` under that
+directory and then applies the same audit-only report/package contracts as the
+individual component directory options. Explicit component directories take
+precedence over the derived pipeline subdirectories.
 The generated `provider_request/` member is an offline draft for
 local `provider-request validate`; report/package inclusion means draft
 availability only and does not authorize provider contact, validation,

@@ -481,9 +481,10 @@ convenience handoff for that isolated directory. It may derive the four
 known planning component subdirectories, optional
 `provider_request_validation/`, optional `provider_request_external_genomes/`,
 optional `external_genomes_install_plan/`, and optional
-`archive_candidates/` audit subdirectories under the explicitly supplied path,
-but it must not scan workflow outputs, rerun planning, contact providers,
-trigger downloads, register external genomes, copy FASTA files, or change any
+`archive_candidates/`, optional `manual_review_import/`, and optional
+`strict_gating/` audit subdirectories under the explicitly supplied path, but it
+must not scan workflow outputs, rerun planning, contact providers, trigger
+downloads, register external genomes, copy FASTA files, or change any
 scientific status.
 Coverage-pipeline status, report-only, and package-results may also read an
 explicitly supplied `--archive-candidates-dir`. This is passive public-archive
