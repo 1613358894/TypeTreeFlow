@@ -1465,7 +1465,9 @@ those next-step fields empty. `validate` and `install-plan` also emit
 fields to fix before install planning. Each item includes a bounded
 `repair_template_row` shaped like `external_genomes.tsv` for operator editing;
 it does not download, contact providers, register genomes, or mutate workflow
-outputs. Successful validate payloads
+outputs. Blocked validate payloads with repair rows also include a bounded
+`repair_template_recommended_request` for writing the isolated editable TSV.
+Successful validate payloads
 also expose an `install_plan_recommended_command_plan` for the optional
 `external-genomes install-plan --write --outdir <isolated-directory>` audit
 triplet; that write-oriented plan remains blocked until writes are explicitly

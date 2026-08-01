@@ -2702,7 +2702,11 @@ recommended local repair actions, a bounded `repair_template_row` shaped like
 `external_genomes.tsv`, and no-download/no-provider safety fields.
 The queue is only a repair guide for the reviewed `external_genomes.tsv` input;
 it is not installation permission, provider authorization, registration, or
-completion credit.
+completion credit. When that queue is non-empty, the blocked validate payload
+also carries a bounded `repair_template_recommended_request` and command string
+for writing an isolated editable repair TSV; the recommendation is still
+no-write until the operator explicitly runs `external-genomes repair-template
+--write`.
 `external-genomes repair-template --input <external_genomes.tsv>` renders those
 invalid-row templates as compact JSON. With `--write --out
 <external_genomes_repair_template.tsv>`, it writes only that isolated editable

@@ -405,6 +405,22 @@ def _validate_payload(
     route_counts = summarize_external_genome_route_metadata(results)
     packet_counts = summarize_external_genome_packet_readiness(records)
     input_value = _command_path(input_path, fallback="external_genomes.tsv")
+    repair_queue = summarize_external_genome_repair_queue(results)
+    repair_template_recommended_request = None
+    repair_template_recommended_next_command = ""
+    if repair_queue.get("item_count"):
+        repair_template_recommended_request = {
+            "command": "external-genomes",
+            "subcommand": "repair-template",
+            "input": input_value,
+            "write": True,
+            "out": "<external_genomes_repair_template.tsv>",
+        }
+        repair_template_recommended_next_command = (
+            "typetreeflow external-genomes repair-template "
+            f"--input {input_value} --write --out "
+            "<external_genomes_repair_template.tsv>"
+        )
     ready_for_next_step = bool(results) and not diagnostics
     recommended_request = None
     recommended_next_command = ""
@@ -462,9 +478,18 @@ def _validate_payload(
         "external_genomes_action_summary": (
             summarize_external_genome_action_summary(results, stage="validate")
         ),
-        "external_genomes_repair_queue": summarize_external_genome_repair_queue(
-            results,
+        "external_genomes_repair_queue": repair_queue,
+        "repair_template_recommended_request": repair_template_recommended_request,
+        "repair_template_recommended_request_target": recommended_request_target(
+            repair_template_recommended_request
         ),
+        "repair_template_recommended_next_command": (
+            repair_template_recommended_next_command
+        ),
+        "repair_template_write_preflight_required": bool(
+            repair_template_recommended_request
+        ),
+        "repair_template_safe_for_unattended_execution": False,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "result_preview": preview,
