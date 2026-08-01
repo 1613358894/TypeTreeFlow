@@ -153,10 +153,11 @@ download readiness. Expanded discovery and manual-supplement inputs are local
 TSV handoffs only; this command does not run discovery, query providers, or
 auto-select any accession.
 The same summary also reports `unrouted_type_strain_token_counts` plus bounded
-examples for type-strain or culture-collection prefixes that were visible in
-local evidence but did not match the static provider registry. Use those
-audit-only counts to prioritize future platform research; they are not
-provider keys, provider support, or download authorization.
+examples for provider-like type-strain or culture-collection prefixes that were
+visible in local evidence but did not match the static provider registry. Plain
+strain codes are filtered out where possible. Use those audit-only counts to
+prioritize future platform research; they are not provider keys, provider
+support, or download authorization.
 When `--write` succeeds, stdout includes a structured `recommended_request`
 for `coverage-plan build` using the written `acquisition_worklist.tsv`. That
 request is only an AI/operator handoff for a later local command. The matching

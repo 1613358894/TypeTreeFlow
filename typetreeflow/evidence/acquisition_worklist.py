@@ -65,6 +65,7 @@ UNROUTED_TYPE_STRAIN_TOKEN_SKIP_PREFIXES = {
     "ID",
     "IDS",
     "ISOLATE",
+    "NOT",
     "NO",
     "NUMBER",
     "STRAIN",
@@ -731,10 +732,12 @@ def _split_type_strain_token_values(value: str) -> tuple[str, ...]:
 
 
 def _type_strain_token_prefix(value: str) -> str:
-    match = re.match(r"\s*([A-Za-z][A-Za-z0-9/-]{1,16})(?=\s|[-_/]?\d|$)", value)
+    if not re.search(r"\d", value):
+        return ""
+    match = re.match(r"\s*([A-Za-z]{3,16})(?=\s|[-_/]?\d|$)", value)
     if not match:
         return ""
-    return match.group(1).replace("/", "-").upper()
+    return match.group(1).upper()
 
 
 def _public_linkage_reason(
