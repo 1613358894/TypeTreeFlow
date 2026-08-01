@@ -3828,7 +3828,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         decision="allow",
     )
     assert payload["provider_request_recommended_next_command"] == (
-        "typetreeflow provider-request validate --input <provider_request.tsv>"
+        "typetreeflow provider-request validate "
+        "--input provider_request/provider_request.tsv"
     )
     assert payload["provider_request_validation_recommended_request"] == {
         "command": "provider-request",
@@ -3846,8 +3847,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         decision="allow",
     )
     assert payload["provider_request_validation_recommended_next_command"] == (
-        "typetreeflow provider-request external-genomes-handoff --input "
-        "<provider_request.tsv> --write --outdir "
+        "typetreeflow provider-request external-genomes-handoff "
+        "--input provider_request/provider_request.tsv --write --outdir "
         "<isolated-provider-request-external-genomes-directory>"
     )
     assert payload["provider_request_external_genomes_recommended_request"] == {
@@ -3945,8 +3946,8 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "provider_request_external_genomes_handoff_recommended_next_command"
     ] == (
         "typetreeflow provider-request external-genomes-handoff "
-        "--input <provider_request.tsv> --write "
-        "--outdir <isolated-handoff-directory>"
+        "--input provider_request/provider_request.tsv --write "
+        "--outdir <isolated-provider-request-external-genomes-directory>"
     )
     assert [stage["stage"] for stage in payload["operator_chain_stages"]] == [
         "acquisition_worklist",
@@ -5311,7 +5312,8 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         decision="allow",
     )
     assert summary["provider_request_recommended_next_command"] == (
-        "typetreeflow provider-request validate --input <provider_request.tsv>"
+        "typetreeflow provider-request validate "
+        "--input provider_request/provider_request.tsv"
     )
     assert summary["provider_request_validation_recommended_request"] == {
         "command": "provider-request",
@@ -5329,8 +5331,8 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         decision="allow",
     )
     assert summary["provider_request_validation_recommended_next_command"] == (
-        "typetreeflow provider-request external-genomes-handoff --input "
-        "<provider_request.tsv> --write --outdir "
+        "typetreeflow provider-request external-genomes-handoff "
+        "--input provider_request/provider_request.tsv --write --outdir "
         "<isolated-provider-request-external-genomes-directory>"
     )
     assert summary["provider_request_external_genomes_recommended_request"] == {
@@ -5428,8 +5430,8 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "provider_request_external_genomes_handoff_recommended_next_command"
     ] == (
         "typetreeflow provider-request external-genomes-handoff "
-        "--input <provider_request.tsv> --write "
-        "--outdir <isolated-handoff-directory>"
+        "--input provider_request/provider_request.tsv --write "
+        "--outdir <isolated-provider-request-external-genomes-directory>"
     )
     assert summary["operator_chain_stages"][0]["artifact"] == (
         "acquisition_worklist/acquisition_worklist.tsv"

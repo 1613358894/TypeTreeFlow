@@ -416,8 +416,8 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
         "provider_request_external_genomes_handoff_recommended_next_command"
     ] == (
         "typetreeflow provider-request external-genomes-handoff "
-        "--input <provider_request.tsv> --write "
-        "--outdir <isolated-handoff-directory>"
+        "--input provider_request/provider_request.tsv --write "
+        "--outdir <isolated-provider-request-external-genomes-directory>"
     )
 
     generated_request = pipeline_dir / "provider_request" / "provider_request.tsv"

@@ -2005,7 +2005,12 @@ plus `worklist_candidate_provider_key_counts`,
 `*_recommended_request_target` compact command/subcommand labels, and bounded
 `*_recommended_command_plan` no-dispatch planning companions. The same
 companions are also collected in the stage-keyed `coverage_stage_command_plans`
-map for controllers that prefer one contract field. `coverage-pipeline`
+map for controllers that prefer one contract field. When the structured request
+uses an isolated pipeline child artifact such as
+`provider_request/provider_request.tsv`, the matching recommended command is
+rendered from that same request instead of reverting to a generic
+`<provider_request.tsv>` placeholder, so file-based controllers can resume
+without inferring paths from prose. `coverage-pipeline`
 `preview`, `build`, and `status` can also take
 `--stage <operator_chain_stage>` and return
 `selected_operator_chain_stage`, `selected_operator_chain_stage_found`, and
