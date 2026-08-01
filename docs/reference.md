@@ -2728,15 +2728,17 @@ run directory, the same stage row also carries `summary_install_result_count`,
 `summary_install_succeeded_count`, and
 `summary_install_result_status_counts`. If that explicit run directory also
 contains a valid `manifest.tsv`, the stage row carries
-`summary_manifest_available=true` and `summary_manifest_record_count` for
-controller visibility only; it does not change completion metrics or strict
-evidence. The top-level status payload mirrors this local-coverage realization
-as `external_genomes_registration_realized`,
+`summary_manifest_available=true`, `summary_manifest_record_count`, and
+`summary_external_registered_manifest_record_count` for controller visibility
+only; it does not change completion metrics or strict evidence. The top-level
+status payload mirrors this local-coverage realization as
+`external_genomes_registration_realized`,
 `external_genomes_registration_manifest_available`,
-`external_genomes_registration_manifest_record_count`, and
+`external_genomes_registration_manifest_record_count`,
+`external_genomes_registration_external_manifest_record_count`, and
 `external_genomes_registration_install_succeeded_count` so controllers can
 distinguish a reviewed dry-run plan from a workflow run that already has local
-registered genomes in `manifest.tsv`. Provider-request validation and
+external registered genomes in `manifest.tsv`. Provider-request validation and
 external-genomes handoff child summaries can also contribute
 `summary_provider_request_readiness_packet`; external-genomes install-plan
 summaries can contribute `summary_external_genomes_readiness_packet` and, for
