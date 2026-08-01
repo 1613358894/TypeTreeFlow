@@ -10,6 +10,7 @@ from typetreeflow.evidence.archive_candidates import (
     read_expanded_discovery_archive_candidate_input,
     read_archive_candidate_input,
 )
+from typetreeflow.evidence.manual_review import MANUAL_REVIEW_FIELDS
 from typetreeflow.expanded_discovery import EXPANDED_DISCOVERY_RESULT_FIELDS
 
 
@@ -212,6 +213,50 @@ def test_archive_candidate_tsv_and_json_are_stable():
     assert summary["source_input_kind_counts"] == {"archive_candidate_input": 1}
     assert summary["expanded_discovery_candidate_count"] == 0
     assert summary["public_archive_opportunity_packet"]["opportunity_count"] == 1
+
+
+def test_archive_candidate_manual_review_template_is_incomplete_skeleton():
+    report = build_archive_candidate_report(
+        [
+            _row(),
+            _row(
+                species="Clostridium weakum",
+                assembly_accession="GCA_000002.1",
+                biosample_accession="",
+                archive_type_material_signal="unknown",
+            ),
+            _row(
+                species="Clostridium missingum",
+                assembly_accession="",
+                biosample_accession="",
+            ),
+        ]
+    )
+
+    parsed = list(
+        csv.DictReader(
+            io.StringIO(report.manual_review_template_tsv()),
+            delimiter="\t",
+        )
+    )
+
+    assert tuple(parsed[0]) == MANUAL_REVIEW_FIELDS
+    assert [row["species"] for row in parsed] == [
+        "Clostridium publicum",
+        "Clostridium weakum",
+    ]
+    assert [row["selected_accession"] for row in parsed] == [
+        "GCA_000001.1",
+        "GCA_000002.1",
+    ]
+    assert all(row["review_status"] == "" for row in parsed)
+    assert all(row["reviewer_id"] == "" for row in parsed)
+    assert all(row["review_date"] == "" for row in parsed)
+    assert all("Template only:" in row["evidence_summary"] for row in parsed)
+    assert all("not_a_review_decision" in row["decision_notes"] for row in parsed)
+    assert "Clostridium missingum" not in {
+        row["species"] for row in parsed
+    }
 
 
 def test_archive_candidate_source_aliases_are_canonicalized():
