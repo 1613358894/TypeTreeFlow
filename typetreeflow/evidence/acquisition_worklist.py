@@ -340,6 +340,7 @@ def _classify_species(
             tier,
             "expanded_discovery_matched_candidate_review",
             source_artifacts,
+            candidate_provider_keys,
         )
     if _manual_hint_requires_external_fasta(manual_supplement_hint_rows):
         return _row(
@@ -953,6 +954,7 @@ def _extend_provider_keys_from_explicit_hints(
         "source",
         "source_name",
         "database",
+        "query_database",
     ):
         for token in re.split(r"[;,|]", _value(row, field)):
             canonical = registry.canonical_key(token)

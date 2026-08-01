@@ -5183,8 +5183,14 @@ def test_coverage_pipeline_accepts_expanded_discovery_and_manual_hints(
         "prepare_provider_handoff": 1,
         "review_public_type_linkage": 1,
     }
-    assert payload["provider_key_counts"]["dsmz"] == 1
-    assert payload["provider_request_provider_key_counts"]["dsmz"] == 1
+    assert payload["provider_key_counts"] == {
+        "dsmz": 2,
+        "ncbi_assembly": 1,
+    }
+    assert payload["provider_request_provider_key_counts"] == {
+        "dsmz": 2,
+        "ncbi_assembly": 1,
+    }
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False

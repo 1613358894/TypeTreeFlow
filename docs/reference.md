@@ -1565,9 +1565,9 @@ additive `review_signal_counts` and `candidate_provider_key_counts` for triage
 signals such as selected accession, strict usable, conflict blocked, NCBI
 type-material candidate, authoritative type-material candidate, BacDive/DSMZ
 candidate, BioSample linkage review, archive candidate review, missing public
-genome, external-registration-ready rows, and candidate provider routing
-hints. These counts are review hints only and do not change lane, completion,
-provider, or download semantics.
+genome, external-registration-ready rows, expanded-discovery matched-candidate
+review, and candidate provider routing hints. These counts are review hints
+only and do not change lane, completion, provider, or download semantics.
 The summary also includes `candidate_provider_status_counts`, and rows include
 `candidate_provider_statuses` entries such as `ena=metadata_only` or
 `dsmz=planning_only`, so AI/operators can separate public archive metadata
@@ -1583,7 +1583,11 @@ Explicit provider hints may use canonical provider keys, common abbreviations,
 or static registry display names; they are normalized to canonical provider
 keys before summary counting. Recognized hints are additive across supported
 fields, so an unrecognized local source label does not mask a later canonical
-provider name in another field.
+provider name in another field. Expanded-discovery matched-candidate rows may
+carry provider hints from fields such as `query_database`; manual supplement
+matched-candidate hints may carry provider keys from controlled tokens. These
+hints route later review pressure only and do not make a candidate strict or
+download-ready.
 Archive-candidate source fields such as `archive_source` and
 `archive_source_name` may also normalize public archive or genome-portal names
 such as ENA, DDBJ, INSDC, NCBI Assembly, NCBI BioSample, GenBank, RefSeq,
