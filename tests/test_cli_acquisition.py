@@ -716,10 +716,21 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert verify_payload["command"] == "verify-genus"
     assert verify_payload["status"] == "blocked"
     assert verify_payload["reason"] == "manual_review_required"
+    verify_readiness = verify_payload["download_plan_readiness_summary"]
+    assert verify_readiness["download_ready_ncbi_count"] == 1
+    assert verify_readiness["review_or_handoff_count"] == 0
+    assert verify_readiness["downloads_triggered"] == 0
+    assert verify_readiness["providers_contacted"] == 0
+    assert paths.download_plan_readiness_summary_path.exists()
+    artifact_readiness = json.loads(
+        paths.download_plan_readiness_summary_path.read_text(encoding="utf-8")
+    )
+    assert artifact_readiness == verify_readiness
 
     assert main(["status", "--outdir", str(outdir)]) == 0
     status_payload = json.loads(capsys.readouterr().out)
     assert status_payload["status"] == "blocked"
+    assert status_payload["download_plan_readiness_summary"] == artifact_readiness
     stages = {stage["id"]: stage for stage in status_payload["stages"]}
     assert stages["download"]["status"] == "blocked"
     assert status_payload["next_actions"][0]["message"].startswith(
@@ -743,6 +754,17 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert (delivery / "manifest.tsv").exists()
     assert (delivery / "run_state.json").exists()
     assert (delivery / "reports" / "summary.md").exists()
+    packaged_readiness_path = delivery / "reports" / "download_plan_readiness_summary.json"
+    assert json.loads(packaged_readiness_path.read_text(encoding="utf-8")) == (
+        artifact_readiness
+    )
+    package_scope = _read_tsv(delivery / "artifact_scope.tsv")
+    assert any(
+        row["artifact_path"] == "reports/download_plan_readiness_summary.json"
+        and row["scope"] == "audit"
+        and row["strict_scientific_deliverable"] == "false"
+        for row in package_scope
+    )
     readme = (delivery / "README.md").read_text(encoding="utf-8")
     assert "Representative-only rows are exploratory" in readme
     assert "Download succeeded: 0" in readme
