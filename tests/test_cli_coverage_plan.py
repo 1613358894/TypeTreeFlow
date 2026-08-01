@@ -85,6 +85,16 @@ def test_coverage_plan_dry_run_is_single_json_and_writes_nothing(tmp_path, capsy
     }
     assert payload["provider_route_groups"][0]["operator_route"] == "provider_handoff"
     assert payload["provider_route_groups"][0]["safe_for_unattended_execution"] is False
+    priority_items = payload["priority_provider_route_items"]
+    assert priority_items[0]["route_priority"] == "provider_handoff"
+    assert priority_items[0]["primary_operator_route"] == "provider_handoff"
+    assert priority_items[0]["safe_for_unattended_execution"] is False
+    assert priority_items[0]["downloads_triggered"] == 0
+    assert priority_items[0]["providers_contacted"] == 0
+    metadata_item = next(
+        item for item in priority_items if item["route_priority"] == "public_metadata_review"
+    )
+    assert metadata_item["metadata_review_only"] is True
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
@@ -190,6 +200,12 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
         "provider_handoff": 7,
         "public_metadata_review": 4,
     }
+    assert summary["priority_provider_route_items"][0]["route_priority"] == (
+        "provider_handoff"
+    )
+    assert summary["priority_provider_route_items"][0][
+        "safe_for_unattended_execution"
+    ] is False
 
     assert (
         cli.main(

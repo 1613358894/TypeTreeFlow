@@ -49,6 +49,7 @@ PROVIDER_ROUTE_SUMMARY_FIELDS = [
 COVERAGE_PLAN_SUMMARY_FIELDS = [
     "action_counts",
     *PROVIDER_ROUTE_SUMMARY_FIELDS,
+    "priority_provider_route_items",
     "recommended_request",
     "recommended_request_target",
     "recommended_next_command",
