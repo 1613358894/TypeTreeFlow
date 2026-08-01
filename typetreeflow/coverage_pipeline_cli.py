@@ -60,6 +60,7 @@ from typetreeflow.external_genomes import (
     build_external_genome_install_plan,
     read_external_genome_registration_results,
     summarize_external_genome_packet_readiness,
+    summarize_external_genome_repair_queue,
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
 )
@@ -827,6 +828,7 @@ def _run_status(
             "type_material_counts",
             "manual_review_flag_counts",
             "install_plan_status_counts",
+            "external_genomes_repair_queue",
             "external_genomes_readiness_packet",
         ),
         diagnostics=diagnostics,
@@ -3139,6 +3141,10 @@ def _payload(
         ),
         "external_genomes_install_plan_readiness_packet": (
             external_genomes_install_plan_readiness_packet
+        ),
+        "external_genomes_install_plan_repair_queue": _payload_map(
+            external_genomes_install_plan,
+            "external_genomes_repair_queue",
         ),
         "external_genomes_registration_dry_run_recommended_request": (
             _coverage_stage_recommended_request_from_chain(
@@ -9199,6 +9205,7 @@ def _rendered_outputs(
             "external_genomes_install_plan_diagnostic_count",
             "external_genomes_install_plan_output_paths",
             "external_genomes_install_plan_readiness_packet",
+            "external_genomes_install_plan_repair_queue",
             "external_genomes_registration_dry_run_recommended_request",
             "external_genomes_registration_dry_run_recommended_request_target",
             "external_genomes_registration_dry_run_recommended_command_plan",
@@ -9444,6 +9451,9 @@ def _external_genomes_install_plan_payload(
         "install_planned_count": planned_count,
         "install_skipped_count": len(install_plan) - planned_count,
         "install_plan_status_counts": dict(sorted(install_counts.items())),
+        "external_genomes_repair_queue": summarize_external_genome_repair_queue(
+            registration_results,
+        ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "audit_only": True,

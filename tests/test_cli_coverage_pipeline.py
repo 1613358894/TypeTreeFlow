@@ -25,6 +25,7 @@ from typetreeflow.evidence.manual_review import (
     MANUAL_REVIEW_STATUSES,
 )
 from typetreeflow.external_genomes import (
+    EXTERNAL_GENOME_FIELDS,
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     calculate_sha256,
 )
@@ -6109,6 +6110,113 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     ]
     assert rendered_payload["recognized"]["command"] == "register-external-genomes"
     assert rendered_payload["recognized"]["mode"] == "external_genome_registration"
+
+
+def test_coverage_pipeline_status_preserves_external_genomes_repair_queue(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+
+    external_input = tmp_path / "external_genomes.tsv"
+    _write_tsv(
+        external_input,
+        EXTERNAL_GENOME_FIELDS,
+        [
+            {
+                "species": "Clostridium missingum",
+                "strain": "DSM X",
+                "type_strain_id": "DSM X",
+                "external_source": "dsmz",
+                "external_source_name": "DSMZ",
+                "external_genome_id": "DSM-X",
+                "external_source_url": "",
+                "genome_fasta_path": "missing.fna",
+                "sha256": "",
+                "is_type_material": "true",
+                "requires_manual_review": "false",
+                "status": "external_genome_registered",
+                "notes": (
+                    "provider_status=planning_only; "
+                    "provider_automation_level=planning_handoff"
+                ),
+            }
+        ],
+    )
+    install_dir = tmp_path / "blocked_install_plan"
+    assert (
+        cli.main(
+            [
+                "external-genomes",
+                "install-plan",
+                "--input",
+                str(external_input),
+                "--target-outdir",
+                str(tmp_path / "future_run"),
+                "--write",
+                "--outdir",
+                str(install_dir),
+                "--json",
+            ]
+        )
+        == 2
+    )
+    install_payload = json.loads(capsys.readouterr().out)
+    assert install_payload["external_genomes_repair_queue"]["item_count"] == 1
+
+    code, status_payload, status_captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--external-genomes-install-plan-dir",
+            str(install_dir),
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert status_captured.out.count("\n") == 1
+    stage = status_payload["operator_chain_stages"][6]
+    assert stage["stage"] == "external_genomes_install_plan"
+    assert stage["available"] is False
+    queue = stage["summary_external_genomes_repair_queue"]
+    assert queue["schema_version"] == "external_genomes_repair_queue.v1"
+    assert queue["item_count"] == 1
+    assert queue["items"][0]["status"] == "external_genome_missing_file"
+    assert queue["items"][0]["missing_or_blocked_inputs"] == [
+        "existing_local_fasta_file"
+    ]
+    assert queue["downloads_triggered"] == 0
+    assert queue["providers_contacted"] == 0
+    assert queue["manifest_mutated"] is False
+    assert queue["strict_scientific_deliverable"] is False
+    assert status_payload["downloads_triggered"] == 0
+    assert status_payload["providers_contacted"] == 0
+    assert status_payload["manifest_mutated"] is False
 
 
 def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
