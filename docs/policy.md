@@ -486,6 +486,10 @@ optional `external_genomes_install_plan/`, and optional
 must not scan workflow outputs, rerun planning, contact providers, trigger
 downloads, register external genomes, copy FASTA files, or change any
 scientific status.
+The generated `archive_candidates/manual_review.tsv` may be packaged only while
+it remains an incomplete next-input template. Completed raw review TSVs are not
+package artifacts; use the `manual_review_import/` audit triplet for shareable
+decision review.
 Coverage-pipeline status, report-only, and package-results may also read an
 explicitly supplied `--archive-candidates-dir`. This is passive public-archive
 audit visibility only; it does not query ENA, DDBJ, GenBank, RefSeq, or other

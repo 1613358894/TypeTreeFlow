@@ -1299,6 +1299,11 @@ copy and artifact-scope contracts as the individual directory options. This is
 a convenience handoff only; it does not scan workflow outputs, rerun the
 pipeline, query archives, contact providers, trigger downloads, register
 external genomes, or change scientific status.
+If `archive_candidates/manual_review.tsv` is still the generated incomplete
+template, the package keeps it as a next-input handoff. Once reviewers or AI
+curators complete that TSV, use `manual-review import --write` and package the
+sanitized `manual_review_import/` triplet instead of distributing the raw review
+input.
 With an explicit `--server-validation-result`, `--include reports` and
 `--include all` copy a valid
 `coverage_handoff_server_validation_result.v1` JSON under

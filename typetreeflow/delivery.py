@@ -47,6 +47,7 @@ from typetreeflow.report.summary import (
     summarize_sequence_source_audit,
     summarize_type_confirmation_counts,
 )
+from typetreeflow.evidence.manual_review import MANUAL_REVIEW_FIELDS
 from typetreeflow.rrna.artifacts import read_artifact_scope, write_artifact_scope
 from typetreeflow.selection.evidence import (
     LIKELY_TYPE_MATERIAL_COUNT,
@@ -1800,7 +1801,42 @@ def _copy_archive_candidates_outputs(
         )
         copied.append(copied_path)
         copied_archive.append(copied_path)
+    manual_review_template = input_dir / "manual_review.tsv"
+    if _is_archive_candidates_manual_review_template(manual_review_template):
+        copied_path = _copy_required(
+            manual_review_template,
+            delivery_dir / "archive_candidates" / "manual_review.tsv",
+        )
+        copied.append(copied_path)
+        copied_archive.append(copied_path)
     return copied_archive
+
+
+def _is_archive_candidates_manual_review_template(path: Path) -> bool:
+    if not path.is_file() or path.is_symlink():
+        return False
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            if tuple(reader.fieldnames or ()) != MANUAL_REVIEW_FIELDS:
+                return False
+            for row in reader:
+                if not str(row.get("decision_notes", "")).startswith(
+                    "archive_candidates_manual_review_template;"
+                ):
+                    return False
+                for field in (
+                    "review_status",
+                    "reviewer_id",
+                    "review_date",
+                    "conflict_resolution",
+                    "second_reviewer_id",
+                ):
+                    if str(row.get(field, "")).strip():
+                        return False
+    except (OSError, UnicodeError, csv.Error):
+        return False
+    return True
 
 
 def _copy_offline_readiness_outputs(
@@ -2790,6 +2826,13 @@ def _archive_candidates_artifact_scope_rows(
             104,
             diagnostic_count,
         ),
+        (
+            "archive_candidates/manual_review.tsv",
+            "archive_candidates_manual_review_template",
+            "Public archive manual-review input template",
+            105,
+            0,
+        ),
     )
     rows: list[dict[str, str]] = []
     for artifact_path, artifact_kind, label, priority, count in specifications:
@@ -2805,10 +2848,18 @@ def _archive_candidates_artifact_scope_rows(
                 "evidence_policy": "archive_candidates_audit",
                 "record_count": str(record_count),
                 "strict_usable_count": "0",
-                "candidate_count": str(candidate_count if path.suffix == ".tsv" else 0),
+                "candidate_count": str(
+                    candidate_count
+                    if artifact_kind == "archive_candidates_rows"
+                    else 0
+                ),
                 "excluded_mismatch_count": "0",
                 "artifact_label": label,
-                "recommended_use": "public archive linkage review",
+                "recommended_use": (
+                    "manual review input preparation"
+                    if artifact_kind == "archive_candidates_manual_review_template"
+                    else "public archive linkage review"
+                ),
                 "not_for": (
                     "archive querying, downloads, external genome registration, "
                     "or strict deliverable gating"

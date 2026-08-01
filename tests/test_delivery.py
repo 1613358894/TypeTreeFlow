@@ -17,6 +17,7 @@ from typetreeflow.evidence.manual_review_import import (
     MANUAL_REVIEW_DECISION_FIELDS,
     MANUAL_REVIEW_DIAGNOSTIC_FIELDS,
 )
+from typetreeflow.evidence.manual_review import MANUAL_REVIEW_FIELDS
 from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
@@ -69,6 +70,37 @@ def _write_manual_review_import_triplet(directory):
     )
     (directory / "manual_review_diagnostics.tsv").write_text(
         "\t".join(MANUAL_REVIEW_DIAGNOSTIC_FIELDS) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_archive_candidates_manual_review_template(directory):
+    (directory / "manual_review.tsv").write_text(
+        "\t".join(MANUAL_REVIEW_FIELDS)
+        + "\n"
+        + "\t".join(
+            [
+                "Clostridium example",
+                "GCF_000001",
+                "",
+                "",
+                "",
+                (
+                    "Template only: review whether the selected public archive "
+                    "accession has a direct auditable link to the species "
+                    "type-strain equivalence set before any strict use."
+                ),
+                "archive_source:refseq;assembly:GCF_000001",
+                "",
+                "",
+                (
+                    "archive_candidates_manual_review_template; "
+                    "not_a_review_decision; strict_upgrade_applied=false; "
+                    "strict_scientific_deliverable=false"
+                ),
+            ]
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -1864,6 +1896,9 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
         pipeline_dir / "external_genomes_install_plan"
     )
     _write_archive_candidates_triplet(pipeline_dir / "archive_candidates")
+    _write_archive_candidates_manual_review_template(
+        pipeline_dir / "archive_candidates"
+    )
     _write_manual_review_import_triplet(pipeline_dir / "manual_review_import")
     _write_strict_gating_triplet(pipeline_dir / "strict_gating")
 
@@ -1895,6 +1930,7 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
         "archive_candidates/archive_candidates.tsv",
         "archive_candidates/archive_candidates_summary.json",
         "archive_candidates/archive_candidates_diagnostics.tsv",
+        "archive_candidates/manual_review.tsv",
         "manual_review/manual_review_decisions.tsv",
         "manual_review/manual_review_summary.json",
         "manual_review/manual_review_diagnostics.tsv",
@@ -1924,7 +1960,7 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
         "provider_handoff/": 2,
         "provider_request/": 2,
         "external_genomes_install_plan/": 3,
-        "archive_candidates/": 3,
+        "archive_candidates/": 4,
         "manual_review/": 3,
         "strict_gating/": 3,
     }
@@ -1965,7 +2001,10 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
     } == {"false"}
     assert {
         row["recommended_use"] for row in grouped["archive_candidates/"]
-    } == {"public archive linkage review"}
+    } == {
+        "manual review input preparation",
+        "public archive linkage review",
+    }
     package_text = (
         (result.delivery_dir / "README.md").read_text(encoding="utf-8")
         + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
@@ -1983,6 +2022,34 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
     assert "private message" not in package_text
     assert "private notes" not in package_text
     assert "private archive note" not in package_text
+
+
+def test_package_results_omits_completed_archive_manual_review_tsv(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    archive_dir = tmp_path / "archive_candidates"
+    _write_archive_candidates_triplet(archive_dir)
+    _write_archive_candidates_manual_review_template(archive_dir)
+    manual_review_path = archive_dir / "manual_review.tsv"
+    rows = list(csv.DictReader(manual_review_path.open(encoding="utf-8"), delimiter="\t"))
+    rows[0]["review_status"] = "curated_strict_confirmed"
+    rows[0]["reviewer_id"] = "reviewer-a"
+    with manual_review_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=MANUAL_REVIEW_FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        archive_candidates_dir=archive_dir,
+    )
+
+    assert not (result.delivery_dir / "archive_candidates" / "manual_review.tsv").exists()
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert "archive_candidates/manual_review.tsv" not in {
+        row["artifact_path"] for row in scope_rows
+    }
 
 
 def test_package_results_explicit_external_genomes_install_plan_dir_copies_triplet(
