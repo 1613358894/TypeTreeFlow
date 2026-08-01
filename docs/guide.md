@@ -1125,6 +1125,22 @@ not enable strict gating or package tiering.
 Real external actions require explicit gates. A bounded real smoke should keep
 scope small and auditable.
 
+Before running a real NCBI download smoke, prepare an isolated input package
+from an existing dry-run download plan:
+
+```bash
+typetreeflow download-smoke prepare \
+  --download-plan <run>/cache/ncbi/download_plan.tsv \
+  --limit 3 \
+  --write \
+  --outdir <workspace>/handoffs/bounded_download_smoke
+```
+
+The command copies only `status=planned` rows into
+`bounded_download_smoke_plan.tsv` and writes
+`bounded_download_smoke_summary.json`. It does not run `datasets`, access the
+network, contact providers, mutate a manifest, or authorize broad downloads.
+
 ```bash
 typetreeflow verify-genus Fusobacterium \
   --outdir <workspace>/runs/fusobacterium_limit4_real \

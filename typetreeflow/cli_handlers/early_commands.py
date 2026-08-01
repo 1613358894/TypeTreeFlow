@@ -11,6 +11,7 @@ EARLY_COMMAND_DISPATCH_ORDER: tuple[str, ...] = (
     "coverage-pipeline",
     "acquisition-worklist",
     "count-crosswalk",
+    "download-smoke",
     "archive-candidates",
     "coverage-plan",
     "provider-handoff",
@@ -51,6 +52,10 @@ def _early_command_dispatchers() -> tuple[tuple[str, Predicate, Runner], ...]:
     from typetreeflow.count_crosswalk_cli import (
         is_count_crosswalk_command,
         run_count_crosswalk_command,
+    )
+    from typetreeflow.download_smoke_cli import (
+        is_download_smoke_command,
+        run_download_smoke_command,
     )
     from typetreeflow.coverage_pipeline_cli import (
         is_coverage_pipeline_command,
@@ -110,6 +115,7 @@ def _early_command_dispatchers() -> tuple[tuple[str, Predicate, Runner], ...]:
             run_acquisition_worklist_command,
         ),
         ("count-crosswalk", is_count_crosswalk_command, run_count_crosswalk_command),
+        ("download-smoke", is_download_smoke_command, run_download_smoke_command),
         (
             "archive-candidates",
             is_archive_candidates_command,
