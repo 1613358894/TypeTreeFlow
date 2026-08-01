@@ -2475,6 +2475,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
                 "local JSON file containing a request or recommended_request packet"
             ),
         },
+        {
+            "name": "--request-field",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "top-level JSON object field to render from the request input",
+        },
     ],
     ("commands", "plan"): [
         {
@@ -2492,6 +2499,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": (
                 "local JSON file containing a request or recommended_request packet"
             ),
+        },
+        {
+            "name": "--request-field",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "top-level JSON object field to render from the request input",
         },
         {
             "name": "--allow-write",
@@ -2614,6 +2628,7 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
     argv_json: str | None = None
     request_json: str | None = None
     request_file: str | None = None
+    request_field: str = ""
     target_tokens: list[str] = []
     allow_write = False
     allow_workflow_outputs = False
@@ -2680,6 +2695,14 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
             request_file = tokens[index + 1]
             index += 2
             continue
+        if action in {"render", "plan"} and token == "--request-field":
+            if index + 1 >= len(tokens) or not tokens[index + 1].strip():
+                raise ValueError("request field must be a non-empty top-level name")
+            if request_field:
+                raise ValueError("Use only one --request-field value")
+            request_field = tokens[index + 1]
+            index += 2
+            continue
         if token == "--":
             if action in {"render", "plan"}:
                 raise ValueError(
@@ -2718,6 +2741,7 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
             allow_external_tools=allow_external_tools,
             request=request,
             request_source=request_source,
+            request_field=request_field,
         )
     if argv_json is not None:
         try:
@@ -2751,12 +2775,14 @@ def _parsed_command(
     allow_external_tools: bool = False,
     request: dict[str, object] | None = None,
     request_source: str = "",
+    request_field: str = "",
 ) -> dict[str, object]:
     return {
         "action": action,
         "target_argv": target_argv,
         "request": request or {},
         "request_source": request_source,
+        "request_field": request_field,
         "allow_write": allow_write,
         "allow_workflow_outputs": allow_workflow_outputs,
         "allow_real_actions": allow_real_actions,
@@ -2907,7 +2933,8 @@ def _attach_output_contract_summary(payload: dict[str, object]) -> None:
 
 def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
     request = dict(parsed["request"])
-    effective_request = _effective_render_request(request)
+    request_field = str(parsed.get("request_field", ""))
+    effective_request = _effective_render_request(request, request_field)
     target_argv = _render_target_argv(effective_request)
     recognized = recognize_cli_command(target_argv)
     payload = {
@@ -2921,9 +2948,10 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
         "network_access": False,
         "external_tools": False,
         "request_source": str(parsed.get("request_source", "")),
+        "request_field": request_field,
         "request": request,
         "effective_request": effective_request,
-        "request_unwrapped_from": _request_unwrapped_from(request),
+        "request_unwrapped_from": _request_unwrapped_from(request, request_field),
         "target_argv": target_argv,
         "recognized": recognized,
         "output_contracts": _output_contracts_for_recognized(recognized),
@@ -2936,7 +2964,8 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
 
 def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
     request = dict(parsed["request"])
-    effective_request = _effective_render_request(request)
+    request_field = str(parsed.get("request_field", ""))
+    effective_request = _effective_render_request(request, request_field)
     target_argv = _render_target_argv(effective_request)
     preflight = _preflight_payload(
         _parsed_command(
@@ -2967,6 +2996,7 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
         "network_access": False,
         "external_tools": False,
         "request_source": str(parsed.get("request_source", "")),
+        "request_field": request_field,
         "target_risk": target_risk,
         "target_allowances": dict(preflight["allowances"]),
         "target_writes_outputs_declared": bool(
@@ -2984,7 +3014,7 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
         ),
         "request": request,
         "effective_request": effective_request,
-        "request_unwrapped_from": _request_unwrapped_from(request),
+        "request_unwrapped_from": _request_unwrapped_from(request, request_field),
         "target_argv": target_argv,
         "recognized": preflight["recognized"],
         "output_contracts": preflight["output_contracts"],
@@ -2996,7 +3026,17 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
     return payload
 
 
-def _effective_render_request(request: dict[str, object]) -> dict[str, object]:
+def _effective_render_request(
+    request: dict[str, object],
+    request_field: str = "",
+) -> dict[str, object]:
+    if request_field:
+        field_value = request.get(request_field)
+        if isinstance(field_value, dict):
+            return dict(field_value)
+        raise ValueError(
+            f"Request field {request_field!r} must contain a JSON object"
+        )
     if "command" in request:
         return request
     recommended_request = request.get("recommended_request")
@@ -3005,7 +3045,12 @@ def _effective_render_request(request: dict[str, object]) -> dict[str, object]:
     return request
 
 
-def _request_unwrapped_from(request: dict[str, object]) -> str:
+def _request_unwrapped_from(
+    request: dict[str, object],
+    request_field: str = "",
+) -> str:
+    if request_field:
+        return request_field
     if "command" in request:
         return ""
     if isinstance(request.get("recommended_request"), dict):
