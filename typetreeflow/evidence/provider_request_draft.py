@@ -60,6 +60,20 @@ CURATOR_COMPLETION_REQUIRED_FIELDS = (
     "retrieval_date",
     "curator",
 )
+_CURATOR_COMPLETION_TEMPLATE_ACTIONS = {
+    "provider_local_fasta_handoff": (
+        "obtain permitted local type-material FASTA and complete provenance fields"
+    ),
+    "public_archive_linkage_review": (
+        "review public accession linkage to type-strain equivalence before FASTA handoff"
+    ),
+    "type_material_metadata_linkage_review": (
+        "review type-material metadata linkage before direct evidence completion"
+    ),
+    "provider_request_completion": (
+        "complete provider request identifiers, provenance, and local FASTA fields"
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -168,6 +182,9 @@ class ProviderRequestDraft:
             "curator_completion_template_counts": {
                 key: value for key, value in template_counts.items() if value
             },
+            "curator_completion_template_guidance": (
+                _curator_completion_template_guidance(template_counts)
+            ),
             "curator_completion_required_count": len(self.rows),
             "curator_completion_field_counts": field_counts,
             "curator_completion_blocker_counts": blocker_counts,
@@ -291,6 +308,34 @@ def _curator_completion_template(row: ProviderRequestDraftRow) -> str:
     if provider_status in {"planning_only", "metadata_only"}:
         return "provider_request_completion"
     return "provider_request_completion"
+
+
+def _curator_completion_template_guidance(
+    template_counts: Mapping[str, int],
+) -> list[dict[str, object]]:
+    items: list[dict[str, object]] = []
+    for template in CURATOR_COMPLETION_TEMPLATES:
+        count = int(template_counts.get(template, 0))
+        if not count:
+            continue
+        items.append(
+            {
+                "template": template,
+                "record_count": count,
+                "recommended_operator_action": (
+                    _CURATOR_COMPLETION_TEMPLATE_ACTIONS[template]
+                ),
+                "required_fields": list(CURATOR_COMPLETION_REQUIRED_FIELDS),
+                "required_field_count": len(CURATOR_COMPLETION_REQUIRED_FIELDS),
+                "blocker_keys": list(CURATOR_COMPLETION_BLOCKER_KEYS),
+                "audit_only": True,
+                "writes_workflow_outputs": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "strict_scientific_deliverable": False,
+            }
+        )
+    return items
 
 
 def _add_curator_completion_counts(

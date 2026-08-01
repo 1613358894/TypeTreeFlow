@@ -562,6 +562,9 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "curator_completion_template_counts": summary[
             "curator_completion_template_counts"
         ],
+        "curator_completion_template_guidance": summary[
+            "curator_completion_template_guidance"
+        ],
         "curator_completion_required_count": summary[
             "curator_completion_required_count"
         ],
