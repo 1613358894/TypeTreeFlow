@@ -111,6 +111,7 @@ class ProviderHandoffRow:
 @dataclass(frozen=True)
 class ProviderHandoff:
     rows: tuple[ProviderHandoffRow, ...]
+    provider_key_filter: tuple[str, ...] = ()
     schema_version: str = PROVIDER_HANDOFF_SCHEMA_VERSION
 
     @property
@@ -156,6 +157,9 @@ class ProviderHandoff:
             "schema_version": self.schema_version,
             "record_count": len(self.rows),
             "provider_key_counts": dict(sorted(provider_counts.items())),
+            "provider_key_filter": list(self.provider_key_filter),
+            "provider_key_filter_count": len(self.provider_key_filter),
+            "filtered": bool(self.provider_key_filter),
             "provider_status_counts": dict(sorted(status_counts.items())),
             "provider_automation_level_counts": dict(
                 sorted(automation_level_counts.items())
@@ -237,7 +241,10 @@ def build_provider_handoff(
                     provider_guidance_notes=_provider_guidance_notes(entry),
                 )
             )
-    return ProviderHandoff(rows=tuple(sorted(rows, key=_sort_key)))
+    return ProviderHandoff(
+        rows=tuple(sorted(rows, key=_sort_key)),
+        provider_key_filter=selected_provider_keys,
+    )
 
 
 def _provider_key_filter(

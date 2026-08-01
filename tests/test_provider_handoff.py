@@ -112,6 +112,9 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
         "planning_handoff_no_provider_contact": 1,
     }
     assert summary["provider_key_counts"] == {"dsmz": 1, "genbank": 1, "refseq": 1}
+    assert summary["provider_key_filter"] == []
+    assert summary["provider_key_filter_count"] == 0
+    assert summary["filtered"] is False
     assert summary["terms_review_required_count"] == 3
     assert summary["credentials_required_count"] == 0
     assert summary["network_supported_count"] == 0
@@ -176,6 +179,9 @@ def test_build_provider_handoff_can_filter_to_bounded_provider_keys():
 
     assert [row.provider_key for row in handoff.rows] == ["kctc", "refseq"]
     assert handoff.summary["provider_key_counts"] == {"kctc": 1, "refseq": 1}
+    assert handoff.summary["provider_key_filter"] == ["kctc", "refseq"]
+    assert handoff.summary["provider_key_filter_count"] == 2
+    assert handoff.summary["filtered"] is True
     assert handoff.summary["operator_route_counts"] == {
         "provider_handoff": 1,
         "public_metadata_review": 1,
