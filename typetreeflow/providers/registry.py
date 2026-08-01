@@ -174,6 +174,9 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("Helsinki Collection of Microbial Cultures", "hambi"),
     ("KMM", "kmm"),
     ("Collection of Marine Microorganisms", "kmm"),
+    ("GTC", "gtc"),
+    ("Gifu Type Culture Collection", "gtc"),
+    ("PAGU", "pagu"),
     ("BCRC", "bcrc"),
     ("CCRC", "ccrc"),
     ("NCCB", "nccb"),
@@ -227,6 +230,8 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("NCAIM", "ncaim"),
     ("HAMBI", "hambi"),
     ("KMM", "kmm"),
+    ("GTC", "gtc"),
+    ("PAGU", "pagu"),
     ("BCRC", "bcrc"),
     ("CCRC", "ccrc"),
     ("NCCB", "nccb"),
@@ -353,6 +358,16 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "kmm",
             "Collection of Marine Microorganisms",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "gtc",
+            "Gifu Type Culture Collection",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "pagu",
+            "PAGU Culture Collection",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(

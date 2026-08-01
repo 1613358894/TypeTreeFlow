@@ -24,6 +24,7 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "VKM",
     "MCCC",
     "GDMCC",
+    "CCTCC",
     "NBRC",
     "CCUG",
     "CCM",
@@ -31,6 +32,12 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "CGMCC",
     "NCIMB",
     "NCIB",
+    "NRRL",
+    "NCAIM",
+    "HAMBI",
+    "KMM",
+    "GTC",
+    "PAGU",
     "BCRC",
     "CCRC",
     "NCCB",
@@ -77,7 +84,7 @@ _PREFIX_PATTERN = "|".join(
     for prefix in sorted(RECOGNIZED_COLLECTION_PREFIXES, key=len, reverse=True)
 )
 _COLLECTION_NUMBER_PATTERN = (
-    r"(?:[A-Za-z]{1,5}\s*[-:]?\s*)?"
+    r"(?:[A-Za-z]{1,5}\s*[-:.]?\s*)?"
     r"\d+(?:[A-Za-z]\d+)?(?:[.-]\d+)*(?:[A-Za-z])?"
 )
 _COLLECTION_ID_PATTERN = re.compile(

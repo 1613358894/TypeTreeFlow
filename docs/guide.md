@@ -1339,8 +1339,8 @@ metrics.
 The provider registry includes static planning-only entries for ATCC Genome
 Portal and common culture collections including DSMZ, JCM, NCTC, CGMCC, NBRC/NITE,
 KCTC, KACC, VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, BCCM/LMG,
-NCIMB, NCIB, NRRL, NCAIM, HAMBI, KMM, BCRC, CCRC, NCCB, CSUR, CICC, and
-IFO, plus BV-BRC/PATRIC metadata-review
+NCIMB, NCIB, NRRL, NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR,
+CICC, and IFO, plus BV-BRC/PATRIC metadata-review
 and IMG/JGI planning handoff entries. Public archive entries for ENA, DDBJ,
 GenBank, and NCBI RefSeq remain metadata-only. Coverage planning can carry explicit provider hints
 from local rows into provider handoff. `providers catalog` also reports
