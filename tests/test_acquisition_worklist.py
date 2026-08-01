@@ -410,6 +410,7 @@ def test_worklist_expanded_discovery_matched_candidate_surfaces_review_lane():
                 "species": "Clostridium expandum",
                 "candidate_accession": "GCA_123456789.1",
                 "decision": "matched_candidate",
+                "query_database": "European Nucleotide Archive",
             }
         ],
     )
@@ -419,9 +420,13 @@ def test_worklist_expanded_discovery_matched_candidate_surfaces_review_lane():
     assert row.reason_code == "expanded_discovery_matched_candidate_review"
     assert row.selected_accession == ""
     assert row.source_artifacts == "completion_gaps; expanded_discovery_results"
+    assert row.candidate_provider_keys == "ena"
+    assert row.candidate_provider_statuses == "ena=metadata_only"
     assert report.summary["review_signal_counts"][
         "expanded_discovery_candidate_review"
     ] == 1
+    assert report.summary["candidate_provider_key_counts"] == {"ena": 1}
+    assert report.summary["candidate_provider_status_counts"] == {"metadata_only": 1}
     assert report.summary["downloads_triggered"] == 0
     assert report.summary["providers_contacted"] == 0
 
@@ -513,6 +518,7 @@ def test_worklist_manual_supplement_matched_candidate_surfaces_review_lane():
                 "species": "Clostridium hintum",
                 "recommended_action": "review_matched_candidates",
                 "reason": "matched_candidate",
+                "tokens": "Bacterial and Viral Bioinformatics Resource Center",
             }
         ],
     )
@@ -520,6 +526,10 @@ def test_worklist_manual_supplement_matched_candidate_surfaces_review_lane():
     assert report.rows[0].lane == "public_linkage_review"
     assert report.rows[0].reason_code == "expanded_discovery_matched_candidate_review"
     assert report.rows[0].source_artifacts == "manual_supplement_hints"
+    assert report.rows[0].candidate_provider_keys == "bv_brc"
+    assert report.rows[0].candidate_provider_statuses == "bv_brc=metadata_only"
+    assert report.summary["candidate_provider_key_counts"] == {"bv_brc": 1}
+    assert report.summary["candidate_provider_status_counts"] == {"metadata_only": 1}
 
 
 def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
