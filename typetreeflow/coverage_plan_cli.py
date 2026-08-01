@@ -117,17 +117,19 @@ def run_coverage_plan_command(
         payload["output_paths"] = {
             key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
         }
+        recommended_provider_keys = _priority_provider_handoff_keys(plan.summary)
         payload["recommended_request"] = _provider_handoff_recommended_request(
-            str(outdir / OUTPUT_NAMES["actions"])
+            str(outdir / OUTPUT_NAMES["actions"]),
+            provider_keys=recommended_provider_keys,
         )
         payload["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
         payload["recommended_command_plan"] = recommended_command_plan(
             payload["recommended_request"],
             request_source="coverage_plan_summary.recommended_request",
         )
-        payload["recommended_next_command"] = (
-            "typetreeflow provider-handoff build --coverage-plan-tsv "
-            f"{outdir / OUTPUT_NAMES['actions']}"
+        payload["recommended_next_command"] = _provider_handoff_recommended_command(
+            str(outdir / OUTPUT_NAMES["actions"]),
+            provider_keys=recommended_provider_keys,
         )
     _emit(payload, output)
     return 0 if not diagnostics else 2
@@ -250,12 +252,49 @@ def _failure(code: str, message: str) -> dict[str, object]:
     }
 
 
-def _provider_handoff_recommended_request(coverage_plan_tsv: str) -> dict[str, object]:
-    return {
+def _priority_provider_handoff_keys(summary: Mapping[str, object]) -> list[str]:
+    priority_items = summary.get("priority_provider_route_items")
+    if not isinstance(priority_items, list):
+        return []
+    for item in priority_items:
+        if not isinstance(item, Mapping):
+            continue
+        if item.get("route_priority") != "provider_handoff":
+            continue
+        provider_key = str(item.get("provider_key") or "").strip()
+        return [provider_key] if provider_key else []
+    return []
+
+
+def _provider_handoff_recommended_request(
+    coverage_plan_tsv: str,
+    *,
+    provider_keys: Sequence[str] = (),
+) -> dict[str, object]:
+    request: dict[str, object] = {
         "command": "provider-handoff",
         "subcommand": "build",
         "coverage_plan_tsv": coverage_plan_tsv,
     }
+    keys = [key for key in provider_keys if key]
+    if keys:
+        request["provider_keys"] = keys
+    return request
+
+
+def _provider_handoff_recommended_command(
+    coverage_plan_tsv: str,
+    *,
+    provider_keys: Sequence[str] = (),
+) -> str:
+    command = (
+        "typetreeflow provider-handoff build --coverage-plan-tsv "
+        f"{coverage_plan_tsv}"
+    )
+    for provider_key in provider_keys:
+        if provider_key:
+            command += f" --provider-key {provider_key}"
+    return command
 
 
 def _diagnostic(component: str, code: str) -> dict[str, object]:

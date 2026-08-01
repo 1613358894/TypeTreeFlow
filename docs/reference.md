@@ -1680,7 +1680,10 @@ Command metadata reports the target output contract as
 before running the command. When `--write` succeeds, stdout also includes
 `recommended_request`, `recommended_request_target`, and
 `recommended_next_command` for a later local `provider-handoff build` command
-that points to the written `coverage_plan.tsv`. It also includes a
+that points to the written `coverage_plan.tsv`. When the priority route list
+contains a provider-handoff item, that request includes `provider_keys` for the
+first prioritized provider key, so the next handoff is bounded by default
+rather than expanding every provider route at once. It also includes a
 metadata-only `recommended_command_plan` companion for that request, with the
 rendered argv and preflight decision. The adapter does not run that next
 command.

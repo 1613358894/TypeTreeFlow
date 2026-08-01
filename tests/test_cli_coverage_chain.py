@@ -140,6 +140,7 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
         "command": "provider-handoff",
         "subcommand": "build",
         "coverage_plan_tsv": str(coverage_plan_tsv),
+        "provider_keys": ["dsmz"],
     }
     priority_items = plan_payload["priority_provider_route_items"]
     priority_by_provider = {item["provider_key"]: item for item in priority_items}
