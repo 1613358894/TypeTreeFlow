@@ -2982,6 +2982,26 @@ def _write_archive_candidates_output(outdir):
         ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
         [],
     )
+    _write_tsv(
+        outdir / "manual_review.tsv",
+        MANUAL_REVIEW_FIELDS,
+        [
+            {
+                "species": "Clostridium gamma",
+                "selected_accession": "GCA_000003.1",
+                "review_status": "",
+                "reviewer_id": "",
+                "review_date": "",
+                "evidence_summary": (
+                    "Template only: review public archive linkage before strict use."
+                ),
+                "evidence_source_ids": "archive_source:ena;assembly:GCA_000003.1",
+                "conflict_resolution": "",
+                "second_reviewer_id": "",
+                "decision_notes": "not_a_review_decision",
+            }
+        ],
+    )
 
 
 def _manifest_record() -> StrainRecord:
@@ -7303,6 +7323,19 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
         "expanded_discovery_results": 1
     }
     assert archive_stage["summary_expanded_discovery_candidate_count"] == 1
+    assert archive_stage["summary_manual_review_template_available"] is True
+    assert archive_stage["required_inputs"] == [
+        "archive_candidates/manual_review.tsv",
+    ]
+    assert archive_stage["recommended_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "archive_candidates/manual_review.tsv",
+    }
+    assert archive_stage["recommended_next_command"] == (
+        "typetreeflow manual-review validate "
+        "--input archive_candidates/manual_review.tsv"
+    )
     assert payload["selected_operator_chain_stage_name"] == "archive_candidates"
     assert payload["selected_operator_chain_stage_found"] is True
     route_context = payload["selected_operator_chain_stage_route_context"]

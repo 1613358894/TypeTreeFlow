@@ -2462,7 +2462,9 @@ inside the isolated coverage-pipeline directory so later
 `--coverage-pipeline-dir` handoffs can see it without an extra path. If the
 archive audit can render manual-review skeleton rows, the same directory also
 keeps `archive_candidates/manual_review.tsv`; that template is incomplete and
-does not represent a completed review decision.
+does not represent a completed review decision. `status` exposes that template
+as the `archive_candidates` stage `required_inputs` and recommends
+`manual-review validate --input archive_candidates/manual_review.tsv`.
 `status` reads only the explicitly supplied isolated coverage-pipeline summary,
 conventional downstream child directories under that same explicit pipeline
 directory, and optional downstream directory overrides. When
