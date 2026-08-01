@@ -980,6 +980,28 @@ def test_worklist_surfaces_unrouted_type_strain_prefixes_as_audit_counts():
     ]
 
 
+def test_worklist_unrouted_prefix_audit_ignores_plain_strain_codes():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium noisytokensum",
+                "type_strain_names": "A1-XYC3; N1-4; SG 508; not validly published; VPI T7",
+            }
+        ],
+    )
+
+    assert report.summary["unrouted_type_strain_token_counts"] == {"VPI": 1}
+    assert report.summary["unrouted_type_strain_token_examples"] == [
+        {
+            "prefix": "VPI",
+            "count": 1,
+            "species_preview": ["Clostridium noisytokensum"],
+            "token_preview": ["VPI T7"],
+            "truncated": False,
+        }
+    ]
+
+
 def test_worklist_type_strain_evidence_tokens_route_to_provider_handoff():
     report = build_acquisition_worklist(
         checklist_rows=[
