@@ -857,9 +857,11 @@ draft input for local `provider-request validate`; the optional
 local `external-genomes validate`; the optional
 `external_genomes_install_plan/` member is only an installation path planning
 audit; the optional `archive_candidates/` member is only public-archive
-linkage review. Report/package inclusion only surfaces review availability and
-remains separate from archive queries, provider contact, downloads, FASTA
-copying, registration, or completion credit.
+linkage review and preserves its coverage-priority route counts for public
+archive, type-material metadata, provider-handoff, and credential-gated triage.
+Report/package inclusion only surfaces review availability and remains separate
+from archive queries, provider contact, downloads, FASTA copying, registration,
+or completion credit.
 
 Build a denominator-preserving crosswalk for already known counts with:
 

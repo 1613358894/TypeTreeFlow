@@ -2458,9 +2458,11 @@ directory, and optional downstream directory overrides. When
 `archive_candidates` operator-chain stage from the existing
 `archive_candidates.tsv`, `archive_candidates_summary.json`, and
 `archive_candidates_diagnostics.tsv` triplet. The stage carries bounded counts
-only, including archive source, accession kind, and review input class counts;
-it does not query public archives, download genomes, create
-`external_genomes.tsv`, or change strict evidence. It then re-emits
+only, including archive source, coverage-priority route, accession kind, and
+review input class counts; it also preserves the bounded
+`coverage_priority_route_summary` from the child summary. It does not query
+public archives, download genomes, create `external_genomes.tsv`, or change
+strict evidence. It then re-emits
 `operator_chain_stages`, the current unavailable stage, the compact
 `recommended_request_target`, and the recommended next command as compact JSON.
 It also preserves top-level provider automation counts from

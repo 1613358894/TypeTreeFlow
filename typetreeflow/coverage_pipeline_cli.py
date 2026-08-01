@@ -717,6 +717,8 @@ def _run_status(
             "diagnostic_count",
             "status_counts",
             "archive_source_counts",
+            "coverage_priority_route_counts",
+            "coverage_priority_route_summary",
             "accession_kind_counts",
             "review_input_class_counts",
             "source_input_kind_counts",
