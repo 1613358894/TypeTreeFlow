@@ -58,6 +58,22 @@ def build_download_plan_readiness_summary(path: str | Path) -> dict[str, Any]:
         + summary["other_plan_status_count"]
         + malformed_row_count
     )
+    summary["bounded_ncbi_download_smoke_candidate_count"] = summary[
+        "download_ready_ncbi_count"
+    ]
+    summary["bounded_ncbi_download_smoke_ready"] = (
+        summary["bounded_ncbi_download_smoke_candidate_count"] > 0
+        and malformed_row_count == 0
+    )
+    summary["bounded_ncbi_download_smoke_scope"] = (
+        "planned_ncbi_rows_only"
+        if summary["bounded_ncbi_download_smoke_ready"]
+        else "none"
+    )
+    summary["bounded_ncbi_download_smoke_blockers"] = _bounded_smoke_blockers(
+        summary
+    )
+    summary["whole_plan_requires_review"] = summary["review_or_handoff_count"] > 0
     return summary
 
 
@@ -90,6 +106,13 @@ def _empty_summary(path: str, *, available: bool) -> dict[str, Any]:
         "other_plan_status_count": 0,
         "malformed_row_count": 0,
         "review_or_handoff_count": 0,
+        "bounded_ncbi_download_smoke_candidate_count": 0,
+        "bounded_ncbi_download_smoke_ready": False,
+        "bounded_ncbi_download_smoke_scope": "none",
+        "bounded_ncbi_download_smoke_blockers": (
+            [] if available else ["download_plan_missing"]
+        ),
+        "whole_plan_requires_review": False,
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -98,3 +121,12 @@ def _empty_summary(path: str, *, available: bool) -> dict[str, Any]:
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
     }
+
+
+def _bounded_smoke_blockers(summary: dict[str, Any]) -> list[str]:
+    blockers: list[str] = []
+    if summary["download_ready_ncbi_count"] <= 0:
+        blockers.append("no_planned_ncbi_download_rows")
+    if summary["malformed_row_count"] > 0:
+        blockers.append("malformed_download_plan_rows")
+    return blockers

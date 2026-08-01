@@ -195,9 +195,48 @@ def test_download_plan_readiness_summary_counts_acquisition_routes(tmp_path):
     assert summary["missing_accession_count"] == 1
     assert summary["external_registered_count"] == 1
     assert summary["review_or_handoff_count"] == 2
+    assert summary["bounded_ncbi_download_smoke_candidate_count"] == 1
+    assert summary["bounded_ncbi_download_smoke_ready"] is True
+    assert summary["bounded_ncbi_download_smoke_scope"] == "planned_ncbi_rows_only"
+    assert summary["bounded_ncbi_download_smoke_blockers"] == []
+    assert summary["whole_plan_requires_review"] is True
+    assert summary["safe_for_unattended_download"] is False
     assert summary["downloads_triggered"] == 0
     assert summary["providers_contacted"] == 0
     assert summary["manifest_mutated"] is False
+
+
+def test_download_plan_readiness_blocks_bounded_smoke_without_planned_rows(tmp_path):
+    missing = _record("missing-1", "missing_one", accession="")
+    plan = build_genome_download_plan([missing], tmp_path)
+    plan_path = tmp_path / "cache" / "ncbi" / "download_plan.tsv"
+    write_download_plan(plan, plan_path)
+
+    summary = build_download_plan_readiness_summary(plan_path)
+
+    assert summary["download_ready_ncbi_count"] == 0
+    assert summary["bounded_ncbi_download_smoke_candidate_count"] == 0
+    assert summary["bounded_ncbi_download_smoke_ready"] is False
+    assert summary["bounded_ncbi_download_smoke_scope"] == "none"
+    assert summary["bounded_ncbi_download_smoke_blockers"] == [
+        "no_planned_ncbi_download_rows"
+    ]
+    assert summary["whole_plan_requires_review"] is True
+    assert summary["safe_for_unattended_download"] is False
+
+
+def test_download_plan_readiness_missing_plan_has_bounded_smoke_blocker(tmp_path):
+    summary = build_download_plan_readiness_summary(
+        tmp_path / "cache" / "ncbi" / "download_plan.tsv"
+    )
+
+    assert summary["available"] is False
+    assert summary["bounded_ncbi_download_smoke_candidate_count"] == 0
+    assert summary["bounded_ncbi_download_smoke_ready"] is False
+    assert summary["bounded_ncbi_download_smoke_scope"] == "none"
+    assert summary["bounded_ncbi_download_smoke_blockers"] == ["download_plan_missing"]
+    assert summary["whole_plan_requires_review"] is False
+    assert summary["safe_for_unattended_download"] is False
 
 
 def test_manifest_status_updates_to_genome_download_planned(tmp_path):
