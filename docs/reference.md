@@ -710,7 +710,8 @@ that include AI/operator handoff packets. Some contracts also list
 example `acquisition_worklist_packet.v1` lists record, lane, review-signal,
 candidate provider-key counts, output paths, and recommended coverage-plan
 request metadata, while `coverage_plan_packet.v1` lists provider route count
-fields such as `operator_route_counts` and `provider_route_groups`.
+fields such as `operator_route_counts`, `provider_route_groups`, and
+`priority_provider_route_items`.
 Provider-handoff, provider-request, and
 external-genomes readiness contracts use the same pattern for route counts,
 readiness counts, required inputs, and recommended next requests when those
