@@ -6419,6 +6419,10 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     )
     assert status_payload["external_genomes_registration_manifest_record_count"] == 0
     assert (
+        status_payload["external_genomes_registration_external_manifest_record_count"]
+        == 0
+    )
+    assert (
         status_payload["external_genomes_registration_install_succeeded_count"] == 0
     )
     assert status_payload["operator_chain_stages"][4]["summary_ready_count"] == 1
@@ -7253,6 +7257,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["external_genomes_registration_realized"] is True
     assert payload["external_genomes_registration_manifest_available"] is True
     assert payload["external_genomes_registration_manifest_record_count"] == 1
+    assert payload["external_genomes_registration_external_manifest_record_count"] == 1
     assert payload["external_genomes_registration_install_succeeded_count"] == 1
     assert payload["available_stage_names"] == [
         "acquisition_worklist",
@@ -7378,6 +7383,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     }
     assert registration_stage["summary_manifest_available"] is True
     assert registration_stage["summary_manifest_record_count"] == 1
+    assert registration_stage["summary_external_registered_manifest_record_count"] == 1
     _assert_handoff_next_step_packet(
         payload,
         available=False,
@@ -7572,6 +7578,128 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     ] == {
         "planning_handoff_no_provider_contact": 1
     }
+
+
+def test_coverage_pipeline_status_does_not_realize_plain_manifest_records(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    code, _payload, _captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+
+    registration_dir = tmp_path / "registration_with_plain_manifest"
+    registration_dir.mkdir()
+    _write_tsv(
+        registration_dir / "external_genome_install_plan.tsv",
+        ("species", "planned_path"),
+        [{"species": "Clostridium alpha", "planned_path": "genomes/a.fna"}],
+    )
+    _write_tsv(
+        registration_dir / "external_genome_registration_results.tsv",
+        EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
+        [
+            {
+                "species": "Clostridium alpha",
+                "strain": "DSM 1",
+                "type_strain_id": "DSM 1",
+                "external_source": "dsmz",
+                "external_genome_id": "DSM-1",
+                "genome_fasta_path": "local/provider/DSM-1.fna",
+                "sha256": "0" * 64,
+                "computed_sha256": "0" * 64,
+                "status": "external_genome_registered",
+                "valid": "true",
+                "message": "registered",
+                "notes": "operator_route=provider_handoff",
+            }
+        ],
+    )
+    _write_tsv(
+        registration_dir / "external_genome_install_results.tsv",
+        EXTERNAL_GENOME_INSTALL_RESULT_FIELDS,
+        [
+            {
+                "species": "Clostridium alpha",
+                "strain": "DSM 1",
+                "type_strain_id": "DSM 1",
+                "external_source": "dsmz",
+                "external_source_name": "DSMZ",
+                "external_genome_id": "DSM-1",
+                "external_source_url": "https://example.org/dsmz/1",
+                "source_genome_fasta_path": "local/provider/DSM-1.fna",
+                "installed_genome_path": "genomes/references/dsm-1.fna",
+                "sha256": "0" * 64,
+                "is_type_material": "true",
+                "status": "external_genome_install_succeeded",
+                "notes": "registered local FASTA",
+            }
+        ],
+    )
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="ncbi-dsm-1",
+                canonical_name="Clostridium alpha",
+                display_name="Clostridium alpha DSM 1",
+                genus="Clostridium",
+                species="alpha",
+                strain="DSM 1",
+                assembly_accession="GCF_000001",
+                assembly_source="NCBI",
+                is_type_material=True,
+                has_genome=True,
+                genome_path="genomes/references/GCF_000001.fna",
+                normalized_id="ncbi-dsm-1",
+                source="ncbi",
+                status="downloaded",
+            )
+        ],
+        registration_dir / "manifest.tsv",
+    )
+
+    code, payload, captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--registration-run-dir",
+            str(registration_dir),
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["external_genomes_registration_realized"] is False
+    assert payload["external_genomes_registration_manifest_available"] is True
+    assert payload["external_genomes_registration_manifest_record_count"] == 1
+    assert payload["external_genomes_registration_external_manifest_record_count"] == 0
+    assert payload["external_genomes_registration_install_succeeded_count"] == 1
+    registration_stage = {
+        stage["stage"]: stage for stage in payload["operator_chain_stages"]
+    }["external_genomes_registration_dry_run"]
+    assert registration_stage["summary_manifest_record_count"] == 1
+    assert registration_stage["summary_external_registered_manifest_record_count"] == 0
 
 
 def test_coverage_pipeline_status_preserves_blocked_validation_stage_details(

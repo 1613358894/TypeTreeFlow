@@ -1431,25 +1431,40 @@ def _external_registration_realization_summary(
     stage = _find_stage(list(stages), "external_genomes_registration_dry_run")
     manifest_available = False
     manifest_record_count = 0
+    external_manifest_record_count = 0
     install_succeeded_count = 0
     if stage is not None:
         manifest_available = bool(stage.get("summary_manifest_available", False))
         manifest_record_count = _safe_int(
             stage.get("summary_manifest_record_count", 0)
         )
+        external_manifest_record_count = _safe_int(
+            stage.get("summary_external_registered_manifest_record_count", 0)
+        )
         install_succeeded_count = _safe_int(
             stage.get("summary_install_succeeded_count", 0)
         )
     return {
         "external_genomes_registration_realized": (
-            manifest_available and manifest_record_count > 0
+            manifest_available and external_manifest_record_count > 0
         ),
         "external_genomes_registration_manifest_available": manifest_available,
         "external_genomes_registration_manifest_record_count": manifest_record_count,
+        "external_genomes_registration_external_manifest_record_count": (
+            external_manifest_record_count
+        ),
         "external_genomes_registration_install_succeeded_count": (
             install_succeeded_count
         ),
     }
+
+
+def _is_external_registered_manifest_record(record) -> bool:
+    return (
+        str(getattr(record, "source", "")).strip() == "external_registered_genome"
+        or str(getattr(record, "assembly_source", "")).strip()
+        == "external_registered_genome"
+    )
 
 
 def _operator_chain_next_step_packet(
@@ -2737,6 +2752,11 @@ def _apply_registration_dry_run_stage_details(
         return
     stage["summary_manifest_available"] = True
     stage["summary_manifest_record_count"] = len(manifest_records)
+    stage["summary_external_registered_manifest_record_count"] = sum(
+        1
+        for record in manifest_records
+        if _is_external_registered_manifest_record(record)
+    )
 
 
 def _find_stage(
