@@ -110,6 +110,7 @@ class CountCrosswalkReport:
     @property
     def summary(self) -> dict[str, object]:
         by_metric = {metric.metric: metric.value for metric in self.metrics}
+        action_summary = _clostridium_opportunity_action_summary(by_metric, self.valid)
         return {
             "schema_version": COUNT_CROSSWALK_SCHEMA_VERSION,
             "metric_count": len(self.metrics),
@@ -125,10 +126,15 @@ class CountCrosswalkReport:
             ),
             "manual_review_rows": by_metric.get("manual_review_rows"),
             "downloads": by_metric.get("downloads"),
+            "clostridium_opportunity_action_summary": action_summary,
             "metric_families": sorted(
                 {metric.metric_family for metric in self.metrics}
             ),
             "audit_only": True,
+            "strict_scientific_deliverable": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
         }
 
     def metrics_tsv(self) -> str:
@@ -406,6 +412,122 @@ def _validate_invariants(
                     "candidate + conflict must equal manual_review_rows",
                 )
             )
+
+
+def _clostridium_opportunity_action_summary(
+    by_metric: Mapping[str, int],
+    valid: bool,
+) -> dict[str, object]:
+    required = ("candidate_rows", "conflict_rows", "gap_rows", "strict_rows")
+    if not valid or any(metric not in by_metric for metric in required):
+        return {
+            "schema_version": "clostridium_opportunity_action_summary.v1",
+            "available": False,
+            "reason": "valid_clostridium_partition_required",
+            "action_group_count": 0,
+            "action_groups": [],
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "safe_for_unattended_download": False,
+        }
+
+    groups = [
+        _action_group(
+            priority=10,
+            action_code="resolve_curator_conflicts",
+            source_metric="conflict_rows",
+            record_count=by_metric["conflict_rows"],
+            next_input_class="manual_review.tsv",
+            recommended_next_command="manual-review validate --input <review.tsv>",
+            automation_boundary="manual_conflict_resolution_required",
+            interpretation=(
+                "conflict rows block strict use until reviewed evidence resolves "
+                "the species/accession/type-strain linkage"
+            ),
+        ),
+        _action_group(
+            priority=20,
+            action_code="review_candidate_type_linkage",
+            source_metric="candidate_rows",
+            record_count=by_metric["candidate_rows"],
+            next_input_class="manual_review.tsv",
+            recommended_next_command="manual-review validate --input <review.tsv>",
+            automation_boundary="public_metadata_review_only_no_download",
+            interpretation=(
+                "candidate rows need direct accession-to-type-strain evidence "
+                "review before any strict-gating evaluation"
+            ),
+        ),
+        _action_group(
+            priority=40,
+            action_code="prepare_gap_handoff_or_external_registration",
+            source_metric="gap_rows",
+            record_count=by_metric["gap_rows"],
+            next_input_class="provider_request.tsv or external_genomes.tsv",
+            recommended_next_command=(
+                "acquisition-worklist build --reconciler-audit-tsv "
+                "<reconciler_audit.tsv> --completion-gaps-tsv <completion_gaps.tsv>"
+            ),
+            automation_boundary="provider_handoff_or_local_fasta_required",
+            interpretation=(
+                "gap rows need permitted external FASTA provenance or a "
+                "provider-handoff request; they are not download failures"
+            ),
+        ),
+        _action_group(
+            priority=90,
+            action_code="retain_strict_audit_records",
+            source_metric="strict_rows",
+            record_count=by_metric["strict_rows"],
+            next_input_class="none",
+            recommended_next_command="",
+            automation_boundary="no_acquisition_action_required",
+            interpretation="strict rows already passed the frozen audit partition",
+        ),
+    ]
+    active_groups = [group for group in groups if group["record_count"]]
+    return {
+        "schema_version": "clostridium_opportunity_action_summary.v1",
+        "available": True,
+        "reason": "",
+        "action_group_count": len(active_groups),
+        "action_groups": active_groups,
+        "audit_only": True,
+        "strict_scientific_deliverable": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "safe_for_unattended_download": False,
+    }
+
+
+def _action_group(
+    *,
+    priority: int,
+    action_code: str,
+    source_metric: str,
+    record_count: int,
+    next_input_class: str,
+    recommended_next_command: str,
+    automation_boundary: str,
+    interpretation: str,
+) -> dict[str, object]:
+    return {
+        "priority": priority,
+        "action_code": action_code,
+        "source_metric": source_metric,
+        "record_count": record_count,
+        "next_input_class": next_input_class,
+        "recommended_next_command": recommended_next_command,
+        "automation_boundary": automation_boundary,
+        "interpretation": interpretation,
+        "safe_for_unattended_download": False,
+        "audit_only": True,
+        "strict_scientific_deliverable": False,
+    }
 
 
 def _write_tsv(fields: tuple[str, ...], rows: Iterable[Mapping[str, object]]) -> str:
