@@ -698,8 +698,10 @@ typetreeflow commands recognize --argv-json '["verify-genus","Fusobacterium","--
 typetreeflow commands recognize -- doctor --json
 typetreeflow commands render --request-json '{"command":"status","outdir":"run"}'
 typetreeflow commands render --request-file <saved-summary-or-packet.json>
+typetreeflow commands render --request-file <summary.json> --request-field install_plan_recommended_request
 typetreeflow commands plan --request-json '{"command":"status","outdir":"run"}'
 typetreeflow commands plan --request-file <saved-summary-or-packet.json>
+typetreeflow commands plan --request-file <summary.json> --request-field result_validation_recommended_request
 typetreeflow commands preflight --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
 typetreeflow providers catalog [--json]
 typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--json]
@@ -792,17 +794,23 @@ The request must be a JSON object. `--request-file` reads a local saved summary
 or handoff packet and is intended for file-based AI controllers that should not
 copy a `recommended_request` through shell quoting. It accepts a conservative,
 command-specific request such as `{"command":"status","outdir":"run"}` and
-returns normalized `target_argv` plus `recognized` metadata. Unsupported
-commands, missing required fields, unknown request fields, unreadable request
-files, non-object JSON, or wrong value types fail with exit code `2`. Rendering
-is a string-planning step only; the returned argv must still be checked with
-`commands preflight` before any executor considers running it.
+returns normalized `target_argv` plus `recognized` metadata. Optional
+`--request-field <field>` selects one top-level JSON object field from the input
+before rendering, for saved summaries that expose additional requests such as
+`install_plan_recommended_request` or
+`result_validation_recommended_request`. Unsupported commands, missing required
+fields, unknown request fields, unreadable request files, missing selected
+request fields, non-object JSON, or wrong value types fail with exit code `2`.
+Rendering is a string-planning step only; the returned argv must still be
+checked with `commands preflight` before any executor considers running it.
 For AI/operator handoffs, `commands render` and `commands plan` also accept a
 metadata packet whose top-level `recommended_request` is a structured command
 request, including saved summary files and `coverage_next_task_packet`. The
 original packet remains in `request`, the unwrapped command request appears in
 `effective_request`, `request_unwrapped_from` is `recommended_request`, and
-`request_source` records `request_json` or the supplied request-file path.
+`request_source` records `request_json` or the supplied request-file path. When
+`--request-field` is used, `request_field` and `request_unwrapped_from` both
+record the selected top-level field name.
 Packets without a structured `recommended_request` still fail closed as invalid
 requests.
 For coverage planning requests, structured fields

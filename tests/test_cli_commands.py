@@ -565,6 +565,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert {
         "--request-json",
         "--request-file",
+        "--request-field",
         "--allow-write",
         "--allow-workflow-outputs",
         "--allow-real-actions",
@@ -579,6 +580,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert {parameter["name"] for parameter in render["parameters"]} == {
         "--request-json",
         "--request-file",
+        "--request-field",
     }
     external_registration = next(
         entry
@@ -2794,6 +2796,103 @@ def test_commands_plan_accepts_request_file_packet_with_allowance(tmp_path, caps
     assert payload["preflight"]["allowances"]["allow_write"] is True
 
 
+def test_commands_render_accepts_named_request_file_field(tmp_path, capsys):
+    request_file = tmp_path / "external_genomes_summary.json"
+    request_file.write_text(
+        json.dumps(
+            {
+                "recommended_request": {
+                    "command": "external-genomes",
+                    "subcommand": "validate",
+                    "input": "external_genomes.tsv",
+                },
+                "install_plan_recommended_request": {
+                    "command": "external-genomes",
+                    "subcommand": "install-plan",
+                    "input": "external_genomes.tsv",
+                    "target_outdir": "registered",
+                    "write": True,
+                    "outdir": "install_plan",
+                },
+            },
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-file",
+                str(request_file),
+                "--request-field",
+                "install_plan_recommended_request",
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["request_source"] == str(request_file)
+    assert payload["request_field"] == "install_plan_recommended_request"
+    assert payload["request_unwrapped_from"] == "install_plan_recommended_request"
+    assert payload["target_argv"] == [
+        "external-genomes",
+        "install-plan",
+        "--input",
+        "external_genomes.tsv",
+        "--target-outdir",
+        "registered",
+        "--write",
+        "--outdir",
+        "install_plan",
+    ]
+
+
+def test_commands_plan_accepts_named_request_json_field_with_allowance(capsys):
+    request = json.dumps(
+        {
+            "result_validation_recommended_request": {
+                "command": "coverage-pipeline",
+                "subcommand": "server-validation-result validate",
+                "input": "coverage_handoff_server_validation_result.json",
+                "json": True,
+            }
+        },
+        separators=(",", ":"),
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--request-json",
+                request,
+                "--request-field",
+                "result_validation_recommended_request",
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["request_source"] == "request_json"
+    assert payload["request_field"] == "result_validation_recommended_request"
+    assert payload["request_unwrapped_from"] == "result_validation_recommended_request"
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "validate",
+        "--input",
+        "coverage_handoff_server_validation_result.json",
+        "--json",
+    ]
+
+
 def test_commands_render_and_plan_accept_server_validation_template_packet(capsys):
     request = json.dumps(
         {
@@ -2897,6 +2996,58 @@ def test_commands_plan_rejects_non_object_request_file(tmp_path, capsys):
         "request file must contain a JSON object"
         in payload["blocking"][0]["message"]
     )
+
+
+def test_commands_render_rejects_missing_named_request_field(tmp_path, capsys):
+    request_file = tmp_path / "summary.json"
+    request_file.write_text(
+        '{"recommended_request":{"command":"doctor"}}',
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-file",
+                str(request_file),
+                "--request-field",
+                "install_plan_recommended_request",
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "install_plan_recommended_request" in payload["blocking"][0]["message"]
+
+
+def test_commands_plan_rejects_non_object_named_request_field(tmp_path, capsys):
+    request_file = tmp_path / "summary.json"
+    request_file.write_text(
+        '{"install_plan_recommended_request":null}',
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--request-file",
+                str(request_file),
+                "--request-field",
+                "install_plan_recommended_request",
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_request"
+    assert "must contain a JSON object" in payload["blocking"][0]["message"]
 
 
 def test_commands_plan_blocks_rendered_workflow_without_allowances(capsys):

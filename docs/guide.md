@@ -74,7 +74,10 @@ remain authoritative.
 File-based controllers can use `--request-file` with `commands render` or
 `commands plan` to read one saved JSON summary or handoff packet and unwrap its
 top-level `recommended_request`; this is still metadata-only and does not run
-the target command.
+the target command. When a saved summary exposes multiple request objects, add
+`--request-field <top-level-field>` to render fields such as
+`install_plan_recommended_request` or `result_validation_recommended_request`
+without copying JSON through shell quoting.
 
 The provider catalog command emits the static fail-closed provider registry for
 AI operators. It is metadata only: no provider is contacted and no download
