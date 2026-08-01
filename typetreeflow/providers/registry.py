@@ -158,6 +158,8 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("Korean Collection for Type Cultures", "kctc"),
     ("KACC", "kacc"),
     ("Korean Agricultural Culture Collection", "kacc"),
+    ("KCCM", "kccm"),
+    ("NCCP", "nccp"),
     ("VKM", "vkm"),
     ("All-Russian Collection of Microorganisms", "vkm"),
     ("MCCC", "mccc"),
@@ -197,6 +199,8 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("CSUR", "csur"),
     ("CICC", "cicc"),
     ("IFO", "ifo"),
+    ("IAM", "iam"),
+    ("FERM", "ferm"),
     ("MTCC", "mtcc"),
     ("Microbial Type Culture Collection and Gene Bank", "mtcc"),
     ("MCC", "mcc"),
@@ -238,6 +242,8 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("NITE", "nbrc"),
     ("KCTC", "kctc"),
     ("KACC", "kacc"),
+    ("KCCM", "kccm"),
+    ("NCCP", "nccp"),
     ("VKM", "vkm"),
     ("MCCC", "mccc"),
     ("GDMCC", "gdmcc"),
@@ -263,6 +269,8 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("CSUR", "csur"),
     ("CICC", "cicc"),
     ("IFO", "ifo"),
+    ("IAM", "iam"),
+    ("FERM", "ferm"),
     ("MTCC", "mtcc"),
     ("MCC", "mcc"),
     ("CCBAU", "ccbau"),
@@ -313,6 +321,16 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "kacc",
             "Korean Agricultural Culture Collection",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "kccm",
+            "KCCM",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "nccp",
+            "NCCP",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(
@@ -428,6 +446,16 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "ifo",
             "IFO",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "iam",
+            "IAM",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ferm",
+            "FERM",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(

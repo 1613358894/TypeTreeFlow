@@ -542,7 +542,8 @@ def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
                 "type_strain_names": (
                     "CCTCC AB 12345; NRRL B-1; NCAIM B.01001; "
                     "HAMBI 100; KMM 902; GTC 21791; PAGU 1796; "
-                    "MTCC1234; MCC 555; CCBAU 1001; NBIMCC 2002"
+                    "IAM 3003; FERM BP-1234; MTCC1234; MCC 555; "
+                    "CCBAU 1001; NBIMCC 2002"
                 ),
             }
         ],
@@ -563,19 +564,23 @@ def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
     row = report.rows[0]
     assert row.lane == "external_fasta_required"
     assert row.candidate_provider_keys == (
-        "cctcc; nrrl; ncaim; hambi; kmm; gtc; pagu; mtcc; mcc; ccbau; nbimcc"
+        "cctcc; nrrl; ncaim; hambi; kmm; gtc; pagu; iam; ferm; "
+        "mtcc; mcc; ccbau; nbimcc"
     )
     assert row.candidate_provider_statuses == (
         "cctcc=planning_only; nrrl=planning_only; ncaim=planning_only; "
         "hambi=planning_only; kmm=planning_only; gtc=planning_only; "
-        "pagu=planning_only; mtcc=planning_only; mcc=planning_only; "
-        "ccbau=planning_only; nbimcc=planning_only"
+        "pagu=planning_only; iam=planning_only; ferm=planning_only; "
+        "mtcc=planning_only; mcc=planning_only; ccbau=planning_only; "
+        "nbimcc=planning_only"
     )
     assert report.summary["candidate_provider_key_counts"] == {
         "ccbau": 1,
         "cctcc": 1,
         "gtc": 1,
         "hambi": 1,
+        "ferm": 1,
+        "iam": 1,
         "kmm": 1,
         "mcc": 1,
         "mtcc": 1,
@@ -830,6 +835,39 @@ def test_worklist_type_strain_kacc_token_routes_to_kacc_handoff():
     assert row.candidate_provider_keys == "kacc"
     assert row.candidate_provider_statuses == "kacc=planning_only"
     assert report.summary["candidate_provider_key_counts"] == {"kacc": 1}
+
+
+def test_worklist_type_strain_kccm_nccp_tokens_route_to_handoff():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium koreanhandoffum",
+                "type_strain_names": "KCCM 67890; NCCP1234",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium koreanhandoffum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium koreanhandoffum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.candidate_provider_keys == "kccm; nccp"
+    assert row.candidate_provider_statuses == (
+        "kccm=planning_only; nccp=planning_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "kccm": 1,
+        "nccp": 1,
+    }
 
 
 def test_worklist_type_strain_evidence_tokens_route_to_provider_handoff():
