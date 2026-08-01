@@ -74,7 +74,8 @@ from typetreeflow.cli_recognizer import recognize_cli_command
         (["archive-candidates", "build", "--input-tsv", "archive.tsv", "--write", "--outdir", "archive"], {"command": "archive-candidates", "subcommand": "build", "mode": "archive_candidates", "is_archive_candidates": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["coverage-plan", "build", "--worklist-tsv", "worklist.tsv"], {"command": "coverage-plan", "subcommand": "build", "mode": "coverage_plan", "is_coverage_plan": True, "writes_outputs_declared": False, "requires_outdir": False}),
         (["coverage-plan", "build", "--worklist-tsv", "worklist.tsv", "--write", "--outdir", "coverage"], {"command": "coverage-plan", "subcommand": "build", "mode": "coverage_plan", "is_coverage_plan": True, "writes_outputs_declared": True, "requires_outdir": True}),
-        (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "writes_outputs_declared": False, "requires_outdir": False}),
+        (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "provider_key_filter": [], "provider_key_filter_count": 0, "writes_outputs_declared": False, "requires_outdir": False}),
+        (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv", "--provider-key", "DSMZ"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "provider_key_filter": ["DSMZ"], "provider_key_filter_count": 1, "writes_outputs_declared": False, "requires_outdir": False}),
         (["provider-handoff", "build", "--coverage-plan-tsv", "coverage.tsv", "--write", "--outdir", "handoff"], {"command": "provider-handoff", "subcommand": "build", "mode": "provider_handoff", "is_provider_handoff": True, "writes_outputs_declared": True, "requires_outdir": True}),
         (["provider-request", "draft", "--provider-handoff-tsv", "handoff.tsv"], {"command": "provider-request", "subcommand": "draft", "mode": "provider_request", "is_provider_request": True, "writes_outputs_declared": False, "requires_outdir": False}),
         (["provider-request", "draft", "--provider-handoff-tsv", "handoff.tsv", "--write", "--outdir", "requests"], {"command": "provider-request", "subcommand": "draft", "mode": "provider_request", "is_provider_request": True, "writes_outputs_declared": True, "requires_outdir": True}),
@@ -167,6 +168,8 @@ def test_empty_argv_contract_is_exact():
         "is_providers": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
         "writes_outputs_declared": False,
         "requires_outdir": False,
         "unknown": False,
@@ -200,6 +203,8 @@ def test_empty_argv_contract_is_exact():
                 "is_providers": False,
                 "is_curator_packet": False,
                 "is_strict_gate_state": False,
+                "provider_key_filter": [],
+                "provider_key_filter_count": 0,
                 "writes_outputs_declared": False,
                 "requires_outdir": False,
                 "unknown": False,
@@ -229,6 +234,8 @@ def test_empty_argv_contract_is_exact():
                 "is_providers": False,
                 "is_curator_packet": False,
                 "is_strict_gate_state": False,
+                "provider_key_filter": [],
+                "provider_key_filter_count": 0,
                 "writes_outputs_declared": True,
                 "requires_outdir": False,
                 "unknown": False,
@@ -268,6 +275,8 @@ def test_empty_argv_contract_is_exact():
                 "is_providers": False,
                 "is_curator_packet": False,
                 "is_strict_gate_state": False,
+                "provider_key_filter": [],
+                "provider_key_filter_count": 0,
                 "writes_outputs_declared": True,
                 "requires_outdir": True,
                 "unknown": False,
@@ -278,6 +287,29 @@ def test_empty_argv_contract_is_exact():
 )
 def test_representative_command_mappings_are_exact(argv, expected):
     assert recognize_cli_command(argv) == expected
+
+
+def test_provider_handoff_recognizer_exposes_provider_key_filter():
+    result = recognize_cli_command(
+        [
+            "provider-handoff",
+            "build",
+            "--coverage-plan-tsv",
+            "coverage.tsv",
+            "--provider-key",
+            "DSMZ",
+            "--provider-key",
+            "KCTC",
+            "--provider-key",
+            "DSMZ",
+        ]
+    )
+
+    assert result["command"] == "provider-handoff"
+    assert result["subcommand"] == "build"
+    assert result["provider_key_filter"] == ["DSMZ", "KCTC"]
+    assert result["provider_key_filter_count"] == 2
+    assert result["writes_outputs_declared"] is False
 
 
 @pytest.mark.parametrize(

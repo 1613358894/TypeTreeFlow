@@ -250,6 +250,11 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         is_report_only=is_report_only,
         unknown=unknown,
     )
+    provider_key_filter = _provider_key_filter(
+        command=command,
+        subcommand=subcommand,
+        tokens=tokens,
+    )
     requires_outdir = _requires_outdir(
         command=command,
         subcommand=subcommand,
@@ -278,6 +283,8 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_providers": is_providers,
         "is_curator_packet": is_curator_packet,
         "is_strict_gate_state": is_strict_gate_state,
+        "provider_key_filter": provider_key_filter,
+        "provider_key_filter_count": len(provider_key_filter),
         "writes_outputs_declared": writes_outputs_declared,
         "requires_outdir": requires_outdir,
         "unknown": unknown,
@@ -315,6 +322,27 @@ def _mode_for_recognized_command(command: str | None) -> str:
     if command == "register-external-genomes":
         return "external_genome_registration"
     return "workflow"
+
+
+def _provider_key_filter(
+    *,
+    command: str | None,
+    subcommand: str | None,
+    tokens: tuple[str, ...],
+) -> list[str]:
+    if command != "provider-handoff" or subcommand != "build":
+        return []
+    values: list[str] = []
+    index = 0
+    while index < len(tokens):
+        if tokens[index] == "--provider-key" and index + 1 < len(tokens):
+            value = tokens[index + 1]
+            if value and value not in values:
+                values.append(value)
+            index += 2
+            continue
+        index += 1
+    return values
 
 
 def _report_only_dispatch_applies(command: str | None) -> bool:
