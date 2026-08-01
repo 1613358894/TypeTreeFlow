@@ -3447,6 +3447,24 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "external_registration_review_required_count": 0,
         "safe_for_unattended_download_count": 0,
     }
+    assert payload["coverage_acquisition_readiness_summary"][
+        "readiness_signal_counts"
+    ] == {
+        "download_ready_ncbi": 0,
+        "external_genome_handoff_ready": 0,
+        "provider_handoff_only": 1,
+        "public_metadata_review": 2,
+        "curator_review": 1,
+        "true_gap": 0,
+        "other_review": 0,
+    }
+    assert (
+        payload["coverage_acquisition_readiness_summary"][
+            "safe_for_unattended_download"
+        ]
+        is False
+    )
+    assert payload["coverage_acquisition_readiness_summary"]["downloads_triggered"] == 0
     _assert_operator_route_summary(payload)
     assert payload["coverage_priority_summary"] == {
         "queue_item_count": 4,
@@ -6140,6 +6158,15 @@ def test_coverage_pipeline_build_filters_generated_handoff_by_provider_key(
     assert status_payload["provider_request_provider_batches"][0][
         "requires_provider_handoff"
     ] is True
+    assert status_payload["coverage_acquisition_readiness_summary"][
+        "provider_handoff_only_count"
+    ] == 1
+    assert status_payload["coverage_acquisition_readiness_summary"][
+        "download_ready_ncbi_count"
+    ] == 0
+    assert status_payload["coverage_acquisition_readiness_summary"][
+        "safe_for_unattended_download"
+    ] is False
 
 
 def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(

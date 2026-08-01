@@ -2219,6 +2219,18 @@ or `provider-handoff build`, and route-specific counts such as
 `manual_or_curator_input_required_count`, `public_metadata_review_required_count`, and
 `provider_handoff_required_count`. `current_coverage_action_queue_item`
 copies the first queued item or an empty object when no coverage action remains.
+`coverage_acquisition_readiness_summary` is a compact acquisition-facing
+classification of the same signals. It reports bounded
+`readiness_signal_counts` for `download_ready_ncbi`,
+`external_genome_handoff_ready`, `provider_handoff_only`,
+`public_metadata_review`, `curator_review`, `true_gap`, and `other_review`.
+These counts are readiness signals, not strict species totals; the summary sets
+`counts_are_exclusive=false` when downstream external-genome handoff signals are
+also present. The summary is audit-only and always preserves
+`safe_for_unattended_download=false`, `downloads_triggered=0`,
+`providers_contacted=0`, `manifest_mutated=false`, and
+`strict_scientific_deliverable=false`. Public metadata, BioSample, BacDive, or
+provider-handoff rows do not become NCBI downloads or strict deliverables.
 `coverage_operator_route_summary` groups the same queue by `operator_route`,
 preserving first queue item IDs, first recommended request targets, per-route
 record counts, next-input class counts, automation-boundary counts, and route
