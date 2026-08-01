@@ -1019,6 +1019,8 @@ def summarize_external_genome_repair_queue(
                 "external_genome_id": row.external_genome_id,
                 "genome_fasta_path": row.genome_fasta_path,
                 "missing_or_blocked_inputs": _external_genome_repair_inputs(row),
+                "repair_template_schema": "external_genomes.tsv",
+                "repair_template_row": _external_genome_repair_template_row(row),
                 "recommended_action": route["recommended_action"],
                 "next_input_class": route["next_input_class"],
                 "recommended_next_command": route["recommended_next_command"],
@@ -1046,6 +1048,46 @@ def summarize_external_genome_repair_queue(
         "manifest_mutated": False,
         "audit_only": True,
         "strict_scientific_deliverable": False,
+    }
+
+
+def _external_genome_repair_template_row(
+    row: ExternalGenomeRegistrationResult,
+) -> dict[str, str]:
+    template = {field: "" for field in EXTERNAL_GENOME_FIELDS}
+    template.update(
+        {
+            "species": row.species or "<species>",
+            "strain": row.strain or "<strain>",
+            "type_strain_id": row.type_strain_id or "<type-strain-id>",
+            "external_source": row.external_source or "<external-source>",
+            "external_source_name": "<external-source-name>",
+            "external_genome_id": row.external_genome_id or "<external-genome-id>",
+            "external_source_url": "",
+            "genome_fasta_path": row.genome_fasta_path or "<existing-local-fasta.fna>",
+            "sha256": row.sha256,
+            "is_type_material": "true",
+            "requires_manual_review": "false",
+            "status": "external_genome_registered",
+            "notes": (
+                "repair_template=true; audit_only=true; "
+                "provider_contacted=false; downloads_triggered=0"
+            ),
+        }
+    )
+    if row.status == "external_genome_missing_file":
+        template["genome_fasta_path"] = "<existing-local-fasta.fna>"
+    elif row.status == "external_genome_checksum_mismatch":
+        template["sha256"] = ""
+    elif row.status == "external_genome_manual_review_required":
+        template["requires_manual_review"] = "<false-after-review>"
+        template["notes"] = (
+            "repair_template=true; audit_only=true; manual_review_required=true; "
+            "provider_contacted=false; downloads_triggered=0"
+        )
+    return {
+        field: _sanitize_tsv_text(_format_value(template.get(field, "")))
+        for field in EXTERNAL_GENOME_FIELDS
     }
 
 
