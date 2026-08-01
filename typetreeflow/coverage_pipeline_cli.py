@@ -129,6 +129,16 @@ _SERVER_VALIDATION_RESULT_BOUNDARIES = {
     "strict_scientific_deliverable": False,
     "external_genomes_registration_applied": False,
 }
+_SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS = (
+    "source_commit",
+    "typetreeflow_version",
+    "runtime_python",
+    "evidence_run_path",
+)
+_SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
+    "check_count",
+    "failed_count",
+)
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
     "acquisition_worklist_summary": "acquisition_worklist/acquisition_worklist_summary.json",
@@ -1533,6 +1543,23 @@ def _validate_server_validation_result(
             diagnostics.append(
                 _diagnostic("server_validation_result", f"invalid_{field}")
             )
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS:
+        if field in result and not isinstance(result.get(field), str):
+            invalid_fields.append(field)
+            diagnostics.append(
+                _diagnostic("server_validation_result", f"invalid_{field}")
+            )
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS:
+        raw_value = result.get(field)
+        if field in result and (
+            not isinstance(raw_value, int)
+            or isinstance(raw_value, bool)
+            or raw_value < 0
+        ):
+            invalid_fields.append(field)
+            diagnostics.append(
+                _diagnostic("server_validation_result", f"invalid_{field}")
+            )
     if "summary" in result and not isinstance(result.get("summary"), str):
         invalid_fields.append("summary")
         diagnostics.append(_diagnostic("server_validation_result", "invalid_summary"))
@@ -1601,6 +1628,28 @@ def _server_validation_result_validation_payload(
         "validation_status": status,
         "result_schema_version": str(result.get("schema_version", "")),
         "result_status": str(result.get("status", "")),
+        "source_commit": (
+            result.get("source_commit", "")
+            if isinstance(result.get("source_commit", ""), str)
+            else ""
+        ),
+        "typetreeflow_version": (
+            result.get("typetreeflow_version", "")
+            if isinstance(result.get("typetreeflow_version", ""), str)
+            else ""
+        ),
+        "runtime_python": (
+            result.get("runtime_python", "")
+            if isinstance(result.get("runtime_python", ""), str)
+            else ""
+        ),
+        "evidence_run_path": (
+            result.get("evidence_run_path", "")
+            if isinstance(result.get("evidence_run_path", ""), str)
+            else ""
+        ),
+        "check_count": _optional_nonnegative_int(result.get("check_count")),
+        "failed_count": _optional_nonnegative_int(result.get("failed_count")),
         "checked_surface_names": [str(item) for item in checked_surface_names],
         "checked_surface_count": len(checked_surface_names),
         "required_field_count": len(_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS),
@@ -1715,6 +1764,12 @@ def _safe_count_map(value: object) -> dict[str, int]:
             if str(key)
         }
     )
+
+
+def _optional_nonnegative_int(value: object) -> int:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    return 0
 
 
 def _safe_nested_count_maps(value: object) -> dict[str, dict[str, int]]:
@@ -4648,6 +4703,12 @@ def _coverage_handoff_server_validation_result_template_artifact_packet(
         "artifact_sha256": "",
         "result_schema_version": "",
         "result_status": "",
+        "source_commit": "",
+        "typetreeflow_version": "",
+        "runtime_python": "",
+        "evidence_run_path": "",
+        "check_count": 0,
+        "failed_count": 0,
         "validation_status": "no_action",
         "checked_surface_count": 0,
         "boundary_confirmation_count": 0,
@@ -4761,6 +4822,12 @@ def _coverage_handoff_server_validation_result_artifact_packet(
         "artifact_sha256": "",
         "result_schema_version": "",
         "result_status": "",
+        "source_commit": "",
+        "typetreeflow_version": "",
+        "runtime_python": "",
+        "evidence_run_path": "",
+        "check_count": 0,
+        "failed_count": 0,
         "validation_status": "no_action",
         "checked_surface_count": 0,
         "boundary_confirmation_count": 0,
@@ -4824,6 +4891,28 @@ def _coverage_handoff_server_validation_result_artifact_packet(
         "artifact_sha256": hashlib.sha256(raw).hexdigest(),
         "result_schema_version": str(result.get("schema_version", "")),
         "result_status": str(result.get("status", "")),
+        "source_commit": (
+            result.get("source_commit", "")
+            if isinstance(result.get("source_commit", ""), str)
+            else ""
+        ),
+        "typetreeflow_version": (
+            result.get("typetreeflow_version", "")
+            if isinstance(result.get("typetreeflow_version", ""), str)
+            else ""
+        ),
+        "runtime_python": (
+            result.get("runtime_python", "")
+            if isinstance(result.get("runtime_python", ""), str)
+            else ""
+        ),
+        "evidence_run_path": (
+            result.get("evidence_run_path", "")
+            if isinstance(result.get("evidence_run_path", ""), str)
+            else ""
+        ),
+        "check_count": _optional_nonnegative_int(result.get("check_count")),
+        "failed_count": _optional_nonnegative_int(result.get("failed_count")),
         "validation_status": validation_status,
         "checked_surface_count": len(checked_surface_names),
         "boundary_confirmation_count": _safe_int(
