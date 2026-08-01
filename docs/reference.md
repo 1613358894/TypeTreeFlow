@@ -2476,7 +2476,11 @@ required inputs as pipeline artifacts, operator-supplied context, curator or
 local evidence, or workflow target outdir placeholders. It does not read the
 filesystem; it gives parent/server controllers a stable no-execution checklist
 for deciding whether bounded local validation is possible or operator input is
-still required.
+still required. When the next stage is a blocked external-genomes install-plan
+with a local repair queue, `coverage_handoff_readiness_summary`,
+`coverage_handoff_next_step_packet`, and
+`coverage_handoff_input_readiness_packet` all expose the bounded
+`next_stage_repair_queue`.
 `coverage_handoff_runbook_packet` is the ordered metadata-only checklist for
 that provider/external handoff. It starts by inspecting
 `coverage_handoff_readiness_summary`, then the input-readiness packet, then the

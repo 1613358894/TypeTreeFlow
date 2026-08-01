@@ -638,7 +638,9 @@ FASTA copying, manifest mutation, and strict promotion disabled.
 inputs as pipeline artifacts, operator-supplied context, curator/local evidence,
 or workflow target outdir placeholders without reading the filesystem. Use it
 to decide whether a bounded local validation can proceed or operator input is
-still missing.
+still missing. If the next blocked external-genomes install-plan stage has a
+repair queue, the handoff readiness, next-step, and input-readiness packets all
+preserve it as `next_stage_repair_queue` for local TSV/FASTA repair review.
 `coverage_handoff_runbook_packet` turns that provider/external next-step into
 an ordered metadata-only checklist for parent agents. It tells the parent to
 inspect handoff readiness, inspect input readiness, inspect the next-step

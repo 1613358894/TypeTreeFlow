@@ -1775,6 +1775,18 @@ def _optional_nonnegative_int(value: object) -> int:
     return 0
 
 
+def _stage_repair_queue(stage: Mapping[str, object] | None) -> dict[str, object]:
+    if not stage:
+        return {}
+    return _safe_repair_queue(stage.get("summary_external_genomes_repair_queue"))
+
+
+def _safe_repair_queue(value: object) -> dict[str, object]:
+    if not isinstance(value, Mapping):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
 def _safe_nested_count_maps(value: object) -> dict[str, dict[str, int]]:
     if not isinstance(value, Mapping):
         return {}
@@ -3548,6 +3560,7 @@ def _coverage_handoff_readiness_summary(
             if next_stage
             else ""
         ),
+        "next_stage_repair_queue": _stage_repair_queue(next_stage),
         "record_counts_by_stage": {
             str(stage.get("stage", "")): _safe_int(stage.get("record_count", 0))
             for stage in handoff_stages
@@ -3653,6 +3666,9 @@ def _coverage_handoff_next_step_packet(
         "provider_automation_level_counts": _safe_count_map(
             handoff_summary.get("provider_automation_level_counts")
         ),
+        "next_stage_repair_queue": _safe_repair_queue(
+            handoff_summary.get("next_stage_repair_queue")
+        ),
         "provider_contact_allowed": False,
         "safe_for_unattended_execution": False,
         "recommended_execution_mode": (
@@ -3730,6 +3746,9 @@ def _coverage_handoff_input_readiness_packet(
         "operator_required_input_count": len(operator_required_inputs),
         "operator_required_inputs": operator_required_inputs,
         "pipeline_artifact_input_count": input_kind_counts.get("pipeline_artifact", 0),
+        "next_stage_repair_queue": _safe_repair_queue(
+            coverage_handoff_next_step_packet.get("next_stage_repair_queue")
+        ),
         "chain_complete": bool(
             coverage_handoff_readiness_summary.get("chain_complete")
         ),

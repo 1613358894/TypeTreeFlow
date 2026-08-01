@@ -6117,7 +6117,9 @@ def test_coverage_pipeline_status_preserves_external_genomes_repair_queue(
     tmp_path,
 ):
     checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    curated_request, _, _ = _write_curated_provider_request(tmp_path)
     pipeline_dir = tmp_path / "pipeline_outputs"
+    install_target = tmp_path / "future_registration_run"
     code, payload, captured = _run(
         [
             "--checklist-tsv",
@@ -6128,6 +6130,10 @@ def test_coverage_pipeline_status_preserves_external_genomes_repair_queue(
             str(gaps),
             "--archive-candidates-tsv",
             str(archive),
+            "--curated-provider-request-tsv",
+            str(curated_request),
+            "--external-genomes-install-target-outdir",
+            str(install_target),
             "--write",
             "--outdir",
             str(pipeline_dir),
@@ -6214,6 +6220,18 @@ def test_coverage_pipeline_status_preserves_external_genomes_repair_queue(
     assert queue["providers_contacted"] == 0
     assert queue["manifest_mutated"] is False
     assert queue["strict_scientific_deliverable"] is False
+    assert status_payload["coverage_handoff_readiness_summary"]["next_stage"] == (
+        "external_genomes_install_plan"
+    )
+    assert status_payload["coverage_handoff_readiness_summary"][
+        "next_stage_repair_queue"
+    ] == queue
+    assert status_payload["coverage_handoff_next_step_packet"][
+        "next_stage_repair_queue"
+    ] == queue
+    assert status_payload["coverage_handoff_input_readiness_packet"][
+        "next_stage_repair_queue"
+    ] == queue
     assert status_payload["downloads_triggered"] == 0
     assert status_payload["providers_contacted"] == 0
     assert status_payload["manifest_mutated"] is False
