@@ -26,15 +26,25 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
     providers = {entry["provider_key"]: entry for entry in payload["providers"]}
-    assert {"atcc_genome_portal", "bv_brc", "dsmz", "ena", "img_jgi", "refseq"} <= set(
-        providers
-    )
+    assert {
+        "atcc_genome_portal",
+        "bacdive",
+        "bv_brc",
+        "dsmz",
+        "ena",
+        "img_jgi",
+        "refseq",
+    } <= set(providers)
+    metadata_review_count = len(payload["metadata_review_provider_keys"])
+    planning_handoff_count = len(payload["planning_handoff_provider_keys"])
     assert providers["bv_brc"]["status"] == "metadata_only"
+    assert providers["bacdive"]["status"] == "metadata_only"
     assert providers["ena"]["status"] == "metadata_only"
     assert providers["dsmz"]["status"] == "planning_only"
     assert providers["img_jgi"]["status"] == "planning_only"
     assert providers["img_jgi"]["requires_credentials"] is True
     assert providers["bv_brc"]["automation_level"] == "metadata_review"
+    assert providers["bacdive"]["automation_level"] == "metadata_review"
     assert providers["ena"]["automation_level"] == "metadata_review"
     assert providers["dsmz"]["automation_level"] == "planning_handoff"
     assert providers["atcc_genome_portal"]["automation_level"] == "planning_handoff"
@@ -53,27 +63,27 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
         "planning_handoff_no_provider_contact"
     )
     assert payload["automation_level_counts"] == {
-        "metadata_review": 5,
-        "planning_handoff": payload["provider_count"] - 5,
+        "metadata_review": metadata_review_count,
+        "planning_handoff": planning_handoff_count,
     }
     assert payload["operator_route_counts"] == {
-        "provider_handoff": payload["provider_count"] - 5,
-        "public_metadata_review": 5,
+        "provider_handoff": planning_handoff_count,
+        "public_metadata_review": metadata_review_count,
     }
     assert payload["provider_route_groups"] == [
         {
             "operator_route": "provider_handoff",
-            "provider_count": payload["provider_count"] - 5,
+            "provider_count": planning_handoff_count,
             "provider_keys": payload["planning_handoff_provider_keys"],
-            "provider_status_counts": {"planning_only": payload["provider_count"] - 5},
+            "provider_status_counts": {"planning_only": planning_handoff_count},
             "automation_level_counts": {
-                "planning_handoff": payload["provider_count"] - 5
+                "planning_handoff": planning_handoff_count
             },
             "next_input_class_counts": {
-                "permitted_local_fasta_terms_provenance": payload["provider_count"] - 5
+                "permitted_local_fasta_terms_provenance": planning_handoff_count
             },
             "automation_boundary_counts": {
-                "planning_handoff_no_provider_contact": payload["provider_count"] - 5
+                "planning_handoff_no_provider_contact": planning_handoff_count
             },
             "safe_for_unattended_execution": False,
             "audit_only": True,
@@ -81,18 +91,23 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
         },
         {
             "operator_route": "public_metadata_review",
-            "provider_count": 5,
-            "provider_keys": ["bv_brc", "ddbj", "ena", "genbank", "refseq"],
-            "provider_status_counts": {"metadata_only": 5},
-            "automation_level_counts": {"metadata_review": 5},
-            "next_input_class_counts": {"public_accession_type_strain_linkage": 5},
-            "automation_boundary_counts": {"metadata_review_only_no_download": 5},
+            "provider_count": metadata_review_count,
+            "provider_keys": ["bacdive", "bv_brc", "ddbj", "ena", "genbank", "refseq"],
+            "provider_status_counts": {"metadata_only": metadata_review_count},
+            "automation_level_counts": {"metadata_review": metadata_review_count},
+            "next_input_class_counts": {
+                "public_accession_type_strain_linkage": metadata_review_count
+            },
+            "automation_boundary_counts": {
+                "metadata_review_only_no_download": metadata_review_count
+            },
             "safe_for_unattended_execution": False,
             "audit_only": True,
             "dry_run": True,
         },
     ]
     assert payload["metadata_review_provider_keys"] == [
+        "bacdive",
         "bv_brc",
         "ddbj",
         "ena",

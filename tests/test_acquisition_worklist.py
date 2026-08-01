@@ -215,6 +215,38 @@ def test_worklist_public_linkage_reasons_surface_review_signals():
     assert report.summary["review_signal_counts"]["ncbi_type_material_candidate"] == 2
 
 
+def test_worklist_bacdive_dsmz_source_hint_carries_metadata_provider_keys():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium bacdiveproviderum"}],
+        reconciler_rows=[
+            _row(
+                "Clostridium bacdiveproviderum",
+                assembly_accession="GCF_0005.1",
+                reconciled_evidence_tier="authoritative_type_material_candidate",
+                authority_sources="BacDive/DSMZ",
+                matched_bacdive_accessions="12345",
+            )
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "public_linkage_review"
+    assert row.reason_code == "public_candidate_bacdive_or_dsmz_review"
+    assert row.candidate_provider_keys == "dsmz; bacdive"
+    assert row.candidate_provider_statuses == (
+        "dsmz=planning_only; bacdive=metadata_only"
+    )
+    opportunity = report.summary["acquisition_opportunity_summary"][0]
+    assert opportunity["candidate_provider_key_counts"] == {
+        "bacdive": 1,
+        "dsmz": 1,
+    }
+    assert opportunity["candidate_provider_status_counts"] == {
+        "metadata_only": 1,
+        "planning_only": 1,
+    }
+
+
 def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium archivum"}],
