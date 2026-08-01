@@ -214,3 +214,164 @@ def test_archive_candidate_template_can_feed_manual_import_and_strict_gating(
         "strict_gating_diagnostics.tsv",
     }
     assert not (strict_gating_dir / "evidence").exists()
+
+
+def test_coverage_pipeline_status_reads_completed_archive_review_chain(
+    monkeypatch, tmp_path, capsys
+):
+    def fail(*args, **kwargs):
+        raise AssertionError("coverage review chain must remain isolated")
+
+    monkeypatch.setattr(os, "getenv", fail)
+    monkeypatch.setattr(socket, "create_connection", fail)
+    monkeypatch.setattr(subprocess, "run", fail)
+    monkeypatch.setattr(cli, "parse_args", fail)
+    monkeypatch.setattr(cli, "get_output_paths", fail)
+
+    archive_input = _write_tsv(
+        tmp_path / "archive_candidates_input.tsv",
+        ARCHIVE_CANDIDATE_INPUT_FIELDS,
+        [_archive_candidate_row()],
+    )
+    archive_dir = tmp_path / "archive_audit"
+    code, archive_payload, _captured = _run_cli(
+        [
+            "archive-candidates",
+            "build",
+            "--input-tsv",
+            str(archive_input),
+            "--write",
+            "--outdir",
+            str(archive_dir),
+            "--include-manual-review-template",
+            "--json",
+        ],
+        capsys,
+    )
+    assert code == 0
+    assert archive_payload["manual_review_template_written"] is True
+
+    pipeline_dir = tmp_path / "coverage_pipeline"
+    code, pipeline_payload, captured = _run_cli(
+        [
+            "coverage-pipeline",
+            "build",
+            "--archive-candidates-tsv",
+            str(archive_dir / "archive_candidates.tsv"),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+    )
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert pipeline_payload["downloads_triggered"] == 0
+    assert pipeline_payload["providers_contacted"] == 0
+    assert pipeline_payload["manifest_mutated"] is False
+    pipeline_template = pipeline_dir / "archive_candidates" / "manual_review.tsv"
+    assert pipeline_payload["output_paths"][
+        "archive_candidates_manual_review_template"
+    ] == str(pipeline_template)
+
+    with pipeline_template.open(encoding="utf-8") as handle:
+        skeleton_rows = list(csv.DictReader(handle, delimiter="\t"))
+    completed_review = tmp_path / "completed_manual_review.tsv"
+    _write_tsv(
+        completed_review,
+        MANUAL_REVIEW_FIELDS,
+        [_completed_review_row(skeleton_rows[0])],
+    )
+    reconciler_audit = _write_tsv(
+        tmp_path / "reconciler_audit.tsv",
+        RECONCILER_AUDIT_FIELDS,
+        [_reconciler_audit_row()],
+    )
+
+    code, import_payload, captured = _run_cli(
+        [
+            "manual-review",
+            "import",
+            "--input",
+            str(completed_review),
+            "--reconciler-audit",
+            str(reconciler_audit),
+            "--write",
+            "--outdir",
+            str(pipeline_dir / "manual_review_import"),
+            "--json",
+        ],
+        capsys,
+    )
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert import_payload["strict_upgrade_candidate_count"] == 1
+    assert import_payload["strict_upgrade_applied"] is False
+
+    code, gating_payload, captured = _run_cli(
+        [
+            "strict-gating",
+            "evaluate",
+            "--manual-review-dir",
+            str(pipeline_dir / "manual_review_import"),
+            "--reconciler-audit",
+            str(reconciler_audit),
+            "--write",
+            "--outdir",
+            str(pipeline_dir / "strict_gating"),
+            "--json",
+        ],
+        capsys,
+    )
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert gating_payload["strict_gate_passed_count"] == 1
+    assert gating_payload["strict_deliverable_written"] is False
+    assert gating_payload["strict_upgrade_applied"] is False
+
+    code, status_payload, captured = _run_cli(
+        [
+            "coverage-pipeline",
+            "status",
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    stage_by_name = {
+        stage["stage"]: stage
+        for stage in status_payload["operator_chain_stages"]
+    }
+    archive_stage = stage_by_name["archive_candidates"]
+    assert archive_stage["summary_manual_review_template_available"] is True
+    assert archive_stage["recommended_request"] == {
+        "command": "manual-review",
+        "subcommand": "validate",
+        "input": "archive_candidates/manual_review.tsv",
+    }
+
+    manual_stage = stage_by_name["manual_review_import"]
+    assert manual_stage["available"] is True
+    assert manual_stage["summary_accepted_decision_count"] == 1
+    assert manual_stage["summary_strict_upgrade_candidate_count"] == 1
+    assert manual_stage["summary_strict_upgrade_applied"] is False
+    assert manual_stage["summary_audit_only"] is True
+
+    gating_stage = stage_by_name["strict_gating"]
+    assert gating_stage["available"] is True
+    assert gating_stage["summary_strict_gate_passed_count"] == 1
+    assert gating_stage["summary_strict_deliverable_written"] is False
+    assert gating_stage["summary_strict_upgrade_applied"] is False
+    assert gating_stage["summary_audit_only"] is True
+    assert status_payload["downloads_triggered"] == 0
+    assert status_payload["providers_contacted"] == 0
+    assert status_payload["manifest_mutated"] is False
