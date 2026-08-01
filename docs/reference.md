@@ -1824,10 +1824,11 @@ metrics, or promote strict scientific deliverables.
 Command metadata reports the target output contract as
 `provider_handoff_packet.v1`, so controllers can route the provider-handoff pair
 before running the command.
-`provider_handoff.tsv` includes `provider_automation_level` plus the same
-controlled `operator_route`, `next_input_class`, and `automation_boundary`
-vocabulary used by `providers catalog` and the coverage action queue. The
-summary JSON and compact stdout include counts for those route fields plus
+`provider_handoff.tsv` includes the source coverage priority,
+`provider_automation_level`, and the same controlled `operator_route`,
+`next_input_class`, and `automation_boundary` vocabulary used by
+`providers catalog` and the coverage action queue. The summary JSON and compact
+stdout include counts for those route fields plus `source_priority_counts` and
 `provider_route_groups`, which groups provider keys and row counts by
 `operator_route`. The automation level is AI planning metadata derived from the static provider
 registry, using the same `planning_handoff`, `metadata_review`, and

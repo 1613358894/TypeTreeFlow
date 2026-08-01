@@ -47,7 +47,8 @@ def _coverage_rows():
 def test_build_provider_handoff_expands_provider_keys_fail_closed():
     handoff = build_provider_handoff(_coverage_rows())
 
-    assert [row.provider_key for row in handoff.rows] == ["dsmz", "genbank", "refseq"]
+    assert [row.provider_key for row in handoff.rows] == ["genbank", "refseq", "dsmz"]
+    assert [row.source_priority for row in handoff.rows] == ["20", "20", "50"]
     assert {row.network_supported for row in handoff.rows} == {False}
     assert {row.default_network_enabled for row in handoff.rows} == {False}
     assert {row.downloads_triggered for row in handoff.rows} == {0}
@@ -112,6 +113,7 @@ def test_build_provider_handoff_expands_provider_keys_fail_closed():
         "planning_handoff_no_provider_contact": 1,
     }
     assert summary["provider_key_counts"] == {"dsmz": 1, "genbank": 1, "refseq": 1}
+    assert summary["source_priority_counts"] == {"20": 2, "50": 1}
     assert summary["provider_key_filter"] == []
     assert summary["provider_key_filter_count"] == 0
     assert summary["filtered"] is False
@@ -142,13 +144,22 @@ def test_build_provider_handoff_canonicalizes_provider_aliases():
     handoff = build_provider_handoff(rows)
 
     assert [row.provider_key for row in handoff.rows] == [
+        "genbank",
+        "refseq",
         "bccm_lmg",
         "bv_brc",
         "dsmz",
-        "genbank",
         "img_jgi",
         "kctc",
-        "refseq",
+    ]
+    assert [row.source_priority for row in handoff.rows] == [
+        "20",
+        "20",
+        "50",
+        "50",
+        "50",
+        "50",
+        "50",
     ]
     assert handoff.summary["provider_key_counts"] == {
         "bccm_lmg": 1,
@@ -177,7 +188,8 @@ def test_build_provider_handoff_can_filter_to_bounded_provider_keys():
         provider_key_filter=("Korean Collection for Type Cultures", "refseq"),
     )
 
-    assert [row.provider_key for row in handoff.rows] == ["kctc", "refseq"]
+    assert [row.provider_key for row in handoff.rows] == ["refseq", "kctc"]
+    assert [row.source_priority for row in handoff.rows] == ["20", "50"]
     assert handoff.summary["provider_key_counts"] == {"kctc": 1, "refseq": 1}
     assert handoff.summary["provider_key_filter"] == ["kctc", "refseq"]
     assert handoff.summary["provider_key_filter_count"] == 2
@@ -231,6 +243,7 @@ def test_provider_handoff_serializers_are_stable_and_json_serializable():
     assert len(rows) == 3
     assert {row["audit_only"] for row in rows} == {"true"}
     assert {row["downloads_triggered"] for row in rows} == {"0"}
+    assert {row["source_priority"] for row in rows} == {"20", "50"}
     dsmz = next(row for row in rows if row["provider_key"] == "dsmz")
     genbank = next(row for row in rows if row["provider_key"] == "genbank")
     refseq = next(row for row in rows if row["provider_key"] == "refseq")

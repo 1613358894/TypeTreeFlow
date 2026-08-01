@@ -254,8 +254,10 @@ authorize provider contact.
 Coverage route next-batch packets use this same filtered request shape for
 provider handoff items, so an AI/controller can prepare one provider-specific
 handoff before drafting provider requests.
-The summary also includes `provider_route_groups` so AI/controllers can see
-provider keys grouped by public metadata review versus provider handoff.
+The handoff preserves each row's source coverage priority, and the summary
+includes `source_priority_counts` plus `provider_route_groups` so
+AI/controllers can see provider keys grouped by public metadata review versus
+provider handoff.
 Command metadata reports `provider_handoff_packet.v1` for the generated
 provider-handoff pair.
 When `--write` succeeds, stdout's `recommended_request` points to the written
@@ -282,7 +284,7 @@ completion credit, or strict scientific delivery. Input rows with missing provid
 provider name, provider status, route metadata, or species are blocked instead
 of producing empty provider request rows. The compact JSON and summary include
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`,
-`automation_boundary_counts`, `provider_key_filter`,
+`automation_boundary_counts`, `source_priority_counts`, `provider_key_filter`,
 `provider_key_filter_count`, `filtered`, `curator_completion_template_counts`,
 `curator_completion_template_guidance`, `curator_completion_field_counts`, and
 `curator_completion_blocker_counts` so AI/operator routing can see both the
