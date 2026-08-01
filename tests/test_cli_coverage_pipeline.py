@@ -3004,6 +3004,133 @@ def _write_archive_candidates_output(outdir):
     )
 
 
+def _write_manual_review_import_output(outdir):
+    outdir.mkdir()
+    _write_tsv(
+        outdir / "manual_review_decisions.tsv",
+        (
+            "species",
+            "selected_accession",
+            "review_status",
+            "reviewer_id",
+            "review_date",
+            "evidence_summary",
+            "evidence_source_ids",
+            "conflict_resolution",
+            "second_reviewer_id",
+            "decision_notes",
+            "decision_status",
+            "reconciler_tier",
+            "reconciler_conflict_status",
+            "linkage_status",
+            "import_status",
+            "strict_upgrade_candidate",
+            "strict_upgrade_applied",
+            "diagnostic_codes",
+        ),
+        [
+            {
+                "species": "Clostridium gamma",
+                "selected_accession": "GCA_000003.1",
+                "review_status": "curated_strict_confirmed",
+                "reviewer_id": "reviewer-a",
+                "review_date": "2026-08-01",
+                "evidence_summary": "Public archive evidence reviewed.",
+                "evidence_source_ids": "LPSN:DSM-3;BioSample:SAMN000003",
+                "conflict_resolution": "resolved",
+                "second_reviewer_id": "reviewer-b",
+                "decision_notes": "audit-only import",
+                "decision_status": "curated_strict_confirmed",
+                "reconciler_tier": "authoritative_type_material_candidate",
+                "reconciler_conflict_status": "none",
+                "linkage_status": "matched",
+                "import_status": "importable",
+                "strict_upgrade_candidate": "true",
+                "strict_upgrade_applied": "false",
+                "diagnostic_codes": "",
+            }
+        ],
+    )
+    (outdir / "manual_review_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 1,
+                "accepted_decision_count": 1,
+                "diagnostic_count": 0,
+                "strict_upgrade_candidate_count": 1,
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_strict_gating_output(outdir):
+    outdir.mkdir()
+    _write_tsv(
+        outdir / "strict_gating_audit.tsv",
+        (
+            "schema_version",
+            "species",
+            "selected_accession",
+            "input_decision_status",
+            "strict_upgrade_candidate",
+            "gate_status",
+            "strict_gate_passed",
+            "blocker_codes",
+            "reconciler_snapshot_sha256",
+            "reviewer_check",
+            "direct_chain_check",
+            "synthetic_status",
+            "audit_only",
+            "strict_deliverable_written",
+            "strict_upgrade_applied",
+        ),
+        [
+            {
+                "schema_version": "1",
+                "species": "Clostridium gamma",
+                "selected_accession": "GCA_000003.1",
+                "input_decision_status": "curated_strict_confirmed",
+                "strict_upgrade_candidate": "true",
+                "gate_status": "passed",
+                "strict_gate_passed": "true",
+                "blocker_codes": "",
+                "reconciler_snapshot_sha256": "a" * 64,
+                "reviewer_check": "passed",
+                "direct_chain_check": "passed",
+                "synthetic_status": "not_detected",
+                "audit_only": "true",
+                "strict_deliverable_written": "false",
+                "strict_upgrade_applied": "false",
+            }
+        ],
+    )
+    (outdir / "strict_gating_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1",
+                "record_count": 1,
+                "evaluated_candidate_count": 1,
+                "strict_gate_passed_count": 1,
+                "blocked_count": 0,
+                "diagnostic_count": 0,
+                "blocker_counts": {},
+                "strict_deliverable_written": False,
+                "strict_upgrade_applied": False,
+                "audit_only": True,
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
 def _manifest_record() -> StrainRecord:
     return StrainRecord(
         record_id="rec-1",
@@ -7355,6 +7482,75 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
     assert route_context["audit_only"] is True
     assert route_context["dry_run"] is True
     assert "archive_candidates" in payload["available_stage_names"]
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
+
+
+def test_coverage_pipeline_status_reads_review_import_and_strict_gating_stages(
+    capsys, tmp_path
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    pipeline_dir = tmp_path / "pipeline_outputs"
+    code, _payload, _captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--write",
+            "--outdir",
+            str(pipeline_dir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+    assert code == 0
+    _write_manual_review_import_output(pipeline_dir / "manual_review_import")
+    _write_strict_gating_output(pipeline_dir / "strict_gating")
+
+    code, payload, captured = _run(
+        ["--coverage-pipeline-dir", str(pipeline_dir), "--json"],
+        capsys,
+        action="status",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    stage_by_name = {
+        stage["stage"]: stage for stage in payload["operator_chain_stages"]
+    }
+    manual_stage = stage_by_name["manual_review_import"]
+    assert manual_stage["available"] is True
+    assert manual_stage["record_count"] == 1
+    assert manual_stage["summary_accepted_decision_count"] == 1
+    assert manual_stage["summary_strict_upgrade_candidate_count"] == 1
+    assert manual_stage["summary_strict_upgrade_applied"] is False
+    assert manual_stage["summary_audit_only"] is True
+    assert manual_stage["recommended_request"] == {
+        "command": "strict-gating",
+        "subcommand": "evaluate",
+        "manual_review_dir": "<manual-review-import-directory>",
+        "reconciler_audit": "<reconciler_audit.tsv>",
+        "write": True,
+        "outdir": "<isolated-strict-gating-directory>",
+    }
+    assert "strict-gating evaluate" in manual_stage["recommended_next_command"]
+    assert "no strict upgrade" in manual_stage["boundary"]
+
+    gating_stage = stage_by_name["strict_gating"]
+    assert gating_stage["available"] is True
+    assert gating_stage["record_count"] == 1
+    assert gating_stage["summary_strict_gate_passed_count"] == 1
+    assert gating_stage["summary_strict_deliverable_written"] is False
+    assert gating_stage["summary_strict_upgrade_applied"] is False
+    assert gating_stage["summary_audit_only"] is True
+    assert "no strict deliverable materialization" in gating_stage["boundary"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False

@@ -614,6 +614,8 @@ def _build_parser() -> argparse.ArgumentParser:
     status = actions.add_parser("status", add_help=False)
     status.add_argument("--coverage-pipeline-dir", required=True)
     status.add_argument("--archive-candidates-dir")
+    status.add_argument("--manual-review-import-dir")
+    status.add_argument("--strict-gating-dir")
     status.add_argument("--provider-request-validation-dir")
     status.add_argument("--provider-request-external-genomes-dir")
     status.add_argument("--external-genomes-install-plan-dir")
@@ -755,6 +757,81 @@ def _run_status(
             "archive_candidates",
         ),
         diagnostics=diagnostics,
+    )
+    _apply_optional_stage(
+        stages,
+        stage_name="manual_review_import",
+        directory=_status_stage_dir(
+            args.manual_review_import_dir,
+            coverage_dir,
+            "manual_review_import",
+        ),
+        summary_name="manual_review_summary.json",
+        count_field="record_count",
+        detail_fields=(
+            "record_count",
+            "accepted_decision_count",
+            "diagnostic_count",
+            "strict_upgrade_candidate_count",
+            "strict_upgrade_applied",
+            "audit_only",
+        ),
+        diagnostics=diagnostics,
+        required_member="manual_review_decisions.tsv",
+        add_if_directory=True,
+        artifact="manual_review_import/manual_review_decisions.tsv",
+        required_inputs=(
+            "completed manual_review.tsv",
+            "frozen reconciler_audit.tsv",
+        ),
+        recommended_request={
+            "command": "strict-gating",
+            "subcommand": "evaluate",
+            "manual_review_dir": "<manual-review-import-directory>",
+            "reconciler_audit": "<reconciler_audit.tsv>",
+            "write": True,
+            "outdir": "<isolated-strict-gating-directory>",
+        },
+        recommended_next_command=(
+            "typetreeflow strict-gating evaluate "
+            "--manual-review-dir <manual-review-import-directory> "
+            "--reconciler-audit <reconciler_audit.tsv> "
+            "--write --outdir <isolated-strict-gating-directory>"
+        ),
+        boundary="manual-review import audit only; no strict upgrade or workflow mutation",
+    )
+    _apply_optional_stage(
+        stages,
+        stage_name="strict_gating",
+        directory=_status_stage_dir(
+            args.strict_gating_dir,
+            coverage_dir,
+            "strict_gating",
+        ),
+        summary_name="strict_gating_summary.json",
+        count_field="record_count",
+        detail_fields=(
+            "record_count",
+            "evaluated_candidate_count",
+            "strict_gate_passed_count",
+            "blocked_count",
+            "diagnostic_count",
+            "blocker_counts",
+            "strict_deliverable_written",
+            "strict_upgrade_applied",
+            "audit_only",
+        ),
+        diagnostics=diagnostics,
+        required_member="strict_gating_audit.tsv",
+        add_if_directory=True,
+        artifact="strict_gating/strict_gating_audit.tsv",
+        required_inputs=(
+            "manual-review import triplet",
+            "frozen reconciler_audit.tsv",
+        ),
+        recommended_request=None,
+        recommended_next_command="",
+        boundary="strict-gating audit only; no strict deliverable materialization",
     )
     _apply_optional_stage(
         stages,
