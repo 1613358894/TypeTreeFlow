@@ -1627,13 +1627,15 @@ download work. Without `--write`, it writes nothing. With `--write`, it writes o
 `acquisition_worklist_summary.json` into the explicitly supplied directory.
 Command metadata reports the target output contract as
 `acquisition_worklist_packet.v1`, so AI/operator controllers can route the
-worklist pair before running the command. When `--write` succeeds, stdout also
-includes `recommended_request`, `recommended_request_target`, and
+worklist pair before running the command. When `--write` succeeds, stdout and
+the written `acquisition_worklist_summary.json` both include
+`recommended_request`, `recommended_request_target`, and
 `recommended_next_command` for a later local `coverage-plan build` command that
 points to the written `acquisition_worklist.tsv`. It also includes a
 metadata-only `recommended_command_plan` companion for that request, with the
-rendered argv and preflight decision. The adapter does not run that next
-command.
+rendered argv and preflight decision, so file-based controllers can resume from
+the saved summary without inferring paths from prose. The adapter does not run
+that next command.
 Expanded discovery and manual-supplement inputs are local TSV handoffs only:
 `matched_candidate` and `review_matched_candidates` can surface public linkage
 review, while `manual_search_required` or `provide_external_genome_fasta` can
@@ -1677,16 +1679,18 @@ handoff metadata and does not mask later canonical provider or public archive
 names in other fields.
 Command metadata reports the target output contract as
 `coverage_plan_packet.v1`, so controllers can route the coverage-plan pair
-before running the command. When `--write` succeeds, stdout also includes
-`recommended_request`, `recommended_request_target`, and
+before running the command. When `--write` succeeds, stdout and the written
+`coverage_plan_summary.json` both include `recommended_request`,
+`recommended_request_target`, and
 `recommended_next_command` for a later local `provider-handoff build` command
 that points to the written `coverage_plan.tsv`. When the priority route list
 contains a provider-handoff item, that request includes `provider_keys` for the
 first prioritized provider key, so the next handoff is bounded by default
 rather than expanding every provider route at once. It also includes a
 metadata-only `recommended_command_plan` companion for that request, with the
-rendered argv and preflight decision. The adapter does not run that next
-command.
+rendered argv and preflight decision, so file-based controllers can resume from
+the saved summary without inferring paths from prose. The adapter does not run
+that next command.
 Existing output directories are refused by default;
 `--force` replaces only an owned pair with matching schemas. Missing,
 unreadable, malformed, wrong-schema, or boundary-violating input blocks the

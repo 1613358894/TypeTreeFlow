@@ -96,12 +96,18 @@ def run_coverage_plan_command(
     payload = _payload(plan, diagnostics=diagnostics, dry_run=not args.write)
     if args.write:
         try:
+            recommended_provider_keys = _priority_provider_handoff_keys(plan.summary)
             _publish(
                 input_path=Path(args.worklist_tsv),
                 outdir=outdir,
                 rendered={
                     "actions": plan.actions_tsv(),
-                    "summary": plan.summary_json() + "\n",
+                    "summary": _summary_json(
+                        plan,
+                        coverage_plan_tsv=str(outdir / OUTPUT_NAMES["actions"]),
+                        provider_keys=recommended_provider_keys,
+                    )
+                    + "\n",
                 },
                 force=args.force,
             )
@@ -117,7 +123,6 @@ def run_coverage_plan_command(
         payload["output_paths"] = {
             key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
         }
-        recommended_provider_keys = _priority_provider_handoff_keys(plan.summary)
         payload["recommended_request"] = _provider_handoff_recommended_request(
             str(outdir / OUTPUT_NAMES["actions"]),
             provider_keys=recommended_provider_keys,
@@ -295,6 +300,31 @@ def _provider_handoff_recommended_command(
         if provider_key:
             command += f" --provider-key {provider_key}"
     return command
+
+
+def _summary_json(
+    plan,
+    *,
+    coverage_plan_tsv: str | None = None,
+    provider_keys: Sequence[str] = (),
+) -> str:
+    summary = dict(plan.summary)
+    if coverage_plan_tsv:
+        recommended_request = _provider_handoff_recommended_request(
+            coverage_plan_tsv,
+            provider_keys=provider_keys,
+        )
+        summary["recommended_request"] = recommended_request
+        summary["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
+        summary["recommended_command_plan"] = recommended_command_plan(
+            recommended_request,
+            request_source="coverage_plan_summary.recommended_request",
+        )
+        summary["recommended_next_command"] = _provider_handoff_recommended_command(
+            coverage_plan_tsv,
+            provider_keys=provider_keys,
+        )
+    return json.dumps(summary, sort_keys=True, separators=(",", ":"))
 
 
 def _diagnostic(component: str, code: str) -> dict[str, object]:
