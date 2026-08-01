@@ -1571,8 +1571,9 @@ fields, so an unrecognized local source label does not mask a later canonical
 provider name in another field.
 Archive-candidate source fields such as `archive_source` and
 `archive_source_name` may also normalize public archive or genome-portal names
-such as ENA, DDBJ, GenBank, RefSeq, BV-BRC, PATRIC, IMG/M, and JGI IMG to
-provider hints. ENA, DDBJ, GenBank, RefSeq, BV-BRC, and PATRIC remain
+such as ENA, DDBJ, INSDC, NCBI Assembly, NCBI BioSample, GenBank, RefSeq,
+BV-BRC, PATRIC, IMG/M, and JGI IMG to provider hints. ENA, DDBJ, INSDC, NCBI
+Assembly, NCBI BioSample, GenBank, RefSeq, BV-BRC, and PATRIC remain
 metadata-only review hints; IMG/JGI remains a planning-only handoff hint and is
 not counted as a public archive metadata source.
 The field is a provider handoff hint only; it does not confirm type-strain
@@ -1612,8 +1613,9 @@ rows by local review input class, public archive source, accession class, and
 source input kind. It also includes `coverage_priority_route_counts` and
 `coverage_priority_route_summary`, which align archive candidates with the
 coverage-priority routes exposed by `providers catalog`, including public
-archive metadata review, BacDive/DSMZ type-material metadata review, ordinary
-provider handoff, and credential-gated handoff. Its
+archive metadata review, NCBI Assembly/BioSample metadata review, BacDive/DSMZ
+type-material metadata review, ordinary provider handoff, and credential-gated
+handoff. Its
 `safe_for_unattended_download=false` boundary is fixed: the packet ranks review
 opportunities for later curator/AI inspection, but it does not authorize
 downloads or strict deliverable promotion.
@@ -2851,10 +2853,10 @@ Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC/NITE, KCTC,
 KACC, ACCC, IMSNU, MAFF, NCFB, KCCM, NCCP, VKM, MCCC, GDMCC, CCTCC, CECT,
 CIP, CCUG, CCM, BCCM/LMG, NCIMB/NCIBM, NCIB, NRRL, NCAIM, HAMBI, KMM, GTC, PAGU,
 BCRC, CCRC, NCCB, CSUR/Marseille, TBRC, TISTR, CCOS, CCAM, CICC, IFO, IAM, and FERM;
-public archives ENA, DDBJ, GenBank, and NCBI RefSeq; BV-BRC/PATRIC; and
-IMG/JGI; and BacDive. Culture-collection and IMG/JGI entries are
-`planning_only`; public archive, BV-BRC/PATRIC, and BacDive entries are
-`metadata_only`.
+public archives ENA, DDBJ, INSDC, GenBank, and NCBI RefSeq; NCBI Assembly and
+NCBI BioSample metadata; BV-BRC/PATRIC; and IMG/JGI; and BacDive.
+Culture-collection and IMG/JGI entries are `planning_only`; public archive,
+NCBI Assembly/BioSample, BV-BRC/PATRIC, and BacDive entries are `metadata_only`.
 Coverage action planning may use explicit
 `provider_keys`, `candidate_provider_keys`, `preferred_provider_keys`, or
 `provider_key` hints from local rows and normalizes known aliases to canonical

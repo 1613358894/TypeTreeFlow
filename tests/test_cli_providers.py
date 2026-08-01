@@ -92,7 +92,17 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
         {
             "operator_route": "public_metadata_review",
             "provider_count": metadata_review_count,
-            "provider_keys": ["bacdive", "bv_brc", "ddbj", "ena", "genbank", "refseq"],
+            "provider_keys": [
+                "bacdive",
+                "bv_brc",
+                "ddbj",
+                "ena",
+                "genbank",
+                "insdc",
+                "ncbi_assembly",
+                "ncbi_biosample",
+                "refseq",
+            ],
             "provider_status_counts": {"metadata_only": metadata_review_count},
             "automation_level_counts": {"metadata_review": metadata_review_count},
             "next_input_class_counts": {
@@ -112,6 +122,9 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
         "ddbj",
         "ena",
         "genbank",
+        "insdc",
+        "ncbi_assembly",
+        "ncbi_biosample",
         "refseq",
     ]
     assert payload["coverage_priority_groups"] == [

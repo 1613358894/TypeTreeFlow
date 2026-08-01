@@ -638,8 +638,9 @@ DSMZ, ATCC, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, KACC, ACCC, IMSNU, MAFF,
 NCFB, VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB/NCIBM, NCIB,
 NRRL, NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR/Marseille, TBRC, TISTR, CCOS, CCAM, CICC, IFO, IAM,
 FERM, KCCM, and NCCP,
-plus public or semi-public genome portals such as BV-BRC/PATRIC and IMG/JGI. The default provider
-registry is fail-closed;
+plus public or semi-public genome portals such as BV-BRC/PATRIC and IMG/JGI.
+INSDC, NCBI Assembly, and NCBI BioSample are metadata-only review sources, not
+download providers. The default provider registry is fail-closed;
 provider cache must stay outside `cache/ncbi/`.
 For `external_fasta_required` coverage-plan rows that do not carry explicit
 provider hints, the default provider handoff labels are derived from registry

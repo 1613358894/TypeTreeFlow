@@ -269,15 +269,51 @@ def test_archive_candidate_source_aliases_are_canonicalized():
                 assembly_accession="GCA_000002.1",
                 biosample_accession="SAMN000002",
             ),
+            _row(
+                species="Clostridium assemblyum",
+                archive_source="NCBI Assembly",
+                assembly_accession="GCA_000003.1",
+                biosample_accession="SAMN000003",
+            ),
+            _row(
+                species="Clostridium biosampleum",
+                archive_source="BioSample",
+                assembly_accession="",
+                biosample_accession="SAMN000004",
+            ),
+            _row(
+                species="Clostridium insdcum",
+                archive_source="INSDC",
+                assembly_accession="GCA_000005.1",
+                biosample_accession="SAMN000005",
+            ),
         ]
     )
 
-    assert [row.archive_source for row in report.rows] == ["ena", "genbank"]
+    assert [row.archive_source for row in report.rows] == [
+        "ena",
+        "genbank",
+        "ncbi_assembly",
+        "ncbi_biosample",
+        "insdc",
+    ]
     parsed = list(csv.DictReader(io.StringIO(report.candidates_tsv()), delimiter="\t"))
-    assert [row["archive_source"] for row in parsed] == ["ena", "genbank"]
+    assert [row["archive_source"] for row in parsed] == [
+        "ena",
+        "genbank",
+        "ncbi_assembly",
+        "ncbi_biosample",
+        "insdc",
+    ]
     assert report.summary["archive_source_counts"] == {
         "ena": 1,
         "genbank": 1,
+        "insdc": 1,
+        "ncbi_assembly": 1,
+        "ncbi_biosample": 1,
+    }
+    assert report.summary["coverage_priority_route_counts"] == {
+        "public_archive_metadata_review": 5,
     }
 
 

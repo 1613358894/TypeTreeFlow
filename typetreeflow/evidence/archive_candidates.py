@@ -20,7 +20,16 @@ from typetreeflow.taxonomy.names import canonical_species_key
 
 
 PUBLIC_ARCHIVE_PROVIDER_KEYS = frozenset(
-    {"bv_brc", "ddbj", "ena", "genbank", "refseq"}
+    {
+        "bv_brc",
+        "ddbj",
+        "ena",
+        "genbank",
+        "insdc",
+        "ncbi_assembly",
+        "ncbi_biosample",
+        "refseq",
+    }
 )
 ARCHIVE_CANDIDATE_SCHEMA_VERSION = "1"
 ARCHIVE_CANDIDATE_INPUT_FIELDS: tuple[str, ...] = (
