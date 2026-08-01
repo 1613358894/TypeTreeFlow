@@ -3488,6 +3488,7 @@ def _payload(
         ],
         "provider_route_groups": provider_summary["provider_route_groups"],
         "source_action_counts": provider_summary["source_action_counts"],
+        "source_priority_counts": provider_summary["source_priority_counts"],
         "provider_terms_review_required_count": provider_summary[
             "terms_review_required_count"
         ],
@@ -10075,6 +10076,7 @@ def _rendered_outputs(
             "provider_status_counts",
             "provider_automation_level_counts",
             "source_action_counts",
+            "source_priority_counts",
             "provider_terms_review_required_count",
             "provider_credentials_required_count",
             "provider_network_supported_count",

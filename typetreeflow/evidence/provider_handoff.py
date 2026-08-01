@@ -29,6 +29,7 @@ PROVIDER_HANDOFF_FIELDS: tuple[str, ...] = (
     "next_input_class",
     "automation_boundary",
     "species",
+    "source_priority",
     "source_action_code",
     "source_lane",
     "required_input",
@@ -66,6 +67,7 @@ class ProviderHandoffRow:
     next_input_class: str
     automation_boundary: str
     species: str
+    source_priority: str
     source_action_code: str
     source_lane: str
     required_input: str
@@ -92,6 +94,7 @@ class ProviderHandoffRow:
             "next_input_class": self.next_input_class,
             "automation_boundary": self.automation_boundary,
             "species": _clean(self.species),
+            "source_priority": _clean(self.source_priority),
             "source_action_code": self.source_action_code,
             "source_lane": self.source_lane,
             "required_input": _clean(self.required_input),
@@ -123,6 +126,7 @@ class ProviderHandoff:
         next_input_class_counts: dict[str, int] = {}
         automation_boundary_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
+        priority_counts: dict[str, int] = {}
         terms_review_required_count = 0
         credentials_required_count = 0
         network_supported_count = 0
@@ -145,6 +149,10 @@ class ProviderHandoff:
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
             )
+            if row.source_priority:
+                priority_counts[row.source_priority] = (
+                    priority_counts.get(row.source_priority, 0) + 1
+                )
             if row.terms_review_required:
                 terms_review_required_count += 1
             if row.credentials_required:
@@ -173,6 +181,7 @@ class ProviderHandoff:
                 sorted(automation_boundary_counts.items())
             ),
             "source_action_counts": dict(sorted(action_counts.items())),
+            "source_priority_counts": dict(sorted(priority_counts.items())),
             "terms_review_required_count": terms_review_required_count,
             "credentials_required_count": credentials_required_count,
             "network_supported_count": network_supported_count,
@@ -228,6 +237,7 @@ def build_provider_handoff(
                     next_input_class=route["next_input_class"],
                     automation_boundary=route["automation_boundary"],
                     species=_value(plan_row, "species"),
+                    source_priority=_value(plan_row, "priority"),
                     source_action_code=_value(plan_row, "action_code"),
                     source_lane=_value(plan_row, "source_lane"),
                     required_input=_value(plan_row, "required_input"),
@@ -262,8 +272,20 @@ def _provider_key_filter(
     return tuple(provider_keys)
 
 
-def _sort_key(row: ProviderHandoffRow) -> tuple[str, str, str]:
-    return (row.provider_key, row.species.casefold(), row.source_action_code)
+def _sort_key(row: ProviderHandoffRow) -> tuple[int, str, str, str]:
+    return (
+        _priority_sort_value(row.source_priority),
+        row.provider_key,
+        row.species.casefold(),
+        row.source_action_code,
+    )
+
+
+def _priority_sort_value(value: str) -> int:
+    try:
+        return int(value)
+    except ValueError:
+        return 999
 
 
 def _provider_guidance_notes(entry) -> str:

@@ -84,6 +84,7 @@ class ProviderRequestDraftRow:
     provider: str
     provider_name: str
     artifact_type: str = "genome_fasta"
+    source_priority: str = ""
     source_action_code: str = ""
     source_lane: str = ""
     provider_status: str = ""
@@ -133,6 +134,7 @@ class ProviderRequestDraft:
         next_input_class_counts: dict[str, int] = {}
         automation_boundary_counts: dict[str, int] = {}
         action_counts: dict[str, int] = {}
+        priority_counts: dict[str, int] = {}
         template_counts = {template: 0 for template in CURATOR_COMPLETION_TEMPLATES}
         field_counts = {field: 0 for field in CURATOR_COMPLETION_FIELD_KEYS}
         blocker_counts = {field: 0 for field in CURATOR_COMPLETION_BLOCKER_KEYS}
@@ -156,6 +158,10 @@ class ProviderRequestDraft:
             action_counts[row.source_action_code] = (
                 action_counts.get(row.source_action_code, 0) + 1
             )
+            if row.source_priority:
+                priority_counts[row.source_priority] = (
+                    priority_counts.get(row.source_priority, 0) + 1
+                )
             template_counts[_curator_completion_template(row)] += 1
             request_row = row.to_provider_request_row()
             _add_curator_completion_counts(
@@ -181,6 +187,7 @@ class ProviderRequestDraft:
                 sorted(automation_boundary_counts.items())
             ),
             "source_action_counts": dict(sorted(action_counts.items())),
+            "source_priority_counts": dict(sorted(priority_counts.items())),
             "provider_key_filter": list(self.provider_key_filter),
             "provider_key_filter_count": len(self.provider_key_filter),
             "filtered": bool(self.provider_key_filter),
@@ -243,6 +250,7 @@ def build_provider_request_draft(
                 species=_value(row, "species"),
                 provider=_value(row, "provider_key"),
                 provider_name=_value(row, "provider_name"),
+                source_priority=_value(row, "source_priority"),
                 source_action_code=_value(row, "source_action_code"),
                 source_lane=_value(row, "source_lane"),
                 provider_status=_value(row, "provider_status"),
@@ -319,6 +327,7 @@ def _notes(row: ProviderRequestDraftRow) -> str:
         parts.append("recipe=complete_provider_request_fields_for_review")
     optional_parts = [
         ("source_action_code", row.source_action_code),
+        ("source_priority", row.source_priority),
         ("source_lane", row.source_lane),
         ("provider_status", row.provider_status),
         ("provider_automation_level", row.provider_automation_level),

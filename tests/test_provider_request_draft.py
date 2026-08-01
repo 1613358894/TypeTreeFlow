@@ -13,6 +13,7 @@ def _handoff_rows():
             "provider_name": "DSMZ",
             "provider_status": "planning_only",
             "species": "Clostridium beta",
+            "source_priority": "50",
             "source_action_code": "prepare_provider_handoff",
             "source_lane": "external_fasta_required",
             "provider_automation_level": "planning_handoff",
@@ -26,6 +27,7 @@ def _handoff_rows():
             "provider_name": "GenBank",
             "provider_status": "metadata_only",
             "species": "Clostridium gamma",
+            "source_priority": "20",
             "source_action_code": "review_public_archive_linkage",
             "source_lane": "public_linkage_review",
             "provider_automation_level": "metadata_review",
@@ -53,6 +55,7 @@ def test_provider_request_draft_builds_review_only_provider_request_rows():
     assert "draft_from_provider_handoff=true" in rows[0]["notes"]
     assert "provider_contacted=false" in rows[0]["notes"]
     assert "downloads_triggered=0" in rows[0]["notes"]
+    assert "source_priority=50" in rows[0]["notes"]
     assert "provider_automation_level=planning_handoff" in rows[0]["notes"]
     assert "operator_route=provider_handoff" in rows[0]["notes"]
     assert "next_input_class=permitted_local_fasta_terms_provenance" in rows[0]["notes"]
@@ -167,6 +170,7 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
             "prepare_provider_handoff": 1,
             "review_public_archive_linkage": 1,
         },
+        "source_priority_counts": {"20": 1, "50": 1},
         "provider_key_filter": [],
         "provider_key_filter_count": 0,
         "filtered": False,
