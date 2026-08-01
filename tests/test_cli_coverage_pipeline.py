@@ -6002,6 +6002,9 @@ def test_coverage_pipeline_build_filters_generated_handoff_by_provider_key(
     assert payload["coverage_provider_key_counts"]["genbank"] == 1
     assert payload["provider_handoff_record_count"] == 1
     assert payload["provider_key_counts"] == {"dsmz": 1}
+    assert payload["provider_key_filter"] == ["dsmz"]
+    assert payload["provider_key_filter_count"] == 1
+    assert payload["filtered"] is True
     assert payload["provider_request_record_count"] == 1
     assert payload["provider_request_provider_key_counts"] == {"dsmz": 1}
     assert payload["provider_request_provider_batch_count"] == 1
@@ -6018,8 +6021,22 @@ def test_coverage_pipeline_build_filters_generated_handoff_by_provider_key(
     assert [row["provider"] for row in request_rows] == ["dsmz"]
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
     assert summary["provider_handoff_record_count"] == 1
+    assert summary["provider_key_filter"] == ["dsmz"]
+    assert summary["provider_key_filter_count"] == 1
+    assert summary["filtered"] is True
     assert summary["provider_request_provider_key_counts"] == {"dsmz": 1}
     assert summary["coverage_provider_key_counts"]["genbank"] == 1
+
+    code, status_payload, status_captured = _run(
+        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        capsys,
+        action="status",
+    )
+    assert code == 0
+    assert status_captured.out.count("\n") == 1
+    assert status_payload["provider_key_filter"] == ["dsmz"]
+    assert status_payload["provider_key_filter_count"] == 1
+    assert status_payload["filtered"] is True
 
 
 def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
