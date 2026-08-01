@@ -57,6 +57,19 @@ def _write_provider_request(path: Path, **overrides: str) -> Path:
     )
 
 
+def _write_provider_requests(path: Path, rows: list[dict[str, str]]) -> Path:
+    return _write(
+        path,
+        "\t".join(PROVIDER_REQUEST_FIELDS)
+        + "\n"
+        + "\n".join(
+            "\t".join(row[field] for field in PROVIDER_REQUEST_FIELDS)
+            for row in rows
+        )
+        + "\n",
+    )
+
+
 def test_provider_request_external_genomes_draft_stdout_is_compact_json(
     tmp_path,
     capsys,
@@ -158,6 +171,58 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
     assert str(fasta) not in stdout
     assert calculate_sha256(fasta) not in stdout
     assert not (tmp_path / "external_genomes.tsv").exists()
+
+
+def test_provider_request_external_genomes_draft_filters_provider_key(
+    tmp_path,
+    capsys,
+):
+    dsmz_fasta = _write(tmp_path / "dsmz.fna", ">dsmz\nACGT\n")
+    genbank_fasta = _write(tmp_path / "genbank.fna", ">genbank\nACGT\n")
+    request = _write_provider_requests(
+        tmp_path / "provider_request.tsv",
+        [
+            _request_values(
+                local_fasta_path="dsmz.fna",
+                local_sha256=calculate_sha256(dsmz_fasta),
+            ),
+            _request_values(
+                request_id="REQ-002",
+                species="Clostridium gamma",
+                strain="ATCC 2",
+                type_strain_id="ATCC 2",
+                provider="genbank",
+                provider_name="GenBank",
+                provider_record_id="GB-2",
+                provider_record_url="https://example.org/genbank/2",
+                local_fasta_path="genbank.fna",
+                local_sha256=calculate_sha256(genbank_fasta),
+            ),
+        ],
+    )
+
+    result = cli.main(
+        [
+            "provider-request",
+            "external-genomes-draft",
+            "--input",
+            str(request),
+            "--provider-key",
+            "NCBI GenBank",
+            "--json",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 0
+    assert payload["record_count"] == 1
+    assert payload["exported_count"] == 1
+    assert payload["provider_counts"] == {"genbank": 1}
+    assert payload["provider_key_filter"] == ["genbank"]
+    assert payload["provider_key_filter_count"] == 1
+    assert payload["filtered"] is True
+    assert payload["external_genomes_preview"][0]["species"] == "Clostridium gamma"
+    assert payload["external_genomes_preview"][0]["provider"] == "genbank"
 
 
 def test_provider_request_external_genomes_draft_write_outputs_pair(
@@ -528,6 +593,74 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
         outdir / "provider_request_external_genomes" / "external_genomes.tsv"
     ).exists()
     assert not (tmp_path / "manifest.tsv").exists()
+
+
+def test_provider_request_external_genomes_handoff_filters_provider_key(
+    tmp_path,
+    capsys,
+):
+    dsmz_fasta = _write(tmp_path / "dsmz.fna", ">dsmz\nACGT\n")
+    genbank_fasta = _write(tmp_path / "genbank.fna", ">genbank\nACGT\n")
+    request = _write_provider_requests(
+        tmp_path / "provider_request.tsv",
+        [
+            _request_values(
+                local_fasta_path="dsmz.fna",
+                local_sha256=calculate_sha256(dsmz_fasta),
+            ),
+            _request_values(
+                request_id="REQ-002",
+                species="Clostridium gamma",
+                strain="ATCC 2",
+                type_strain_id="ATCC 2",
+                provider="genbank",
+                provider_name="GenBank",
+                provider_record_id="GB-2",
+                provider_record_url="https://example.org/genbank/2",
+                local_fasta_path="genbank.fna",
+                local_sha256=calculate_sha256(genbank_fasta),
+            ),
+        ],
+    )
+    outdir = tmp_path / "external_handoff"
+
+    result = cli.main(
+        [
+            "provider-request",
+            "external-genomes-handoff",
+            "--input",
+            str(request),
+            "--provider-key",
+            "NCBI GenBank",
+            "--write",
+            "--outdir",
+            str(outdir),
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    validation_summary = json.loads(
+        (
+            outdir
+            / "provider_request_validation"
+            / "provider_request_validation_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    external_summary = json.loads(
+        (
+            outdir
+            / "provider_request_external_genomes"
+            / "provider_request_external_genomes_summary.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert result == 0
+    assert payload["record_count"] == 1
+    assert payload["provider_counts"] == {"genbank": 1}
+    assert payload["provider_key_filter"] == ["genbank"]
+    assert payload["provider_key_filter_count"] == 1
+    assert payload["filtered"] is True
+    assert validation_summary["provider_key_filter"] == ["genbank"]
+    assert external_summary["provider_key_filter"] == ["genbank"]
 
 
 def test_provider_request_external_genomes_handoff_blocked_writes_validation_only(

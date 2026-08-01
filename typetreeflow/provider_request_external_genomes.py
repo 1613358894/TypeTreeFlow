@@ -14,8 +14,14 @@ from typetreeflow.external_genomes import (
 from typetreeflow.provider_plan import ProviderRequestRecord
 from typetreeflow.provider_request_validation import (
     PROVIDER_REQUEST_READY_STATUS,
+    filter_provider_request_records,
     provider_request_route_metadata_from_notes,
+    provider_request_provider_key_filter,
     validate_provider_requests_for_local_handoff,
+)
+from typetreeflow.providers.registry import (
+    ProviderRegistry,
+    build_default_provider_registry,
 )
 from typetreeflow.providers.routing import provider_route_groups
 
@@ -66,6 +72,7 @@ class ProviderRequestExternalGenomesDraft:
     provider_route_groups: list[dict[str, object]]
     next_input_class_counts: dict[str, int]
     automation_boundary_counts: dict[str, int]
+    provider_key_filter: tuple[str, ...] = ()
     schema_version: str = PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION
 
     @property
@@ -101,6 +108,9 @@ class ProviderRequestExternalGenomesDraft:
             "automation_boundary_counts": dict(
                 sorted(self.automation_boundary_counts.items())
             ),
+            "provider_key_filter": list(self.provider_key_filter),
+            "provider_key_filter_count": len(self.provider_key_filter),
+            "filtered": bool(self.provider_key_filter),
             "diagnostic_counts": dict(sorted(diagnostic_counts.items())),
             "audit_only": True,
             "dry_run": True,
@@ -149,11 +159,23 @@ def build_provider_request_external_genomes_draft(
     records: Iterable[ProviderRequestRecord],
     *,
     base_dir: str | Path,
+    provider_key_filter: Iterable[str] | None = None,
+    registry: ProviderRegistry | None = None,
 ) -> ProviderRequestExternalGenomesDraft:
-    source_records = tuple(records)
+    provider_registry = registry or build_default_provider_registry()
+    selected_provider_keys = provider_request_provider_key_filter(
+        provider_key_filter,
+        registry=provider_registry,
+    )
+    source_records = filter_provider_request_records(
+        records,
+        provider_key_filter=selected_provider_keys,
+        registry=provider_registry,
+    )
     validation = validate_provider_requests_for_local_handoff(
         source_records,
         base_dir=base_dir,
+        registry=provider_registry,
     )
     diagnostics: list[dict[str, object]] = []
     if not source_records:
@@ -182,6 +204,7 @@ def build_provider_request_external_genomes_draft(
         provider_route_groups=route_counts["provider_route_groups"],
         next_input_class_counts=route_counts["next_input_class_counts"],
         automation_boundary_counts=route_counts["automation_boundary_counts"],
+        provider_key_filter=selected_provider_keys,
     )
 
 

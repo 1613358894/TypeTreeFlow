@@ -11,6 +11,10 @@ from typetreeflow.provider_plan import (
     REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS,
     SUPPORTED_PROVIDER_ARTIFACT_TYPES,
 )
+from typetreeflow.providers.registry import (
+    ProviderRegistry,
+    build_default_provider_registry,
+)
 from typetreeflow.providers.routing import provider_route_groups
 
 
@@ -112,6 +116,7 @@ class ProviderRequestValidationRow:
 @dataclass(frozen=True)
 class ProviderRequestValidation:
     rows: tuple[ProviderRequestValidationRow, ...]
+    provider_key_filter: tuple[str, ...] = ()
     schema_version: str = PROVIDER_REQUEST_VALIDATION_SCHEMA_VERSION
 
     @property
@@ -179,6 +184,9 @@ class ProviderRequestValidation:
             "automation_boundary_counts": dict(
                 sorted(automation_boundary_counts.items())
             ),
+            "provider_key_filter": list(self.provider_key_filter),
+            "provider_key_filter_count": len(self.provider_key_filter),
+            "filtered": bool(self.provider_key_filter),
             "blocker_counts": dict(sorted(blocker_counts.items())),
             "blocker_guidance": _blocker_guidance(blocker_counts),
             "local_fasta_checked_count": sum(
@@ -211,12 +219,59 @@ def validate_provider_requests_for_local_handoff(
     records: Iterable[ProviderRequestRecord],
     *,
     base_dir: str | Path,
+    provider_key_filter: Iterable[str] | None = None,
+    registry: ProviderRegistry | None = None,
 ) -> ProviderRequestValidation:
+    provider_registry = registry or build_default_provider_registry()
+    selected_provider_keys = provider_request_provider_key_filter(
+        provider_key_filter,
+        registry=provider_registry,
+    )
+    filtered_records = filter_provider_request_records(
+        records,
+        provider_key_filter=selected_provider_keys,
+        registry=provider_registry,
+    )
     rows = tuple(
         _validate_record(record, base_dir=Path(base_dir))
-        for record in records
+        for record in filtered_records
     )
-    return ProviderRequestValidation(rows=rows)
+    return ProviderRequestValidation(
+        rows=rows,
+        provider_key_filter=selected_provider_keys,
+    )
+
+
+def provider_request_provider_key_filter(
+    values: Iterable[str] | None,
+    *,
+    registry: ProviderRegistry,
+) -> tuple[str, ...]:
+    if values is None:
+        return ()
+    provider_keys: list[str] = []
+    for value in values:
+        for provider_key in registry.keys_from_hints(str(value)):
+            if provider_key and provider_key not in provider_keys:
+                provider_keys.append(provider_key)
+    return tuple(provider_keys)
+
+
+def filter_provider_request_records(
+    records: Iterable[ProviderRequestRecord],
+    *,
+    provider_key_filter: tuple[str, ...],
+    registry: ProviderRegistry,
+) -> tuple[ProviderRequestRecord, ...]:
+    source_records = tuple(records)
+    if not provider_key_filter:
+        return source_records
+    selected = set(provider_key_filter)
+    return tuple(
+        record
+        for record in source_records
+        if registry.get(record.provider).provider_key in selected
+    )
 
 
 def _provider_route_group_row(row: ProviderRequestValidationRow) -> dict[str, object]:
@@ -274,6 +329,9 @@ def provider_request_validation_payload(
         "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
+        "provider_key_filter": summary["provider_key_filter"],
+        "provider_key_filter_count": summary["provider_key_filter_count"],
+        "filtered": summary["filtered"],
         "blocker_counts": summary["blocker_counts"],
         "blocker_guidance": summary["blocker_guidance"],
         "local_fasta_checked_count": summary["local_fasta_checked_count"],

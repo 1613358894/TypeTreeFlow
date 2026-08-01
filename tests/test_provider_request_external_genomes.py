@@ -153,6 +153,54 @@ def test_provider_request_external_genomes_draft_maps_ready_rows(tmp_path):
     validate_external_genomes(draft.records, base_dir=tmp_path)
 
 
+def test_provider_request_external_genomes_draft_filters_provider_key(tmp_path):
+    dsmz_fasta = _write(tmp_path / "dsmz.fna", ">dsmz\nACGT\n")
+    genbank_fasta = _write(tmp_path / "genbank.fna", ">genbank\nACGT\n")
+    request = _write_provider_request(
+        tmp_path / "provider_request.tsv",
+        [
+            _request_values(
+                local_fasta_path="dsmz.fna",
+                local_sha256=calculate_sha256(dsmz_fasta),
+            ),
+            _request_values(
+                request_id="REQ-002",
+                species="Clostridium gamma",
+                strain="ATCC 2",
+                type_strain_id="ATCC 2",
+                provider="genbank",
+                provider_name="GenBank",
+                provider_record_id="GB-2",
+                provider_record_url="https://example.org/genbank/2",
+                local_fasta_path="genbank.fna",
+                local_sha256=calculate_sha256(genbank_fasta),
+                notes=(
+                    "public archive handoff; provider_status=metadata_only; "
+                    "provider_automation_level=metadata_review; "
+                    "operator_route=public_metadata_review; "
+                    "next_input_class=public_accession_type_strain_linkage; "
+                    "automation_boundary=metadata_review_only_no_download"
+                ),
+            ),
+        ],
+    )
+
+    draft = build_provider_request_external_genomes_draft(
+        read_provider_requests(request),
+        base_dir=tmp_path,
+        provider_key_filter=("NCBI GenBank",),
+    )
+
+    assert draft.valid is True
+    assert draft.summary["record_count"] == 1
+    assert draft.summary["provider_counts"] == {"genbank": 1}
+    assert draft.summary["provider_key_filter"] == ["genbank"]
+    assert draft.summary["provider_key_filter_count"] == 1
+    assert draft.summary["filtered"] is True
+    assert draft.records[0].species == "Clostridium gamma"
+    assert draft.records[0].external_source == "genbank"
+
+
 def test_provider_request_external_genomes_tsv_uses_existing_schema(tmp_path):
     fasta = _write(tmp_path / "evidence" / "local.fna", ">seq\nACGT\n")
     request = _write_provider_request(

@@ -306,6 +306,7 @@ readiness without writing workflow outputs:
 
 ```bash
 typetreeflow provider-request validate --input <provider_request.tsv> \
+  [--provider-key <provider-key-or-alias> ...] \
   [--base-dir <local-fasta-base-dir>] [--json] \
   [--write --outdir <isolated-validation-directory> [--force]]
 ```
@@ -325,6 +326,9 @@ so controllers can see the compact `recommended_request_target`, rendered argv,
 and preflight blocker IDs before asking for write allowance. Ready stdout uses
 the explicit `--input` path, and includes `--base-dir` in the recommended
 request when supplied; blocked stdout leaves the recommended request empty.
+Repeated `--provider-key` values filter a combined `provider_request.tsv` to
+canonical provider keys or known aliases, and successful recommendations
+preserve that provider-specific subset for `external-genomes-handoff`.
 With `--write`, it publishes only
 `provider_request_validation_summary.json` and
 `provider_request_validation_diagnostics.tsv` in the explicit isolated
@@ -338,7 +342,8 @@ Convert fully ready provider request rows into an isolated
 
 ```bash
 typetreeflow provider-request external-genomes-draft \
-  --input <provider_request.tsv> [--base-dir <local-fasta-base-dir>] [--json] \
+  --input <provider_request.tsv> [--provider-key <provider-key-or-alias> ...] \
+  [--base-dir <local-fasta-base-dir>] [--json] \
   [--write --outdir <isolated-external-genomes-directory> [--force]]
 ```
 
@@ -357,13 +362,16 @@ metadata may be copied into `external_genomes.tsv` notes, but raw provider or
 curator notes are not copied. This is still only a handoff input: it does not
 register external genomes, copy FASTA files, mutate manifests, contact
 providers, download data, or create strict scientific deliverables.
+Repeated `--provider-key` values export only a provider-specific subset from a
+combined provider request file.
 
 For AI/operator handoff, the validation and external-genomes draft steps can
 also be bundled into one isolated local command:
 
 ```bash
 typetreeflow provider-request external-genomes-handoff \
-  --input <provider_request.tsv> [--base-dir <local-fasta-base-dir>] [--json] \
+  --input <provider_request.tsv> [--provider-key <provider-key-or-alias> ...] \
+  [--base-dir <local-fasta-base-dir>] [--json] \
   [--write --outdir <isolated-handoff-directory> [--force]]
 ```
 
@@ -376,7 +384,9 @@ explicitly. The compact handoff payload retains validation route counts for
 AI/operator routing continuity and includes a readiness packet for the next
 explicit `external-genomes validate` step when the bundle is complete. Complete
 payloads include compact `recommended_request_target` labels; blocked payloads
-leave top-level recommended request fields empty. This remains an isolated handoff convenience
+leave top-level recommended request fields empty. Repeated `--provider-key`
+values apply to both bundled validation and external-genomes conversion, so
+provider-specific batch boundaries stay visible. This remains an isolated handoff convenience
 only: no workflow outputs, provider contact, downloads, FASTA copying,
 external-genome registration, manifest mutation, completion credit, or strict
 deliverable promotion.

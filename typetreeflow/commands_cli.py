@@ -643,6 +643,9 @@ _PROVIDER_REQUEST_DRAFT_SUMMARY_FIELDS: list[str] = [
     "record_count",
     *_PROVIDER_ROUTE_SUMMARY_FIELDS,
     "source_action_counts",
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "curator_completion_template_counts",
     "curator_completion_required_count",
     "curator_completion_field_counts",
@@ -658,6 +661,9 @@ _PROVIDER_REQUEST_VALIDATION_SUMMARY_FIELDS: list[str] = [
     "status_counts",
     "provider_counts",
     *_ROUTE_SUMMARY_FIELDS,
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "blocker_counts",
     "local_fasta_checked_count",
     "local_sha256_matched_count",
@@ -671,6 +677,9 @@ _PROVIDER_REQUEST_EXTERNAL_GENOMES_SUMMARY_FIELDS: list[str] = [
     "exported_count",
     "provider_counts",
     *_ROUTE_SUMMARY_FIELDS,
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "diagnostic_counts",
     "required_inputs",
     "recommended_request",
@@ -689,6 +698,9 @@ _PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_SUMMARY_FIELDS: list[str] = [
     "external_genomes_status",
     "provider_counts",
     *_ROUTE_SUMMARY_FIELDS,
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "required_inputs",
     "recommended_request",
     "recommended_request_target",
@@ -2147,6 +2159,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "curator-completed provider_request.tsv input",
         },
         {
+            "name": "--provider-key",
+            "kind": "string",
+            "required": False,
+            "repeatable": True,
+            "purpose": "optional canonical provider key or known alias filter",
+        },
+        {
             "name": "--base-dir",
             "kind": "path",
             "required": False,
@@ -2191,6 +2210,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "curator-completed provider_request.tsv input",
         },
         {
+            "name": "--provider-key",
+            "kind": "string",
+            "required": False,
+            "repeatable": True,
+            "purpose": "optional canonical provider key or known alias filter",
+        },
+        {
             "name": "--base-dir",
             "kind": "path",
             "required": False,
@@ -2233,6 +2259,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": True,
             "repeatable": False,
             "purpose": "curator-completed provider_request.tsv input",
+        },
+        {
+            "name": "--provider-key",
+            "kind": "string",
+            "required": False,
+            "repeatable": True,
+            "purpose": "optional canonical provider key or known alias filter",
         },
         {
             "name": "--base-dir",
@@ -3831,6 +3864,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "command",
                 "subcommand",
                 "input",
+                "provider_keys",
                 "base_dir",
                 "json",
                 "write",
@@ -3844,6 +3878,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--input",
             _required_string(request, "input"),
         ]
+        for provider_key in _optional_string_array(request, "provider_keys"):
+            argv.extend(["--provider-key", provider_key])
         base_dir = _optional_string(request, "base_dir")
         if base_dir:
             argv.extend(["--base-dir", base_dir])
@@ -3860,6 +3896,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "command",
                 "subcommand",
                 "input",
+                "provider_keys",
                 "base_dir",
                 "json",
                 "write",
@@ -3873,6 +3910,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--input",
             _required_string(request, "input"),
         ]
+        for provider_key in _optional_string_array(request, "provider_keys"):
+            argv.extend(["--provider-key", provider_key])
         base_dir = _optional_string(request, "base_dir")
         if base_dir:
             argv.extend(["--base-dir", base_dir])
@@ -3889,6 +3928,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "command",
                 "subcommand",
                 "input",
+                "provider_keys",
                 "base_dir",
                 "json",
                 "write",
@@ -3902,6 +3942,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--input",
             _required_string(request, "input"),
         ]
+        for provider_key in _optional_string_array(request, "provider_keys"):
+            argv.extend(["--provider-key", provider_key])
         base_dir = _optional_string(request, "base_dir")
         if base_dir:
             argv.extend(["--base-dir", base_dir])
