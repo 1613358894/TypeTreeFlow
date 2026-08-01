@@ -1805,7 +1805,8 @@ The compact JSON and `provider_request_draft_summary.json` include
 `recommended_next_command`. Dry-run output keeps a generic
 `provider-request validate` request. On successful writes, stdout's
 `recommended_request` and `recommended_next_command` point to the written
-`provider_request.tsv` for the later local validation command.
+`provider_request.tsv` for the later local validation command, and the written
+summary preserves the same concrete path for file-based controller resume.
 `commands recognize`, `commands plan`, and `commands preflight` report the
 target output contract as `provider_request_draft_packet.v1`, so AI/operator
 controllers can route the draft pair without running the command first.
