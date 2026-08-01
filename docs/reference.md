@@ -2480,7 +2480,9 @@ still required. When the next stage is a blocked external-genomes install-plan
 with a local repair queue, `coverage_handoff_readiness_summary`,
 `coverage_handoff_next_step_packet`, and
 `coverage_handoff_input_readiness_packet` all expose the bounded
-`next_stage_repair_queue`.
+`next_stage_repair_queue` plus an `external-genomes repair-template`
+recommendation for producing an isolated editable repair TSV from the explicit
+`external_genomes.tsv` input.
 `coverage_handoff_runbook_packet` is the ordered metadata-only checklist for
 that provider/external handoff. It starts by inspecting
 `coverage_handoff_readiness_summary`, then the input-readiness packet, then the

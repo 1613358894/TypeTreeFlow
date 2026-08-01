@@ -6232,6 +6232,41 @@ def test_coverage_pipeline_status_preserves_external_genomes_repair_queue(
     assert status_payload["coverage_handoff_input_readiness_packet"][
         "next_stage_repair_queue"
     ] == queue
+    repair_request = {
+        "command": "external-genomes",
+        "subcommand": "repair-template",
+        "input": "provider_request_external_genomes/external_genomes.tsv",
+        "write": True,
+        "out": "<external_genomes_repair_template.tsv>",
+    }
+    repair_command = (
+        "typetreeflow external-genomes repair-template "
+        "--input provider_request_external_genomes/external_genomes.tsv "
+        "--write --out <external_genomes_repair_template.tsv>"
+    )
+    for packet_name in (
+        "coverage_handoff_readiness_summary",
+        "coverage_handoff_next_step_packet",
+        "coverage_handoff_input_readiness_packet",
+    ):
+        packet = status_payload[packet_name]
+        assert (
+            packet["next_stage_repair_template_recommended_request"]
+            == repair_request
+        )
+        assert (
+            packet["next_stage_repair_template_recommended_request_target"]
+            == "external-genomes repair-template"
+        )
+        assert (
+            packet["next_stage_repair_template_recommended_next_command"]
+            == repair_command
+        )
+        assert packet["next_stage_repair_template_write_preflight_required"] is True
+        assert (
+            packet["next_stage_repair_template_safe_for_unattended_execution"]
+            is False
+        )
     assert status_payload["downloads_triggered"] == 0
     assert status_payload["providers_contacted"] == 0
     assert status_payload["manifest_mutated"] is False

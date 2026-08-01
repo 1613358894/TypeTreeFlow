@@ -1781,6 +1781,59 @@ def _stage_repair_queue(stage: Mapping[str, object] | None) -> dict[str, object]
     return _safe_repair_queue(stage.get("summary_external_genomes_repair_queue"))
 
 
+def _stage_repair_template_request(
+    stage: Mapping[str, object] | None,
+) -> dict[str, object] | None:
+    repair_queue = _stage_repair_queue(stage)
+    if not repair_queue:
+        return None
+    input_path = _stage_repair_template_input(stage)
+    if not input_path:
+        return None
+    return {
+        "command": "external-genomes",
+        "subcommand": "repair-template",
+        "input": input_path,
+        "write": True,
+        "out": "<external_genomes_repair_template.tsv>",
+    }
+
+
+def _stage_repair_template_input(stage: Mapping[str, object] | None) -> str:
+    if not stage:
+        return ""
+    required_inputs = stage.get("required_inputs")
+    if isinstance(required_inputs, list):
+        for value in required_inputs:
+            path = str(value)
+            if path.endswith("external_genomes.tsv"):
+                return path
+        for value in required_inputs:
+            path = str(value)
+            if path.endswith(".tsv"):
+                return path
+    request = stage.get("recommended_request")
+    if isinstance(request, Mapping):
+        for key in ("input", "external_genomes"):
+            value = request.get(key)
+            if value:
+                return str(value)
+    return ""
+
+
+def _stage_repair_template_next_command(request: Mapping[str, object] | None) -> str:
+    if not request:
+        return ""
+    input_path = str(request.get("input", ""))
+    out_path = str(request.get("out", ""))
+    if not input_path or not out_path:
+        return ""
+    return (
+        "typetreeflow external-genomes repair-template "
+        f"--input {input_path} --write --out {out_path}"
+    )
+
+
 def _safe_repair_queue(value: object) -> dict[str, object]:
     if not isinstance(value, Mapping):
         return {}
@@ -3525,6 +3578,7 @@ def _coverage_handoff_readiness_summary(
         and isinstance(next_stage.get("recommended_request"), Mapping)
         else None
     )
+    repair_template_request = _stage_repair_template_request(next_stage)
     provider_status_counts_by_stage = _stage_summary_count_maps(
         handoff_stages, "provider_status_counts"
     )
@@ -3561,6 +3615,17 @@ def _coverage_handoff_readiness_summary(
             else ""
         ),
         "next_stage_repair_queue": _stage_repair_queue(next_stage),
+        "next_stage_repair_template_recommended_request": repair_template_request,
+        "next_stage_repair_template_recommended_request_target": (
+            _coverage_recommended_request_target(repair_template_request)
+        ),
+        "next_stage_repair_template_recommended_next_command": (
+            _stage_repair_template_next_command(repair_template_request)
+        ),
+        "next_stage_repair_template_write_preflight_required": bool(
+            repair_template_request
+        ),
+        "next_stage_repair_template_safe_for_unattended_execution": False,
         "record_counts_by_stage": {
             str(stage.get("stage", "")): _safe_int(stage.get("record_count", 0))
             for stage in handoff_stages
@@ -3611,6 +3676,18 @@ def _coverage_handoff_next_step_packet(
     )
     blocking_ids = _diagnostic_ids(command_plan.get("blocking", []))
     warning_ids = _diagnostic_ids(command_plan.get("warnings", []))
+    repair_template_request = (
+        dict(
+            handoff_summary.get(
+                "next_stage_repair_template_recommended_request", {}
+            )
+        )
+        if isinstance(
+            handoff_summary.get("next_stage_repair_template_recommended_request"),
+            Mapping,
+        )
+        else None
+    )
     return {
         "schema_version": "coverage_handoff_next_step_packet.v1",
         "available": available,
@@ -3669,6 +3746,23 @@ def _coverage_handoff_next_step_packet(
         "next_stage_repair_queue": _safe_repair_queue(
             handoff_summary.get("next_stage_repair_queue")
         ),
+        "next_stage_repair_template_recommended_request": repair_template_request,
+        "next_stage_repair_template_recommended_request_target": str(
+            handoff_summary.get(
+                "next_stage_repair_template_recommended_request_target", ""
+            )
+        ),
+        "next_stage_repair_template_recommended_next_command": str(
+            handoff_summary.get(
+                "next_stage_repair_template_recommended_next_command", ""
+            )
+        ),
+        "next_stage_repair_template_write_preflight_required": bool(
+            handoff_summary.get(
+                "next_stage_repair_template_write_preflight_required"
+            )
+        ),
+        "next_stage_repair_template_safe_for_unattended_execution": False,
         "provider_contact_allowed": False,
         "safe_for_unattended_execution": False,
         "recommended_execution_mode": (
@@ -3749,6 +3843,36 @@ def _coverage_handoff_input_readiness_packet(
         "next_stage_repair_queue": _safe_repair_queue(
             coverage_handoff_next_step_packet.get("next_stage_repair_queue")
         ),
+        "next_stage_repair_template_recommended_request": (
+            dict(
+                coverage_handoff_next_step_packet.get(
+                    "next_stage_repair_template_recommended_request", {}
+                )
+            )
+            if isinstance(
+                coverage_handoff_next_step_packet.get(
+                    "next_stage_repair_template_recommended_request"
+                ),
+                Mapping,
+            )
+            else None
+        ),
+        "next_stage_repair_template_recommended_request_target": str(
+            coverage_handoff_next_step_packet.get(
+                "next_stage_repair_template_recommended_request_target", ""
+            )
+        ),
+        "next_stage_repair_template_recommended_next_command": str(
+            coverage_handoff_next_step_packet.get(
+                "next_stage_repair_template_recommended_next_command", ""
+            )
+        ),
+        "next_stage_repair_template_write_preflight_required": bool(
+            coverage_handoff_next_step_packet.get(
+                "next_stage_repair_template_write_preflight_required"
+            )
+        ),
+        "next_stage_repair_template_safe_for_unattended_execution": False,
         "chain_complete": bool(
             coverage_handoff_readiness_summary.get("chain_complete")
         ),
