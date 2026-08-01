@@ -121,6 +121,7 @@ EXTERNAL_GENOME_ROUTE_METADATA_FIELDS = (
     "operator_route",
     "next_input_class",
     "automation_boundary",
+    "source_priority",
 )
 EXTERNAL_GENOME_ROUTE_METADATA_ALLOWED_VALUES = {
     "provider_status": {
@@ -886,6 +887,10 @@ def external_genome_route_metadata_from_notes(notes: str) -> dict[str, str]:
         if not sep or key not in values:
             continue
         candidate = value.strip()
+        if key == "source_priority":
+            if candidate.isdigit():
+                values[key] = candidate
+            continue
         if candidate in EXTERNAL_GENOME_ROUTE_METADATA_ALLOWED_VALUES[key]:
             values[key] = candidate
     return values
@@ -900,6 +905,7 @@ def summarize_external_genome_route_metadata(
         "operator_route_counts": Counter(),
         "next_input_class_counts": Counter(),
         "automation_boundary_counts": Counter(),
+        "source_priority_counts": Counter(),
     }
     route_group_rows: list[dict[str, object]] = []
     for row in rows:
@@ -918,6 +924,7 @@ def summarize_external_genome_route_metadata(
             ("operator_route", "operator_route_counts"),
             ("next_input_class", "next_input_class_counts"),
             ("automation_boundary", "automation_boundary_counts"),
+            ("source_priority", "source_priority_counts"),
         ):
             value = metadata[field]
             if value:

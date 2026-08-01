@@ -43,7 +43,8 @@ def _request_values(**overrides: str) -> dict[str, str]:
                 "provider_automation_level=planning_handoff; "
                 "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
-                "automation_boundary=planning_handoff_no_provider_contact"
+                "automation_boundary=planning_handoff_no_provider_contact; "
+                "source_priority=50"
             ),
         }
     )
@@ -125,6 +126,7 @@ def test_provider_request_ready_when_local_fasta_and_curator_fields_match(
     assert result.summary["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert result.summary["source_priority_counts"] == {"50": 1}
     assert result.rows[0].readiness_status == PROVIDER_REQUEST_READY_STATUS
     assert result.rows[0].blocking_reasons == ()
     assert result.summary["downloads_triggered"] == 0
@@ -296,3 +298,4 @@ def test_provider_request_validation_preview_omits_paths_and_hashes(tmp_path):
     assert preview["operator_route"] == "provider_handoff"
     assert preview["next_input_class"] == "permitted_local_fasta_terms_provenance"
     assert preview["automation_boundary"] == "planning_handoff_no_provider_contact"
+    assert preview["source_priority"] == "50"

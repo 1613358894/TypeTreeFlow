@@ -709,6 +709,7 @@ def _external_genomes_payload(draft) -> dict[str, object]:
         "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
+        "source_priority_counts": summary["source_priority_counts"],
         "provider_key_filter": summary["provider_key_filter"],
         "provider_key_filter_count": summary["provider_key_filter_count"],
         "filtered": summary["filtered"],
@@ -787,6 +788,9 @@ def _external_genomes_handoff_payload(
         ),
         "automation_boundary_counts": dict(
             validation_payload.get("automation_boundary_counts", {})
+        ),
+        "source_priority_counts": dict(
+            validation_payload.get("source_priority_counts", {})
         ),
         "provider_key_filter": list(
             validation_payload.get("provider_key_filter", [])
@@ -921,6 +925,11 @@ def _provider_request_readiness_packet(
             list(payload.get("provider_route_groups", []))
             if isinstance(payload.get("provider_route_groups"), list)
             else []
+        ),
+        "source_priority_counts": (
+            dict(payload.get("source_priority_counts", {}))
+            if isinstance(payload.get("source_priority_counts"), Mapping)
+            else {}
         ),
         "next_stage": next_stage if ready else "",
         "required_inputs": (
@@ -1066,6 +1075,13 @@ def _external_genomes_failure(code: str) -> dict[str, object]:
         "record_count": 0,
         "exported_count": 0,
         "provider_counts": {},
+        "provider_status_counts": {},
+        "provider_automation_level_counts": {},
+        "operator_route_counts": {},
+        "provider_route_groups": [],
+        "next_input_class_counts": {},
+        "automation_boundary_counts": {},
+        "source_priority_counts": {},
         "provider_key_filter": [],
         "provider_key_filter_count": 0,
         "filtered": False,
@@ -1133,6 +1149,13 @@ def _external_genomes_handoff_failure(code: str) -> dict[str, object]:
         "external_genomes_diagnostic_count": 0,
         "diagnostic_count": 1,
         "provider_counts": {},
+        "provider_status_counts": {},
+        "provider_automation_level_counts": {},
+        "operator_route_counts": {},
+        "provider_route_groups": [],
+        "next_input_class_counts": {},
+        "automation_boundary_counts": {},
+        "source_priority_counts": {},
         "provider_key_filter": [],
         "provider_key_filter_count": 0,
         "filtered": False,
@@ -1187,6 +1210,13 @@ def _validate_failure(code: str) -> dict[str, object]:
         "blocked_count": 0,
         "status_counts": {},
         "provider_counts": {},
+        "provider_status_counts": {},
+        "provider_automation_level_counts": {},
+        "operator_route_counts": {},
+        "provider_route_groups": [],
+        "next_input_class_counts": {},
+        "automation_boundary_counts": {},
+        "source_priority_counts": {},
         "provider_key_filter": [],
         "provider_key_filter_count": 0,
         "filtered": False,

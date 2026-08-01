@@ -39,7 +39,14 @@ def _request_values(**overrides: str) -> dict[str, str]:
             "is_type_material": "true",
             "requires_manual_review": "false",
             "curator": "curator-a",
-            "notes": "local handoff",
+            "notes": (
+                "local handoff; provider_status=planning_only; "
+                "provider_automation_level=planning_handoff; "
+                "operator_route=provider_handoff; "
+                "next_input_class=permitted_local_fasta_terms_provenance; "
+                "automation_boundary=planning_handoff_no_provider_contact; "
+                "source_priority=50"
+            ),
         }
     )
     values.update(overrides)
@@ -98,6 +105,7 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
     assert payload["status"] == "pass"
     assert payload["record_count"] == 1
     assert payload["exported_count"] == 1
+    assert payload["source_priority_counts"] == {"50": 1}
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False
     assert payload["external_genomes_registration_applied"] is False
@@ -118,6 +126,7 @@ def test_provider_request_external_genomes_draft_stdout_is_compact_json(
     assert packet["blocked_count"] == 0
     assert packet["exported_count"] == 1
     assert packet["provider_route_groups"] == payload["provider_route_groups"]
+    assert packet["source_priority_counts"] == {"50": 1}
     assert packet["next_stage"] == "external_genomes_validate"
     assert packet["recommended_request"] == {
         "command": "external-genomes",
@@ -279,6 +288,7 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
     )
     assert payload["output_paths"]["external_genomes"].endswith("external_genomes.tsv")
     assert summary["writes_outputs"] is True
+    assert summary["source_priority_counts"] == {"50": 1}
     assert summary["external_genomes_registration_applied"] is False
     assert summary["required_inputs"] == [external_genomes_path]
     assert summary["recommended_next_command"] == (
@@ -301,6 +311,7 @@ def test_provider_request_external_genomes_draft_write_outputs_pair(
     )
     assert header == "\t".join(EXTERNAL_GENOME_FIELDS)
     assert records[0].external_source == "dsmz"
+    assert "source_priority=50" in records[0].notes
     assert not (tmp_path / "manifest.tsv").exists()
 
 
@@ -495,6 +506,7 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
     assert payload["status"] == "pass"
     assert payload["ready_count"] == 1
     assert payload["exported_count"] == 1
+    assert payload["source_priority_counts"] == {"50": 1}
     assert payload["writes_outputs"] is True
     assert payload["writes_workflow_outputs"] is False
     assert payload["downloads_triggered"] == 0
@@ -513,6 +525,7 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
     assert packet["record_count"] == 1
     assert packet["ready_count"] == 1
     assert packet["exported_count"] == 1
+    assert packet["source_priority_counts"] == {"50": 1}
     assert packet["recommended_request"] == {
         "command": "external-genomes",
         "subcommand": "validate",
@@ -576,6 +589,8 @@ def test_provider_request_external_genomes_handoff_writes_validation_and_draft(
     assert calculate_sha256(fasta) not in stdout
     assert validation_summary["status"] == "pass"
     assert external_summary["status"] == "pass"
+    assert validation_summary["source_priority_counts"] == {"50": 1}
+    assert external_summary["source_priority_counts"] == {"50": 1}
     assert external_summary["install_plan_recommended_request"]["command"] == (
         "external-genomes"
     )
