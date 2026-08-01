@@ -2696,7 +2696,8 @@ repair or next-step actions with bounded species previews and fixed
 `safe_for_unattended_execution=false`.
 Blocked validate payloads also include `external_genomes_repair_queue`, a
 bounded row-level queue with input row numbers, local fields or files to fix,
-recommended local repair actions, and no-download/no-provider safety fields.
+recommended local repair actions, a bounded `repair_template_row` shaped like
+`external_genomes.tsv`, and no-download/no-provider safety fields.
 The queue is only a repair guide for the reviewed `external_genomes.tsv` input;
 it is not installation permission, provider authorization, registration, or
 completion credit.

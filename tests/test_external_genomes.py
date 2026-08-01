@@ -541,6 +541,25 @@ def test_external_genome_repair_queue_lists_bounded_local_input_fixes(tmp_path):
                 "external_genome_id": "missing",
                 "genome_fasta_path": str(tmp_path / "missing.fna"),
                 "missing_or_blocked_inputs": ["existing_local_fasta_file"],
+                "repair_template_schema": "external_genomes.tsv",
+                "repair_template_row": {
+                    "species": "Clostridium missingum",
+                    "strain": "ATCC 9817",
+                    "type_strain_id": "ATCC 9817",
+                    "external_source": "dsmz",
+                    "external_source_name": "<external-source-name>",
+                    "external_genome_id": "missing",
+                    "external_source_url": "",
+                    "genome_fasta_path": "<existing-local-fasta.fna>",
+                    "sha256": "",
+                    "is_type_material": "true",
+                    "requires_manual_review": "false",
+                    "status": "external_genome_registered",
+                    "notes": (
+                        "repair_template=true; audit_only=true; "
+                        "provider_contacted=false; downloads_triggered=0"
+                    ),
+                },
                 "recommended_action": "supply an existing local FASTA path",
                 "next_input_class": "external_genomes.tsv",
                 "recommended_next_command": (
@@ -563,6 +582,25 @@ def test_external_genome_repair_queue_lists_bounded_local_input_fixes(tmp_path):
                 "external_genome_id": "mismatch",
                 "genome_fasta_path": str(bad_fasta),
                 "missing_or_blocked_inputs": ["sha256"],
+                "repair_template_schema": "external_genomes.tsv",
+                "repair_template_row": {
+                    "species": "Clostridium mismatchum",
+                    "strain": "ATCC 9817",
+                    "type_strain_id": "ATCC 9817",
+                    "external_source": "dsmz",
+                    "external_source_name": "<external-source-name>",
+                    "external_genome_id": "mismatch",
+                    "external_source_url": "",
+                    "genome_fasta_path": str(bad_fasta),
+                    "sha256": "",
+                    "is_type_material": "true",
+                    "requires_manual_review": "false",
+                    "status": "external_genome_registered",
+                    "notes": (
+                        "repair_template=true; audit_only=true; "
+                        "provider_contacted=false; downloads_triggered=0"
+                    ),
+                },
                 "recommended_action": "fix FASTA checksum or replace the local file",
                 "next_input_class": "external_genomes.tsv",
                 "recommended_next_command": (
@@ -753,6 +791,25 @@ def test_external_genomes_validate_emits_repair_queue_for_blocked_rows(
             "external_genome_id": "missing",
             "genome_fasta_path": "missing.fna",
             "missing_or_blocked_inputs": ["existing_local_fasta_file"],
+            "repair_template_schema": "external_genomes.tsv",
+            "repair_template_row": {
+                "species": "Clostridium missingum",
+                "strain": "ATCC 9817",
+                "type_strain_id": "ATCC 9817",
+                "external_source": "dsmz",
+                "external_source_name": "<external-source-name>",
+                "external_genome_id": "missing",
+                "external_source_url": "",
+                "genome_fasta_path": "<existing-local-fasta.fna>",
+                "sha256": "",
+                "is_type_material": "true",
+                "requires_manual_review": "false",
+                "status": "external_genome_registered",
+                "notes": (
+                    "repair_template=true; audit_only=true; "
+                    "provider_contacted=false; downloads_triggered=0"
+                ),
+            },
             "recommended_action": "supply an existing local FASTA path",
             "next_input_class": "external_genomes.tsv",
             "recommended_next_command": (
