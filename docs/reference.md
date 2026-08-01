@@ -2257,10 +2257,11 @@ deliverables. `coverage-pipeline status` reports
 `coverage_next_input_handoff_artifact_packet` with the file path, size,
 SHA-256, selected queue labels, and a `handoff_matches_embedded_packet` guard so
 controllers can fail closed if the saved handoff no longer matches the stored
-pipeline summary. It also preserves `provider_request_provider_batch_count` and
-`provider_request_provider_batches` from the stored build summary, including
-the route context fields used to batch provider handoff and public metadata
-review without reparsing provider request rows.
+pipeline summary. It also preserves provider request record/status/key-count
+fields plus `provider_request_provider_batch_count` and
+`provider_request_provider_batches` from the stored build summary, including the
+route context fields used to batch provider handoff and public metadata review
+without reparsing provider request rows.
 `coverage_parent_controller_packet` is the top-level parent-controller
 envelope. It repeats the controller status, step summary, first controller
 candidate, preflight argv, provider/external handoff next step, server
