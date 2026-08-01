@@ -204,10 +204,11 @@ Command metadata reports `coverage_plan_packet.v1` for the generated
 coverage-plan pair.
 When `--write` succeeds, stdout includes a structured `recommended_request`
 for `provider-handoff build` using the written `coverage_plan.tsv`. That
-request is only an AI/operator handoff for a later local command. The matching
-`recommended_command_plan` is metadata-only and reports rendered argv plus the
-preflight decision; this step does not run provider-handoff or contact
-providers.
+request is only an AI/operator handoff for a later local command and includes
+up to three high-priority planning-handoff provider keys when those routes are
+available. The matching `recommended_command_plan` is metadata-only and reports
+rendered argv plus the preflight decision; this step does not run
+provider-handoff or contact providers.
 
 Turn coverage-plan provider keys into a provider-specific offline handoff:
 

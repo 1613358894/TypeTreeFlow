@@ -180,7 +180,7 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
         "command": "provider-handoff",
         "subcommand": "build",
         "coverage_plan_tsv": str(plan_path),
-        "provider_keys": ["atcc_genome_portal"],
+        "provider_keys": ["atcc_genome_portal", "dsmz", "jcm"],
     }
     assert payload["recommended_request_target"] == "provider-handoff build"
     plan = payload["recommended_command_plan"]
@@ -195,6 +195,10 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
         str(plan_path),
         "--provider-key",
         "atcc_genome_portal",
+        "--provider-key",
+        "dsmz",
+        "--provider-key",
+        "jcm",
     ]
     assert plan["decision"] == "allow"
     assert plan["preflight_decision"] == "allow"
@@ -204,7 +208,8 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
     assert plan["strict_scientific_deliverable"] is False
     assert payload["recommended_next_command"] == (
         "typetreeflow provider-handoff build --coverage-plan-tsv "
-        f"{plan_path} --provider-key atcc_genome_portal"
+        f"{plan_path} --provider-key atcc_genome_portal --provider-key dsmz "
+        "--provider-key jcm"
     )
     assert {path.name for path in outdir.iterdir()} == {
         "coverage_plan.tsv",
@@ -227,7 +232,8 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
     assert summary["recommended_command_plan"] == payload["recommended_command_plan"]
     assert summary["recommended_next_command"] == (
         "typetreeflow provider-handoff build --coverage-plan-tsv "
-        f"{plan_path} --provider-key atcc_genome_portal"
+        f"{plan_path} --provider-key atcc_genome_portal --provider-key dsmz "
+        "--provider-key jcm"
     )
 
     assert (
@@ -249,6 +255,10 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
         str(plan_path),
         "--provider-key",
         "atcc_genome_portal",
+        "--provider-key",
+        "dsmz",
+        "--provider-key",
+        "jcm",
     ]
 
 
