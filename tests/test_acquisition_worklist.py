@@ -1056,6 +1056,41 @@ def test_worklist_ncibm_variant_routes_to_ncimb_handoff():
     assert report.summary["unrouted_type_strain_token_counts"] == {}
 
 
+def test_worklist_tbrc_tistr_tokens_route_to_provider_handoff():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium thailandhandoffum",
+                "type_strain_names": "TBRC 11758; TISTR 2984",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium thailandhandoffum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium thailandhandoffum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == "tbrc; tistr"
+    assert row.candidate_provider_statuses == (
+        "tbrc=planning_only; tistr=planning_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "tbrc": 1,
+        "tistr": 1,
+    }
+    assert report.summary["unrouted_type_strain_token_counts"] == {}
+
+
 def test_worklist_conflict_overrides_archive_candidate():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium conflictum"}],
