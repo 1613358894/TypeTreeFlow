@@ -71,6 +71,12 @@ class _UsageError(Exception):
     pass
 
 
+class _RepairMergeError(Exception):
+    def __init__(self, diagnostic_code: str) -> None:
+        super().__init__(diagnostic_code)
+        self.diagnostic_code = diagnostic_code
+
+
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         raise _UsageError(message)
@@ -463,11 +469,11 @@ def _run_repair_merge(args: argparse.Namespace, output: TextIO) -> int:
             results=results,
             repair_records=repair_records,
         )
-    except ValueError:
+    except _RepairMergeError as error:
         diagnostics.append(
             _diagnostic(
                 "external_genomes_repair_merge",
-                "repair_template_row_count_mismatch",
+                error.diagnostic_code,
                 schema_version=REPAIR_MERGE_SCHEMA_VERSION,
             )
         )
@@ -955,11 +961,27 @@ def _merge_external_genome_repairs(
         index for index, result in enumerate(results) if not result.valid
     ]
     if len(invalid_indexes) != len(repair_records):
-        raise ValueError("repair template row count must match invalid input rows")
+        raise _RepairMergeError("repair_template_row_count_mismatch")
     merged_records = list(records)
     for index, repair_record in zip(invalid_indexes, repair_records):
+        if not _repair_template_identity_matches(records[index], repair_record):
+            raise _RepairMergeError("repair_template_identity_mismatch")
         merged_records[index] = repair_record
     return merged_records
+
+
+def _repair_template_identity_matches(original_record, repair_record) -> bool:
+    return all(
+        str(getattr(original_record, field, "") or "").strip()
+        == str(getattr(repair_record, field, "") or "").strip()
+        for field in (
+            "species",
+            "strain",
+            "type_strain_id",
+            "external_source",
+            "external_genome_id",
+        )
+    )
 
 
 def _external_genomes_readiness_packet(
