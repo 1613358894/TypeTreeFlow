@@ -13,6 +13,30 @@ def _run(args, capsys):
     return code, json.loads(captured.out)
 
 
+def _plan_from_summary(summary_json: Path, capsys):
+    code, payload = _run(
+        [
+            "commands",
+            "plan",
+            "--request-file",
+            str(summary_json),
+        ],
+        capsys,
+    )
+    assert code == 0
+    assert payload["decision"] == "allow"
+    assert payload["request_source"] == str(summary_json)
+    assert payload["request_unwrapped_from"] == "recommended_request"
+    assert payload["target_writes_outputs_declared"] is False
+    assert payload["target_network_declared"] is False
+    assert payload["target_external_tools_declared"] is False
+    return payload
+
+
+def _with_write_outdir(argv, outdir: Path):
+    return [*argv, "--write", "--outdir", str(outdir)]
+
+
 def _write_tsv(path: Path, fields, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
@@ -120,17 +144,18 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
     assert aw_payload["providers_contacted"] == 0
     assert worklist_tsv.is_file()
 
+    aw_summary = aw_dir / "acquisition_worklist_summary.json"
+    aw_plan = _plan_from_summary(aw_summary, capsys)
+    assert aw_plan["target_argv"] == [
+        "coverage-plan",
+        "build",
+        "--worklist-tsv",
+        str(worklist_tsv),
+    ]
+
     plan_dir = tmp_path / "plan_out"
     plan_code, plan_payload = _run(
-        [
-            "coverage-plan",
-            "build",
-            "--worklist-tsv",
-            str(worklist_tsv),
-            "--write",
-            "--outdir",
-            str(plan_dir),
-        ],
+        _with_write_outdir(aw_plan["target_argv"], plan_dir),
         capsys,
     )
 
@@ -155,17 +180,20 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
     assert plan_payload["providers_contacted"] == 0
     assert coverage_plan_tsv.is_file()
 
+    plan_summary = plan_dir / "coverage_plan_summary.json"
+    handoff_plan = _plan_from_summary(plan_summary, capsys)
+    assert handoff_plan["target_argv"] == [
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        str(coverage_plan_tsv),
+        "--provider-key",
+        "dsmz",
+    ]
+
     handoff_dir = tmp_path / "handoff_out"
     handoff_code, handoff_payload = _run(
-        [
-            "provider-handoff",
-            "build",
-            "--coverage-plan-tsv",
-            str(coverage_plan_tsv),
-            "--write",
-            "--outdir",
-            str(handoff_dir),
-        ],
+        _with_write_outdir(handoff_plan["target_argv"], handoff_dir),
         capsys,
     )
 
@@ -176,16 +204,55 @@ def test_acquisition_to_provider_handoff_chain_preserves_priority_boundaries(
         "subcommand": "draft",
         "provider_handoff_tsv": str(provider_handoff_tsv),
     }
-    assert handoff_payload["provider_key_counts"] == {"dsmz": 1, "img_jgi": 1}
+    assert handoff_payload["provider_key_counts"] == {"dsmz": 1}
     assert handoff_payload["provider_automation_level_counts"] == {
-        "planning_handoff": 2
+        "planning_handoff": 1
     }
-    assert handoff_payload["credentials_required_count"] == 1
+    assert handoff_payload["provider_key_filter"] == ["dsmz"]
+    assert handoff_payload["provider_key_filter_count"] == 1
+    assert handoff_payload["filtered"] is True
+    assert handoff_payload["credentials_required_count"] == 0
     assert handoff_payload["network_supported_count"] == 0
     assert handoff_payload["default_network_enabled_count"] == 0
     assert handoff_payload["downloads_triggered"] == 0
     assert handoff_payload["providers_contacted"] == 0
     assert provider_handoff_tsv.is_file()
+
+    handoff_summary = handoff_dir / "provider_handoff_summary.json"
+    request_plan = _plan_from_summary(handoff_summary, capsys)
+    assert request_plan["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        str(provider_handoff_tsv),
+    ]
+
+    request_dir = tmp_path / "provider_request_out"
+    request_code, request_payload = _run(
+        _with_write_outdir(request_plan["target_argv"], request_dir),
+        capsys,
+    )
+    provider_request_tsv = request_dir / "provider_request.tsv"
+    assert request_code == 0
+    assert request_payload["provider_key_counts"] == {"dsmz": 1}
+    assert request_payload["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
+    assert request_payload["operator_route_counts"] == {"provider_handoff": 1}
+    assert request_payload["downloads_triggered"] == 0
+    assert request_payload["providers_contacted"] == 0
+    assert request_payload["writes_workflow_outputs"] is False
+    assert provider_request_tsv.is_file()
+    request_summary = request_dir / "provider_request_draft_summary.json"
+    validation_plan = _plan_from_summary(request_summary, capsys)
+    assert validation_plan["target_argv"] == [
+        "provider-request",
+        "validate",
+        "--input",
+        str(provider_request_tsv),
+    ]
+
     assert not (aw_dir / "evidence").exists()
     assert not (plan_dir / "evidence").exists()
     assert not (handoff_dir / "evidence").exists()
+    assert not (request_dir / "evidence").exists()
