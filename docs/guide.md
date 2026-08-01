@@ -428,7 +428,10 @@ adapters would build. When `build --write` receives
 publishes the derived audit-only `archive_candidates/` triplet for matched
 public-accession candidates. This is the same local review surface produced by
 `archive-candidates build`; it does not query archives, download genomes, or
-grant strict completion. `preview` writes nothing. Its compact JSON includes
+grant strict completion. Repeated `--provider-key` values narrow the generated
+provider handoff and provider request artifacts to provider-specific local
+subsets while keeping the worklist and coverage plan as full-run audit context.
+`preview` writes nothing. Its compact JSON includes
 `coverage_next_action_groups`, a
 priority-ordered summary of action counts, source lanes, provider keys, and
 recommended next commands for AI/operator routing. It also includes
@@ -783,8 +786,8 @@ supplied, the pipeline validates that explicit curator-completed TSV and writes
 `provider_request_external_genomes/` only when the local validation passes; it
 does not infer curator completion from the generated `provider_request/` draft.
 Repeated `--provider-key` values can narrow that curated TSV to
-provider-specific local handoff batches without contacting providers or
-downloading genomes.
+the same provider-specific local handoff batches without contacting providers
+or downloading genomes.
 The `coverage_next/next_input_package.json` member freezes the current
 coverage-action queue item, review-input packet, command plan, operator recipe,
 and queue resume packet so a later AI/operator handoff can resume from an

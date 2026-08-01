@@ -349,7 +349,8 @@ def run_coverage_pipeline_command(
         )
         coverage_plan = build_coverage_plan(row.to_row() for row in worklist.rows)
         provider_handoff = build_provider_handoff(
-            action.to_row() for action in coverage_plan.actions
+            (action.to_row() for action in coverage_plan.actions),
+            provider_key_filter=args.provider_key,
         )
         provider_request = build_provider_request_draft(
             row.to_row() for row in provider_handoff.rows
@@ -572,6 +573,7 @@ def _build_parser() -> argparse.ArgumentParser:
     preview.add_argument("--archive-candidates-tsv")
     preview.add_argument("--expanded-discovery-results-tsv")
     preview.add_argument("--manual-supplement-hints-tsv")
+    preview.add_argument("--provider-key", action="append")
     preview.add_argument(
         "--queue-preview-limit",
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),

@@ -5967,6 +5967,55 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert payload["writes_outputs"] is True
 
 
+def test_coverage_pipeline_build_filters_generated_handoff_by_provider_key(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    outdir = tmp_path / "pipeline_outputs"
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--provider-key",
+            "dsmz",
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["coverage_action_count"] == 4
+    assert payload["coverage_provider_key_counts"]["genbank"] == 1
+    assert payload["provider_handoff_record_count"] == 1
+    assert payload["provider_key_counts"] == {"dsmz": 1}
+    assert payload["provider_request_record_count"] == 1
+    assert payload["provider_request_provider_key_counts"] == {"dsmz": 1}
+    assert payload["provider_request_provider_batch_count"] == 1
+    assert payload["provider_request_provider_batches"][0]["provider_key"] == "dsmz"
+    handoff_rows = _read_tsv(outdir / "provider_handoff" / "provider_handoff.tsv")
+    assert [row["provider_key"] for row in handoff_rows] == ["dsmz"]
+    request_rows = _read_tsv(outdir / "provider_request" / "provider_request.tsv")
+    assert [row["provider"] for row in request_rows] == ["dsmz"]
+    summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())
+    assert summary["provider_handoff_record_count"] == 1
+    assert summary["provider_request_provider_key_counts"] == {"dsmz": 1}
+    assert summary["coverage_provider_key_counts"]["genbank"] == 1
+
+
 def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
     capsys,
     tmp_path,
