@@ -324,6 +324,35 @@ _CATALOG_ENTRIES = (
         "boundary": "external-genomes local install planning only; no install execution, manifest, provider contact, or downloads",
     },
     {
+        "command": "external-genomes",
+        "subcommand": "repair-template",
+        "mode": "external_genomes",
+        "argv_pattern": (
+            "typetreeflow external-genomes repair-template "
+            "--input <external_genomes.tsv> "
+            "[--write --out <external_genomes_repair_template.tsv>]"
+        ),
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_repair_template_tsv",
+        "requires_outdir": False,
+        "boundary": "external-genomes local repair template only; no install, manifest, provider contact, or downloads",
+    },
+    {
+        "command": "external-genomes",
+        "subcommand": "repair-merge",
+        "mode": "external_genomes",
+        "argv_pattern": (
+            "typetreeflow external-genomes repair-merge "
+            "--input <external_genomes.tsv> "
+            "--repair-template <external_genomes_repair_template.tsv> "
+            "[--write --out <external_genomes_repaired.tsv>]"
+        ),
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_repaired_external_genomes_tsv",
+        "requires_outdir": False,
+        "boundary": "external-genomes local repair merge only; no install, manifest, provider contact, or downloads",
+    },
+    {
         "command": "plan-provider-registration",
         "subcommand": None,
         "mode": "provider_registration_plan",
@@ -694,6 +723,28 @@ _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS: list[str] = [
     "recommended_request_target",
     "recommended_next_command",
 ]
+_EXTERNAL_GENOMES_REPAIR_TEMPLATE_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    "invalid_count",
+    "repair_needed",
+    "repair_template_row_count",
+    "repair_template_fields",
+    "external_genomes_repair_queue",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
+]
+_EXTERNAL_GENOMES_REPAIR_MERGE_SUMMARY_FIELDS: list[str] = [
+    "record_count",
+    "valid_original_count",
+    "invalid_original_count",
+    "repair_template_row_count",
+    "merged_record_count",
+    "expected_fields",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
+]
 _EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS: list[str] = [
     "registration_result_count",
     "valid_count",
@@ -845,6 +896,22 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "external_genomes_readiness_packet.v1",
             "purpose": "external-genomes install-plan readiness handoff",
             "summary_fields": _EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS,
+        },
+    ),
+    ("external-genomes", "repair-template"): (
+        {
+            "name": "external_genomes_repair_template",
+            "schema_version": "external_genomes_repair_template.v1",
+            "purpose": "external-genomes invalid-row repair template handoff",
+            "summary_fields": _EXTERNAL_GENOMES_REPAIR_TEMPLATE_SUMMARY_FIELDS,
+        },
+    ),
+    ("external-genomes", "repair-merge"): (
+        {
+            "name": "external_genomes_repair_merge",
+            "schema_version": "external_genomes_repair_merge.v1",
+            "purpose": "external-genomes repaired TSV merge handoff",
+            "summary_fields": _EXTERNAL_GENOMES_REPAIR_MERGE_SUMMARY_FIELDS,
         },
     ),
     ("register-external-genomes", None): (
@@ -2237,6 +2304,87 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "overwrite compatible isolated install-plan audit outputs",
+        },
+    ],
+    ("external-genomes", "repair-template"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "external_genomes.tsv input with blocked rows",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated editable repair TSV",
+        },
+        {
+            "name": "--out",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated external_genomes.tsv-shaped repair template output",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite existing repair template output",
+        },
+    ],
+    ("external-genomes", "repair-merge"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "original external_genomes.tsv input",
+        },
+        {
+            "name": "--repair-template",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "edited repair template TSV",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated repaired external_genomes.tsv",
+        },
+        {
+            "name": "--out",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated repaired external_genomes.tsv output",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "overwrite existing repaired TSV output",
         },
     ],
     ("plan-provider-registration", None): [
@@ -3764,6 +3912,59 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         outdir = _optional_string(request, "outdir")
         if outdir:
             argv.extend(["--outdir", outdir])
+        return _with_flags(argv, request, {"json": "--json", "force": "--force"})
+    if command == "external-genomes" and subcommand == "repair-template":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input",
+                "json",
+                "write",
+                "out",
+                "force",
+            },
+        )
+        argv = [
+            "external-genomes",
+            "repair-template",
+            "--input",
+            _required_string(request, "input"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        out = _optional_string(request, "out")
+        if out:
+            argv.extend(["--out", out])
+        return _with_flags(argv, request, {"json": "--json", "force": "--force"})
+    if command == "external-genomes" and subcommand == "repair-merge":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input",
+                "repair_template",
+                "json",
+                "write",
+                "out",
+                "force",
+            },
+        )
+        argv = [
+            "external-genomes",
+            "repair-merge",
+            "--input",
+            _required_string(request, "input"),
+            "--repair-template",
+            _required_string(request, "repair_template"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        out = _optional_string(request, "out")
+        if out:
+            argv.extend(["--out", out])
         return _with_flags(argv, request, {"json": "--json", "force": "--force"})
     if command == "plan-provider-registration":
         _reject_unknown_fields(request, {"command", "provider_request", "outdir"})

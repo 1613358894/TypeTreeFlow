@@ -52,7 +52,12 @@ _PROVIDER_REQUEST_SUBCOMMANDS = {
     "external-genomes-handoff",
     "validate",
 }
-_EXTERNAL_GENOMES_SUBCOMMANDS = {"install-plan", "validate"}
+_EXTERNAL_GENOMES_SUBCOMMANDS = {
+    "install-plan",
+    "repair-merge",
+    "repair-template",
+    "validate",
+}
 _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
@@ -399,7 +404,10 @@ def _writes_outputs_declared(
             and "--write" in tokens
         )
     if command == "external-genomes":
-        return subcommand == "install-plan" and "--write" in tokens
+        return (
+            subcommand in {"install-plan", "repair-template", "repair-merge"}
+            and "--write" in tokens
+        )
     if command == "plan-provider-registration":
         return True
     if command == "register-external-genomes":
