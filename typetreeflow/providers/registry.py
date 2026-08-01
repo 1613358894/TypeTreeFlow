@@ -207,6 +207,10 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("Thailand Bioresource Research Center", "tbrc"),
     ("TISTR", "tistr"),
     ("TISTR Culture Collection", "tistr"),
+    ("CCOS", "ccos"),
+    ("Culture Collection of Switzerland", "ccos"),
+    ("CCAM", "ccam"),
+    ("China Collection of Anaerobic Microorganisms", "ccam"),
     ("CICC", "cicc"),
     ("IFO", "ifo"),
     ("IAM", "iam"),
@@ -285,6 +289,8 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("MARSEILLE", "csur"),
     ("TBRC", "tbrc"),
     ("TISTR", "tistr"),
+    ("CCOS", "ccos"),
+    ("CCAM", "ccam"),
     ("CICC", "cicc"),
     ("IFO", "ifo"),
     ("IAM", "iam"),
@@ -484,6 +490,16 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "tistr",
             "TISTR Culture Collection",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ccos",
+            "Culture Collection of Switzerland",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ccam",
+            "China Collection of Anaerobic Microorganisms",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(

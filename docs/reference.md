@@ -1549,7 +1549,7 @@ from explicit local provider hints or recognizable culture-collection tokens
 such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, KACC, ACCC, IMSNU,
 MAFF, NCFB, KCCM, NCCP, VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, LMG,
 NCIMB/NCIBM, NCIB, NRRL, NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR/Marseille,
-TBRC, TISTR, CICC, IFO, IAM, and FERM.
+TBRC, TISTR, CCOS, CCAM, CICC, IFO, IAM, and FERM.
 Explicit provider hints may use canonical provider keys, common abbreviations,
 or static registry display names; they are normalized to canonical provider
 keys before summary counting. Recognized hints are additive across supported
@@ -2759,7 +2759,7 @@ The default provider registry includes static fail-closed entries for ATCC
 Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC/NITE, KCTC,
 KACC, ACCC, IMSNU, MAFF, NCFB, KCCM, NCCP, VKM, MCCC, GDMCC, CCTCC, CECT,
 CIP, CCUG, CCM, BCCM/LMG, NCIMB/NCIBM, NCIB, NRRL, NCAIM, HAMBI, KMM, GTC, PAGU,
-BCRC, CCRC, NCCB, CSUR/Marseille, TBRC, TISTR, CICC, IFO, IAM, and FERM;
+BCRC, CCRC, NCCB, CSUR/Marseille, TBRC, TISTR, CCOS, CCAM, CICC, IFO, IAM, and FERM;
 public archives ENA, DDBJ, GenBank, and NCBI RefSeq; BV-BRC/PATRIC; and
 IMG/JGI; and BacDive. Culture-collection and IMG/JGI entries are
 `planning_only`; public archive, BV-BRC/PATRIC, and BacDive entries are

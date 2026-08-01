@@ -46,6 +46,8 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "MARSEILLE",
     "TBRC",
     "TISTR",
+    "CCOS",
+    "CCAM",
     "CICC",
     "IFO",
     "NITE",
