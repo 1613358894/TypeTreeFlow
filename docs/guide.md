@@ -84,9 +84,12 @@ AI operators. It is metadata only: no provider is contacted and no download
 capability is enabled by listing a provider. Its `provider_route_groups`
 summary groups provider keys by AI/operator route so controllers can distinguish
 public metadata review from user-assisted provider handoff without scanning the
-full catalog. BacDive appears as a `metadata_only` route for candidate/source
-metadata review only; listing it does not call live BacDive, contact DSMZ, or
-enable downloads.
+full catalog. It also emits `coverage_priority_groups`, a coverage-first route
+summary that puts public archive metadata review ahead of BacDive/DSMZ
+type-material metadata review, ordinary culture-collection provider handoff,
+and credential-gated handoff. BacDive appears as a `metadata_only` route for
+candidate/source metadata review only; listing it does not call live BacDive,
+contact DSMZ, or enable downloads.
 
 For AI-facing offline planning, first normalize public archive candidates from
 already collected ENA/DDBJ/INSDC/GenBank-style metadata:

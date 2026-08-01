@@ -16,6 +16,9 @@ from typetreeflow.providers.routing import provider_route
 
 
 COMMAND = "providers catalog"
+PUBLIC_ARCHIVE_PROVIDER_KEYS = frozenset(
+    {"bv_brc", "ddbj", "ena", "genbank", "refseq"}
+)
 
 
 class _UsageError(Exception):
@@ -200,6 +203,7 @@ def _catalog_summary(entries: list[dict[str, object]]) -> dict[str, object]:
         "automation_level_counts": dict(sorted(automation_level_counts.items())),
         "operator_route_counts": dict(sorted(operator_route_counts.items())),
         "provider_route_groups": _provider_route_groups(route_groups),
+        "coverage_priority_groups": _coverage_priority_groups(entries),
         "allowed_mode_counts": dict(sorted(mode_counts.items())),
         "planning_only_provider_keys": sorted(planning_only_keys),
         "metadata_only_provider_keys": sorted(metadata_only_keys),
@@ -220,6 +224,7 @@ def _empty_catalog_summary() -> dict[str, object]:
         "automation_level_counts": {},
         "operator_route_counts": {},
         "provider_route_groups": [],
+        "coverage_priority_groups": [],
         "allowed_mode_counts": {},
         "planning_only_provider_keys": [],
         "metadata_only_provider_keys": [],
@@ -264,6 +269,91 @@ def _provider_route_groups(
             }
         )
     return groups
+
+
+def _coverage_priority_groups(
+    entries: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    groups = [
+        {
+            "priority": 10,
+            "coverage_route": "public_archive_metadata_review",
+            "provider_keys": [],
+            "operator_route": "public_metadata_review",
+            "recommended_action": (
+                "review public accession/type-linkage metadata before provider handoff"
+            ),
+            "next_input_class": "public_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
+        },
+        {
+            "priority": 20,
+            "coverage_route": "type_material_metadata_review",
+            "provider_keys": [],
+            "operator_route": "public_metadata_review",
+            "recommended_action": (
+                "review BacDive/DSMZ type-material metadata as candidate evidence"
+            ),
+            "next_input_class": "public_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
+        },
+        {
+            "priority": 30,
+            "coverage_route": "culture_collection_provider_handoff",
+            "provider_keys": [],
+            "operator_route": "provider_handoff",
+            "recommended_action": (
+                "prepare user-assisted permitted-local-FASTA provider handoff"
+            ),
+            "next_input_class": "permitted_local_fasta_terms_provenance",
+            "automation_boundary": "planning_handoff_no_provider_contact",
+        },
+        {
+            "priority": 40,
+            "coverage_route": "credential_gated_provider_handoff",
+            "provider_keys": [],
+            "operator_route": "provider_handoff",
+            "recommended_action": (
+                "defer until credentials, terms, and local permitted FASTA handling are approved"
+            ),
+            "next_input_class": "permitted_local_fasta_terms_provenance",
+            "automation_boundary": "credential_review_required_no_provider_contact",
+        },
+    ]
+    by_route = {str(group["coverage_route"]): group for group in groups}
+    for entry in entries:
+        key = str(entry["provider_key"])
+        if key in PUBLIC_ARCHIVE_PROVIDER_KEYS:
+            route = "public_archive_metadata_review"
+        elif key == "bacdive":
+            route = "type_material_metadata_review"
+        elif bool(entry["requires_credentials"]):
+            route = "credential_gated_provider_handoff"
+        elif entry["automation_level"] == "planning_handoff":
+            route = "culture_collection_provider_handoff"
+        else:
+            continue
+        by_route[route]["provider_keys"].append(key)  # type: ignore[index]
+
+    populated = []
+    for group in groups:
+        provider_keys = sorted(str(key) for key in group["provider_keys"])
+        if not provider_keys:
+            continue
+        populated.append(
+            {
+                **group,
+                "provider_count": len(provider_keys),
+                "provider_keys": provider_keys,
+                "safe_for_unattended_execution": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+        )
+    return populated
 
 
 def _clean(value: str) -> str:
