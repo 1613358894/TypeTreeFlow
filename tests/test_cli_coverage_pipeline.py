@@ -3699,7 +3699,18 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
         "provider_keys": ["dsmz"],
     }
+    assert next_batch["first_recommended_write_request_template"] == {
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+        "provider_keys": ["dsmz"],
+        "write": True,
+        "outdir": "<isolated-provider-handoff-directory>",
+    }
     assert next_batch["first_recommended_request_target"] == (
+        "provider-handoff build"
+    )
+    assert next_batch["first_recommended_write_request_target"] == (
         "provider-handoff build"
     )
     assert next_batch["first_command_plan_decision"] == "allow"
@@ -3712,7 +3723,20 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "--provider-key",
         "dsmz",
     ]
+    assert next_batch["first_write_preflight_decision"] == "allow"
+    assert next_batch["first_write_target_argv"] == [
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        "coverage_plan/coverage_plan.tsv",
+        "--provider-key",
+        "dsmz",
+        "--write",
+        "--outdir",
+        "<isolated-provider-handoff-directory>",
+    ]
     assert next_batch["first_blocking_ids"] == []
+    assert next_batch["first_write_blocking_ids"] == []
     assert next_batch["first_warning_ids"] == []
     first_plan = next_batch["first_recommended_command_plan"]
     assert first_plan["schema_version"] == "coverage_next_command_plan.v1"
@@ -3725,6 +3749,18 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert first_plan["downloads_triggered"] == 0
     assert first_plan["providers_contacted"] == 0
     assert first_plan["manifest_mutated"] is False
+    first_write_plan = next_batch["first_recommended_write_command_plan"]
+    assert first_write_plan["schema_version"] == "coverage_next_command_plan.v1"
+    assert first_write_plan["request_source"] == (
+        "coverage_route_next_batch_packet.batch_items.1."
+        "recommended_write_request_template"
+    )
+    assert first_write_plan["recommended_request_target"] == "provider-handoff build"
+    assert first_write_plan["decision"] == "allow"
+    assert first_write_plan["preflight_decision"] == "allow"
+    assert first_write_plan["target_argv"] == next_batch["first_write_target_argv"]
+    assert first_write_plan["blocking"] == []
+    assert first_write_plan["writes_outputs"] is False
     assert next_batch["safe_for_unattended_execution"] is False
     assert next_batch["downloads_triggered"] == 0
     assert next_batch["providers_contacted"] == 0
@@ -3775,6 +3811,11 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         "--input",
         "<review.tsv>",
     ]
+    assert genbank_batch_item["recommended_write_request_template"] is None
+    assert genbank_batch_item["recommended_write_request_target"] == ""
+    assert genbank_batch_item["recommended_write_command_plan"]["available"] is False
+    assert genbank_batch_item["write_target_argv"] == []
+    assert genbank_batch_item["write_blocking_ids"] == []
     assert genbank_batch_item["blocking_ids"] == []
     assert genbank_batch_item["warning_ids"] == []
     assert payload["provider_terms_review_required_count"] == 5

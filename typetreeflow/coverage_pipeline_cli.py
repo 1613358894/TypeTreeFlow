@@ -5368,6 +5368,7 @@ def _coverage_route_next_batch_packet(
     batch_items: list[dict[str, object]] = []
     for item in priority_items[:limit]:
         route_priority = str(item.get("route_priority", ""))
+        recommended_write_request_template: dict[str, object] | None = None
         if route_priority == "provider_handoff":
             recommended_operator_action = "prepare_provider_handoff_package"
             required_local_input = "coverage_plan.tsv"
@@ -5377,6 +5378,11 @@ def _coverage_route_next_batch_packet(
                 "subcommand": "build",
                 "coverage_plan_tsv": OUTPUT_PATHS["coverage_plan"],
                 "provider_keys": [provider_key] if provider_key else [],
+            }
+            recommended_write_request_template = {
+                **recommended_request,
+                "write": True,
+                "outdir": "<isolated-provider-handoff-directory>",
             }
         elif route_priority == "public_metadata_review":
             recommended_operator_action = "review_public_metadata_linkage"
@@ -5403,11 +5409,25 @@ def _coverage_route_next_batch_packet(
                 f"{len(batch_items) + 1}.recommended_request"
             ),
         )
+        recommended_write_command_plan = _coverage_next_command_plan(
+            {
+                "available": recommended_write_request_template is not None,
+                "recommended_request": recommended_write_request_template,
+            },
+            request_source=(
+                "coverage_route_next_batch_packet.batch_items."
+                f"{len(batch_items) + 1}.recommended_write_request_template"
+            ),
+            allow_write=True,
+        )
         recommended_command_blocking_ids = _diagnostic_ids(
             recommended_command_plan.get("blocking", [])
         )
         recommended_command_warning_ids = _diagnostic_ids(
             recommended_command_plan.get("warnings", [])
+        )
+        recommended_write_command_blocking_ids = _diagnostic_ids(
+            recommended_write_command_plan.get("blocking", [])
         )
         batch_items.append(
             {
@@ -5420,6 +5440,31 @@ def _coverage_route_next_batch_packet(
                 "recommended_request": recommended_request,
                 "recommended_request_target": recommended_request_target,
                 "recommended_command_plan": recommended_command_plan,
+                "recommended_write_request_template": (
+                    recommended_write_request_template
+                ),
+                "recommended_write_request_target": (
+                    _coverage_recommended_request_target(
+                        recommended_write_request_template
+                    )
+                ),
+                "recommended_write_command_plan": recommended_write_command_plan,
+                "write_preflight_decision": str(
+                    recommended_write_command_plan.get("preflight_decision", "")
+                ),
+                "write_target_argv": (
+                    [
+                        str(value)
+                        for value in recommended_write_command_plan.get(
+                            "target_argv", []
+                        )
+                    ]
+                    if isinstance(
+                        recommended_write_command_plan.get("target_argv"), list
+                    )
+                    else []
+                ),
+                "write_blocking_ids": recommended_write_command_blocking_ids,
                 "command_plan_decision": str(
                     recommended_command_plan.get("decision", "")
                 ),
@@ -5534,6 +5579,34 @@ def _coverage_route_next_batch_packet(
             dict(first_item.get("recommended_command_plan", {}))
             if isinstance(first_item.get("recommended_command_plan"), Mapping)
             else None
+        ),
+        "first_recommended_write_request_template": (
+            dict(first_item.get("recommended_write_request_template", {}))
+            if isinstance(
+                first_item.get("recommended_write_request_template"), Mapping
+            )
+            else None
+        ),
+        "first_recommended_write_request_target": str(
+            first_item.get("recommended_write_request_target", "")
+        ),
+        "first_recommended_write_command_plan": (
+            dict(first_item.get("recommended_write_command_plan", {}))
+            if isinstance(first_item.get("recommended_write_command_plan"), Mapping)
+            else None
+        ),
+        "first_write_preflight_decision": str(
+            first_item.get("write_preflight_decision", "")
+        ),
+        "first_write_target_argv": (
+            [str(value) for value in first_item.get("write_target_argv", [])]
+            if isinstance(first_item.get("write_target_argv"), list)
+            else []
+        ),
+        "first_write_blocking_ids": (
+            [str(value) for value in first_item.get("write_blocking_ids", [])]
+            if isinstance(first_item.get("write_blocking_ids"), list)
+            else []
         ),
         "first_command_plan_decision": str(
             first_item.get("command_plan_decision", "")
@@ -7593,6 +7666,7 @@ def _coverage_next_command_plan(
     packet: Mapping[str, object],
     *,
     request_source: str = "coverage_next_task_packet.recommended_request",
+    allow_write: bool = False,
 ) -> dict[str, object]:
     raw_request = packet.get("recommended_request")
     if not packet.get("available") or not isinstance(raw_request, Mapping):
@@ -7630,7 +7704,7 @@ def _coverage_next_command_plan(
             ),
         }
     try:
-        plan = plan_command_request(dict(packet))
+        plan = plan_command_request(dict(packet), allow_write=allow_write)
     except ValueError as error:
         return {
             "schema_version": "coverage_next_command_plan.v1",
