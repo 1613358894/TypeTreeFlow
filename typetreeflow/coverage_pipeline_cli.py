@@ -1147,6 +1147,14 @@ def _run_status(
                     "coverage_next_command_plan": coverage_next_command_plan,
                     "coverage_next_operator_recipe": coverage_next_operator_recipe,
                     "coverage_queue_resume_packet": coverage_queue_resume_packet,
+                    "operator_chain_next_step_packet": (
+                        operator_chain_next_step_packet
+                    ),
+                    "selected_operator_chain_stage_route_context": (
+                        _operator_chain_stage_route_context(
+                            selected_operator_chain_stage
+                        )
+                    ),
                     "current_queue_snapshot_sha256": queue_snapshot_sha256,
                     "expected_queue_snapshot_sha256": str(
                         getattr(args, "expected_queue_snapshot_sha256", "") or ""
@@ -5452,6 +5460,9 @@ def _coverage_next_input_handoff_artifact_packet(
         "next_input_class": "",
         "recommended_request_target": "",
         "queue_snapshot_sha256": "",
+        "input_template_available": False,
+        "input_template_required_input": "",
+        "input_template_recommended_request_target": "",
         "handoff_matches_embedded_packet": False,
         "diagnostic_count": 0,
         "diagnostics": [],
@@ -5517,6 +5528,13 @@ def _coverage_next_input_handoff_artifact_packet(
             packet.get("recommended_request_target", "")
         ),
         "queue_snapshot_sha256": str(packet.get("queue_snapshot_sha256", "")),
+        "input_template_available": bool(packet.get("input_template_available")),
+        "input_template_required_input": str(
+            packet.get("input_template_required_input", "")
+        ),
+        "input_template_recommended_request_target": str(
+            packet.get("input_template_recommended_request_target", "")
+        ),
         "handoff_matches_embedded_packet": handoff_matches,
         "diagnostic_count": len(local_diagnostics),
         "diagnostics": local_diagnostics,
@@ -9455,6 +9473,29 @@ def _coverage_next_input_handoff_packet(
         if isinstance(summary.get("coverage_queue_resume_packet"), Mapping)
         else {}
     )
+    operator_chain_next_step_packet = (
+        dict(summary.get("operator_chain_next_step_packet", {}))
+        if isinstance(summary.get("operator_chain_next_step_packet"), Mapping)
+        else {}
+    )
+    selected_route_context = (
+        dict(summary.get("selected_operator_chain_stage_route_context", {}))
+        if isinstance(summary.get("selected_operator_chain_stage_route_context"), Mapping)
+        else _controller_route_context()
+    )
+    input_template_source = (
+        selected_route_context
+        if bool(selected_route_context.get("input_template_available"))
+        else operator_chain_next_step_packet
+    )
+    input_template_request = (
+        dict(input_template_source.get("input_template_recommended_request", {}))
+        if isinstance(
+            input_template_source.get("input_template_recommended_request"),
+            Mapping,
+        )
+        else None
+    )
     return {
         "schema_version": "coverage_next_input_handoff_packet.v1",
         "available": bool(next_task_packet.get("available")),
@@ -9493,6 +9534,21 @@ def _coverage_next_input_handoff_packet(
             if isinstance(next_task_packet.get("next_input_package"), Mapping)
             else {}
         ),
+        "operator_chain_next_step_packet": operator_chain_next_step_packet,
+        "selected_operator_chain_stage_route_context": selected_route_context,
+        "input_template_available": bool(input_template_request),
+        "input_template_required_input": str(
+            input_template_source.get("input_template_required_input", "")
+        ),
+        "input_template_recommended_request": input_template_request,
+        "input_template_recommended_request_target": (
+            _coverage_recommended_request_target(input_template_request)
+        ),
+        "input_template_recommended_next_command": str(
+            input_template_source.get("input_template_recommended_next_command", "")
+        ),
+        "input_template_write_preflight_required": bool(input_template_request),
+        "input_template_safe_for_unattended_execution": False,
         "command_plan": command_plan,
         "operator_recipe": operator_recipe,
         "queue_resume_packet": queue_resume_packet,

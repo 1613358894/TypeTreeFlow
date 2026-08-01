@@ -7910,6 +7910,17 @@ def test_coverage_pipeline_build_publishes_archive_candidate_input_template(
     assert payload["output_paths"]["archive_candidates_input_template"] == str(
         input_template
     )
+    next_input_package_path = (
+        outdir / "coverage_next" / "next_input_package.json"
+    )
+    assert next_input_package_path.exists()
+    next_input_package = json.loads(next_input_package_path.read_text())
+    assert next_input_package["input_template_available"] is False
+    assert next_input_package["input_template_required_input"] == ""
+    assert next_input_package["input_template_recommended_request"] is None
+    assert next_input_package["input_template_recommended_request_target"] == ""
+    assert next_input_package["input_template_recommended_next_command"] == ""
+    assert next_input_package["input_template_safe_for_unattended_execution"] is False
     assert input_template.exists()
     with input_template.open(encoding="utf-8") as handle:
         template_rows = list(csv.DictReader(handle, delimiter="\t"))
@@ -7970,6 +7981,10 @@ def test_coverage_pipeline_build_publishes_archive_candidate_input_template(
         ]
     )
     assert route_context["input_template_safe_for_unattended_execution"] is False
+    next_input_artifact = payload["coverage_next_input_handoff_artifact_packet"]
+    assert next_input_artifact["input_template_available"] is False
+    assert next_input_artifact["input_template_required_input"] == ""
+    assert next_input_artifact["input_template_recommended_request_target"] == ""
     assert "archive_candidates" in payload["available_stage_names"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
