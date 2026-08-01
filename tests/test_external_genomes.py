@@ -12,6 +12,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     ExternalGenomeRecord,
     execute_external_genome_install_plan,
+    external_genome_repair_template_rows,
     external_install_results_to_strain_records,
     build_external_genome_install_plan,
     calculate_sha256,
@@ -23,6 +24,7 @@ from typetreeflow.external_genomes import (
     summarize_external_genome_packet_readiness,
     summarize_external_genome_repair_queue,
     validate_external_genome_records,
+    write_external_genome_repair_template,
     write_external_genome_install_plan,
     write_external_genome_install_results,
     write_external_genome_registration_results,
@@ -622,6 +624,47 @@ def test_external_genome_repair_queue_lists_bounded_local_input_fixes(tmp_path):
         "audit_only": True,
         "strict_scientific_deliverable": False,
     }
+
+
+def test_external_genome_repair_template_rows_write_external_genomes_schema(tmp_path):
+    bad_fasta = _fasta(tmp_path / "bad.fna", ">seq1\nTTTT\n")
+    records = [
+        _record(
+            tmp_path,
+            species="Clostridium missingum",
+            external_source="dsmz",
+            external_genome_id="missing",
+            genome_fasta_path=str(tmp_path / "missing.fna"),
+        ),
+        _record(
+            tmp_path,
+            species="Clostridium mismatchum",
+            external_source="dsmz",
+            external_genome_id="mismatch",
+            genome_fasta_path=str(bad_fasta),
+            sha256="0" * 64,
+        ),
+    ]
+    results = validate_external_genome_records(records)
+
+    rows = external_genome_repair_template_rows(results)
+    output = write_external_genome_repair_template(
+        rows,
+        tmp_path / "external_genomes_repair_template.tsv",
+    )
+
+    lines = output.read_text(encoding="utf-8").splitlines()
+    assert lines[0].split("\t") == EXTERNAL_GENOME_FIELDS
+    assert len(lines) == 3
+    parsed = read_external_genomes(output, validate=False)
+    assert [record.species for record in parsed] == [
+        "Clostridium missingum",
+        "Clostridium mismatchum",
+    ]
+    assert parsed[0].genome_fasta_path == "<existing-local-fasta.fna>"
+    assert parsed[1].genome_fasta_path == str(bad_fasta)
+    assert parsed[1].sha256 == ""
+    assert all(record.status == "external_genome_registered" for record in parsed)
 
 
 def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):

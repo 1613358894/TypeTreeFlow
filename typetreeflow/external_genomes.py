@@ -838,6 +838,46 @@ def write_external_genomes(
     return output_path
 
 
+def external_genome_repair_template_rows(
+    rows: Iterable[ExternalGenomeRegistrationResult],
+) -> list[dict[str, str]]:
+    """Return editable external_genomes.tsv rows for invalid registration results."""
+
+    return [
+        _external_genome_repair_template_row(row)
+        for row in rows
+        if not row.valid
+    ]
+
+
+def write_external_genome_repair_template(
+    rows: Iterable[dict[str, str]],
+    path: str | Path,
+) -> Path:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=EXTERNAL_GENOME_FIELDS,
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        for row in rows:
+            values = {field: "" for field in EXTERNAL_GENOME_FIELDS}
+            values.update(
+                {
+                    field: _sanitize_tsv_text(
+                        _format_value(row.get(field, ""))
+                    )
+                    for field in EXTERNAL_GENOME_FIELDS
+                }
+            )
+            writer.writerow(values)
+    return output_path
+
+
 def external_genome_route_metadata_from_notes(notes: str) -> dict[str, str]:
     """Extract controlled AI routing metadata from external-genome notes."""
     values = {field: "" for field in EXTERNAL_GENOME_ROUTE_METADATA_FIELDS}

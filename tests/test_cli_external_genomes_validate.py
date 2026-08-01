@@ -431,6 +431,123 @@ def test_external_genomes_install_plan_blocks_invalid_rows_without_outputs(
     assert not (tmp_path / "target_run").exists()
 
 
+def test_external_genomes_repair_template_is_no_write_by_default(tmp_path, capsys):
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [_row(genome_fasta_path="missing.fna", external_genome_id="missing")],
+    )
+    output = tmp_path / "external_genomes_repair_template.tsv"
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "repair-template",
+                "--input",
+                str(table),
+                "--json",
+            ]
+        )
+        == 0
+    )
+
+    payload = _payload(capsys)
+    assert payload["schema_version"] == "external_genomes_repair_template.v1"
+    assert payload["status"] == "pass"
+    assert payload["repair_needed"] is True
+    assert payload["repair_template_row_count"] == 1
+    assert payload["repair_template_fields"] == EXTERNAL_GENOME_FIELDS
+    assert payload["external_genomes_repair_queue"]["item_count"] == 1
+    assert payload["recommended_request"] is None
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+    assert not output.exists()
+
+
+def test_external_genomes_repair_template_writes_review_tsv(tmp_path, capsys):
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [
+            _row(
+                species="Clostridium missingum",
+                external_source="dsmz",
+                external_genome_id="missing",
+                genome_fasta_path="missing.fna",
+            )
+        ],
+    )
+    output = tmp_path / "external_genomes_repair_template.tsv"
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "repair-template",
+                "--input",
+                str(table),
+                "--write",
+                "--out",
+                str(output),
+                "--json",
+            ]
+        )
+        == 0
+    )
+
+    payload = _payload(capsys)
+    assert payload["status"] == "pass"
+    assert payload["writes_outputs"] is True
+    assert payload["output_path"] == str(output)
+    assert payload["recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "validate",
+        "input": output.as_posix(),
+    }
+    assert payload["recommended_request_target"] == "external-genomes validate"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow external-genomes validate --input {output.as_posix()}"
+    )
+    rows = list(csv.DictReader(output.open(encoding="utf-8"), delimiter="\t"))
+    assert len(rows) == 1
+    assert rows[0]["species"] == "Clostridium missingum"
+    assert rows[0]["genome_fasta_path"] == "<existing-local-fasta.fna>"
+    assert rows[0]["status"] == "external_genome_registered"
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
+
+
+def test_external_genomes_repair_template_refuses_unsafe_output(tmp_path, capsys):
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [_row(genome_fasta_path="missing.fna")],
+    )
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "repair-template",
+                "--input",
+                str(table),
+                "--write",
+                "--out",
+                str(table),
+            ]
+        )
+        == 1
+    )
+
+    payload = _payload(capsys)
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "output_write_failed"
+    assert payload["writes_outputs"] is False
+
+
 def test_external_genomes_install_plan_requires_force_for_existing_output(
     tmp_path, capsys
 ):
