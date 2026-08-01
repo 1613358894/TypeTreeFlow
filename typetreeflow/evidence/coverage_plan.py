@@ -360,6 +360,7 @@ def _priority_provider_route_items(
         key=lambda item: (
             0 if item["route_priority"] == "provider_handoff" else 1,
             -int(item["record_count"]),
+            _provider_handoff_priority_index(str(item["provider_key"])),
             str(item["provider_key"]),
         )
     )
@@ -373,6 +374,14 @@ def _count_field(records: Iterable[Mapping[str, object]], field: str) -> dict[st
     counts = Counter(str(record.get(field, "")).strip() for record in records)
     counts.pop("", None)
     return dict(sorted(counts.items()))
+
+
+def _provider_handoff_priority_index(provider_key: str) -> int:
+    planning_keys = build_default_provider_registry().planning_handoff_keys()
+    try:
+        return planning_keys.index(provider_key)
+    except ValueError:
+        return len(planning_keys)
 
 
 def _provider_keys_from_row(row: Mapping[str, object]) -> str:

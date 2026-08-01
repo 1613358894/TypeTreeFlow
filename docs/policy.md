@@ -617,10 +617,10 @@ acceptance, downloads, or FASTA installation. Explicit provider hints in local
 coverage-planning rows may use provider keys, abbreviations, or static registry
 display names to improve provider handoff specificity, but they remain review
 labels only. These review labels include common culture collections such as
-DSMZ, ATCC, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, KACC, VKM, MCCC, GDMCC,
-CCTCC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB, NRRL, NCAIM, HAMBI,
-KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC, IFO, IAM, FERM, KCCM, and
-NCCP,
+DSMZ, ATCC, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, KACC, ACCC, IMSNU, MAFF,
+NCFB, VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB, NCIB,
+NRRL, NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC, IFO, IAM,
+FERM, KCCM, and NCCP,
 plus public or semi-public genome portals such as BV-BRC/PATRIC and IMG/JGI. The default provider
 registry is fail-closed;
 provider cache must stay outside `cache/ncbi/`.
