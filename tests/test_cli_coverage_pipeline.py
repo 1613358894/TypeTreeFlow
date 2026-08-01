@@ -2880,7 +2880,8 @@ def _write_curated_provider_request(tmp_path, *, include_atcc=False):
                 "provider_automation_level=planning_handoff; "
                 "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
-                "automation_boundary=planning_handoff_no_provider_contact"
+                "automation_boundary=planning_handoff_no_provider_contact; "
+                "source_priority=50"
             ),
         }
     ]
@@ -2911,7 +2912,8 @@ def _write_curated_provider_request(tmp_path, *, include_atcc=False):
                     "provider_automation_level=planning_handoff; "
                     "operator_route=provider_handoff; "
                     "next_input_class=permitted_local_fasta_terms_provenance; "
-                    "automation_boundary=planning_handoff_no_provider_contact"
+                    "automation_boundary=planning_handoff_no_provider_contact; "
+                    "source_priority=60"
                 ),
             }
         )
@@ -6272,6 +6274,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["provider_request_external_genomes_exported_count"] == 1
     assert payload["external_genomes_install_plan_status"] == "pass"
     assert payload["external_genomes_install_plan_install_planned_count"] == 1
+    assert payload["provider_request_validation_readiness_packet"][
+        "source_priority_counts"
+    ] == {"50": 1}
     assert payload["provider_request_validation_readiness_packet"]["status"] == (
         "ready_for_next_stage"
     )
@@ -6299,6 +6304,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["provider_request_external_genomes_readiness_packet"][
         "provider_route_groups"
     ][0]["provider_key_counts"] == {"dsmz": 1}
+    assert payload["provider_request_external_genomes_readiness_packet"][
+        "source_priority_counts"
+    ] == {"50": 1}
     assert payload["external_genomes_install_plan_readiness_packet"][
         "next_stage"
     ] == "external_genomes_registration_dry_run"
@@ -6308,6 +6316,9 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert payload["external_genomes_install_plan_readiness_packet"][
         "provider_route_groups"
     ][0]["provider_key_counts"] == {"dsmz": 1}
+    assert payload["external_genomes_install_plan_readiness_packet"][
+        "source_priority_counts"
+    ] == {"50": 1}
     assert set(payload["operator_chain_readiness_packets"]) == {
         "provider_request_validation",
         "provider_request_external_genomes",
@@ -6352,6 +6363,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert external_rows[0]["external_source"] == "dsmz"
     assert external_rows[0]["status"] == "external_genome_registered"
     assert external_rows[0]["sha256"] == fasta_hash
+    assert "source_priority=50" in external_rows[0]["notes"]
     install_dir = outdir / "external_genomes_install_plan"
     registration_results = install_dir / "external_genome_registration_results.tsv"
     install_plan = install_dir / "external_genome_install_plan.tsv"
@@ -6363,6 +6375,10 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert install_rows[0]["status"] == "external_genome_install_planned"
     assert install_rows[0]["installed_genome_path"].startswith(str(install_target))
     install_summary_payload = json.loads(install_summary.read_text())
+    assert install_summary_payload["source_priority_counts"] == {"50": 1}
+    assert install_summary_payload["external_genomes_readiness_packet"][
+        "source_priority_counts"
+    ] == {"50": 1}
     assert install_summary_payload["recommended_request"] == (
         expected_registration_request
     )
