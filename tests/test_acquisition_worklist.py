@@ -936,15 +936,15 @@ def test_worklist_surfaces_unrouted_type_strain_prefixes_as_audit_counts():
 
     row = report.rows[0]
     assert row.lane == "external_fasta_required"
-    assert row.candidate_provider_keys == "dsmz; accc; atcc_genome_portal"
+    assert row.candidate_provider_keys == "dsmz; accc; csur; atcc_genome_portal"
     assert report.summary["candidate_provider_key_counts"] == {
         "accc": 1,
         "atcc_genome_portal": 1,
+        "csur": 1,
         "dsmz": 1,
     }
     assert report.summary["unrouted_type_strain_token_counts"] == {
         "LCDC": 1,
-        "MARSEILLE": 1,
         "NSJ": 1,
         "VPI": 1,
     }
@@ -954,13 +954,6 @@ def test_worklist_surfaces_unrouted_type_strain_prefixes_as_audit_counts():
             "count": 1,
             "species_preview": ["Clostridium unroutedum"],
             "token_preview": ["LCDC 99A005"],
-            "truncated": False,
-        },
-        {
-            "prefix": "MARSEILLE",
-            "count": 1,
-            "species_preview": ["Clostridium unroutedum"],
-            "token_preview": ["Marseille P4344"],
             "truncated": False,
         },
         {
