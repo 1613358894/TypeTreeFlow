@@ -159,6 +159,28 @@ EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS = [
     "recommended_request_target",
     "recommended_next_command",
 ]
+EXTERNAL_GENOMES_REPAIR_TEMPLATE_SUMMARY_FIELDS = [
+    "record_count",
+    "invalid_count",
+    "repair_needed",
+    "repair_template_row_count",
+    "repair_template_fields",
+    "external_genomes_repair_queue",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
+]
+EXTERNAL_GENOMES_REPAIR_MERGE_SUMMARY_FIELDS = [
+    "record_count",
+    "valid_original_count",
+    "invalid_original_count",
+    "repair_template_row_count",
+    "merged_record_count",
+    "expected_fields",
+    "recommended_request",
+    "recommended_request_target",
+    "recommended_next_command",
+]
 EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS = [
     "registration_result_count",
     "valid_count",
@@ -502,6 +524,18 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "external-genomes install-plan readiness handoff",
             EXTERNAL_GENOMES_INSTALL_PLAN_SUMMARY_FIELDS,
         ),
+        ("external-genomes", "repair-template"): (
+            "external_genomes_repair_template",
+            "external_genomes_repair_template.v1",
+            "external-genomes invalid-row repair template handoff",
+            EXTERNAL_GENOMES_REPAIR_TEMPLATE_SUMMARY_FIELDS,
+        ),
+        ("external-genomes", "repair-merge"): (
+            "external_genomes_repair_merge",
+            "external_genomes_repair_merge.v1",
+            "external-genomes repaired TSV merge handoff",
+            EXTERNAL_GENOMES_REPAIR_MERGE_SUMMARY_FIELDS,
+        ),
         ("register-external-genomes", None): (
             "external_genome_registration_packet",
             "external_genome_registration_packet.v1",
@@ -631,6 +665,41 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--json",
         "--write",
         "--outdir",
+        "--force",
+    ]
+    external_repair_template = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"])
+        == ("external-genomes", "repair-template")
+    )
+    assert external_repair_template["write_behavior"] == (
+        "optional_isolated_repair_template_tsv"
+    )
+    assert external_repair_template["requires_outdir"] is False
+    assert [parameter["name"] for parameter in external_repair_template["parameters"]] == [
+        "--input",
+        "--json",
+        "--write",
+        "--out",
+        "--force",
+    ]
+    external_repair_merge = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"])
+        == ("external-genomes", "repair-merge")
+    )
+    assert external_repair_merge["write_behavior"] == (
+        "optional_isolated_repaired_external_genomes_tsv"
+    )
+    assert external_repair_merge["requires_outdir"] is False
+    assert [parameter["name"] for parameter in external_repair_merge["parameters"]] == [
+        "--input",
+        "--repair-template",
+        "--json",
+        "--write",
+        "--out",
         "--force",
     ]
     parameter_names = {
@@ -2199,6 +2268,122 @@ def test_commands_plan_blocks_external_genomes_install_plan_write_without_allowa
     payload, _output = _stdout_payload(capsys)
     assert payload["status"] == "pass"
     assert payload["target_argv"][:2] == ["external-genomes", "install-plan"]
+
+
+def test_commands_render_emits_normalized_external_genomes_repair_template_argv(
+    capsys,
+):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"external-genomes","subcommand":"repair-template",'
+                    '"input":"external_genomes.tsv","json":true,"write":true,'
+                    '"out":"external_genomes_repair_template.tsv","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "external-genomes",
+        "repair-template",
+        "--input",
+        "external_genomes.tsv",
+        "--write",
+        "--out",
+        "external_genomes_repair_template.tsv",
+        "--json",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "external-genomes"
+    assert payload["recognized"]["subcommand"] == "repair-template"
+    assert payload["recognized"]["mode"] == "external_genomes"
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert _output_contract_names(payload) == {
+        "external_genomes_repair_template",
+    }
+
+
+def test_commands_render_emits_normalized_external_genomes_repair_merge_argv(
+    capsys,
+):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"external-genomes","subcommand":"repair-merge",'
+                    '"input":"external_genomes.tsv",'
+                    '"repair_template":"external_genomes_repair_template.tsv",'
+                    '"json":true,"write":true,'
+                    '"out":"external_genomes_repaired.tsv","force":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "external-genomes",
+        "repair-merge",
+        "--input",
+        "external_genomes.tsv",
+        "--repair-template",
+        "external_genomes_repair_template.tsv",
+        "--write",
+        "--out",
+        "external_genomes_repaired.tsv",
+        "--json",
+        "--force",
+    ]
+    assert payload["recognized"]["command"] == "external-genomes"
+    assert payload["recognized"]["subcommand"] == "repair-merge"
+    assert payload["recognized"]["mode"] == "external_genomes"
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert _output_contract_names(payload) == {
+        "external_genomes_repair_merge",
+    }
+
+
+def test_commands_plan_blocks_external_genomes_repair_writes_without_allowance(
+    capsys,
+):
+    request = (
+        '{"command":"external-genomes","subcommand":"repair-merge",'
+        '"input":"external_genomes.tsv",'
+        '"repair_template":"external_genomes_repair_template.tsv",'
+        '"write":true,"out":"external_genomes_repaired.tsv"}'
+    )
+
+    assert main(["commands", "plan", "--request-json", request]) == 2
+    payload, _output = _stdout_payload(capsys)
+    assert payload["status"] == "blocked"
+    assert payload["preflight"]["blocking"][0]["id"] == "write_not_allowed"
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--request-json",
+                request,
+            ]
+        )
+        == 0
+    )
+    payload, _output = _stdout_payload(capsys)
+    assert payload["status"] == "pass"
+    assert payload["target_argv"][:2] == ["external-genomes", "repair-merge"]
 
 
 def test_commands_render_emits_normalized_provider_registration_plan_argv(capsys):
