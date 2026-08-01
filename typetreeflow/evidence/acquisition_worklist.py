@@ -42,6 +42,52 @@ ACQUISITION_WORKLIST_LANES = (
     "external_fasta_required",
     "not_evaluated",
 )
+UNROUTED_TYPE_STRAIN_TOKEN_FIELDS = (
+    "type_strain",
+    "type_strain_names",
+    "strain_designation",
+    "strain_number",
+    "culture_collection",
+    "culture_collection_numbers",
+    "culture_collection_ids",
+    "culture_collection_tokens",
+    "lpsn_type_strain_ids",
+    "matched_lpsn_type_tokens",
+    "matched_lpsn_type_strain_ids",
+    "ncbi_culture_collection_ids",
+    "curator_culture_collection_ids",
+    "biosample_culture_collection_tokens",
+    "tokens",
+    "token",
+)
+UNROUTED_TYPE_STRAIN_TOKEN_SKIP_PREFIXES = {
+    "CULTURE",
+    "ID",
+    "IDS",
+    "ISOLATE",
+    "NO",
+    "NUMBER",
+    "STRAIN",
+    "TYPE",
+}
+
+
+@dataclass(frozen=True)
+class UnroutedTypeStrainTokenExample:
+    prefix: str
+    count: int
+    species_preview: tuple[str, ...]
+    token_preview: tuple[str, ...]
+    truncated: bool
+
+    def to_summary(self) -> dict[str, object]:
+        return {
+            "prefix": self.prefix,
+            "count": self.count,
+            "species_preview": list(self.species_preview),
+            "token_preview": list(self.token_preview),
+            "truncated": self.truncated,
+        }
 
 
 @dataclass(frozen=True)
@@ -82,6 +128,8 @@ class AcquisitionWorklistRow:
 class AcquisitionWorklistReport:
     rows: tuple[AcquisitionWorklistRow, ...]
     schema_version: str = ACQUISITION_WORKLIST_SCHEMA_VERSION
+    unrouted_type_strain_token_counts: tuple[tuple[str, int], ...] = ()
+    unrouted_type_strain_token_examples: tuple[UnroutedTypeStrainTokenExample, ...] = ()
 
     @property
     def summary(self) -> dict[str, object]:
@@ -98,6 +146,13 @@ class AcquisitionWorklistReport:
             "review_signal_counts": signal_counts,
             "candidate_provider_key_counts": provider_key_counts,
             "candidate_provider_status_counts": provider_status_counts,
+            "unrouted_type_strain_token_counts": dict(
+                self.unrouted_type_strain_token_counts
+            ),
+            "unrouted_type_strain_token_examples": [
+                item.to_summary()
+                for item in self.unrouted_type_strain_token_examples
+            ],
             "acquisition_opportunity_summary": (
                 _acquisition_opportunity_summary(self.rows)
             ),
@@ -172,7 +227,20 @@ def build_acquisition_worklist(
                 manual_hints_by_species.get(key, ()),
             )
         )
-    return AcquisitionWorklistReport(rows=tuple(worklist))
+    unrouted_counts, unrouted_examples = _unrouted_type_strain_token_summary(
+        checklist_rows,
+        reconciler_rows,
+        completion_gap_rows,
+        external_rows,
+        archive_candidate_rows,
+        expanded_discovery_rows,
+        manual_supplement_hint_rows,
+    )
+    return AcquisitionWorklistReport(
+        rows=tuple(worklist),
+        unrouted_type_strain_token_counts=unrouted_counts,
+        unrouted_type_strain_token_examples=unrouted_examples,
+    )
 
 
 def _classify_species(
@@ -598,6 +666,75 @@ def _candidate_provider_statuses(candidate_provider_keys: str) -> str:
         status = registry.get(provider_key).capability.status.value
         statuses.append(f"{provider_key}={status}")
     return "; ".join(statuses)
+
+
+def _unrouted_type_strain_token_summary(
+    *row_groups: Iterable[Mapping[str, object]],
+) -> tuple[tuple[tuple[str, int], ...], tuple[UnroutedTypeStrainTokenExample, ...]]:
+    registry = build_default_provider_registry()
+    counts: Counter[str] = Counter()
+    species_by_prefix: dict[str, list[str]] = {}
+    tokens_by_prefix: dict[str, list[str]] = {}
+    for rows in row_groups:
+        for row in rows:
+            species = _species(row)
+            for prefix, token_value in _unrouted_type_strain_tokens(row, registry):
+                counts[prefix] += 1
+                species_by_prefix.setdefault(prefix, [])
+                tokens_by_prefix.setdefault(prefix, [])
+                _append_unique(species_by_prefix[prefix], species)
+                _append_unique(tokens_by_prefix[prefix], token_value)
+
+    sorted_counts = tuple(sorted(counts.items()))
+    examples: list[UnroutedTypeStrainTokenExample] = []
+    for prefix, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
+        species_values = species_by_prefix.get(prefix, [])
+        token_values = tokens_by_prefix.get(prefix, [])
+        examples.append(
+            UnroutedTypeStrainTokenExample(
+                prefix=prefix,
+                count=count,
+                species_preview=tuple(species_values[:3]),
+                token_preview=tuple(token_values[:3]),
+                truncated=len(species_values) > 3 or len(token_values) > 3,
+            )
+        )
+        if len(examples) >= 10:
+            break
+    return sorted_counts, tuple(examples)
+
+
+def _unrouted_type_strain_tokens(
+    row: Mapping[str, object],
+    registry: ProviderRegistry,
+) -> tuple[tuple[str, str], ...]:
+    tokens: list[tuple[str, str]] = []
+    for field in UNROUTED_TYPE_STRAIN_TOKEN_FIELDS:
+        for value in _split_type_strain_token_values(_value(row, field)):
+            if registry.keys_from_text(value):
+                continue
+            prefix = _type_strain_token_prefix(value)
+            if not prefix or prefix in UNROUTED_TYPE_STRAIN_TOKEN_SKIP_PREFIXES:
+                continue
+            if registry.keys_from_text(prefix):
+                continue
+            tokens.append((prefix, value))
+    return tuple(tokens)
+
+
+def _split_type_strain_token_values(value: str) -> tuple[str, ...]:
+    return tuple(
+        item.strip()
+        for item in re.split(r"[;,|]", value)
+        if item.strip()
+    )
+
+
+def _type_strain_token_prefix(value: str) -> str:
+    match = re.match(r"\s*([A-Za-z][A-Za-z0-9/-]{1,16})(?=\s|[-_/]?\d|$)", value)
+    if not match:
+        return ""
+    return match.group(1).replace("/", "-").upper()
 
 
 def _public_linkage_reason(

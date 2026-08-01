@@ -38,7 +38,7 @@ def _inputs(tmp_path):
             {"full_name": "Clostridium archiveum"},
             {
                 "full_name": "Clostridium providerum",
-                "type_strain_names": "ATCC 1001; DSM 2002",
+                "type_strain_names": "ATCC 1001; DSM 2002; VPI T7",
             },
         ],
     )
@@ -149,6 +149,16 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
         "metadata_only": 1,
         "planning_only": 2,
     }
+    assert payload["unrouted_type_strain_token_counts"] == {"VPI": 1}
+    assert payload["unrouted_type_strain_token_examples"] == [
+        {
+            "prefix": "VPI",
+            "count": 1,
+            "species_preview": ["Clostridium providerum"],
+            "token_preview": ["VPI T7"],
+            "truncated": False,
+        }
+    ]
     opportunities = payload["acquisition_opportunity_summary"]
     assert [
         (item["priority"], item["lane"], item["reason_code"])
