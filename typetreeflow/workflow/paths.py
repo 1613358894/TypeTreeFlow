@@ -77,6 +77,7 @@ class OutputPaths:
     user_selection_path: Path
     selected_limit_summary_path: Path
     download_preflight_summary_path: Path
+    download_plan_readiness_summary_path: Path
     manual_deposit_evidence_template_path: Path
     manual_species_gap_summary_path: Path
     manual_review_report_path: Path
@@ -181,6 +182,9 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         download_preflight_summary_path=root
         / "selection"
         / "download_preflight_summary.tsv",
+        download_plan_readiness_summary_path=root
+        / "selection"
+        / "download_plan_readiness_summary.json",
         manual_deposit_evidence_template_path=root
         / "manual_deposit_evidence_template.tsv",
         manual_species_gap_summary_path=root / "manual_species_gap_summary.tsv",

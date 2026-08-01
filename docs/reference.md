@@ -28,9 +28,18 @@ Primary commands write compact JSON to stdout by default. This does not require
   action. It performs documentation/local checks only.
 - `verify-genus` and `verify-release-genus`: compact JSON summary with command,
   genus, outdir, status, stages, selected counts, report paths, and next action.
+  When `verify-genus` has written a download plan, stdout includes the same
+  read-only `download_plan_readiness_summary` used by `status`.
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
   still require separate explicit authorization.
+  When an existing `cache/ncbi/download_plan.tsv` is present, `status` also
+  emits `download_plan_readiness_summary`: an acquisition-facing, read-only
+  count summary for planned NCBI downloads, existing genomes, missing
+  accessions, and external registered genomes. The summary is derived only
+  from the existing plan and keeps `safe_for_unattended_download=false`,
+  `downloads_triggered=0`, `providers_contacted=0`, `manifest_mutated=false`,
+  and `strict_scientific_deliverable=false`.
 - `package-results`: compact JSON with delivery directory, included artifacts,
   missing optional files, success/failure handoff status, warnings, and next
   action.
@@ -1330,6 +1339,7 @@ Recommended layout:
 - `selection/strain_candidates.tsv`
 - `selection/user_selection.tsv`
 - `selection/download_preflight_summary.tsv`
+- `selection/download_plan_readiness_summary.json`
 - `manual_deposit_evidence_template.tsv`
 - `manual_species_gap_summary.tsv`
 - `manual_review_report.md`
@@ -1384,6 +1394,7 @@ Recommended layout:
 - `selection/*.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `culture_collection_ids`, `is_type_material`, `has_lpsn_type_strain_match`, `match_evidence`, `evidence_level`, `selection_rank`, `selected`, `selection_policy`, `policy_decision`, `ranking_reasons`, `blocking_reasons`, `manual_review_reason`, `selection_reason`, `notes`
 - `selection/user_selection.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `culture_collection_ids`, `is_type_material`, `has_lpsn_type_strain_match`, `match_evidence`, `evidence_level`, `selection_rank`, `selected`, `selection_policy`, `policy_decision`, `ranking_reasons`, `blocking_reasons`, `manual_review_reason`, `selection_reason`, `notes`
 - `selection/download_preflight_summary.tsv`: `selected_total`, `strict_confirmed`, `likely_type_material`, `representative_only`, `missing_evidence_level`, `ncbi_assembly_backed`, `external_registered`, `download_planned`, `download_skipped_existing`, `download_not_applicable`, `download_skipped_no_accession`, `representative_only_scope`
+- `selection/download_plan_readiness_summary.json`: read-only JSON summary derived from `cache/ncbi/download_plan.tsv`. Stable fields include `schema_version`, `available`, `download_plan_path`, `total_rows`, `status_counts`, `download_ready_ncbi_count`, `public_ncbi_download_plan_ready_count`, `existing_genome_count`, `missing_accession_count`, `external_registered_count`, `other_plan_status_count`, `malformed_row_count`, `review_or_handoff_count`, `safe_for_unattended_download`, `downloads_triggered`, `providers_contacted`, `network_access`, `external_tools`, `manifest_mutated`, and `strict_scientific_deliverable`.
 - `manual_deposit_evidence_template.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `is_type_material`, `lpsn_type_strain_ids`, `ncbi_culture_collection_ids`, `biosample_culture_collection`, `biosample_type_material`, `current_manual_review_reason`, `suggested_review_action`, `curator_confirmed_deposit_id`, `curator_evidence_source`, `curator_notes`
 - `manual_species_gap_summary.tsv`: `species`, `lpsn_type_strain_ids`, `candidate_count`, `type_material_candidate_count`, `candidates_with_biosample_count`, `candidates_with_ncbi_deposit_id_count`, `best_candidate_accession`, `best_candidate_reason`, `gap_reason`, `recommended_next_step`
 - `source_audit/sequence_source_audit.tsv`: `species`, `genome_accession`, `genome_strain`, `genome_biosample`, `genome_culture_ids`, `rrna_source`, `rrna_accession`, `rrna_strain`, `rrna_biosample`, `rrna_culture_ids`, `same_biosample`, `same_culture_collection_id`, `same_strain_text`, `audit_status`, `notes`
@@ -1487,6 +1498,16 @@ copied file with `scope=audit`,
 `strict_scientific_deliverable=false`. Reconciler package inclusion means audit
 availability, not strict scientific delivery, completion gating, manifest
 mutation, evidence-policy changes, or future package-tier policy.
+When `selection/download_plan_readiness_summary.json` exists,
+`package-results --include reports` and `--include all` copy it to
+`reports/download_plan_readiness_summary.json`. Package-root and reports scope
+manifests add one row with `scope=audit`,
+`evidence_policy=download_plan_readiness_audit`,
+`recommended_use=download readiness review`, and
+`strict_scientific_deliverable=false`. Failed-handoff packages exclude this
+surface. Inclusion means download-plan review availability, not unattended
+download authorization, provider contact, manifest mutation, or strict
+deliverable gating.
 When `package-results --include reports` or `--include all` receives an
 explicit `--manual-review-import-dir`, each valid recognized member is copied
 to `manual_review/`. Package-root and reports scope manifests add one row per
@@ -2219,6 +2240,18 @@ or `provider-handoff build`, and route-specific counts such as
 `manual_or_curator_input_required_count`, `public_metadata_review_required_count`, and
 `provider_handoff_required_count`. `current_coverage_action_queue_item`
 copies the first queued item or an empty object when no coverage action remains.
+`coverage_acquisition_readiness_summary` is a compact acquisition-facing
+classification of the same signals. It reports bounded
+`readiness_signal_counts` for `download_ready_ncbi`,
+`external_genome_handoff_ready`, `provider_handoff_only`,
+`public_metadata_review`, `curator_review`, `true_gap`, and `other_review`.
+These counts are readiness signals, not strict species totals; the summary sets
+`counts_are_exclusive=false` when downstream external-genome handoff signals are
+also present. The summary is audit-only and always preserves
+`safe_for_unattended_download=false`, `downloads_triggered=0`,
+`providers_contacted=0`, `manifest_mutated=false`, and
+`strict_scientific_deliverable=false`. Public metadata, BioSample, BacDive, or
+provider-handoff rows do not become NCBI downloads or strict deliverables.
 `coverage_operator_route_summary` groups the same queue by `operator_route`,
 preserving first queue item IDs, first recommended request targets, per-route
 record counts, next-input class counts, automation-boundary counts, and route

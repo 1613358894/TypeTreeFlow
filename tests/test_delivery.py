@@ -284,6 +284,76 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     assert "Credentials are not included." in readme
 
 
+def test_package_results_includes_download_readiness_summary_and_scope(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    paths.download_plan_readiness_summary_path.parent.mkdir(parents=True)
+    readiness_summary = {
+        "schema_version": "download_plan_readiness_summary.v1",
+        "available": True,
+        "download_plan_path": str(paths.ncbi_cache_dir / "download_plan.tsv"),
+        "total_rows": 2,
+        "status_counts": {"planned": 1, "skipped_no_accession": 1},
+        "download_ready_ncbi_count": 1,
+        "public_ncbi_download_plan_ready_count": 1,
+        "existing_genome_count": 0,
+        "missing_accession_count": 1,
+        "external_registered_count": 0,
+        "other_plan_status_count": 0,
+        "malformed_row_count": 0,
+        "review_or_handoff_count": 1,
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+    }
+    paths.download_plan_readiness_summary_path.write_text(
+        json.dumps(readiness_summary, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    result = package_results(tmp_path, include="reports")
+
+    copied = result.delivery_dir / "reports" / "download_plan_readiness_summary.json"
+    assert json.loads(copied.read_text(encoding="utf-8")) == readiness_summary
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    row = next(
+        row
+        for row in scope_rows
+        if row["artifact_path"] == "reports/download_plan_readiness_summary.json"
+    )
+    assert row["scope"] == "audit"
+    assert row["evidence_policy"] == "download_plan_readiness_audit"
+    assert row["strict_scientific_deliverable"] == "false"
+    assert row["recommended_use"] == "download readiness review"
+    assert row["not_for"] == (
+        "unattended download authorization or strict deliverable gating"
+    )
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+
+def test_package_results_failed_handoff_excludes_download_readiness_summary(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.download_plan_readiness_summary_path.parent.mkdir(parents=True)
+    paths.download_plan_readiness_summary_path.write_text(
+        '{"schema_version":"download_plan_readiness_summary.v1"}\n',
+        encoding="utf-8",
+    )
+
+    result = package_results(tmp_path, include="reports", failed_handoff=True)
+
+    assert not (
+        result.delivery_dir / "reports" / "download_plan_readiness_summary.json"
+    ).exists()
+    assert not (
+        result.delivery_dir / "selection" / "download_plan_readiness_summary.json"
+    ).exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+
+
 def test_package_results_does_not_expect_gtdb_audit_when_absent(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_manifest_with_files(paths)

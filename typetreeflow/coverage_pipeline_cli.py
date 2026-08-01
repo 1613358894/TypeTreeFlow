@@ -16,6 +16,9 @@ from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
 from typetreeflow.commands_cli import plan_command_request, render_command_request
+from typetreeflow.coverage_readiness import (
+    build_coverage_acquisition_readiness_summary,
+)
 from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_FIELDS,
     ACQUISITION_WORKLIST_SCHEMA_VERSION,
@@ -1443,6 +1446,47 @@ def _run_status(
             else "Coverage pipeline status blocked"
         ),
     }
+    payload["coverage_acquisition_readiness_summary"] = (
+        build_coverage_acquisition_readiness_summary(
+            coverage_action_queue=payload["coverage_action_queue"],
+            provider_request_validation_ready_count=(
+                _safe_int(
+                    coverage_summary.get("provider_request_validation_ready_count", 0)
+                )
+                or _stage_summary_int(stages, "provider_request_validation", "ready_count")
+            ),
+            provider_request_external_genomes_exported_count=(
+                _safe_int(
+                    coverage_summary.get(
+                        "provider_request_external_genomes_exported_count", 0
+                    )
+                )
+                or _stage_summary_int(
+                    stages,
+                    "provider_request_external_genomes",
+                    "exported_count",
+                )
+            ),
+            external_genomes_install_plan_install_planned_count=(
+                _safe_int(
+                    coverage_summary.get(
+                        "external_genomes_install_plan_install_planned_count", 0
+                    )
+                )
+                or _stage_summary_int(
+                    stages,
+                    "external_genomes_install_plan",
+                    "install_planned_count",
+                )
+            ),
+            external_genomes_registration_realized=payload[
+                "external_genomes_registration_realized"
+            ],
+            external_genomes_registration_external_manifest_record_count=payload[
+                "external_genomes_registration_external_manifest_record_count"
+            ],
+        )
+    )
     _emit(payload, output)
     return 0 if not diagnostics else 2
 
@@ -1480,6 +1524,17 @@ def _external_registration_realization_summary(
             install_succeeded_count
         ),
     }
+
+
+def _stage_summary_int(
+    stages: Sequence[Mapping[str, object]],
+    stage_name: str,
+    field: str,
+) -> int:
+    stage = _find_stage(list(stages), stage_name)
+    if stage is None:
+        return 0
+    return _safe_int(stage.get(f"summary_{field}", 0))
 
 
 def _is_external_registered_manifest_record(record) -> bool:
@@ -3652,6 +3707,23 @@ def _payload(
         request_summary["provider_key_counts"],
         provider_request.rows,
     )
+    coverage_acquisition_readiness_summary = (
+        build_coverage_acquisition_readiness_summary(
+            coverage_action_queue=coverage_action_queue,
+            provider_request_validation_ready_count=_payload_int(
+                provider_request_validation,
+                "ready_count",
+            ),
+            provider_request_external_genomes_exported_count=_payload_int(
+                provider_request_external_genomes,
+                "exported_count",
+            ),
+            external_genomes_install_plan_install_planned_count=_payload_int(
+                external_genomes_install_plan,
+                "install_planned_count",
+            ),
+        )
+    )
     validation_output_paths = (
         {
             key: None
@@ -3684,6 +3756,9 @@ def _payload(
         "coverage_route_next_batch_packet": coverage_route_next_batch_packet,
         "coverage_action_queue": coverage_action_queue,
         "coverage_priority_summary": coverage_priority_summary,
+        "coverage_acquisition_readiness_summary": (
+            coverage_acquisition_readiness_summary
+        ),
         "coverage_next_task_packet": coverage_next_task_packet,
         "coverage_next_command_plan": coverage_next_command_plan,
         "coverage_next_operator_recipe": coverage_next_operator_recipe,
@@ -10304,6 +10379,7 @@ def _rendered_outputs(
             "coverage_action_queue",
             "coverage_action_queue_summary",
             "coverage_priority_summary",
+            "coverage_acquisition_readiness_summary",
             "coverage_next_task_packet",
             "coverage_next_command_plan",
             "coverage_next_operator_recipe",
