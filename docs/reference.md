@@ -2043,6 +2043,10 @@ input artifact, structured `recommended_request`,
 five batch items, and an operator-review gate for each item. The packet also
 promotes the first item's command-plan decision, preflight decision, target
 argv, and blocker/warning IDs for controllers that need a compact handoff.
+For provider handoff route items, the recommended request is a filtered
+`provider-handoff build` request with `provider_keys` containing the selected
+provider key, so controllers can prepare one bounded provider-specific handoff
+before drafting provider requests.
 Controllers can inspect the recommended request through `commands render`,
 `commands plan`, or `commands preflight` before invoking any local CLI. It is a
 planning packet for local review or handoff preparation only; it does not

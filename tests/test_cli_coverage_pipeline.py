@@ -3689,22 +3689,25 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert next_batch["first_recommended_operator_action"] == (
         "prepare_provider_handoff_package"
     )
-    assert next_batch["first_required_local_input"] == "provider_handoff.tsv"
+    assert next_batch["first_required_local_input"] == "coverage_plan.tsv"
     assert next_batch["first_recommended_request"] == {
-        "command": "provider-request",
-        "subcommand": "draft",
-        "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+        "provider_keys": ["dsmz"],
     }
     assert next_batch["first_recommended_request_target"] == (
-        "provider-request draft"
+        "provider-handoff build"
     )
     assert next_batch["first_command_plan_decision"] == "allow"
     assert next_batch["first_preflight_decision"] == "allow"
     assert next_batch["first_target_argv"] == [
-        "provider-request",
-        "draft",
-        "--provider-handoff-tsv",
-        "provider_handoff/provider_handoff.tsv",
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        "coverage_plan/coverage_plan.tsv",
+        "--provider-key",
+        "dsmz",
     ]
     assert next_batch["first_blocking_ids"] == []
     assert next_batch["first_warning_ids"] == []
@@ -3713,7 +3716,7 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert first_plan["request_source"] == (
         "coverage_route_next_batch_packet.batch_items.1.recommended_request"
     )
-    assert first_plan["recommended_request_target"] == "provider-request draft"
+    assert first_plan["recommended_request_target"] == "provider-handoff build"
     assert first_plan["decision"] == "allow"
     assert first_plan["preflight_decision"] == "allow"
     assert first_plan["downloads_triggered"] == 0
@@ -3726,10 +3729,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     assert next_batch["batch_items"][0]["command_plan_decision"] == "allow"
     assert next_batch["batch_items"][0]["preflight_decision"] == "allow"
     assert next_batch["batch_items"][0]["target_argv"] == [
-        "provider-request",
-        "draft",
-        "--provider-handoff-tsv",
-        "provider_handoff/provider_handoff.tsv",
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        "coverage_plan/coverage_plan.tsv",
+        "--provider-key",
+        "dsmz",
     ]
     assert next_batch["batch_items"][0]["blocking_ids"] == []
     assert next_batch["batch_items"][0]["warning_ids"] == []
@@ -5255,7 +5260,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ] == "prepare_provider_handoff_package"
     assert summary["coverage_route_next_batch_packet"][
         "first_recommended_request_target"
-    ] == "provider-request draft"
+    ] == "provider-handoff build"
     assert summary["provider_request_record_count"] == 5
     assert summary["provider_request_automation_level_counts"] == {
         "metadata_review": 3,
@@ -5968,7 +5973,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     ] == "prepare_provider_handoff_package"
     assert status_payload["coverage_route_next_batch_packet"][
         "first_recommended_request_target"
-    ] == "provider-request draft"
+    ] == "provider-handoff build"
     assert status_payload["coverage_priority_summary"][
         "record_counts_by_operator_route"
     ] == {
