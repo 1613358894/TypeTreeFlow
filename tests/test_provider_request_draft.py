@@ -167,6 +167,9 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
             "prepare_provider_handoff": 1,
             "review_public_archive_linkage": 1,
         },
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
+        "filtered": False,
         "curator_completion_template_counts": {
             "provider_local_fasta_handoff": 1,
             "public_archive_linkage_review": 1,
@@ -275,3 +278,19 @@ def test_provider_request_draft_summary_and_serializers_are_stable():
     reader = csv.DictReader(StringIO(draft.provider_request_tsv()), delimiter="\t")
     assert tuple(reader.fieldnames or ()) == tuple(PROVIDER_REQUEST_FIELDS)
     assert len(list(reader)) == 2
+
+
+def test_provider_request_draft_filters_provider_keys_with_aliases():
+    draft = build_provider_request_draft(
+        _handoff_rows(),
+        provider_key_filter=("DSMZ",),
+    )
+
+    rows = [row.to_provider_request_row() for row in draft.rows]
+    assert [row["provider"] for row in rows] == ["dsmz"]
+    assert [row["request_id"] for row in rows] == ["PH-0001"]
+    assert draft.summary["provider_key_counts"] == {"dsmz": 1}
+    assert draft.summary["provider_key_filter"] == ["dsmz"]
+    assert draft.summary["provider_key_filter_count"] == 1
+    assert draft.summary["filtered"] is True
+    assert draft.summary["curator_completion_required_count"] == 1

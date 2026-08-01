@@ -9,7 +9,7 @@ from typetreeflow.evidence.provider_handoff import PROVIDER_HANDOFF_FIELDS
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 
 
-def _write_provider_handoff(path) -> None:
+def _write_provider_handoff(path, *, include_public_archive: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=PROVIDER_HANDOFF_FIELDS, delimiter="\t")
@@ -42,6 +42,37 @@ def _write_provider_handoff(path) -> None:
                 "strict_scientific_deliverable": "false",
             }
         )
+        if include_public_archive:
+            writer.writerow(
+                {
+                    "schema_version": "1",
+                    "provider_key": "genbank",
+                    "provider_name": "GenBank",
+                    "provider_status": "metadata_only",
+                    "provider_automation_level": "metadata_review",
+                    "operator_route": "public_metadata_review",
+                    "next_input_class": "public_accession_type_strain_linkage",
+                    "automation_boundary": "metadata_review_only_no_download",
+                    "species": "Clostridium gamma",
+                    "source_action_code": "review_public_archive_linkage",
+                    "source_lane": "public_linkage_review",
+                    "required_input": "public accession direct evidence",
+                    "recommended_next_command": (
+                        "manual-review validate --input <review.tsv>"
+                    ),
+                    "terms_review_required": "true",
+                    "credentials_required": "false",
+                    "network_supported": "false",
+                    "default_network_enabled": "false",
+                    "provider_guidance_notes": (
+                        "provider_guidance=public_archive_metadata_review"
+                    ),
+                    "audit_only": "true",
+                    "downloads_triggered": "0",
+                    "providers_contacted": "0",
+                    "strict_scientific_deliverable": "false",
+                }
+            )
 
 
 def _run(args, capsys):
@@ -182,6 +213,38 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["recommended_next_command"] == (
         "typetreeflow provider-request validate --input <provider_request.tsv>"
     )
+
+
+def test_provider_request_draft_filters_provider_key_for_batching(capsys, tmp_path):
+    handoff = tmp_path / "provider_handoff.tsv"
+    _write_provider_handoff(handoff, include_public_archive=True)
+
+    code, payload, _ = _run(
+        [
+            "--provider-handoff-tsv",
+            str(handoff),
+            "--provider-key",
+            "NCBI GenBank",
+            "--json",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert payload["status"] == "pass"
+    assert payload["record_count"] == 1
+    assert payload["provider_key_counts"] == {"genbank": 1}
+    assert payload["provider_key_filter"] == ["genbank"]
+    assert payload["provider_key_filter_count"] == 1
+    assert payload["filtered"] is True
+    assert payload["request_preview"][0]["provider"] == "genbank"
+    assert payload["request_preview"][0]["request_id"] == "PH-0001"
+    assert (
+        "curator_completion_template=public_archive_linkage_review"
+        in payload["request_preview"][0]["notes"]
+    )
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
 
 
 def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):

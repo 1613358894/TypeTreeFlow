@@ -138,7 +138,10 @@ def run_provider_request_command(
     diagnostics: list[dict[str, object]] = []
     handoff_rows = _read_required_provider_handoff(args.provider_handoff_tsv, diagnostics)
     try:
-        draft = build_provider_request_draft(handoff_rows)
+        draft = build_provider_request_draft(
+            handoff_rows,
+            provider_key_filter=args.provider_key,
+        )
     except Exception:
         _emit(_failure("internal_error", "Provider request draft failed unexpectedly"), output)
         return 1
@@ -201,6 +204,7 @@ def _build_parser() -> argparse.ArgumentParser:
     actions = request.add_subparsers(dest="action", required=True)
     draft = actions.add_parser("draft", add_help=False)
     draft.add_argument("--provider-handoff-tsv", required=True)
+    draft.add_argument("--provider-key", action="append", default=[])
     draft.add_argument("--json", action="store_true")
     draft.add_argument("--write", action="store_true")
     draft.add_argument("--outdir")
@@ -559,6 +563,9 @@ def _payload(draft, *, diagnostics: list[dict[str, object]], dry_run: bool) -> d
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
         "source_action_counts": summary["source_action_counts"],
+        "provider_key_filter": summary["provider_key_filter"],
+        "provider_key_filter_count": summary["provider_key_filter_count"],
+        "filtered": summary["filtered"],
         "curator_completion_template_counts": summary[
             "curator_completion_template_counts"
         ],
@@ -992,6 +999,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "next_input_class_counts": {},
         "automation_boundary_counts": {},
         "source_action_counts": {},
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
+        "filtered": False,
         "curator_completion_template_counts": {},
         "curator_completion_required_count": 0,
         "curator_completion_field_counts": {},

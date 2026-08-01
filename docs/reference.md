@@ -1844,12 +1844,18 @@ with `evidence_policy=provider_handoff_audit` and
 The isolated provider request draft adapter is:
 
 ```text
-typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv> [--json] [--write --outdir <dir> [--force]]
+typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv> [--provider-key <provider-key-or-alias> ...] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named `provider_handoff.tsv` and converts valid
 handoff rows into a deterministic review draft for local
 `provider-request validate`.
+Repeated `--provider-key` values filter the handoff to canonical provider keys
+or known aliases before drafting request rows, so operators can split one
+combined provider handoff into provider-specific local review batches without
+rerunning coverage planning. The filter is local routing only; it does not
+contact providers, accept terms, download genomes, mutate workflow outputs, or
+change completion metrics.
 Without `--write`, it writes nothing. With `--write`, it writes only
 `provider_request.tsv` and `provider_request_draft_summary.json` into the
 explicitly supplied directory. Existing output directories are refused by
@@ -1868,6 +1874,7 @@ completion metrics, or promote strict scientific deliverables.
 The compact JSON and `provider_request_draft_summary.json` include
 `provider_automation_level_counts`, `operator_route_counts`,
 `provider_route_groups`, `next_input_class_counts`, `automation_boundary_counts`,
+`provider_key_filter`, `provider_key_filter_count`, `filtered`,
 `curator_completion_required_count`, `curator_completion_template_counts`,
 `curator_completion_template_guidance`, `curator_completion_field_counts`,
 `curator_completion_blocker_counts`,
