@@ -560,7 +560,10 @@ per-item operator-review gates. Each item also carries a structured
 warning IDs, so controllers can inspect it through `commands render`,
 `commands plan`, or `commands preflight` before any local CLI invocation. It is
 for local review planning only and still does not dispatch commands, contact
-providers, or download genomes. The payload
+providers, or download genomes. The `coverage-plan build --write` payload also
+uses the first prioritized provider-handoff item for its top-level
+`recommended_request`, so the immediate next provider-handoff command is
+filtered to one provider key by default. The payload
 also reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
