@@ -737,7 +737,10 @@ def _type_strain_token_prefix(value: str) -> str:
     match = re.match(r"\s*([A-Za-z]{3,16})(?=\s|[-_/]?\d|$)", value)
     if not match:
         return ""
-    return match.group(1).upper()
+    raw_prefix = match.group(1)
+    if raw_prefix != raw_prefix.upper():
+        return ""
+    return raw_prefix
 
 
 def _public_linkage_reason(

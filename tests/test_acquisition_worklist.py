@@ -978,7 +978,11 @@ def test_worklist_unrouted_prefix_audit_ignores_plain_strain_codes():
         checklist_rows=[
             {
                 "full_name": "Clostridium noisytokensum",
-                "type_strain_names": "A1-XYC3; N1-4; SG 508; not validly published; VPI T7",
+                "type_strain_names": (
+                    "A1-XYC3; N1-4; SG 508; not validly published; "
+                    "Barker and Beck HC-1; Bokkenheuser 19; Robertson 259E; "
+                    "derived from strain N1-4; LuHBu1; lac-1; Catt39; VPI T7"
+                ),
             }
         ],
     )
