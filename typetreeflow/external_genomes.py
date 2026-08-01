@@ -993,6 +993,62 @@ def summarize_external_genome_action_summary(
     return summary
 
 
+def summarize_external_genome_repair_queue(
+    rows: Iterable[ExternalGenomeRegistrationResult],
+    *,
+    limit: int = 10,
+) -> dict[str, object]:
+    """Return bounded row-level repair guidance for invalid external-genomes rows."""
+
+    queue: list[dict[str, object]] = []
+    status_counts: Counter[str] = Counter()
+    for index, row in enumerate(rows, start=2):
+        if row.valid:
+            continue
+        route = _external_genome_action_route("validate", row.status)
+        status_counts[row.status] += 1
+        if len(queue) >= limit:
+            continue
+        queue.append(
+            {
+                "input_row_number": index,
+                "priority": route["priority"],
+                "status": row.status,
+                "species": row.species,
+                "external_source": row.external_source,
+                "external_genome_id": row.external_genome_id,
+                "genome_fasta_path": row.genome_fasta_path,
+                "missing_or_blocked_inputs": _external_genome_repair_inputs(row),
+                "recommended_action": route["recommended_action"],
+                "next_input_class": route["next_input_class"],
+                "recommended_next_command": route["recommended_next_command"],
+                "automation_boundary": route["automation_boundary"],
+                "safe_for_unattended_execution": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            }
+        )
+
+    total = sum(status_counts.values())
+    return {
+        "schema_version": "external_genomes_repair_queue.v1",
+        "stage": "validate",
+        "item_count": total,
+        "items_truncated": total > len(queue),
+        "status_counts": dict(sorted(status_counts.items())),
+        "items": queue,
+        "safe_for_unattended_execution": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "audit_only": True,
+        "strict_scientific_deliverable": False,
+    }
+
+
 def _external_genome_action_route(stage: str, status: str) -> dict[str, object]:
     if stage == "validate":
         if status == "external_genome_registered":
@@ -1076,6 +1132,32 @@ def _external_genome_action_route(stage: str, status: str) -> dict[str, object]:
         "recommended_next_command": "external-genomes validate --input <external_genomes.tsv>",
         "automation_boundary": "local_review_required_no_execution",
     }
+
+
+def _external_genome_repair_inputs(
+    row: ExternalGenomeRegistrationResult,
+) -> list[str]:
+    visible_input_fields = (
+        "species",
+        "strain",
+        "type_strain_id",
+        "external_source",
+        "external_genome_id",
+        "genome_fasta_path",
+    )
+    missing = [
+        field
+        for field in visible_input_fields
+        if str(getattr(row, field, "") or "").strip() == ""
+    ]
+    if row.status == "external_genome_missing_file":
+        if "genome_fasta_path" not in missing:
+            missing.append("existing_local_fasta_file")
+    elif row.status == "external_genome_checksum_mismatch":
+        missing.append("sha256")
+    elif row.status == "external_genome_manual_review_required" and not missing:
+        missing.append("manual_review_clearance")
+    return sorted(set(missing))
 
 
 def _bounded_species_preview(

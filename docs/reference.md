@@ -2689,6 +2689,12 @@ providers, install FASTA, or mark strict completion. The payload also includes
 `external_genomes_action_summary`, which groups validation statuses into local
 repair or next-step actions with bounded species previews and fixed
 `safe_for_unattended_execution=false`.
+Blocked validate payloads also include `external_genomes_repair_queue`, a
+bounded row-level queue with input row numbers, local fields or files to fix,
+recommended local repair actions, and no-download/no-provider safety fields.
+The queue is only a repair guide for the reviewed `external_genomes.tsv` input;
+it is not installation permission, provider authorization, registration, or
+completion credit.
 The validate payload also includes `external_genomes_readiness_packet`. When
 every row is valid, that packet reports `status=ready_for_next_stage`,
 `next_stage=external_genomes_install_plan`, and a structured request for

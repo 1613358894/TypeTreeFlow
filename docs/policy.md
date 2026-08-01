@@ -680,6 +680,9 @@ Reviewed `external_genomes.tsv` is the only external-genome registration input.
 readiness; it does not register genomes, install FASTA files, write workflow
 outputs, mutate manifests, or change completion metrics. Registration validates
 local files and provenance. Installation plans and results remain explicit.
+The validate repair queue is a bounded local input repair guide only; it must
+not be interpreted as download permission, provider authorization, strict
+evidence, installation approval, or completion credit.
 Controlled `operator_route`, `next_input_class`, and `automation_boundary`
 counts derived from row notes are handoff context only; they are not scientific
 evidence, provider authorization, installation permission, or completion credit.
