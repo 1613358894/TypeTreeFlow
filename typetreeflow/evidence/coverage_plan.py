@@ -37,6 +37,21 @@ COVERAGE_PLAN_FIELDS: tuple[str, ...] = (
     "audit_only",
     "strict_scientific_deliverable",
 )
+PUBLIC_ARCHIVE_REVIEW_PROVIDER_KEYS: tuple[str, ...] = (
+    "ddbj",
+    "ena",
+    "genbank",
+    "insdc",
+    "ncbi_assembly",
+    "ncbi_biosample",
+    "refseq",
+)
+PUBLIC_TYPE_LINKAGE_REVIEW_PROVIDER_KEYS: tuple[str, ...] = (
+    "genbank",
+    "ncbi_assembly",
+    "ncbi_biosample",
+    "refseq",
+)
 
 
 @dataclass(frozen=True)
@@ -163,7 +178,8 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
                 source_lane=lane,
                 action_code="review_public_archive_linkage",
                 action_label="Review public archive candidate against type-strain equivalence",
-                provider_keys=provider_keys or "ddbj; ena; genbank; refseq",
+                provider_keys=provider_keys
+                or "; ".join(PUBLIC_ARCHIVE_REVIEW_PROVIDER_KEYS),
                 required_input="public accession to type-strain direct evidence chain",
                 recommended_next_command="manual-review validate --input <review.tsv>",
                 input_artifacts=input_artifacts,
@@ -174,7 +190,8 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
             source_lane=lane,
             action_code="review_public_type_linkage",
             action_label="Review selected public genome linkage against type strain",
-            provider_keys=provider_keys or "genbank; refseq",
+            provider_keys=provider_keys
+            or "; ".join(PUBLIC_TYPE_LINKAGE_REVIEW_PROVIDER_KEYS),
             required_input="BioSample/accession to type-strain direct evidence chain",
             recommended_next_command="manual-review validate --input <review.tsv>",
             input_artifacts=input_artifacts,
