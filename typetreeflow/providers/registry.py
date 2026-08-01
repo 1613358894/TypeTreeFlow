@@ -84,6 +84,10 @@ class ProviderRegistry:
             pattern = rf"(?<![A-Z0-9]){re.escape(prefix)}(?=$|[^A-Z0-9]|[0-9])"
             if re.search(pattern, normalized) and provider_key not in provider_keys:
                 provider_keys.append(provider_key)
+        for alias, provider_key in _TEXT_ALIAS_PATTERNS:
+            pattern = rf"(?<![A-Z0-9]){re.escape(alias)}(?![A-Z0-9])"
+            if re.search(pattern, normalized) and provider_key not in provider_keys:
+                provider_keys.append(provider_key)
         return tuple(provider_keys)
 
 
@@ -315,6 +319,13 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("IMG/M", "img_jgi"),
     ("IMG", "img_jgi"),
     ("JGI IMG", "img_jgi"),
+)
+
+
+_TEXT_ALIAS_PATTERNS: tuple[tuple[str, str], ...] = tuple(
+    (alias.upper(), canonical)
+    for alias, canonical in _EXPLICIT_ALIASES
+    if (" " in alias or "/" in alias or "-" in alias or "'" in alias)
 )
 
 

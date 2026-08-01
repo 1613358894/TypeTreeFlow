@@ -737,6 +737,9 @@ can optionally record observed external-registration realization counts from a
 bounded server inspection, while `external_genomes_registration_applied` remains
 `false`. It remains metadata-only and does not write files, validate artifacts,
 dispatch target commands, contact providers, or download genomes.
+The top-level `coverage-pipeline status` payload reports the same realization
+counts and keeps `external_genomes_registration_applied=false` for compact
+AI/operator readers.
 `coverage-pipeline status` also reports
 `coverage_handoff_server_validation_result_template_artifact_packet` when the
 isolated build directory contains the written server-validation result template.

@@ -791,6 +791,11 @@ fields aligned with coverage-pipeline queue metadata.
 are offline planning hints, not provider authorization or executable download
 instructions. It does not contact providers, read credentials, write outputs,
 or enable provider download behavior.
+Provider-key extraction recognizes canonical keys, common abbreviations, and
+controlled long aliases such as full culture-collection names when routing
+free-text evidence into coverage/provider handoff. Alias recognition is only a
+handoff signal; it does not create strict evidence, provider authorization, or
+download permission.
 
 `commands recognize` and `commands preflight` require `--argv-json` as a JSON
 string array or target argv tokens after `--`. Their JSON envelopes include
@@ -2645,6 +2650,10 @@ fields only; `external_genomes_registration_applied` remains a no-execution
 boundary confirmation and must stay `false`. The template remains metadata-only
 and does not validate artifacts, write files, dispatch target commands, contact
 providers, or download genomes.
+`coverage-pipeline status` also emits top-level external-registration
+realization fields and keeps top-level `external_genomes_registration_applied`
+fixed to `false`, so compact status readers can distinguish observed local
+registration from applying a scientific or workflow gate.
 When `coverage-pipeline status` is pointed at an isolated build directory, it
 also emits `coverage_handoff_server_validation_result_template_artifact_packet`
 for the written
