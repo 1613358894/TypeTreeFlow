@@ -2066,7 +2066,10 @@ without inferring paths from prose. `coverage-pipeline`
 `preview`, `build`, and `status` can also take
 `--stage <operator_chain_stage>` and return
 `selected_operator_chain_stage`, `selected_operator_chain_stage_found`, and
-`selected_operator_chain_stage_command_plan` for a single explicit stage; an
+`selected_operator_chain_stage_command_plan` for a single explicit stage. They
+also return `selected_operator_chain_stage_route_context`, including bounded
+coverage-priority route counts when a selected audit stage exposes them, so
+controllers can route public-archive review without parsing stage summaries. An
 unknown stage is a compact JSON blocked result with
 `diagnostic_code=operator_chain_stage_not_found`. Action
 groups are sorted by priority and summarize action code, record count, source
