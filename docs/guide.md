@@ -733,8 +733,10 @@ result without inventing field names. It also includes a structured
 `result_validation_recommended_request` and argv for the local
 `coverage-pipeline server-validation-result validate` command so a controller
 can validate the filled result shape without guessing the next command. It
-remains metadata-only and does not write files, validate artifacts, dispatch
-target commands, contact providers, or download genomes.
+can optionally record observed external-registration realization counts from a
+bounded server inspection, while `external_genomes_registration_applied` remains
+`false`. It remains metadata-only and does not write files, validate artifacts,
+dispatch target commands, contact providers, or download genomes.
 `coverage-pipeline status` also reports
 `coverage_handoff_server_validation_result_template_artifact_packet` when the
 isolated build directory contains the written server-validation result template.

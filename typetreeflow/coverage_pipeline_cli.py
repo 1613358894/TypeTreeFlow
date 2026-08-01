@@ -139,9 +139,16 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS = (
     "runtime_python",
     "evidence_run_path",
 )
+_SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS = (
+    "external_genomes_registration_realized",
+    "external_genomes_registration_manifest_available",
+)
 _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "check_count",
     "failed_count",
+    "external_genomes_registration_manifest_record_count",
+    "external_genomes_registration_external_manifest_record_count",
+    "external_genomes_registration_install_succeeded_count",
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -1826,6 +1833,12 @@ def _validate_server_validation_result(
             diagnostics.append(
                 _diagnostic("server_validation_result", f"invalid_{field}")
             )
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS:
+        if field in result and not isinstance(result.get(field), bool):
+            invalid_fields.append(field)
+            diagnostics.append(
+                _diagnostic("server_validation_result", f"invalid_{field}")
+            )
     for field in _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS:
         raw_value = result.get(field)
         if field in result and (
@@ -1927,6 +1940,31 @@ def _server_validation_result_validation_payload(
         ),
         "check_count": _optional_nonnegative_int(result.get("check_count")),
         "failed_count": _optional_nonnegative_int(result.get("failed_count")),
+        "external_genomes_registration_realized": _optional_bool(
+            result.get("external_genomes_registration_realized")
+        ),
+        "external_genomes_registration_manifest_available": _optional_bool(
+            result.get("external_genomes_registration_manifest_available")
+        ),
+        "external_genomes_registration_manifest_record_count": (
+            _optional_nonnegative_int(
+                result.get("external_genomes_registration_manifest_record_count")
+            )
+        ),
+        "external_genomes_registration_external_manifest_record_count": (
+            _optional_nonnegative_int(
+                result.get(
+                    "external_genomes_registration_external_manifest_record_count"
+                )
+            )
+        ),
+        "external_genomes_registration_install_succeeded_count": (
+            _optional_nonnegative_int(
+                result.get(
+                    "external_genomes_registration_install_succeeded_count"
+                )
+            )
+        ),
         "checked_surface_names": [str(item) for item in checked_surface_names],
         "checked_surface_count": len(checked_surface_names),
         "required_field_count": len(_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS),
@@ -2152,6 +2190,10 @@ def _optional_nonnegative_int(value: object) -> int:
     if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
         return value
     return 0
+
+
+def _optional_bool(value: object) -> bool:
+    return value if isinstance(value, bool) else False
 
 
 def _stage_repair_queue(stage: Mapping[str, object] | None) -> dict[str, object]:
@@ -5258,6 +5300,11 @@ def _coverage_handoff_server_validation_result_template_packet(
                 "provider_automation_level_counts_by_stage"
             )
         ),
+        "external_genomes_registration_realized": False,
+        "external_genomes_registration_manifest_available": False,
+        "external_genomes_registration_manifest_record_count": 0,
+        "external_genomes_registration_external_manifest_record_count": 0,
+        "external_genomes_registration_install_succeeded_count": 0,
         "blocking_ids": [],
         "warning_ids": [],
         "boundary_confirmations": boundary_confirmations,
@@ -5438,6 +5485,11 @@ def _coverage_handoff_server_validation_result_template_artifact_packet(
         "evidence_run_path": "",
         "check_count": 0,
         "failed_count": 0,
+        "external_genomes_registration_realized": False,
+        "external_genomes_registration_manifest_available": False,
+        "external_genomes_registration_manifest_record_count": 0,
+        "external_genomes_registration_external_manifest_record_count": 0,
+        "external_genomes_registration_install_succeeded_count": 0,
         "validation_status": "no_action",
         "checked_surface_count": 0,
         "boundary_confirmation_count": 0,
@@ -5745,6 +5797,31 @@ def _coverage_handoff_server_validation_result_artifact_packet(
         ),
         "check_count": _optional_nonnegative_int(result.get("check_count")),
         "failed_count": _optional_nonnegative_int(result.get("failed_count")),
+        "external_genomes_registration_realized": _optional_bool(
+            result.get("external_genomes_registration_realized")
+        ),
+        "external_genomes_registration_manifest_available": _optional_bool(
+            result.get("external_genomes_registration_manifest_available")
+        ),
+        "external_genomes_registration_manifest_record_count": (
+            _optional_nonnegative_int(
+                result.get("external_genomes_registration_manifest_record_count")
+            )
+        ),
+        "external_genomes_registration_external_manifest_record_count": (
+            _optional_nonnegative_int(
+                result.get(
+                    "external_genomes_registration_external_manifest_record_count"
+                )
+            )
+        ),
+        "external_genomes_registration_install_succeeded_count": (
+            _optional_nonnegative_int(
+                result.get(
+                    "external_genomes_registration_install_succeeded_count"
+                )
+            )
+        ),
         "validation_status": validation_status,
         "checked_surface_count": len(checked_surface_names),
         "boundary_confirmation_count": _safe_int(
