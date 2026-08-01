@@ -1620,7 +1620,7 @@ downloads or strict deliverable promotion.
 The isolated archive candidate CLI adapter is:
 
 ```text
-typetreeflow archive-candidates build (--input-tsv <archive_candidates_input.tsv> | --expanded-discovery-results-tsv <expanded_discovery_results.tsv>) [--json] [--write --outdir <dir> [--force]]
+typetreeflow archive-candidates build (--input-tsv <archive_candidates_input.tsv> | --expanded-discovery-results-tsv <expanded_discovery_results.tsv>) [--json] [--write --outdir <dir> [--include-manual-review-template] [--force]]
 ```
 
 Exactly one input source is required. `--input-tsv` reads the archive-candidate
@@ -1633,7 +1633,14 @@ linkage evidence, and does not copy raw expanded-discovery notes.
 Without `--write`, it writes nothing. With `--write`, it writes only
 `archive_candidates.tsv`, `archive_candidates_summary.json`, and
 `archive_candidates_diagnostics.tsv` into the explicitly supplied isolated
-directory. Successful writes also include `recommended_request`,
+directory. With `--include-manual-review-template`, the same isolated directory
+also receives a companion `manual_review.tsv` skeleton for rows whose next
+input is manual review. The skeleton pre-fills species/accession context and
+template-only evidence notes, but leaves review status, reviewer, date,
+second-review, and conflict-resolution fields blank. It is not a curator
+decision, will not validate as a completed manual-review TSV, and cannot grant
+strict status until a curator or AI reviewer completes and validates it
+separately. Successful writes also include `recommended_request`,
 `recommended_request_target=coverage-pipeline build`, and
 `recommended_next_command` fields that point a later local coverage-pipeline run
 at the written `archive_candidates.tsv`. They also include a

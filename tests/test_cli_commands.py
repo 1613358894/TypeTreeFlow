@@ -1814,7 +1814,8 @@ def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
                 (
                     '{"command":"archive-candidates","subcommand":"build",'
                     '"input_tsv":"archive.tsv","write":true,'
-                    '"outdir":"archive","force":true}'
+                    '"outdir":"archive","include_manual_review_template":true,'
+                    '"force":true}'
                 ),
             ]
         )
@@ -1830,6 +1831,7 @@ def test_commands_render_emits_normalized_archive_candidates_argv(capsys):
         "--write",
         "--outdir",
         "archive",
+        "--include-manual-review-template",
         "--force",
     ]
     assert payload["recognized"]["command"] == "archive-candidates"

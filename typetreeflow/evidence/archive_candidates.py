@@ -13,6 +13,7 @@ from typetreeflow.expanded_discovery import (
     EXPANDED_DISCOVERY_RESULT_FIELDS,
     MATCHED_CANDIDATE,
 )
+from typetreeflow.evidence.manual_review import MANUAL_REVIEW_FIELDS
 from typetreeflow.providers.base import ProviderStatus
 from typetreeflow.providers.registry import build_default_provider_registry
 from typetreeflow.taxonomy.names import canonical_species_key
@@ -227,6 +228,22 @@ class ArchiveCandidateReport:
 
     def summary_json(self) -> str:
         return json.dumps(self.summary, sort_keys=True, separators=(",", ":")) + "\n"
+
+    def manual_review_template_tsv(self) -> str:
+        """Render a skeleton manual-review TSV for public archive review.
+
+        The rendered rows are intentionally incomplete. They prefill stable
+        species/accession context only; a curator or AI reviewer must still
+        supply review status, reviewer identity, date, evidence assessment, and
+        conflict resolution before the file can pass manual-review validation.
+        """
+
+        rows = [
+            _manual_review_template_row(row)
+            for row in self.rows
+            if _include_manual_review_template_row(row)
+        ]
+        return _write_tsv(MANUAL_REVIEW_FIELDS, rows)
 
 
 def read_archive_candidate_input(
@@ -858,6 +875,66 @@ def _review_input_class(row: ArchiveCandidateRow) -> str:
     if row.candidate_status == "archive_candidate_for_public_linkage_review":
         return "direct_evidence_chain_review"
     return "metadata_fix_required"
+
+
+def _include_manual_review_template_row(row: ArchiveCandidateRow) -> bool:
+    review_class = _review_input_class(row)
+    return bool(_selected_accession(row)) and (
+        _recommended_next_input(review_class) == "manual_review.tsv"
+    )
+
+
+def _selected_accession(row: ArchiveCandidateRow) -> str:
+    return (
+        row.assembly_accession
+        or row.biosample_accession
+        or row.nuccore_accession
+        or row.wgs_accession
+    )
+
+
+def _manual_review_template_row(
+    row: ArchiveCandidateRow,
+) -> dict[str, object]:
+    selected_accession = _selected_accession(row)
+    evidence_source_ids = ";".join(
+        value
+        for value in (
+            f"archive_source:{row.archive_source}" if row.archive_source else "",
+            f"assembly:{row.assembly_accession}" if row.assembly_accession else "",
+            f"biosample:{row.biosample_accession}" if row.biosample_accession else "",
+            f"nuccore:{row.nuccore_accession}" if row.nuccore_accession else "",
+            f"wgs:{row.wgs_accession}" if row.wgs_accession else "",
+        )
+        if value
+    )
+    evidence_bits = [
+        f"archive_source={row.archive_source or 'missing'}",
+        f"selected_accession={selected_accession}",
+        f"candidate_status={row.candidate_status}",
+        f"archive_type_material_signal={row.archive_type_material_signal}",
+    ]
+    if row.lpsn_token_overlap:
+        evidence_bits.append("lpsn_token_overlap=present")
+    return {
+        "species": row.species,
+        "selected_accession": selected_accession,
+        "review_status": "",
+        "reviewer_id": "",
+        "review_date": "",
+        "evidence_summary": (
+            "Template only: review whether the selected public archive accession "
+            "has a direct auditable link to the species type-strain equivalence "
+            f"set before any strict use. {'; '.join(evidence_bits)}"
+        ),
+        "evidence_source_ids": evidence_source_ids,
+        "conflict_resolution": "",
+        "second_reviewer_id": "",
+        "decision_notes": (
+            "archive_candidates_manual_review_template; not_a_review_decision; "
+            "strict_upgrade_applied=false; strict_scientific_deliverable=false"
+        ),
+    }
 
 
 def _write_tsv(fields: tuple[str, ...], rows: Iterable[Mapping[str, object]]) -> str:

@@ -96,7 +96,8 @@ already collected ENA/DDBJ/INSDC/GenBank-style metadata:
 
 ```bash
 typetreeflow archive-candidates build --input-tsv <archive_candidates_input.tsv> \
-  [--json] [--write --outdir <isolated-directory> [--force]]
+  [--json] [--write --outdir <isolated-directory> \
+  [--include-manual-review-template] [--force]]
 ```
 
 You can also bridge already written expanded-discovery results into the same
@@ -105,7 +106,8 @@ archive-candidate review surface:
 ```bash
 typetreeflow archive-candidates build \
   --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
-  [--json] [--write --outdir <isolated-directory> [--force]]
+  [--json] [--write --outdir <isolated-directory> \
+  [--include-manual-review-template] [--force]]
 ```
 
 This is an audit aid only. It does not query archives, download genomes, write
@@ -129,7 +131,12 @@ structured `coverage-pipeline build` recommended request that points to the
 written `archive_candidates.tsv`,
 plus a metadata-only command plan that remains
 blocked until an operator explicitly allows writes; the adapter does not run
-that next command.
+that next command. Add `--include-manual-review-template` to write a companion
+`manual_review.tsv` skeleton for rows whose next local input is manual review.
+That skeleton pre-fills species/accession context but intentionally leaves
+review status, reviewer, date, and conflict-resolution fields blank; it is not
+a review decision and cannot promote any strict deliverable until a curator or
+AI reviewer completes and validates it separately.
 
 Then classify existing local checklist, reconciler, completion-gap,
 external-genome, and archive-candidate rows into one review lane per species:

@@ -2017,6 +2017,16 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "isolated archive candidate output directory",
         },
         {
+            "name": "--include-manual-review-template",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": (
+                "write an incomplete manual_review.tsv skeleton for public "
+                "archive review"
+            ),
+        },
+        {
             "name": "--force",
             "kind": "flag",
             "required": False,
@@ -3701,6 +3711,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "expanded_discovery_results_tsv",
                 "write",
                 "outdir",
+                "include_manual_review_template",
                 "force",
             },
         )
@@ -3720,7 +3731,14 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         outdir = _optional_string(request, "outdir")
         if outdir:
             argv.extend(["--outdir", outdir])
-        return _with_flags(argv, request, {"force": "--force"})
+        return _with_flags(
+            argv,
+            request,
+            {
+                "include_manual_review_template": "--include-manual-review-template",
+                "force": "--force",
+            },
+        )
     if command == "coverage-plan" and subcommand == "build":
         _reject_unknown_fields(
             request,

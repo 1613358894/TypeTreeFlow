@@ -29,6 +29,11 @@ OUTPUT_NAMES = {
     "summary": "archive_candidates_summary.json",
     "diagnostics": "archive_candidates_diagnostics.tsv",
 }
+MANUAL_REVIEW_TEMPLATE_NAME = "manual_review.tsv"
+ALL_OUTPUT_NAMES = {
+    **OUTPUT_NAMES,
+    "manual_review_template": MANUAL_REVIEW_TEMPLATE_NAME,
+}
 _PROTECTED_OUTPUT_TERMS = {
     "manifest",
     "selection",
@@ -75,8 +80,11 @@ def run_archive_candidates_command(
         _emit(_failure("invalid_command_usage", "Invalid archive-candidates usage"), output)
         return 2
     outdir = Path(args.outdir) if args.outdir else None
-    if (args.write and outdir is None) or (outdir is not None and not args.write) or (
-        args.force and not args.write
+    if (
+        (args.write and outdir is None)
+        or (outdir is not None and not args.write)
+        or (args.force and not args.write)
+        or (args.include_manual_review_template and not args.write)
     ):
         _emit(
             _failure(
@@ -106,7 +114,10 @@ def run_archive_candidates_command(
         "providers_contacted": 0,
         "manifest_mutated": False,
         "input_paths": input_paths,
-        "output_paths": {key: None for key in OUTPUT_NAMES},
+        "output_paths": {key: None for key in ALL_OUTPUT_NAMES},
+        "manual_review_template_row_count": 0,
+        "manual_review_template_written": False,
+        "manual_review_template_path": None,
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
@@ -122,12 +133,37 @@ def run_archive_candidates_command(
         recommended_request = _coverage_pipeline_recommended_request(
             str(candidates_path)
         )
+        manual_review_template = report.manual_review_template_tsv()
+        manual_review_template_row_count = _tsv_data_row_count(
+            manual_review_template
+        )
+        rendered = {
+            "candidates": report.candidates_tsv(),
+            "summary": "",
+            "diagnostics": report.diagnostics_tsv(),
+        }
+        if args.include_manual_review_template:
+            rendered["manual_review_template"] = manual_review_template
+        output_paths = {
+            key: str(outdir / name)
+            for key, name in ALL_OUTPUT_NAMES.items()
+            if key in rendered
+        }
+        for key in ALL_OUTPUT_NAMES:
+            output_paths.setdefault(key, None)
         written_payload = {
             **payload,
             "writes_outputs": True,
-            "output_paths": {
-                key: str(outdir / name) for key, name in OUTPUT_NAMES.items()
-            },
+            "output_paths": output_paths,
+            "manual_review_template_row_count": manual_review_template_row_count,
+            "manual_review_template_written": bool(
+                args.include_manual_review_template
+            ),
+            "manual_review_template_path": (
+                str(outdir / MANUAL_REVIEW_TEMPLATE_NAME)
+                if args.include_manual_review_template
+                else None
+            ),
             "recommended_request": recommended_request,
             "recommended_request_target": recommended_request_target(
                 recommended_request
@@ -147,12 +183,11 @@ def run_archive_candidates_command(
                 input_paths=(input_path,),
                 outdir=outdir,
                 rendered={
-                    "candidates": report.candidates_tsv(),
+                    **rendered,
                     "summary": json.dumps(
                         written_payload, sort_keys=True, separators=(",", ":")
                     )
                     + "\n",
-                    "diagnostics": report.diagnostics_tsv(),
                 },
                 force=args.force,
             )
@@ -199,6 +234,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
+    build.add_argument("--include-manual-review-template", action="store_true")
     build.add_argument("--force", action="store_true")
     return parser
 
@@ -237,7 +273,10 @@ def _failure(code: str, message: str) -> dict[str, object]:
             "input_tsv": None,
             "expanded_discovery_results_tsv": None,
         },
-        "output_paths": {key: None for key in OUTPUT_NAMES},
+        "output_paths": {key: None for key in ALL_OUTPUT_NAMES},
+        "manual_review_template_row_count": 0,
+        "manual_review_template_written": False,
+        "manual_review_template_path": None,
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
@@ -283,6 +322,15 @@ def _publish(
                 handle.write(rendered[key])
                 handle.flush()
                 os.fsync(handle.fileno())
+        if "manual_review_template" in rendered:
+            with (stage / MANUAL_REVIEW_TEMPLATE_NAME).open(
+                "x",
+                encoding="utf-8",
+                newline="",
+            ) as handle:
+                handle.write(rendered["manual_review_template"])
+                handle.flush()
+                os.fsync(handle.fileno())
         if outdir.exists():
             os.replace(outdir, backup)
             backed_up = True
@@ -326,9 +374,9 @@ def _validate_outdir(
     if outdir.exists():
         if not outdir.is_dir():
             raise ValueError("output path is not a directory")
-        expected = {name for name in OUTPUT_NAMES.values()}
+        allowed = {name for name in ALL_OUTPUT_NAMES.values()}
         existing = {child.name for child in outdir.iterdir()}
-        if existing and existing != expected:
+        if existing and not existing <= allowed:
             raise ValueError("existing output directory does not match archive schema")
         if existing and not force:
             raise ValueError("use --force to overwrite archive candidate outputs")
@@ -347,3 +395,8 @@ def _has_symlink_component(path: Path) -> bool:
 
 def _emit(payload: dict[str, object], output: TextIO) -> None:
     print(json.dumps(payload, sort_keys=True, separators=(",", ":")), file=output)
+
+
+def _tsv_data_row_count(rendered: str) -> int:
+    lines = [line for line in rendered.splitlines() if line.strip()]
+    return max(0, len(lines) - 1)
