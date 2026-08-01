@@ -198,6 +198,25 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
     assert registry.canonical_key("unregistered provider") is None
 
 
+def test_provider_registry_extracts_prefixes_joined_to_collection_numbers():
+    registry = build_default_provider_registry()
+
+    assert registry.keys_from_text(
+        "ATCC700964; DSM12345; JCM9876; KCTC5001; NBRC10000; "
+        "LMG4006; CECT9001; NRRL123"
+    ) == (
+        "atcc_genome_portal",
+        "dsmz",
+        "jcm",
+        "nbrc",
+        "kctc",
+        "cect",
+        "bccm_lmg",
+        "nrrl",
+    )
+    assert registry.keys_from_text("PDSM123 is not a collection token") == ()
+
+
 def test_provider_registry_normalizes_provider_hint_fields_with_embedded_tokens():
     registry = build_default_provider_registry()
 
