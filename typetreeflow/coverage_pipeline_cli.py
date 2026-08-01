@@ -1455,6 +1455,7 @@ def _external_registration_realization_summary(
         "external_genomes_registration_realized": (
             manifest_available and external_manifest_record_count > 0
         ),
+        "external_genomes_registration_applied": False,
         "external_genomes_registration_manifest_available": manifest_available,
         "external_genomes_registration_manifest_record_count": manifest_record_count,
         "external_genomes_registration_external_manifest_record_count": (

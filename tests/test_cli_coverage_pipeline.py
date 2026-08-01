@@ -2593,6 +2593,7 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["check_count"] == 31
     assert payload["failed_count"] == 0
     assert payload["external_genomes_registration_realized"] is True
+    assert payload["external_genomes_registration_applied"] is False
     assert payload["external_genomes_registration_manifest_available"] is True
     assert payload["external_genomes_registration_manifest_record_count"] == 2
     assert payload["external_genomes_registration_external_manifest_record_count"] == 1
@@ -6461,6 +6462,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     )
     assert code == 0
     assert status_payload["external_genomes_registration_realized"] is False
+    assert status_payload["external_genomes_registration_applied"] is False
     assert (
         status_payload["external_genomes_registration_manifest_available"] is False
     )
@@ -7302,6 +7304,7 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert payload["completed_stage_count"] == payload["stage_count"]
     assert payload["stage_status_counts"] == {"available": 8, "unavailable": 0}
     assert payload["external_genomes_registration_realized"] is True
+    assert payload["external_genomes_registration_applied"] is False
     assert payload["external_genomes_registration_manifest_available"] is True
     assert payload["external_genomes_registration_manifest_record_count"] == 1
     assert payload["external_genomes_registration_external_manifest_record_count"] == 1

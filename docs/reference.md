@@ -2645,6 +2645,10 @@ fields only; `external_genomes_registration_applied` remains a no-execution
 boundary confirmation and must stay `false`. The template remains metadata-only
 and does not validate artifacts, write files, dispatch target commands, contact
 providers, or download genomes.
+`coverage-pipeline status` also emits top-level external-registration
+realization fields and keeps top-level `external_genomes_registration_applied`
+fixed to `false`, so compact status readers can distinguish observed local
+registration from applying a scientific or workflow gate.
 When `coverage-pipeline status` is pointed at an isolated build directory, it
 also emits `coverage_handoff_server_validation_result_template_artifact_packet`
 for the written
