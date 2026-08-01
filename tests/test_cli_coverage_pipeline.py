@@ -2934,6 +2934,31 @@ def _write_archive_candidates_output(outdir):
                     "archive_candidate_for_public_linkage_review": 1,
                 },
                 "archive_source_counts": {"ena": 1},
+                "coverage_priority_route_counts": {
+                    "public_archive_metadata_review": 1,
+                },
+                "coverage_priority_route_summary": [
+                    {
+                        "priority": 10,
+                        "coverage_priority_route": "public_archive_metadata_review",
+                        "record_count": 1,
+                        "species_count": 1,
+                        "species_preview": ["Clostridium gamma"],
+                        "species_truncated": False,
+                        "archive_source_counts": {"ena": 1},
+                        "recommended_action": (
+                            "review public accession/type-linkage metadata before provider handoff"
+                        ),
+                        "recommended_next_input": "manual_review.tsv",
+                        "automation_boundary": "metadata_review_only_no_download",
+                        "safe_for_unattended_download": False,
+                        "downloads_triggered": 0,
+                        "providers_contacted": 0,
+                        "manifest_mutated": False,
+                        "audit_only": True,
+                        "strict_scientific_deliverable": False,
+                    }
+                ],
                 "accession_kind_counts": {"assembly": 1, "biosample": 1},
                 "review_input_class_counts": {
                     "direct_evidence_chain_review": 1,
@@ -7214,6 +7239,31 @@ def test_coverage_pipeline_status_reads_archive_candidates_child_dir(
         "archive_candidate_for_public_linkage_review": 1,
     }
     assert archive_stage["summary_archive_source_counts"] == {"ena": 1}
+    assert archive_stage["summary_coverage_priority_route_counts"] == {
+        "public_archive_metadata_review": 1
+    }
+    assert archive_stage["summary_coverage_priority_route_summary"] == [
+        {
+            "priority": 10,
+            "coverage_priority_route": "public_archive_metadata_review",
+            "record_count": 1,
+            "species_count": 1,
+            "species_preview": ["Clostridium gamma"],
+            "species_truncated": False,
+            "archive_source_counts": {"ena": 1},
+            "recommended_action": (
+                "review public accession/type-linkage metadata before provider handoff"
+            ),
+            "recommended_next_input": "manual_review.tsv",
+            "automation_boundary": "metadata_review_only_no_download",
+            "safe_for_unattended_download": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        }
+    ]
     assert archive_stage["summary_accession_kind_counts"] == {
         "assembly": 1,
         "biosample": 1,
