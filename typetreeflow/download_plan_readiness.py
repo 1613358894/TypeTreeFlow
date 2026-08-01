@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,20 @@ def build_download_plan_readiness_summary(path: str | Path) -> dict[str, Any]:
         + malformed_row_count
     )
     return summary
+
+
+def write_download_plan_readiness_summary(
+    plan_path: str | Path,
+    output_path: str | Path,
+) -> Path:
+    summary = build_download_plan_readiness_summary(plan_path)
+    target = Path(output_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return target
 
 
 def _empty_summary(path: str, *, available: bool) -> dict[str, Any]:

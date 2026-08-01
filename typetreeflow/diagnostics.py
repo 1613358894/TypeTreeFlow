@@ -323,6 +323,7 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
         paths.manifest,
         paths.user_selection_path,
         paths.download_preflight_summary_path,
+        paths.download_plan_readiness_summary_path,
         paths.ncbi_download_results_path,
         paths.run_summary_path,
         paths.run_review_path,

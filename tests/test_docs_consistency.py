@@ -326,6 +326,7 @@ def test_output_layout_mentions_key_output_paths(tmp_path):
         paths.strain_candidates_path,
         paths.user_selection_path,
         paths.download_preflight_summary_path,
+        paths.download_plan_readiness_summary_path,
         paths.manual_deposit_evidence_template_path,
         paths.manual_species_gap_summary_path,
         paths.manual_review_report_path,
@@ -375,6 +376,10 @@ def test_schema_docs_mention_key_table_fields():
         "selection/download_preflight_summary.tsv": [
             "representative_only_scope",
             "download_not_applicable",
+        ],
+        "selection/download_plan_readiness_summary.json": [
+            "download_ready_ncbi_count",
+            "review_or_handoff_count",
         ],
         "external_genome_install_plan.tsv": [
             "installed_genome_path",

@@ -1337,6 +1337,14 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert payload["next_actions"][0]["id"] == "review_user_selection"
     assert paths.user_selection_path.exists()
     assert paths.download_preflight_summary_path.exists()
+    assert paths.download_plan_readiness_summary_path.exists()
+    assert "selection/download_plan_readiness_summary.json" in state.stages[
+        "download_preflight"
+    ].outputs
+    readiness_file = json.loads(
+        paths.download_plan_readiness_summary_path.read_text(encoding="utf-8")
+    )
+    assert readiness_file == readiness
     assert paths.run_summary_path.exists()
     assert paths.run_state_path.exists()
     assert paths.manifest.exists()

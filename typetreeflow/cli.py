@@ -43,6 +43,7 @@ from typetreeflow.diagnostics import (
 )
 from typetreeflow.download_plan_readiness import (
     build_download_plan_readiness_summary,
+    write_download_plan_readiness_summary,
 )
 from typetreeflow.evidence.bacdive_adapter import (
     BacDiveClientProtocol,
@@ -1788,7 +1789,12 @@ def _write_genome_download_plan(
             paths.download_preflight_summary_path,
         )
     mark_planned_records(records, plan_items)
-    write_download_plan(plan_items, paths.cache_dir / "ncbi" / "download_plan.tsv")
+    download_plan_path = paths.cache_dir / "ncbi" / "download_plan.tsv"
+    write_download_plan(plan_items, download_plan_path)
+    write_download_plan_readiness_summary(
+        download_plan_path,
+        paths.download_plan_readiness_summary_path,
+    )
     summary = summarize_download_plan(plan_items)
     LOGGER.info(
         "Prepared genome download plan: %s.",
@@ -2494,6 +2500,7 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         for path in (
             paths.cache_dir / "ncbi" / "download_plan.tsv",
             paths.download_preflight_summary_path,
+            paths.download_plan_readiness_summary_path,
         )
         if path.exists()
     ]
@@ -5295,7 +5302,12 @@ def run_downloads_stage(records, paths, config: AppConfig, runner=None) -> None:
 def _execute_genome_downloads(records, paths, force: bool, runner=None) -> None:
     plan_items = build_genome_download_plan(records, paths)
     mark_planned_records(records, plan_items)
-    write_download_plan(plan_items, paths.cache_dir / "ncbi" / "download_plan.tsv")
+    download_plan_path = paths.cache_dir / "ncbi" / "download_plan.tsv"
+    write_download_plan(plan_items, download_plan_path)
+    write_download_plan_readiness_summary(
+        download_plan_path,
+        paths.download_plan_readiness_summary_path,
+    )
     if any(_download_plan_requires_runner(item, force) for item in plan_items):
         require_executable(NCBI_DATASETS.executable)
     results = execute_download_plan(

@@ -1339,6 +1339,7 @@ Recommended layout:
 - `selection/strain_candidates.tsv`
 - `selection/user_selection.tsv`
 - `selection/download_preflight_summary.tsv`
+- `selection/download_plan_readiness_summary.json`
 - `manual_deposit_evidence_template.tsv`
 - `manual_species_gap_summary.tsv`
 - `manual_review_report.md`
@@ -1393,6 +1394,7 @@ Recommended layout:
 - `selection/*.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `culture_collection_ids`, `is_type_material`, `has_lpsn_type_strain_match`, `match_evidence`, `evidence_level`, `selection_rank`, `selected`, `selection_policy`, `policy_decision`, `ranking_reasons`, `blocking_reasons`, `manual_review_reason`, `selection_reason`, `notes`
 - `selection/user_selection.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `culture_collection_ids`, `is_type_material`, `has_lpsn_type_strain_match`, `match_evidence`, `evidence_level`, `selection_rank`, `selected`, `selection_policy`, `policy_decision`, `ranking_reasons`, `blocking_reasons`, `manual_review_reason`, `selection_reason`, `notes`
 - `selection/download_preflight_summary.tsv`: `selected_total`, `strict_confirmed`, `likely_type_material`, `representative_only`, `missing_evidence_level`, `ncbi_assembly_backed`, `external_registered`, `download_planned`, `download_skipped_existing`, `download_not_applicable`, `download_skipped_no_accession`, `representative_only_scope`
+- `selection/download_plan_readiness_summary.json`: read-only JSON summary derived from `cache/ncbi/download_plan.tsv`. Stable fields include `schema_version`, `available`, `download_plan_path`, `total_rows`, `status_counts`, `download_ready_ncbi_count`, `public_ncbi_download_plan_ready_count`, `existing_genome_count`, `missing_accession_count`, `external_registered_count`, `other_plan_status_count`, `malformed_row_count`, `review_or_handoff_count`, `safe_for_unattended_download`, `downloads_triggered`, `providers_contacted`, `network_access`, `external_tools`, `manifest_mutated`, and `strict_scientific_deliverable`.
 - `manual_deposit_evidence_template.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `is_type_material`, `lpsn_type_strain_ids`, `ncbi_culture_collection_ids`, `biosample_culture_collection`, `biosample_type_material`, `current_manual_review_reason`, `suggested_review_action`, `curator_confirmed_deposit_id`, `curator_evidence_source`, `curator_notes`
 - `manual_species_gap_summary.tsv`: `species`, `lpsn_type_strain_ids`, `candidate_count`, `type_material_candidate_count`, `candidates_with_biosample_count`, `candidates_with_ncbi_deposit_id_count`, `best_candidate_accession`, `best_candidate_reason`, `gap_reason`, `recommended_next_step`
 - `source_audit/sequence_source_audit.tsv`: `species`, `genome_accession`, `genome_strain`, `genome_biosample`, `genome_culture_ids`, `rrna_source`, `rrna_accession`, `rrna_strain`, `rrna_biosample`, `rrna_culture_ids`, `same_biosample`, `same_culture_collection_id`, `same_strain_text`, `audit_status`, `notes`
