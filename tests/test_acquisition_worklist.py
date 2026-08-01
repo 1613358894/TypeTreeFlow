@@ -1033,6 +1033,36 @@ def test_worklist_type_strain_evidence_tokens_route_to_provider_handoff():
     }
 
 
+def test_worklist_ncibm_variant_routes_to_ncimb_handoff():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium ncibmvariantum",
+                "type_strain_names": "NCIBM 12511",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium ncibmvariantum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium ncibmvariantum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == "ncimb"
+    assert row.candidate_provider_statuses == "ncimb=planning_only"
+    assert report.summary["candidate_provider_key_counts"] == {"ncimb": 1}
+    assert report.summary["unrouted_type_strain_token_counts"] == {}
+
+
 def test_worklist_conflict_overrides_archive_candidate():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium conflictum"}],
