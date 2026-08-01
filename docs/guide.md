@@ -254,8 +254,11 @@ surfaces report the target output contract as
 `provider_request_draft_packet.v1`, so controllers can route the draft pair
 without executing the command first. Each draft row note also carries a
 `curator_completion_template` such as
-`provider_local_fasta_handoff` or `public_archive_linkage_review`; the template
-is only a fill-in recipe and does not make the row provider-ready.
+`provider_local_fasta_handoff`, `public_archive_linkage_review`, or
+`type_material_metadata_linkage_review`; the template is only a fill-in recipe
+and does not make the row provider-ready. BacDive metadata-only rows use the
+type-material metadata template so operators review source linkage rather than
+mistaking the row for provider execution.
 When `--write` succeeds, stdout's `recommended_request` points to the written
 `provider_request.tsv` for a later local `provider-request validate` command.
 

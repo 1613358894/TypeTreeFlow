@@ -1834,8 +1834,9 @@ The row notes include `provider_status`, `provider_automation_level`,
 `operator_route`, `next_input_class`, `automation_boundary`,
 `curator_completion_template`, and `required_curator_fields` so an AI/operator
 can distinguish provider/local FASTA handoff from public-archive linkage
-review without losing the provider status and automation boundary from the
-handoff step. These counts and templates are
+review or BacDive/type-material metadata linkage review without losing the
+provider status and automation boundary from the handoff step. These counts and
+templates are
 planning diagnostics for missing curator-owned fields such as strain,
 type-strain ID, provider-record/artifact ID, local FASTA path, SHA-256, terms
 review, license, retrieval date, and curator name. They are not completion
