@@ -152,7 +152,13 @@ def run_provider_request_command(
                 outdir=outdir,
                 rendered={
                     "request": draft.provider_request_tsv(),
-                    "summary": draft.summary_json() + "\n",
+                    "summary": _provider_request_draft_summary_json(
+                        draft,
+                        provider_request_tsv=str(
+                            outdir / OUTPUT_NAMES["request"]
+                        ),
+                    )
+                    + "\n",
                 },
                 force=args.force,
             )
@@ -1192,6 +1198,23 @@ def _provider_request_validation_request(provider_request_tsv: str) -> dict[str,
         "subcommand": "validate",
         "input": provider_request_tsv,
     }
+
+
+def _provider_request_draft_summary_json(
+    draft,
+    *,
+    provider_request_tsv: str | None = None,
+) -> str:
+    summary = dict(draft.summary)
+    if provider_request_tsv:
+        summary["recommended_request"] = _provider_request_validation_request(
+            provider_request_tsv
+        )
+        summary["recommended_next_command"] = (
+            "typetreeflow provider-request validate --input "
+            f"{provider_request_tsv}"
+        )
+    return json.dumps(summary, sort_keys=True, separators=(",", ":"))
 
 
 def _publish(

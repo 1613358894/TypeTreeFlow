@@ -179,9 +179,12 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     assert summary["recommended_request"] == {
         "command": "provider-request",
         "subcommand": "validate",
-        "input": "provider_request.tsv",
+        "input": str(provider_request_path),
     }
     assert summary["recommended_request_target"] == "provider-request validate"
+    assert summary["recommended_next_command"] == (
+        f"typetreeflow provider-request validate --input {provider_request_path}"
+    )
     assert summary["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": 1
     }
