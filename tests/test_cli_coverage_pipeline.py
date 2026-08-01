@@ -27,6 +27,7 @@ from typetreeflow.evidence.manual_review import (
 )
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
+    EXTERNAL_GENOME_INSTALL_RESULT_FIELDS,
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     calculate_sha256,
 )
@@ -7170,6 +7171,27 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
             }
         ],
     )
+    _write_tsv(
+        registration_dir / "external_genome_install_results.tsv",
+        EXTERNAL_GENOME_INSTALL_RESULT_FIELDS,
+        [
+            {
+                "species": "Clostridium alpha",
+                "strain": "DSM 1",
+                "type_strain_id": "DSM 1",
+                "external_source": "dsmz",
+                "external_source_name": "DSMZ",
+                "external_genome_id": "DSM-1",
+                "external_source_url": "https://example.org/dsmz/1",
+                "source_genome_fasta_path": "local/provider/DSM-1.fna",
+                "installed_genome_path": "genomes/references/dsm-1.fna",
+                "sha256": "0" * 64,
+                "is_type_material": "true",
+                "status": "external_genome_install_succeeded",
+                "notes": "registered local FASTA",
+            }
+        ],
+    )
 
     code, payload, captured = _run(
         [
@@ -7312,6 +7334,14 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "provider_request_external_genomes": 1,
         "external_genomes_install_plan": 1,
         "external_genomes_registration_dry_run": 1,
+    }
+    registration_stage = {
+        stage["stage"]: stage for stage in payload["operator_chain_stages"]
+    }["external_genomes_registration_dry_run"]
+    assert registration_stage["summary_install_result_count"] == 1
+    assert registration_stage["summary_install_succeeded_count"] == 1
+    assert registration_stage["summary_install_result_status_counts"] == {
+        "external_genome_install_succeeded": 1
     }
     _assert_handoff_next_step_packet(
         payload,

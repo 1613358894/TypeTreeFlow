@@ -58,6 +58,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
     EXTERNAL_GENOME_REGISTRATION_RESULT_FIELDS,
     build_external_genome_install_plan,
+    read_external_genome_install_results,
     read_external_genome_registration_results,
     summarize_external_genome_packet_readiness,
     summarize_external_genome_repair_queue,
@@ -2670,6 +2671,26 @@ def _apply_registration_dry_run_stage_details(
     stage["summary_automation_boundary_counts"] = route_counts[
         "automation_boundary_counts"
     ]
+    install_results_path = Path(directory) / "external_genome_install_results.tsv"
+    if not install_results_path.exists():
+        return
+    try:
+        install_results = read_external_genome_install_results(install_results_path)
+    except (OSError, UnicodeError, csv.Error, ValueError):
+        diagnostics.append(
+            _diagnostic("external_genomes_registration_dry_run", "artifact_malformed")
+        )
+        return
+    install_status_counts = Counter(row.status for row in install_results if row.status)
+    stage["summary_install_result_count"] = len(install_results)
+    stage["summary_install_succeeded_count"] = sum(
+        1
+        for row in install_results
+        if row.status == "external_genome_install_succeeded"
+    )
+    stage["summary_install_result_status_counts"] = dict(
+        sorted(install_status_counts.items())
+    )
 
 
 def _find_stage(

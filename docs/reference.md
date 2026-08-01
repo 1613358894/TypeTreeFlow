@@ -2722,7 +2722,11 @@ when controlled route metadata is available. Registration dry-run stages may
 also carry `summary_valid_count`, `summary_invalid_count`,
 `summary_registration_status_counts`, `summary_provider_status_counts`, and
 `summary_provider_automation_level_counts` from
-`external_genome_registration_results.tsv`. Provider-request validation and
+`external_genome_registration_results.tsv`. When
+`external_genome_install_results.tsv` is present in the supplied registration
+run directory, the same stage row also carries `summary_install_result_count`,
+`summary_install_succeeded_count`, and
+`summary_install_result_status_counts`. Provider-request validation and
 external-genomes handoff child summaries can also contribute
 `summary_provider_request_readiness_packet`; external-genomes install-plan
 summaries can contribute `summary_external_genomes_readiness_packet` and, for

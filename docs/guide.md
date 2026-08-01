@@ -898,8 +898,11 @@ external-genomes install-plan summaries also preserve
 `summary_external_genomes_repair_queue` on the stage row, so operators can see
 the local TSV/FASTA fixes before re-running the handoff. Registration dry-run
 status can also summarize valid,
-invalid, and registration status counts from the dry-run result TSV. It does not
-scan workflow outputs, contact
+invalid, and registration status counts from the result TSV. When a supplied
+registration run has already performed a local non-dry-run install, status also
+reports install-result counts such as `summary_install_succeeded_count` and
+`summary_install_result_status_counts` on that stage row. It does not scan
+workflow outputs, contact
 providers, download genomes, copy FASTA, mutate manifests, or grant completion
 credit.
 When a child stage summary is present, status preserves compact `summary_*`
