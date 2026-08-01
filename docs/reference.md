@@ -2685,6 +2685,12 @@ read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
 directory and then applies the same audit-only report/package contracts as the
 individual component directory options. Explicit component directories take
 precedence over the derived pipeline subdirectories.
+When `archive_candidates/manual_review.tsv` is still the generated incomplete
+template, `package-results --coverage-pipeline-dir` preserves it under
+`archive_candidates/` for next-input handoff. Completed manual-review input TSVs
+are not package members; publish sanitized review decisions through
+`manual-review import --write` and package the resulting `manual_review_import/`
+triplet instead.
 The generated `provider_request/` member is an offline draft for
 local `provider-request validate`; report/package inclusion means draft
 availability only and does not authorize provider contact, validation,
