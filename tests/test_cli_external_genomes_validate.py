@@ -706,6 +706,58 @@ def test_external_genomes_repair_merge_blocks_row_count_mismatch(tmp_path, capsy
     assert payload["writes_outputs"] is False
 
 
+def test_external_genomes_repair_merge_blocks_identity_mismatch(tmp_path, capsys):
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [
+            _row(
+                species="Clostridium originalis",
+                external_genome_id="original",
+                genome_fasta_path="missing.fna",
+            )
+        ],
+    )
+    repaired_fasta = _fasta(tmp_path / "genomes" / "repaired.fna")
+    repair_template = _write_external_genomes(
+        tmp_path / "external_genomes_repair_template.tsv",
+        [
+            _row(
+                species="Clostridium swapped",
+                external_genome_id="swapped",
+                genome_fasta_path="genomes/repaired.fna",
+                sha256=calculate_sha256(repaired_fasta),
+            )
+        ],
+    )
+    output = tmp_path / "external_genomes_repaired.tsv"
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "repair-merge",
+                "--input",
+                str(table),
+                "--repair-template",
+                str(repair_template),
+                "--write",
+                "--out",
+                str(output),
+                "--json",
+            ]
+        )
+        == 2
+    )
+
+    payload = _payload(capsys)
+    assert payload["status"] == "blocked"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "repair_template_identity_mismatch"
+    )
+    assert payload["writes_outputs"] is False
+    assert not output.exists()
+
+
 def test_external_genomes_repair_template_refuses_unsafe_output(tmp_path, capsys):
     table = _write_external_genomes(
         tmp_path / "external_genomes.tsv",
