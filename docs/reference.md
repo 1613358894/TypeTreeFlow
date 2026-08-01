@@ -2537,6 +2537,10 @@ metadata repair, the same directory keeps
 that editable archive-candidate input template and recommends rerunning
 `archive-candidates build --input-tsv
 archive_candidates/archive_candidates_input_template.tsv` after local edits.
+When `--stage archive_candidates` selects that stage, the
+`selected_operator_chain_stage_route_context` also carries the same
+`input_template_*` request and command fields so controllers do not need to
+parse nested stage summaries.
 If explicit or conventional `manual_review_import/` or `strict_gating/`
 directories are present, `status` adds read-only operator stages for those
 audit triplets. These stages report accepted decision, strict-gate, blocker,

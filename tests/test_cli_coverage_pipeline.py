@@ -6103,7 +6103,13 @@ def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
     assert summary["expanded_discovery_candidate_count"] == 1
 
     code, payload, _ = _run(
-        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--stage",
+            "archive_candidates",
+            "--json",
+        ],
         capsys,
         action="status",
     )
@@ -7216,6 +7222,13 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
+        "input_template_available": False,
+        "input_template_required_input": "",
+        "input_template_recommended_request": None,
+        "input_template_recommended_request_target": "",
+        "input_template_recommended_next_command": "",
+        "input_template_write_preflight_required": False,
+        "input_template_safe_for_unattended_execution": False,
         "boundary": "",
         "operator_chain_snapshot_sha256": payload["operator_chain_snapshot_sha256"],
         "resume_with_stage": "",
@@ -7906,7 +7919,13 @@ def test_coverage_pipeline_build_publishes_archive_candidate_input_template(
     assert "archive_candidates_input_template" in template_rows[0]["evidence_notes"]
 
     code, payload, _ = _run(
-        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        [
+            "--coverage-pipeline-dir",
+            str(outdir),
+            "--stage",
+            "archive_candidates",
+            "--json",
+        ],
         capsys,
         action="status",
     )
@@ -7934,6 +7953,23 @@ def test_coverage_pipeline_build_publishes_archive_candidate_input_template(
         "--input-tsv archive_candidates/archive_candidates_input_template.tsv "
         "--write --outdir <isolated-archive-candidates-directory>"
     )
+    route_context = payload["selected_operator_chain_stage_route_context"]
+    assert route_context["input_template_available"] is True
+    assert route_context["input_template_required_input"] == (
+        "archive_candidates/archive_candidates_input_template.tsv"
+    )
+    assert route_context["input_template_recommended_request"] == (
+        archive_stage["summary_archive_candidates_input_template_recommended_request"]
+    )
+    assert route_context["input_template_recommended_request_target"] == (
+        "archive-candidates build"
+    )
+    assert route_context["input_template_recommended_next_command"] == (
+        archive_stage[
+            "summary_archive_candidates_input_template_recommended_next_command"
+        ]
+    )
+    assert route_context["input_template_safe_for_unattended_execution"] is False
     assert "archive_candidates" in payload["available_stage_names"]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0

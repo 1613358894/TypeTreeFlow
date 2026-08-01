@@ -775,6 +775,9 @@ need public accession or metadata repair, the isolated child directory keeps
 `archive_candidates/archive_candidates_input_template.tsv`; `status` routes the
 stage back to `archive-candidates build --input-tsv
 archive_candidates/archive_candidates_input_template.tsv` after local editing.
+When `--stage archive_candidates` selects that stage, the selected route
+context also exposes the same input-template request and command as structured
+fields for AI/operator controllers.
 If a later isolated `manual_review_import/` or `strict_gating/` directory is
 supplied or stored under the same coverage pipeline directory, `status` reads
 those audit summaries as additional operator-chain stages without running the

@@ -1432,6 +1432,9 @@ def _operator_chain_next_step_packet(
         if isinstance(next_stage.get("required_inputs"), list)
         else []
     )
+    input_template_request = _stage_input_template_request(next_stage)
+    input_template_required_input = _stage_input_template_required_input(next_stage)
+    input_template_next_command = _stage_input_template_next_command(next_stage)
     coverage_priority_route_counts = (
         _sorted_count_map(
             {
@@ -1467,6 +1470,15 @@ def _operator_chain_next_step_packet(
         "recommended_next_command": str(
             next_stage.get("recommended_next_command", "")
         ),
+        "input_template_available": bool(input_template_request),
+        "input_template_required_input": input_template_required_input,
+        "input_template_recommended_request": input_template_request,
+        "input_template_recommended_request_target": (
+            _coverage_recommended_request_target(input_template_request)
+        ),
+        "input_template_recommended_next_command": input_template_next_command,
+        "input_template_write_preflight_required": bool(input_template_request),
+        "input_template_safe_for_unattended_execution": False,
         "boundary": str(next_stage.get("boundary", "")),
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
         "resume_with_stage": str(next_stage.get("stage", "")),
@@ -1548,6 +1560,13 @@ def _empty_operator_chain_next_step_packet(
         "recommended_request": None,
         "recommended_request_target": "",
         "recommended_next_command": "",
+        "input_template_available": False,
+        "input_template_required_input": "",
+        "input_template_recommended_request": None,
+        "input_template_recommended_request_target": "",
+        "input_template_recommended_next_command": "",
+        "input_template_write_preflight_required": False,
+        "input_template_safe_for_unattended_execution": False,
         "boundary": "",
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
         "resume_with_stage": "",
@@ -1573,6 +1592,38 @@ def _empty_operator_chain_next_step_packet(
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_operator_chain_next_step_no_execution",
     }
+
+
+def _stage_input_template_request(
+    stage: Mapping[str, object] | None,
+) -> dict[str, object] | None:
+    if not isinstance(stage, Mapping):
+        return None
+    request = stage.get("summary_archive_candidates_input_template_recommended_request")
+    if isinstance(request, Mapping):
+        return {str(key): value for key, value in request.items()}
+    return None
+
+
+def _stage_input_template_required_input(
+    stage: Mapping[str, object] | None,
+) -> str:
+    if not isinstance(stage, Mapping):
+        return ""
+    return str(stage.get("summary_archive_candidates_input_template_required_input", ""))
+
+
+def _stage_input_template_next_command(
+    stage: Mapping[str, object] | None,
+) -> str:
+    if not isinstance(stage, Mapping):
+        return ""
+    return str(
+        stage.get(
+            "summary_archive_candidates_input_template_recommended_next_command",
+            "",
+        )
+    )
 
 
 def _status_stage_dir(
@@ -6692,6 +6743,9 @@ def _controller_route_context(
     provider_route_groups: object = None,
     coverage_priority_route_counts: object = None,
     coverage_priority_route_summary: object = None,
+    input_template_request: Mapping[str, object] | None = None,
+    input_template_required_input: str = "",
+    input_template_next_command: str = "",
 ) -> dict[str, object]:
     groups = _safe_mapping_list(provider_route_groups)
     priority_counts = (
@@ -6722,6 +6776,17 @@ def _controller_route_context(
         "coverage_priority_route_counts": priority_counts,
         "coverage_priority_route_summary": priority_summary,
         "first_coverage_priority_route": _primary_count_key(priority_counts),
+        "input_template_available": bool(input_template_request),
+        "input_template_required_input": input_template_required_input,
+        "input_template_recommended_request": (
+            dict(input_template_request) if input_template_request else None
+        ),
+        "input_template_recommended_request_target": (
+            _coverage_recommended_request_target(input_template_request)
+        ),
+        "input_template_recommended_next_command": input_template_next_command,
+        "input_template_write_preflight_required": bool(input_template_request),
+        "input_template_safe_for_unattended_execution": False,
         "safe_for_unattended_execution": False,
         "audit_only": True,
         "dry_run": True,
@@ -6744,6 +6809,9 @@ def _operator_chain_stage_route_context(
             "summary_coverage_priority_route_summary",
             [],
         ),
+        input_template_request=_stage_input_template_request(stage),
+        input_template_required_input=_stage_input_template_required_input(stage),
+        input_template_next_command=_stage_input_template_next_command(stage),
     )
 
 
