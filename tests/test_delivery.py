@@ -171,6 +171,46 @@ def _write_strict_gating_triplet(directory):
     )
 
 
+def _write_coverage_next_input_package(directory):
+    directory.mkdir(parents=True)
+    (directory / "next_input_package.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "coverage_next_input_handoff_packet.v1",
+                "available": True,
+                "queue_item_id": "coverage-next-001",
+                "action_code": "resolve_curator_conflict",
+                "operator_route": "manual_review",
+                "next_input_class": "manual_review_tsv",
+                "recommended_request_target": "manual-review validate",
+                "next_input_package": {
+                    "schema_version": "coverage_next_input_package.v1",
+                    "input_class": "manual_review_tsv",
+                },
+                "command_plan": {
+                    "schema_version": "coverage_next_command_plan.v1",
+                    "decision": "allow",
+                },
+                "operator_recipe": {
+                    "schema_version": "coverage_next_operator_recipe.v1",
+                    "status": "pass",
+                },
+                "queue_resume_packet": {
+                    "schema_version": "coverage_queue_resume_packet.v1",
+                    "queue_snapshot_sha256": "0" * 64,
+                },
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "audit_only": True,
+                "execution_boundary": "metadata_only_next_input_handoff_no_execution",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def _write_acquisition_worklist_pair(directory):
     directory.mkdir(parents=True)
     lane_counts = {lane: 0 for lane in ACQUISITION_WORKLIST_LANES}
@@ -1889,6 +1929,7 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
     pipeline_dir = tmp_path / "coverage-pipeline"
     _write_acquisition_worklist_pair(pipeline_dir / "acquisition_worklist")
     _write_coverage_plan_pair(pipeline_dir / "coverage_plan")
+    _write_coverage_next_input_package(pipeline_dir / "coverage_next")
     _write_provider_handoff_pair(pipeline_dir / "provider_handoff")
     _write_provider_request_pair(pipeline_dir / "provider_request")
     _write_archive_candidates_triplet(pipeline_dir / "archive_candidates")
@@ -1917,6 +1958,7 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
         "acquisition_worklist/acquisition_worklist_summary.json",
         "coverage_plan/coverage_plan.tsv",
         "coverage_plan/coverage_plan_summary.json",
+        "coverage_next/next_input_package.json",
         "provider_handoff/provider_handoff.tsv",
         "provider_handoff/provider_handoff_summary.json",
         "provider_request/provider_request.tsv",
@@ -1946,6 +1988,7 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
         for prefix in (
             "acquisition_worklist/",
             "coverage_plan/",
+            "coverage_next/",
             "provider_handoff/",
             "provider_request/",
             "external_genomes_install_plan/",
@@ -1957,6 +2000,7 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
     assert {prefix: len(rows) for prefix, rows in grouped.items()} == {
         "acquisition_worklist/": 2,
         "coverage_plan/": 2,
+        "coverage_next/": 1,
         "provider_handoff/": 2,
         "provider_request/": 2,
         "external_genomes_install_plan/": 3,
@@ -1975,6 +2019,9 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
     } == {"acquisition_worklist_audit"}
     assert {row["evidence_policy"] for row in grouped["coverage_plan/"]} == {
         "coverage_plan_audit"
+    }
+    assert {row["evidence_policy"] for row in grouped["coverage_next/"]} == {
+        "coverage_next_handoff_audit"
     }
     assert {row["evidence_policy"] for row in grouped["provider_handoff/"]} == {
         "provider_handoff_audit"
@@ -2011,6 +2058,7 @@ def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
     )
     assert "Acquisition worklist artifacts are audit-only" in package_text
     assert "Coverage action plan artifacts are audit-only" in package_text
+    assert "Coverage next-input handoff artifacts are audit-only" in package_text
     assert "Provider handoff artifacts are audit-only" in package_text
     assert "Provider request draft artifacts are audit-only" in package_text
     assert "External-genomes install-plan artifacts are audit-only" in package_text
@@ -2240,10 +2288,42 @@ def test_package_results_coverage_pipeline_dir_is_missing_safe(tmp_path):
 
     assert not (result.delivery_dir / "acquisition_worklist").exists()
     assert not (result.delivery_dir / "coverage_plan").exists()
+    assert not (result.delivery_dir / "coverage_next").exists()
     assert not (result.delivery_dir / "provider_handoff").exists()
     assert not (result.delivery_dir / "provider_request").exists()
     assert not (result.delivery_dir / "external_genomes_install_plan").exists()
     assert not (result.delivery_dir / "archive_candidates").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+
+
+def test_package_results_coverage_pipeline_dir_omits_invalid_coverage_next(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    pipeline_dir = tmp_path / "coverage-pipeline"
+    coverage_next_dir = pipeline_dir / "coverage_next"
+    coverage_next_dir.mkdir(parents=True)
+    (coverage_next_dir / "next_input_package.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "coverage_next_input_handoff_packet.v1",
+                "available": True,
+                "downloads_triggered": 1,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "audit_only": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        coverage_pipeline_dir=pipeline_dir,
+    )
+
+    assert not (result.delivery_dir / "coverage_next").exists()
     assert not (result.delivery_dir / "artifact_scope.tsv").exists()
     assert result.acquisition_worklist_warnings == []
     assert result.coverage_plan_warnings == []

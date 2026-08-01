@@ -482,6 +482,7 @@ public accessions, or make any candidate download-ready.
 The optional `--coverage-pipeline-dir` report/package surface is only a
 convenience handoff for that isolated directory. It may derive the four
 known planning component subdirectories, optional
+`coverage_next/` metadata-only next-input handoff,
 `provider_request_validation/`, optional `provider_request_external_genomes/`,
 optional `external_genomes_install_plan/`, and optional
 `archive_candidates/`, optional `manual_review_import/`, and optional

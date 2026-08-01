@@ -1301,15 +1301,19 @@ manifest mutation, completion credit, or strict deliverable promotion.
 `--failed-handoff` excludes provider-request external-genomes artifacts.
 With an explicit `--coverage-pipeline-dir`, `--include reports` and
 `--include all` derive `acquisition_worklist/`, `coverage_plan/`, and
-`provider_handoff/`, `provider_request/`, and
+`coverage_next/`, `provider_handoff/`, `provider_request/`, and
 `provider_request_validation/`, and `provider_request_external_genomes/` under
 the isolated pipeline directory when present. They also derive
 `external_genomes_install_plan/`, `archive_candidates/`,
 `manual_review_import/`, and `strict_gating/` when present, then apply the same
-copy and artifact-scope contracts as the individual directory options. This is
-a convenience handoff only; it does not scan workflow outputs, rerun the
-pipeline, query archives, contact providers, trigger downloads, register
-external genomes, or change scientific status.
+copy and artifact-scope contracts as the individual directory options.
+`coverage_next/next_input_package.json` is copied only when it is a valid
+metadata-only next-input handoff packet; its artifact-scope row uses
+`evidence_policy=coverage_next_handoff_audit` and
+`strict_scientific_deliverable=false`. This is a convenience handoff only; it
+does not scan workflow outputs, rerun the pipeline, dispatch the next command,
+query archives, contact providers, trigger downloads, register external
+genomes, or change scientific status.
 If `archive_candidates/manual_review.tsv` is still the generated incomplete
 template, the package keeps it as a next-input handoff. Once reviewers or AI
 curators complete that TSV, use `manual-review import --write` and package the

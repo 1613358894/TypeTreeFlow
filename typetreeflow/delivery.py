@@ -184,6 +184,10 @@ def package_results(
     )
     coverage_plan_outputs_copied: list[Path] = []
     coverage_plan_audit: CoveragePlanAuditSummary | None = None
+    coverage_next_dir = _coverage_pipeline_component_dir(
+        None, coverage_pipeline_dir, "coverage_next"
+    )
+    coverage_next_outputs_copied: list[Path] = []
     provider_handoff_dir = _coverage_pipeline_component_dir(
         provider_handoff_dir, coverage_pipeline_dir, "provider_handoff"
     )
@@ -326,6 +330,11 @@ def package_results(
             output_dir,
             copied,
         )
+        coverage_next_outputs_copied = _copy_coverage_next_input_outputs(
+            coverage_next_dir,
+            output_dir,
+            copied,
+        )
         provider_handoff_audit = read_optional_provider_handoff_audit(
             provider_handoff_dir
         )
@@ -433,6 +442,7 @@ def package_results(
         acquisition_worklist_audit=acquisition_worklist_audit,
         coverage_plan_outputs_copied=coverage_plan_outputs_copied,
         coverage_plan_audit=coverage_plan_audit,
+        coverage_next_outputs_copied=coverage_next_outputs_copied,
         provider_handoff_outputs_copied=provider_handoff_outputs_copied,
         provider_handoff_audit=provider_handoff_audit,
         provider_request_outputs_copied=provider_request_outputs_copied,
@@ -519,6 +529,7 @@ def package_results(
             manual_review_audit=manual_review_audit,
             acquisition_worklist_audit=acquisition_worklist_audit,
             coverage_plan_audit=coverage_plan_audit,
+            coverage_next_outputs_copied=bool(coverage_next_outputs_copied),
             provider_handoff_audit=provider_handoff_audit,
             provider_request_audit=provider_request_audit,
             provider_request_validation_audit=provider_request_validation_audit,
@@ -553,6 +564,7 @@ def package_results(
             manual_review_audit=manual_review_audit,
             acquisition_worklist_audit=acquisition_worklist_audit,
             coverage_plan_audit=coverage_plan_audit,
+            coverage_next_outputs_copied=bool(coverage_next_outputs_copied),
             provider_handoff_audit=provider_handoff_audit,
             provider_request_audit=provider_request_audit,
             provider_request_validation_audit=provider_request_validation_audit,
@@ -816,6 +828,7 @@ def build_delivery_readme(
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None,
     coverage_plan_audit: CoveragePlanAuditSummary | None = None,
+    coverage_next_outputs_copied: bool = False,
     provider_handoff_audit: ProviderHandoffAuditSummary | None = None,
     provider_request_audit: ProviderRequestDraftAuditSummary | None = None,
     provider_request_validation_audit: (
@@ -923,6 +936,8 @@ def build_delivery_readme(
         lines.extend(_acquisition_worklist_readme_lines(acquisition_worklist_audit))
     if coverage_plan_audit is not None:
         lines.extend(_coverage_plan_readme_lines(coverage_plan_audit))
+    if coverage_next_outputs_copied:
+        lines.extend(_coverage_next_readme_lines())
     if provider_handoff_audit is not None:
         lines.extend(_provider_handoff_readme_lines(provider_handoff_audit))
     if provider_request_audit is not None:
@@ -1050,6 +1065,7 @@ def build_handoff_index(
     manual_review_audit: ManualReviewImportAuditSummary | None = None,
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None = None,
     coverage_plan_audit: CoveragePlanAuditSummary | None = None,
+    coverage_next_outputs_copied: bool = False,
     provider_handoff_audit: ProviderHandoffAuditSummary | None = None,
     provider_request_audit: ProviderRequestDraftAuditSummary | None = None,
     provider_request_validation_audit: (
@@ -1171,6 +1187,8 @@ def build_handoff_index(
         lines.extend(_acquisition_worklist_handoff_lines(acquisition_worklist_audit))
     if coverage_plan_audit is not None:
         lines.extend(_coverage_plan_handoff_lines(coverage_plan_audit))
+    if coverage_next_outputs_copied:
+        lines.extend(_coverage_next_handoff_lines())
     if provider_handoff_audit is not None:
         lines.extend(_provider_handoff_handoff_lines(provider_handoff_audit))
     if provider_request_audit is not None:
@@ -1608,6 +1626,44 @@ def _copy_coverage_plan_outputs(
     return copied_plan
 
 
+def _copy_coverage_next_input_outputs(
+    directory: str | Path | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None:
+        return []
+    input_path = Path(directory) / "next_input_package.json"
+    if not _is_valid_coverage_next_input_handoff(input_path):
+        return []
+    copied_path = _copy_required(
+        input_path,
+        delivery_dir / "coverage_next" / "next_input_package.json",
+    )
+    copied.append(copied_path)
+    return [copied_path]
+
+
+def _is_valid_coverage_next_input_handoff(path: Path) -> bool:
+    if not path.exists() or not path.is_file() or path.is_symlink():
+        return False
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    return (
+        payload.get("schema_version") == "coverage_next_input_handoff_packet.v1"
+        and payload.get("available") is True
+        and payload.get("audit_only") is True
+        and payload.get("downloads_triggered") == 0
+        and payload.get("providers_contacted") == 0
+        and payload.get("manifest_mutated") is False
+        and payload.get("strict_scientific_deliverable") is False
+    )
+
+
 def _copy_provider_handoff_outputs(
     directory: str | Path | None,
     audit: ProviderHandoffAuditSummary | None,
@@ -1893,6 +1949,7 @@ def _write_package_artifact_scope(
     acquisition_worklist_audit: AcquisitionWorklistAuditSummary | None,
     coverage_plan_outputs_copied: list[Path],
     coverage_plan_audit: CoveragePlanAuditSummary | None,
+    coverage_next_outputs_copied: list[Path],
     provider_handoff_outputs_copied: list[Path],
     provider_handoff_audit: ProviderHandoffAuditSummary | None,
     provider_request_outputs_copied: list[Path],
@@ -1945,6 +2002,12 @@ def _write_package_artifact_scope(
             delivery_dir,
             coverage_plan_outputs_copied,
             coverage_plan_audit,
+        )
+    )
+    rows.extend(
+        _coverage_next_artifact_scope_rows(
+            delivery_dir,
+            coverage_next_outputs_copied,
         )
     )
     rows.extend(
@@ -2013,6 +2076,7 @@ def _write_package_artifact_scope(
         or manual_review_outputs_copied
         or acquisition_worklist_outputs_copied
         or coverage_plan_outputs_copied
+        or coverage_next_outputs_copied
         or provider_handoff_outputs_copied
         or provider_request_outputs_copied
         or provider_request_validation_outputs_copied
@@ -2037,6 +2101,7 @@ def _write_package_artifact_scope(
             or manual_review_outputs_copied
             or acquisition_worklist_outputs_copied
             or coverage_plan_outputs_copied
+            or coverage_next_outputs_copied
             or provider_handoff_outputs_copied
             or provider_request_outputs_copied
             or provider_request_validation_outputs_copied
@@ -2393,6 +2458,43 @@ def _coverage_plan_artifact_scope_rows(
             }
         )
     return rows
+
+
+def _coverage_next_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+) -> list[dict[str, str]]:
+    artifact_path = "coverage_next/next_input_package.json"
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    if artifact_path not in copied_paths:
+        return []
+    return [
+        {
+            "artifact_path": artifact_path,
+            "artifact_kind": "coverage_next_input_handoff_packet",
+            "scope": "audit",
+            "evidence_policy": "coverage_next_handoff_audit",
+            "record_count": "1",
+            "strict_usable_count": "0",
+            "candidate_count": "0",
+            "excluded_mismatch_count": "0",
+            "artifact_label": "Coverage next-input handoff packet",
+            "recommended_use": "AI/operator next coverage handoff",
+            "not_for": "provider contact, downloads, or strict deliverable gating",
+            "source_artifact": "coverage_pipeline_next_input_handoff",
+            "consumer_priority": "91",
+            "strict_scientific_deliverable": "false",
+            "notes": (
+                "Audit-only coverage next-input handoff; package inclusion "
+                "does not dispatch commands, contact providers, trigger "
+                "downloads, mutate the manifest, or promote strict deliverables."
+            ),
+        }
+    ]
 
 
 def _provider_handoff_artifact_scope_rows(
@@ -3610,6 +3712,31 @@ def _coverage_plan_readme_lines(
     return lines
 
 
+def _coverage_next_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Coverage next-input handoff artifacts are audit-only. Package "
+            "inclusion means AI/operator handoff availability, not command "
+            "execution."
+        ),
+        (
+            "- `downloads_triggered=0`, `providers_contacted=0`, and "
+            "`manifest_mutated=false` remain package boundaries."
+        ),
+        (
+            "- `strict_scientific_deliverable=false`; next-input handoff "
+            "packets do not promote strict deliverables or completion metrics."
+        ),
+    ]
+
+
+def _coverage_next_readme_lines() -> list[str]:
+    lines = ["", "## Coverage Next-Input Handoff Audit", ""]
+    lines.extend(_coverage_next_boundary_lines())
+    lines.append("- Copied recognized members: next_input_package.json")
+    return lines
+
+
 def _provider_handoff_boundary_lines() -> list[str]:
     return [
         (
@@ -4008,6 +4135,13 @@ def _coverage_plan_handoff_lines(
         )
     if audit.warnings:
         lines.append("- Coverage action plan warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _coverage_next_handoff_lines() -> list[str]:
+    lines = ["", "## Coverage Next-Input Handoff Audit", ""]
+    lines.extend(_coverage_next_boundary_lines())
+    lines.append("- Coverage next-input files copied: next_input_package.json")
     return lines
 
 

@@ -562,7 +562,7 @@ Failed-handoff packages exclude these artifacts and rows.
 `package-results`. It is an explicit read-only handoff for the isolated output
 of `coverage-pipeline build` and is never automatically discovered under the
 workflow outdir. TypeTreeFlow derives only `acquisition_worklist/`,
-`coverage_plan/`, `provider_handoff/`, `provider_request/`,
+`coverage_plan/`, `coverage_next/`, `provider_handoff/`, `provider_request/`,
 `provider_request_validation/`, `provider_request_external_genomes/`,
 `external_genomes_install_plan/`, `archive_candidates/`,
 `manual_review_import/`, and `strict_gating/` under that directory when
@@ -574,6 +574,16 @@ artifact-scope contracts as the individual component directory options. Explicit
 `--provider-request-external-genomes-dir`, `--archive-candidates-dir`,
 `--manual-review-import-dir`, and `--strict-gating-dir` values take precedence
 over derived subdirectories.
+Normal `package-results --include reports` and `--include all` also copy a
+valid `coverage_next/next_input_package.json` member and add one
+`artifact_scope.tsv` row with `scope=audit`,
+`evidence_policy=coverage_next_handoff_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=AI/operator next coverage handoff`, and
+`source_artifact=coverage_pipeline_next_input_handoff`. Missing or invalid
+coverage-next input is omitted. Package inclusion does not dispatch the next
+command, contact providers, trigger downloads, mutate manifests, or promote
+strict deliverables.
 The option does not rerun coverage planning, contact providers, trigger
 downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
@@ -2694,13 +2704,17 @@ download-ready.
 The written pipeline directory can be supplied later as one explicit
 read-only handoff with `--coverage-pipeline-dir <dir>` for `--report-only` or
 `package-results --include reports|all`. TypeTreeFlow derives only
-`acquisition_worklist/`, `coverage_plan/`, `provider_handoff/`,
+`acquisition_worklist/`, `coverage_plan/`, `coverage_next/`, `provider_handoff/`,
 `provider_request/`, `provider_request_validation/`,
 `provider_request_external_genomes/`, `external_genomes_install_plan/`,
 `archive_candidates/`, `manual_review_import/`, and `strict_gating/` under that
 directory and then applies the same audit-only report/package contracts as the
 individual component directory options. Explicit component directories take
 precedence over the derived pipeline subdirectories.
+Valid `coverage_next/next_input_package.json` members are package-only
+audit handoffs for the next AI/operator input. They are omitted when missing or
+invalid and never authorize command dispatch, provider contact, downloads,
+workflow mutation, or strict deliverable promotion.
 When `archive_candidates/manual_review.tsv` is still the generated incomplete
 template, `package-results --coverage-pipeline-dir` preserves it under
 `archive_candidates/` for next-input handoff. Completed manual-review input TSVs
