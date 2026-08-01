@@ -400,6 +400,16 @@ def test_archive_candidates_force_only_overwrites_matching_triplet(tmp_path, cap
     assert code == 2
     assert payload["writes_outputs"] is False
 
+    partial = tmp_path / "partial_archive_audit"
+    partial.mkdir()
+    (partial / "manual_review.tsv").write_text("header\n", encoding="utf-8")
+    code, payload, _ = _run(
+        ["--input-tsv", str(input_tsv), "--write", "--outdir", str(partial), "--force"],
+        capsys,
+    )
+    assert code == 2
+    assert payload["writes_outputs"] is False
+
 
 def test_archive_candidates_rejects_protected_or_overlapping_outdir(tmp_path, capsys):
     input_tsv = _write_input(tmp_path / "archive_candidates.tsv")
