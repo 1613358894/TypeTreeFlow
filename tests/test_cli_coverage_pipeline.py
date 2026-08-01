@@ -6008,6 +6008,12 @@ def test_coverage_pipeline_build_filters_generated_handoff_by_provider_key(
     assert payload["provider_request_provider_batches"][0]["provider_key"] == "dsmz"
     handoff_rows = _read_tsv(outdir / "provider_handoff" / "provider_handoff.tsv")
     assert [row["provider_key"] for row in handoff_rows] == ["dsmz"]
+    handoff_summary = json.loads(
+        (outdir / "provider_handoff" / "provider_handoff_summary.json").read_text()
+    )
+    assert handoff_summary["provider_key_filter"] == ["dsmz"]
+    assert handoff_summary["provider_key_filter_count"] == 1
+    assert handoff_summary["filtered"] is True
     request_rows = _read_tsv(outdir / "provider_request" / "provider_request.tsv")
     assert [row["provider"] for row in request_rows] == ["dsmz"]
     summary = json.loads((outdir / "coverage_pipeline_summary.json").read_text())

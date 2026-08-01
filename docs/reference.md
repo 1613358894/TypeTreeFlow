@@ -1801,7 +1801,8 @@ is local queue control only and does not authorize provider contact. Without
 supplied directory. On successful writes, stdout's `recommended_request` points
 to that written `provider_handoff.tsv` for a later local
 `provider-request draft` command, and the written summary preserves the same
-concrete path so file-based controller resume does not need stdout context.
+filter provenance and concrete path so file-based controller resume does not
+need stdout context.
 Dry-run output keeps the generic handoff filename template. Both dry-run and
 successful write payloads include a
 metadata-only `recommended_command_plan` companion for the provider-request
