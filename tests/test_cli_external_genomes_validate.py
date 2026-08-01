@@ -631,6 +631,46 @@ def test_external_genomes_repair_merge_preserves_valid_rows_and_applies_repairs(
     validate_payload = _payload(capsys)
     assert validate_payload["status"] == "pass"
     assert validate_payload["record_count"] == 2
+    assert validate_payload["recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "install-plan",
+        "input": output.as_posix(),
+        "target_outdir": "<run>",
+    }
+
+    install_dir = tmp_path / "install_plan_after_repair"
+    target_run = tmp_path / "target_run"
+    assert (
+        main(
+            [
+                "external-genomes",
+                "install-plan",
+                "--input",
+                str(output),
+                "--target-outdir",
+                str(target_run),
+                "--write",
+                "--outdir",
+                str(install_dir),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    install_payload = _payload(capsys)
+    assert install_payload["status"] == "pass"
+    assert install_payload["record_count"] == 2
+    assert install_payload["install_planned_count"] == 2
+    assert install_payload["writes_outputs"] is True
+    assert install_payload["downloads_triggered"] == 0
+    assert install_payload["providers_contacted"] == 0
+    assert install_payload["manifest_mutated"] is False
+    assert install_payload["install_executed"] is False
+    assert install_payload["external_genomes_registration_applied"] is False
+    assert (install_dir / "external_genome_registration_results.tsv").is_file()
+    assert (install_dir / "external_genome_install_plan.tsv").is_file()
+    assert (install_dir / "external_genome_install_plan_summary.json").is_file()
+    assert not target_run.exists()
 
 
 def test_external_genomes_repair_merge_blocks_row_count_mismatch(tmp_path, capsys):
