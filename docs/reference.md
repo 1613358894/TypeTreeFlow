@@ -2716,6 +2716,10 @@ plus public portal labels such as `BV-BRC`, `PATRIC`, `IMG/M`, or `JGI IMG`;
 these are still normalized only as review hints. These statuses and hints describe review
 guidance only and do not enable provider network access, automatic downloads,
 credentials, terms acceptance, or strict type-strain confirmation.
+For `external_fasta_required` rows without explicit provider hints, coverage
+planning uses the registry's `planning_only` entries as the default provider
+handoff key set; `metadata_only` public archives remain excluded from that
+default handoff set.
 
 `likely_type_material`, `representative_only`, provider proposals, and local
 query records are not strict confirmed type strains. Strict wording requires

@@ -6,6 +6,7 @@ from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_FIELDS,
     build_coverage_plan,
 )
+from typetreeflow.providers.registry import build_default_provider_registry
 
 
 def _row(species, lane, **updates):
@@ -17,6 +18,10 @@ def _row(species, lane, **updates):
     }
     row.update(updates)
     return row
+
+
+def _default_planning_handoff_keys():
+    return build_default_provider_registry().planning_handoff_keys()
 
 
 def test_coverage_plan_orders_actions_and_preserves_audit_boundaries():
@@ -52,22 +57,31 @@ def test_coverage_plan_orders_actions_and_preserves_audit_boundaries():
     assert summary["strict_scientific_deliverable"] is False
     assert summary["provider_key_counts"]["ena"] == 1
     assert summary["provider_key_counts"]["atcc_genome_portal"] == 1
+    assert summary["provider_key_counts"]["cctcc"] == 1
+    assert summary["provider_key_counts"]["gtc"] == 1
+    assert summary["provider_key_counts"]["pagu"] == 1
+    assert "genbank" in summary["provider_key_counts"]
+    assert "bv_brc" not in summary["provider_key_counts"]
     assert summary["provider_key_counts"]["dsmz"] == 1
     assert summary["provider_automation_level_counts"] == {
         "metadata_review": 6,
-        "planning_handoff": 7,
+        "planning_handoff": len(_default_planning_handoff_keys()),
     }
     assert summary["operator_route_counts"] == {
-        "provider_handoff": 7,
+        "provider_handoff": len(_default_planning_handoff_keys()),
         "public_metadata_review": 6,
     }
     assert summary["next_input_class_counts"] == {
-        "permitted_local_fasta_terms_provenance": 7,
+        "permitted_local_fasta_terms_provenance": len(
+            _default_planning_handoff_keys()
+        ),
         "public_accession_type_strain_linkage": 6,
     }
     assert summary["automation_boundary_counts"] == {
         "metadata_review_only_no_download": 6,
-        "planning_handoff_no_provider_contact": 7,
+        "planning_handoff_no_provider_contact": len(
+            _default_planning_handoff_keys()
+        ),
     }
     assert [group["operator_route"] for group in summary["provider_route_groups"]] == [
         "provider_handoff",

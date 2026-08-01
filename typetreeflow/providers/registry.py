@@ -37,6 +37,20 @@ class ProviderRegistry:
     def entries(self) -> list[ProviderRegistryEntry]:
         return [self._entries[key] for key in sorted(self._entries)]
 
+    def planning_handoff_keys(self) -> tuple[str, ...]:
+        """Return registry-backed default provider handoff keys.
+
+        These keys identify review-only provider/local-FASTA handoff candidates.
+        They do not imply provider network access, download support, or strict
+        type-strain confirmation.
+        """
+
+        return tuple(
+            key
+            for key, entry in self._entries.items()
+            if entry.capability.status == ProviderStatus.PLANNING_ONLY
+        )
+
     def aliases_for(self, provider_key: str) -> tuple[str, ...]:
         canonical = self.get(provider_key).provider_key
         return self._entry_aliases.get(canonical, ())

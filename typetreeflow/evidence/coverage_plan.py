@@ -199,7 +199,7 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
             action_label="Prepare user-assisted provider handoff or record unresolved gap",
             provider_keys=(
                 provider_keys
-                or "atcc_genome_portal; bccm_lmg; cgmcc; dsmz; jcm; nbrc; nctc"
+                or "; ".join(build_default_provider_registry().planning_handoff_keys())
             ),
             required_input="permitted local FASTA plus terms/license/provenance evidence",
             recommended_next_command=(
