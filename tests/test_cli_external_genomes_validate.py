@@ -112,6 +112,11 @@ def test_external_genomes_validate_valid_input_is_no_write_json(tmp_path, capsys
         f"typetreeflow external-genomes install-plan --input {table.as_posix()} "
         "--target-outdir <run>"
     )
+    assert payload["repair_template_recommended_request"] is None
+    assert payload["repair_template_recommended_request_target"] == ""
+    assert payload["repair_template_recommended_next_command"] == ""
+    assert payload["repair_template_write_preflight_required"] is False
+    assert payload["repair_template_safe_for_unattended_execution"] is False
     packet = payload["external_genomes_readiness_packet"]
     assert packet["required_inputs"] == [table.as_posix()]
     assert packet["recommended_request"] == payload["recommended_request"]
@@ -255,6 +260,23 @@ def test_external_genomes_validate_blocks_mixed_invalid_rows(tmp_path, capsys):
     assert payload["recommended_request"] is None
     assert payload["recommended_request_target"] == ""
     assert payload["recommended_next_command"] == ""
+    assert payload["repair_template_recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "repair-template",
+        "input": table.as_posix(),
+        "write": True,
+        "out": "<external_genomes_repair_template.tsv>",
+    }
+    assert (
+        payload["repair_template_recommended_request_target"]
+        == "external-genomes repair-template"
+    )
+    assert payload["repair_template_recommended_next_command"] == (
+        f"typetreeflow external-genomes repair-template --input {table.as_posix()} "
+        "--write --out <external_genomes_repair_template.tsv>"
+    )
+    assert payload["repair_template_write_preflight_required"] is True
+    assert payload["repair_template_safe_for_unattended_execution"] is False
     packet = payload["external_genomes_readiness_packet"]
     assert packet["recommended_request"] is None
     assert packet["recommended_request_target"] == ""
