@@ -53,6 +53,9 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["record_count"] == 2
     assert payload["provider_key_counts"] == {"genbank": 1, "refseq": 1}
     assert payload["provider_status_counts"] == {"metadata_only": 2}
+    assert payload["filtered"] is False
+    assert payload["provider_key_filter"] == []
+    assert payload["provider_key_filter_count"] == 0
     assert payload["provider_automation_level_counts"] == {"metadata_review": 2}
     assert payload["operator_route_counts"] == {"public_metadata_review": 2}
     assert payload["provider_route_groups"] == [
@@ -128,6 +131,92 @@ def test_provider_handoff_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["providers_contacted"] == 0
     assert payload["network_access"] is False
     assert payload["strict_scientific_deliverable"] is False
+
+
+def test_provider_handoff_provider_key_filter_bounds_rows(capsys, tmp_path):
+    coverage_plan = tmp_path / "coverage_plan.tsv"
+    _write_coverage_plan(
+        coverage_plan,
+        provider_keys="DSMZ; Korean Collection for Type Cultures; RefSeq",
+    )
+
+    code, payload, _ = _run(
+        [
+            "--coverage-plan-tsv",
+            str(coverage_plan),
+            "--provider-key",
+            "KCTC",
+            "--provider-key",
+            "NCBI RefSeq",
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert payload["status"] == "pass"
+    assert payload["filtered"] is True
+    assert payload["provider_key_filter"] == ["kctc", "refseq"]
+    assert payload["provider_key_filter_count"] == 2
+    assert payload["record_count"] == 2
+    assert payload["provider_key_counts"] == {"kctc": 1, "refseq": 1}
+    assert [row["provider_key"] for row in payload["handoff_preview"]] == [
+        "kctc",
+        "refseq",
+    ]
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+
+
+def test_provider_handoff_provider_key_filter_is_written_to_summary(
+    capsys, tmp_path
+):
+    coverage_plan = tmp_path / "coverage_plan.tsv"
+    outdir = tmp_path / "isolated-filtered-handoff"
+    _write_coverage_plan(coverage_plan, provider_keys="DSMZ; RefSeq")
+
+    code, payload, _ = _run(
+        [
+            "--coverage-plan-tsv",
+            str(coverage_plan),
+            "--provider-key",
+            "DSMZ",
+            "--write",
+            "--outdir",
+            str(outdir),
+        ],
+        capsys,
+    )
+
+    assert code == 0
+    assert payload["provider_key_filter"] == ["dsmz"]
+    summary = json.loads((outdir / "provider_handoff_summary.json").read_text())
+    assert summary["filtered"] is True
+    assert summary["provider_key_filter"] == ["dsmz"]
+    assert summary["provider_key_filter_count"] == 1
+    assert summary["provider_key_counts"] == {"dsmz": 1}
+
+
+def test_provider_handoff_provider_key_filter_without_matches_blocks(capsys, tmp_path):
+    coverage_plan = tmp_path / "coverage_plan.tsv"
+    _write_coverage_plan(coverage_plan, provider_keys="DSMZ")
+
+    code, payload, _ = _run(
+        [
+            "--coverage-plan-tsv",
+            str(coverage_plan),
+            "--provider-key",
+            "RefSeq",
+        ],
+        capsys,
+    )
+
+    assert code == 2
+    assert payload["status"] == "blocked"
+    assert payload["filtered"] is True
+    assert payload["provider_key_filter"] == ["refseq"]
+    assert payload["record_count"] == 0
+    assert payload["diagnostics"][0]["diagnostic_code"] == "no_provider_key_rows"
 
 
 def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):

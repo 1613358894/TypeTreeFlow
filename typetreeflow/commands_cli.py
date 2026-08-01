@@ -252,7 +252,7 @@ _CATALOG_ENTRIES = (
         "command": "provider-handoff",
         "subcommand": "build",
         "mode": "provider_handoff",
-        "argv_pattern": "typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv>",
+        "argv_pattern": "typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--provider-key <key> ...]",
         "json_stdout": True,
         "write_behavior": "optional_isolated_pair",
         "requires_outdir": False,
@@ -592,6 +592,9 @@ _PROVIDER_HANDOFF_SUMMARY_FIELDS: list[str] = [
     "record_count",
     *_PROVIDER_ROUTE_SUMMARY_FIELDS,
     "source_action_counts",
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "terms_review_required_count",
     "credentials_required_count",
     "network_supported_count",
@@ -1983,6 +1986,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": True,
             "repeatable": False,
             "purpose": "offline coverage plan TSV input",
+        },
+        {
+            "name": "--provider-key",
+            "kind": "string",
+            "required": False,
+            "repeatable": True,
+            "purpose": "optional provider key or alias filter for bounded handoff rows",
         },
         {
             "name": "--write",
@@ -3477,6 +3487,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "command",
                 "subcommand",
                 "coverage_plan_tsv",
+                "provider_keys",
                 "write",
                 "outdir",
                 "force",
@@ -3488,6 +3499,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--coverage-plan-tsv",
             _required_string(request, "coverage_plan_tsv"),
         ]
+        for provider_key in _optional_string_array(request, "provider_keys"):
+            argv.extend(["--provider-key", provider_key])
         if _bool_flag(request, "write"):
             argv.append("--write")
         outdir = _optional_string(request, "outdir")

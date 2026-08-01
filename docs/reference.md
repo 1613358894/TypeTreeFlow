@@ -1702,7 +1702,7 @@ pair into a delivery package under `coverage_plan/` with
 The isolated provider handoff adapter is:
 
 ```text
-typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--json] [--write --outdir <dir> [--force]]
+typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--provider-key <key> ...] [--json] [--write --outdir <dir> [--force]]
 ```
 
 It reads only the explicitly named coverage-plan TSV and expands non-empty
@@ -1719,7 +1719,12 @@ readiness counts for terms review, credential requirement, network support,
 and default network enablement, plus `required_inputs`,
 `recommended_request`, and `recommended_next_command` fields for the next
 offline `provider-request draft` step. Unknown providers still fail closed as
-planning-only rows under the supplied value. Without `--write`, it writes nothing. With `--write`, it writes only
+planning-only rows under the supplied value. Optional repeated
+`--provider-key <key>` values filter output rows to a bounded provider subset
+using the same canonical key and alias rules; the compact JSON reports
+`provider_key_filter`, `provider_key_filter_count`, and `filtered`. The filter
+is local queue control only and does not authorize provider contact. Without
+`--write`, it writes nothing. With `--write`, it writes only
 `provider_handoff.tsv` and `provider_handoff_summary.json` into the explicitly
 supplied directory. On successful writes, stdout's `recommended_request` points
 to that written `provider_handoff.tsv` for a later local
