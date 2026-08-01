@@ -1355,6 +1355,13 @@ def _run_status(
         ),
         "current_queue_snapshot_sha256": queue_snapshot_sha256,
         "queue_snapshot_matches_expected": snapshot_matches,
+        "provider_key_filter": _optional_summary_list(
+            coverage_summary, "provider_key_filter"
+        ),
+        "provider_key_filter_count": _safe_int(
+            coverage_summary.get("provider_key_filter_count", 0)
+        ),
+        "filtered": bool(coverage_summary.get("filtered", False)),
         "provider_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_automation_level_counts"
         ),
@@ -3340,6 +3347,9 @@ def _payload(
         "coverage_stage_command_plans": _coverage_stage_command_plans(),
         "provider_handoff_record_count": provider_summary["record_count"],
         "provider_key_counts": provider_summary["provider_key_counts"],
+        "provider_key_filter": provider_summary["provider_key_filter"],
+        "provider_key_filter_count": provider_summary["provider_key_filter_count"],
+        "filtered": provider_summary["filtered"],
         "provider_status_counts": provider_summary["provider_status_counts"],
         "provider_automation_level_counts": provider_summary[
             "provider_automation_level_counts"
@@ -9580,6 +9590,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_stage_command_plans": _coverage_stage_command_plans(),
         "provider_handoff_record_count": 0,
         "provider_key_counts": {},
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
+        "filtered": False,
         "provider_status_counts": {},
         "provider_automation_level_counts": {},
         "provider_route_groups": [],
@@ -9859,6 +9872,9 @@ def _rendered_outputs(
             "coverage_stage_command_plans",
             "provider_handoff_record_count",
             "provider_key_counts",
+            "provider_key_filter",
+            "provider_key_filter_count",
+            "filtered",
             "provider_status_counts",
             "provider_automation_level_counts",
             "source_action_counts",

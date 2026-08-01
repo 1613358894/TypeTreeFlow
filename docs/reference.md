@@ -2126,7 +2126,9 @@ metadata-only evidence requirements copied from coverage-plan actions. The
 `--provider-key <provider-key-or-alias>` values to narrow the generated
 provider-handoff and provider-request surfaces to provider-specific local
 subsets while leaving the acquisition worklist and coverage action plan as
-full-run audit context.
+full-run audit context. Top-level coverage-pipeline payloads and summaries
+preserve the canonical `provider_key_filter`, `provider_key_filter_count`, and
+`filtered` values for file-based resume and audit.
 request draft is also metadata only; operators should still pass it through
 `commands render`, `commands plan`, or `commands preflight` before execution.
 For provider handoff action groups, the request draft is a filtered
