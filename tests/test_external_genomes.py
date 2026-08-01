@@ -21,6 +21,7 @@ from typetreeflow.external_genomes import (
     read_external_genomes,
     summarize_external_genome_action_summary,
     summarize_external_genome_packet_readiness,
+    summarize_external_genome_repair_queue,
     validate_external_genome_records,
     write_external_genome_install_plan,
     write_external_genome_install_results,
@@ -480,6 +481,111 @@ def test_external_genome_action_summary_groups_local_next_steps(tmp_path):
     ]
 
 
+def test_external_genome_repair_queue_lists_bounded_local_input_fixes(tmp_path):
+    good_fasta = _fasta(tmp_path / "good.fna")
+    bad_fasta = _fasta(tmp_path / "bad.fna", ">seq1\nTTTT\n")
+    records = [
+        _record(
+            tmp_path,
+            species="Clostridium readyum",
+            external_source="ATCC_Genome_Portal",
+            external_genome_id="ready",
+            genome_fasta_path=str(good_fasta),
+            sha256=calculate_sha256(good_fasta),
+        ),
+        _record(
+            tmp_path,
+            species="Clostridium missingum",
+            external_source="dsmz",
+            external_genome_id="missing",
+            genome_fasta_path=str(tmp_path / "missing.fna"),
+        ),
+        _record(
+            tmp_path,
+            species="Clostridium mismatchum",
+            external_source="dsmz",
+            external_genome_id="mismatch",
+            genome_fasta_path=str(bad_fasta),
+            sha256="0" * 64,
+        ),
+        _record(
+            tmp_path,
+            species="Clostridium reviewum",
+            external_source="",
+            external_genome_id="review",
+            genome_fasta_path=str(good_fasta),
+            requires_manual_review=True,
+        ),
+    ]
+    results = validate_external_genome_records(records)
+
+    queue = summarize_external_genome_repair_queue(results, limit=2)
+
+    assert queue == {
+        "schema_version": "external_genomes_repair_queue.v1",
+        "stage": "validate",
+        "item_count": 3,
+        "items_truncated": True,
+        "status_counts": {
+            "external_genome_checksum_mismatch": 1,
+            "external_genome_manual_review_required": 1,
+            "external_genome_missing_file": 1,
+        },
+        "items": [
+            {
+                "input_row_number": 3,
+                "priority": 20,
+                "status": "external_genome_missing_file",
+                "species": "Clostridium missingum",
+                "external_source": "dsmz",
+                "external_genome_id": "missing",
+                "genome_fasta_path": str(tmp_path / "missing.fna"),
+                "missing_or_blocked_inputs": ["existing_local_fasta_file"],
+                "recommended_action": "supply an existing local FASTA path",
+                "next_input_class": "external_genomes.tsv",
+                "recommended_next_command": (
+                    "external-genomes validate --input <external_genomes.tsv>"
+                ),
+                "automation_boundary": "local_fasta_required_no_download",
+                "safe_for_unattended_execution": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            },
+            {
+                "input_row_number": 4,
+                "priority": 30,
+                "status": "external_genome_checksum_mismatch",
+                "species": "Clostridium mismatchum",
+                "external_source": "dsmz",
+                "external_genome_id": "mismatch",
+                "genome_fasta_path": str(bad_fasta),
+                "missing_or_blocked_inputs": ["sha256"],
+                "recommended_action": "fix FASTA checksum or replace the local file",
+                "next_input_class": "external_genomes.tsv",
+                "recommended_next_command": (
+                    "external-genomes validate --input <external_genomes.tsv>"
+                ),
+                "automation_boundary": "local_checksum_review_no_download",
+                "safe_for_unattended_execution": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "manifest_mutated": False,
+                "audit_only": True,
+                "strict_scientific_deliverable": False,
+            },
+        ],
+        "safe_for_unattended_execution": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "audit_only": True,
+        "strict_scientific_deliverable": False,
+    }
+
+
 def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
     fasta = _fasta(tmp_path / "genome.fna")
     path = _write_external_genomes_tsv(
@@ -596,6 +702,71 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
     assert install_plan["downloads_triggered"] == 0
     assert install_plan["providers_contacted"] == 0
     assert install_plan["manifest_mutated"] is False
+
+
+def test_external_genomes_validate_emits_repair_queue_for_blocked_rows(
+    capsys, tmp_path
+):
+    input_path = tmp_path / "external_genomes.tsv"
+    input_path.write_text(
+        "\t".join(EXTERNAL_GENOME_FIELDS)
+        + "\n"
+        + "\t".join(
+            _row_values(
+                species="Clostridium missingum",
+                external_source="dsmz",
+                external_genome_id="missing",
+                genome_fasta_path="missing.fna",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    code = cli.main(
+        ["external-genomes", "validate", "--input", str(input_path), "--json"]
+    )
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["recommended_request"] is None
+    queue = payload["external_genomes_repair_queue"]
+    assert queue["schema_version"] == "external_genomes_repair_queue.v1"
+    assert queue["item_count"] == 1
+    assert queue["items_truncated"] is False
+    assert queue["status_counts"] == {"external_genome_missing_file": 1}
+    assert queue["downloads_triggered"] == 0
+    assert queue["providers_contacted"] == 0
+    assert queue["manifest_mutated"] is False
+    assert queue["strict_scientific_deliverable"] is False
+    assert queue["items"] == [
+        {
+            "input_row_number": 2,
+            "priority": 20,
+            "status": "external_genome_missing_file",
+            "species": "Clostridium missingum",
+            "external_source": "dsmz",
+            "external_genome_id": "missing",
+            "genome_fasta_path": "missing.fna",
+            "missing_or_blocked_inputs": ["existing_local_fasta_file"],
+            "recommended_action": "supply an existing local FASTA path",
+            "next_input_class": "external_genomes.tsv",
+            "recommended_next_command": (
+                "external-genomes validate --input <external_genomes.tsv>"
+            ),
+            "automation_boundary": "local_fasta_required_no_download",
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        }
+    ]
 
 
 def test_external_genomes_install_plan_emits_registration_readiness_packet(

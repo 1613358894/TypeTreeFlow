@@ -1453,7 +1453,10 @@ to reconstruct those values from placeholders.
 Both commands also emit `external_genomes_action_summary`, grouping validation
 or install-plan statuses into local repair and next-step actions with bounded
 species previews; it is still not execution authorization. Blocked packets leave
-those next-step fields empty. Successful validate payloads
+those next-step fields empty. `validate` additionally emits
+`external_genomes_repair_queue`, a bounded row-level list of local TSV/FASTA
+fields to fix before install planning; it does not download, contact providers,
+register genomes, or mutate workflow outputs. Successful validate payloads
 also expose an `install_plan_recommended_command_plan` for the optional
 `external-genomes install-plan --write --outdir <isolated-directory>` audit
 triplet; that write-oriented plan remains blocked until writes are explicitly
