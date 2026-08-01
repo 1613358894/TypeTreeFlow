@@ -83,6 +83,7 @@ from typetreeflow.provider_request_validation import (
     provider_request_validation_payload,
     validate_provider_requests_for_local_handoff,
 )
+from typetreeflow.providers.registry import build_default_provider_registry
 
 
 COMMAND_PREVIEW = "coverage-pipeline preview"
@@ -5280,6 +5281,9 @@ def _coverage_provider_priority_items(
         key=lambda row: (
             0 if bool(row.get("needs_provider_request_draft")) else 1,
             -_safe_int(row.get("record_count", 0)),
+            _coverage_provider_handoff_priority_index(
+                str(row.get("provider_key", ""))
+            ),
             str(row.get("provider_key", "")),
         ),
     )
@@ -5352,6 +5356,14 @@ def _coverage_provider_priority_items(
             }
         )
     return items
+
+
+def _coverage_provider_handoff_priority_index(provider_key: str) -> int:
+    planning_keys = build_default_provider_registry().planning_handoff_keys()
+    try:
+        return planning_keys.index(provider_key)
+    except ValueError:
+        return len(planning_keys)
 
 
 def _coverage_route_next_batch_packet(

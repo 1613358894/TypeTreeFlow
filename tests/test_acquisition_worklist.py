@@ -542,6 +542,7 @@ def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
                 "type_strain_names": (
                     "CCTCC AB 12345; NRRL B-1; NCAIM B.01001; "
                     "HAMBI 100; KMM 902; GTC 21791; PAGU 1796; "
+                    "ACCC 698; IMSNU 40129; MAFF 212477; NCFB 2931; "
                     "IAM 3003; FERM BP-1234; MTCC1234; MCC 555; "
                     "CCBAU 1001; NBIMCC 2002"
                 ),
@@ -564,27 +565,32 @@ def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
     row = report.rows[0]
     assert row.lane == "external_fasta_required"
     assert row.candidate_provider_keys == (
-        "cctcc; nrrl; ncaim; hambi; kmm; gtc; pagu; iam; ferm; "
-        "mtcc; mcc; ccbau; nbimcc"
+        "accc; imsnu; maff; ncfb; cctcc; nrrl; ncaim; hambi; kmm; "
+        "gtc; pagu; iam; ferm; mtcc; mcc; ccbau; nbimcc"
     )
     assert row.candidate_provider_statuses == (
-        "cctcc=planning_only; nrrl=planning_only; ncaim=planning_only; "
-        "hambi=planning_only; kmm=planning_only; gtc=planning_only; "
-        "pagu=planning_only; iam=planning_only; ferm=planning_only; "
-        "mtcc=planning_only; mcc=planning_only; ccbau=planning_only; "
-        "nbimcc=planning_only"
+        "accc=planning_only; imsnu=planning_only; maff=planning_only; "
+        "ncfb=planning_only; cctcc=planning_only; nrrl=planning_only; "
+        "ncaim=planning_only; hambi=planning_only; kmm=planning_only; "
+        "gtc=planning_only; pagu=planning_only; iam=planning_only; "
+        "ferm=planning_only; mtcc=planning_only; mcc=planning_only; "
+        "ccbau=planning_only; nbimcc=planning_only"
     )
     assert report.summary["candidate_provider_key_counts"] == {
+        "accc": 1,
         "ccbau": 1,
         "cctcc": 1,
         "gtc": 1,
         "hambi": 1,
         "ferm": 1,
         "iam": 1,
+        "imsnu": 1,
         "kmm": 1,
+        "maff": 1,
         "mcc": 1,
         "mtcc": 1,
         "ncaim": 1,
+        "ncfb": 1,
         "nbimcc": 1,
         "nrrl": 1,
         "pagu": 1,
@@ -867,6 +873,42 @@ def test_worklist_type_strain_kccm_nccp_tokens_route_to_handoff():
     assert report.summary["candidate_provider_key_counts"] == {
         "kccm": 1,
         "nccp": 1,
+    }
+
+
+def test_worklist_type_strain_historical_collection_tokens_route_to_handoff():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium historicalhandoffum",
+                "type_strain_names": "ACCC 698; IMSNU40129; MAFF 212477; NCFB2931",
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium historicalhandoffum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium historicalhandoffum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.candidate_provider_keys == "accc; imsnu; maff; ncfb"
+    assert row.candidate_provider_statuses == (
+        "accc=planning_only; imsnu=planning_only; "
+        "maff=planning_only; ncfb=planning_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "accc": 1,
+        "imsnu": 1,
+        "maff": 1,
+        "ncfb": 1,
     }
 
 

@@ -11,6 +11,10 @@ PLANNING_HANDOFF_KEYS = (
     "nbrc",
     "kctc",
     "kacc",
+    "accc",
+    "imsnu",
+    "maff",
+    "ncfb",
     "kccm",
     "nccp",
     "vkm",
@@ -112,6 +116,10 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "Korean Collection for Type Cultures": "kctc",
         "KACC": "kacc",
         "Korean Agricultural Culture Collection": "kacc",
+        "ACCC": "accc",
+        "IMSNU": "imsnu",
+        "MAFF": "maff",
+        "NCFB": "ncfb",
         "KCCM": "kccm",
         "NCCP": "nccp",
         "VKM": "vkm",
@@ -192,6 +200,7 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
 
     assert registry.keys_from_text(
         "ATCC 1001; DSMZ 2002; DSM-2003; KACC 12345; "
+        "ACCC 698; IMSNU 40129; MAFF 212477; NCFB 2931; "
         "KCCM 67890; NCCP 1234; VKM B-1787; MCCC 1K07510; "
         "GDMCC 1.2529; CCTCC AB 12345; "
         "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; "
@@ -203,6 +212,10 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "atcc_genome_portal",
         "dsmz",
         "kacc",
+        "accc",
+        "imsnu",
+        "maff",
+        "ncfb",
         "kccm",
         "nccp",
         "vkm",
@@ -243,7 +256,8 @@ def test_provider_registry_extracts_prefixes_joined_to_collection_numbers():
     registry = build_default_provider_registry()
 
     assert registry.keys_from_text(
-        "ATCC700964; DSM12345; JCM9876; KCTC5001; KCCM2001; "
+        "ATCC700964; DSM12345; JCM9876; KCTC5001; ACCC698; "
+        "IMSNU40129; MAFF212477; NCFB2931; KCCM2001; "
         "NCCP3001; NBRC10000; LMG4006; CECT9001; NRRL123; IAM5001; "
         "FERM6001"
     ) == (
@@ -252,6 +266,10 @@ def test_provider_registry_extracts_prefixes_joined_to_collection_numbers():
         "jcm",
         "nbrc",
         "kctc",
+        "accc",
+        "imsnu",
+        "maff",
+        "ncfb",
         "kccm",
         "nccp",
         "cect",

@@ -158,6 +158,10 @@ _EXPLICIT_ALIASES: tuple[tuple[str, str], ...] = (
     ("Korean Collection for Type Cultures", "kctc"),
     ("KACC", "kacc"),
     ("Korean Agricultural Culture Collection", "kacc"),
+    ("ACCC", "accc"),
+    ("IMSNU", "imsnu"),
+    ("MAFF", "maff"),
+    ("NCFB", "ncfb"),
     ("KCCM", "kccm"),
     ("NCCP", "nccp"),
     ("VKM", "vkm"),
@@ -242,6 +246,10 @@ _TOKEN_PREFIXES: tuple[tuple[str, str], ...] = (
     ("NITE", "nbrc"),
     ("KCTC", "kctc"),
     ("KACC", "kacc"),
+    ("ACCC", "accc"),
+    ("IMSNU", "imsnu"),
+    ("MAFF", "maff"),
+    ("NCFB", "ncfb"),
     ("KCCM", "kccm"),
     ("NCCP", "nccp"),
     ("VKM", "vkm"),
@@ -321,6 +329,26 @@ def build_default_provider_registry() -> ProviderRegistry:
         planning_only_provider(
             "kacc",
             "Korean Agricultural Culture Collection",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "accc",
+            "ACCC",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "imsnu",
+            "IMSNU",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "maff",
+            "MAFF",
+            guidance_tag="culture_collection_user_handoff",
+        ),
+        planning_only_provider(
+            "ncfb",
+            "NCFB",
             guidance_tag="culture_collection_user_handoff",
         ),
         planning_only_provider(
