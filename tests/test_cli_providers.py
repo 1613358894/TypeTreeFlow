@@ -114,6 +114,84 @@ def test_providers_catalog_emits_compact_json_and_fail_closed_entries(capsys):
         "genbank",
         "refseq",
     ]
+    assert payload["coverage_priority_groups"] == [
+        {
+            "priority": 10,
+            "coverage_route": "public_archive_metadata_review",
+            "provider_keys": ["bv_brc", "ddbj", "ena", "genbank", "refseq"],
+            "operator_route": "public_metadata_review",
+            "recommended_action": (
+                "review public accession/type-linkage metadata before provider handoff"
+            ),
+            "next_input_class": "public_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
+            "provider_count": 5,
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 20,
+            "coverage_route": "type_material_metadata_review",
+            "provider_keys": ["bacdive"],
+            "operator_route": "public_metadata_review",
+            "recommended_action": (
+                "review BacDive/DSMZ type-material metadata as candidate evidence"
+            ),
+            "next_input_class": "public_accession_type_strain_linkage",
+            "automation_boundary": "metadata_review_only_no_download",
+            "provider_count": 1,
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 30,
+            "coverage_route": "culture_collection_provider_handoff",
+            "provider_keys": [
+                key
+                for key in payload["planning_handoff_provider_keys"]
+                if key != "img_jgi"
+            ],
+            "operator_route": "provider_handoff",
+            "recommended_action": (
+                "prepare user-assisted permitted-local-FASTA provider handoff"
+            ),
+            "next_input_class": "permitted_local_fasta_terms_provenance",
+            "automation_boundary": "planning_handoff_no_provider_contact",
+            "provider_count": planning_handoff_count - 1,
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 40,
+            "coverage_route": "credential_gated_provider_handoff",
+            "provider_keys": ["img_jgi"],
+            "operator_route": "provider_handoff",
+            "recommended_action": (
+                "defer until credentials, terms, and local permitted FASTA handling are approved"
+            ),
+            "next_input_class": "permitted_local_fasta_terms_provenance",
+            "automation_boundary": "credential_review_required_no_provider_contact",
+            "provider_count": 1,
+            "safe_for_unattended_execution": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+    ]
     assert "dsmz" in payload["planning_handoff_provider_keys"]
     assert "img_jgi" in payload["planning_handoff_provider_keys"]
     assert payload["credentials_required_provider_keys"] == ["img_jgi"]

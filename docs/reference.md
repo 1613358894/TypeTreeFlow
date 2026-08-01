@@ -734,10 +734,15 @@ fields such as `operator_route_counts`, `provider_route_groups`, and
 Provider-handoff, provider-request, and
 external-genomes readiness contracts use the same pattern for route counts,
 readiness counts, required inputs, and recommended next requests when those
-fields are stable. The server-validation result validator contract lists local
-validation status, result status, checked-surface count, boundary confirmation
-status, diagnostic count, and no-execution boundary flags as stable routing
-fields. Other contracts describe AI/operator
+fields are stable. `providers catalog` also exposes
+`coverage_priority_groups`, a stable route summary for public archive metadata
+review, BacDive/DSMZ type-material metadata review, culture-collection provider
+handoff, and credential-gated provider handoff. This summary is coverage
+planning metadata only; it does not contact providers, download genomes, mutate
+manifests, or make provider rows strict. The server-validation result validator
+contract lists local validation status, result status, checked-surface count,
+boundary confirmation status, diagnostic count, and no-execution boundary flags
+as stable routing fields. Other contracts describe AI/operator
 handoff packets such as
 `provider_request_readiness_packet`, `external_genomes_readiness_packet`, and
 `operator_chain_readiness_packets`.
