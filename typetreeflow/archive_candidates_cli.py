@@ -374,9 +374,10 @@ def _validate_outdir(
     if outdir.exists():
         if not outdir.is_dir():
             raise ValueError("output path is not a directory")
-        allowed = {name for name in ALL_OUTPUT_NAMES.values()}
+        expected = {name for name in OUTPUT_NAMES.values()}
+        expected_with_template = expected | {MANUAL_REVIEW_TEMPLATE_NAME}
         existing = {child.name for child in outdir.iterdir()}
-        if existing and not existing <= allowed:
+        if existing and existing != expected and existing != expected_with_template:
             raise ValueError("existing output directory does not match archive schema")
         if existing and not force:
             raise ValueError("use --force to overwrite archive candidate outputs")
