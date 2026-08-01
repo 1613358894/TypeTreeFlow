@@ -2842,36 +2842,69 @@ def _write_inputs(tmp_path):
     return checklist, reconciler, gaps, archive
 
 
-def _write_curated_provider_request(tmp_path):
+def _write_curated_provider_request(tmp_path, *, include_atcc=False):
     fasta = tmp_path / "local" / "provider" / "DSM-1.fna"
     fasta.parent.mkdir(parents=True)
     fasta.write_text(">seq\nACGT\n", encoding="utf-8")
+    atcc_fasta = tmp_path / "local" / "provider" / "ATCC-2.fna"
+    atcc_hash = ""
+    if include_atcc:
+        atcc_fasta.write_text(">seq\nTGCA\n", encoding="utf-8")
+        atcc_hash = calculate_sha256(atcc_fasta)
     curated_request = tmp_path / "curated_provider_request.tsv"
     fasta_hash = calculate_sha256(fasta)
-    _write_tsv(
-        curated_request,
-        PROVIDER_REQUEST_FIELDS,
-        [
+    rows = [
+        {
+            "request_id": "CUR-0001",
+            "species": "Clostridium alpha",
+            "strain": "DSM 1",
+            "type_strain_id": "DSM 1",
+            "provider": "dsmz",
+            "provider_name": "DSMZ",
+            "provider_record_id": "DSM-1",
+            "provider_record_url": "",
+            "provider_artifact_id": "",
+            "provider_artifact_version": "",
+            "artifact_type": "genome_fasta",
+            "local_fasta_path": "local/provider/DSM-1.fna",
+            "local_sha256": fasta_hash,
+            "terms_review_status": "reviewed_allowed",
+            "license_notes": "allowed for local review",
+            "retrieval_date": "2026-07-30",
+            "is_type_material": "true",
+            "requires_manual_review": "false",
+            "curator": "reviewer-a",
+            "notes": (
+                "curated_provider_request=true; provider_status=planning_only; "
+                "provider_automation_level=planning_handoff; "
+                "operator_route=provider_handoff; "
+                "next_input_class=permitted_local_fasta_terms_provenance; "
+                "automation_boundary=planning_handoff_no_provider_contact"
+            ),
+        }
+    ]
+    if include_atcc:
+        rows.append(
             {
-                "request_id": "CUR-0001",
-                "species": "Clostridium alpha",
-                "strain": "DSM 1",
-                "type_strain_id": "DSM 1",
-                "provider": "dsmz",
-                "provider_name": "DSMZ",
-                "provider_record_id": "DSM-1",
+                "request_id": "CUR-0002",
+                "species": "Clostridium beta",
+                "strain": "ATCC 2",
+                "type_strain_id": "ATCC 2",
+                "provider": "atcc",
+                "provider_name": "ATCC",
+                "provider_record_id": "ATCC-2",
                 "provider_record_url": "",
                 "provider_artifact_id": "",
                 "provider_artifact_version": "",
                 "artifact_type": "genome_fasta",
-                "local_fasta_path": "local/provider/DSM-1.fna",
-                "local_sha256": fasta_hash,
+                "local_fasta_path": "local/provider/ATCC-2.fna",
+                "local_sha256": atcc_hash,
                 "terms_review_status": "reviewed_allowed",
                 "license_notes": "allowed for local review",
                 "retrieval_date": "2026-07-30",
                 "is_type_material": "true",
                 "requires_manual_review": "false",
-                "curator": "reviewer-a",
+                "curator": "reviewer-b",
                 "notes": (
                     "curated_provider_request=true; provider_status=planning_only; "
                     "provider_automation_level=planning_handoff; "
@@ -2880,7 +2913,11 @@ def _write_curated_provider_request(tmp_path):
                     "automation_boundary=planning_handoff_no_provider_contact"
                 ),
             }
-        ],
+        )
+    _write_tsv(
+        curated_request,
+        PROVIDER_REQUEST_FIELDS,
+        rows,
     )
     return curated_request, fasta, fasta_hash
 
@@ -6268,6 +6305,7 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     assert pipeline_summary["coverage_handoff_readiness_summary"][
         "next_stage"
     ] == "external_genomes_registration_dry_run"
+
     assert pipeline_summary[
         "external_genomes_registration_dry_run_recommended_request"
     ] == expected_registration_request
@@ -6451,6 +6489,83 @@ def test_coverage_pipeline_build_can_ingest_curated_provider_request(
     ]
     assert rendered_payload["recognized"]["command"] == "register-external-genomes"
     assert rendered_payload["recognized"]["mode"] == "external_genome_registration"
+
+
+def test_coverage_pipeline_build_filters_curated_provider_request_by_provider_key(
+    capsys,
+    tmp_path,
+):
+    checklist, reconciler, gaps, archive = _write_inputs(tmp_path)
+    curated_request, _, fasta_hash = _write_curated_provider_request(
+        tmp_path,
+        include_atcc=True,
+    )
+    outdir = tmp_path / "pipeline_outputs"
+    install_target = tmp_path / "future_registration_run"
+
+    code, payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--curated-provider-request-tsv",
+            str(curated_request),
+            "--provider-key",
+            "dsmz",
+            "--external-genomes-install-target-outdir",
+            str(install_target),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.out.count("\n") == 1
+    assert payload["provider_request_validation_status"] == "pass"
+    assert payload["provider_request_validation_ready_count"] == 1
+    assert payload["provider_request_validation_readiness_packet"][
+        "provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
+    assert payload["provider_request_external_genomes_status"] == "pass"
+    assert payload["provider_request_external_genomes_exported_count"] == 1
+    assert payload["provider_request_external_genomes_readiness_packet"][
+        "provider_route_groups"
+    ][0]["provider_key_counts"] == {"dsmz": 1}
+    assert payload["external_genomes_install_plan_install_planned_count"] == 1
+    external_rows = _read_tsv(
+        outdir / "provider_request_external_genomes" / "external_genomes.tsv"
+    )
+    assert [row["external_source"] for row in external_rows] == ["dsmz"]
+    assert external_rows[0]["sha256"] == fasta_hash
+    validation_summary = json.loads(
+        (
+            outdir
+            / "provider_request_validation"
+            / "provider_request_validation_summary.json"
+        ).read_text()
+    )
+    assert validation_summary["provider_key_filter"] == ["dsmz"]
+    assert validation_summary["provider_key_filter_count"] == 1
+    assert validation_summary["filtered"] is True
+    external_summary = json.loads(
+        (
+            outdir
+            / "provider_request_external_genomes"
+            / "provider_request_external_genomes_summary.json"
+        ).read_text()
+    )
+    assert external_summary["provider_key_filter"] == ["dsmz"]
+    assert external_summary["provider_key_filter_count"] == 1
+    assert external_summary["filtered"] is True
 
 
 def test_coverage_pipeline_status_preserves_external_genomes_repair_queue(

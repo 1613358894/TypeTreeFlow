@@ -2073,7 +2073,7 @@ The isolated coverage pipeline adapter is:
 
 ```text
 typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--provider-key <provider-key-or-alias> ...] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--manual-review-import-dir <dir>] [--strict-gating-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--server-validation-result <coverage_handoff_server_validation_result.json>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
 typetreeflow coverage-pipeline server-validation-result validate --input <coverage_handoff_server_validation_result.json> [--json]
 ```
@@ -2490,7 +2490,10 @@ instead validates the explicit curator-completed provider request TSV and, when
 all rows pass, writes `provider_request_external_genomes/` as the local draft
 for later `external-genomes validate` / `external-genomes install-plan`. It
 still writes the generated `provider_request/` draft for traceability, and it
-does not treat that draft as curator-completed.
+does not treat that draft as curator-completed. Repeated
+`--provider-key <provider-key-or-alias>` values filter the curated provider
+request validation and external-genomes draft to provider-specific local
+subsets; they do not contact providers or download genomes.
 `build --external-genomes-install-target-outdir <dir>` can then write
 `external_genomes_install_plan/` from the same validated external-genomes draft
 inside the isolated pipeline directory. The target directory is used only to

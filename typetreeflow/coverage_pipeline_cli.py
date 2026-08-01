@@ -370,6 +370,7 @@ def run_coverage_pipeline_command(
             validation = validate_provider_requests_for_local_handoff(
                 provider_request_records,
                 base_dir=validation_base_dir,
+                provider_key_filter=args.provider_key,
             )
             validation_payload = provider_request_validation_payload(
                 validation,
@@ -387,6 +388,7 @@ def run_coverage_pipeline_command(
                 external_genomes = build_provider_request_external_genomes_draft(
                     provider_request_records,
                     base_dir=validation_base_dir,
+                    provider_key_filter=args.provider_key,
                 )
                 external_genomes_payload = _external_genomes_payload(
                     external_genomes,
@@ -587,6 +589,7 @@ def _build_parser() -> argparse.ArgumentParser:
         provider_request_validation_base_dir=None,
         curated_provider_request_tsv=None,
         external_genomes_install_target_outdir=None,
+        provider_key=None,
     )
     build = actions.add_parser("build", add_help=False)
     build.add_argument("--checklist-tsv")
@@ -599,6 +602,7 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--validate-provider-request", action="store_true")
     build.add_argument("--provider-request-validation-base-dir")
     build.add_argument("--curated-provider-request-tsv")
+    build.add_argument("--provider-key", action="append")
     build.add_argument("--external-genomes-install-target-outdir")
     build.add_argument(
         "--queue-preview-limit",
