@@ -105,6 +105,9 @@ class CoveragePlan:
                 provider_route_records, "automation_boundary"
             ),
             "provider_route_groups": provider_route_groups(provider_route_records),
+            "priority_provider_route_items": _priority_provider_route_items(
+                provider_route_records
+            ),
             "audit_only": True,
             "strict_scientific_deliverable": False,
             "downloads_triggered": 0,
@@ -237,12 +240,132 @@ def _provider_route_records(
             records.append(
                 {
                     "provider_key": entry.provider_key,
+                    "provider_name": entry.provider_name,
                     "provider_status": entry.capability.status.value,
                     "provider_automation_level": automation_level,
+                    "species": action.species,
+                    "source_action_code": action.action_code,
+                    "terms_review_required": entry.capability.requires_terms_review,
+                    "credentials_required": entry.capability.requires_credentials,
+                    "network_supported": entry.capability.supports_network,
+                    "default_network_enabled": entry.default_network_enabled,
                     **route,
                 }
             )
     return records
+
+
+def _priority_provider_route_items(
+    records: Iterable[Mapping[str, object]],
+    *,
+    limit: int = 10,
+) -> list[dict[str, object]]:
+    grouped: dict[str, dict[str, object]] = {}
+    for record in records:
+        provider_key = str(record.get("provider_key", "")).strip()
+        if not provider_key:
+            continue
+        item = grouped.setdefault(
+            provider_key,
+            {
+                "provider_key": provider_key,
+                "provider_name": str(record.get("provider_name", "")).strip(),
+                "record_count": 0,
+                "species": [],
+                "provider_automation_level_counts": Counter(),
+                "source_action_counts": Counter(),
+                "operator_route_counts": Counter(),
+                "next_input_class_counts": Counter(),
+                "terms_review_required_count": 0,
+                "credentials_required_count": 0,
+                "network_supported_count": 0,
+                "default_network_enabled_count": 0,
+            },
+        )
+        item["record_count"] = int(item["record_count"]) + 1
+        species_values = item["species"]
+        if isinstance(species_values, list):
+            _append_unique(species_values, str(record.get("species", "")))
+        for field, counter_name in (
+            ("provider_automation_level", "provider_automation_level_counts"),
+            ("source_action_code", "source_action_counts"),
+            ("operator_route", "operator_route_counts"),
+            ("next_input_class", "next_input_class_counts"),
+        ):
+            value = str(record.get(field, "")).strip()
+            if value and isinstance(item[counter_name], Counter):
+                item[counter_name][value] += 1
+        for field, count_name in (
+            ("terms_review_required", "terms_review_required_count"),
+            ("credentials_required", "credentials_required_count"),
+            ("network_supported", "network_supported_count"),
+            ("default_network_enabled", "default_network_enabled_count"),
+        ):
+            if bool(record.get(field)):
+                item[count_name] = int(item[count_name]) + 1
+
+    ranked_items: list[dict[str, object]] = []
+    for item in grouped.values():
+        automation_counts = _sorted_counter(item["provider_automation_level_counts"])
+        source_action_counts = _sorted_counter(item["source_action_counts"])
+        operator_route_counts = _sorted_counter(item["operator_route_counts"])
+        next_input_class_counts = _sorted_counter(item["next_input_class_counts"])
+        needs_provider_request = automation_counts.get("planning_handoff", 0) > 0
+        metadata_review_only = (
+            automation_counts.get("metadata_review", 0) > 0
+            and not needs_provider_request
+        )
+        route_priority = (
+            "provider_handoff"
+            if needs_provider_request
+            else "public_metadata_review"
+            if metadata_review_only
+            else "operator_review"
+        )
+        species_values = item["species"] if isinstance(item["species"], list) else []
+        ranked_items.append(
+            {
+                "provider_key": str(item["provider_key"]),
+                "provider_name": str(item["provider_name"]),
+                "route_priority": route_priority,
+                "record_count": int(item["record_count"]),
+                **_bounded_species_preview(species_values),
+                "primary_provider_automation_level": _primary_count_key(
+                    automation_counts
+                ),
+                "primary_source_action": _primary_count_key(source_action_counts),
+                "primary_operator_route": _primary_count_key(operator_route_counts),
+                "primary_next_input_class": _primary_count_key(
+                    next_input_class_counts
+                ),
+                "needs_provider_request_draft": needs_provider_request,
+                "metadata_review_only": metadata_review_only,
+                "terms_review_required_count": int(
+                    item["terms_review_required_count"]
+                ),
+                "credentials_required_count": int(item["credentials_required_count"]),
+                "network_supported_count": int(item["network_supported_count"]),
+                "default_network_enabled_count": int(
+                    item["default_network_enabled_count"]
+                ),
+                "safe_for_unattended_execution": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "strict_scientific_deliverable": False,
+            }
+        )
+
+    ranked_items.sort(
+        key=lambda item: (
+            0 if item["route_priority"] == "provider_handoff" else 1,
+            -int(item["record_count"]),
+            str(item["provider_key"]),
+        )
+    )
+    return [
+        {"priority": index, **item}
+        for index, item in enumerate(ranked_items[:limit], start=1)
+    ]
 
 
 def _count_field(records: Iterable[Mapping[str, object]], field: str) -> dict[str, int]:
@@ -276,6 +399,37 @@ def _value(row: Mapping[str, object], *fields: str) -> str:
 
 def _clean(value: object) -> str:
     return str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
+def _append_unique(values: list[str], value: str) -> None:
+    cleaned = _clean(value).strip()
+    if cleaned and cleaned not in values:
+        values.append(cleaned)
+
+
+def _bounded_species_preview(
+    values: Iterable[str],
+    *,
+    limit: int = 5,
+) -> dict[str, object]:
+    species = list(values)
+    return {
+        "species_count": len(species),
+        "species_preview": species[:limit],
+        "species_truncated": len(species) > limit,
+    }
+
+
+def _sorted_counter(value: object) -> dict[str, int]:
+    if not isinstance(value, Counter):
+        return {}
+    return dict(sorted(value.items()))
+
+
+def _primary_count_key(counts: Mapping[str, int]) -> str:
+    if not counts:
+        return ""
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
 
 
 def _write_tsv(fields: tuple[str, ...], rows: Iterable[Mapping[str, object]]) -> str:

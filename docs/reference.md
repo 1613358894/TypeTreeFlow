@@ -1649,7 +1649,13 @@ The compact JSON and written summary include provider route aggregates such as
 `next_input_class_counts`, `automation_boundary_counts`, and
 `provider_route_groups`, so AI/operator controllers can distinguish
 public-metadata review from user-assisted provider handoff before generating
-the provider-handoff pair. Provider hints from supported worklist fields are
+the provider-handoff pair. The same summary includes bounded
+`priority_provider_route_items`, a provider-first queue sorted with
+planning-handoff providers before public metadata-review providers, then by
+record count and provider key. Each item carries the primary route, action,
+next-input class, bounded species preview, credential/network counts, and
+fixed no-execution fields. It is local prioritization metadata only and does
+not authorize provider contact or downloads. Provider hints from supported worklist fields are
 additive: an unknown local label is retained as fail-closed planning-only
 handoff metadata and does not mask later canonical provider or public archive
 names in other fields.
