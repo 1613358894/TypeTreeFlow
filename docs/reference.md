@@ -1608,9 +1608,14 @@ and whether candidates came from the expanded-discovery bridge without reading
 row-level notes. The same summary includes
 `public_archive_opportunity_packet`, a bounded audit-only packet that groups
 rows by local review input class, public archive source, accession class, and
-source input kind. Its `safe_for_unattended_download=false` boundary is fixed:
-the packet ranks review opportunities for later curator/AI inspection, but it
-does not authorize downloads or strict deliverable promotion.
+source input kind. It also includes `coverage_priority_route_counts` and
+`coverage_priority_route_summary`, which align archive candidates with the
+coverage-priority routes exposed by `providers catalog`, including public
+archive metadata review, BacDive/DSMZ type-material metadata review, ordinary
+provider handoff, and credential-gated handoff. Its
+`safe_for_unattended_download=false` boundary is fixed: the packet ranks review
+opportunities for later curator/AI inspection, but it does not authorize
+downloads or strict deliverable promotion.
 
 The isolated archive candidate CLI adapter is:
 

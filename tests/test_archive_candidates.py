@@ -70,6 +70,9 @@ def test_archive_candidate_report_is_audit_only_and_statused():
     assert report.summary["candidate_count"] == 1
     assert report.summary["manual_review_count"] == 3
     assert report.summary["archive_source_counts"] == {"ena": 3}
+    assert report.summary["coverage_priority_route_counts"] == {
+        "public_archive_metadata_review": 3
+    }
     assert report.summary["accession_kind_counts"] == {
         "assembly": 2,
         "biosample": 2,
@@ -105,6 +108,9 @@ def test_archive_candidate_report_is_audit_only_and_statused():
                 "archive_candidate_for_public_linkage_review": 1
             },
             "archive_source_counts": {"ena": 1},
+            "coverage_priority_route_counts": {
+                "public_archive_metadata_review": 1
+            },
             "accession_kind_counts": {"assembly": 1, "biosample": 1},
             "source_input_kind_counts": {"archive_candidate_input": 1},
             "recommended_next_input": "manual_review.tsv",
@@ -124,6 +130,9 @@ def test_archive_candidate_report_is_audit_only_and_statused():
                 "archive_candidate_insufficient_type_linkage": 1
             },
             "archive_source_counts": {"ena": 1},
+            "coverage_priority_route_counts": {
+                "public_archive_metadata_review": 1
+            },
             "accession_kind_counts": {"assembly": 1, "biosample": 1},
             "source_input_kind_counts": {"archive_candidate_input": 1},
             "recommended_next_input": "manual_review.tsv",
@@ -141,6 +150,9 @@ def test_archive_candidate_report_is_audit_only_and_statused():
             "species_truncated": False,
             "candidate_status_counts": {"archive_candidate_missing_accession": 1},
             "archive_source_counts": {"ena": 1},
+            "coverage_priority_route_counts": {
+                "public_archive_metadata_review": 1
+            },
             "accession_kind_counts": {"missing": 1},
             "source_input_kind_counts": {"archive_candidate_input": 1},
             "recommended_next_input": "archive_candidates_input.tsv",
@@ -149,6 +161,32 @@ def test_archive_candidate_report_is_audit_only_and_statused():
             ),
             "automation_boundary": "metadata_review_only_no_download",
         },
+    ]
+    assert packet["coverage_priority_route_summary"] == [
+        {
+            "priority": 10,
+            "coverage_priority_route": "public_archive_metadata_review",
+            "record_count": 3,
+            "species_count": 3,
+            "species_preview": [
+                "Clostridium publicum",
+                "Clostridium weakum",
+                "Clostridium missingum",
+            ],
+            "species_truncated": False,
+            "archive_source_counts": {"ena": 3},
+            "recommended_action": (
+                "review public accession/type-linkage metadata before provider handoff"
+            ),
+            "recommended_next_input": "manual_review.tsv",
+            "automation_boundary": "metadata_review_only_no_download",
+            "safe_for_unattended_download": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "manifest_mutated": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        }
     ]
     assert report.summary["downloads_triggered"] == 0
     assert report.summary["providers_contacted"] == 0
@@ -216,9 +254,18 @@ def test_archive_candidate_accepts_bv_brc_public_metadata_source():
     assert row.archive_source == "bv_brc"
     assert row.candidate_status == "archive_candidate_for_public_linkage_review"
     assert report.summary["archive_source_counts"] == {"bv_brc": 1}
+    assert report.summary["coverage_priority_route_counts"] == {
+        "public_archive_metadata_review": 1
+    }
     assert report.summary["accession_kind_counts"] == {"nuccore": 1}
     packet = report.summary["public_archive_opportunity_packet"]
     assert packet["opportunities"][0]["archive_source_counts"] == {"bv_brc": 1}
+    assert packet["opportunities"][0]["coverage_priority_route_counts"] == {
+        "public_archive_metadata_review": 1
+    }
+    assert packet["coverage_priority_route_summary"][0]["coverage_priority_route"] == (
+        "public_archive_metadata_review"
+    )
     assert packet["opportunities"][0]["recommended_next_input"] == "manual_review.tsv"
     assert packet["safe_for_unattended_download"] is False
     assert packet["providers_contacted"] == 0
@@ -242,9 +289,21 @@ def test_archive_candidate_img_jgi_source_remains_planning_handoff():
     assert row.archive_source == "img_jgi"
     assert row.candidate_status == "archive_candidate_for_public_linkage_review"
     assert report.summary["archive_source_counts"] == {"other": 1}
+    assert report.summary["coverage_priority_route_counts"] == {
+        "credential_gated_provider_handoff": 1
+    }
     assert report.summary["accession_kind_counts"] == {"nuccore": 1}
     packet = report.summary["public_archive_opportunity_packet"]
     assert packet["opportunities"][0]["archive_source_counts"] == {"other": 1}
+    assert packet["opportunities"][0]["coverage_priority_route_counts"] == {
+        "credential_gated_provider_handoff": 1
+    }
+    assert packet["coverage_priority_route_summary"][0]["coverage_priority_route"] == (
+        "credential_gated_provider_handoff"
+    )
+    assert packet["coverage_priority_route_summary"][0]["automation_boundary"] == (
+        "credential_review_required_no_provider_contact"
+    )
     assert packet["opportunities"][0]["recommended_next_input"] == "manual_review.tsv"
     assert packet["safe_for_unattended_download"] is False
     assert packet["providers_contacted"] == 0
