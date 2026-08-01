@@ -31,6 +31,13 @@ Primary commands write compact JSON to stdout by default. This does not require
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
   still require separate explicit authorization.
+  When an existing `cache/ncbi/download_plan.tsv` is present, `status` also
+  emits `download_plan_readiness_summary`: an acquisition-facing, read-only
+  count summary for planned NCBI downloads, existing genomes, missing
+  accessions, and external registered genomes. The summary is derived only
+  from the existing plan and keeps `safe_for_unattended_download=false`,
+  `downloads_triggered=0`, `providers_contacted=0`, `manifest_mutated=false`,
+  and `strict_scientific_deliverable=false`.
 - `package-results`: compact JSON with delivery directory, included artifacts,
   missing optional files, success/failure handoff status, warnings, and next
   action.

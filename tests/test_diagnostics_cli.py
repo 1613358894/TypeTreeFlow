@@ -552,6 +552,51 @@ def test_status_json_outputs_parseable_json(tmp_path, capsys):
     assert stages["report"]["status"] == "succeeded"
 
 
+def test_status_reports_download_plan_readiness_summary(tmp_path, capsys):
+    paths = get_output_paths(tmp_path)
+    plan_path = paths.cache_dir / "ncbi" / "download_plan.tsv"
+    plan_path.parent.mkdir(parents=True)
+    plan_path.write_text(
+        "record_id\tnormalized_id\tassembly_accession\texpected_genome_path\t"
+        "datasets_zip_path\tdownload_dir\tstatus\tnotes\n"
+        "rec-1\trec_1\tGCF_000001\tgenomes/references/rec_1.fna\t"
+        "cache/ncbi/rec_1.zip\tcache/ncbi\tplanned\t\n"
+        "rec-2\trec_2\t\t\t\tcache/ncbi\tskipped_no_accession\tmissing accession\n"
+        "rec-3\trec_3\t\tgenomes/references/rec_3.fna\t\tcache/ncbi\t"
+        "external_genome_download_not_applicable\texternal genome already registered\n",
+        encoding="utf-8",
+    )
+    write_run_state(
+        paths.run_state_path,
+        WorkflowState(
+            status="partial",
+            outdir=str(tmp_path),
+            stages={
+                "download_preflight": StageState(
+                    status="succeeded",
+                    summary="planned=1, skipped_no_accession=1",
+                )
+            },
+            next_action="Review download plan.",
+        ),
+    )
+
+    assert main(["status", "--outdir", str(tmp_path), "--json"]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    readiness = payload["download_plan_readiness_summary"]
+    assert readiness["schema_version"] == "download_plan_readiness_summary.v1"
+    assert readiness["total_rows"] == 3
+    assert readiness["download_ready_ncbi_count"] == 1
+    assert readiness["missing_accession_count"] == 1
+    assert readiness["external_registered_count"] == 1
+    assert readiness["review_or_handoff_count"] == 2
+    assert readiness["safe_for_unattended_download"] is False
+    assert readiness["downloads_triggered"] == 0
+    assert readiness["providers_contacted"] == 0
+    assert readiness["manifest_mutated"] is False
+
+
 def test_status_infers_without_run_state_from_existing_files(tmp_path, capsys):
     paths = get_output_paths(tmp_path)
     write_manifest(

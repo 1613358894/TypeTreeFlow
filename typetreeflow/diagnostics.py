@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import Any
 
 from typetreeflow import __version__
+from typetreeflow.download_plan_readiness import (
+    build_download_plan_readiness_summary,
+)
 from typetreeflow.external.tools import IQTREE_EXECUTABLE_CANDIDATES
 from typetreeflow.manifest import read_manifest
 from typetreeflow.workflow.next_action import (
@@ -101,6 +104,7 @@ class WorkflowStatusSummary:
     source: str = "inferred"
     outdir: str = ""
     run_state_path: str = ""
+    download_plan_readiness_summary: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -127,7 +131,7 @@ class WorkflowStatusSummary:
             else []
         )
         status = _public_workflow_status(self.overall, self.stages)
-        return {
+        payload: dict[str, Any] = {
             "command": "status",
             "schema_version": "1",
             "status": status,
@@ -139,6 +143,11 @@ class WorkflowStatusSummary:
             "warnings": warnings,
             "next_actions": next_actions,
         }
+        if self.download_plan_readiness_summary:
+            payload["download_plan_readiness_summary"] = (
+                self.download_plan_readiness_summary
+            )
+        return payload
 
 
 @dataclass(frozen=True)
@@ -276,6 +285,9 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
                 source=summary.source,
                 outdir=summary.outdir,
                 run_state_path=summary.run_state_path,
+                download_plan_readiness_summary=(
+                    summary.download_plan_readiness_summary
+                ),
             )
         if _stage_status(summary.stages, "download") == "blocked_by_manual_review":
             guarded_download_action = plan_only_guarded_download_next_action(paths)
@@ -287,6 +299,9 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
                     source=summary.source,
                     outdir=summary.outdir,
                     run_state_path=summary.run_state_path,
+                    download_plan_readiness_summary=(
+                        summary.download_plan_readiness_summary
+                    ),
                 )
         if next_action != summary.next_action:
             return WorkflowStatusSummary(
@@ -296,6 +311,9 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
                 source=summary.source,
                 outdir=summary.outdir,
                 run_state_path=summary.run_state_path,
+                download_plan_readiness_summary=(
+                    summary.download_plan_readiness_summary
+                ),
             )
         return summary
 
@@ -424,6 +442,12 @@ def _with_status_paths(
     root: Path,
     run_state_path: Path,
 ) -> WorkflowStatusSummary:
+    download_plan_path = root / "cache" / "ncbi" / "download_plan.tsv"
+    readiness_summary = (
+        build_download_plan_readiness_summary(download_plan_path)
+        if download_plan_path.exists()
+        else {}
+    )
     return WorkflowStatusSummary(
         overall=summary.overall,
         stages=summary.stages,
@@ -431,6 +455,7 @@ def _with_status_paths(
         source=summary.source,
         outdir=str(root),
         run_state_path=str(run_state_path),
+        download_plan_readiness_summary=readiness_summary,
     )
 
 

@@ -1,6 +1,9 @@
 import csv
 from pathlib import Path
 
+from typetreeflow.download_plan_readiness import (
+    build_download_plan_readiness_summary,
+)
 from typetreeflow.genomes.download import mark_planned_records, write_download_plan
 from typetreeflow.genomes.plan import build_genome_download_plan
 from typetreeflow.models import StrainRecord
@@ -157,6 +160,44 @@ def test_dry_run_writes_download_plan(tmp_path):
         rows = list(csv.DictReader(handle, delimiter="\t"))
     assert rows[0]["record_id"] == "rec-1"
     assert rows[0]["status"] == "planned"
+
+
+def test_download_plan_readiness_summary_counts_acquisition_routes(tmp_path):
+    existing_path = tmp_path / "genomes" / "references" / "existing_one.fna"
+    existing_path.parent.mkdir(parents=True)
+    existing_path.write_text(">existing\nATGC\n", encoding="utf-8")
+    external = _record(
+        "external-1",
+        "external_one",
+        accession="",
+        source="external_registered_genome",
+    )
+    ncbi = _record("ncbi-1", "ncbi_one")
+    existing = _record(
+        "existing-1",
+        "existing_one",
+        has_genome=True,
+        genome_path="genomes/references/existing_one.fna",
+    )
+    missing = _record("missing-1", "missing_one", accession="")
+    plan = build_genome_download_plan([external, ncbi, existing, missing], tmp_path)
+    plan_path = tmp_path / "cache" / "ncbi" / "download_plan.tsv"
+    write_download_plan(plan, plan_path)
+
+    summary = build_download_plan_readiness_summary(plan_path)
+
+    assert summary["schema_version"] == "download_plan_readiness_summary.v1"
+    assert summary["available"] is True
+    assert summary["total_rows"] == 4
+    assert summary["download_ready_ncbi_count"] == 1
+    assert summary["public_ncbi_download_plan_ready_count"] == 1
+    assert summary["existing_genome_count"] == 1
+    assert summary["missing_accession_count"] == 1
+    assert summary["external_registered_count"] == 1
+    assert summary["review_or_handoff_count"] == 2
+    assert summary["downloads_triggered"] == 0
+    assert summary["providers_contacted"] == 0
+    assert summary["manifest_mutated"] is False
 
 
 def test_manifest_status_updates_to_genome_download_planned(tmp_path):
