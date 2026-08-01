@@ -15,7 +15,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Mapping, Sequence, TextIO
 
-from typetreeflow.commands_cli import plan_command_request
+from typetreeflow.commands_cli import plan_command_request, render_command_request
 from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_FIELDS,
     ACQUISITION_WORKLIST_SCHEMA_VERSION,
@@ -2487,6 +2487,18 @@ def _stage_recommended_request(stage_name: str) -> dict[str, object]:
     return dict(_DEFAULT_STAGE_RECOMMENDED_REQUESTS[stage_name])
 
 
+def _stage_recommended_next_command(stage_name: str, fallback: str) -> str:
+    request = _stage_recommended_request(stage_name)
+    try:
+        rendered = render_command_request(request)
+    except (TypeError, ValueError):
+        return fallback
+    argv = rendered.get("target_argv")
+    if not isinstance(argv, list) or not argv:
+        return fallback
+    return "typetreeflow " + " ".join(str(token) for token in argv)
+
+
 def _tsv_record_count(
     path: Path,
     component: str,
@@ -2997,7 +3009,10 @@ def _payload(
             "provider_request_recommended_request",
         ),
         "provider_request_recommended_next_command": (
-            PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND
+            _stage_recommended_next_command(
+                "provider_request",
+                PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
+            )
         ),
         "provider_request_validation_recommended_request": (
             _stage_recommended_request("provider_request")
@@ -3014,7 +3029,10 @@ def _payload(
             )
         ),
         "provider_request_validation_recommended_next_command": (
-            PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND
+            _stage_recommended_next_command(
+                "provider_request_validation",
+                PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+            )
         ),
         "provider_request_validation_status": _payload_value(
             provider_request_validation,
@@ -3165,7 +3183,10 @@ def _payload(
             )
         ),
         "provider_request_external_genomes_handoff_recommended_next_command": (
-            PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
+            _stage_recommended_next_command(
+                "provider_request_validation",
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
+            )
         ),
         "operator_chain_stages": operator_chain_stages,
         "operator_chain_snapshot_sha256": operator_chain_snapshot_sha256,
@@ -3331,7 +3352,10 @@ def _operator_chain_stages(
             recommended_request=_DEFAULT_STAGE_RECOMMENDED_REQUESTS[
                 "provider_handoff"
             ],
-            recommended_next_command=PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
+            recommended_next_command=_stage_recommended_next_command(
+                "provider_request",
+                PROVIDER_REQUEST_DRAFT_RECOMMENDED_NEXT_COMMAND,
+            ),
             boundary="provider planning handoff only; no provider contact",
         ),
         _operator_stage(
@@ -3342,7 +3366,10 @@ def _operator_chain_stages(
             recommended_request=_DEFAULT_STAGE_RECOMMENDED_REQUESTS[
                 "provider_request"
             ],
-            recommended_next_command=PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+            recommended_next_command=_stage_recommended_next_command(
+                "provider_request_validation",
+                PROVIDER_REQUEST_VALIDATION_RECOMMENDED_NEXT_COMMAND,
+            ),
             boundary="curator-completed local evidence validation only",
         ),
         _operator_stage(
@@ -3356,8 +3383,9 @@ def _operator_chain_stages(
             recommended_request=_DEFAULT_STAGE_RECOMMENDED_REQUESTS[
                 "provider_request_validation"
             ],
-            recommended_next_command=(
-                PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND
+            recommended_next_command=_stage_recommended_next_command(
+                "provider_request_validation",
+                PROVIDER_REQUEST_EXTERNAL_GENOMES_HANDOFF_RECOMMENDED_NEXT_COMMAND,
             ),
             boundary="local readiness validation only; no provider contact",
         ),
