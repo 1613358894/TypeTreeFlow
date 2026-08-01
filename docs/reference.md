@@ -1717,8 +1717,8 @@ before running the command. When `--write` succeeds, stdout and the written
 `recommended_next_command` for a later local `provider-handoff build` command
 that points to the written `coverage_plan.tsv`. When the priority route list
 contains a provider-handoff item, that request includes `provider_keys` for the
-first prioritized provider key, so the next handoff is bounded by default
-rather than expanding every provider route at once. It also includes a
+first up to three prioritized provider keys, so the next handoff is bounded by
+default rather than expanding every provider route at once. It also includes a
 metadata-only `recommended_command_plan` companion for that request, with the
 rendered argv and preflight decision, so file-based controllers can resume from
 the saved summary without inferring paths from prose. The adapter does not run

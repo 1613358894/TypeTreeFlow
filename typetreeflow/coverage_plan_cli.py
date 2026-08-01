@@ -31,6 +31,7 @@ OUTPUT_NAMES = {
     "summary": "coverage_plan_summary.json",
 }
 _PREVIEW_LIMIT = 20
+_PROVIDER_HANDOFF_RECOMMENDED_KEY_LIMIT = 3
 _PROTECTED_OUTPUT_TERMS = {
     "manifest",
     "selection",
@@ -257,18 +258,26 @@ def _failure(code: str, message: str) -> dict[str, object]:
     }
 
 
-def _priority_provider_handoff_keys(summary: Mapping[str, object]) -> list[str]:
+def _priority_provider_handoff_keys(
+    summary: Mapping[str, object],
+    *,
+    limit: int = _PROVIDER_HANDOFF_RECOMMENDED_KEY_LIMIT,
+) -> list[str]:
     priority_items = summary.get("priority_provider_route_items")
     if not isinstance(priority_items, list):
         return []
+    provider_keys: list[str] = []
     for item in priority_items:
         if not isinstance(item, Mapping):
             continue
         if item.get("route_priority") != "provider_handoff":
             continue
         provider_key = str(item.get("provider_key") or "").strip()
-        return [provider_key] if provider_key else []
-    return []
+        if provider_key and provider_key not in provider_keys:
+            provider_keys.append(provider_key)
+        if len(provider_keys) >= limit:
+            break
+    return provider_keys
 
 
 def _provider_handoff_recommended_request(
