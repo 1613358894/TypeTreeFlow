@@ -199,6 +199,10 @@ For `external_fasta_required` rows without explicit provider hints, the
 default provider handoff labels come from registry entries whose status is
 `planning_only`; `metadata_only` public archives are not default handoff
 labels.
+For public archive and public type-linkage review rows without explicit hints,
+coverage-plan uses metadata-only public review labels such as ENA, DDBJ,
+INSDC, GenBank, NCBI Assembly, NCBI BioSample, and RefSeq so those rows remain
+visible to accession/linkage review without becoming downloads.
 Culture-collection provider hints may be written with a separator or joined
 directly to the collection number, such as `DSM 123`, `DSM-123`, `DSM123`, or
 `ATCC700964`; recognition still only routes the row to planning handoff and

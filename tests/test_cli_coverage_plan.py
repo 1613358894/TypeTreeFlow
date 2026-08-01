@@ -85,12 +85,12 @@ def test_coverage_plan_dry_run_is_single_json_and_writes_nothing(tmp_path, capsy
     assert payload["provider_key_counts"]["pagu"] == 1
     assert "bv_brc" not in payload["provider_key_counts"]
     assert payload["provider_automation_level_counts"] == {
-        "metadata_review": 4,
+        "metadata_review": 7,
         "planning_handoff": _default_planning_handoff_count(),
     }
     assert payload["operator_route_counts"] == {
         "provider_handoff": _default_planning_handoff_count(),
-        "public_metadata_review": 4,
+        "public_metadata_review": 7,
     }
     assert payload["provider_route_groups"][0]["operator_route"] == "provider_handoff"
     assert payload["provider_route_groups"][0]["safe_for_unattended_execution"] is False
@@ -106,7 +106,15 @@ def test_coverage_plan_dry_run_is_single_json_and_writes_nothing(tmp_path, capsy
         for group in payload["provider_route_groups"]
         if group["operator_route"] == "public_metadata_review"
     )
-    assert metadata_group["provider_keys"] == ["ddbj", "ena", "genbank", "refseq"]
+    assert metadata_group["provider_keys"] == [
+        "ddbj",
+        "ena",
+        "genbank",
+        "insdc",
+        "ncbi_assembly",
+        "ncbi_biosample",
+        "refseq",
+    ]
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
@@ -219,7 +227,7 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
     assert summary["strict_scientific_deliverable"] is False
     assert summary["operator_route_counts"] == {
         "provider_handoff": _default_planning_handoff_count(),
-        "public_metadata_review": 4,
+        "public_metadata_review": 7,
     }
     assert summary["priority_provider_route_items"][0]["route_priority"] == (
         "provider_handoff"

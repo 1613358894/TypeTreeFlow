@@ -140,6 +140,9 @@ Coverage action plans are derived offline queues from acquisition worklist
 lanes. They may prioritize curator conflict resolution, public archive linkage
 review, public type-linkage review, external registration review, provider
 handoff preparation, local evidence construction, or no-action strict records.
+When a public review row lacks explicit provider hints, default public metadata
+review labels may include ENA, DDBJ, INSDC, GenBank, RefSeq, NCBI Assembly, and
+NCBI BioSample to keep accession/linkage review pressure visible.
 They must not contact providers, download genomes, write manifests, update
 completion metrics, create `external_genomes.tsv`, or convert candidate
 evidence into strict scientific deliverables.

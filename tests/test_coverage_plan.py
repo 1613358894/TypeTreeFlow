@@ -4,6 +4,8 @@ import json
 
 from typetreeflow.evidence.coverage_plan import (
     COVERAGE_PLAN_FIELDS,
+    PUBLIC_ARCHIVE_REVIEW_PROVIDER_KEYS,
+    PUBLIC_TYPE_LINKAGE_REVIEW_PROVIDER_KEYS,
     build_coverage_plan,
 )
 from typetreeflow.providers.registry import build_default_provider_registry
@@ -56,29 +58,33 @@ def test_coverage_plan_orders_actions_and_preserves_audit_boundaries():
     assert summary["manifest_mutated"] is False
     assert summary["strict_scientific_deliverable"] is False
     assert summary["provider_key_counts"]["ena"] == 1
+    assert summary["provider_key_counts"]["insdc"] == 1
+    assert summary["provider_key_counts"]["ncbi_assembly"] == 2
+    assert summary["provider_key_counts"]["ncbi_biosample"] == 2
     assert summary["provider_key_counts"]["atcc_genome_portal"] == 1
     assert summary["provider_key_counts"]["cctcc"] == 1
     assert summary["provider_key_counts"]["gtc"] == 1
     assert summary["provider_key_counts"]["pagu"] == 1
-    assert "genbank" in summary["provider_key_counts"]
+    assert summary["provider_key_counts"]["genbank"] == 2
+    assert summary["provider_key_counts"]["refseq"] == 2
     assert "bv_brc" not in summary["provider_key_counts"]
     assert summary["provider_key_counts"]["dsmz"] == 1
     assert summary["provider_automation_level_counts"] == {
-        "metadata_review": 6,
+        "metadata_review": 11,
         "planning_handoff": len(_default_planning_handoff_keys()),
     }
     assert summary["operator_route_counts"] == {
         "provider_handoff": len(_default_planning_handoff_keys()),
-        "public_metadata_review": 6,
+        "public_metadata_review": 11,
     }
     assert summary["next_input_class_counts"] == {
         "permitted_local_fasta_terms_provenance": len(
             _default_planning_handoff_keys()
         ),
-        "public_accession_type_strain_linkage": 6,
+        "public_accession_type_strain_linkage": 11,
     }
     assert summary["automation_boundary_counts"] == {
-        "metadata_review_only_no_download": 6,
+        "metadata_review_only_no_download": 11,
         "planning_handoff_no_provider_contact": len(
             _default_planning_handoff_keys()
         ),
@@ -104,9 +110,31 @@ def test_coverage_plan_serializers_are_stable():
     assert tuple(parsed[0]) == COVERAGE_PLAN_FIELDS
     assert parsed[0]["audit_only"] == "true"
     assert parsed[0]["strict_scientific_deliverable"] == "false"
-    assert parsed[0]["provider_keys"] == "ddbj; ena; genbank; refseq"
+    assert parsed[0]["provider_keys"] == "; ".join(
+        PUBLIC_ARCHIVE_REVIEW_PROVIDER_KEYS
+    )
     summary = json.loads(plan.summary_json())
     assert summary["action_counts"] == {"review_public_archive_linkage": 1}
+
+
+def test_coverage_plan_defaults_public_type_linkage_to_ncbi_metadata_review():
+    plan = build_coverage_plan(
+        [_row("Clostridium publicum", "public_linkage_review")]
+    )
+
+    action = plan.actions[0]
+    assert action.provider_keys == "; ".join(
+        PUBLIC_TYPE_LINKAGE_REVIEW_PROVIDER_KEYS
+    )
+    summary = json.loads(plan.summary_json())
+    assert summary["provider_key_counts"] == {
+        "genbank": 1,
+        "ncbi_assembly": 1,
+        "ncbi_biosample": 1,
+        "refseq": 1,
+    }
+    assert summary["provider_status_counts"] == {"metadata_only": 4}
+    assert summary["operator_route_counts"] == {"public_metadata_review": 4}
 
 
 def test_coverage_plan_uses_canonical_provider_hints_when_present():

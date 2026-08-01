@@ -1725,7 +1725,10 @@ planning-handoff providers before public metadata-review providers, then by
 record count and provider key. Each item carries the primary route, action,
 next-input class, bounded species preview, credential/network counts, and
 fixed no-execution fields. It is local prioritization metadata only and does
-not authorize provider contact or downloads. Provider hints from supported worklist fields are
+not authorize provider contact or downloads. Public archive and public
+type-linkage rows without explicit hints use metadata-only defaults such as
+ENA, DDBJ, INSDC, GenBank, NCBI Assembly, NCBI BioSample, and RefSeq so public
+accession/linkage review pressure remains visible. Provider hints from supported worklist fields are
 additive: an unknown local label is retained as fail-closed planning-only
 handoff metadata and does not mask later canonical provider or public archive
 names in other fields.
