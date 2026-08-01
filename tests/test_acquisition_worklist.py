@@ -232,9 +232,9 @@ def test_worklist_bacdive_dsmz_source_hint_carries_metadata_provider_keys():
     row = report.rows[0]
     assert row.lane == "public_linkage_review"
     assert row.reason_code == "public_candidate_bacdive_or_dsmz_review"
-    assert row.candidate_provider_keys == "dsmz; bacdive"
+    assert row.candidate_provider_keys == "bacdive; dsmz"
     assert row.candidate_provider_statuses == (
-        "dsmz=planning_only; bacdive=metadata_only"
+        "bacdive=metadata_only; dsmz=planning_only"
     )
     opportunity = report.summary["acquisition_opportunity_summary"][0]
     assert opportunity["candidate_provider_key_counts"] == {
@@ -245,6 +245,31 @@ def test_worklist_bacdive_dsmz_source_hint_carries_metadata_provider_keys():
         "metadata_only": 1,
         "planning_only": 1,
     }
+
+
+def test_worklist_bacdive_accession_field_carries_metadata_provider_key():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium bacdiveaccessionum"}],
+        reconciler_rows=[
+            _row(
+                "Clostridium bacdiveaccessionum",
+                assembly_accession="GCF_0006.1",
+                reconciled_evidence_tier="authoritative_type_material_candidate",
+                matched_bacdive_accessions="12345",
+            )
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "public_linkage_review"
+    assert row.reason_code == "public_candidate_bacdive_or_dsmz_review"
+    assert row.candidate_provider_keys == "bacdive"
+    assert row.candidate_provider_statuses == "bacdive=metadata_only"
+    assert report.summary["candidate_provider_key_counts"] == {"bacdive": 1}
+    assert report.summary["candidate_provider_status_counts"] == {"metadata_only": 1}
+    opportunity = report.summary["acquisition_opportunity_summary"][0]
+    assert opportunity["candidate_provider_key_counts"] == {"bacdive": 1}
+    assert opportunity["candidate_provider_status_counts"] == {"metadata_only": 1}
 
 
 def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
