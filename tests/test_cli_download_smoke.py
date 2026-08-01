@@ -1,0 +1,149 @@
+import csv
+import json
+
+from typetreeflow.cli import main
+from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
+
+
+def _write_download_plan(path, rows):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=DOWNLOAD_PLAN_FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _planned_row(record_id="rec-1", accession="GCF_000001.1"):
+    return {
+        "record_id": record_id,
+        "normalized_id": record_id.replace("-", "_"),
+        "assembly_accession": accession,
+        "expected_genome_path": f"genomes/references/{record_id}.fna",
+        "datasets_zip_path": f"cache/ncbi/{record_id}.zip",
+        "download_dir": "cache/ncbi",
+        "status": "planned",
+        "notes": "",
+    }
+
+
+def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
+    plan = tmp_path / "download_plan.tsv"
+    _write_download_plan(
+        plan,
+        [
+            _planned_row("rec-1"),
+            _planned_row("rec-2"),
+            {**_planned_row("missing"), "status": "skipped_no_accession"},
+        ],
+    )
+
+    assert main(["download-smoke", "prepare", "--download-plan", str(plan)]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_summary"]
+    assert payload["command"] == "download-smoke prepare"
+    assert payload["status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["network_access"] is False
+    assert summary["schema_version"] == "bounded_download_smoke_input_summary.v1"
+    assert summary["selected_row_count"] == 2
+    assert summary["source_planned_row_count"] == 2
+    assert summary["ready"] is True
+    assert summary["safe_for_unattended_download"] is False
+
+
+def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
+    plan = tmp_path / "download_plan.tsv"
+    outdir = tmp_path / "smoke-input"
+    _write_download_plan(plan, [_planned_row("rec-1"), _planned_row("rec-2")])
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "prepare",
+                "--download-plan",
+                str(plan),
+                "--limit",
+                "1",
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    rows = list(
+        csv.DictReader(
+            (outdir / "bounded_download_smoke_plan.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
+    summary = json.loads(
+        (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
+    )
+    assert payload["writes_outputs"] is True
+    assert rows == [_planned_row("rec-1")]
+    assert summary["selected_row_count"] == 1
+    assert summary["downloads_triggered"] == 0
+
+
+def test_download_smoke_prepare_blocks_without_planned_rows(capsys, tmp_path):
+    plan = tmp_path / "download_plan.tsv"
+    _write_download_plan(
+        plan,
+        [{**_planned_row("missing"), "status": "skipped_no_accession"}],
+    )
+
+    assert main(["download-smoke", "prepare", "--download-plan", str(plan)]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["ready"] is False
+    assert summary["blockers"] == ["no_planned_ncbi_download_rows"]
+
+
+def test_download_smoke_prepare_rejects_wrong_schema(capsys, tmp_path):
+    plan = tmp_path / "download_plan.tsv"
+    plan.write_text("record_id\tstatus\nrec-1\tplanned\n", encoding="utf-8")
+
+    assert main(["download-smoke", "prepare", "--download-plan", str(plan)]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert payload["blocking"][0]["id"] == "input_invalid"
+
+
+def test_download_smoke_prepare_refuses_existing_nonempty_output(capsys, tmp_path):
+    plan = tmp_path / "download_plan.tsv"
+    outdir = tmp_path / "smoke-input"
+    outdir.mkdir()
+    (outdir / "existing.txt").write_text("keep\n", encoding="utf-8")
+    _write_download_plan(plan, [_planned_row("rec-1")])
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "prepare",
+                "--download-plan",
+                str(plan),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 1
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "failed"
+    assert payload["blocking"][0]["id"] == "output_write_failed"
+    assert (outdir / "existing.txt").read_text(encoding="utf-8") == "keep\n"

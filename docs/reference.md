@@ -37,12 +37,25 @@ Primary commands write compact JSON to stdout by default. This does not require
   emits `download_plan_readiness_summary`: an acquisition-facing, read-only
   count summary for planned NCBI downloads, existing genomes, missing
   accessions, and external registered genomes. The summary is derived only
-  from the existing plan and keeps `safe_for_unattended_download=false`,
-  `downloads_triggered=0`, `providers_contacted=0`, `manifest_mutated=false`,
-  and `strict_scientific_deliverable=false`.
+  from the existing plan. It also exposes bounded smoke-test routing fields
+  such as `bounded_ncbi_download_smoke_candidate_count`,
+  `bounded_ncbi_download_smoke_ready`,
+  `bounded_ncbi_download_smoke_scope`,
+  `bounded_ncbi_download_smoke_blockers`, and
+  `whole_plan_requires_review`. These fields identify whether any planned NCBI
+  rows exist for a separately authorized bounded download smoke; they do not
+  authorize broad or unattended downloads. The summary keeps
+  `safe_for_unattended_download=false`, `downloads_triggered=0`,
+  `providers_contacted=0`, `manifest_mutated=false`, and
+  `strict_scientific_deliverable=false`.
 - `package-results`: compact JSON with delivery directory, included artifacts,
   missing optional files, success/failure handoff status, warnings, and next
   action.
+- `download-smoke prepare`: compact JSON summary for an isolated bounded NCBI
+  download smoke input package. It reads only the explicit `--download-plan`
+  TSV, selects up to `--limit` rows with `status=planned`, and never runs
+  `datasets`, opens the network, contacts providers, mutates the manifest, or
+  creates strict scientific deliverables.
 
 AI-facing stdout must stay short. Long logs, reports, tables, diagnostics, and
 evidence belong in the run directory.
@@ -1394,7 +1407,7 @@ Recommended layout:
 - `selection/*.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `culture_collection_ids`, `is_type_material`, `has_lpsn_type_strain_match`, `match_evidence`, `evidence_level`, `selection_rank`, `selected`, `selection_policy`, `policy_decision`, `ranking_reasons`, `blocking_reasons`, `manual_review_reason`, `selection_reason`, `notes`
 - `selection/user_selection.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `culture_collection_ids`, `is_type_material`, `has_lpsn_type_strain_match`, `match_evidence`, `evidence_level`, `selection_rank`, `selected`, `selection_policy`, `policy_decision`, `ranking_reasons`, `blocking_reasons`, `manual_review_reason`, `selection_reason`, `notes`
 - `selection/download_preflight_summary.tsv`: `selected_total`, `strict_confirmed`, `likely_type_material`, `representative_only`, `missing_evidence_level`, `ncbi_assembly_backed`, `external_registered`, `download_planned`, `download_skipped_existing`, `download_not_applicable`, `download_skipped_no_accession`, `representative_only_scope`
-- `selection/download_plan_readiness_summary.json`: read-only JSON summary derived from `cache/ncbi/download_plan.tsv`. Stable fields include `schema_version`, `available`, `download_plan_path`, `total_rows`, `status_counts`, `download_ready_ncbi_count`, `public_ncbi_download_plan_ready_count`, `existing_genome_count`, `missing_accession_count`, `external_registered_count`, `other_plan_status_count`, `malformed_row_count`, `review_or_handoff_count`, `safe_for_unattended_download`, `downloads_triggered`, `providers_contacted`, `network_access`, `external_tools`, `manifest_mutated`, and `strict_scientific_deliverable`.
+- `selection/download_plan_readiness_summary.json`: read-only JSON summary derived from `cache/ncbi/download_plan.tsv`. Stable fields include `schema_version`, `available`, `download_plan_path`, `total_rows`, `status_counts`, `download_ready_ncbi_count`, `public_ncbi_download_plan_ready_count`, `existing_genome_count`, `missing_accession_count`, `external_registered_count`, `other_plan_status_count`, `malformed_row_count`, `review_or_handoff_count`, `bounded_ncbi_download_smoke_candidate_count`, `bounded_ncbi_download_smoke_ready`, `bounded_ncbi_download_smoke_scope`, `bounded_ncbi_download_smoke_blockers`, `whole_plan_requires_review`, `safe_for_unattended_download`, `downloads_triggered`, `providers_contacted`, `network_access`, `external_tools`, `manifest_mutated`, and `strict_scientific_deliverable`.
 - `manual_deposit_evidence_template.tsv`: `species`, `assembly_accession`, `organism_name`, `strain`, `biosample`, `is_type_material`, `lpsn_type_strain_ids`, `ncbi_culture_collection_ids`, `biosample_culture_collection`, `biosample_type_material`, `current_manual_review_reason`, `suggested_review_action`, `curator_confirmed_deposit_id`, `curator_evidence_source`, `curator_notes`
 - `manual_species_gap_summary.tsv`: `species`, `lpsn_type_strain_ids`, `candidate_count`, `type_material_candidate_count`, `candidates_with_biosample_count`, `candidates_with_ncbi_deposit_id_count`, `best_candidate_accession`, `best_candidate_reason`, `gap_reason`, `recommended_next_step`
 - `source_audit/sequence_source_audit.tsv`: `species`, `genome_accession`, `genome_strain`, `genome_biosample`, `genome_culture_ids`, `rrna_source`, `rrna_accession`, `rrna_strain`, `rrna_biosample`, `rrna_culture_ids`, `same_biosample`, `same_culture_collection_id`, `same_strain_text`, `audit_status`, `notes`
@@ -1411,6 +1424,8 @@ Recommended layout:
 - `completion/rejected_candidates.tsv`: `species`, `token`, `query_database`, `query`, `candidate_accession`, `candidate_biosample`, `candidate_organism`, `candidate_strain`, `decision`, `decision_reason`, `reject_category`, `notes`
 - `completion/manual_supplement_hints.tsv`: `species`, `lpsn_type_strain`, `tokens`, `matched_candidate_count`, `rejected_candidate_count`, `no_result_count`, `query_failed_count`, `recommended_action`, `suggested_template`, `notes`, `reason`, `source`, `handoff_path`
 - `cache/ncbi/download_plan.tsv`: `record_id`, `normalized_id`, `assembly_accession`, `expected_genome_path`, `datasets_zip_path`, `download_dir`, `status`, `notes`
+- `bounded_download_smoke_plan.tsv`: isolated subset of `cache/ncbi/download_plan.tsv` for a separately authorized bounded NCBI download smoke. Field order matches `cache/ncbi/download_plan.tsv`; every row has `status=planned`.
+- `bounded_download_smoke_summary.json`: read-only JSON summary for `download-smoke prepare`. Stable fields include `schema_version`, `command`, `source_download_plan_path`, `limit`, `selected_row_count`, `source_planned_row_count`, `source_total_rows`, `ready`, `blockers`, `execution_boundary`, `safe_for_unattended_download`, `downloads_triggered`, `providers_contacted`, `network_access`, `external_tools`, `manifest_mutated`, and `strict_scientific_deliverable`.
 - `cache/ncbi/download_results.tsv`: `record_id`, `normalized_id`, `assembly_accession`, `status`, `zip_path`, `returncode`, `stderr`, `notes`
 - `rrna/rrna_plan.tsv`: `record_id`, `normalized_id`, `genome_path`, `expected_gff_path`, `expected_rrna_fasta_path`, `status`, `notes`
 - `report/artifact_scope.tsv`: `artifact_path`, `artifact_kind`, `scope`, `evidence_policy`, `record_count`, `strict_usable_count`, `candidate_count`, `excluded_mismatch_count`, `artifact_label`, `recommended_use`, `not_for`, `source_artifact`, `consumer_priority`, `strict_scientific_deliverable`, `notes`

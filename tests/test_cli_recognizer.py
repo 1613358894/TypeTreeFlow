@@ -128,6 +128,7 @@ def test_main_early_dispatch_order_is_explicit_and_stable():
         "coverage-pipeline",
         "acquisition-worklist",
         "count-crosswalk",
+        "download-smoke",
         "archive-candidates",
         "coverage-plan",
         "provider-handoff",
