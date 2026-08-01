@@ -735,7 +735,10 @@ the archive audit has manual-review skeleton rows, the isolated child directory
 also keeps `archive_candidates/manual_review.tsv` as an incomplete next-input
 template. `coverage-pipeline status` then routes the `archive_candidates` stage
 to `manual-review validate --input archive_candidates/manual_review.tsv` so the
-next local review step is explicit.
+next local review step is explicit. If a later isolated `manual_review_import/`
+or `strict_gating/` directory is supplied or stored under the same coverage
+pipeline directory, `status` reads those audit summaries as additional
+operator-chain stages without running the import or evaluator.
 `build --validate-provider-request --write` also writes the local provider
 request validation audit pair under `provider_request_validation/` in the same
 isolated directory. This is the same offline readiness check as
