@@ -65,6 +65,7 @@ from typetreeflow.external_genomes import (
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
 )
+from typetreeflow.manifest import read_manifest
 from typetreeflow.provider_plan import (
     PROVIDER_REQUEST_FIELDS,
     ProviderRequestRecord,
@@ -2691,6 +2692,20 @@ def _apply_registration_dry_run_stage_details(
     stage["summary_install_result_status_counts"] = dict(
         sorted(install_status_counts.items())
     )
+    manifest_path = Path(directory) / "manifest.tsv"
+    if not manifest_path.exists():
+        stage["summary_manifest_available"] = False
+        stage["summary_manifest_record_count"] = 0
+        return
+    try:
+        manifest_records = read_manifest(manifest_path)
+    except (OSError, UnicodeError, csv.Error, ValueError):
+        diagnostics.append(
+            _diagnostic("external_genomes_registration_dry_run", "artifact_malformed")
+        )
+        return
+    stage["summary_manifest_available"] = True
+    stage["summary_manifest_record_count"] = len(manifest_records)
 
 
 def _find_stage(

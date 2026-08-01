@@ -7192,6 +7192,27 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
             }
         ],
     )
+    write_manifest(
+        [
+            StrainRecord(
+                record_id="external-dsm-1",
+                canonical_name="Clostridium alpha",
+                display_name="Clostridium alpha DSM 1",
+                genus="Clostridium",
+                species="alpha",
+                strain="DSM 1",
+                assembly_accession="",
+                assembly_source="external_registered_genome",
+                is_type_material=True,
+                has_genome=True,
+                genome_path="genomes/references/dsm-1.fna",
+                normalized_id="external-dsm-1",
+                source="external_registered_genome",
+                status="external_genome_registered",
+            )
+        ],
+        registration_dir / "manifest.tsv",
+    )
 
     code, payload, captured = _run(
         [
@@ -7343,6 +7364,8 @@ def test_coverage_pipeline_status_reads_explicit_operator_artifacts(capsys, tmp_
     assert registration_stage["summary_install_result_status_counts"] == {
         "external_genome_install_succeeded": 1
     }
+    assert registration_stage["summary_manifest_available"] is True
+    assert registration_stage["summary_manifest_record_count"] == 1
     _assert_handoff_next_step_packet(
         payload,
         available=False,
