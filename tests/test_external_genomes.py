@@ -694,6 +694,7 @@ def test_external_genomes_validate_emits_readiness_packet(capsys, tmp_path):
         "provider_status_counts": {},
         "provider_automation_level_counts": {},
         "provider_route_groups": [],
+        "source_priority_counts": {},
         "next_stage": "external_genomes_install_plan",
         "required_inputs": [path.as_posix()],
         "recommended_request": {
@@ -907,6 +908,7 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
     assert packet["provider_status_counts"] == {}
     assert packet["provider_automation_level_counts"] == {}
     assert packet["provider_route_groups"] == []
+    assert packet["source_priority_counts"] == {}
     assert packet["required_inputs"] == [path.as_posix()]
     assert packet["recommended_request"] == {
         "command": "register-external-genomes",

@@ -1925,7 +1925,7 @@ object with `ready_count`, `blocked_count`, `blocker_counts`,
 `local_fasta_checked_count`, `local_sha256_matched_count`,
 `provider_status_counts`, `provider_automation_level_counts`,
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`, and
-`automation_boundary_counts`, plus `provider_key_filter`,
+`automation_boundary_counts`, `source_priority_counts`, plus `provider_key_filter`,
 `provider_key_filter_count`, and `filtered` when a local provider subset was
 selected. Route counts are populated when the controlled values are present in
 draft row notes. Row previews include only request ID, species, provider, readiness
@@ -1946,8 +1946,9 @@ provider-specific validation batch can continue to a provider-specific
 `next_stage=provider_request_external_genomes_handoff` only when every row is
 ready. It carries `provider_route_groups` when controlled route metadata is
 present, so controllers can route without re-reading the parent payload. Ready
-packets include compact `recommended_request_target` labels for AI/controller
-routing. Blocked or failed validation packets keep
+packets also carry `source_priority_counts` when upstream coverage priority is
+available, and include compact `recommended_request_target` labels for
+AI/controller routing. Blocked or failed validation packets keep
 `recommended_request=null`, empty request-target labels, and an empty
 `recommended_next_command`. Ready packets also include
 `recommended_command_plan`, a non-executing `commands plan` companion for the
@@ -1993,14 +1994,15 @@ SHA-256 values, provider notes, curator values, or sequence contents. Without
 `provider_request_external_genomes_summary.json` into the explicitly supplied
 directory. The JSON and summary include route counts for exported ready rows,
 `provider_status_counts`, `provider_automation_level_counts`,
-`provider_route_groups`, `recommended_request` for `external-genomes validate`,
-plus `install_plan_recommended_request` for the offline `external-genomes
+`provider_route_groups`, `source_priority_counts`, `recommended_request` for
+`external-genomes validate`, plus `install_plan_recommended_request` for the offline `external-genomes
 install-plan` step. The install-plan recommended request includes `write=true` and
 `outdir=<isolated-install-plan-directory>` so AI/operator controllers can
 materialize the next audit directory explicitly; this is still only an
 isolated-output write, not workflow-output mutation or download execution.
 The draft row notes may carry controlled route metadata copied from the
-provider request notes; they must not copy raw provider notes or curator notes.
+provider request notes, including numeric `source_priority` for downstream
+queue ordering; they must not copy raw provider notes or curator notes.
 When `--write` succeeds, the recommended validation and install-plan requests
 point to the just-written `<dir>/external_genomes.tsv` artifact instead of the
 generic placeholder so the next local dry-run step can be rendered without

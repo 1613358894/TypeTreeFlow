@@ -657,6 +657,7 @@ def _validate_payload(
         "provider_route_groups": route_counts["provider_route_groups"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
         "automation_boundary_counts": route_counts["automation_boundary_counts"],
+        "source_priority_counts": route_counts["source_priority_counts"],
         "external_source_counts": packet_counts["external_source_counts"],
         "checksum_input_counts": packet_counts["checksum_input_counts"],
         "type_material_counts": packet_counts["type_material_counts"],
@@ -691,6 +692,7 @@ def _validate_payload(
                 "provider_automation_level_counts"
             ],
             provider_route_groups=route_counts["provider_route_groups"],
+            source_priority_counts=route_counts["source_priority_counts"],
             required_inputs=[input_value],
             recommended_request=recommended_request or {},
             recommended_next_command=recommended_next_command,
@@ -770,6 +772,7 @@ def _install_plan_payload(
         "provider_route_groups": route_counts["provider_route_groups"],
         "next_input_class_counts": route_counts["next_input_class_counts"],
         "automation_boundary_counts": route_counts["automation_boundary_counts"],
+        "source_priority_counts": route_counts["source_priority_counts"],
         "external_source_counts": packet_counts["external_source_counts"],
         "checksum_input_counts": packet_counts["checksum_input_counts"],
         "type_material_counts": packet_counts["type_material_counts"],
@@ -800,6 +803,7 @@ def _install_plan_payload(
                 "provider_automation_level_counts"
             ],
             provider_route_groups=route_counts["provider_route_groups"],
+            source_priority_counts=route_counts["source_priority_counts"],
             required_inputs=[external_genomes_input],
             recommended_request=recommended_request,
             recommended_next_command=recommended_next,
@@ -1068,6 +1072,7 @@ def _external_genomes_readiness_packet(
     provider_status_counts: dict[str, int],
     provider_automation_level_counts: dict[str, int],
     provider_route_groups: list[dict[str, object]],
+    source_priority_counts: dict[str, int],
     required_inputs: list[str],
     recommended_request: dict[str, object],
     recommended_next_command: str,
@@ -1101,6 +1106,7 @@ def _external_genomes_readiness_packet(
             sorted(provider_automation_level_counts.items())
         ),
         "provider_route_groups": list(provider_route_groups),
+        "source_priority_counts": dict(sorted(source_priority_counts.items())),
         "next_stage": next_stage,
         "required_inputs": list(required_inputs),
         "recommended_request": next_request,

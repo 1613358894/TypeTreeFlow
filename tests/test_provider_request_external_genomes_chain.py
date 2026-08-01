@@ -49,7 +49,8 @@ def _request_values(**overrides: str) -> dict[str, str]:
                 "provider_automation_level=planning_handoff; "
                 "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
-                "automation_boundary=planning_handoff_no_provider_contact"
+                "automation_boundary=planning_handoff_no_provider_contact; "
+                "source_priority=50"
             ),
         }
     )
@@ -108,7 +109,8 @@ def _write_ready_provider_request_from_template(
                 "provider_automation_level=planning_handoff; "
                 "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
-                "automation_boundary=planning_handoff_no_provider_contact"
+                "automation_boundary=planning_handoff_no_provider_contact; "
+                "source_priority=50"
             ),
         }
     )
@@ -182,6 +184,7 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert validation_payload["provider_automation_level_counts"] == {
         "planning_handoff": 1
     }
+    assert validation_payload["source_priority_counts"] == {"50": 1}
     assert validation_payload["writes_workflow_outputs"] is False
 
     assert (
@@ -221,6 +224,7 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert draft_payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert draft_payload["source_priority_counts"] == {"50": 1}
     assert draft_payload["writes_workflow_outputs"] is False
     assert draft_payload["external_genomes_registration_applied"] is False
     assert str(fasta) not in draft_stdout
@@ -255,6 +259,7 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert external_payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert external_payload["source_priority_counts"] == {"50": 1}
     assert external_payload["writes_outputs"] is False
 
     assert (
@@ -298,6 +303,7 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert install_plan_payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert install_plan_payload["source_priority_counts"] == {"50": 1}
     assert install_plan_payload["writes_outputs"] is True
     assert install_plan_payload["writes_workflow_outputs"] is False
     assert install_plan_payload["install_executed"] is False
@@ -366,6 +372,7 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert register_payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert register_payload["source_priority_counts"] == {"50": 1}
     assert register_payload["downloads_triggered"] == 0
     assert register_payload["providers_contacted"] == 0
     assert register_payload["manifest_mutated"] is False
@@ -468,6 +475,7 @@ def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
     assert handoff_payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert handoff_payload["source_priority_counts"] == {"50": 1}
     assert handoff_payload["recommended_request"]["input"] == handoff_external_genomes
     assert (
         handoff_payload["install_plan_recommended_request"]["input"]

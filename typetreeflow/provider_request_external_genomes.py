@@ -72,6 +72,7 @@ class ProviderRequestExternalGenomesDraft:
     provider_route_groups: list[dict[str, object]]
     next_input_class_counts: dict[str, int]
     automation_boundary_counts: dict[str, int]
+    source_priority_counts: dict[str, int]
     provider_key_filter: tuple[str, ...] = ()
     schema_version: str = PROVIDER_REQUEST_EXTERNAL_GENOMES_SCHEMA_VERSION
 
@@ -108,6 +109,7 @@ class ProviderRequestExternalGenomesDraft:
             "automation_boundary_counts": dict(
                 sorted(self.automation_boundary_counts.items())
             ),
+            "source_priority_counts": dict(sorted(self.source_priority_counts.items())),
             "provider_key_filter": list(self.provider_key_filter),
             "provider_key_filter_count": len(self.provider_key_filter),
             "filtered": bool(self.provider_key_filter),
@@ -204,6 +206,7 @@ def build_provider_request_external_genomes_draft(
         provider_route_groups=route_counts["provider_route_groups"],
         next_input_class_counts=route_counts["next_input_class_counts"],
         automation_boundary_counts=route_counts["automation_boundary_counts"],
+        source_priority_counts=route_counts["source_priority_counts"],
         provider_key_filter=selected_provider_keys,
     )
 
@@ -258,6 +261,7 @@ def _notes(record: ProviderRequestRecord) -> str:
         "operator_route",
         "next_input_class",
         "automation_boundary",
+        "source_priority",
     ):
         if route_metadata[key]:
             parts.append(f"{key}={route_metadata[key]}")
@@ -272,6 +276,7 @@ def _ready_route_counts(rows) -> dict[str, object]:
         "provider_route_groups": [],
         "next_input_class_counts": {},
         "automation_boundary_counts": {},
+        "source_priority_counts": {},
     }
     route_group_rows: list[dict[str, object]] = []
     for row in rows:
@@ -287,6 +292,7 @@ def _ready_route_counts(rows) -> dict[str, object]:
                 "operator_route": getattr(row, "operator_route", ""),
                 "next_input_class": getattr(row, "next_input_class", ""),
                 "automation_boundary": getattr(row, "automation_boundary", ""),
+                "source_priority": getattr(row, "source_priority", ""),
             }
         )
         for field, key in (
@@ -295,6 +301,7 @@ def _ready_route_counts(rows) -> dict[str, object]:
             ("operator_route", "operator_route_counts"),
             ("next_input_class", "next_input_class_counts"),
             ("automation_boundary", "automation_boundary_counts"),
+            ("source_priority", "source_priority_counts"),
         ):
             value = getattr(row, field, "")
             if value:

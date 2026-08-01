@@ -91,6 +91,7 @@ class ProviderRequestValidationRow:
     operator_route: str = ""
     next_input_class: str = ""
     automation_boundary: str = ""
+    source_priority: str = ""
 
     @property
     def ready(self) -> bool:
@@ -110,6 +111,7 @@ class ProviderRequestValidationRow:
             "operator_route": self.operator_route,
             "next_input_class": self.next_input_class,
             "automation_boundary": self.automation_boundary,
+            "source_priority": self.source_priority,
         }
 
 
@@ -132,6 +134,7 @@ class ProviderRequestValidation:
         operator_route_counts: dict[str, int] = {}
         next_input_class_counts: dict[str, int] = {}
         automation_boundary_counts: dict[str, int] = {}
+        source_priority_counts: dict[str, int] = {}
         blocker_counts: dict[str, int] = {}
         for row in self.rows:
             status_counts[row.readiness_status] = (
@@ -161,6 +164,10 @@ class ProviderRequestValidation:
                 automation_boundary_counts[row.automation_boundary] = (
                     automation_boundary_counts.get(row.automation_boundary, 0) + 1
                 )
+            if row.source_priority:
+                source_priority_counts[row.source_priority] = (
+                    source_priority_counts.get(row.source_priority, 0) + 1
+                )
             for blocker in row.blocking_reasons:
                 blocker_counts[blocker] = blocker_counts.get(blocker, 0) + 1
         ready_count = sum(1 for row in self.rows if row.ready)
@@ -184,6 +191,7 @@ class ProviderRequestValidation:
             "automation_boundary_counts": dict(
                 sorted(automation_boundary_counts.items())
             ),
+            "source_priority_counts": dict(sorted(source_priority_counts.items())),
             "provider_key_filter": list(self.provider_key_filter),
             "provider_key_filter_count": len(self.provider_key_filter),
             "filtered": bool(self.provider_key_filter),
@@ -329,6 +337,7 @@ def provider_request_validation_payload(
         "provider_route_groups": summary["provider_route_groups"],
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
+        "source_priority_counts": summary["source_priority_counts"],
         "provider_key_filter": summary["provider_key_filter"],
         "provider_key_filter_count": summary["provider_key_filter_count"],
         "filtered": summary["filtered"],
@@ -498,6 +507,7 @@ def _validate_record(
         operator_route=route_metadata["operator_route"],
         next_input_class=route_metadata["next_input_class"],
         automation_boundary=route_metadata["automation_boundary"],
+        source_priority=route_metadata["source_priority"],
     )
 
 
@@ -509,11 +519,15 @@ def provider_request_route_metadata_from_notes(notes: str) -> dict[str, str]:
         "operator_route": "",
         "next_input_class": "",
         "automation_boundary": "",
+        "source_priority": "",
     }
     for part in str(notes).split(";"):
         key, sep, value = part.strip().partition("=")
         if sep and key in values:
-            values[key] = value.strip()
+            candidate = value.strip()
+            if key == "source_priority" and not candidate.isdigit():
+                continue
+            values[key] = candidate
     return values
 
 

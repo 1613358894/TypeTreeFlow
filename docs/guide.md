@@ -322,7 +322,8 @@ The validator checks required provider request fields, terms review,
 curator-owned completion fields, type-material/manual-review flags, local
 FASTA existence, and SHA-256 match. It emits compact JSON with ready/blocked
 counts, blocker counts, `blocker_guidance`, inherited route counts, and provider
-route groups from draft row notes when available, but it does not echo local
+route groups from draft row notes when available. Numeric source coverage
+priority is preserved as `source_priority_counts` when present, but it does not echo local
 FASTA paths, hashes, provider notes, or sequence contents. Blocker guidance maps
 each blocker code to a local operator action and preserves no-download,
 no-provider-contact, and no-strict-deliverable boundary flags. It also includes the next offline
@@ -363,10 +364,11 @@ summary JSON include exported route counts, provider route groups, plus the next
 the matching
 `provider_request_readiness_packet` exposes those requests only when every row
 is ready. The packet also carries metadata-only command plans for those next
-requests and the same `provider_route_groups`; install-plan writes remain
-blocked until explicit write allowance is supplied. Controlled route
-metadata may be copied into `external_genomes.tsv` notes, but raw provider or
-curator notes are not copied. This is still only a handoff input: it does not
+requests and the same `provider_route_groups` plus `source_priority_counts`;
+install-plan writes remain blocked until explicit write allowance is supplied.
+Controlled route metadata, including numeric `source_priority`, may be copied
+into `external_genomes.tsv` notes, but raw provider or curator notes are not copied.
+This is still only a handoff input: it does not
 register external genomes, copy FASTA files, mutate manifests, contact
 providers, download data, or create strict scientific deliverables.
 Repeated `--provider-key` values export only a provider-specific subset from a

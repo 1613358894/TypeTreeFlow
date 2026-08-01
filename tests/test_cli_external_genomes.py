@@ -54,7 +54,8 @@ def _row(**overrides) -> list[str]:
 ROUTE_NOTES = (
     "curator registered; operator_route=provider_handoff; "
     "next_input_class=permitted_local_fasta_terms_provenance; "
-    "automation_boundary=planning_handoff_no_provider_contact"
+    "automation_boundary=planning_handoff_no_provider_contact; "
+    "source_priority=50"
 )
 
 
@@ -219,6 +220,7 @@ def test_register_external_genomes_dry_run_stdout_is_compact_json(tmp_path, caps
     assert payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert payload["source_priority_counts"] == {"50": 1}
     assert payload["install_plan_status_counts"] == {
         "external_genome_install_planned": 1
     }

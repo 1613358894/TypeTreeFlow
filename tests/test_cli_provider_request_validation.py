@@ -40,7 +40,8 @@ def _request_values(**overrides: str) -> dict[str, str]:
                 "provider_automation_level=planning_handoff; "
                 "operator_route=provider_handoff; "
                 "next_input_class=permitted_local_fasta_terms_provenance; "
-                "automation_boundary=planning_handoff_no_provider_contact"
+                "automation_boundary=planning_handoff_no_provider_contact; "
+                "source_priority=50"
             ),
         }
     )
@@ -114,6 +115,7 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
     assert payload["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert payload["source_priority_counts"] == {"50": 1}
     assert payload["local_fasta_checked_count"] == 1
     assert payload["local_sha256_matched_count"] == 1
     assert payload["writes_outputs"] is False
@@ -150,6 +152,7 @@ def test_provider_request_validate_ready_stdout_is_compact_json(tmp_path, capsys
         "exported_count": 0,
         "diagnostic_count": 0,
         "provider_route_groups": payload["provider_route_groups"],
+        "source_priority_counts": {"50": 1},
         "next_stage": "provider_request_external_genomes_handoff",
         "required_inputs": ["provider_request.tsv"],
         "recommended_request": {
@@ -326,6 +329,7 @@ def test_provider_request_validate_write_outputs_audit_pair(tmp_path, capsys):
     assert summary["automation_boundary_counts"] == {
         "planning_handoff_no_provider_contact": 1
     }
+    assert summary["source_priority_counts"] == {"50": 1}
     assert summary["required_inputs"] == ["provider_request.tsv"]
     assert summary["recommended_request"] == {
         "command": "provider-request",
