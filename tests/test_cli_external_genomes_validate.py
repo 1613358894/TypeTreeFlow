@@ -538,6 +538,27 @@ def test_external_genomes_repair_template_writes_review_tsv(tmp_path, capsys):
         f"--input {table.as_posix()} --repair-template {output.as_posix()} "
         "--write --out <external_genomes_repaired.tsv>"
     )
+    plan = payload["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == (
+        "external_genomes_repair_template.recommended_request"
+    )
+    assert plan["decision"] == "block"
+    assert plan["target_argv"] == [
+        "external-genomes",
+        "repair-merge",
+        "--input",
+        table.as_posix(),
+        "--repair-template",
+        output.as_posix(),
+        "--write",
+        "--out",
+        "<external_genomes_repaired.tsv>",
+    ]
+    assert [item["id"] for item in plan["blocking"]] == ["write_not_allowed"]
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
     rows = list(csv.DictReader(output.open(encoding="utf-8"), delimiter="\t"))
     assert len(rows) == 1
     assert rows[0]["species"] == "Clostridium missingum"
@@ -619,6 +640,22 @@ def test_external_genomes_repair_merge_preserves_valid_rows_and_applies_repairs(
     assert payload["recommended_next_command"] == (
         f"typetreeflow external-genomes validate --input {output.as_posix()}"
     )
+    plan = payload["recommended_command_plan"]
+    assert plan["schema_version"] == "recommended_command_plan.v1"
+    assert plan["request_source"] == (
+        "external_genomes_repair_merge.recommended_request"
+    )
+    assert plan["decision"] == "allow"
+    assert plan["target_argv"] == [
+        "external-genomes",
+        "validate",
+        "--input",
+        output.as_posix(),
+    ]
+    assert plan["blocking"] == []
+    assert plan["downloads_triggered"] == 0
+    assert plan["providers_contacted"] == 0
+    assert plan["manifest_mutated"] is False
     rows = list(csv.DictReader(output.open(encoding="utf-8"), delimiter="\t"))
     assert [row["external_genome_id"] for row in rows] == ["valid", "missing"]
     assert rows[0]["genome_fasta_path"] == "genomes/valid.fna"

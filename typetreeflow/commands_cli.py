@@ -732,6 +732,7 @@ _EXTERNAL_GENOMES_REPAIR_TEMPLATE_SUMMARY_FIELDS: list[str] = [
     "external_genomes_repair_queue",
     "recommended_request",
     "recommended_request_target",
+    "recommended_command_plan",
     "recommended_next_command",
 ]
 _EXTERNAL_GENOMES_REPAIR_MERGE_SUMMARY_FIELDS: list[str] = [
@@ -743,6 +744,7 @@ _EXTERNAL_GENOMES_REPAIR_MERGE_SUMMARY_FIELDS: list[str] = [
     "expected_fields",
     "recommended_request",
     "recommended_request_target",
+    "recommended_command_plan",
     "recommended_next_command",
 ]
 _EXTERNAL_GENOME_REGISTRATION_SUMMARY_FIELDS: list[str] = [
