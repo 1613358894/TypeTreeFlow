@@ -6106,6 +6106,38 @@ def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
         == 1
     )
     assert status_payload["operator_chain_stages"][7]["available"] is False
+    server_result = tmp_path / "coverage_handoff_server_validation_result.json"
+    server_result_payload = _valid_server_validation_result()
+    server_result_payload["check_count"] = 12
+    server_result_payload["summary"] = "Bounded local server validation passed."
+    _write_server_validation_result(server_result, server_result_payload)
+    code, validation_payload, validation_captured = _run(
+        ["validate", "--input", str(server_result), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+    assert code == 0
+    assert validation_captured.out.count("\n") == 1
+    assert validation_payload["status"] == "pass"
+    code, result_status_payload, result_status_captured = _run(
+        [
+            "--coverage-pipeline-dir",
+            str(pipeline_dir),
+            "--server-validation-result",
+            str(server_result),
+            "--json",
+        ],
+        capsys,
+        action="status",
+    )
+    assert code == 0
+    assert result_status_captured.out.count("\n") == 1
+    result_packet = result_status_payload[
+        "coverage_handoff_server_validation_result_artifact_packet"
+    ]
+    assert result_packet["available"] is True
+    assert result_packet["status"] == "pass"
+    assert result_packet["check_count"] == 12
 
     assert (
         cli.main(
@@ -6144,6 +6176,8 @@ def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
                 "reports",
                 "--coverage-pipeline-dir",
                 str(pipeline_dir),
+                "--server-validation-result",
+                str(server_result),
             ]
         )
         == 0
@@ -6161,6 +6195,11 @@ def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
         / "external_genomes_install_plan"
         / "external_genome_install_plan_summary.json"
     ).exists()
+    assert (
+        delivery
+        / "server_validation"
+        / "coverage_handoff_server_validation_result.json"
+    ).exists()
     scope_rows = _read_tsv(delivery / "artifact_scope.tsv")
     install_scope = [
         row
@@ -6175,6 +6214,20 @@ def test_coverage_pipeline_install_plan_chain_feeds_report_and_package(
     assert {row["strict_scientific_deliverable"] for row in install_scope} == {
         "false"
     }
+    server_scope = [
+        row
+        for row in scope_rows
+        if row["artifact_path"]
+        == "server_validation/coverage_handoff_server_validation_result.json"
+    ]
+    assert len(server_scope) == 1
+    assert server_scope[0]["scope"] == "audit"
+    assert server_scope[0]["evidence_policy"] == "server_validation_audit"
+    assert server_scope[0]["strict_scientific_deliverable"] == "false"
+    readme = (delivery / "README.md").read_text(encoding="utf-8")
+    assert "## Coverage Handoff Server Validation Result" in readme
+    assert "not target command execution" in readme
+    assert "contact providers" in readme
     assert not install_target.exists()
 
 
