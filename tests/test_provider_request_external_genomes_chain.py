@@ -6,9 +6,10 @@ from typetreeflow import cli
 from typetreeflow.external_genomes import (
     calculate_sha256,
     read_external_genome_install_plan,
+    read_external_genome_install_results,
     read_external_genome_registration_results,
 )
-from typetreeflow.manifest import write_manifest
+from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.models import StrainRecord
 from typetreeflow.provider_plan import PROVIDER_REQUEST_FIELDS
 from typetreeflow.workflow.paths import get_output_paths
@@ -148,7 +149,7 @@ def _write_package_manifest(run_dir: Path) -> None:
     )
 
 
-def test_provider_request_external_genomes_offline_chain_reaches_register_dry_run(
+def test_provider_request_external_genomes_offline_chain_registers_local_fasta(
     tmp_path,
     capsys,
 ):
@@ -380,6 +381,47 @@ def test_provider_request_external_genomes_offline_chain_reaches_register_dry_ru
     assert results[0].computed_sha256 == calculate_sha256(fasta)
     assert install_plan[0].status == "external_genome_install_planned"
     assert not Path(install_plan[0].installed_genome_path).exists()
+
+    install_outdir = tmp_path / "register_run_install"
+    assert (
+        cli.main(
+            [
+                "--register-external-genomes",
+                str(external_genomes),
+                "--outdir",
+                str(install_outdir),
+            ]
+        )
+        == 0
+    )
+    install_payload = json.loads(capsys.readouterr().out)
+    install_paths = get_output_paths(install_outdir)
+    install_results = read_external_genome_install_results(
+        install_paths.external_genome_install_results_path
+    )
+    installed_manifest = read_manifest(install_paths.manifest)
+    installed_genome_path = Path(install_results[0].installed_genome_path)
+    assert install_payload["status"] == "pass"
+    assert install_payload["dry_run"] is False
+    assert install_payload["manifest_mutated"] is True
+    assert install_payload["downloads_triggered"] == 0
+    assert install_payload["providers_contacted"] == 0
+    assert install_payload["network_access"] is False
+    assert install_payload["external_tools"] is False
+    assert install_payload["install_result_status_counts"] == {
+        "external_genome_install_succeeded": 1
+    }
+    assert install_payload["manifest_record_count"] == 1
+    assert install_results[0].status == "external_genome_install_succeeded"
+    assert installed_genome_path.exists()
+    assert installed_genome_path.read_text(encoding="utf-8") == fasta.read_text(
+        encoding="utf-8"
+    )
+    assert installed_manifest[0].canonical_name == "Clostridium alpha"
+    assert installed_manifest[0].has_genome is True
+    assert installed_manifest[0].source == "external_registered_genome"
+    assert installed_manifest[0].assembly_accession == ""
+    assert "external_source=dsmz" in installed_manifest[0].notes
 
 
 def test_coverage_pipeline_provider_request_handoff_bundle_reports_and_packages(
