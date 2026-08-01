@@ -241,6 +241,7 @@ def package_results(
     )
     strict_gating_outputs_copied: list[Path] = []
     strict_gating_audit: StrictGatingAuditSummary | None = None
+    download_readiness_outputs_copied: list[Path] = []
     if "reports" in requested:
         _copy_optional(
             paths.run_summary_path,
@@ -294,6 +295,14 @@ def package_results(
                     output_dir / "reports" / "gtdb_metadata_audit.json",
                 )
             )
+        if paths.download_plan_readiness_summary_path.exists():
+            download_readiness_outputs_copied.append(
+                _copy_required(
+                    paths.download_plan_readiness_summary_path,
+                    output_dir / "reports" / "download_plan_readiness_summary.json",
+                )
+            )
+            copied.extend(download_readiness_outputs_copied)
         if bacdive_normalized_outputs_available(paths):
             for source, destination in _bacdive_normalized_package_paths(
                 paths, output_dir
@@ -470,6 +479,7 @@ def package_results(
         offline_readiness_outputs_copied=offline_readiness_outputs_copied,
         offline_readiness_audit=offline_readiness_audit,
         strict_gating_outputs_copied=strict_gating_outputs_copied,
+        download_readiness_outputs_copied=download_readiness_outputs_copied,
     )
 
     genome_count = 0
@@ -1969,6 +1979,7 @@ def _write_package_artifact_scope(
     offline_readiness_outputs_copied: list[Path],
     offline_readiness_audit: OfflineReadinessAuditSummary | None,
     strict_gating_outputs_copied: list[Path],
+    download_readiness_outputs_copied: list[Path],
 ) -> None:
     source_rows = read_artifact_scope(paths.artifact_scope_path)
     rows = list(source_rows)
@@ -2066,6 +2077,12 @@ def _write_package_artifact_scope(
             offline_readiness_audit,
         )
     )
+    rows.extend(
+        _download_readiness_artifact_scope_rows(
+            delivery_dir,
+            download_readiness_outputs_copied,
+        )
+    )
     if not rows:
         return
 
@@ -2086,6 +2103,7 @@ def _write_package_artifact_scope(
         or archive_candidates_outputs_copied
         or offline_readiness_outputs_copied
         or strict_gating_outputs_copied
+        or download_readiness_outputs_copied
         or not paths.artifact_scope_path.exists()
     ):
         write_artifact_scope(rows, root_scope)
@@ -2111,6 +2129,7 @@ def _write_package_artifact_scope(
             or archive_candidates_outputs_copied
             or offline_readiness_outputs_copied
             or strict_gating_outputs_copied
+            or download_readiness_outputs_copied
             or not paths.artifact_scope_path.exists()
         ):
             write_artifact_scope(rows, reports_scope)
@@ -3041,6 +3060,43 @@ def _offline_readiness_artifact_scope_rows(
             }
         )
     return rows
+
+
+def _download_readiness_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    artifact_path = "reports/download_plan_readiness_summary.json"
+    if artifact_path not in copied_paths:
+        return []
+    return [
+        {
+            "artifact_path": artifact_path,
+            "artifact_kind": "download_plan_readiness_summary",
+            "scope": "audit",
+            "evidence_policy": "download_plan_readiness_audit",
+            "record_count": "1",
+            "strict_usable_count": "0",
+            "candidate_count": "0",
+            "excluded_mismatch_count": "0",
+            "artifact_label": "Download plan readiness summary",
+            "recommended_use": "download readiness review",
+            "not_for": "unattended download authorization or strict deliverable gating",
+            "source_artifact": "download_plan_readiness_summary",
+            "consumer_priority": "60",
+            "strict_scientific_deliverable": "false",
+            "notes": (
+                "Audit-only summary derived from cache/ncbi/download_plan.tsv; "
+                "package inclusion does not authorize downloads, contact "
+                "providers, mutate manifests, or create strict deliverables."
+            ),
+        }
+    ]
 
 
 def _strict_gating_artifact_scope_rows(

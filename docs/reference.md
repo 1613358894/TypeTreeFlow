@@ -1498,6 +1498,16 @@ copied file with `scope=audit`,
 `strict_scientific_deliverable=false`. Reconciler package inclusion means audit
 availability, not strict scientific delivery, completion gating, manifest
 mutation, evidence-policy changes, or future package-tier policy.
+When `selection/download_plan_readiness_summary.json` exists,
+`package-results --include reports` and `--include all` copy it to
+`reports/download_plan_readiness_summary.json`. Package-root and reports scope
+manifests add one row with `scope=audit`,
+`evidence_policy=download_plan_readiness_audit`,
+`recommended_use=download readiness review`, and
+`strict_scientific_deliverable=false`. Failed-handoff packages exclude this
+surface. Inclusion means download-plan review availability, not unattended
+download authorization, provider contact, manifest mutation, or strict
+deliverable gating.
 When `package-results --include reports` or `--include all` receives an
 explicit `--manual-review-import-dir`, each valid recognized member is copied
 to `manual_review/`. Package-root and reports scope manifests add one row per
