@@ -477,6 +477,47 @@ def test_worklist_external_fasta_lane_derives_candidate_provider_keys():
     assert report.summary["candidate_provider_status_counts"] == {"planning_only": 10}
 
 
+def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium expandedproviderum",
+                "type_strain_names": (
+                    "CCTCC AB 12345; NRRL B-1; NCAIM B.01001; "
+                    "HAMBI 100; KMM 902"
+                ),
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium expandedproviderum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium expandedproviderum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == "cctcc; nrrl; ncaim; hambi; kmm"
+    assert row.candidate_provider_statuses == (
+        "cctcc=planning_only; nrrl=planning_only; ncaim=planning_only; "
+        "hambi=planning_only; kmm=planning_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "cctcc": 1,
+        "hambi": 1,
+        "kmm": 1,
+        "ncaim": 1,
+        "nrrl": 1,
+    }
+
+
 def test_worklist_explicit_provider_hints_accept_registry_display_names():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium aliasesum"}],

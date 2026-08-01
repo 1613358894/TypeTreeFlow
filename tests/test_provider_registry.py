@@ -16,6 +16,7 @@ def test_default_registry_contains_planning_only_culture_collections():
         "vkm",
         "mccc",
         "gdmcc",
+        "cctcc",
         "cect",
         "cip",
         "ccug",
@@ -23,6 +24,10 @@ def test_default_registry_contains_planning_only_culture_collections():
         "bccm_lmg",
         "ncimb",
         "ncib",
+        "nrrl",
+        "ncaim",
+        "hambi",
+        "kmm",
         "bcrc",
         "ccrc",
         "nccb",
@@ -83,12 +88,22 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "Marine Culture Collection of China": "mccc",
         "GDMCC": "gdmcc",
         "Guangdong Microbial Culture Collection Center": "gdmcc",
+        "CCTCC": "cctcc",
+        "China Center for Type Culture Collection": "cctcc",
         "Spanish Type Culture Collection": "cect",
         "Collection de l'Institut Pasteur": "cip",
         "Culture Collection University of Gothenburg": "ccug",
         "Czech Collection of Microorganisms": "ccm",
         "NCIMB": "ncimb",
         "NCIB": "ncib",
+        "NRRL": "nrrl",
+        "ARS Culture Collection": "nrrl",
+        "NCAIM": "ncaim",
+        "National Collection of Agricultural and Industrial Microorganisms": "ncaim",
+        "HAMBI": "hambi",
+        "Helsinki Collection of Microbial Cultures": "hambi",
+        "KMM": "kmm",
+        "Collection of Marine Microorganisms": "kmm",
         "BCRC": "bcrc",
         "CCRC": "ccrc",
         "NCCB": "nccb",
@@ -129,8 +144,9 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
 
     assert registry.keys_from_text(
         "ATCC 1001; DSMZ 2002; DSM-2003; KACC 12345; "
-        "VKM B-1787; MCCC 1K07510; GDMCC 1.2529; "
+        "VKM B-1787; MCCC 1K07510; GDMCC 1.2529; CCTCC AB 12345; "
         "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; "
+        "NRRL B-1; NCAIM B.01001; HAMBI 100; KMM 902; "
         "PATRIC genome 123; IMG/M 3300000000"
     ) == (
         "atcc_genome_portal",
@@ -139,7 +155,12 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "vkm",
         "mccc",
         "gdmcc",
+        "cctcc",
         "bccm_lmg",
+        "nrrl",
+        "ncaim",
+        "hambi",
+        "kmm",
         "bv_brc",
         "img_jgi",
     )
