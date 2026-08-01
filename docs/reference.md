@@ -2081,7 +2081,12 @@ argv, and blocker/warning IDs for controllers that need a compact handoff.
 For provider handoff route items, the recommended request is a filtered
 `provider-handoff build` request with `provider_keys` containing the selected
 provider key, so controllers can prepare one bounded provider-specific handoff
-before drafting provider requests.
+before drafting provider requests. Those route items also expose
+`recommended_write_request_template` with `write=true` and an
+operator-supplied `<isolated-provider-handoff-directory>` outdir, plus a
+matching allow-write command-plan preview. The write template is a handoff
+convenience only: it does not dispatch, does not choose the real outdir, and
+does not replace the packet's default no-write `recommended_request`.
 Controllers can inspect the recommended request through `commands render`,
 `commands plan`, or `commands preflight` before invoking any local CLI. It is a
 planning packet for local review or handoff preparation only; it does not

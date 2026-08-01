@@ -592,8 +592,13 @@ per-item operator-review gates. Each item also carries a structured
 warning IDs, so controllers can inspect it through `commands render`,
 `commands plan`, or `commands preflight` before any local CLI invocation. It is
 for local review planning only and still does not dispatch commands, contact
-providers, or download genomes. The `coverage-plan build --write` payload also
-uses the first prioritized provider-handoff item for its top-level
+providers, or download genomes. Provider-handoff route items also include
+`recommended_write_request_template`, a bounded template for writing the
+filtered handoff pair to an operator-chosen isolated directory before later
+`provider-request draft` review. That template requires explicit operator
+choice of the outdir and does not change the packet's default no-write
+`recommended_request`. The `coverage-plan build --write` payload also uses the
+first prioritized provider-handoff item for its top-level
 `recommended_request`, so the immediate next provider-handoff command is
 filtered to one provider key by default. The payload
 also reports provider request draft counts and
