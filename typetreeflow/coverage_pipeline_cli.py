@@ -5331,11 +5331,13 @@ def _coverage_route_next_batch_packet(
         route_priority = str(item.get("route_priority", ""))
         if route_priority == "provider_handoff":
             recommended_operator_action = "prepare_provider_handoff_package"
-            required_local_input = "provider_handoff.tsv"
+            required_local_input = "coverage_plan.tsv"
+            provider_key = str(item.get("provider_key", ""))
             recommended_request: dict[str, object] | None = {
-                "command": "provider-request",
-                "subcommand": "draft",
-                "provider_handoff_tsv": OUTPUT_PATHS["provider_handoff"],
+                "command": "provider-handoff",
+                "subcommand": "build",
+                "coverage_plan_tsv": OUTPUT_PATHS["coverage_plan"],
+                "provider_keys": [provider_key] if provider_key else [],
             }
         elif route_priority == "public_metadata_review":
             recommended_operator_action = "review_public_metadata_linkage"

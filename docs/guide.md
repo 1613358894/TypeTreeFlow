@@ -190,6 +190,9 @@ Optional repeated `--provider-key <key>` values filter the local handoff rows
 to a bounded provider subset, using the same canonical key and alias rules as
 provider hints. The filter is only a local queue-control aid and does not
 authorize provider contact.
+Coverage route next-batch packets use this same filtered request shape for
+provider handoff items, so an AI/controller can prepare one provider-specific
+handoff before drafting provider requests.
 The summary also includes `provider_route_groups` so AI/controllers can see
 provider keys grouped by public metadata review versus provider handoff.
 Command metadata reports `provider_handoff_packet.v1` for the generated
