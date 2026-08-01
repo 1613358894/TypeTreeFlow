@@ -155,10 +155,10 @@ auto-select any accession.
 The same summary also reports `unrouted_type_strain_token_counts` plus bounded
 examples for uppercase provider-like type-strain or culture-collection prefixes
 that were visible in local evidence but did not match the static provider
-registry. Plain strain codes and lower/mixed-case strain-note prefixes are
-filtered out where possible. Use those audit-only counts to prioritize future
-platform research; they are not provider keys, provider support, or download
-authorization.
+registry. Plain strain codes, lower/mixed-case strain-note prefixes, and known
+legacy or cross-deposit strain-designation prefixes are filtered out where
+possible. Use those audit-only counts to prioritize future platform research;
+they are not provider keys, provider support, or download authorization.
 When `--write` succeeds, stdout includes a structured `recommended_request`
 for `coverage-plan build` using the written `acquisition_worklist.tsv`. That
 request is only an AI/operator handoff for a later local command. The matching

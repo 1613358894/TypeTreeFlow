@@ -279,10 +279,11 @@ promotion.
 Acquisition worklist `unrouted_type_strain_token_counts` and bounded examples
 are platform-expansion audit signals only. They identify visible provider-like
 type-strain or culture-collection prefixes that did not match the static
-provider registry, with plain strain codes and lower/mixed-case strain-note
-prefixes filtered where possible, but they must not be reinterpreted as
-provider support, provider handoff rows, download readiness, or strict
-scientific evidence.
+provider registry, with plain strain codes, lower/mixed-case strain-note
+prefixes, and known legacy or cross-deposit strain-designation prefixes
+filtered where possible, but they must not be reinterpreted as provider
+support, provider handoff rows, download readiness, or strict scientific
+evidence.
 Explicit expanded-discovery result and manual-supplement hint inputs may add
 review lanes and review-signal counts to an acquisition worklist. Matched
 candidates remain public-linkage review only, and manual-supplement hints may

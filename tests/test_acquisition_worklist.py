@@ -918,7 +918,7 @@ def test_worklist_surfaces_unrouted_type_strain_prefixes_as_audit_counts():
             {
                 "full_name": "Clostridium unroutedum",
                 "type_strain_names": (
-                    "VPI T7; NSJ 27; DSM 123; ACCC 698; Marseille P4344"
+                    "ZZZ T7; YYY 27; DSM 123; ACCC 698; Marseille P4344"
                 ),
             }
         ],
@@ -926,7 +926,7 @@ def test_worklist_surfaces_unrouted_type_strain_prefixes_as_audit_counts():
             _row(
                 "Clostridium unroutedum",
                 reconciled_evidence_tier="missing_public_genome",
-                culture_collection_tokens="LCDC 99A005; ATCC 700964",
+                culture_collection_tokens="XXX 99A005; ATCC 700964",
             )
         ],
         completion_gap_rows=[
@@ -944,30 +944,30 @@ def test_worklist_surfaces_unrouted_type_strain_prefixes_as_audit_counts():
         "dsmz": 1,
     }
     assert report.summary["unrouted_type_strain_token_counts"] == {
-        "LCDC": 1,
-        "NSJ": 1,
-        "VPI": 1,
+        "XXX": 1,
+        "YYY": 1,
+        "ZZZ": 1,
     }
     assert report.summary["unrouted_type_strain_token_examples"] == [
         {
-            "prefix": "LCDC",
+            "prefix": "XXX",
             "count": 1,
             "species_preview": ["Clostridium unroutedum"],
-            "token_preview": ["LCDC 99A005"],
+            "token_preview": ["XXX 99A005"],
             "truncated": False,
         },
         {
-            "prefix": "NSJ",
+            "prefix": "YYY",
             "count": 1,
             "species_preview": ["Clostridium unroutedum"],
-            "token_preview": ["NSJ 27"],
+            "token_preview": ["YYY 27"],
             "truncated": False,
         },
         {
-            "prefix": "VPI",
+            "prefix": "ZZZ",
             "count": 1,
             "species_preview": ["Clostridium unroutedum"],
-            "token_preview": ["VPI T7"],
+            "token_preview": ["ZZZ T7"],
             "truncated": False,
         },
     ]
@@ -981,22 +981,15 @@ def test_worklist_unrouted_prefix_audit_ignores_plain_strain_codes():
                 "type_strain_names": (
                     "A1-XYC3; N1-4; SG 508; not validly published; "
                     "Barker and Beck HC-1; Bokkenheuser 19; Robertson 259E; "
-                    "derived from strain N1-4; LuHBu1; lac-1; Catt39; VPI T7"
+                    "derived from strain N1-4; LuHBu1; lac-1; Catt39; "
+                    "VPI T7; NSJ 27; MSJ-4; LCDC 99A005; SYSU GA19001"
                 ),
             }
         ],
     )
 
-    assert report.summary["unrouted_type_strain_token_counts"] == {"VPI": 1}
-    assert report.summary["unrouted_type_strain_token_examples"] == [
-        {
-            "prefix": "VPI",
-            "count": 1,
-            "species_preview": ["Clostridium noisytokensum"],
-            "token_preview": ["VPI T7"],
-            "truncated": False,
-        }
-    ]
+    assert report.summary["unrouted_type_strain_token_counts"] == {}
+    assert report.summary["unrouted_type_strain_token_examples"] == []
 
 
 def test_worklist_type_strain_evidence_tokens_route_to_provider_handoff():
