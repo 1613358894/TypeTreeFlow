@@ -1452,8 +1452,9 @@ Portal and common culture collections including DSMZ, JCM, NCTC, CGMCC, NBRC/NIT
 KCTC, KACC, ACCC, IMSNU, MAFF, NCFB, KCCM, NCCP, VKM, MCCC, GDMCC, CCTCC,
 CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB/NCIBM, NCIB, NRRL, NCAIM, HAMBI, KMM, GTC,
 PAGU, BCRC, CCRC, NCCB, CSUR/Marseille, TBRC, TISTR, CCOS, CCAM, CICC, IFO, IAM, and FERM, plus BV-BRC/PATRIC metadata-review
-and IMG/JGI planning handoff entries. Public archive entries for ENA, DDBJ,
-GenBank, and NCBI RefSeq remain metadata-only. Coverage planning can carry explicit provider hints
+and IMG/JGI planning handoff entries. Public archive and metadata entries for
+ENA, DDBJ, INSDC, GenBank, NCBI Assembly, NCBI BioSample, and NCBI RefSeq
+remain metadata-only. Coverage planning can carry explicit provider hints
 from local rows into provider handoff. `providers catalog` also reports
 `operator_route`, `next_input_class`, `automation_boundary`, and
 `operator_route_counts`, matching the coverage-pipeline queue vocabulary.
