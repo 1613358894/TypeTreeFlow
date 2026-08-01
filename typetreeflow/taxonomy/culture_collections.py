@@ -44,6 +44,8 @@ RECOGNIZED_COLLECTION_PREFIXES = [
     "NCCB",
     "CSUR",
     "MARSEILLE",
+    "TBRC",
+    "TISTR",
     "CICC",
     "IFO",
     "NITE",

@@ -115,8 +115,9 @@ def test_extracts_multiple_ids_in_order():
 def test_extracts_expanded_public_collection_prefixes():
     text = (
         "type strain NCIMB 123; NCIBM 12511; NCIB 456; BCRC 789; CCRC 1011; "
-        "NCCB 12003; CSUR P900; Marseille P4344; CICC 10456; IFO 15517; "
-        "NITE BP-1234; KACC 12345; VKM B-1787; MCCC 1K07510; "
+        "NCCB 12003; CSUR P900; Marseille P4344; TBRC 11758; TISTR 2984; "
+        "CICC 10456; IFO 15517; NITE BP-1234; KACC 12345; "
+        "VKM B-1787; MCCC 1K07510; "
         "GDMCC 1.2529; CCTCC AB 12345; NRRL B-1; NCAIM B.01001; "
         "HAMBI 100; KMM 902; GTC 21791; PAGU 1796"
     )
@@ -134,6 +135,8 @@ def test_extracts_expanded_public_collection_prefixes():
         "NCCB 12003",
         "CSUR P900",
         "CSUR P4344",
+        "TBRC 11758",
+        "TISTR 2984",
         "CICC 10456",
         "IFO 15517",
         "NITE BP-1234",

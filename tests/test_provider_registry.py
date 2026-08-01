@@ -38,6 +38,8 @@ PLANNING_HANDOFF_KEYS = (
     "ccrc",
     "nccb",
     "csur",
+    "tbrc",
+    "tistr",
     "cicc",
     "ifo",
     "iam",
@@ -153,6 +155,10 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "NCCB": "nccb",
         "CSUR": "csur",
         "Marseille": "csur",
+        "TBRC": "tbrc",
+        "Thailand Bioresource Research Center": "tbrc",
+        "TISTR": "tistr",
+        "TISTR Culture Collection": "tistr",
         "CICC": "cicc",
         "IFO": "ifo",
         "IAM": "iam",
@@ -208,6 +214,7 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; "
         "NRRL B-1; NCAIM B.01001; HAMBI 100; KMM 902; IAM 3003; "
         "GTC 21791; PAGU 1796; NCIBM 12511; Marseille P4344; "
+        "TBRC 11758; TISTR 2984; "
         "FERM BP-1234; MTCC1234; MCC 555; CCBAU 1001; NBIMCC 2002; "
         "PATRIC genome 123; BacDive 12345; IMG/M 3300000000"
     ) == (
@@ -233,6 +240,8 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "gtc",
         "pagu",
         "csur",
+        "tbrc",
+        "tistr",
         "iam",
         "ferm",
         "mtcc",
