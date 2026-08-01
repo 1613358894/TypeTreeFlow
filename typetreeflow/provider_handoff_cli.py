@@ -124,6 +124,9 @@ def run_provider_handoff_command(
                     "summary": _summary_json(
                         handoff,
                         provider_key_filter=provider_key_filter,
+                        provider_handoff_tsv=str(
+                            outdir / OUTPUT_NAMES["handoff"]
+                        ),
                     )
                     + "\n",
                 },
@@ -280,10 +283,24 @@ def _provider_key_filter(values: Sequence[str]) -> tuple[str, ...]:
     return tuple(provider_keys)
 
 
-def _summary_json(handoff, *, provider_key_filter: tuple[str, ...]) -> str:
+def _summary_json(
+    handoff,
+    *,
+    provider_key_filter: tuple[str, ...],
+    provider_handoff_tsv: str | None = None,
+) -> str:
+    summary = dict(handoff.summary)
+    if provider_handoff_tsv:
+        summary["recommended_request"] = _provider_request_draft_recommended_request(
+            provider_handoff_tsv
+        )
+        summary["recommended_next_command"] = (
+            "typetreeflow provider-request draft --provider-handoff-tsv "
+            f"{provider_handoff_tsv}"
+        )
     return json.dumps(
         {
-            **handoff.summary,
+            **summary,
             "provider_key_filter": list(provider_key_filter),
             "provider_key_filter_count": len(provider_key_filter),
             "filtered": bool(provider_key_filter),

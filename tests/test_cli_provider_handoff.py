@@ -273,7 +273,14 @@ def test_provider_handoff_write_outputs_and_force(capsys, tmp_path):
     assert summary["terms_review_required_count"] == 1
     assert summary["network_supported_count"] == 0
     assert summary["required_inputs"] == ["provider_handoff.tsv"]
-    assert summary["recommended_request"]["command"] == "provider-request"
+    assert summary["recommended_request"] == {
+        "command": "provider-request",
+        "subcommand": "draft",
+        "provider_handoff_tsv": str(handoff_path),
+    }
+    assert summary["recommended_next_command"] == (
+        f"typetreeflow provider-request draft --provider-handoff-tsv {handoff_path}"
+    )
 
     assert (
         cli.main(
