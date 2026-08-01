@@ -84,7 +84,9 @@ AI operators. It is metadata only: no provider is contacted and no download
 capability is enabled by listing a provider. Its `provider_route_groups`
 summary groups provider keys by AI/operator route so controllers can distinguish
 public metadata review from user-assisted provider handoff without scanning the
-full catalog.
+full catalog. BacDive appears as a `metadata_only` route for candidate/source
+metadata review only; listing it does not call live BacDive, contact DSMZ, or
+enable downloads.
 
 For AI-facing offline planning, first normalize public archive candidates from
 already collected ENA/DDBJ/INSDC/GenBank-style metadata:
@@ -179,6 +181,8 @@ Culture-collection provider hints may be written with a separator or joined
 directly to the collection number, such as `DSM 123`, `DSM-123`, `DSM123`, or
 `ATCC700964`; recognition still only routes the row to planning handoff and
 does not enable provider contact or downloads.
+Compound explicit source labels such as `BacDive/DSMZ` may add both the
+metadata-only BacDive review key and the planning-only DSMZ handoff key.
 The same provider-hint extraction also applies to local reconciler audit token
 fields such as `matched_lpsn_type_tokens` and `culture_collection_tokens`,
 which helps gap rows retain provider handoff context even when checklist text

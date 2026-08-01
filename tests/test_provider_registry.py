@@ -63,6 +63,7 @@ def test_registry_default_planning_handoff_keys_exclude_metadata_only_archives()
     assert "ena" not in registry.planning_handoff_keys()
     assert "genbank" not in registry.planning_handoff_keys()
     assert "bv_brc" not in registry.planning_handoff_keys()
+    assert "bacdive" not in registry.planning_handoff_keys()
 
 
 def test_default_registry_contains_metadata_only_public_archives():
@@ -83,6 +84,12 @@ def test_default_registry_contains_metadata_only_public_archives():
     assert bv_brc.capability.supports_network is False
     assert "provider_guidance=public_genome_portal_metadata_review" in (
         bv_brc.adapter.plan_notes(None)
+    )
+    bacdive = registry.get("bacdive")
+    assert bacdive.capability.status == ProviderStatus.METADATA_ONLY
+    assert bacdive.capability.supports_network is False
+    assert "provider_guidance=type_material_database_metadata_review" in (
+        bacdive.adapter.plan_notes(None)
     )
 
 
@@ -143,6 +150,9 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "BV-BRC": "bv_brc",
         "PATRIC": "bv_brc",
         "Bacterial and Viral Bioinformatics Resource Center": "bv_brc",
+        "BacDive": "bacdive",
+        "Bacterial Diversity Metadatabase": "bacdive",
+        "DSMZ BacDive": "bacdive",
         "IMG/M": "img_jgi",
         "JGI IMG": "img_jgi",
         "Integrated Microbial Genomes": "img_jgi",
@@ -179,7 +189,7 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "NRRL B-1; NCAIM B.01001; HAMBI 100; KMM 902; "
         "GTC 21791; PAGU 1796; "
         "MTCC1234; MCC 555; CCBAU 1001; NBIMCC 2002; "
-        "PATRIC genome 123; IMG/M 3300000000"
+        "PATRIC genome 123; BacDive 12345; IMG/M 3300000000"
     ) == (
         "atcc_genome_portal",
         "dsmz",
@@ -200,6 +210,7 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "ccbau",
         "nbimcc",
         "bv_brc",
+        "bacdive",
         "img_jgi",
     )
     assert registry.keys_from_text("ATCC; DSMZ; JCM") == (
@@ -239,8 +250,9 @@ def test_provider_registry_normalizes_provider_hint_fields_with_embedded_tokens(
 
     assert registry.keys_from_hints(
         "German Collection of Microorganisms and Cell Cultures (DSMZ); "
-        "Korean Collection for Type Cultures (KCTC); RefSeq; BV-BRC; JGI IMG"
-    ) == ("dsmz", "kctc", "refseq", "bv_brc", "img_jgi")
+        "Korean Collection for Type Cultures (KCTC); RefSeq; BV-BRC; "
+        "BacDive/DSMZ; JGI IMG"
+    ) == ("dsmz", "kctc", "refseq", "bv_brc", "bacdive", "img_jgi")
     assert registry.keys_from_hints("new provider; DSMZ") == ("new provider", "dsmz")
 
 

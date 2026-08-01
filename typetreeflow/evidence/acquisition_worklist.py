@@ -244,6 +244,7 @@ def _classify_species(
             tier,
             _public_linkage_reason(reconciler_rows, selected),
             source_artifacts,
+            candidate_provider_keys,
         )
     if _has_archive_candidate(archive_candidate_rows):
         return _row(
@@ -785,6 +786,10 @@ def _extend_provider_keys_from_explicit_hints(
             canonical = registry.canonical_key(token)
             if canonical and canonical not in provider_keys:
                 provider_keys.append(canonical)
+                continue
+            for provider_key in registry.keys_from_text(token):
+                if provider_key and provider_key not in provider_keys:
+                    provider_keys.append(provider_key)
 
 
 def _extend_provider_keys_from_tokens(
