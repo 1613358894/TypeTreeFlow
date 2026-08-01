@@ -415,6 +415,7 @@ typetreeflow coverage-pipeline build \
   --expanded-discovery-results-tsv <expanded_discovery_results.tsv> \
   --manual-supplement-hints-tsv <manual_supplement_hints.tsv> \
   --curated-provider-request-tsv <curated_provider_request.tsv> \
+  --provider-key <provider-key-or-alias> \
   --external-genomes-install-target-outdir <future-registration-run> \
   --validate-provider-request \
   --write --outdir <isolated-coverage-pipeline-directory>
@@ -781,6 +782,9 @@ and `coverage_pipeline_summary.json` members under the requested directory. If
 supplied, the pipeline validates that explicit curator-completed TSV and writes
 `provider_request_external_genomes/` only when the local validation passes; it
 does not infer curator completion from the generated `provider_request/` draft.
+Repeated `--provider-key` values can narrow that curated TSV to
+provider-specific local handoff batches without contacting providers or
+downloading genomes.
 The `coverage_next/next_input_package.json` member freezes the current
 coverage-action queue item, review-input packet, command plan, operator recipe,
 and queue resume packet so a later AI/operator handoff can resume from an
