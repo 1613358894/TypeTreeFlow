@@ -841,6 +841,60 @@ def test_external_genomes_install_plan_emits_registration_readiness_packet(
     assert target.exists() is False
 
 
+def test_external_genomes_install_plan_emits_repair_queue_when_blocked(
+    capsys, tmp_path
+):
+    input_path = tmp_path / "external_genomes.tsv"
+    input_path.write_text(
+        "\t".join(EXTERNAL_GENOME_FIELDS)
+        + "\n"
+        + "\t".join(
+            _row_values(
+                species="Clostridium missingum",
+                external_source="dsmz",
+                external_genome_id="missing",
+                genome_fasta_path="missing.fna",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    target = tmp_path / "future_run"
+
+    code = cli.main(
+        [
+            "external-genomes",
+            "install-plan",
+            "--input",
+            str(input_path),
+            "--target-outdir",
+            str(target),
+            "--json",
+        ]
+    )
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["external_genomes_readiness_packet"]["status"] == "blocked"
+    queue = payload["external_genomes_repair_queue"]
+    assert queue["schema_version"] == "external_genomes_repair_queue.v1"
+    assert queue["item_count"] == 1
+    assert queue["status_counts"] == {"external_genome_missing_file": 1}
+    assert queue["items"][0]["input_row_number"] == 2
+    assert queue["items"][0]["missing_or_blocked_inputs"] == [
+        "existing_local_fasta_file"
+    ]
+    assert queue["downloads_triggered"] == 0
+    assert queue["providers_contacted"] == 0
+    assert queue["manifest_mutated"] is False
+    assert queue["strict_scientific_deliverable"] is False
+    assert target.exists() is False
+
+
 def test_external_genome_install_plan_valid_record_is_planned(tmp_path):
     fasta = _fasta(tmp_path / "reference.fna")
     record = _record(tmp_path, genome_fasta_path=str(fasta))

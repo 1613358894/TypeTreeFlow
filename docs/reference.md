@@ -2603,7 +2603,8 @@ also carry `summary_valid_count`, `summary_invalid_count`,
 `external_genome_registration_results.tsv`. Provider-request validation and
 external-genomes handoff child summaries can also contribute
 `summary_provider_request_readiness_packet`; external-genomes install-plan
-summaries can contribute `summary_external_genomes_readiness_packet`.
+summaries can contribute `summary_external_genomes_readiness_packet` and, for
+blocked local inputs, `summary_external_genomes_repair_queue`.
 `operator_chain_readiness_packets` collects those bounded packets by stage so
 an AI/operator controller can inspect child-stage readiness without opening the
 child summary files. Ready readiness packets include compact
@@ -2741,7 +2742,9 @@ present. Its
 rows are planned; otherwise it remains blocked and omits the next request.
 The install-plan payload also includes `external_genomes_action_summary`,
 grouping planned, skipped-existing, and skipped-invalid rows into local review
-actions without changing install or registration behavior.
+actions without changing install or registration behavior. It also carries
+`external_genomes_repair_queue` when validation found local TSV/FASTA inputs to
+fix before a registration dry-run can be reviewed.
 Ready packets include a `recommended_command_plan` for the registration dry-run
 request; because registration dry-run still declares isolated output writes,
 the companion remains blocked until explicit write allowance is supplied.

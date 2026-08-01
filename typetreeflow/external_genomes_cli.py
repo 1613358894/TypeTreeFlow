@@ -444,6 +444,9 @@ def _install_plan_payload(
                 stage="install_plan",
             )
         ),
+        "external_genomes_repair_queue": summarize_external_genome_repair_queue(
+            registration_results,
+        ),
         "install_plan_count": len(install_plan),
         "install_planned_count": planned_count,
         "install_skipped_count": skipped_count,

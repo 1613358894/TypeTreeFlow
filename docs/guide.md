@@ -802,8 +802,11 @@ packets are also preserved in `operator_chain_readiness_packets`, and as
 can route local review steps without opening child summary files. Ready
 readiness packets include compact `recommended_request_target` labels, plus an
 `install_plan_recommended_request_target` label when a provider-request
-readiness summary also exposes the downstream install-plan companion. Registration
-dry-run status can also summarize valid,
+readiness summary also exposes the downstream install-plan companion. Blocked
+external-genomes install-plan summaries also preserve
+`summary_external_genomes_repair_queue` on the stage row, so operators can see
+the local TSV/FASTA fixes before re-running the handoff. Registration dry-run
+status can also summarize valid,
 invalid, and registration status counts from the dry-run result TSV. It does not
 scan workflow outputs, contact
 providers, download genomes, copy FASTA, mutate manifests, or grant completion
@@ -1453,7 +1456,7 @@ to reconstruct those values from placeholders.
 Both commands also emit `external_genomes_action_summary`, grouping validation
 or install-plan statuses into local repair and next-step actions with bounded
 species previews; it is still not execution authorization. Blocked packets leave
-those next-step fields empty. `validate` additionally emits
+those next-step fields empty. `validate` and `install-plan` also emit
 `external_genomes_repair_queue`, a bounded row-level list of local TSV/FASTA
 fields to fix before install planning; it does not download, contact providers,
 register genomes, or mutate workflow outputs. Successful validate payloads
