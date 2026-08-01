@@ -1546,9 +1546,10 @@ review from provider handoff pressure without contacting providers or running
 downloads.
 For `external_fasta_required` rows, `candidate_provider_keys` may be derived
 from explicit local provider hints or recognizable culture-collection tokens
-such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, KACC, VKM, MCCC,
-GDMCC, CCTCC, CECT, CIP, CCUG, CCM, LMG, NCIMB, NCIB, NRRL, NCAIM,
-HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC, and IFO.
+such as ATCC, DSM, JCM, NCTC, CGMCC, NBRC/NITE, KCTC, KACC, KCCM, NCCP,
+VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, LMG, NCIMB, NCIB, NRRL,
+NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC, IFO, IAM, and
+FERM.
 Explicit provider hints may use canonical provider keys, common abbreviations,
 or static registry display names; they are normalized to canonical provider
 keys before summary counting. Recognized hints are additive across supported
@@ -2750,9 +2751,9 @@ do not write `name_map.tsv`, do not create `manifest.tsv`, do not create
 External registered genomes must not change this boundary. Provider-native IDs remain external identifiers. They must not be written to NCBI `assembly_accession`.
 The default provider registry includes static fail-closed entries for ATCC
 Genome Portal; culture collections DSMZ, JCM, NCTC, CGMCC, NBRC/NITE, KCTC,
-KACC, VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, BCCM/LMG, NCIMB,
-NCIB, NRRL, NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC,
-and IFO;
+KACC, KCCM, NCCP, VKM, MCCC, GDMCC, CCTCC, CECT, CIP, CCUG, CCM, BCCM/LMG,
+NCIMB, NCIB, NRRL, NCAIM, HAMBI, KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR,
+CICC, IFO, IAM, and FERM;
 public archives ENA, DDBJ, GenBank, and NCBI RefSeq; BV-BRC/PATRIC; and
 IMG/JGI; and BacDive. Culture-collection and IMG/JGI entries are
 `planning_only`; public archive, BV-BRC/PATRIC, and BacDive entries are
@@ -2761,7 +2762,8 @@ Coverage action planning may use explicit
 `provider_keys`, `candidate_provider_keys`, `preferred_provider_keys`, or
 `provider_key` hints from local rows and normalizes known aliases to canonical
 provider keys. Provider hint fields may also contain recognizable standalone
-culture-collection tokens such as `ATCC`, `DSMZ`, `NITE`, `KCTC`, `KACC`, or `VKM`,
+culture-collection tokens such as `ATCC`, `DSMZ`, `NITE`, `KCTC`, `KACC`,
+`KCCM`, `NCCP`, `IAM`, `FERM`, or `VKM`,
 plus public portal or metadata labels such as `BV-BRC`, `PATRIC`, `BacDive`,
 `IMG/M`, or `JGI IMG`;
 these are still normalized only as review hints. These statuses and hints describe review

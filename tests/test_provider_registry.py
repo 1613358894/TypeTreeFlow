@@ -11,6 +11,8 @@ PLANNING_HANDOFF_KEYS = (
     "nbrc",
     "kctc",
     "kacc",
+    "kccm",
+    "nccp",
     "vkm",
     "mccc",
     "gdmcc",
@@ -34,6 +36,8 @@ PLANNING_HANDOFF_KEYS = (
     "csur",
     "cicc",
     "ifo",
+    "iam",
+    "ferm",
     "mtcc",
     "mcc",
     "ccbau",
@@ -108,6 +112,8 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "Korean Collection for Type Cultures": "kctc",
         "KACC": "kacc",
         "Korean Agricultural Culture Collection": "kacc",
+        "KCCM": "kccm",
+        "NCCP": "nccp",
         "VKM": "vkm",
         "All-Russian Collection of Microorganisms": "vkm",
         "MCCC": "mccc",
@@ -139,6 +145,8 @@ def test_provider_registry_aliases_human_labels_to_canonical_keys():
         "CSUR": "csur",
         "CICC": "cicc",
         "IFO": "ifo",
+        "IAM": "iam",
+        "FERM": "ferm",
         "MTCC": "mtcc",
         "Microbial Type Culture Collection and Gene Bank": "mtcc",
         "MCC": "mcc",
@@ -184,16 +192,19 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
 
     assert registry.keys_from_text(
         "ATCC 1001; DSMZ 2002; DSM-2003; KACC 12345; "
-        "VKM B-1787; MCCC 1K07510; GDMCC 1.2529; CCTCC AB 12345; "
+        "KCCM 67890; NCCP 1234; VKM B-1787; MCCC 1K07510; "
+        "GDMCC 1.2529; CCTCC AB 12345; "
         "BCCM/LMG 4004; BCCM-LMG 4005; LMG 4006; "
-        "NRRL B-1; NCAIM B.01001; HAMBI 100; KMM 902; "
+        "NRRL B-1; NCAIM B.01001; HAMBI 100; KMM 902; IAM 3003; "
         "GTC 21791; PAGU 1796; "
-        "MTCC1234; MCC 555; CCBAU 1001; NBIMCC 2002; "
+        "FERM BP-1234; MTCC1234; MCC 555; CCBAU 1001; NBIMCC 2002; "
         "PATRIC genome 123; BacDive 12345; IMG/M 3300000000"
     ) == (
         "atcc_genome_portal",
         "dsmz",
         "kacc",
+        "kccm",
+        "nccp",
         "vkm",
         "mccc",
         "gdmcc",
@@ -205,6 +216,8 @@ def test_provider_registry_extracts_provider_keys_from_culture_collection_text()
         "kmm",
         "gtc",
         "pagu",
+        "iam",
+        "ferm",
         "mtcc",
         "mcc",
         "ccbau",
@@ -230,17 +243,22 @@ def test_provider_registry_extracts_prefixes_joined_to_collection_numbers():
     registry = build_default_provider_registry()
 
     assert registry.keys_from_text(
-        "ATCC700964; DSM12345; JCM9876; KCTC5001; NBRC10000; "
-        "LMG4006; CECT9001; NRRL123"
+        "ATCC700964; DSM12345; JCM9876; KCTC5001; KCCM2001; "
+        "NCCP3001; NBRC10000; LMG4006; CECT9001; NRRL123; IAM5001; "
+        "FERM6001"
     ) == (
         "atcc_genome_portal",
         "dsmz",
         "jcm",
         "nbrc",
         "kctc",
+        "kccm",
+        "nccp",
         "cect",
         "bccm_lmg",
         "nrrl",
+        "iam",
+        "ferm",
     )
     assert registry.keys_from_text("PDSM123 is not a collection token") == ()
 
