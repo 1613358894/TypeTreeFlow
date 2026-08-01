@@ -4099,6 +4099,25 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     }
     dsmz_batch = batch_by_provider["dsmz"]
     assert dsmz_batch["record_count"] == 1
+    assert dsmz_batch["provider_status_counts"] == {"planning_only": 1}
+    assert dsmz_batch["provider_automation_level_counts"] == {
+        "planning_handoff": 1
+    }
+    assert dsmz_batch["operator_route_counts"] == {"provider_handoff": 1}
+    assert dsmz_batch["next_input_class_counts"] == {
+        "permitted_local_fasta_terms_provenance": 1
+    }
+    assert dsmz_batch["automation_boundary_counts"] == {
+        "planning_handoff_no_provider_contact": 1
+    }
+    assert dsmz_batch["source_action_counts"] == {"prepare_provider_handoff": 1}
+    assert dsmz_batch["primary_operator_route"] == "provider_handoff"
+    assert dsmz_batch["primary_next_input_class"] == (
+        "permitted_local_fasta_terms_provenance"
+    )
+    assert dsmz_batch["primary_source_action"] == "prepare_provider_handoff"
+    assert dsmz_batch["requires_provider_handoff"] is True
+    assert dsmz_batch["metadata_review_only"] is False
     assert dsmz_batch["validate_recommended_request"] == {
         "command": "provider-request",
         "subcommand": "validate",
@@ -4135,6 +4154,13 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
     )
     assert dsmz_batch["downloads_triggered"] == 0
     assert dsmz_batch["providers_contacted"] == 0
+    genbank_batch = batch_by_provider["genbank"]
+    assert genbank_batch["provider_status_counts"] == {"metadata_only": 1}
+    assert genbank_batch["operator_route_counts"] == {"public_metadata_review": 1}
+    assert genbank_batch["primary_operator_route"] == "public_metadata_review"
+    assert genbank_batch["primary_source_action"] == "review_public_type_linkage"
+    assert genbank_batch["requires_provider_handoff"] is False
+    assert genbank_batch["metadata_review_only"] is True
     assert payload["provider_request_automation_level_counts"] == {
         "metadata_review": 5,
         "planning_handoff": 2,
@@ -5740,6 +5766,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert summary["provider_request_record_count"] == 7
     assert summary["provider_request_provider_batch_count"] == 7
     assert summary["provider_request_provider_batches"][0]["provider_key"] == "dsmz"
+    assert summary["provider_request_provider_batches"][0][
+        "primary_operator_route"
+    ] == "provider_handoff"
+    assert summary["provider_request_provider_batches"][0][
+        "requires_provider_handoff"
+    ] is True
     assert summary["provider_request_provider_batches"][0][
         "validate_recommended_request"
     ]["provider_keys"] == ["dsmz"]
