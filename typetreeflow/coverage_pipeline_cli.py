@@ -1400,6 +1400,12 @@ def _run_status(
         "provider_request_automation_level_counts": _optional_summary_map(
             coverage_summary, "provider_request_automation_level_counts"
         ),
+        "provider_request_provider_batch_count": _safe_int(
+            coverage_summary.get("provider_request_provider_batch_count", 0)
+        ),
+        "provider_request_provider_batches": _optional_summary_list(
+            coverage_summary, "provider_request_provider_batches"
+        ),
         "external_genomes_registration_dry_run_recommended_request": (
             _stage_recommended_request("external_genomes_registration_dry_run")
         ),
