@@ -34,8 +34,12 @@ typetreeflow commands recognize \
 typetreeflow commands render \
   --request-json '{"command":"status","outdir":"run"}'
 
+typetreeflow commands render --request-file <saved-summary-or-packet.json>
+
 typetreeflow commands plan \
   --request-json '{"command":"status","outdir":"run"}'
+
+typetreeflow commands plan --request-file <saved-summary-or-packet.json>
 
 typetreeflow commands preflight \
   --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
@@ -67,6 +71,10 @@ flags. These commands do not load workflow configuration, read environment
 files, write outputs, contact providers, or run external tools. They are helper
 metadata only; normal CLI parsing, dispatch, and human or parent-agent approval
 remain authoritative.
+File-based controllers can use `--request-file` with `commands render` or
+`commands plan` to read one saved JSON summary or handoff packet and unwrap its
+top-level `recommended_request`; this is still metadata-only and does not run
+the target command.
 
 The provider catalog command emits the static fail-closed provider registry for
 AI operators. It is metadata only: no provider is contacted and no download
