@@ -3112,6 +3112,8 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_providers": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
         "writes_outputs_declared": False,
         "requires_outdir": False,
         "unknown": False,
