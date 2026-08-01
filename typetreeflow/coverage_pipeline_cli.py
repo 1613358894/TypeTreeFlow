@@ -170,6 +170,9 @@ OPTIONAL_OUTPUT_PATHS = {
     "archive_candidates_diagnostics": (
         "archive_candidates/archive_candidates_diagnostics.tsv"
     ),
+    "archive_candidates_manual_review_template": (
+        "archive_candidates/manual_review.tsv"
+    ),
     "provider_request_validation_summary": (
         "provider_request_validation/provider_request_validation_summary.json"
     ),
@@ -543,9 +546,10 @@ def run_coverage_pipeline_command(
         if archive_candidate_report is not None:
             payload["output_paths"].update(
                 {
-                    key: str(outdir / Path(relative_path))
-                    for key, relative_path in OPTIONAL_OUTPUT_PATHS.items()
-                    if key.startswith("archive_candidates")
+                    key: str(outdir / Path(OPTIONAL_OUTPUT_PATHS[key]))
+                    for key in _archive_candidate_output_path_keys(
+                        archive_candidate_report
+                    )
                 }
             )
     _emit(payload, output)
@@ -9578,6 +9582,7 @@ def _rendered_outputs(
                 }
             )
     if archive_candidate_report is not None:
+        manual_review_template = archive_candidate_report.manual_review_template_tsv()
         rendered.update(
             {
                 "archive_candidates": archive_candidate_report.candidates_tsv(),
@@ -9589,7 +9594,26 @@ def _rendered_outputs(
                 ),
             }
         )
+        if _has_tsv_data_rows(manual_review_template):
+            rendered["archive_candidates_manual_review_template"] = (
+                manual_review_template
+            )
     return rendered
+
+
+def _has_tsv_data_rows(text: str) -> bool:
+    return any(line.strip() for line in text.splitlines()[1:])
+
+
+def _archive_candidate_output_path_keys(archive_candidate_report) -> tuple[str, ...]:
+    keys = (
+        "archive_candidates",
+        "archive_candidates_summary",
+        "archive_candidates_diagnostics",
+    )
+    if _has_tsv_data_rows(archive_candidate_report.manual_review_template_tsv()):
+        return (*keys, "archive_candidates_manual_review_template")
+    return keys
 
 
 def _archive_candidate_report_for_output(rows: Sequence[Mapping[str, object]]):
@@ -9953,10 +9977,14 @@ def _validate_owned_output_dir(outdir: Path) -> None:
     archive_candidates_diagnostics = outdir / OPTIONAL_OUTPUT_PATHS[
         "archive_candidates_diagnostics"
     ]
+    archive_candidates_manual_review_template = outdir / OPTIONAL_OUTPUT_PATHS[
+        "archive_candidates_manual_review_template"
+    ]
     if (
         archive_candidates.exists()
         or archive_candidates_summary.exists()
         or archive_candidates_diagnostics.exists()
+        or archive_candidates_manual_review_template.exists()
     ):
         _validate_existing_member(archive_candidates, ARCHIVE_CANDIDATE_FIELDS)
         _validate_existing_json(
@@ -9967,6 +9995,11 @@ def _validate_owned_output_dir(outdir: Path) -> None:
             archive_candidates_diagnostics,
             ARCHIVE_CANDIDATE_DIAGNOSTIC_FIELDS,
         )
+        if archive_candidates_manual_review_template.exists():
+            _validate_existing_member(
+                archive_candidates_manual_review_template,
+                MANUAL_REVIEW_FIELDS,
+            )
     install_registration_results = outdir / OPTIONAL_OUTPUT_PATHS[
         "external_genomes_install_plan_registration_results"
     ]
