@@ -179,6 +179,10 @@ Culture-collection provider hints may be written with a separator or joined
 directly to the collection number, such as `DSM 123`, `DSM-123`, `DSM123`, or
 `ATCC700964`; recognition still only routes the row to planning handoff and
 does not enable provider contact or downloads.
+The same provider-hint extraction also applies to local reconciler audit token
+fields such as `matched_lpsn_type_tokens` and `culture_collection_tokens`,
+which helps gap rows retain provider handoff context even when checklist text
+is sparse.
 Command metadata reports `coverage_plan_packet.v1` for the generated
 coverage-plan pair.
 When `--write` succeeds, stdout includes a structured `recommended_request`
