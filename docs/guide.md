@@ -258,9 +258,13 @@ provider name, provider status, route metadata, or species are blocked instead
 of producing empty provider request rows. The compact JSON and summary include
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`,
 `automation_boundary_counts`, `curator_completion_template_counts`,
-`curator_completion_field_counts`, and `curator_completion_blocker_counts` so
-AI/operator routing can see both the inherited route and the curator-owned
-fields still blocking later provider-registration planning. Command metadata
+`curator_completion_template_guidance`, `curator_completion_field_counts`, and
+`curator_completion_blocker_counts` so AI/operator routing can see both the
+inherited route and the curator-owned fields still blocking later
+provider-registration planning. Template guidance lists the required fields,
+blocker keys, and recommended local operator action for each present template;
+it is still review-only metadata, not provider contact or download approval.
+Command metadata
 surfaces report the target output contract as
 `provider_request_draft_packet.v1`, so controllers can route the draft pair
 without executing the command first. Each draft row note also carries a

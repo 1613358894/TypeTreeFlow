@@ -1836,7 +1836,8 @@ The compact JSON and `provider_request_draft_summary.json` include
 `provider_automation_level_counts`, `operator_route_counts`,
 `provider_route_groups`, `next_input_class_counts`, `automation_boundary_counts`,
 `curator_completion_required_count`, `curator_completion_template_counts`,
-`curator_completion_field_counts`, `curator_completion_blocker_counts`,
+`curator_completion_template_guidance`, `curator_completion_field_counts`,
+`curator_completion_blocker_counts`,
 `recommended_request`, `recommended_request_target`, and
 `recommended_next_command`. Dry-run output keeps a generic
 `provider-request validate` request. On successful writes, stdout's
@@ -1852,8 +1853,7 @@ The row notes include `provider_status`, `provider_automation_level`,
 can distinguish provider/local FASTA handoff from public-archive linkage
 review or BacDive/type-material metadata linkage review without losing the
 provider status and automation boundary from the handoff step. These counts and
-templates are
-planning diagnostics for missing curator-owned fields such as strain,
+guidance entries are planning diagnostics for missing curator-owned fields such as strain,
 type-strain ID, provider-record/artifact ID, local FASTA path, SHA-256, terms
 review, license, retrieval date, and curator name. They are not completion
 metrics and do not make a draft row eligible for provider execution.

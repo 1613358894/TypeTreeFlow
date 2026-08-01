@@ -93,6 +93,39 @@ def test_provider_request_draft_dry_run_emits_compact_json(capsys, tmp_path):
     assert payload["curator_completion_template_counts"] == {
         "provider_local_fasta_handoff": 1
     }
+    assert payload["curator_completion_template_guidance"] == [
+        {
+            "template": "provider_local_fasta_handoff",
+            "record_count": 1,
+            "recommended_operator_action": (
+                "obtain permitted local type-material FASTA and complete "
+                "provenance fields"
+            ),
+            "required_fields": [
+                "strain",
+                "type_strain_id",
+                "provider_record_id_or_provider_artifact_id",
+                "local_fasta_path",
+                "local_sha256",
+                "terms_review_status",
+                "license_notes",
+                "retrieval_date",
+                "curator",
+            ],
+            "required_field_count": 9,
+            "blocker_keys": [
+                "missing_required_field",
+                "terms_review_required",
+                "local_fasta_path_missing",
+                "local_sha256_missing",
+            ],
+            "audit_only": True,
+            "writes_workflow_outputs": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "strict_scientific_deliverable": False,
+        }
+    ]
     assert payload["curator_completion_required_count"] == 1
     assert payload["curator_completion_field_counts"] == {
         "strain": 1,
@@ -194,6 +227,12 @@ def test_provider_request_draft_write_outputs_and_force(capsys, tmp_path):
     assert summary["curator_completion_template_counts"] == {
         "provider_local_fasta_handoff": 1
     }
+    assert summary["curator_completion_template_guidance"][0]["template"] == (
+        "provider_local_fasta_handoff"
+    )
+    assert summary["curator_completion_template_guidance"][0][
+        "required_field_count"
+    ] == 9
     assert summary["curator_completion_required_count"] == 1
     assert summary["curator_completion_blocker_counts"]["missing_required_field"] == 1
     assert payload["recommended_request"] == {
