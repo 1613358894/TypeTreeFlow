@@ -620,6 +620,10 @@ KMM, GTC, PAGU, BCRC, CCRC, NCCB, CSUR, CICC, and IFO,
 plus public or semi-public genome portals such as BV-BRC/PATRIC and IMG/JGI. The default provider
 registry is fail-closed;
 provider cache must stay outside `cache/ncbi/`.
+For `external_fasta_required` coverage-plan rows that do not carry explicit
+provider hints, the default provider handoff labels are derived from registry
+entries whose status is `planning_only`. `metadata_only` public archives remain
+metadata review signals and are not default provider-handoff labels.
 
 Provider planning writes `provider/provider_registration_plan.tsv` and
 `provider/proposed_external_genomes.tsv`. It uses `network_action`,

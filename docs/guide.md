@@ -160,6 +160,10 @@ already-strict records from a matching acquisition-worklist schema. Wrong-schema
 or boundary-violating worklists are blocked rather than reinterpreted. The
 command does not contact providers, download genomes, mutate manifests, or
 claim strict scientific delivery.
+For `external_fasta_required` rows without explicit provider hints, the
+default provider handoff labels come from registry entries whose status is
+`planning_only`; `metadata_only` public archives are not default handoff
+labels.
 Command metadata reports `coverage_plan_packet.v1` for the generated
 coverage-plan pair.
 When `--write` succeeds, stdout includes a structured `recommended_request`

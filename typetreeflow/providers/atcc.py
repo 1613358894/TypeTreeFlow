@@ -22,6 +22,9 @@ class AtccGenomePortalAdapter:
             "adapter_status=planning_only",
             "atcc_downloader_gate=not_passed",
             "gate_failure=no documented ATCC legal approval or provider-permitted technical access route",
+            "network_action=none",
+            "download_action=none",
+            "credential_action=none",
             "blocked_actions=login,download,scraping,browser_automation,terms_acceptance,purchase_flow,credential_storage",
             "handoff=user obtains permitted local FASTA outside TypeTreeFlow, records terms/license evidence, then uses external_genomes.tsv and --register-external-genomes",
         ]

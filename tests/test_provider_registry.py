@@ -2,42 +2,46 @@ from typetreeflow.providers.base import ProviderStatus
 from typetreeflow.providers.registry import build_default_provider_registry
 
 
+PLANNING_HANDOFF_KEYS = (
+    "atcc_genome_portal",
+    "dsmz",
+    "jcm",
+    "nctc",
+    "cgmcc",
+    "nbrc",
+    "kctc",
+    "kacc",
+    "vkm",
+    "mccc",
+    "gdmcc",
+    "cctcc",
+    "cect",
+    "cip",
+    "ccug",
+    "ccm",
+    "bccm_lmg",
+    "ncimb",
+    "ncib",
+    "nrrl",
+    "ncaim",
+    "hambi",
+    "kmm",
+    "gtc",
+    "pagu",
+    "bcrc",
+    "ccrc",
+    "nccb",
+    "csur",
+    "cicc",
+    "ifo",
+    "img_jgi",
+)
+
+
 def test_default_registry_contains_planning_only_culture_collections():
     registry = build_default_provider_registry()
 
-    for key in (
-        "dsmz",
-        "jcm",
-        "nctc",
-        "cgmcc",
-        "nbrc",
-        "kctc",
-        "kacc",
-        "vkm",
-        "mccc",
-        "gdmcc",
-        "cctcc",
-        "cect",
-        "cip",
-        "ccug",
-        "ccm",
-        "bccm_lmg",
-        "ncimb",
-        "ncib",
-        "nrrl",
-        "ncaim",
-        "hambi",
-        "kmm",
-        "gtc",
-        "pagu",
-        "bcrc",
-        "ccrc",
-        "nccb",
-            "csur",
-            "cicc",
-            "ifo",
-            "img_jgi",
-        ):
+    for key in PLANNING_HANDOFF_KEYS:
         entry = registry.get(key)
         assert entry.provider_key == key
         assert entry.capability.status == ProviderStatus.PLANNING_ONLY
@@ -46,6 +50,15 @@ def test_default_registry_contains_planning_only_culture_collections():
         assert entry.adapter is not None
         assert "network_action=none" in entry.adapter.plan_notes(None)
         assert "download_action=none" in entry.adapter.plan_notes(None)
+
+
+def test_registry_default_planning_handoff_keys_exclude_metadata_only_archives():
+    registry = build_default_provider_registry()
+
+    assert registry.planning_handoff_keys() == PLANNING_HANDOFF_KEYS
+    assert "ena" not in registry.planning_handoff_keys()
+    assert "genbank" not in registry.planning_handoff_keys()
+    assert "bv_brc" not in registry.planning_handoff_keys()
 
 
 def test_default_registry_contains_metadata_only_public_archives():
