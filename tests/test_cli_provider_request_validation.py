@@ -304,6 +304,20 @@ def test_provider_request_validate_blocked_returns_two(tmp_path, capsys):
     assert packet["install_plan_recommended_command_plan"] is None
     assert payload["blocker_counts"]["local_fasta_missing"] == 1
     assert payload["blocker_counts"]["manual_review_required"] == 1
+    guidance_by_blocker = {
+        item["blocker"]: item for item in payload["blocker_guidance"]
+    }
+    assert guidance_by_blocker["local_fasta_missing"][
+        "recommended_operator_action"
+    ] == "make the declared local FASTA file available"
+    assert guidance_by_blocker["manual_review_required"][
+        "recommended_operator_action"
+    ] == "resolve manual review before handoff"
+    assert guidance_by_blocker["manual_review_required"]["downloads_triggered"] == 0
+    assert guidance_by_blocker["manual_review_required"]["providers_contacted"] == 0
+    assert guidance_by_blocker["manual_review_required"][
+        "strict_scientific_deliverable"
+    ] is False
     assert not (tmp_path / "manifest.tsv").exists()
     assert not (tmp_path / "external_genomes.tsv").exists()
 
@@ -336,9 +350,15 @@ def test_provider_request_validate_write_invalid_outputs_diagnostics(
     diagnostics = (
         outdir / "provider_request_validation_diagnostics.tsv"
     ).read_text(encoding="utf-8")
+    summary = json.loads(
+        (outdir / "provider_request_validation_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
     assert result == 2
     assert payload["status"] == "blocked"
     assert payload["writes_outputs"] is True
+    assert summary["blocker_guidance"] == payload["blocker_guidance"]
     assert "local_fasta_missing" in diagnostics
     assert "manual_review_required" in diagnostics
     assert not (tmp_path / "manifest.tsv").exists()
