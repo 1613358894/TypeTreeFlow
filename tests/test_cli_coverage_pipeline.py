@@ -5263,6 +5263,42 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ]["result_template"]
     assert result_template["status"] == "blocked"
     assert result_template["boundary_confirmations"]["downloads_triggered"] == 0
+    next_input_package_path = (
+        outdir / "coverage_next" / "next_input_package.json"
+    )
+    assert next_input_package_path.exists()
+    assert payload["output_paths"]["coverage_next_input_package"] == str(
+        next_input_package_path
+    )
+    next_input_package = json.loads(next_input_package_path.read_text())
+    assert next_input_package["schema_version"] == (
+        "coverage_next_input_handoff_packet.v1"
+    )
+    assert next_input_package["available"] is True
+    assert next_input_package["queue_item_id"] == (
+        summary["coverage_next_task_packet"]["queue_item_id"]
+    )
+    assert next_input_package["action_code"] == "resolve_curator_conflict"
+    assert next_input_package["recommended_request_target"] == (
+        "manual-review validate"
+    )
+    assert next_input_package["next_input_package"] == (
+        summary["coverage_next_task_packet"]["next_input_package"]
+    )
+    assert next_input_package["command_plan"] == summary["coverage_next_command_plan"]
+    assert next_input_package["operator_recipe"] == (
+        summary["coverage_next_operator_recipe"]
+    )
+    assert next_input_package["queue_resume_packet"] == (
+        summary["coverage_queue_resume_packet"]
+    )
+    assert next_input_package["downloads_triggered"] == 0
+    assert next_input_package["providers_contacted"] == 0
+    assert next_input_package["manifest_mutated"] is False
+    assert next_input_package["strict_scientific_deliverable"] is False
+    assert next_input_package["execution_boundary"] == (
+        "metadata_only_next_input_handoff_no_execution"
+    )
     code, status_payload, status_captured = _run(
         ["--coverage-pipeline-dir", str(outdir), "--json"],
         capsys,

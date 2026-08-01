@@ -2184,6 +2184,13 @@ target argv as a `commands preflight --argv-json ...` request so a server or AI
 parent controller can run the local preflight gate before dispatch. It repeats
 candidate and controller blockers, but it does not execute the target command
 or authorize execution after preflight.
+When `coverage-pipeline build --write` publishes an isolated pipeline
+directory, it also writes `coverage_next/next_input_package.json`, a compact
+handoff file that freezes the current queue item, review-input packet, command
+plan, operator recipe, queue resume packet, and queue digest guard. The file is
+for AI/operator resume and review only; it does not dispatch commands, contact
+providers, download genomes, mutate workflow outputs, or promote strict
+deliverables.
 `coverage_parent_controller_packet` is the top-level parent-controller
 envelope. It repeats the controller status, step summary, first controller
 candidate, preflight argv, provider/external handoff next step, server
