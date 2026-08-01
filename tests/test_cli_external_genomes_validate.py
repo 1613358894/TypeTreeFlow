@@ -526,12 +526,17 @@ def test_external_genomes_repair_template_writes_review_tsv(tmp_path, capsys):
     assert payload["output_path"] == str(output)
     assert payload["recommended_request"] == {
         "command": "external-genomes",
-        "subcommand": "validate",
-        "input": output.as_posix(),
+        "subcommand": "repair-merge",
+        "input": table.as_posix(),
+        "repair_template": output.as_posix(),
+        "write": True,
+        "out": "<external_genomes_repaired.tsv>",
     }
-    assert payload["recommended_request_target"] == "external-genomes validate"
+    assert payload["recommended_request_target"] == "external-genomes repair-merge"
     assert payload["recommended_next_command"] == (
-        f"typetreeflow external-genomes validate --input {output.as_posix()}"
+        "typetreeflow external-genomes repair-merge "
+        f"--input {table.as_posix()} --repair-template {output.as_posix()} "
+        "--write --out <external_genomes_repaired.tsv>"
     )
     rows = list(csv.DictReader(output.open(encoding="utf-8"), delimiter="\t"))
     assert len(rows) == 1
@@ -541,6 +546,124 @@ def test_external_genomes_repair_template_writes_review_tsv(tmp_path, capsys):
     assert payload["downloads_triggered"] == 0
     assert payload["providers_contacted"] == 0
     assert payload["manifest_mutated"] is False
+
+
+def test_external_genomes_repair_merge_preserves_valid_rows_and_applies_repairs(
+    tmp_path,
+    capsys,
+):
+    valid_fasta = _fasta(tmp_path / "genomes" / "valid.fna")
+    repaired_fasta = _fasta(tmp_path / "genomes" / "repaired.fna", ">seq1\nGGGG\n")
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [
+            _row(
+                species="Clostridium validum",
+                external_genome_id="valid",
+                genome_fasta_path="genomes/valid.fna",
+                sha256=calculate_sha256(valid_fasta),
+            ),
+            _row(
+                species="Clostridium missingum",
+                external_genome_id="missing",
+                genome_fasta_path="genomes/missing.fna",
+            ),
+        ],
+    )
+    repair_template = _write_external_genomes(
+        tmp_path / "external_genomes_repair_template.tsv",
+        [
+            _row(
+                species="Clostridium missingum",
+                external_genome_id="missing",
+                genome_fasta_path="genomes/repaired.fna",
+                sha256=calculate_sha256(repaired_fasta),
+            )
+        ],
+    )
+    output = tmp_path / "external_genomes_repaired.tsv"
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "repair-merge",
+                "--input",
+                str(table),
+                "--repair-template",
+                str(repair_template),
+                "--write",
+                "--out",
+                str(output),
+                "--json",
+            ]
+        )
+        == 0
+    )
+
+    payload = _payload(capsys)
+    assert payload["schema_version"] == "external_genomes_repair_merge.v1"
+    assert payload["status"] == "pass"
+    assert payload["valid_original_count"] == 1
+    assert payload["invalid_original_count"] == 1
+    assert payload["repair_template_row_count"] == 1
+    assert payload["merged_record_count"] == 2
+    assert payload["writes_outputs"] is True
+    assert payload["output_path"] == str(output)
+    assert payload["recommended_request"] == {
+        "command": "external-genomes",
+        "subcommand": "validate",
+        "input": output.as_posix(),
+    }
+    assert payload["recommended_request_target"] == "external-genomes validate"
+    assert payload["recommended_next_command"] == (
+        f"typetreeflow external-genomes validate --input {output.as_posix()}"
+    )
+    rows = list(csv.DictReader(output.open(encoding="utf-8"), delimiter="\t"))
+    assert [row["external_genome_id"] for row in rows] == ["valid", "missing"]
+    assert rows[0]["genome_fasta_path"] == "genomes/valid.fna"
+    assert rows[1]["genome_fasta_path"] == "genomes/repaired.fna"
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["manifest_mutated"] is False
+
+    assert main(["external-genomes", "validate", "--input", str(output)]) == 0
+    validate_payload = _payload(capsys)
+    assert validate_payload["status"] == "pass"
+    assert validate_payload["record_count"] == 2
+
+
+def test_external_genomes_repair_merge_blocks_row_count_mismatch(tmp_path, capsys):
+    table = _write_external_genomes(
+        tmp_path / "external_genomes.tsv",
+        [_row(genome_fasta_path="missing.fna")],
+    )
+    repair_template = _write_external_genomes(
+        tmp_path / "external_genomes_repair_template.tsv",
+        [],
+    )
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "repair-merge",
+                "--input",
+                str(table),
+                "--repair-template",
+                str(repair_template),
+                "--json",
+            ]
+        )
+        == 2
+    )
+
+    payload = _payload(capsys)
+    assert payload["status"] == "blocked"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "repair_template_row_count_mismatch"
+    )
+    assert payload["writes_outputs"] is False
 
 
 def test_external_genomes_repair_template_refuses_unsafe_output(tmp_path, capsys):

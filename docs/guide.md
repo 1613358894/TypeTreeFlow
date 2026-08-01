@@ -1482,8 +1482,20 @@ typetreeflow external-genomes repair-template --input <external_genomes.tsv> \
   --write --out <external_genomes_repair_template.tsv>
 ```
 
-Without `--write --out`, this command emits only compact JSON. The TSV keeps
-the `external_genomes.tsv` schema and remains a local repair aid only.
+After editing that template, merge it back with the original packet before
+rerunning validation:
+
+```bash
+typetreeflow external-genomes repair-merge --input <external_genomes.tsv> \
+  --repair-template <external_genomes_repair_template.tsv> \
+  --write --out <external_genomes_repaired.tsv>
+```
+
+Without `--write --out`, these commands emit only compact JSON. The TSVs keep
+the `external_genomes.tsv` schema and remain local repair aids only. The merge
+preserves originally valid rows, replaces only the original invalid rows in
+order, and still requires a fresh `external-genomes validate` pass before
+install planning.
 When `register-external-genomes --dry-run` passes without invalid rows, its JSON
 also carries a structured non-dry-run `recommended_request` plus compact
 `recommended_request_target` and renderable `recommended_next_command`; warning,

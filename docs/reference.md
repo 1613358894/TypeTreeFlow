@@ -2711,10 +2711,17 @@ no-write until the operator explicitly runs `external-genomes repair-template
 invalid-row templates as compact JSON. With `--write --out
 <external_genomes_repair_template.tsv>`, it writes only that isolated editable
 TSV using the exact `external_genomes.tsv` schema; existing outputs require
-`--force`, and the output path may not replace the input. Valid commands exit
-`0`; input or usage errors exit `2`; output write failures exit `1`. The command
-does not validate provider terms, contact providers, download data, register
-genomes, mutate manifests, or create strict scientific deliverables.
+`--force`, and the output path may not replace the input. Its next recommended
+step is `external-genomes repair-merge --input <external_genomes.tsv>
+--repair-template <external_genomes_repair_template.tsv> --write --out
+<external_genomes_repaired.tsv>`, which preserves originally valid rows and
+replaces the invalid rows in order with the edited repair-template rows. The
+merge requires the repair-template row count to match the original invalid-row
+count, writes only the isolated repaired TSV, and still requires a fresh
+`external-genomes validate` pass before install planning. Valid commands exit
+`0`; input or usage errors exit `2`; output write failures exit `1`. Neither
+command validates provider terms, contacts providers, downloads data, registers
+genomes, mutates manifests, or creates strict scientific deliverables.
 The validate payload also includes `external_genomes_readiness_packet`. When
 every row is valid, that packet reports `status=ready_for_next_stage`,
 `next_stage=external_genomes_install_plan`, and a structured request for
