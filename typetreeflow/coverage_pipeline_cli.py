@@ -1120,6 +1120,24 @@ def _run_status(
         ),
         queue_snapshot_matches_expected=snapshot_matches,
     )
+    coverage_next_input_handoff_artifact_packet = (
+        _coverage_next_input_handoff_artifact_packet(
+            coverage_dir,
+            expected_packet=_coverage_next_input_handoff_packet(
+                {
+                    "coverage_next_task_packet": coverage_next_task_packet,
+                    "coverage_next_command_plan": coverage_next_command_plan,
+                    "coverage_next_operator_recipe": coverage_next_operator_recipe,
+                    "coverage_queue_resume_packet": coverage_queue_resume_packet,
+                    "current_queue_snapshot_sha256": queue_snapshot_sha256,
+                    "expected_queue_snapshot_sha256": str(
+                        getattr(args, "expected_queue_snapshot_sha256", "") or ""
+                    ),
+                    "queue_snapshot_matches_expected": snapshot_matches,
+                }
+            ),
+        )
+    )
     coverage_operator_queue_preview = _coverage_operator_queue_preview(
         coverage_action_queue,
         limit=queue_preview_limit,
@@ -1202,6 +1220,9 @@ def _run_status(
             coverage_handoff_server_validation_result_artifact_packet=(
                 coverage_handoff_server_validation_result_artifact_packet
             ),
+            coverage_next_input_handoff_artifact_packet=(
+                coverage_next_input_handoff_artifact_packet
+            ),
             coverage_route_next_batch_packet=coverage_route_next_batch_packet,
         )
     )
@@ -1277,6 +1298,9 @@ def _run_status(
         ),
         "coverage_handoff_server_validation_result_artifact_packet": (
             coverage_handoff_server_validation_result_artifact_packet
+        ),
+        "coverage_next_input_handoff_artifact_packet": (
+            coverage_next_input_handoff_artifact_packet
         ),
         "coverage_opportunity_summary": _optional_summary_list(
             coverage_summary, "coverage_opportunity_summary"
@@ -5170,6 +5194,99 @@ def _coverage_handoff_server_validation_result_template_artifact_packet(
     }
 
 
+def _coverage_next_input_handoff_artifact_packet(
+    coverage_dir: Path,
+    *,
+    expected_packet: Mapping[str, object],
+) -> dict[str, object]:
+    relative_path = OUTPUT_PATHS["coverage_next_input_package"]
+    artifact_path = coverage_dir / relative_path
+    base = {
+        "schema_version": "coverage_next_input_handoff_artifact_packet.v1",
+        "available": False,
+        "status": "no_action",
+        "artifact_path": str(artifact_path),
+        "relative_path": relative_path,
+        "artifact_size_bytes": 0,
+        "artifact_sha256": "",
+        "packet_schema_version": "",
+        "queue_item_id": "",
+        "action_code": "",
+        "operator_route": "",
+        "next_input_class": "",
+        "recommended_request_target": "",
+        "queue_snapshot_sha256": "",
+        "handoff_matches_embedded_packet": False,
+        "diagnostic_count": 0,
+        "diagnostics": [],
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": (
+            "metadata_only_next_input_handoff_artifact_status"
+        ),
+    }
+    if not artifact_path.exists():
+        return base
+    local_diagnostics: list[dict[str, object]] = []
+    try:
+        if not artifact_path.is_file() or artifact_path.is_symlink():
+            raise OSError("unsafe artifact")
+        raw = artifact_path.read_bytes()
+        packet = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        local_diagnostics.append(
+            _diagnostic("coverage_next_input_handoff_artifact", "artifact_unreadable")
+        )
+        return {
+            **base,
+            "available": True,
+            "status": "blocked",
+            "diagnostic_count": len(local_diagnostics),
+            "diagnostics": local_diagnostics,
+        }
+    if not isinstance(packet, dict):
+        local_diagnostics.append(
+            _diagnostic("coverage_next_input_handoff_artifact", "artifact_malformed")
+        )
+        packet = {}
+    handoff_matches = packet == dict(expected_packet)
+    if not handoff_matches:
+        local_diagnostics.append(
+            _diagnostic(
+                "coverage_next_input_handoff_artifact",
+                "embedded_handoff_packet_mismatch",
+            )
+        )
+    return {
+        **base,
+        "available": True,
+        "status": "pass" if handoff_matches else "blocked",
+        "artifact_size_bytes": len(raw),
+        "artifact_sha256": hashlib.sha256(raw).hexdigest(),
+        "packet_schema_version": str(packet.get("schema_version", "")),
+        "queue_item_id": str(packet.get("queue_item_id", "")),
+        "action_code": str(packet.get("action_code", "")),
+        "operator_route": str(packet.get("operator_route", "")),
+        "next_input_class": str(packet.get("next_input_class", "")),
+        "recommended_request_target": str(
+            packet.get("recommended_request_target", "")
+        ),
+        "queue_snapshot_sha256": str(packet.get("queue_snapshot_sha256", "")),
+        "handoff_matches_embedded_packet": handoff_matches,
+        "diagnostic_count": len(local_diagnostics),
+        "diagnostics": local_diagnostics,
+    }
+
+
 def _coverage_handoff_server_validation_result_artifact_packet(
     result_path_value: str | None,
     *,
@@ -7223,6 +7340,9 @@ def _coverage_parent_controller_packet(
     coverage_handoff_server_validation_result_artifact_packet: (
         Mapping[str, object] | None
     ) = None,
+    coverage_next_input_handoff_artifact_packet: (
+        Mapping[str, object] | None
+    ) = None,
 ) -> dict[str, object]:
     template_artifact_packet = (
         coverage_handoff_server_validation_result_template_artifact_packet
@@ -7238,6 +7358,11 @@ def _coverage_parent_controller_packet(
             coverage_handoff_server_validation_result_artifact_packet,
             Mapping,
         )
+        else {}
+    )
+    next_input_artifact_packet = (
+        coverage_next_input_handoff_artifact_packet
+        if isinstance(coverage_next_input_handoff_artifact_packet, Mapping)
         else {}
     )
     controller_available = bool(coverage_controller_packet.get("available"))
@@ -7592,6 +7717,9 @@ def _coverage_controller_inspection_summary(
     coverage_handoff_server_validation_result_artifact_packet: (
         Mapping[str, object] | None
     ) = None,
+    coverage_next_input_handoff_artifact_packet: (
+        Mapping[str, object] | None
+    ) = None,
 ) -> dict[str, object]:
     template_artifact_packet = (
         coverage_handoff_server_validation_result_template_artifact_packet
@@ -7607,6 +7735,11 @@ def _coverage_controller_inspection_summary(
             coverage_handoff_server_validation_result_artifact_packet,
             Mapping,
         )
+        else {}
+    )
+    next_input_artifact_packet = (
+        coverage_next_input_handoff_artifact_packet
+        if isinstance(coverage_next_input_handoff_artifact_packet, Mapping)
         else {}
     )
     surfaces = [
@@ -7668,6 +7801,13 @@ def _coverage_controller_inspection_summary(
             _controller_inspection_surface_item(
                 "coverage_handoff_server_validation_result_artifact_packet",
                 result_artifact_packet,
+            )
+        )
+    if next_input_artifact_packet:
+        surfaces.append(
+            _controller_inspection_surface_item(
+                "coverage_next_input_handoff_artifact_packet",
+                next_input_artifact_packet,
             )
         )
     surfaces.append(

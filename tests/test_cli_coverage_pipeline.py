@@ -1878,6 +1878,10 @@ def _assert_controller_packet(
         expected_surface_names.append(
             "coverage_handoff_server_validation_result_artifact_packet"
         )
+    if "coverage_next_input_handoff_artifact_packet" in payload:
+        expected_surface_names.append(
+            "coverage_next_input_handoff_artifact_packet"
+        )
     expected_surface_names.append("coverage_route_next_batch_packet")
     assert inspection_summary["surface_count"] == len(expected_surface_names)
     assert [
@@ -5373,6 +5377,32 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "surfaces"
     ]
     surface_by_name = {item["name"]: item for item in status_surfaces}
+    next_input_artifact = status_payload[
+        "coverage_next_input_handoff_artifact_packet"
+    ]
+    assert next_input_artifact["available"] is True
+    assert next_input_artifact["status"] == "pass"
+    assert next_input_artifact["artifact_path"] == str(next_input_package_path)
+    assert next_input_artifact["relative_path"] == (
+        "coverage_next/next_input_package.json"
+    )
+    assert next_input_artifact["artifact_size_bytes"] == len(
+        next_input_package_path.read_bytes()
+    )
+    assert next_input_artifact["artifact_sha256"] == hashlib.sha256(
+        next_input_package_path.read_bytes()
+    ).hexdigest()
+    assert next_input_artifact["packet_schema_version"] == (
+        "coverage_next_input_handoff_packet.v1"
+    )
+    assert next_input_artifact["queue_item_id"] == (
+        next_input_package["queue_item_id"]
+    )
+    assert next_input_artifact["action_code"] == "resolve_curator_conflict"
+    assert next_input_artifact["handoff_matches_embedded_packet"] is True
+    next_input_surface = surface_by_name["coverage_next_input_handoff_artifact_packet"]
+    assert next_input_surface["available"] is True
+    assert next_input_surface["status"] == "pass"
     artifact_surface = surface_by_name[
         "coverage_handoff_server_validation_result_template_artifact_packet"
     ]
@@ -5381,6 +5411,31 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert artifact_surface["target_argv"] == template_artifact[
         "result_validation_recommended_argv"
     ]
+    tampered_next_input = dict(next_input_package)
+    tampered_next_input["queue_item_id"] = "tampered"
+    next_input_package_path.write_text(
+        json.dumps(tampered_next_input), encoding="utf-8"
+    )
+    code, tampered_status_payload, _ = _run(
+        ["--coverage-pipeline-dir", str(outdir), "--json"],
+        capsys,
+        action="status",
+    )
+    assert code == 0
+    tampered_artifact = tampered_status_payload[
+        "coverage_next_input_handoff_artifact_packet"
+    ]
+    assert tampered_artifact["available"] is True
+    assert tampered_artifact["status"] == "blocked"
+    assert tampered_artifact["handoff_matches_embedded_packet"] is False
+    assert [
+        item["diagnostic_code"] for item in tampered_artifact["diagnostics"]
+    ] == [
+        "embedded_handoff_packet_mismatch"
+    ]
+    next_input_package_path.write_text(
+        json.dumps(next_input_package), encoding="utf-8"
+    )
     result_template["status"] = "pass"
     result_template["summary"] = "Bounded local server validation passed."
     result_template["source_commit"] = (

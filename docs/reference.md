@@ -2190,7 +2190,11 @@ handoff file that freezes the current queue item, review-input packet, command
 plan, operator recipe, queue resume packet, and queue digest guard. The file is
 for AI/operator resume and review only; it does not dispatch commands, contact
 providers, download genomes, mutate workflow outputs, or promote strict
-deliverables.
+deliverables. `coverage-pipeline status` reports
+`coverage_next_input_handoff_artifact_packet` with the file path, size,
+SHA-256, selected queue labels, and a `handoff_matches_embedded_packet` guard so
+controllers can fail closed if the saved handoff no longer matches the stored
+pipeline summary.
 `coverage_parent_controller_packet` is the top-level parent-controller
 envelope. It repeats the controller status, step summary, first controller
 candidate, preflight argv, provider/external handoff next step, server
