@@ -1495,7 +1495,9 @@ Without `--write --out`, these commands emit only compact JSON. The TSVs keep
 the `external_genomes.tsv` schema and remain local repair aids only. The merge
 preserves originally valid rows, replaces only the original invalid rows in
 order, rejects row-count or species/source/genome-id identity mismatches, and
-still requires a fresh `external-genomes validate` pass before install planning.
+rebases relative FASTA paths so isolated repaired TSV outputs remain valid from
+their own directory. It still requires a fresh `external-genomes validate` pass
+before install planning.
 When `register-external-genomes --dry-run` passes without invalid rows, its JSON
 also carries a structured non-dry-run `recommended_request` plus compact
 `recommended_request_target` and renderable `recommended_next_command`; warning,
