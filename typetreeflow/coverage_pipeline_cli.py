@@ -153,6 +153,7 @@ OUTPUT_PATHS = {
     "server_validation_result_template": (
         "server_validation/coverage_handoff_server_validation_result_template.json"
     ),
+    "coverage_next_input_package": "coverage_next/next_input_package.json",
     "pipeline_summary": "coverage_pipeline_summary.json",
 }
 PROVIDER_REQUEST_EXTERNAL_GENOMES_VALIDATE_NEXT_COMMAND = (
@@ -9038,6 +9039,92 @@ def _coverage_next_input_package(
     }
 
 
+def _coverage_next_input_handoff_packet(
+    summary: Mapping[str, object],
+) -> dict[str, object]:
+    next_task_packet = (
+        dict(summary.get("coverage_next_task_packet", {}))
+        if isinstance(summary.get("coverage_next_task_packet"), Mapping)
+        else {}
+    )
+    command_plan = (
+        dict(summary.get("coverage_next_command_plan", {}))
+        if isinstance(summary.get("coverage_next_command_plan"), Mapping)
+        else {}
+    )
+    operator_recipe = (
+        dict(summary.get("coverage_next_operator_recipe", {}))
+        if isinstance(summary.get("coverage_next_operator_recipe"), Mapping)
+        else {}
+    )
+    queue_resume_packet = (
+        dict(summary.get("coverage_queue_resume_packet", {}))
+        if isinstance(summary.get("coverage_queue_resume_packet"), Mapping)
+        else {}
+    )
+    return {
+        "schema_version": "coverage_next_input_handoff_packet.v1",
+        "available": bool(next_task_packet.get("available")),
+        "packet_status": str(next_task_packet.get("packet_status", "")),
+        "queue_position": _safe_int(next_task_packet.get("queue_position", 0)),
+        "queue_item_id": str(next_task_packet.get("queue_item_id", "")),
+        "action_code": str(next_task_packet.get("action_code", "")),
+        "operator_route": str(next_task_packet.get("operator_route", "")),
+        "next_input_class": str(next_task_packet.get("next_input_class", "")),
+        "record_count": _safe_int(next_task_packet.get("record_count", 0)),
+        "species_count": _safe_int(next_task_packet.get("species_count", 0)),
+        "species_preview": (
+            list(next_task_packet.get("species_preview", []))
+            if isinstance(next_task_packet.get("species_preview"), list)
+            else []
+        ),
+        "species_truncated": bool(next_task_packet.get("species_truncated")),
+        "recommended_request": (
+            dict(next_task_packet.get("recommended_request", {}))
+            if isinstance(next_task_packet.get("recommended_request"), Mapping)
+            else None
+        ),
+        "recommended_request_target": str(
+            next_task_packet.get("recommended_request_target", "")
+        ),
+        "recommended_next_command": str(
+            next_task_packet.get("recommended_next_command", "")
+        ),
+        "review_input_packet": (
+            dict(next_task_packet.get("review_input_packet", {}))
+            if isinstance(next_task_packet.get("review_input_packet"), Mapping)
+            else {}
+        ),
+        "next_input_package": (
+            dict(next_task_packet.get("next_input_package", {}))
+            if isinstance(next_task_packet.get("next_input_package"), Mapping)
+            else {}
+        ),
+        "command_plan": command_plan,
+        "operator_recipe": operator_recipe,
+        "queue_resume_packet": queue_resume_packet,
+        "queue_snapshot_sha256": str(summary.get("current_queue_snapshot_sha256", "")),
+        "expected_queue_snapshot_sha256": str(
+            summary.get("expected_queue_snapshot_sha256", "")
+        ),
+        "queue_snapshot_matches_expected": bool(
+            summary.get("queue_snapshot_matches_expected", True)
+        ),
+        "output_relative_path": OUTPUT_PATHS["coverage_next_input_package"],
+        "safe_for_unattended_execution": False,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "execution_boundary": "metadata_only_next_input_handoff_no_execution",
+    }
+
+
 def _append_unique(values: list[str], value: str) -> None:
     if value and value not in values:
         values.append(value)
@@ -9634,6 +9721,12 @@ def _rendered_outputs(
             summary["coverage_handoff_server_validation_result_template_packet"][
                 "result_template"
             ],
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n",
+        "coverage_next_input_package": json.dumps(
+            _coverage_next_input_handoff_packet(summary),
             sort_keys=True,
             separators=(",", ":"),
         )

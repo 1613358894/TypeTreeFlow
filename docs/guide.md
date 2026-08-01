@@ -752,12 +752,19 @@ publishes only isolated `acquisition_worklist/`, `coverage_plan/`,
 `provider_handoff/`, `provider_request/`, optional
 `provider_request_validation/`, optional `provider_request_external_genomes/`,
 optional `external_genomes_install_plan/`,
+`coverage_next/next_input_package.json`,
 `server_validation/coverage_handoff_server_validation_result_template.json`,
 and `coverage_pipeline_summary.json` members under the requested directory. If
 `--curated-provider-request-tsv` is
 supplied, the pipeline validates that explicit curator-completed TSV and writes
 `provider_request_external_genomes/` only when the local validation passes; it
 does not infer curator completion from the generated `provider_request/` draft.
+The `coverage_next/next_input_package.json` member freezes the current
+coverage-action queue item, review-input packet, command plan, operator recipe,
+and queue resume packet so a later AI/operator handoff can resume from an
+explicit file. It remains metadata-only: it does not dispatch the recommended
+command, contact providers, download genomes, mutate workflow outputs, or
+promote strict type-strain deliverables.
 When `--external-genomes-install-target-outdir` is also supplied, the same
 isolated build writes `external_genomes_install_plan/` as an audit-only plan
 for the future registration run. It does not create that target run directory
