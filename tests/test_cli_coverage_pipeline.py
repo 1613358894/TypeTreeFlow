@@ -6127,6 +6127,16 @@ def test_coverage_pipeline_build_filters_generated_handoff_by_provider_key(
     assert status_payload["provider_key_filter"] == ["dsmz"]
     assert status_payload["provider_key_filter_count"] == 1
     assert status_payload["filtered"] is True
+    assert status_payload["provider_request_provider_batch_count"] == 1
+    assert status_payload["provider_request_provider_batches"][0]["provider_key"] == (
+        "dsmz"
+    )
+    assert status_payload["provider_request_provider_batches"][0][
+        "primary_operator_route"
+    ] == "provider_handoff"
+    assert status_payload["provider_request_provider_batches"][0][
+        "requires_provider_handoff"
+    ] is True
 
 
 def test_coverage_pipeline_build_publishes_archive_candidate_child_outputs(
