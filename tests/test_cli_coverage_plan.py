@@ -222,6 +222,13 @@ def test_coverage_plan_write_publishes_owned_pair(tmp_path, capsys):
     assert summary["priority_provider_route_items"][0][
         "safe_for_unattended_execution"
     ] is False
+    assert summary["recommended_request"] == payload["recommended_request"]
+    assert summary["recommended_request_target"] == "provider-handoff build"
+    assert summary["recommended_command_plan"] == payload["recommended_command_plan"]
+    assert summary["recommended_next_command"] == (
+        "typetreeflow provider-handoff build --coverage-plan-tsv "
+        f"{plan_path} --provider-key atcc_genome_portal"
+    )
 
     assert (
         cli.main(

@@ -342,6 +342,12 @@ def test_acquisition_worklist_write_publishes_owned_pair(tmp_path, capsys):
     assert summary["acquisition_opportunity_summary"] == payload[
         "acquisition_opportunity_summary"
     ]
+    assert summary["recommended_request"] == payload["recommended_request"]
+    assert summary["recommended_request_target"] == "coverage-plan build"
+    assert summary["recommended_command_plan"] == payload["recommended_command_plan"]
+    assert summary["recommended_next_command"] == (
+        f"typetreeflow coverage-plan build --worklist-tsv {worklist_path}"
+    )
 
     assert (
         cli.main(

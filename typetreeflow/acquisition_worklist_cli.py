@@ -132,7 +132,11 @@ def run_acquisition_worklist_command(
                 outdir=outdir,
                 rendered={
                     "worklist": report.rows_tsv(),
-                    "summary": report.summary_json() + "\n",
+                    "summary": _summary_json(
+                        report,
+                        worklist_tsv=str(outdir / OUTPUT_NAMES["worklist"]),
+                    )
+                    + "\n",
                 },
                 force=args.force,
             )
@@ -292,6 +296,23 @@ def _coverage_plan_recommended_request(worklist_tsv: str) -> dict[str, object]:
         "subcommand": "build",
         "worklist_tsv": worklist_tsv,
     }
+
+
+def _summary_json(report, *, worklist_tsv: str | None = None) -> str:
+    summary = dict(report.summary)
+    if worklist_tsv:
+        recommended_request = _coverage_plan_recommended_request(worklist_tsv)
+        summary["recommended_request"] = recommended_request
+        summary["recommended_request_target"] = RECOMMENDED_REQUEST_TARGET
+        summary["recommended_command_plan"] = recommended_command_plan(
+            recommended_request,
+            request_source="acquisition_worklist_summary.recommended_request",
+        )
+        summary["recommended_next_command"] = (
+            "typetreeflow coverage-plan build --worklist-tsv "
+            f"{worklist_tsv}"
+        )
+    return json.dumps(summary, sort_keys=True, separators=(",", ":"))
 
 
 def _diagnostic(component: str, code: str) -> dict[str, object]:
