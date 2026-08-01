@@ -1963,7 +1963,8 @@ def test_commands_render_emits_normalized_provider_request_argv(capsys):
                 "--request-json",
                 (
                     '{"command":"provider-request","subcommand":"draft",'
-                    '"provider_handoff_tsv":"handoff.tsv","write":true,'
+                    '"provider_handoff_tsv":"handoff.tsv",'
+                    '"provider_keys":["DSMZ","NCBI GenBank"],"write":true,'
                     '"outdir":"requests","force":true}'
                 ),
             ]
@@ -1977,6 +1978,10 @@ def test_commands_render_emits_normalized_provider_request_argv(capsys):
         "draft",
         "--provider-handoff-tsv",
         "handoff.tsv",
+        "--provider-key",
+        "DSMZ",
+        "--provider-key",
+        "NCBI GenBank",
         "--write",
         "--outdir",
         "requests",

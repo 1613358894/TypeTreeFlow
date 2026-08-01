@@ -2110,6 +2110,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "offline provider handoff TSV input",
         },
         {
+            "name": "--provider-key",
+            "kind": "string",
+            "required": False,
+            "repeatable": True,
+            "purpose": "optional canonical provider key or known alias filter",
+        },
+        {
             "name": "--write",
             "kind": "flag",
             "required": False,
@@ -3797,6 +3804,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "command",
                 "subcommand",
                 "provider_handoff_tsv",
+                "provider_keys",
                 "write",
                 "outdir",
                 "force",
@@ -3808,6 +3816,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "--provider-handoff-tsv",
             _required_string(request, "provider_handoff_tsv"),
         ]
+        for provider_key in _optional_string_array(request, "provider_keys"):
+            argv.extend(["--provider-key", provider_key])
         if _bool_flag(request, "write"):
             argv.append("--write")
         outdir = _optional_string(request, "outdir")

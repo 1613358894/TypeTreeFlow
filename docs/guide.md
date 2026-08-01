@@ -265,6 +265,7 @@ Draft a review-only provider request TSV from a provider handoff:
 
 ```bash
 typetreeflow provider-request draft --provider-handoff-tsv <provider_handoff.tsv> \
+  [--provider-key <provider-key-or-alias> ...] \
   [--json] [--write --outdir <isolated-directory> [--force]]
 ```
 
@@ -276,13 +277,17 @@ completion credit, or strict scientific delivery. Input rows with missing provid
 provider name, provider status, route metadata, or species are blocked instead
 of producing empty provider request rows. The compact JSON and summary include
 `operator_route_counts`, `provider_route_groups`, `next_input_class_counts`,
-`automation_boundary_counts`, `curator_completion_template_counts`,
+`automation_boundary_counts`, `provider_key_filter`,
+`provider_key_filter_count`, `filtered`, `curator_completion_template_counts`,
 `curator_completion_template_guidance`, `curator_completion_field_counts`, and
 `curator_completion_blocker_counts` so AI/operator routing can see both the
 inherited route and the curator-owned fields still blocking later
 provider-registration planning. Template guidance lists the required fields,
 blocker keys, and recommended local operator action for each present template;
 it is still review-only metadata, not provider contact or download approval.
+Repeated `--provider-key` values filter the handoff to canonical provider keys
+or known aliases, so one combined `provider_handoff.tsv` can be split into
+provider-specific local review batches without rerunning upstream planning.
 Command metadata
 surfaces report the target output contract as
 `provider_request_draft_packet.v1`, so controllers can route the draft pair

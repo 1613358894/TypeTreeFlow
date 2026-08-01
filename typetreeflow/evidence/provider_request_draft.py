@@ -13,6 +13,7 @@ from typetreeflow.provider_plan import (
     REQUIRED_PROVIDER_REQUEST_VALUE_FIELDS,
 )
 from typetreeflow.providers.policy import redact_secret_like_text
+from typetreeflow.providers.registry import ProviderRegistry, build_default_provider_registry
 from typetreeflow.providers.routing import provider_route_groups
 
 
@@ -120,6 +121,7 @@ class ProviderRequestDraftRow:
 @dataclass(frozen=True)
 class ProviderRequestDraft:
     rows: tuple[ProviderRequestDraftRow, ...]
+    provider_key_filter: tuple[str, ...] = ()
     schema_version: str = PROVIDER_REQUEST_DRAFT_SCHEMA_VERSION
 
     @property
@@ -179,6 +181,9 @@ class ProviderRequestDraft:
                 sorted(automation_boundary_counts.items())
             ),
             "source_action_counts": dict(sorted(action_counts.items())),
+            "provider_key_filter": list(self.provider_key_filter),
+            "provider_key_filter_count": len(self.provider_key_filter),
+            "filtered": bool(self.provider_key_filter),
             "curator_completion_template_counts": {
                 key: value for key, value in template_counts.items() if value
             },
@@ -214,9 +219,24 @@ class ProviderRequestDraft:
 
 def build_provider_request_draft(
     provider_handoff_rows: Iterable[Mapping[str, object]],
+    *,
+    provider_key_filter: Iterable[str] | None = None,
+    registry: ProviderRegistry | None = None,
 ) -> ProviderRequestDraft:
+    provider_registry = registry or build_default_provider_registry()
+    selected_provider_keys = _provider_key_filter(
+        provider_key_filter,
+        registry=provider_registry,
+    )
     rows: list[ProviderRequestDraftRow] = []
-    for index, row in enumerate(provider_handoff_rows, start=1):
+    for index, row in enumerate(
+        _filtered_provider_handoff_rows(
+            provider_handoff_rows,
+            provider_key_filter=selected_provider_keys,
+            registry=provider_registry,
+        ),
+        start=1,
+    ):
         rows.append(
             ProviderRequestDraftRow(
                 request_id=f"PH-{index:04d}",
@@ -233,7 +253,41 @@ def build_provider_request_draft(
                 provider_guidance_notes=_value(row, "provider_guidance_notes"),
             )
         )
-    return ProviderRequestDraft(rows=tuple(rows))
+    return ProviderRequestDraft(
+        rows=tuple(rows),
+        provider_key_filter=selected_provider_keys,
+    )
+
+
+def _provider_key_filter(
+    values: Iterable[str] | None,
+    *,
+    registry: ProviderRegistry,
+) -> tuple[str, ...]:
+    if values is None:
+        return ()
+    provider_keys: list[str] = []
+    for value in values:
+        for provider_key in registry.keys_from_hints(str(value)):
+            if provider_key and provider_key not in provider_keys:
+                provider_keys.append(provider_key)
+    return tuple(provider_keys)
+
+
+def _filtered_provider_handoff_rows(
+    rows: Iterable[Mapping[str, object]],
+    *,
+    provider_key_filter: tuple[str, ...],
+    registry: ProviderRegistry,
+) -> tuple[Mapping[str, object], ...]:
+    if not provider_key_filter:
+        return tuple(rows)
+    selected = set(provider_key_filter)
+    return tuple(
+        row
+        for row in rows
+        if registry.get(_value(row, "provider_key")).provider_key in selected
+    )
 
 
 def _notes(row: ProviderRequestDraftRow) -> str:
