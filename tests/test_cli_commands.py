@@ -795,6 +795,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
     assert audit_dir_flags | {
         "--delivery-dir",
         "--failed-handoff",
+        "--server-validation-result",
     } <= parameter_names[("package-results", None)]
     assert {
         (entry["command"], entry["subcommand"])
@@ -1191,6 +1192,8 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
                     '"provider_request_external_genomes",'
                     '"external_genomes_install_plan_dir":'
                     '"external_genomes_install_plan",'
+                    '"server_validation_result":'
+                    '"coverage_handoff_server_validation_result.json",'
                     '"coverage_pipeline_dir":"coverage_pipeline",'
                     '"offline_readiness_dir":"readiness",'
                     '"strict_gating_dir":"strict_gating"}'
@@ -1225,6 +1228,8 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
         "provider_request_external_genomes",
         "--external-genomes-install-plan-dir",
         "external_genomes_install_plan",
+        "--server-validation-result",
+        "coverage_handoff_server_validation_result.json",
         "--coverage-pipeline-dir",
         "coverage_pipeline",
         "--offline-readiness-dir",

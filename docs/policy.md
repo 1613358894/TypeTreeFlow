@@ -475,6 +475,13 @@ explicitly supplied `--archive-candidates-dir`. This is passive public-archive
 audit visibility only; it does not query ENA, DDBJ, GenBank, RefSeq, or other
 archives, create `external_genomes.tsv`, or convert archive candidates into
 strict completion.
+Normal `package-results --include reports` and `--include all` may also copy a
+valid explicitly supplied `--server-validation-result` JSON under
+`server_validation/` with an audit-only artifact-scope row. This is bounded
+server validation evidence availability only. It must not execute target
+commands, contact providers, trigger downloads, register external genomes,
+mutate manifests, change completion metrics, or promote strict deliverables.
+Failed-handoff packages exclude server-validation result artifacts.
 
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic

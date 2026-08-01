@@ -1085,6 +1085,11 @@ typetreeflow package-results \
 typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_plan \
   --include reports \
+  --server-validation-result <coverage_handoff_server_validation_result.json>
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
   --offline-readiness-dir <isolated-readiness-directory>
 
 typetreeflow package-results \
@@ -1188,6 +1193,16 @@ apply the same copy and artifact-scope contracts as the individual directory
 options. This is a convenience handoff only; it does not scan workflow outputs,
 rerun the pipeline, query archives, contact providers, trigger downloads,
 register external genomes, or change scientific status.
+With an explicit `--server-validation-result`, `--include reports` and
+`--include all` copy a valid
+`coverage_handoff_server_validation_result.v1` JSON under
+`server_validation/` and add one `scope=audit`,
+`evidence_policy=server_validation_audit` artifact-scope row. Missing,
+malformed, or wrong-schema input is not copied and produces only a compact
+package warning. This file is audit-only bounded validation evidence: package
+inclusion does not execute target commands, contact providers, trigger
+downloads, register external genomes, mutate manifests, or promote strict
+deliverables. `--failed-handoff` excludes server-validation result artifacts.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,

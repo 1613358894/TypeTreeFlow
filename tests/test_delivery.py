@@ -73,6 +73,44 @@ def _write_manual_review_import_triplet(directory):
     )
 
 
+def _write_server_validation_result(path):
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "coverage_handoff_server_validation_result.v1",
+                "status": "pass",
+                "validation_status": "pass",
+                "source_commit": "3c51551cfab70222e4a6b4a9c5ed8fafabe10226",
+                "typetreeflow_version": "typetreeflow 2.2.40",
+                "runtime_python": "/icdc/Users/example/envs/typetreeflow/bin/python",
+                "evidence_run_path": "/icdc/Users/example/codex_runs/run",
+                "check_count": 49,
+                "failed_count": 0,
+                "checked_surface_names": ["provider_request_external_genomes"],
+                "input_readiness_status": "ready",
+                "blocking_ids": [],
+                "warning_ids": [],
+                "boundary_confirmations": {
+                    "filesystem_probe_performed": False,
+                    "artifact_validation_performed": False,
+                    "target_command_execution_authorized": False,
+                    "provider_contact_allowed": False,
+                    "downloads_triggered": 0,
+                    "providers_contacted": 0,
+                    "network_access": False,
+                    "external_tools": False,
+                    "manifest_mutated": False,
+                    "strict_scientific_deliverable": False,
+                    "external_genomes_registration_applied": False,
+                },
+                "diagnostics": [],
+                "summary": "Bounded server validation passed.",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def _write_strict_gating_triplet(directory):
     directory.mkdir(parents=True)
     (directory / "strict_gating_summary.json").write_text(
@@ -1960,6 +1998,116 @@ def test_package_results_explicit_external_genomes_install_plan_dir_copies_tripl
     assert {row["strict_scientific_deliverable"] for row in scope_rows} == {
         "false"
     }
+
+
+def test_package_results_includes_server_validation_result_and_scope(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        server_validation_result=result_path,
+    )
+
+    delivered = (
+        result.delivery_dir
+        / "server_validation"
+        / "coverage_handoff_server_validation_result.json"
+    )
+    assert delivered.exists()
+    assert json.loads(delivered.read_text(encoding="utf-8"))["check_count"] == 49
+    scope_rows = [
+        row
+        for row in _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+        if row["artifact_path"].startswith("server_validation/")
+    ]
+    assert len(scope_rows) == 1
+    assert scope_rows[0]["scope"] == "audit"
+    assert scope_rows[0]["evidence_policy"] == "server_validation_audit"
+    assert scope_rows[0]["strict_scientific_deliverable"] == "false"
+    assert (
+        scope_rows[0]["not_for"]
+        == "downloads, provider contact, registration, manifest mutation, or strict deliverable gating"
+    )
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Coverage Handoff Server Validation Result" in package_text
+    assert "bounded validation evidence" in package_text
+    assert "3c51551cfab70222e4a6b4a9c5ed8fafabe10226" in package_text
+    assert "target command execution" in package_text
+    assert "contact providers" in package_text
+
+
+def test_package_results_server_validation_result_malformed_warns_without_copy(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    result_path.write_text("{not json", encoding="utf-8")
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        server_validation_result=result_path,
+    )
+
+    assert result.server_validation_result_warnings == [
+        "malformed_server_validation_result"
+    ]
+    assert not (result.delivery_dir / "server_validation").exists()
+
+
+def test_package_results_failed_handoff_excludes_server_validation_result(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        server_validation_result=result_path,
+    )
+
+    assert not (result.delivery_dir / "server_validation").exists()
+
+
+def test_package_results_cli_accepts_server_validation_result_and_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--server-validation-result",
+            str(result_path),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "server_validation"
+        / "coverage_handoff_server_validation_result.json"
+    ).exists()
 
 
 def test_package_results_cli_accepts_explicit_external_genomes_install_plan_dir(
