@@ -256,6 +256,10 @@ explicit frozen Clostridium plan-only flag. In write mode it may publish only
 its owned crosswalk triplet in an isolated directory. It must not discover
 workflow outputs, load credentials, contact providers, trigger downloads,
 mutate manifests, or convert count consistency into completion credit.
+Any derived `clostridium_opportunity_action_summary` is also audit-only. It may
+help an AI or operator decide whether conflicts, candidate rows, or gap rows
+should be reviewed first, but it must not be treated as species-level evidence,
+provider availability, download authorization, or strict promotion.
 
 Acquisition worklists are review queues, not acquisition execution. A worklist
 lane may recommend public linkage review, conflict resolution, external FASTA

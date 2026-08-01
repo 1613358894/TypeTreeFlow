@@ -54,6 +54,24 @@ def test_clostridium_plan_only_crosswalk_preserves_frozen_invariants():
     assert report.summary["manual_review_sum"] == 123
     assert report.summary["downloads"] == 0
     assert "strict_reconciliation_partition" in report.summary["metric_families"]
+    action_summary = report.summary["clostridium_opportunity_action_summary"]
+    assert action_summary["schema_version"] == (
+        "clostridium_opportunity_action_summary.v1"
+    )
+    assert action_summary["available"] is True
+    assert action_summary["safe_for_unattended_download"] is False
+    assert action_summary["downloads_triggered"] == 0
+    assert action_summary["providers_contacted"] == 0
+    assert action_summary["manifest_mutated"] is False
+    assert action_summary["strict_scientific_deliverable"] is False
+    assert [
+        (item["action_code"], item["source_metric"], item["record_count"])
+        for item in action_summary["action_groups"]
+    ] == [
+        ("resolve_curator_conflicts", "conflict_rows", 8),
+        ("review_candidate_type_linkage", "candidate_rows", 115),
+        ("prepare_gap_handoff_or_external_registration", "gap_rows", 48),
+    ]
     assert json.loads(report.summary_json())["audit_only"] is True
 
 
@@ -70,6 +88,19 @@ def test_partition_sum_mismatch_is_invalid():
 
     assert report.valid is False
     assert "strict_partition_sum_mismatch" in _codes(report)
+    assert report.summary["clostridium_opportunity_action_summary"] == {
+        "schema_version": "clostridium_opportunity_action_summary.v1",
+        "available": False,
+        "reason": "valid_clostridium_partition_required",
+        "action_group_count": 0,
+        "action_groups": [],
+        "audit_only": True,
+        "strict_scientific_deliverable": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "manifest_mutated": False,
+        "safe_for_unattended_download": False,
+    }
 
 
 def test_manual_review_sum_mismatch_is_invalid():

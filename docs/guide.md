@@ -855,7 +855,11 @@ typetreeflow count-crosswalk build --clostridium-plan-only [--json]
 The command is an audit aid only. It keeps checklist, selection, manifest,
 strict reconciliation, manual-review, diagnostic, and download counts in
 separate metric families so AI operators do not collapse them into one
-coverage number. Explicit write mode publishes only
+coverage number. For the frozen Clostridium plan-only audit, stdout also
+includes `clostridium_opportunity_action_summary`, a count-derived next-action
+grouping for conflict, candidate, and gap rows. It is only an operator triage
+aid; it does not identify species, approve downloads, or promote strict rows.
+Explicit write mode publishes only
 `count_crosswalk_metrics.tsv`, `count_crosswalk_summary.json`, and
 `count_crosswalk_issues.tsv` in an isolated directory. It does not scan
 workflow outputs, contact providers, trigger downloads, mutate manifests, or

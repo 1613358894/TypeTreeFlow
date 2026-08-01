@@ -56,7 +56,66 @@ def test_count_crosswalk_clostridium_plan_only_is_single_json_and_writes_nothing
     assert payload["strict_partition_sum"] == 171
     assert payload["manual_review_sum"] == 123
     assert payload["downloads"] == 0
+    assert payload["clostridium_opportunity_action_summary"]["action_groups"] == [
+        {
+            "priority": 10,
+            "action_code": "resolve_curator_conflicts",
+            "source_metric": "conflict_rows",
+            "record_count": 8,
+            "next_input_class": "manual_review.tsv",
+            "recommended_next_command": (
+                "manual-review validate --input <review.tsv>"
+            ),
+            "automation_boundary": "manual_conflict_resolution_required",
+            "interpretation": (
+                "conflict rows block strict use until reviewed evidence resolves "
+                "the species/accession/type-strain linkage"
+            ),
+            "safe_for_unattended_download": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 20,
+            "action_code": "review_candidate_type_linkage",
+            "source_metric": "candidate_rows",
+            "record_count": 115,
+            "next_input_class": "manual_review.tsv",
+            "recommended_next_command": (
+                "manual-review validate --input <review.tsv>"
+            ),
+            "automation_boundary": "public_metadata_review_only_no_download",
+            "interpretation": (
+                "candidate rows need direct accession-to-type-strain evidence "
+                "review before any strict-gating evaluation"
+            ),
+            "safe_for_unattended_download": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+        {
+            "priority": 40,
+            "action_code": "prepare_gap_handoff_or_external_registration",
+            "source_metric": "gap_rows",
+            "record_count": 48,
+            "next_input_class": "provider_request.tsv or external_genomes.tsv",
+            "recommended_next_command": (
+                "acquisition-worklist build --reconciler-audit-tsv "
+                "<reconciler_audit.tsv> --completion-gaps-tsv "
+                "<completion_gaps.tsv>"
+            ),
+            "automation_boundary": "provider_handoff_or_local_fasta_required",
+            "interpretation": (
+                "gap rows need permitted external FASTA provenance or a "
+                "provider-handoff request; they are not download failures"
+            ),
+            "safe_for_unattended_download": False,
+            "audit_only": True,
+            "strict_scientific_deliverable": False,
+        },
+    ]
     assert payload["audit_only"] is True
+    assert payload["strict_scientific_deliverable"] is False
     assert payload["dry_run"] is True
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False

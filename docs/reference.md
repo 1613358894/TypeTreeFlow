@@ -1155,6 +1155,14 @@ conflict_rows + gap_rows = checklist_species` (`0 + 115 + 8 + 48 = 171`) and
 candidate, or checklist rows are unavailable. Invalid or missing counts are
 reported as deterministic issues; the helper does not read workflow outputs,
 change completion metrics, or contact providers.
+When the required Clostridium partition metrics are present and valid, the
+summary includes `clostridium_opportunity_action_summary`. That packet groups
+the frozen conflict, candidate, gap, and strict counts into audit-only action
+classes such as conflict resolution, candidate type-linkage review, and
+provider/external-FASTA gap handoff. It contains counts and recommended local
+input classes only; it does not contain species rows, run commands, contact
+providers, trigger downloads, mutate manifests, or grant strict deliverable
+status.
 
 The isolated CLI surface is:
 
