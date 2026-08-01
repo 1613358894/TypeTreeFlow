@@ -30,6 +30,7 @@ from typetreeflow.external_genomes import (
     summarize_external_genome_route_metadata,
     validate_external_genome_records,
     write_external_genome_repair_template,
+    write_external_genomes,
     write_external_genome_install_plan,
     write_external_genome_registration_results,
 )
@@ -41,6 +42,8 @@ INSTALL_PLAN_COMMAND = "external-genomes install-plan"
 INSTALL_PLAN_SCHEMA_VERSION = "external_genomes_install_plan.v1"
 REPAIR_TEMPLATE_COMMAND = "external-genomes repair-template"
 REPAIR_TEMPLATE_SCHEMA_VERSION = "external_genomes_repair_template.v1"
+REPAIR_MERGE_COMMAND = "external-genomes repair-merge"
+REPAIR_MERGE_SCHEMA_VERSION = "external_genomes_repair_merge.v1"
 INSTALL_PLAN_OUTPUT_NAMES = {
     "registration_results": "external_genome_registration_results.tsv",
     "install_plan": "external_genome_install_plan.tsv",
@@ -91,6 +94,8 @@ def run_external_genomes_command(
         return _run_install_plan(args, output)
     if args.action == "repair-template":
         return _run_repair_template(args, output)
+    if args.action == "repair-merge":
+        return _run_repair_merge(args, output)
     return _run_validate(args, output)
 
 
@@ -357,6 +362,164 @@ def _run_repair_template(args: argparse.Namespace, output: TextIO) -> int:
         payload["output_path"] = str(output_path)
         payload["recommended_request"] = {
             "command": "external-genomes",
+            "subcommand": "repair-merge",
+            "input": input_path.as_posix(),
+            "repair_template": output_path.as_posix(),
+            "write": True,
+            "out": "<external_genomes_repaired.tsv>",
+        }
+        payload["recommended_request_target"] = "external-genomes repair-merge"
+        payload["recommended_next_command"] = (
+            "typetreeflow external-genomes repair-merge "
+            f"--input {input_path.as_posix()} "
+            f"--repair-template {output_path.as_posix()} "
+            "--write --out <external_genomes_repaired.tsv>"
+        )
+    _emit(payload, output)
+    return 0
+
+
+def _run_repair_merge(args: argparse.Namespace, output: TextIO) -> int:
+    if (args.write and not args.out) or (args.out and not args.write):
+        _emit(
+            _repair_merge_failure(
+                "invalid_command_usage",
+                "--write and --out must be used together",
+            ),
+            output,
+        )
+        return 2
+    if args.force and not args.write:
+        _emit(
+            _repair_merge_failure(
+                "invalid_command_usage",
+                "--force requires --write",
+            ),
+            output,
+        )
+        return 2
+
+    input_path = Path(args.input)
+    repair_template_path = Path(args.repair_template)
+    diagnostics: list[dict[str, object]] = []
+    try:
+        records = read_external_genomes(
+            input_path,
+            base_dir=input_path.parent,
+            validate=False,
+        )
+        repair_records = read_external_genomes(
+            repair_template_path,
+            base_dir=repair_template_path.parent,
+            validate=False,
+        )
+    except ValueError as error:
+        diagnostics.append(
+            _input_diagnostic(
+                str(error),
+                component="external_genomes_repair_merge",
+                schema_version=REPAIR_MERGE_SCHEMA_VERSION,
+            )
+        )
+        _emit(
+            _repair_merge_payload(
+                [],
+                [],
+                [],
+                input_path=input_path,
+                repair_template_path=repair_template_path,
+                output_path=Path(args.out) if args.out else None,
+                diagnostics=diagnostics,
+            ),
+            output,
+        )
+        return 2
+    except (OSError, UnicodeError):
+        diagnostics.append(
+            _diagnostic(
+                "external_genomes_repair_merge",
+                "input_unreadable",
+                schema_version=REPAIR_MERGE_SCHEMA_VERSION,
+            )
+        )
+        _emit(
+            _repair_merge_payload(
+                [],
+                [],
+                [],
+                input_path=input_path,
+                repair_template_path=repair_template_path,
+                output_path=Path(args.out) if args.out else None,
+                diagnostics=diagnostics,
+            ),
+            output,
+        )
+        return 2
+
+    results = validate_external_genome_records(records, base_dir=input_path.parent)
+    try:
+        merged_records = _merge_external_genome_repairs(
+            records=records,
+            results=results,
+            repair_records=repair_records,
+        )
+    except ValueError:
+        diagnostics.append(
+            _diagnostic(
+                "external_genomes_repair_merge",
+                "repair_template_row_count_mismatch",
+                schema_version=REPAIR_MERGE_SCHEMA_VERSION,
+            )
+        )
+        _emit(
+            _repair_merge_payload(
+                results,
+                repair_records,
+                [],
+                input_path=input_path,
+                repair_template_path=repair_template_path,
+                output_path=Path(args.out) if args.out else None,
+                diagnostics=diagnostics,
+            ),
+            output,
+        )
+        return 2
+
+    payload = _repair_merge_payload(
+        results,
+        repair_records,
+        merged_records,
+        input_path=input_path,
+        repair_template_path=repair_template_path,
+        output_path=Path(args.out) if args.out else None,
+        diagnostics=[],
+    )
+    if args.write:
+        try:
+            output_path = _write_repair_merge_output(
+                input_path=input_path,
+                repair_template_path=repair_template_path,
+                output_path=Path(args.out),
+                merged_records=merged_records,
+                force=args.force,
+            )
+        except (OSError, ValueError) as error:
+            payload["status"] = "failed"
+            payload["summary"] = "External-genomes repair merge output failed"
+            payload["diagnostics"] = [
+                _diagnostic(
+                    "external_genomes_repair_merge",
+                    _output_error_code(str(error)),
+                    schema_version=REPAIR_MERGE_SCHEMA_VERSION,
+                )
+            ]
+            payload["diagnostic_count"] = 1
+            _emit(payload, output)
+            return 1
+        payload["writes_outputs"] = True
+        payload["output_path"] = str(output_path)
+        payload["recommended_request"] = {
+            "command": "external-genomes",
             "subcommand": "validate",
             "input": output_path.as_posix(),
         }
@@ -390,6 +553,13 @@ def _build_parser() -> argparse.ArgumentParser:
     repair_template.add_argument("--write", action="store_true")
     repair_template.add_argument("--out")
     repair_template.add_argument("--force", action="store_true")
+    repair_merge = actions.add_parser("repair-merge", add_help=False)
+    repair_merge.add_argument("--input", required=True)
+    repair_merge.add_argument("--repair-template", required=True)
+    repair_merge.add_argument("--json", action="store_true")
+    repair_merge.add_argument("--write", action="store_true")
+    repair_merge.add_argument("--out")
+    repair_merge.add_argument("--force", action="store_true")
     return parser
 
 
@@ -663,12 +833,16 @@ def _repair_template_payload(
     if output_value:
         recommended_request = {
             "command": "external-genomes",
-            "subcommand": "validate",
-            "input": output_value,
+            "subcommand": "repair-merge",
+            "input": input_value,
+            "repair_template": output_value,
+            "write": True,
+            "out": "<external_genomes_repaired.tsv>",
         }
         recommended_next_command = (
-            "typetreeflow external-genomes validate "
-            f"--input {output_value}"
+            "typetreeflow external-genomes repair-merge "
+            f"--input {input_value} --repair-template {output_value} "
+            "--write --out <external_genomes_repaired.tsv>"
         )
     return {
         "schema_version": REPAIR_TEMPLATE_SCHEMA_VERSION,
@@ -705,6 +879,87 @@ def _repair_template_payload(
             else "External-genomes repair template blocked"
         ),
     }
+
+
+def _repair_merge_payload(
+    registration_results,
+    repair_records,
+    merged_records,
+    *,
+    input_path: Path | str,
+    repair_template_path: Path | str,
+    output_path: Path | None,
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object]:
+    invalid_count = sum(1 for result in registration_results if not result.valid)
+    input_value = _command_path(input_path, fallback="external_genomes.tsv")
+    repair_value = _command_path(
+        repair_template_path,
+        fallback="external_genomes_repair_template.tsv",
+    )
+    output_value = output_path.as_posix() if output_path is not None else ""
+    recommended_request = None
+    recommended_next_command = ""
+    if output_value:
+        recommended_request = {
+            "command": "external-genomes",
+            "subcommand": "validate",
+            "input": output_value,
+        }
+        recommended_next_command = (
+            "typetreeflow external-genomes validate "
+            f"--input {output_value}"
+        )
+    return {
+        "schema_version": REPAIR_MERGE_SCHEMA_VERSION,
+        "status": "pass" if not diagnostics else "blocked",
+        "command": REPAIR_MERGE_COMMAND,
+        "input_path": input_value,
+        "repair_template_path": repair_value,
+        "record_count": len(registration_results),
+        "valid_original_count": len(registration_results) - invalid_count,
+        "invalid_original_count": invalid_count,
+        "repair_template_row_count": len(repair_records),
+        "merged_record_count": len(merged_records),
+        "expected_fields": list(EXTERNAL_GENOME_FIELDS),
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "recommended_request": recommended_request,
+        "recommended_request_target": recommended_request_target(recommended_request),
+        "recommended_next_command": recommended_next_command,
+        "audit_only": True,
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "summary": (
+            "External-genomes repair merge prepared"
+            if not diagnostics
+            else "External-genomes repair merge blocked"
+        ),
+    }
+
+
+def _merge_external_genome_repairs(
+    *,
+    records,
+    results,
+    repair_records,
+):
+    invalid_indexes = [
+        index for index, result in enumerate(results) if not result.valid
+    ]
+    if len(invalid_indexes) != len(repair_records):
+        raise ValueError("repair template row count must match invalid input rows")
+    merged_records = list(records)
+    for index, repair_record in zip(invalid_indexes, repair_records):
+        merged_records[index] = repair_record
+    return merged_records
 
 
 def _external_genomes_readiness_packet(
@@ -823,6 +1078,26 @@ def _repair_template_failure(code: str, message: str) -> dict[str, object]:
                 "external_genomes_repair_template_cli",
                 code,
                 schema_version=REPAIR_TEMPLATE_SCHEMA_VERSION,
+            )
+        ],
+    )
+    payload.update(status="failed", summary=message)
+    return payload
+
+
+def _repair_merge_failure(code: str, message: str) -> dict[str, object]:
+    payload = _repair_merge_payload(
+        [],
+        [],
+        [],
+        input_path="",
+        repair_template_path="",
+        output_path=None,
+        diagnostics=[
+            _diagnostic(
+                "external_genomes_repair_merge_cli",
+                code,
+                schema_version=REPAIR_MERGE_SCHEMA_VERSION,
             )
         ],
     )
@@ -959,6 +1234,35 @@ def _write_repair_template_output(
         if not force:
             raise ValueError("existing output requires --force")
     write_external_genome_repair_template(template_rows, output_path)
+    return output_path
+
+
+def _write_repair_merge_output(
+    *,
+    input_path: Path,
+    repair_template_path: Path,
+    output_path: Path,
+    merged_records,
+    force: bool,
+) -> Path:
+    if output_path.resolve() in {
+        input_path.resolve(),
+        repair_template_path.resolve(),
+    }:
+        raise ValueError("output path cannot replace an input")
+    if output_path.exists():
+        if output_path.is_dir():
+            raise ValueError("output path exists and is not a file")
+        if output_path.is_symlink():
+            raise ValueError("output path is unsafe")
+        if not force:
+            raise ValueError("existing output requires --force")
+    write_external_genomes(
+        merged_records,
+        output_path,
+        base_dir=output_path.parent,
+        validate=False,
+    )
     return output_path
 
 
