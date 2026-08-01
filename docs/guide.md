@@ -605,10 +605,10 @@ providers, or download genomes. Provider-handoff route items also include
 filtered handoff pair to an operator-chosen isolated directory before later
 `provider-request draft` review. That template requires explicit operator
 choice of the outdir and does not change the packet's default no-write
-`recommended_request`. The `coverage-plan build --write` payload also uses the
-first prioritized provider-handoff item for its top-level
-`recommended_request`, so the immediate next provider-handoff command is
-filtered to one provider key by default. The payload
+`recommended_request`. The `coverage-plan build --write` payload also uses
+prioritized provider-handoff items for its top-level `recommended_request`, so
+the immediate next provider-handoff command is filtered to a bounded batch of up
+to three provider keys by default. The payload
 also reports provider request draft counts and
 `provider_request_validation_recommended_next_command` plus
 `provider_request_external_genomes_recommended_next_command` plus
