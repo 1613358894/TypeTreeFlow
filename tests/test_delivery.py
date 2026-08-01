@@ -1849,7 +1849,7 @@ def test_package_results_cli_accepts_provider_request_and_keeps_compact_json(
 
 
 @pytest.mark.parametrize("include", ["reports", "all"])
-def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
+def test_package_results_coverage_pipeline_dir_copies_audit_surfaces(
     tmp_path, include
 ):
     paths = get_output_paths(tmp_path)
@@ -1864,6 +1864,8 @@ def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
         pipeline_dir / "external_genomes_install_plan"
     )
     _write_archive_candidates_triplet(pipeline_dir / "archive_candidates")
+    _write_manual_review_import_triplet(pipeline_dir / "manual_review_import")
+    _write_strict_gating_triplet(pipeline_dir / "strict_gating")
 
     result = package_results(
         tmp_path,
@@ -1893,6 +1895,12 @@ def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
         "archive_candidates/archive_candidates.tsv",
         "archive_candidates/archive_candidates_summary.json",
         "archive_candidates/archive_candidates_diagnostics.tsv",
+        "manual_review/manual_review_decisions.tsv",
+        "manual_review/manual_review_summary.json",
+        "manual_review/manual_review_diagnostics.tsv",
+        "strict_gating/strict_gating_audit.tsv",
+        "strict_gating/strict_gating_summary.json",
+        "strict_gating/strict_gating_diagnostics.tsv",
     }
     scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
     grouped = {
@@ -1906,6 +1914,8 @@ def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
             "provider_request/",
             "external_genomes_install_plan/",
             "archive_candidates/",
+            "manual_review/",
+            "strict_gating/",
         )
     }
     assert {prefix: len(rows) for prefix, rows in grouped.items()} == {
@@ -1915,6 +1925,8 @@ def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
         "provider_request/": 2,
         "external_genomes_install_plan/": 3,
         "archive_candidates/": 3,
+        "manual_review/": 3,
+        "strict_gating/": 3,
     }
     assert {row["scope"] for rows in grouped.values() for row in rows} == {"audit"}
     assert {
@@ -1941,6 +1953,12 @@ def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
     assert {row["evidence_policy"] for row in grouped["archive_candidates/"]} == {
         "archive_candidates_audit"
     }
+    assert {row["evidence_policy"] for row in grouped["manual_review/"]} == {
+        "manual_review_audit"
+    }
+    assert {row["evidence_policy"] for row in grouped["strict_gating/"]} == {
+        "strict_gating_audit"
+    }
     assert {
         row["strict_scientific_deliverable"]
         for row in grouped["external_genomes_install_plan/"]
@@ -1958,6 +1976,8 @@ def test_package_results_coverage_pipeline_dir_copies_six_audit_surfaces(
     assert "Provider request draft artifacts are audit-only" in package_text
     assert "External-genomes install-plan artifacts are audit-only" in package_text
     assert "Archive-candidates artifacts are audit-only" in package_text
+    assert "Manual-review import artifacts are audit-only" in package_text
+    assert "Strict-gating artifacts are audit-only" in package_text
     assert "private action detail" not in package_text
     assert "private provider detail" not in package_text
     assert "private message" not in package_text

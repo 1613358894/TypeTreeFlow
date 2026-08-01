@@ -1293,11 +1293,12 @@ With an explicit `--coverage-pipeline-dir`, `--include reports` and
 `provider_handoff/`, `provider_request/`, and
 `provider_request_validation/`, and `provider_request_external_genomes/` under
 the isolated pipeline directory when present. They also derive
-`external_genomes_install_plan/` and `archive_candidates/` when present, then
-apply the same copy and artifact-scope contracts as the individual directory
-options. This is a convenience handoff only; it does not scan workflow outputs,
-rerun the pipeline, query archives, contact providers, trigger downloads,
-register external genomes, or change scientific status.
+`external_genomes_install_plan/`, `archive_candidates/`,
+`manual_review_import/`, and `strict_gating/` when present, then apply the same
+copy and artifact-scope contracts as the individual directory options. This is
+a convenience handoff only; it does not scan workflow outputs, rerun the
+pipeline, query archives, contact providers, trigger downloads, register
+external genomes, or change scientific status.
 With an explicit `--server-validation-result`, `--include reports` and
 `--include all` copy a valid
 `coverage_handoff_server_validation_result.v1` JSON under
