@@ -2461,18 +2461,21 @@ returns exit `0` for a contract-valid result, exit `2` for usage, input,
 schema, or boundary validation problems, and exit `1` for unexpected internal
 errors. The command contract exposes stable summary fields for validation
 status, result status, checked-surface count, boundary confirmation status,
-diagnostic count, and no-execution boundary flags. Passing this validator does
-not execute the target command, validate
+diagnostic count, optional source commit, TypeTreeFlow version, runtime Python,
+evidence run path, check count, failed count, and no-execution boundary flags.
+Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.
 `coverage-pipeline status --server-validation-result <json>` can attach that
 same explicit result JSON to the pipeline status payload as
 `coverage_handoff_server_validation_result_artifact_packet`. The packet reports
 the result path, SHA-256, schema/status, checked-surface count, boundary count,
-and validation diagnostics. Invalid explicit results make status fail closed;
-omitting the option leaves the packet at `status=no_action`. This is still a
-local result-shape/status read and does not execute the target command, contact
-providers, download genomes, mutate manifests, or register external genomes.
+optional source commit, TypeTreeFlow version, runtime Python, evidence run
+path, check count, failed count, and validation diagnostics. Invalid explicit
+results make status fail closed; omitting the option leaves the packet at
+`status=no_action`. This is still a local result-shape/status read and does not
+execute the target command, contact providers, download genomes, mutate
+manifests, or register external genomes.
 `preview`, `build`, and `status` also emit
 `coverage_next_command_plan` from the stored pipeline summary so a controller
 can see the current packet's rendered argv and preflight decision without

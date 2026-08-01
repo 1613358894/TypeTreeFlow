@@ -2504,6 +2504,12 @@ def _valid_server_validation_result():
         "schema_version": "coverage_handoff_server_validation_result.v1",
         "status": "pass",
         "validation_status": "pass",
+        "source_commit": "f9efbee29b296be1919474ae317e32a10bdd316a",
+        "typetreeflow_version": "typetreeflow 2.2.40",
+        "runtime_python": "/icdc/Users/example/envs/typetreeflow/bin/python",
+        "evidence_run_path": "/icdc/Users/example/codex_runs/run",
+        "check_count": 31,
+        "failed_count": 0,
         "checked_surface_names": [
             "coverage_handoff_server_validation_packet",
             "coverage_handoff_server_validation_runbook_packet",
@@ -2558,6 +2564,17 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
         "coverage_handoff_server_validation_result.v1"
     )
     assert payload["result_status"] == "pass"
+    assert payload["source_commit"] == (
+        "f9efbee29b296be1919474ae317e32a10bdd316a"
+    )
+    assert payload["typetreeflow_version"] == "typetreeflow 2.2.40"
+    assert (
+        payload["runtime_python"]
+        == "/icdc/Users/example/envs/typetreeflow/bin/python"
+    )
+    assert payload["evidence_run_path"] == "/icdc/Users/example/codex_runs/run"
+    assert payload["check_count"] == 31
+    assert payload["failed_count"] == 0
     assert payload["checked_surface_count"] == 2
     assert payload["diagnostic_count"] == 0
     assert payload["boundary_confirmation_status"] == "pass"
@@ -2619,6 +2636,36 @@ def test_coverage_pipeline_server_validation_result_validate_blocks_boundary_vio
     assert payload["boundary_confirmation_status"] == "blocked"
     assert "boundary_downloads_triggered_not_0" in payload["boundary_blocker_ids"]
     assert payload["downloads_triggered"] == 0
+
+
+def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
+    capsys, tmp_path
+):
+    result = _valid_server_validation_result()
+    result["check_count"] = "31"
+    result["failed_count"] = -1
+    result["source_commit"] = ["not", "a", "string"]
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path, result)
+
+    code, payload, captured = _run(
+        ["validate", "--input", str(result_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["invalid_field_ids"] == [
+        "check_count",
+        "failed_count",
+        "source_commit",
+    ]
+    assert payload["check_count"] == 0
+    assert payload["failed_count"] == 0
+    assert payload["source_commit"] == ""
 
 
 def test_coverage_pipeline_server_validation_result_validate_blocks_missing_input(
@@ -5049,6 +5096,16 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ]
     result_template["status"] = "pass"
     result_template["summary"] = "Bounded local server validation passed."
+    result_template["source_commit"] = (
+        "f9efbee29b296be1919474ae317e32a10bdd316a"
+    )
+    result_template["typetreeflow_version"] = "typetreeflow 2.2.40"
+    result_template["runtime_python"] = (
+        "/icdc/Users/example/envs/typetreeflow/bin/python"
+    )
+    result_template["evidence_run_path"] = "/icdc/Users/example/codex_runs/run"
+    result_template["check_count"] = 31
+    result_template["failed_count"] = 0
     result_template_path.write_text(json.dumps(result_template), encoding="utf-8")
     code, validation_payload, validation_captured = _run(
         ["validate", "--input", str(result_template_path), "--json"],
@@ -5086,6 +5143,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     )
     assert result_artifact["result_status"] == "pass"
     assert result_artifact["validation_status"] == "pass"
+    assert result_artifact["source_commit"] == (
+        "f9efbee29b296be1919474ae317e32a10bdd316a"
+    )
+    assert result_artifact["typetreeflow_version"] == "typetreeflow 2.2.40"
+    assert result_artifact["check_count"] == 31
+    assert result_artifact["failed_count"] == 0
     assert result_artifact["checked_surface_count"] == 2
     assert result_artifact["boundary_confirmation_count"] == 11
     assert result_artifact["diagnostic_count"] == 0
