@@ -697,7 +697,9 @@ typetreeflow commands catalog [--json]
 typetreeflow commands recognize --argv-json '["verify-genus","Fusobacterium","--report-only"]'
 typetreeflow commands recognize -- doctor --json
 typetreeflow commands render --request-json '{"command":"status","outdir":"run"}'
+typetreeflow commands render --request-file <saved-summary-or-packet.json>
 typetreeflow commands plan --request-json '{"command":"status","outdir":"run"}'
+typetreeflow commands plan --request-file <saved-summary-or-packet.json>
 typetreeflow commands preflight --argv-json '["verify-genus","Fusobacterium","--outdir","run"]'
 typetreeflow providers catalog [--json]
 typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> [--json]
@@ -785,19 +787,24 @@ helper metadata: `command`, `subcommand`, `mode`, `is_report_only`,
 `is_providers`, `is_curator_packet`,
 `writes_outputs_declared`, `requires_outdir`, `unknown`, and `invalid`.
 
-`commands render` requires `--request-json` as a JSON object. It accepts a
-conservative, command-specific request such as `{"command":"status",
-"outdir":"run"}` and returns normalized `target_argv` plus `recognized`
-metadata. Unsupported commands, missing required fields, unknown request fields,
-or wrong value types fail with exit code `2`. Rendering is a string-planning
-step only; the returned argv must still be checked with `commands preflight`
-before any executor considers running it.
+`commands render` requires exactly one of `--request-json` or `--request-file`.
+The request must be a JSON object. `--request-file` reads a local saved summary
+or handoff packet and is intended for file-based AI controllers that should not
+copy a `recommended_request` through shell quoting. It accepts a conservative,
+command-specific request such as `{"command":"status","outdir":"run"}` and
+returns normalized `target_argv` plus `recognized` metadata. Unsupported
+commands, missing required fields, unknown request fields, unreadable request
+files, non-object JSON, or wrong value types fail with exit code `2`. Rendering
+is a string-planning step only; the returned argv must still be checked with
+`commands preflight` before any executor considers running it.
 For AI/operator handoffs, `commands render` and `commands plan` also accept a
 metadata packet whose top-level `recommended_request` is a structured command
-request, including `coverage_next_task_packet`. The original packet remains in
-`request`, the unwrapped command request appears in `effective_request`, and
-`request_unwrapped_from` is `recommended_request`. Packets without a structured
-`recommended_request` still fail closed as invalid requests.
+request, including saved summary files and `coverage_next_task_packet`. The
+original packet remains in `request`, the unwrapped command request appears in
+`effective_request`, `request_unwrapped_from` is `recommended_request`, and
+`request_source` records `request_json` or the supplied request-file path.
+Packets without a structured `recommended_request` still fail closed as invalid
+requests.
 For coverage planning requests, structured fields
 `expanded_discovery_results_tsv` and `manual_supplement_hints_tsv` render to
 the explicit local TSV flags on `acquisition-worklist build` and
@@ -844,15 +851,16 @@ render to `verify-genus` flags. They are intended for local/cache-backed audit
 planning; live NCBI/Entrez access remains gated by separate explicit enable
 flags and is not implied by these structured fields.
 
-`commands plan` also requires `--request-json`, renders the request to
-`target_argv`, and immediately applies the same advisory preflight gate. Its
-JSON envelope includes `decision`, `recognized`, `preflight`, `target_risk`,
-`target_allowances`, `target_*_declared` booleans, `blocking`, and `warnings`.
-The plan command itself is always dry-run and no-write; use the `target_*`
-fields to judge the rendered command's output, workflow, network, real-action,
-and external-tool risk. It returns exit code `0` when the rendered argv is
-allowed and exit code `2` when rendering fails or preflight blocks. A successful
-plan is still metadata only; it is not execution authorization.
+`commands plan` also requires exactly one of `--request-json` or
+`--request-file`, renders the request to `target_argv`, and immediately applies
+the same advisory preflight gate. Its JSON envelope includes `decision`,
+`recognized`, `preflight`, `target_risk`, `target_allowances`,
+`target_*_declared` booleans, `blocking`, and `warnings`. The plan command
+itself is always dry-run and no-write; use the `target_*` fields to judge the
+rendered command's output, workflow, network, real-action, and external-tool
+risk. It returns exit code `0` when the rendered argv is allowed and exit code
+`2` when rendering fails or preflight blocks. A successful plan is still
+metadata only; it is not execution authorization.
 
 `commands preflight` adds an advisory `decision` of `allow` or `block`,
 `allowances`, `risk`, `blocking`, and `warnings`. Declared output writes

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TextIO
 
 from typetreeflow.cli_handlers.early_commands import EARLY_COMMAND_DISPATCH_ORDER
@@ -2461,18 +2462,36 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
         {
             "name": "--request-json",
             "kind": "json_object",
-            "required": True,
+            "required": False,
             "repeatable": False,
             "purpose": "structured command request object",
+        },
+        {
+            "name": "--request-file",
+            "kind": "json_file",
+            "required": False,
+            "repeatable": False,
+            "purpose": (
+                "local JSON file containing a request or recommended_request packet"
+            ),
         },
     ],
     ("commands", "plan"): [
         {
             "name": "--request-json",
             "kind": "json_object",
-            "required": True,
+            "required": False,
             "repeatable": False,
             "purpose": "structured command request object",
+        },
+        {
+            "name": "--request-file",
+            "kind": "json_file",
+            "required": False,
+            "repeatable": False,
+            "purpose": (
+                "local JSON file containing a request or recommended_request packet"
+            ),
         },
         {
             "name": "--allow-write",
@@ -2594,6 +2613,7 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
 
     argv_json: str | None = None
     request_json: str | None = None
+    request_file: str | None = None
     target_tokens: list[str] = []
     allow_write = False
     allow_workflow_outputs = False
@@ -2641,12 +2661,30 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
                 raise ValueError("request JSON must be a JSON object")
             if request_json is not None:
                 raise ValueError("Use only one --request-json value")
+            if request_file is not None:
+                raise ValueError(
+                    "Use either --request-json or --request-file, not both"
+                )
             request_json = tokens[index + 1]
+            index += 2
+            continue
+        if action in {"render", "plan"} and token == "--request-file":
+            if index + 1 >= len(tokens):
+                raise ValueError("request file must be a readable JSON object")
+            if request_file is not None:
+                raise ValueError("Use only one --request-file value")
+            if request_json is not None:
+                raise ValueError(
+                    "Use either --request-json or --request-file, not both"
+                )
+            request_file = tokens[index + 1]
             index += 2
             continue
         if token == "--":
             if action in {"render", "plan"}:
-                raise ValueError(f"commands {action} requires --request-json")
+                raise ValueError(
+                    f"commands {action} requires --request-json or --request-file"
+                )
             target_tokens = tokens[index + 1 :]
             index = len(tokens)
             continue
@@ -2655,14 +2693,21 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
     if argv_json is not None and target_tokens:
         raise ValueError("Use either --argv-json or trailing argv tokens, not both")
     if action in {"render", "plan"}:
-        if request_json is None:
-            raise ValueError(f"commands {action} requires --request-json")
-        try:
-            request = json.loads(request_json)
-        except json.JSONDecodeError as error:
-            raise ValueError("request JSON must be a JSON object") from error
-        if not isinstance(request, dict):
-            raise ValueError("request JSON must be a JSON object")
+        if request_json is None and request_file is None:
+            raise ValueError(
+                f"commands {action} requires --request-json or --request-file"
+            )
+        if request_json is not None:
+            try:
+                request = json.loads(request_json)
+            except json.JSONDecodeError as error:
+                raise ValueError("request JSON must be a JSON object") from error
+            if not isinstance(request, dict):
+                raise ValueError("request JSON must be a JSON object")
+            request_source = "request_json"
+        else:
+            request = _load_request_file(str(request_file))
+            request_source = str(request_file)
         return _parsed_command(
             action=action,
             target_argv=[],
@@ -2672,6 +2717,7 @@ def _parse_command(argv: Sequence[str]) -> dict[str, object]:
             allow_network=allow_network,
             allow_external_tools=allow_external_tools,
             request=request,
+            request_source=request_source,
         )
     if argv_json is not None:
         try:
@@ -2704,17 +2750,34 @@ def _parsed_command(
     allow_network: bool = False,
     allow_external_tools: bool = False,
     request: dict[str, object] | None = None,
+    request_source: str = "",
 ) -> dict[str, object]:
     return {
         "action": action,
         "target_argv": target_argv,
         "request": request or {},
+        "request_source": request_source,
         "allow_write": allow_write,
         "allow_workflow_outputs": allow_workflow_outputs,
         "allow_real_actions": allow_real_actions,
         "allow_network": allow_network,
         "allow_external_tools": allow_external_tools,
     }
+
+
+def _load_request_file(path_text: str) -> dict[str, object]:
+    path = Path(path_text)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise ValueError("request file must be a readable JSON object") from error
+    try:
+        request = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise ValueError("request file must contain a JSON object") from error
+    if not isinstance(request, dict):
+        raise ValueError("request file must contain a JSON object")
+    return request
 
 
 def render_command_request(request: dict[str, object]) -> dict[str, object]:
@@ -2857,6 +2920,7 @@ def _render_payload(parsed: dict[str, object]) -> dict[str, object]:
         "writes_workflow_outputs": False,
         "network_access": False,
         "external_tools": False,
+        "request_source": str(parsed.get("request_source", "")),
         "request": request,
         "effective_request": effective_request,
         "request_unwrapped_from": _request_unwrapped_from(request),
@@ -2902,6 +2966,7 @@ def _plan_payload(parsed: dict[str, object]) -> dict[str, object]:
         "writes_workflow_outputs": False,
         "network_access": False,
         "external_tools": False,
+        "request_source": str(parsed.get("request_source", "")),
         "target_risk": target_risk,
         "target_allowances": dict(preflight["allowances"]),
         "target_writes_outputs_declared": bool(

@@ -562,17 +562,24 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         for entry in catalog
         if (entry["command"], entry["subcommand"]) == ("commands", "plan")
     )
-    assert [parameter["name"] for parameter in plan["parameters"]][:2] == [
-        "--request-json",
-        "--allow-write",
-    ]
     assert {
+        "--request-json",
+        "--request-file",
         "--allow-write",
         "--allow-workflow-outputs",
         "--allow-real-actions",
         "--allow-network",
         "--allow-external-tools",
     } <= {parameter["name"] for parameter in plan["parameters"]}
+    render = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"]) == ("commands", "render")
+    )
+    assert {parameter["name"] for parameter in render["parameters"]} == {
+        "--request-json",
+        "--request-file",
+    }
     external_registration = next(
         entry
         for entry in catalog
@@ -2672,6 +2679,46 @@ def test_commands_render_accepts_coverage_next_task_packet(capsys):
     assert payload["request"]["action_code"] == "resolve_curator_conflict"
 
 
+def test_commands_render_accepts_request_file_packet(tmp_path, capsys):
+    request_file = tmp_path / "coverage_plan_summary.json"
+    request_file.write_text(
+        json.dumps(
+            {
+                "schema_version": "coverage_plan_packet.v1",
+                "recommended_request": {
+                    "command": "provider-handoff",
+                    "subcommand": "build",
+                    "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+                    "provider_keys": ["dsmz"],
+                    "write": True,
+                    "outdir": "provider_handoff",
+                },
+                "recommended_request_target": "provider-handoff build",
+            },
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
+
+    assert main(["commands", "render", "--request-file", str(request_file)]) == 0
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["request_source"] == str(request_file)
+    assert payload["request_unwrapped_from"] == "recommended_request"
+    assert payload["target_argv"] == [
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        "coverage_plan/coverage_plan.tsv",
+        "--provider-key",
+        "dsmz",
+        "--write",
+        "--outdir",
+        "provider_handoff",
+    ]
+    assert payload["recognized"]["provider_key_filter"] == ["dsmz"]
+
+
 def test_commands_plan_accepts_coverage_next_task_packet(capsys):
     request = json.dumps(
         {
@@ -2698,6 +2745,53 @@ def test_commands_plan_accepts_coverage_next_task_packet(capsys):
         "<review.tsv>",
     ]
     assert payload["preflight"]["decision"] == "allow"
+
+
+def test_commands_plan_accepts_request_file_packet_with_allowance(tmp_path, capsys):
+    request_file = tmp_path / "provider_handoff_summary.json"
+    request_file.write_text(
+        json.dumps(
+            {
+                "recommended_request": {
+                    "command": "provider-request",
+                    "subcommand": "draft",
+                    "provider_handoff_tsv": "provider_handoff/provider_handoff.tsv",
+                    "write": True,
+                    "outdir": "provider_request",
+                }
+            },
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--allow-write",
+                "--request-file",
+                str(request_file),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["request_source"] == str(request_file)
+    assert payload["decision"] == "allow"
+    assert payload["request_unwrapped_from"] == "recommended_request"
+    assert payload["target_argv"] == [
+        "provider-request",
+        "draft",
+        "--provider-handoff-tsv",
+        "provider_handoff/provider_handoff.tsv",
+        "--write",
+        "--outdir",
+        "provider_request",
+    ]
+    assert payload["preflight"]["allowances"]["allow_write"] is True
 
 
 def test_commands_render_and_plan_accept_server_validation_template_packet(capsys):
@@ -2763,6 +2857,46 @@ def test_commands_render_rejects_packet_without_recommended_request(capsys):
     payload, _output = _stdout_payload(capsys)
     assert payload["blocking"][0]["id"] == "invalid_request"
     assert "command" in payload["blocking"][0]["message"]
+
+
+def test_commands_render_rejects_mixed_request_json_and_file(tmp_path, capsys):
+    request_file = tmp_path / "request.json"
+    request_file.write_text('{"command":"doctor"}', encoding="utf-8")
+
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                '{"command":"doctor"}',
+                "--request-file",
+                str(request_file),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_command_usage"
+    assert (
+        "either --request-json or --request-file"
+        in payload["blocking"][0]["message"]
+    )
+
+
+def test_commands_plan_rejects_non_object_request_file(tmp_path, capsys):
+    request_file = tmp_path / "request.json"
+    request_file.write_text('["doctor"]', encoding="utf-8")
+
+    assert main(["commands", "plan", "--request-file", str(request_file)]) == 2
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["blocking"][0]["id"] == "invalid_command_usage"
+    assert (
+        "request file must contain a JSON object"
+        in payload["blocking"][0]["message"]
+    )
 
 
 def test_commands_plan_blocks_rendered_workflow_without_allowances(capsys):
