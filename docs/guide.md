@@ -183,6 +183,9 @@ The same provider-hint extraction also applies to local reconciler audit token
 fields such as `matched_lpsn_type_tokens` and `culture_collection_tokens`,
 which helps gap rows retain provider handoff context even when checklist text
 is sparse.
+Static planning-only culture-collection hints include common prefixes such as
+`MTCC`, `MCC`, `CCBAU`, and `NBIMCC` in addition to the provider keys listed
+by `typetreeflow providers catalog`.
 Command metadata reports `coverage_plan_packet.v1` for the generated
 coverage-plan pair.
 When `--write` succeeds, stdout includes a structured `recommended_request`
