@@ -8,6 +8,7 @@ import os
 import shutil
 import sys
 from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 from typing import Sequence, TextIO
 
@@ -502,11 +503,20 @@ def _run_repair_merge(args: argparse.Namespace, output: TextIO) -> int:
     )
     if args.write:
         try:
+            output_path = Path(args.out)
+            write_records = _rebase_repair_merge_records_for_output(
+                records=records,
+                results=results,
+                repair_records=repair_records,
+                input_path=input_path,
+                repair_template_path=repair_template_path,
+                output_path=output_path,
+            )
             output_path = _write_repair_merge_output(
                 input_path=input_path,
                 repair_template_path=repair_template_path,
-                output_path=Path(args.out),
-                merged_records=merged_records,
+                output_path=output_path,
+                merged_records=write_records,
                 force=args.force,
             )
         except (OSError, ValueError) as error:
@@ -976,6 +986,62 @@ def _merge_external_genome_repairs(
             raise _RepairMergeError("repair_template_identity_mismatch")
         merged_records[index] = repair_record
     return merged_records
+
+
+def _rebase_repair_merge_records_for_output(
+    *,
+    records,
+    results,
+    repair_records,
+    input_path: Path,
+    repair_template_path: Path,
+    output_path: Path,
+):
+    invalid_indexes = [
+        index for index, result in enumerate(results) if not result.valid
+    ]
+    repair_by_index = dict(zip(invalid_indexes, repair_records))
+    output_base = output_path.parent
+    rebased_records = []
+    for index, original_record in enumerate(records):
+        source_record = repair_by_index.get(index, original_record)
+        source_base = (
+            repair_template_path.parent
+            if index in repair_by_index
+            else input_path.parent
+        )
+        genome_fasta_path = _rebase_relative_path_for_output(
+            source_record.genome_fasta_path,
+            source_base=source_base,
+            output_base=output_base,
+        )
+        if genome_fasta_path == source_record.genome_fasta_path:
+            rebased_records.append(source_record)
+        else:
+            rebased_records.append(
+                replace(source_record, genome_fasta_path=genome_fasta_path)
+            )
+    return rebased_records
+
+
+def _rebase_relative_path_for_output(
+    value: str,
+    *,
+    source_base: Path,
+    output_base: Path,
+) -> str:
+    text = str(value or "").strip()
+    if not text or text.startswith("<"):
+        return value
+    path = Path(text)
+    if path.is_absolute():
+        return text
+    source_path = (source_base / path).resolve()
+    try:
+        relative_path = os.path.relpath(source_path, output_base.resolve())
+    except ValueError:
+        return str(source_path)
+    return relative_path.replace(os.sep, "/")
 
 
 def _repair_template_identity_matches(original_record, repair_record) -> bool:

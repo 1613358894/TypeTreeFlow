@@ -2718,7 +2718,8 @@ step is `external-genomes repair-merge --input <external_genomes.tsv>
 replaces the invalid rows in order with the edited repair-template rows. The
 merge requires the repair-template row count to match the original invalid-row
 count and the species/strain/type-strain/source/genome-id identity fields to
-match the original invalid rows, writes only the isolated repaired TSV, and
+match the original invalid rows, writes only the isolated repaired TSV, rebases
+relative FASTA paths to remain valid from the repaired TSV's directory, and
 still requires a fresh `external-genomes validate` pass before install
 planning. Valid commands exit
 `0`; input or usage errors exit `2`; output write failures exit `1`. Neither

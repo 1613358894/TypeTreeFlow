@@ -710,6 +710,73 @@ def test_external_genomes_repair_merge_preserves_valid_rows_and_applies_repairs(
     assert not target_run.exists()
 
 
+def test_external_genomes_repair_merge_rebases_relative_fasta_paths_for_output(
+    tmp_path,
+    capsys,
+):
+    input_dir = tmp_path / "input"
+    repair_dir = tmp_path / "repair"
+    output_dir = tmp_path / "repaired"
+    valid_fasta = _fasta(input_dir / "genomes" / "valid.fna")
+    repaired_fasta = _fasta(repair_dir / "genomes" / "repaired.fna", ">seq1\nGGGG\n")
+    table = _write_external_genomes(
+        input_dir / "external_genomes.tsv",
+        [
+            _row(
+                species="Clostridium validum",
+                external_genome_id="valid",
+                genome_fasta_path="genomes/valid.fna",
+                sha256=calculate_sha256(valid_fasta),
+            ),
+            _row(
+                species="Clostridium missingum",
+                external_genome_id="missing",
+                genome_fasta_path="genomes/missing.fna",
+            ),
+        ],
+    )
+    repair_template = _write_external_genomes(
+        repair_dir / "external_genomes_repair_template.tsv",
+        [
+            _row(
+                species="Clostridium missingum",
+                external_genome_id="missing",
+                genome_fasta_path="genomes/repaired.fna",
+                sha256=calculate_sha256(repaired_fasta),
+            )
+        ],
+    )
+    output = output_dir / "external_genomes_repaired.tsv"
+
+    assert (
+        main(
+            [
+                "external-genomes",
+                "repair-merge",
+                "--input",
+                str(table),
+                "--repair-template",
+                str(repair_template),
+                "--write",
+                "--out",
+                str(output),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = _payload(capsys)
+    assert payload["status"] == "pass"
+
+    rows = list(csv.DictReader(output.open(encoding="utf-8"), delimiter="\t"))
+    assert rows[0]["genome_fasta_path"] == "../input/genomes/valid.fna"
+    assert rows[1]["genome_fasta_path"] == "../repair/genomes/repaired.fna"
+    assert main(["external-genomes", "validate", "--input", str(output)]) == 0
+    validate_payload = _payload(capsys)
+    assert validate_payload["status"] == "pass"
+    assert validate_payload["record_count"] == 2
+
+
 def test_external_genomes_repair_merge_blocks_row_count_mismatch(tmp_path, capsys):
     table = _write_external_genomes(
         tmp_path / "external_genomes.tsv",
