@@ -76,6 +76,7 @@ class DeliveryResult:
     provider_request_validation_warnings: list[str] = field(default_factory=list)
     provider_request_external_genomes_warnings: list[str] = field(default_factory=list)
     external_genomes_install_plan_warnings: list[str] = field(default_factory=list)
+    server_validation_result_warnings: list[str] = field(default_factory=list)
     archive_candidates_warnings: list[str] = field(default_factory=list)
     offline_readiness_warnings: list[str] = field(default_factory=list)
     strict_gating_warnings: list[str] = field(default_factory=list)
@@ -99,6 +100,17 @@ _RECONCILER_AUDIT_PACKAGE_MEMBERS = (
 )
 
 
+@dataclass(frozen=True)
+class ServerValidationResultPackageSummary:
+    status: str
+    validation_status: str
+    check_count: int
+    failed_count: int
+    source_commit: str
+    typetreeflow_version: str
+    warnings: list[str] = field(default_factory=list)
+
+
 def package_results(
     outdir: str | Path,
     *,
@@ -113,6 +125,7 @@ def package_results(
     provider_request_validation_dir: str | Path | None = None,
     provider_request_external_genomes_dir: str | Path | None = None,
     external_genomes_install_plan_dir: str | Path | None = None,
+    server_validation_result: str | Path | None = None,
     coverage_pipeline_dir: str | Path | None = None,
     archive_candidates_dir: str | Path | None = None,
     offline_readiness_dir: str | Path | None = None,
@@ -204,6 +217,8 @@ def package_results(
     external_genomes_install_plan_audit: (
         ExternalGenomesInstallPlanAuditSummary | None
     ) = None
+    server_validation_result_outputs_copied: list[Path] = []
+    server_validation_result_audit: ServerValidationResultPackageSummary | None = None
     archive_candidates_dir = _coverage_pipeline_component_dir(
         archive_candidates_dir,
         coverage_pipeline_dir,
@@ -361,6 +376,17 @@ def package_results(
                 copied,
             )
         )
+        server_validation_result_audit = _read_optional_server_validation_result(
+            server_validation_result
+        )
+        server_validation_result_outputs_copied = (
+            _copy_server_validation_result_output(
+                server_validation_result,
+                server_validation_result_audit,
+                output_dir,
+                copied,
+            )
+        )
         archive_candidates_audit = read_optional_archive_candidates_audit(
             archive_candidates_dir
         )
@@ -418,6 +444,10 @@ def package_results(
             external_genomes_install_plan_outputs_copied
         ),
         external_genomes_install_plan_audit=external_genomes_install_plan_audit,
+        server_validation_result_outputs_copied=(
+            server_validation_result_outputs_copied
+        ),
+        server_validation_result_audit=server_validation_result_audit,
         archive_candidates_outputs_copied=archive_candidates_outputs_copied,
         archive_candidates_audit=archive_candidates_audit,
         offline_readiness_outputs_copied=offline_readiness_outputs_copied,
@@ -491,6 +521,7 @@ def package_results(
             external_genomes_install_plan_audit=(
                 external_genomes_install_plan_audit
             ),
+            server_validation_result_audit=server_validation_result_audit,
             archive_candidates_audit=archive_candidates_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
@@ -524,6 +555,7 @@ def package_results(
             external_genomes_install_plan_audit=(
                 external_genomes_install_plan_audit
             ),
+            server_validation_result_audit=server_validation_result_audit,
             archive_candidates_audit=archive_candidates_audit,
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
@@ -578,6 +610,11 @@ def package_results(
         external_genomes_install_plan_warnings=(
             list(external_genomes_install_plan_audit.warnings)
             if external_genomes_install_plan_audit is not None
+            else []
+        ),
+        server_validation_result_warnings=(
+            list(server_validation_result_audit.warnings)
+            if server_validation_result_audit is not None
             else []
         ),
         archive_candidates_warnings=(
@@ -783,6 +820,9 @@ def build_delivery_readme(
     external_genomes_install_plan_audit: (
         ExternalGenomesInstallPlanAuditSummary | None
     ) = None,
+    server_validation_result_audit: (
+        ServerValidationResultPackageSummary | None
+    ) = None,
     archive_candidates_audit: ArchiveCandidatesAuditSummary | None = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
     strict_gating_audit: StrictGatingAuditSummary | None = None,
@@ -898,6 +938,10 @@ def build_delivery_readme(
                 external_genomes_install_plan_audit
             )
         )
+    if server_validation_result_audit is not None:
+        lines.extend(
+            _server_validation_result_readme_lines(server_validation_result_audit)
+        )
     if archive_candidates_audit is not None:
         lines.extend(_archive_candidates_readme_lines(archive_candidates_audit))
     if offline_readiness_audit is not None:
@@ -1009,6 +1053,9 @@ def build_handoff_index(
     ) = None,
     external_genomes_install_plan_audit: (
         ExternalGenomesInstallPlanAuditSummary | None
+    ) = None,
+    server_validation_result_audit: (
+        ServerValidationResultPackageSummary | None
     ) = None,
     archive_candidates_audit: ArchiveCandidatesAuditSummary | None = None,
     offline_readiness_audit: OfflineReadinessAuditSummary | None = None,
@@ -1138,6 +1185,10 @@ def build_handoff_index(
             _external_genomes_install_plan_handoff_lines(
                 external_genomes_install_plan_audit
             )
+        )
+    if server_validation_result_audit is not None:
+        lines.extend(
+            _server_validation_result_handoff_lines(server_validation_result_audit)
         )
     if archive_candidates_audit is not None:
         lines.extend(_archive_candidates_handoff_lines(archive_candidates_audit))
@@ -1650,6 +1701,82 @@ def _copy_external_genomes_install_plan_outputs(
     return copied_plan
 
 
+def _read_optional_server_validation_result(
+    path: str | Path | None,
+) -> ServerValidationResultPackageSummary | None:
+    if path is None:
+        return None
+    input_path = Path(path)
+    if not input_path.exists():
+        return ServerValidationResultPackageSummary(
+            status="missing",
+            validation_status="missing",
+            check_count=0,
+            failed_count=0,
+            source_commit="",
+            typetreeflow_version="",
+            warnings=["missing_server_validation_result"],
+        )
+    try:
+        payload = json.loads(input_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ServerValidationResultPackageSummary(
+            status="blocked",
+            validation_status="malformed",
+            check_count=0,
+            failed_count=0,
+            source_commit="",
+            typetreeflow_version="",
+            warnings=["malformed_server_validation_result"],
+        )
+    if not isinstance(payload, dict) or payload.get("schema_version") != (
+        "coverage_handoff_server_validation_result.v1"
+    ):
+        return ServerValidationResultPackageSummary(
+            status="blocked",
+            validation_status="invalid_schema",
+            check_count=0,
+            failed_count=0,
+            source_commit="",
+            typetreeflow_version="",
+            warnings=["invalid_server_validation_result_schema"],
+        )
+    return ServerValidationResultPackageSummary(
+        status=str(payload.get("status", "")),
+        validation_status=str(payload.get("validation_status", "")),
+        check_count=_safe_int_value(payload.get("check_count", 0)),
+        failed_count=_safe_int_value(payload.get("failed_count", 0)),
+        source_commit=(
+            str(payload.get("source_commit", ""))
+            if isinstance(payload.get("source_commit", ""), str)
+            else ""
+        ),
+        typetreeflow_version=(
+            str(payload.get("typetreeflow_version", ""))
+            if isinstance(payload.get("typetreeflow_version", ""), str)
+            else ""
+        ),
+    )
+
+
+def _copy_server_validation_result_output(
+    path: str | Path | None,
+    audit: ServerValidationResultPackageSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if path is None or audit is None or audit.warnings:
+        return []
+    copied_path = _copy_required(
+        Path(path),
+        delivery_dir
+        / "server_validation"
+        / "coverage_handoff_server_validation_result.json",
+    )
+    copied.append(copied_path)
+    return [copied_path]
+
+
 def _copy_archive_candidates_outputs(
     directory: str | Path | None,
     audit: ArchiveCandidatesAuditSummary | None,
@@ -1736,6 +1863,8 @@ def _write_package_artifact_scope(
     ),
     external_genomes_install_plan_outputs_copied: list[Path],
     external_genomes_install_plan_audit: ExternalGenomesInstallPlanAuditSummary | None,
+    server_validation_result_outputs_copied: list[Path],
+    server_validation_result_audit: ServerValidationResultPackageSummary | None,
     archive_candidates_outputs_copied: list[Path],
     archive_candidates_audit: ArchiveCandidatesAuditSummary | None,
     offline_readiness_outputs_copied: list[Path],
@@ -1812,6 +1941,13 @@ def _write_package_artifact_scope(
         )
     )
     rows.extend(
+        _server_validation_result_artifact_scope_rows(
+            delivery_dir,
+            server_validation_result_outputs_copied,
+            server_validation_result_audit,
+        )
+    )
+    rows.extend(
         _archive_candidates_artifact_scope_rows(
             delivery_dir,
             archive_candidates_outputs_copied,
@@ -1840,6 +1976,7 @@ def _write_package_artifact_scope(
         or provider_request_validation_outputs_copied
         or provider_request_external_genomes_outputs_copied
         or external_genomes_install_plan_outputs_copied
+        or server_validation_result_outputs_copied
         or archive_candidates_outputs_copied
         or offline_readiness_outputs_copied
         or strict_gating_outputs_copied
@@ -1863,6 +2000,7 @@ def _write_package_artifact_scope(
             or provider_request_validation_outputs_copied
             or provider_request_external_genomes_outputs_copied
             or external_genomes_install_plan_outputs_copied
+            or server_validation_result_outputs_copied
             or archive_candidates_outputs_copied
             or offline_readiness_outputs_copied
             or strict_gating_outputs_copied
@@ -2562,6 +2700,49 @@ def _external_genomes_install_plan_artifact_scope_rows(
     return rows
 
 
+def _server_validation_result_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: ServerValidationResultPackageSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    artifact_path = "server_validation/coverage_handoff_server_validation_result.json"
+    if artifact_path not in copied_paths:
+        return []
+    record_count = 1 if audit is not None else 0
+    return [
+        {
+            "artifact_path": artifact_path,
+            "artifact_kind": "coverage_handoff_server_validation_result",
+            "scope": "audit",
+            "evidence_policy": "server_validation_audit",
+            "record_count": str(record_count),
+            "strict_usable_count": "0",
+            "candidate_count": "0",
+            "excluded_mismatch_count": "0",
+            "artifact_label": "Coverage handoff server-validation result",
+            "recommended_use": "bounded server validation evidence review",
+            "not_for": (
+                "downloads, provider contact, registration, manifest mutation, "
+                "or strict deliverable gating"
+            ),
+            "source_artifact": "coverage_handoff_server_validation_result",
+            "consumer_priority": "102",
+            "strict_scientific_deliverable": "false",
+            "notes": (
+                "Audit-only server-validation result; package inclusion records "
+                "bounded validation evidence and does not execute target "
+                "commands, contact providers, trigger downloads, register "
+                "external genomes, or promote strict deliverables."
+            ),
+        }
+    ]
+
+
 def _archive_candidates_artifact_scope_rows(
     delivery_dir: Path,
     copied_files: list[Path],
@@ -3102,6 +3283,14 @@ def _safe_tsv_row_count(path: Path) -> int:
         return 0
 
 
+def _safe_int_value(value: object) -> int:
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    return 0
+
+
 def _gtdb_audit_enabled_for_delivery(paths: OutputPaths) -> bool:
     state = _read_run_state_if_available(paths)
     if state is None:
@@ -3539,6 +3728,58 @@ def _external_genomes_install_plan_readme_lines(
         lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
     if audit.warnings:
         lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _server_validation_result_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Server-validation result artifacts are audit-only bounded "
+            "validation evidence. Package inclusion means parent/controller "
+            "review availability, not target command execution."
+        ),
+        (
+            "- `downloads_triggered=0`, `providers_contacted=0`, "
+            "`network_access=false`, `external_tools=false`, "
+            "`manifest_mutated=false`, and "
+            "`strict_scientific_deliverable=false` remain package boundaries."
+        ),
+        (
+            "- A passing result records a prior bounded validation run; it "
+            "does not register external genomes, contact providers, or promote "
+            "strict deliverables."
+        ),
+    ]
+
+
+def _server_validation_result_readme_lines(
+    audit: ServerValidationResultPackageSummary,
+) -> list[str]:
+    lines = ["", "## Coverage Handoff Server Validation Result", ""]
+    lines.extend(_server_validation_result_boundary_lines())
+    if audit.source_commit:
+        lines.append(f"- Source commit: {audit.source_commit}")
+    if audit.typetreeflow_version:
+        lines.append(f"- TypeTreeFlow version: {audit.typetreeflow_version}")
+    lines.append(f"- Result status: {audit.status or 'unknown'}")
+    lines.append(f"- Validation status: {audit.validation_status or 'unknown'}")
+    lines.append(f"- Checks: {audit.check_count}; failed: {audit.failed_count}")
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _server_validation_result_handoff_lines(
+    audit: ServerValidationResultPackageSummary,
+) -> list[str]:
+    lines = _server_validation_result_boundary_lines()
+    lines.append(f"- Server-validation result status: {audit.status or 'unknown'}")
+    lines.append(
+        "- Server-validation checks: "
+        f"{audit.check_count}; failed: {audit.failed_count}"
+    )
+    if audit.warnings:
+        lines.append("- Server-validation result warning: " + "; ".join(audit.warnings))
     return lines
 
 

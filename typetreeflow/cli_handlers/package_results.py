@@ -35,6 +35,7 @@ def run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             external_genomes_install_plan_dir=(
                 config.external_genomes_install_plan_dir
             ),
+            server_validation_result=config.server_validation_result,
             coverage_pipeline_dir=config.coverage_pipeline_dir,
             archive_candidates_dir=config.archive_candidates_dir,
             offline_readiness_dir=config.offline_readiness_dir,
@@ -136,6 +137,17 @@ def _format_envelope(
                     f"{len(result.provider_request_external_genomes_warnings)} "
                     "provider request external-genomes warning(s); see package "
                     "README and handoff index"
+                ),
+            }
+        )
+    if result.server_validation_result_warnings:
+        warnings.append(
+            {
+                "id": "server_validation_result_warning",
+                "message": (
+                    f"{len(result.server_validation_result_warnings)} server "
+                    "validation result warning(s); see package README and "
+                    "handoff index"
                 ),
             }
         )

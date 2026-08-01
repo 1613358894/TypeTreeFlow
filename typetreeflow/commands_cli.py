@@ -1306,6 +1306,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "explicit external-genomes install-plan audit output directory",
         },
         {
+            "name": "--server-validation-result",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit coverage handoff server-validation result JSON",
+        },
+        {
             "name": "--coverage-pipeline-dir",
             "kind": "path",
             "required": False,
@@ -3037,6 +3044,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "provider_request_validation_dir",
                 "provider_request_external_genomes_dir",
                 "external_genomes_install_plan_dir",
+                "server_validation_result",
                 "coverage_pipeline_dir",
                 "offline_readiness_dir",
                 "strict_gating_dir",
@@ -3051,7 +3059,10 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             argv.extend(["--delivery-dir", delivery_dir])
         if _bool_flag(request, "failed_handoff"):
             argv.append("--failed-handoff")
+        server_validation_result = _optional_string(request, "server_validation_result")
         for key, flag in _AUDIT_DIR_RENDER_FIELDS:
+            if key == "coverage_pipeline_dir" and server_validation_result:
+                argv.extend(["--server-validation-result", server_validation_result])
             value = _optional_string(request, key)
             if value:
                 argv.extend([flag, value])

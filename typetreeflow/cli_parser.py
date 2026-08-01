@@ -605,6 +605,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--server-validation-result",
+        type=Path,
+        help=(
+            "Explicit read-only coverage handoff server-validation result JSON "
+            "for package-results; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--coverage-pipeline-dir",
         type=Path,
         help=(

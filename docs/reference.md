@@ -577,6 +577,21 @@ The option does not rerun coverage planning, contact providers, trigger
 downloads, mutate manifests, create workflow outputs, or create strict
 scientific deliverables.
 
+`--server-validation-result <json>` is accepted with `package-results`. It is
+an explicit read-only handoff for a single
+`coverage_handoff_server_validation_result.v1` JSON generated after an
+authorized bounded server validation. Missing, malformed, or wrong-schema input
+is omitted with a compact package warning. Valid input is copied under
+`server_validation/coverage_handoff_server_validation_result.json`; package
+`artifact_scope.tsv` and `reports/artifact_scope.tsv` get one row with
+`scope=audit`, `evidence_policy=server_validation_audit`,
+`strict_scientific_deliverable=false`,
+`recommended_use=bounded server validation evidence review`, and
+`source_artifact=coverage_handoff_server_validation_result`. Package inclusion
+does not execute target commands, contact providers, trigger downloads,
+register external genomes, mutate manifests, or promote strict deliverables.
+Failed-handoff packages exclude this artifact.
+
 `--offline-readiness-dir <dir>` is accepted with `--report-only`. It is an
 explicit read-only input and is never automatically discovered under the
 workflow outdir. The same option is accepted with `package-results`. Report
