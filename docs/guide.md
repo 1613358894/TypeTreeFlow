@@ -175,6 +175,10 @@ For `external_fasta_required` rows without explicit provider hints, the
 default provider handoff labels come from registry entries whose status is
 `planning_only`; `metadata_only` public archives are not default handoff
 labels.
+Culture-collection provider hints may be written with a separator or joined
+directly to the collection number, such as `DSM 123`, `DSM-123`, `DSM123`, or
+`ATCC700964`; recognition still only routes the row to planning handoff and
+does not enable provider contact or downloads.
 Command metadata reports `coverage_plan_packet.v1` for the generated
 coverage-plan pair.
 When `--write` succeeds, stdout includes a structured `recommended_request`

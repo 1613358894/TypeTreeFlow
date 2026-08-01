@@ -523,6 +523,54 @@ def test_worklist_external_fasta_lane_recognizes_additional_collection_tokens():
     }
 
 
+def test_worklist_external_fasta_lane_recognizes_joined_collection_numbers():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium joinedproviderum",
+                "type_strain_names": (
+                    "ATCC700964; DSM12345; JCM9876; KCTC5001; "
+                    "NBRC10000; LMG4006"
+                ),
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium joinedproviderum",
+                reconciled_evidence_tier="missing_public_genome",
+            )
+        ],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium joinedproviderum",
+                "reason_category": "missing_genome",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == (
+        "atcc_genome_portal; dsmz; jcm; nbrc; kctc; bccm_lmg"
+    )
+    assert row.candidate_provider_statuses == (
+        "atcc_genome_portal=planning_only; dsmz=planning_only; "
+        "jcm=planning_only; nbrc=planning_only; kctc=planning_only; "
+        "bccm_lmg=planning_only"
+    )
+    assert report.summary["candidate_provider_key_counts"] == {
+        "atcc_genome_portal": 1,
+        "bccm_lmg": 1,
+        "dsmz": 1,
+        "jcm": 1,
+        "kctc": 1,
+        "nbrc": 1,
+    }
+    assert report.summary["candidate_provider_status_counts"] == {
+        "planning_only": 6
+    }
+
+
 def test_worklist_explicit_provider_hints_accept_registry_display_names():
     report = build_acquisition_worklist(
         checklist_rows=[{"full_name": "Clostridium aliasesum"}],
