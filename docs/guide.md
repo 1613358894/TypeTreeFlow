@@ -901,8 +901,10 @@ status can also summarize valid,
 invalid, and registration status counts from the result TSV. When a supplied
 registration run has already performed a local non-dry-run install, status also
 reports install-result counts such as `summary_install_succeeded_count` and
-`summary_install_result_status_counts` on that stage row. It does not scan
-workflow outputs, contact
+`summary_install_result_status_counts` on that stage row. If that explicit
+registration run also contains a valid `manifest.tsv`, status reports
+`summary_manifest_available=true` and `summary_manifest_record_count` without
+granting coverage completion credit. It does not scan workflow outputs, contact
 providers, download genomes, copy FASTA, mutate manifests, or grant completion
 credit.
 When a child stage summary is present, status preserves compact `summary_*`

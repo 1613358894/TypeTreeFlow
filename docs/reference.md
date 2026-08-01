@@ -2726,7 +2726,11 @@ also carry `summary_valid_count`, `summary_invalid_count`,
 `external_genome_install_results.tsv` is present in the supplied registration
 run directory, the same stage row also carries `summary_install_result_count`,
 `summary_install_succeeded_count`, and
-`summary_install_result_status_counts`. Provider-request validation and
+`summary_install_result_status_counts`. If that explicit run directory also
+contains a valid `manifest.tsv`, the stage row carries
+`summary_manifest_available=true` and `summary_manifest_record_count` for
+controller visibility only; it does not change completion metrics or strict
+evidence. Provider-request validation and
 external-genomes handoff child summaries can also contribute
 `summary_provider_request_readiness_packet`; external-genomes install-plan
 summaries can contribute `summary_external_genomes_readiness_packet` and, for
