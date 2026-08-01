@@ -868,6 +868,10 @@ def _repair_template_payload(
         "diagnostics": diagnostics,
         "recommended_request": recommended_request,
         "recommended_request_target": recommended_request_target(recommended_request),
+        "recommended_command_plan": recommended_command_plan(
+            recommended_request,
+            request_source="external_genomes_repair_template.recommended_request",
+        ),
         "recommended_next_command": recommended_next_command,
         "audit_only": True,
         "dry_run": True,
@@ -932,6 +936,10 @@ def _repair_merge_payload(
         "diagnostics": diagnostics,
         "recommended_request": recommended_request,
         "recommended_request_target": recommended_request_target(recommended_request),
+        "recommended_command_plan": recommended_command_plan(
+            recommended_request,
+            request_source="external_genomes_repair_merge.recommended_request",
+        ),
         "recommended_next_command": recommended_next_command,
         "audit_only": True,
         "dry_run": True,
