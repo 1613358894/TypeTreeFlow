@@ -362,6 +362,9 @@ AI/operator queueing. The
 let an AI controller read queue pressure and the first queued item without
 recomputing counts or inventing its own item keys; the queue and priority
 summaries also expose execution-gate counts for controller-level triage.
+Provider-handoff queue items carry a filtered `provider-handoff build`
+recommended request with the grouped provider keys, not a direct provider
+request draft.
 `coverage_operator_route_summary` groups that same queue by route, preserving
 the first item and command target for each route so controllers can choose the
 next review surface without scanning every row.
@@ -413,7 +416,7 @@ Queue rows also carry `operator_execution_gate` and `review_input_packet` so
 controllers can route required local inputs without first expanding a selected
 packet; the queue and priority summaries count review-input schemas for the
 same reason. They also summarize recommended request targets, such as
-`manual-review validate` or `provider-request draft`, without rendering or
+`manual-review validate` or `provider-handoff build`, without rendering or
 executing those requests. Selected queue packets, operator recipes, queue-resume
 packets, preview items, and controller queue candidates also carry
 `next_input_package`, a compact no-execution summary of the next input schema,
