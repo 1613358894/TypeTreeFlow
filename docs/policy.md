@@ -333,8 +333,11 @@ create provider access or download support.
 
 The `provider-handoff build` CLI remains an isolated adapter. It may read only
 an explicit coverage-plan TSV, and in explicit write mode it may publish only
-its isolated provider-handoff pair. Rows missing species, source lane, or action
-code must be blocked rather than converted into provider handoff rows. It must
+its isolated provider-handoff pair. Optional `--provider-key` filters may only
+bound local handoff rows by canonical provider key or alias; they must not
+authorize provider contact or change provider status. Rows missing species,
+source lane, or action code must be blocked rather than converted into provider
+handoff rows. It must
 not scan workflow directories, read environment credentials, execute provider
 adapters, package raw curator/provider data, or convert a recommended action
 into an executed provider/download action.

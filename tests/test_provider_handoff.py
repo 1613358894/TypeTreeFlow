@@ -164,6 +164,26 @@ def test_build_provider_handoff_canonicalizes_provider_aliases():
     assert handoff.summary["providers_contacted"] == 0
 
 
+def test_build_provider_handoff_can_filter_to_bounded_provider_keys():
+    rows = _coverage_rows()
+    rows[0]["provider_keys"] = "RefSeq; NCBI GenBank"
+    rows[1]["provider_keys"] = "DSMZ; Korean Collection for Type Cultures; JGI IMG"
+
+    handoff = build_provider_handoff(
+        rows,
+        provider_key_filter=("Korean Collection for Type Cultures", "refseq"),
+    )
+
+    assert [row.provider_key for row in handoff.rows] == ["kctc", "refseq"]
+    assert handoff.summary["provider_key_counts"] == {"kctc": 1, "refseq": 1}
+    assert handoff.summary["operator_route_counts"] == {
+        "provider_handoff": 1,
+        "public_metadata_review": 1,
+    }
+    assert handoff.summary["downloads_triggered"] == 0
+    assert handoff.summary["providers_contacted"] == 0
+
+
 def test_provider_handoff_img_jgi_requires_credentials_but_no_network():
     rows = _coverage_rows()
     rows[1]["provider_keys"] = "IMG/M; JGI IMG"

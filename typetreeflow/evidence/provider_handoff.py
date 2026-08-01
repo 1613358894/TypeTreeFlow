@@ -195,14 +195,21 @@ def build_provider_handoff(
     coverage_plan_rows: Iterable[Mapping[str, object]],
     *,
     registry: ProviderRegistry | None = None,
+    provider_key_filter: Iterable[str] | None = None,
 ) -> ProviderHandoff:
     provider_registry = registry or build_default_provider_registry()
+    selected_provider_keys = _provider_key_filter(
+        provider_key_filter,
+        registry=provider_registry,
+    )
     rows: list[ProviderHandoffRow] = []
     for plan_row in coverage_plan_rows:
         provider_keys = provider_registry.keys_from_hints(
             _value(plan_row, "provider_keys")
         )
         for provider_key in provider_keys:
+            if selected_provider_keys and provider_key not in selected_provider_keys:
+                continue
             entry = provider_registry.get(provider_key)
             capability = entry.capability
             automation_level = provider_automation_level(entry)
@@ -231,6 +238,21 @@ def build_provider_handoff(
                 )
             )
     return ProviderHandoff(rows=tuple(sorted(rows, key=_sort_key)))
+
+
+def _provider_key_filter(
+    values: Iterable[str] | None,
+    *,
+    registry: ProviderRegistry,
+) -> tuple[str, ...]:
+    if values is None:
+        return ()
+    provider_keys: list[str] = []
+    for value in values:
+        for provider_key in registry.keys_from_hints(str(value)):
+            if provider_key and provider_key not in provider_keys:
+                provider_keys.append(provider_key)
+    return tuple(provider_keys)
 
 
 def _sort_key(row: ProviderHandoffRow) -> tuple[str, str, str]:

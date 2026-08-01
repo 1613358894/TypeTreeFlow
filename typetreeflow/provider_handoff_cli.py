@@ -25,6 +25,7 @@ from typetreeflow.evidence.provider_handoff import (
     PROVIDER_HANDOFF_SCHEMA_VERSION,
     build_provider_handoff,
 )
+from typetreeflow.providers.registry import build_default_provider_registry
 
 
 COMMAND = "provider-handoff build"
@@ -97,13 +98,22 @@ def run_provider_handoff_command(
     diagnostics: list[dict[str, object]] = []
     coverage_rows = _read_required_coverage_plan(args.coverage_plan_tsv, diagnostics)
     try:
-        handoff = build_provider_handoff(coverage_rows)
+        provider_key_filter = _provider_key_filter(args.provider_key)
+        handoff = build_provider_handoff(
+            coverage_rows,
+            provider_key_filter=provider_key_filter,
+        )
     except Exception:
         _emit(_failure("internal_error", "Provider handoff build failed unexpectedly"), output)
         return 1
     if not handoff.rows:
         diagnostics.append(_diagnostic("provider_handoff", "no_provider_key_rows"))
-    payload = _payload(handoff, diagnostics=diagnostics, dry_run=not args.write)
+    payload = _payload(
+        handoff,
+        diagnostics=diagnostics,
+        dry_run=not args.write,
+        provider_key_filter=provider_key_filter,
+    )
     if args.write:
         try:
             _publish(
@@ -111,7 +121,11 @@ def run_provider_handoff_command(
                 outdir=outdir,
                 rendered={
                     "handoff": handoff.handoff_tsv(),
-                    "summary": handoff.summary_json() + "\n",
+                    "summary": _summary_json(
+                        handoff,
+                        provider_key_filter=provider_key_filter,
+                    )
+                    + "\n",
                 },
                 force=args.force,
             )
@@ -150,6 +164,7 @@ def _build_parser() -> argparse.ArgumentParser:
     actions = handoff.add_subparsers(dest="action", required=True)
     build = actions.add_parser("build", add_help=False)
     build.add_argument("--coverage-plan-tsv", required=True)
+    build.add_argument("--provider-key", action="append", default=[])
     build.add_argument("--json", action="store_true")
     build.add_argument("--write", action="store_true")
     build.add_argument("--outdir")
@@ -193,7 +208,13 @@ def _read_required_coverage_plan(
     return rows
 
 
-def _payload(handoff, *, diagnostics: list[dict[str, object]], dry_run: bool) -> dict[str, object]:
+def _payload(
+    handoff,
+    *,
+    diagnostics: list[dict[str, object]],
+    dry_run: bool,
+    provider_key_filter: tuple[str, ...] = (),
+) -> dict[str, object]:
     summary = handoff.summary
     preview = [row.to_row() for row in handoff.rows[:_PREVIEW_LIMIT]]
     return {
@@ -211,6 +232,9 @@ def _payload(handoff, *, diagnostics: list[dict[str, object]], dry_run: bool) ->
         "next_input_class_counts": summary["next_input_class_counts"],
         "automation_boundary_counts": summary["automation_boundary_counts"],
         "source_action_counts": summary["source_action_counts"],
+        "provider_key_filter": list(provider_key_filter),
+        "provider_key_filter_count": len(provider_key_filter),
+        "filtered": bool(provider_key_filter),
         "terms_review_required_count": summary["terms_review_required_count"],
         "credentials_required_count": summary["credentials_required_count"],
         "network_supported_count": summary["network_supported_count"],
@@ -246,6 +270,29 @@ def _payload(handoff, *, diagnostics: list[dict[str, object]], dry_run: bool) ->
     }
 
 
+def _provider_key_filter(values: Sequence[str]) -> tuple[str, ...]:
+    registry = build_default_provider_registry()
+    provider_keys: list[str] = []
+    for value in values:
+        for provider_key in registry.keys_from_hints(value):
+            if provider_key and provider_key not in provider_keys:
+                provider_keys.append(provider_key)
+    return tuple(provider_keys)
+
+
+def _summary_json(handoff, *, provider_key_filter: tuple[str, ...]) -> str:
+    return json.dumps(
+        {
+            **handoff.summary,
+            "provider_key_filter": list(provider_key_filter),
+            "provider_key_filter_count": len(provider_key_filter),
+            "filtered": bool(provider_key_filter),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
 def _failure(code: str, message: str) -> dict[str, object]:
     return {
         "schema_version": PROVIDER_HANDOFF_SCHEMA_VERSION,
@@ -260,6 +307,9 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "next_input_class_counts": {},
         "automation_boundary_counts": {},
         "source_action_counts": {},
+        "provider_key_filter": [],
+        "provider_key_filter_count": 0,
+        "filtered": False,
         "terms_review_required_count": 0,
         "credentials_required_count": 0,
         "network_supported_count": 0,

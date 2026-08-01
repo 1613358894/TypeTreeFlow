@@ -58,6 +58,9 @@ PROVIDER_HANDOFF_SUMMARY_FIELDS = [
     "record_count",
     *PROVIDER_ROUTE_SUMMARY_FIELDS,
     "source_action_counts",
+    "provider_key_filter",
+    "provider_key_filter_count",
+    "filtered",
     "terms_review_required_count",
     "credentials_required_count",
     "network_supported_count",
@@ -1833,7 +1836,8 @@ def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
                 "--request-json",
                 (
                     '{"command":"provider-handoff","subcommand":"build",'
-                    '"coverage_plan_tsv":"coverage.tsv","write":true,'
+                    '"coverage_plan_tsv":"coverage.tsv",'
+                    '"provider_keys":["KCTC","NCBI RefSeq"],"write":true,'
                     '"outdir":"handoff","force":true}'
                 ),
             ]
@@ -1847,6 +1851,10 @@ def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
         "build",
         "--coverage-plan-tsv",
         "coverage.tsv",
+        "--provider-key",
+        "KCTC",
+        "--provider-key",
+        "NCBI RefSeq",
         "--write",
         "--outdir",
         "handoff",

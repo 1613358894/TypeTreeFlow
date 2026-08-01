@@ -177,7 +177,8 @@ Turn coverage-plan provider keys into a provider-specific offline handoff:
 
 ```bash
 typetreeflow provider-handoff build --coverage-plan-tsv <coverage_plan.tsv> \
-  [--json] [--write --outdir <isolated-directory> [--force]]
+  [--provider-key <key> ...] [--json] \
+  [--write --outdir <isolated-directory> [--force]]
 ```
 
 The command expands provider keys through the static provider registry and
@@ -185,6 +186,10 @@ records provider status, automation level, controlled operator route, next
 input class, automation boundary, terms-review, credential, and
 network-disabled boundaries, with compact readiness and route counts plus the
 next offline `provider-request draft` request in stdout and the summary JSON.
+Optional repeated `--provider-key <key>` values filter the local handoff rows
+to a bounded provider subset, using the same canonical key and alias rules as
+provider hints. The filter is only a local queue-control aid and does not
+authorize provider contact.
 The summary also includes `provider_route_groups` so AI/controllers can see
 provider keys grouped by public metadata review versus provider handoff.
 Command metadata reports `provider_handoff_packet.v1` for the generated
