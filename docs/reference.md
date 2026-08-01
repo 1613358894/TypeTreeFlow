@@ -1634,9 +1634,14 @@ typetreeflow acquisition-worklist build [--checklist-tsv <tsv>] [--reconciler-au
 It reads only the explicitly named TSV files and emits exactly one compact
 JSON object, including `review_signal_counts` and
 `candidate_provider_key_counts` plus `candidate_provider_status_counts` review
-hints. The summary also includes `acquisition_opportunity_summary`, a stable
-lane/reason-code grouping with bounded species previews, source-artifact
-counts, provider hint counts, and the next local input class. It is intended for
+hints. The summary also includes `unrouted_type_strain_token_counts` and
+bounded `unrouted_type_strain_token_examples` for type-strain or
+culture-collection prefixes that were visible in local evidence but did not
+match the static provider registry. These fields are audit-only platform
+expansion signals, not provider keys or download routes. The summary also
+includes `acquisition_opportunity_summary`, a stable lane/reason-code grouping
+with bounded species previews, source-artifact counts, provider hint counts,
+and the next local input class. It is intended for
 Clostridium-scale action mapping from existing evidence and always keeps
 `safe_for_unattended_download=false`; it does not start provider contact or
 download work. Without `--write`, it writes nothing. With `--write`, it writes only

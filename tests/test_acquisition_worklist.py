@@ -912,6 +912,74 @@ def test_worklist_type_strain_historical_collection_tokens_route_to_handoff():
     }
 
 
+def test_worklist_surfaces_unrouted_type_strain_prefixes_as_audit_counts():
+    report = build_acquisition_worklist(
+        checklist_rows=[
+            {
+                "full_name": "Clostridium unroutedum",
+                "type_strain_names": (
+                    "VPI T7; NSJ 27; DSM 123; ACCC 698; Marseille P4344"
+                ),
+            }
+        ],
+        reconciler_rows=[
+            _row(
+                "Clostridium unroutedum",
+                reconciled_evidence_tier="missing_public_genome",
+                culture_collection_tokens="LCDC 99A005; ATCC 700964",
+            )
+        ],
+        completion_gap_rows=[
+            {"species": "Clostridium unroutedum", "reason_category": "missing_genome"}
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "external_fasta_required"
+    assert row.candidate_provider_keys == "dsmz; accc; atcc_genome_portal"
+    assert report.summary["candidate_provider_key_counts"] == {
+        "accc": 1,
+        "atcc_genome_portal": 1,
+        "dsmz": 1,
+    }
+    assert report.summary["unrouted_type_strain_token_counts"] == {
+        "LCDC": 1,
+        "MARSEILLE": 1,
+        "NSJ": 1,
+        "VPI": 1,
+    }
+    assert report.summary["unrouted_type_strain_token_examples"] == [
+        {
+            "prefix": "LCDC",
+            "count": 1,
+            "species_preview": ["Clostridium unroutedum"],
+            "token_preview": ["LCDC 99A005"],
+            "truncated": False,
+        },
+        {
+            "prefix": "MARSEILLE",
+            "count": 1,
+            "species_preview": ["Clostridium unroutedum"],
+            "token_preview": ["Marseille P4344"],
+            "truncated": False,
+        },
+        {
+            "prefix": "NSJ",
+            "count": 1,
+            "species_preview": ["Clostridium unroutedum"],
+            "token_preview": ["NSJ 27"],
+            "truncated": False,
+        },
+        {
+            "prefix": "VPI",
+            "count": 1,
+            "species_preview": ["Clostridium unroutedum"],
+            "token_preview": ["VPI T7"],
+            "truncated": False,
+        },
+    ]
+
+
 def test_worklist_type_strain_evidence_tokens_route_to_provider_handoff():
     report = build_acquisition_worklist(
         checklist_rows=[
