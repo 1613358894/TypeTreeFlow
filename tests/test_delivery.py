@@ -118,6 +118,17 @@ def _write_server_validation_result(path):
                 "evidence_run_path": "/icdc/Users/example/codex_runs/run",
                 "check_count": 49,
                 "failed_count": 0,
+                "download_smoke_inspection_realized": True,
+                "download_smoke_inspection_ready": False,
+                "download_smoke_inspection_selected_row_count": 2,
+                "download_smoke_inspection_zip_valid_count": 1,
+                "download_smoke_inspection_genome_fasta_present_count": 1,
+                "download_smoke_inspection_fasta_n50_below_minimum_count": 1,
+                "download_smoke_inspection_fasta_record_count_above_maximum_count": 1,
+                "download_smoke_inspection_fasta_total_bases_below_minimum_count": 0,
+                "download_smoke_inspection_fasta_longest_record_below_minimum_count": 1,
+                "download_smoke_inspection_fragmented_fasta_signal_count": 1,
+                "download_smoke_inspection_fasta_header_fragment_keyword_row_count": 1,
                 "checked_surface_names": ["provider_request_external_genomes"],
                 "input_readiness_status": "ready",
                 "blocking_ids": [],
@@ -2467,6 +2478,17 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "Coverage Handoff Server Validation Result" in package_text
     assert "bounded validation evidence" in package_text
     assert "3c51551cfab70222e4a6b4a9c5ed8fafabe10226" in package_text
+    assert "Bounded download-smoke inspection observations" in package_text
+    assert "realized=true, ready=false, selected_rows=2" in package_text
+    assert "zip_valid=1, genome_fasta_present=1" in package_text
+    assert "Bounded FASTA quality-gate hits" in package_text
+    assert "n50_below_minimum=1" in package_text
+    assert "record_count_above_maximum=1" in package_text
+    assert "total_bases_below_minimum=0" in package_text
+    assert "longest_record_below_minimum=1" in package_text
+    assert "fragmented_signal=1" in package_text
+    assert "header_keywords=1" in package_text
+    assert "NZ_RJWG01000001.1" not in package_text
     assert "target command execution" in package_text
     assert "contact providers" in package_text
 

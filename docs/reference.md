@@ -627,6 +627,9 @@ is omitted with a compact package warning. Valid input is copied under
 `source_artifact=coverage_handoff_server_validation_result`. Package inclusion
 does not execute target commands, contact providers, trigger downloads,
 register external genomes, mutate manifests, or promote strict deliverables.
+When the JSON carries optional `download_smoke_inspection_` observation fields,
+README and handoff text summarize only controlled counts and quality-gate hits;
+they do not copy raw FASTA headers, sequence text, or ZIP contents.
 Failed-handoff packages exclude this artifact.
 
 `--offline-readiness-dir <dir>` is accepted with `--report-only`. It is an
