@@ -216,6 +216,7 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "fasta_record_count": 2,
                 "fasta_total_bases": 10,
                 "fasta_longest_record_bases": 6,
+                "fasta_max_n50_bases": 6,
                 "fasta_ambiguous_bases": 2,
                 "fasta_fragmentation_signal_counts": {
                     "multi_record_fragmented": 1,
@@ -252,6 +253,7 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
         "fasta_record_count",
         "fasta_total_bases",
         "fasta_longest_record_bases",
+        "fasta_n50_bases",
         "fasta_ambiguous_bases",
         "fasta_fragmentation_signal",
         "status",
@@ -259,8 +261,8 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
     (directory / "bounded_download_smoke_inspection.tsv").write_text(
         "\t".join(header)
         + "\n"
-        + "ref1\tGCF_000001\tlocal/ref1.zip\ttrue\ttrue\ttrue\t1\t2\t10\t6\t2\tmulti_record_fragmented\tgenome_fasta_present\n"
-        + "ref2\tGCF_000002\tlocal/ref2.zip\tfalse\tfalse\tfalse\t0\t0\t0\t0\t0\tnot_evaluated\tzip_missing\n",
+        + "ref1\tGCF_000001\tlocal/ref1.zip\ttrue\ttrue\ttrue\t1\t2\t10\t6\t6\t2\tmulti_record_fragmented\tgenome_fasta_present\n"
+        + "ref2\tGCF_000002\tlocal/ref2.zip\tfalse\tfalse\tfalse\t0\t0\t0\t0\t0\t0\tnot_evaluated\tzip_missing\n",
         encoding="utf-8",
     )
 
@@ -286,6 +288,7 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     assert "- FASTA records: 2" in markdown
     assert "- FASTA total bases: 10" in markdown
     assert "- Longest FASTA record bases: 6" in markdown
+    assert "- Max FASTA N50 bases: 6" in markdown
     assert (
         "- FASTA fragmentation signals: multi_record_fragmented=1, not_evaluated=1"
         in markdown
