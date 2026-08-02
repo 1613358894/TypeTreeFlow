@@ -221,6 +221,9 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "genome_fasta_install_selection_ambiguous_count": 0,
                 "installable_genome_fasta_ready_count": 1,
                 "installable_genome_fasta_not_ready_count": 1,
+                "installable_genome_fasta_not_ready_reason_counts": {
+                    "empty_genome_fasta_outputs": 1
+                },
                 "fasta_record_count": 2,
                 "fasta_total_bases": 10,
                 "fasta_longest_record_bases": 6,
@@ -340,6 +343,11 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     assert "- Genome FASTA present: 1" in markdown
     assert (
         "- Installable genome FASTA ready/not-ready: ready=1, not_ready=1"
+        in markdown
+    )
+    assert (
+        "- Installable genome FASTA not-ready reason counts: "
+        "empty_genome_fasta_outputs=1"
         in markdown
     )
     assert "- Genome FASTA members: 1" in markdown

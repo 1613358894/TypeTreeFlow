@@ -757,6 +757,7 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["genome_fasta_install_selection_ambiguous_count"] == 0
     assert summary["installable_genome_fasta_ready_count"] == 1
     assert summary["installable_genome_fasta_not_ready_count"] == 0
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {}
     assert summary["fasta_record_count"] == 2
     assert summary["fasta_total_bases"] == 10
     assert summary["fasta_longest_record_bases"] == 6
@@ -854,6 +855,10 @@ def test_download_smoke_inspect_quality_profile_blocks_fragmentation(
     ]
     assert summary["installable_genome_fasta_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_count"] == 1
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {
+        "fasta_header_fragment_keywords": 1,
+        "fragmented_fasta_signal": 1,
+    }
     assert summary["fasta_quality_gate_passed_row_count"] == 0
     assert summary["fasta_quality_gate_blocked_row_count"] == 1
     assert summary["fasta_quality_gate_blocker_counts"] == {
@@ -888,6 +893,9 @@ def test_download_smoke_inspect_blocks_empty_genome_fasta_by_default(
     assert summary["empty_genome_fasta_count"] == 1
     assert summary["installable_genome_fasta_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_count"] == 1
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {
+        "empty_genome_fasta_outputs": 1
+    }
     assert summary["multiple_genome_fasta_members_count"] == 0
     assert summary["fasta_record_count"] == 1
     assert summary["fasta_total_bases"] == 0
@@ -933,6 +941,7 @@ def test_download_smoke_inspect_allows_multiple_members_with_unique_install_sele
     assert summary["genome_fasta_install_selection_ambiguous_count"] == 0
     assert summary["installable_genome_fasta_ready_count"] == 1
     assert summary["installable_genome_fasta_not_ready_count"] == 0
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {}
     assert summary["multiple_genome_fasta_members_count"] == 1
     assert summary["fasta_record_count"] == 1
     assert summary["fasta_total_bases"] == 4
@@ -970,6 +979,9 @@ def test_download_smoke_inspect_blocks_unsafe_zip_member_paths_by_default(
     assert summary["genome_fasta_present_count"] == 0
     assert summary["installable_genome_fasta_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_count"] == 1
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {
+        "unsafe_zip_member_paths": 1
+    }
     assert summary["genome_fasta_member_count"] == 0
     assert summary["status_counts"] == {"zip_unsafe_members": 1}
     assert summary["downloads_triggered"] == 0
@@ -1006,6 +1018,9 @@ def test_download_smoke_inspect_flags_ambiguous_install_selection(
     assert summary["genome_fasta_install_selection_ambiguous_count"] == 1
     assert summary["installable_genome_fasta_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_count"] == 1
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {
+        "genome_fasta_install_selection_ambiguous": 1
+    }
     assert summary["status_counts"] == {"genome_fasta_multiple_members": 1}
 
 
@@ -1085,6 +1100,15 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["fasta_quality_gate_blocked_row_count"] == 1
     assert summary["installable_genome_fasta_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_count"] == 1
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {
+        "fasta_header_fragment_keywords": 1,
+        "fasta_ambiguous_bases_above_maximum": 1,
+        "fasta_longest_record_below_minimum": 1,
+        "fasta_n50_below_minimum": 1,
+        "fasta_record_count_above_maximum": 1,
+        "fasta_total_bases_below_minimum": 1,
+        "fragmented_fasta_signal": 1,
+    }
     assert summary["fasta_quality_gate_blocker_counts"] == {
         "fasta_header_fragment_keywords": 1,
         "fasta_ambiguous_bases_above_maximum": 1,

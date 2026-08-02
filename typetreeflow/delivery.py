@@ -133,6 +133,9 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_fasta_header_fragment_keyword_row_count: int = 0
     download_smoke_inspection_fasta_quality_gate_passed_row_count: int = 0
     download_smoke_inspection_fasta_quality_gate_blocked_row_count: int = 0
+    download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts: (
+        dict[str, int]
+    ) = field(default_factory=dict)
     download_smoke_inspection_fasta_quality_gate_blocker_counts: dict[str, int] = (
         field(default_factory=dict)
     )
@@ -2055,6 +2058,13 @@ def _read_optional_server_validation_result(
                 payload.get(
                     "download_smoke_inspection_fasta_quality_gate_blocked_row_count",
                     0,
+                )
+            )
+        ),
+        download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts=(
+            _safe_count_map_value(
+                payload.get(
+                    "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts"
                 )
             )
         ),
@@ -4477,6 +4487,9 @@ def _server_validation_download_smoke_observations_available(
             audit.download_smoke_inspection_fasta_header_fragment_keyword_row_count,
             audit.download_smoke_inspection_fasta_quality_gate_passed_row_count,
             audit.download_smoke_inspection_fasta_quality_gate_blocked_row_count,
+            bool(
+                audit.download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts
+            ),
             bool(audit.download_smoke_inspection_fasta_quality_gate_blocker_counts),
             audit.download_smoke_inspection_quality_gate_recommendation,
             bool(audit.download_smoke_inspection_quality_gate_recommendation_reasons),
@@ -4505,6 +4518,12 @@ def _server_validation_download_smoke_observation_lines(
             f"{audit.download_smoke_inspection_installable_genome_fasta_ready_count}, "
             "not_ready="
             f"{audit.download_smoke_inspection_installable_genome_fasta_not_ready_count}"
+        ),
+        (
+            "- Bounded download-smoke installable genome FASTA not-ready reasons: "
+            + _format_download_smoke_count_value(
+                audit.download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts
+            )
         ),
         (
             "- Bounded FASTA quality-gate hits: "
@@ -4751,6 +4770,9 @@ def _download_smoke_inspection_quality_gate_lines(
     installable_not_ready = audit.counts.get(
         "installable_genome_fasta_not_ready_count"
     )
+    not_ready_reason_counts = audit.counts.get(
+        "installable_genome_fasta_not_ready_reason_counts"
+    )
     blocker_counts = audit.counts.get("fasta_quality_gate_blocker_counts")
     recommendation = audit.counts.get("quality_gate_recommendation")
     reasons = audit.counts.get("quality_gate_recommendation_reasons")
@@ -4759,6 +4781,7 @@ def _download_smoke_inspection_quality_gate_lines(
         or _is_non_bool_int(blocked)
         or _is_non_bool_int(installable_ready)
         or _is_non_bool_int(installable_not_ready)
+        or isinstance(not_ready_reason_counts, dict)
         or isinstance(blocker_counts, dict)
         or isinstance(recommendation, str)
         or isinstance(reasons, list)
@@ -4773,6 +4796,11 @@ def _download_smoke_inspection_quality_gate_lines(
             f"ready={installable_ready if _is_non_bool_int(installable_ready) else 0}; "
             "not_ready="
             f"{installable_not_ready if _is_non_bool_int(installable_not_ready) else 0}"
+        )
+    if isinstance(not_ready_reason_counts, dict):
+        lines.append(
+            "- Installable genome FASTA not-ready reason counts: "
+            + _format_download_smoke_count_value(not_ready_reason_counts)
         )
     if _is_non_bool_int(passed) or _is_non_bool_int(blocked):
         lines.append(
