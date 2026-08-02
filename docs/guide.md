@@ -1246,6 +1246,9 @@ selection rule as the reference-genome installer: one FASTA member is selectable
 and multiple members are selectable only when exactly one member is named
 `genomic.fna` or `*_genomic.fna`. If that rule cannot choose one source member,
 `genome_fasta_install_selection_ambiguous` is reported.
+When the source member is uniquely selectable, FASTA quality statistics describe
+that installable member; member-count fields still describe all FASTA members in
+the ZIP.
 Add explicit inspection
 quality gates such as `--min-fasta-n50-bases <bases>`,
 `--max-fasta-record-count <count>`,
