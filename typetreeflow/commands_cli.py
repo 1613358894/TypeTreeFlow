@@ -872,6 +872,7 @@ _DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS: list[str] = [
     "source_high_quality_planned_row_count",
     "source_draft_or_fragmented_planned_row_count",
     "source_unknown_assembly_level_planned_row_count",
+    "source_refseq_category_counts",
     "quality_tier",
     "ready",
     "blockers",

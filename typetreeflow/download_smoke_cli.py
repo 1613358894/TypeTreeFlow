@@ -341,6 +341,9 @@ def prepare_bounded_download_smoke_input(
             "draft_or_fragmented"
         ],
         "source_unknown_assembly_level_planned_row_count": quality_counts["unknown"],
+        "source_refseq_category_counts": dict(
+            readiness.get("planned_refseq_category_counts", {})
+        ),
         "source_total_rows": readiness.get("total_rows", 0),
         "ready": not blockers,
         "blockers": blockers,

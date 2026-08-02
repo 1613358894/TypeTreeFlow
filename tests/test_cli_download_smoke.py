@@ -332,6 +332,11 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
     assert summary["source_high_quality_planned_row_count"] == 2
     assert summary["source_draft_or_fragmented_planned_row_count"] == 1
     assert summary["source_unknown_assembly_level_planned_row_count"] == 1
+    assert summary["source_refseq_category_counts"] == {
+        "reference genome": 1,
+        "representative genome": 1,
+        "unknown": 2,
+    }
     assert rows == [_planned_row("complete", "GCF_000002.1")]
 
 
@@ -393,6 +398,11 @@ def test_download_smoke_prepare_default_recommended_selects_high_quality_rows(
     assert summary["selected_quality_tier_counts"] == {"high": 1}
     assert summary["selected_assembly_level_counts"] == {"Complete Genome": 1}
     assert summary["selected_refseq_category_counts"] == {"reference genome": 1}
+    assert summary["source_refseq_category_counts"] == {
+        "reference genome": 1,
+        "representative genome": 1,
+        "unknown": 1,
+    }
     assert summary["selected_accession_quality_preview"][0]["quality_tier"] == "high"
     assert (
         summary["selected_accession_quality_preview"][0]["refseq_category"]
