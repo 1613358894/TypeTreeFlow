@@ -100,6 +100,18 @@ def run_download_smoke_command(
                 args.download_plan,
                 limit=args.limit,
                 quality_tier=args.quality_tier,
+                inspection_min_fasta_n50_bases=(
+                    args.inspection_min_fasta_n50_bases
+                ),
+                inspection_max_fasta_record_count=(
+                    args.inspection_max_fasta_record_count
+                ),
+                inspection_block_fragmented_fasta=(
+                    args.inspection_block_fragmented_fasta
+                ),
+                inspection_block_fasta_header_keywords=(
+                    args.inspection_block_fasta_header_keywords
+                ),
             )
         else:
             result = inspect_bounded_download_smoke_outputs(
@@ -124,7 +136,15 @@ def run_download_smoke_command(
 
     if args.action == "prepare" and args.write:
         result["summary"]["recommended_inspection_command"] = (  # type: ignore[index]
-            _recommended_inspection_command(Path(args.outdir) / OUTPUT_PLAN_NAME)
+            _recommended_inspection_command(
+                Path(args.outdir) / OUTPUT_PLAN_NAME,
+                min_fasta_n50_bases=args.inspection_min_fasta_n50_bases,
+                max_fasta_record_count=args.inspection_max_fasta_record_count,
+                block_fragmented_fasta=args.inspection_block_fragmented_fasta,
+                block_fasta_header_keywords=(
+                    args.inspection_block_fasta_header_keywords
+                ),
+            )
         )
 
     if args.write:
@@ -188,9 +208,15 @@ def prepare_bounded_download_smoke_input(
     *,
     limit: int,
     quality_tier: str = "all",
+    inspection_min_fasta_n50_bases: int = 0,
+    inspection_max_fasta_record_count: int = 0,
+    inspection_block_fragmented_fasta: bool = False,
+    inspection_block_fasta_header_keywords: bool = False,
 ) -> dict[str, object]:
     if limit <= 0:
         raise ValueError("limit must be a positive integer")
+    if inspection_min_fasta_n50_bases < 0 or inspection_max_fasta_record_count < 0:
+        raise ValueError("inspection FASTA quality thresholds must be non-negative")
     if quality_tier not in {"all", "high", "recommended"}:
         raise ValueError("quality_tier must be all, high, or recommended")
     plan_path = Path(download_plan_path)
@@ -248,6 +274,12 @@ def prepare_bounded_download_smoke_input(
         "selected_datasets_command_preview_truncated": selected_commands[
             "command_preview_truncated"
         ],
+        "inspection_min_fasta_n50_bases": inspection_min_fasta_n50_bases,
+        "inspection_max_fasta_record_count": inspection_max_fasta_record_count,
+        "inspection_block_fragmented_fasta": inspection_block_fragmented_fasta,
+        "inspection_block_fasta_header_keywords": (
+            inspection_block_fasta_header_keywords
+        ),
         "recommended_inspection_command": [],
         "source_planned_row_count": readiness.get("download_ready_ncbi_count", 0),
         "source_high_quality_planned_row_count": quality_counts["high"],
@@ -277,17 +309,37 @@ def prepare_bounded_download_smoke_input(
     return {"rows": selected, "summary": summary}
 
 
-def _recommended_inspection_command(bounded_plan_path: str | Path) -> list[str]:
-    return [
+def _recommended_inspection_command(
+    bounded_plan_path: str | Path,
+    *,
+    min_fasta_n50_bases: int = 0,
+    max_fasta_record_count: int = 0,
+    block_fragmented_fasta: bool = False,
+    block_fasta_header_keywords: bool = False,
+) -> list[str]:
+    command = [
         "typetreeflow",
         "download-smoke",
         "inspect",
         "--download-plan",
         str(bounded_plan_path),
-        "--write",
-        "--outdir",
-        "<isolated-bounded-download-smoke-inspection-dir>",
     ]
+    if min_fasta_n50_bases > 0:
+        command.extend(["--min-fasta-n50-bases", str(min_fasta_n50_bases)])
+    if max_fasta_record_count > 0:
+        command.extend(["--max-fasta-record-count", str(max_fasta_record_count)])
+    if block_fragmented_fasta:
+        command.append("--block-fragmented-fasta")
+    if block_fasta_header_keywords:
+        command.append("--block-fasta-header-keywords")
+    command.extend(
+        [
+            "--write",
+            "--outdir",
+            "<isolated-bounded-download-smoke-inspection-dir>",
+        ]
+    )
+    return command
 
 
 def inspect_bounded_download_smoke_outputs(
@@ -801,6 +853,13 @@ def _build_parser() -> argparse.ArgumentParser:
         "--quality-tier",
         choices=("all", "high", "recommended"),
         default="all",
+    )
+    prepare.add_argument("--inspection-min-fasta-n50-bases", type=int, default=0)
+    prepare.add_argument("--inspection-max-fasta-record-count", type=int, default=0)
+    prepare.add_argument("--inspection-block-fragmented-fasta", action="store_true")
+    prepare.add_argument(
+        "--inspection-block-fasta-header-keywords",
+        action="store_true",
     )
     prepare.add_argument("--write", action="store_true")
     prepare.add_argument("--outdir", type=Path)

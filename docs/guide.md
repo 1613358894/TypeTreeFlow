@@ -1195,7 +1195,14 @@ inspection. It does not run `datasets`, access the network, contact providers,
 mutate a manifest, or authorize broad downloads.
 When `prepare --write` succeeds, `recommended_inspection_command` points to the
 matching local `download-smoke inspect` command for the written bounded plan;
-choose a fresh isolated inspection `--outdir` before running it.
+choose a fresh isolated inspection `--outdir` before running it. Optional
+prepare flags such as `--inspection-min-fasta-n50-bases <bases>`,
+`--inspection-max-fasta-record-count <count>`,
+`--inspection-block-fragmented-fasta`, and
+`--inspection-block-fasta-header-keywords` only carry the corresponding local
+inspection quality gates into that recommended command. They do not run
+inspection, trigger downloads, contact providers, or decide final genome
+usability during prepare.
 
 After a separately authorized bounded smoke has run those commands, inspect the
 resulting ZIP paths locally before treating the smoke as usable:
