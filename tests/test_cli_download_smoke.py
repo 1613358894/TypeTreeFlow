@@ -103,6 +103,8 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
     assert summary["selected_datasets_command_preview_truncated"] is False
     assert summary["inspection_min_fasta_n50_bases"] == 0
     assert summary["inspection_max_fasta_record_count"] == 0
+    assert summary["inspection_min_fasta_total_bases"] == 0
+    assert summary["inspection_min_fasta_longest_record_bases"] == 0
     assert summary["inspection_block_fragmented_fasta"] is False
     assert summary["inspection_block_fasta_header_keywords"] is False
     assert summary["recommended_inspection_command"] == []
@@ -181,6 +183,10 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
                 "50000",
                 "--inspection-max-fasta-record-count",
                 "10",
+                "--inspection-min-fasta-total-bases",
+                "3000000",
+                "--inspection-min-fasta-longest-record-bases",
+                "100000",
                 "--inspection-block-fragmented-fasta",
                 "--inspection-block-fasta-header-keywords",
                 "--write",
@@ -197,6 +203,8 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
     )
     assert summary["inspection_min_fasta_n50_bases"] == 50000
     assert summary["inspection_max_fasta_record_count"] == 10
+    assert summary["inspection_min_fasta_total_bases"] == 3000000
+    assert summary["inspection_min_fasta_longest_record_bases"] == 100000
     assert summary["inspection_block_fragmented_fasta"] is True
     assert summary["inspection_block_fasta_header_keywords"] is True
     assert summary["recommended_inspection_command"] == [
@@ -209,6 +217,10 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
         "50000",
         "--max-fasta-record-count",
         "10",
+        "--min-fasta-total-bases",
+        "3000000",
+        "--min-fasta-longest-record-bases",
+        "100000",
         "--block-fragmented-fasta",
         "--block-fasta-header-keywords",
         "--write",
@@ -671,10 +683,14 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     }
     assert summary["min_fasta_n50_bases"] == 0
     assert summary["max_fasta_record_count"] == 0
+    assert summary["min_fasta_total_bases"] == 0
+    assert summary["min_fasta_longest_record_bases"] == 0
     assert summary["block_fragmented_fasta"] is False
     assert summary["block_fasta_header_keywords"] is False
     assert summary["fasta_n50_below_minimum_count"] == 0
     assert summary["fasta_record_count_above_maximum_count"] == 0
+    assert summary["fasta_total_bases_below_minimum_count"] == 0
+    assert summary["fasta_longest_record_below_minimum_count"] == 0
     assert summary["fragmented_fasta_signal_count"] == 1
     assert summary["fasta_header_fragment_keyword_row_count"] == 1
     assert summary["status_counts"] == {"genome_fasta_present": 1}
@@ -712,6 +728,10 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
                 "7",
                 "--max-fasta-record-count",
                 "1",
+                "--min-fasta-total-bases",
+                "11",
+                "--min-fasta-longest-record-bases",
+                "7",
                 "--block-fragmented-fasta",
                 "--block-fasta-header-keywords",
             ]
@@ -726,15 +746,21 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["blockers"] == [
         "fasta_n50_below_minimum",
         "fasta_record_count_above_maximum",
+        "fasta_total_bases_below_minimum",
+        "fasta_longest_record_below_minimum",
         "fragmented_fasta_signal",
         "fasta_header_fragment_keywords",
     ]
     assert summary["min_fasta_n50_bases"] == 7
     assert summary["max_fasta_record_count"] == 1
+    assert summary["min_fasta_total_bases"] == 11
+    assert summary["min_fasta_longest_record_bases"] == 7
     assert summary["block_fragmented_fasta"] is True
     assert summary["block_fasta_header_keywords"] is True
     assert summary["fasta_n50_below_minimum_count"] == 1
     assert summary["fasta_record_count_above_maximum_count"] == 1
+    assert summary["fasta_total_bases_below_minimum_count"] == 1
+    assert summary["fasta_longest_record_below_minimum_count"] == 1
     assert summary["fragmented_fasta_signal_count"] == 1
     assert summary["fasta_header_fragment_keyword_row_count"] == 1
     assert summary["downloads_triggered"] == 0
