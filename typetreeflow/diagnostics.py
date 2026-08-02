@@ -392,6 +392,14 @@ def next_step_summary(outdir: str | Path) -> NextStepSummary:
                 status=status,
                 outdir=str(root),
             )
+        registration_action = _genome_registration_review_next_action(paths)
+        if registration_action and _can_refine_run_state_next_action(state.next_action):
+            return NextStepSummary(
+                next_action=registration_action,
+                source="run_state+genome_registration",
+                status=status,
+                outdir=str(root),
+            )
         refined_next_action = refine_entrez_fallback_next_action(
             paths,
             state_next_action,
@@ -503,6 +511,49 @@ def _read_genome_registration_summary(root: Path, paths) -> dict[str, Any]:
     payload["genome_ready_count"] = status_counts.get("genome_ready", 0)
     payload["status_counts"] = dict(sorted(status_counts.items()))
     return payload
+
+
+def _genome_registration_review_next_action(paths) -> str:
+    summary = _read_genome_registration_summary(paths.manifest.parent, paths)
+    if not summary:
+        return ""
+    relative_path = str(
+        summary.get("path") or "cache/ncbi/genome_registration_results.tsv"
+    )
+    read_error = str(summary.get("read_error", "")).strip()
+    if read_error:
+        return (
+            f"Review {relative_path}; genome registration results could not be "
+            "parsed. Fix the local registration TSV or rerun the guarded "
+            "download/registration step before downstream genome-dependent stages."
+        )
+    status_counts = summary.get("status_counts", {})
+    if not isinstance(status_counts, dict):
+        return ""
+    result_count = _safe_int(summary.get("result_count"))
+    ready_count = _safe_int(summary.get("genome_ready_count"))
+    non_ready_count = max(result_count - ready_count, 0)
+    if non_ready_count <= 0:
+        return ""
+    status_text = ", ".join(
+        f"{status}={count}"
+        for status, count in sorted(status_counts.items())
+        if status != "genome_ready"
+    )
+    detail = f" ({status_text})" if status_text else ""
+    return (
+        f"Review {relative_path} for {non_ready_count} non-ready genome "
+        f"registration result(s){detail}. These are local ZIP extraction and "
+        "reference-genome installation outcomes; fix missing/invalid ZIP content "
+        "or rerun bounded downloads before downstream genome-dependent stages."
+    )
+
+
+def _safe_int(value: object) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _relative_to_root(path: Path, root: Path) -> str:
@@ -639,6 +690,8 @@ def _action_id(message: str) -> str:
         return "review_user_selection"
     if "source_audit/sequence_source_audit.tsv" in lowered:
         return "review_sequence_source_audit"
+    if "genome_registration_results.tsv" in lowered:
+        return "review_genome_registration_results"
     if "manual_supplement_hints.tsv" in lowered:
         return "review_manual_supplement_hints"
     if "--enable-entrez" in lowered:
@@ -1097,6 +1150,9 @@ def _infer_next_action(
     handoff_action = handoff_next_action(paths)
     if handoff_action:
         return handoff_action
+    registration_action = _genome_registration_review_next_action(paths)
+    if registration_action:
+        return registration_action
     if (
         paths.manifest.exists()
         and rrna_ready

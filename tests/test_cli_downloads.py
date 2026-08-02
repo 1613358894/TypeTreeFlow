@@ -61,6 +61,13 @@ class FakeDatasetsRunner:
                     )
             elif self.zip_mode == "invalid":
                 zip_path.write_text("not a zip", encoding="utf-8")
+            elif self.zip_mode == "no_genome_fasta":
+                accession = command[command.index("accession") + 1]
+                with zipfile.ZipFile(zip_path, "w") as archive:
+                    archive.writestr(
+                        f"ncbi_dataset/data/{accession}/README.txt",
+                        "no genome FASTA in this fake ZIP\n",
+                    )
         return CommandResult(
             command=command,
             returncode=self.returncode,
@@ -238,6 +245,44 @@ def test_enable_downloads_invalid_zip_is_registered_as_invalid(tmp_path, monkeyp
     assert _download_result_statuses(paths) == {"skipped_invalid_zip"}
     assert {record.status for record in records} == {"skipped_invalid_zip"}
     assert all(record.has_genome is False for record in records)
+
+
+def test_next_step_points_to_non_ready_genome_registration_results(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    runner = FakeDatasetsRunner(returncode=0, zip_mode="no_genome_fasta")
+    outdir = tmp_path / "out"
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "--genus",
+            "Aliivibrio",
+            "--gtdb-metadata",
+            str(FIXTURE),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+        ],
+        download_runner=runner,
+    )
+
+    paths = get_output_paths(outdir)
+    assert result == 0
+    assert _genome_registration_statuses(paths) == {"genome_fna_missing"}
+    capsys.readouterr()
+
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    message = payload["recommended_action"]["message"]
+    assert payload["recommended_action"]["id"] == "review_genome_registration_results"
+    assert "cache/ncbi/genome_registration_results.tsv" in message
+    assert "2 non-ready genome registration result" in message
+    assert "genome_fna_missing=2" in message
+    assert "downstream genome-dependent stages" in message
+    assert "package-results" not in message
 
 
 def test_dry_run_enable_downloads_does_not_require_tool_or_run(tmp_path, monkeypatch):
