@@ -128,13 +128,15 @@ def prepare_bounded_download_smoke_input(
 ) -> dict[str, object]:
     if limit <= 0:
         raise ValueError("limit must be a positive integer")
-    if quality_tier not in {"all", "high"}:
-        raise ValueError("quality_tier must be all or high")
+    if quality_tier not in {"all", "high", "recommended"}:
+        raise ValueError("quality_tier must be all, high, or recommended")
     plan_path = Path(download_plan_path)
     rows = _read_download_plan_rows(plan_path)
     planned_rows = [row for row in rows if row.get("status", "").strip() == "planned"]
     assembly_metadata = _read_assembly_quality_metadata(plan_path)
     quality_counts = _planned_quality_counts(assembly_metadata, planned_rows)
+    readiness = build_download_plan_readiness_summary(plan_path)
+    resolved_quality_tier = _resolve_quality_tier(quality_tier, readiness)
     selected_pool = (
         [
             row
@@ -142,29 +144,37 @@ def prepare_bounded_download_smoke_input(
             if _planned_row_assembly_level(assembly_metadata, row)
             in {"Complete Genome", "Chromosome"}
         ]
-        if quality_tier == "high"
-        else planned_rows
+        if resolved_quality_tier == "high"
+        else (planned_rows if resolved_quality_tier == "all" else [])
     )
     selected = selected_pool[:limit]
-    readiness = build_download_plan_readiness_summary(plan_path)
     blockers: list[str] = []
     if not selected:
-        blockers.append(
-            "no_high_quality_planned_ncbi_download_rows"
-            if quality_tier == "high"
-            else "no_planned_ncbi_download_rows"
-        )
+        if resolved_quality_tier == "high":
+            blockers.append("no_high_quality_planned_ncbi_download_rows")
+        elif resolved_quality_tier == "all":
+            blockers.append("no_planned_ncbi_download_rows")
+        else:
+            blockers.extend(
+                str(blocker)
+                for blocker in readiness.get(
+                    "bounded_ncbi_download_smoke_blockers",
+                    ["no_planned_ncbi_download_rows"],
+                )
+            )
     if readiness.get("malformed_row_count", 0):
-        blockers.append("malformed_download_plan_rows")
+        _append_unique(blockers, "malformed_download_plan_rows")
     summary = {
         "schema_version": SUMMARY_SCHEMA_VERSION,
         "command": COMMAND,
         "source_download_plan_path": str(plan_path),
         "limit": limit,
-        "quality_tier": quality_tier,
+        "requested_quality_tier": quality_tier,
+        "resolved_quality_tier": resolved_quality_tier,
+        "quality_tier": resolved_quality_tier,
         "selected_row_count": len(selected),
         "selected_high_quality_row_count": (
-            len(selected) if quality_tier == "high" else quality_counts["high"]
+            len(selected) if resolved_quality_tier == "high" else quality_counts["high"]
         ),
         "source_planned_row_count": readiness.get("download_ready_ncbi_count", 0),
         "source_high_quality_planned_row_count": quality_counts["high"],
@@ -192,6 +202,22 @@ def prepare_bounded_download_smoke_input(
         ),
     }
     return {"rows": selected, "summary": summary}
+
+
+def _resolve_quality_tier(quality_tier: str, readiness: dict[str, object]) -> str:
+    if quality_tier != "recommended":
+        return quality_tier
+    recommendation = str(
+        readiness.get("bounded_ncbi_download_smoke_quality_tier_recommendation", "none")
+    ).strip()
+    if recommendation in {"high", "all"}:
+        return recommendation
+    return "none"
+
+
+def _append_unique(values: list[str], value: str) -> None:
+    if value not in values:
+        values.append(value)
 
 
 def _read_download_plan_rows(path: Path) -> list[dict[str, str]]:
@@ -251,7 +277,11 @@ def _build_parser() -> argparse.ArgumentParser:
     prepare = subcommands.add_parser("prepare")
     prepare.add_argument("--download-plan", required=True, type=Path)
     prepare.add_argument("--limit", type=int, default=3)
-    prepare.add_argument("--quality-tier", choices=("all", "high"), default="all")
+    prepare.add_argument(
+        "--quality-tier",
+        choices=("all", "high", "recommended"),
+        default="all",
+    )
     prepare.add_argument("--write", action="store_true")
     prepare.add_argument("--outdir", type=Path)
     prepare.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
