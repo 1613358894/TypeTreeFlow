@@ -308,7 +308,23 @@ DOWNLOAD_SMOKE_INSPECTION_COUNT_FIELDS = (
     "zip_valid_count",
     "genome_fasta_present_count",
 )
+DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
+    "genome_fasta_member_count",
+    "fasta_record_count",
+    "fasta_total_bases",
+    "fasta_longest_record_bases",
+    "fasta_ambiguous_bases",
+)
 DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES = 5 * 1024 * 1024
+DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "zip_path",
+    "zip_exists",
+    "zip_valid",
+    "genome_fasta_present",
+    "status",
+)
 
 
 @dataclass(frozen=True)
@@ -507,6 +523,14 @@ def read_optional_download_smoke_inspection_audit(
                 value = loaded.get(field)
                 if isinstance(value, bool) or not isinstance(value, int) or value < 0:
                     raise ValueError(f"invalid {field}")
+            optional_counts: dict[str, int] = {}
+            for field in DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS:
+                value = loaded.get(field)
+                if value is None:
+                    continue
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+                optional_counts[field] = value
             if loaded.get("safe_for_unattended_download") is not False:
                 raise ValueError("safe_for_unattended_download boundary violation")
             if loaded.get("downloads_triggered") != 0:
@@ -546,6 +570,7 @@ def read_optional_download_smoke_inspection_audit(
                     field: loaded[field]
                     for field in DOWNLOAD_SMOKE_INSPECTION_COUNT_FIELDS
                 },
+                **optional_counts,
                 "ready": loaded.get("ready") is True,
                 "safe_for_unattended_download": False,
                 "downloads_triggered": 0,
@@ -608,7 +633,11 @@ def _read_download_smoke_inspection_tsv(path: Path) -> list[dict[str, str]]:
     _validate_download_smoke_inspection_member(path)
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
-        if tuple(reader.fieldnames or ()) != tuple(DOWNLOAD_SMOKE_INSPECTION_FIELDS):
+        fieldnames = tuple(reader.fieldnames or ())
+        if fieldnames not in (
+            tuple(DOWNLOAD_SMOKE_INSPECTION_FIELDS),
+            DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS,
+        ):
             raise ValueError("unexpected TSV header")
         rows = list(reader)
     if any(None in row for row in rows):
@@ -4638,6 +4667,22 @@ def build_run_summary_markdown(
                     (
                         "- Genome FASTA present: "
                         f"{download_smoke_inspection_audit.counts.get('genome_fasta_present_count', 0)}"
+                    ),
+                    (
+                        "- Genome FASTA members: "
+                        f"{download_smoke_inspection_audit.counts.get('genome_fasta_member_count', 0)}"
+                    ),
+                    (
+                        "- FASTA records: "
+                        f"{download_smoke_inspection_audit.counts.get('fasta_record_count', 0)}"
+                    ),
+                    (
+                        "- FASTA total bases: "
+                        f"{download_smoke_inspection_audit.counts.get('fasta_total_bases', 0)}"
+                    ),
+                    (
+                        "- Longest FASTA record bases: "
+                        f"{download_smoke_inspection_audit.counts.get('fasta_longest_record_bases', 0)}"
                     ),
                     (
                         "- Ready for bounded smoke review: "
