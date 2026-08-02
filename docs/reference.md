@@ -2264,6 +2264,10 @@ classification of the same signals. It reports bounded
 `readiness_signal_counts` for `download_ready_ncbi`,
 `external_genome_handoff_ready`, `provider_handoff_only`,
 `public_metadata_review`, `curator_review`, `true_gap`, and `other_review`.
+It also emits `recommended_acquisition_route` and `recommended_next_action`
+as compact routing hints, prioritizing bounded NCBI smoke readiness, reviewed
+external-genome handoff readiness, provider handoff, public metadata review,
+curator review, and then true gaps.
 These counts are readiness signals, not strict species totals; the summary sets
 `counts_are_exclusive=false` when downstream external-genome handoff signals are
 also present. The summary is audit-only and always preserves

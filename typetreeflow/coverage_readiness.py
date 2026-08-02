@@ -68,6 +68,8 @@ def build_coverage_acquisition_readiness_summary(
         "readiness_signal_counts": {key: counts[key] for key in READINESS_CLASSES},
         "acquisition_ready_count": acquisition_ready_count,
         "review_or_handoff_required_count": review_or_handoff_required_count,
+        "recommended_acquisition_route": _recommended_acquisition_route(counts),
+        "recommended_next_action": _recommended_next_action(counts),
         "queue_item_count": queue_item_count,
         "counts_are_exclusive": False,
         "download_ready_ncbi_count": counts["download_ready_ncbi"],
@@ -134,3 +136,43 @@ def _summary_for_counts(counts: Mapping[str, int], acquisition_ready_count: int)
     if counts.get("true_gap", 0):
         return "Coverage acquisition readiness has true gaps requiring new evidence."
     return "Coverage acquisition readiness has no actionable acquisition signals."
+
+
+def _recommended_acquisition_route(counts: Mapping[str, int]) -> str:
+    if counts.get("download_ready_ncbi", 0):
+        return "ncbi_download_smoke"
+    if counts.get("external_genome_handoff_ready", 0):
+        return "external_genome_install_plan"
+    if counts.get("provider_handoff_only", 0):
+        return "provider_handoff"
+    if counts.get("public_metadata_review", 0):
+        return "public_metadata_review"
+    if counts.get("curator_review", 0):
+        return "curator_review"
+    if counts.get("true_gap", 0):
+        return "new_evidence_required"
+    if counts.get("other_review", 0):
+        return "operator_review"
+    return "none"
+
+
+def _recommended_next_action(counts: Mapping[str, int]) -> str:
+    route = _recommended_acquisition_route(counts)
+    if route == "ncbi_download_smoke":
+        return (
+            "prepare bounded NCBI download smoke input before any guarded "
+            "download execution"
+        )
+    if route == "external_genome_install_plan":
+        return "review external-genomes install plan readiness"
+    if route == "provider_handoff":
+        return "prepare provider/local FASTA handoff for operator review"
+    if route == "public_metadata_review":
+        return "review public accession or BioSample type-strain linkage"
+    if route == "curator_review":
+        return "collect curator decision input with independent review"
+    if route == "new_evidence_required":
+        return "seek new public or curated evidence for true gaps"
+    if route == "operator_review":
+        return "review remaining coverage queue items"
+    return "no acquisition action available"
