@@ -696,6 +696,25 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["fasta_quality_gate_passed_row_count"] == 1
     assert summary["fasta_quality_gate_blocked_row_count"] == 0
     assert summary["fasta_quality_gate_blocker_counts"] == {}
+    assert summary["quality_gate_recommendation"] == (
+        "rerun_with_fragmentation_quality_gates"
+    )
+    assert summary["quality_gate_recommendation_reasons"] == [
+        "fragmented_fasta_signal_observed",
+        "fasta_header_fragment_keywords_observed",
+    ]
+    assert summary["recommended_quality_gate_command"] == [
+        "typetreeflow",
+        "download-smoke",
+        "inspect",
+        "--download-plan",
+        str(plan),
+        "--block-fragmented-fasta",
+        "--block-fasta-header-keywords",
+        "--write",
+        "--outdir",
+        "<isolated-bounded-download-smoke-inspection-dir>",
+    ]
     assert summary["status_counts"] == {"genome_fasta_present": 1}
     assert summary["ready"] is True
 
@@ -776,6 +795,9 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
         "fasta_total_bases_below_minimum": 1,
         "fragmented_fasta_signal": 1,
     }
+    assert summary["quality_gate_recommendation"] == "none"
+    assert summary["quality_gate_recommendation_reasons"] == []
+    assert summary["recommended_quality_gate_command"] == []
     assert summary["downloads_triggered"] == 0
     assert summary["providers_contacted"] == 0
 

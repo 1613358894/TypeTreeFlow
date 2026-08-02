@@ -1240,6 +1240,11 @@ When quality gates are supplied, each inspection row includes
 `fasta_quality_gate_blockers` with semicolon-separated controlled blocker codes
 for that accession. The field is empty when the row does not trip a FASTA
 quality gate and never copies raw FASTA headers or sequence text.
+If fragmented FASTA or WGS/scaffold/contig header signals are observed without
+the matching quality gates enabled, the summary keeps the current `ready`
+semantics but returns `quality_gate_recommendation` and
+`recommended_quality_gate_command` so an operator can rerun a bounded local
+inspection with the fragmentation/header gates enabled.
 The inspection does not run `datasets`, extract ZIPs, write raw sequence text,
 access the network, contact providers, or mutate workflow outputs.
 

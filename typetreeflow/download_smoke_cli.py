@@ -514,6 +514,25 @@ def inspect_bounded_download_smoke_outputs(
     if block_fasta_header_keywords and header_keyword_row_count:
         blockers.append("fasta_header_fragment_keywords")
 
+    recommendation_reasons: list[str] = []
+    if fragmented_signal_count and not block_fragmented_fasta:
+        recommendation_reasons.append("fragmented_fasta_signal_observed")
+    if header_keyword_row_count and not block_fasta_header_keywords:
+        recommendation_reasons.append("fasta_header_fragment_keywords_observed")
+    recommended_quality_gate_command: list[str] = []
+    if recommendation_reasons:
+        recommended_quality_gate_command = _recommended_inspection_command(
+            plan_path,
+            min_fasta_n50_bases=min_fasta_n50_bases,
+            max_fasta_record_count=max_fasta_record_count,
+            min_fasta_total_bases=min_fasta_total_bases,
+            min_fasta_longest_record_bases=min_fasta_longest_record_bases,
+            block_fragmented_fasta=block_fragmented_fasta
+            or bool(fragmented_signal_count),
+            block_fasta_header_keywords=block_fasta_header_keywords
+            or bool(header_keyword_row_count),
+        )
+
     ready = not blockers
     summary = {
         "schema_version": INSPECTION_SCHEMA_VERSION,
@@ -572,6 +591,13 @@ def inspect_bounded_download_smoke_outputs(
         "fasta_quality_gate_passed_row_count": quality_gate_passed_row_count,
         "fasta_quality_gate_blocked_row_count": quality_gate_blocked_row_count,
         "fasta_quality_gate_blocker_counts": quality_gate_blocker_counts,
+        "quality_gate_recommendation": (
+            "rerun_with_fragmentation_quality_gates"
+            if recommendation_reasons
+            else "none"
+        ),
+        "quality_gate_recommendation_reasons": recommendation_reasons,
+        "recommended_quality_gate_command": recommended_quality_gate_command,
         "status_counts": dict(sorted(status_counts.items())),
         "ready": ready,
         "blockers": blockers,
