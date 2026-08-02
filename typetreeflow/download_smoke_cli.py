@@ -102,7 +102,13 @@ def run_download_smoke_command(
                 quality_tier=args.quality_tier,
             )
         else:
-            result = inspect_bounded_download_smoke_outputs(args.download_plan)
+            result = inspect_bounded_download_smoke_outputs(
+                args.download_plan,
+                min_fasta_n50_bases=args.min_fasta_n50_bases,
+                max_fasta_record_count=args.max_fasta_record_count,
+                block_fragmented_fasta=args.block_fragmented_fasta,
+                block_fasta_header_keywords=args.block_fasta_header_keywords,
+            )
     except (OSError, UnicodeError, csv.Error, ValueError) as error:
         _emit(
             _payload(
@@ -286,7 +292,14 @@ def _recommended_inspection_command(bounded_plan_path: str | Path) -> list[str]:
 
 def inspect_bounded_download_smoke_outputs(
     download_plan_path: str | Path,
+    *,
+    min_fasta_n50_bases: int = 0,
+    max_fasta_record_count: int = 0,
+    block_fragmented_fasta: bool = False,
+    block_fasta_header_keywords: bool = False,
 ) -> dict[str, object]:
+    if min_fasta_n50_bases < 0 or max_fasta_record_count < 0:
+        raise ValueError("FASTA quality thresholds must be non-negative")
     plan_path = Path(download_plan_path)
     rows = [
         row
@@ -313,6 +326,49 @@ def inspect_bounded_download_smoke_outputs(
         blockers.append("invalid_zip_outputs")
     if status_counts.get("genome_fasta_missing", 0):
         blockers.append("genome_fasta_missing")
+    n50_below_minimum_count = (
+        sum(
+            1
+            for row in inspections
+            if row["genome_fasta_present"]
+            and int(row["fasta_n50_bases"]) < min_fasta_n50_bases
+        )
+        if min_fasta_n50_bases > 0
+        else 0
+    )
+    record_count_above_maximum_count = (
+        sum(
+            1
+            for row in inspections
+            if row["genome_fasta_present"]
+            and int(row["fasta_record_count"]) > max_fasta_record_count
+        )
+        if max_fasta_record_count > 0
+        else 0
+    )
+    fragmented_signal_count = fragmentation_signal_counts.get(
+        FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED,
+        0,
+    )
+    header_keyword_row_count = sum(
+        1
+        for row in inspections
+        if row["genome_fasta_present"]
+        and (
+            int(row["fasta_header_wgs_keyword_count"])
+            + int(row["fasta_header_scaffold_keyword_count"])
+            + int(row["fasta_header_contig_keyword_count"])
+        )
+        > 0
+    )
+    if n50_below_minimum_count:
+        blockers.append("fasta_n50_below_minimum")
+    if record_count_above_maximum_count:
+        blockers.append("fasta_record_count_above_maximum")
+    if block_fragmented_fasta and fragmented_signal_count:
+        blockers.append("fragmented_fasta_signal")
+    if block_fasta_header_keywords and header_keyword_row_count:
+        blockers.append("fasta_header_fragment_keywords")
 
     ready = not blockers
     summary = {
@@ -351,6 +407,16 @@ def inspect_bounded_download_smoke_outputs(
         "fasta_fragmentation_signal_counts": dict(
             sorted(fragmentation_signal_counts.items())
         ),
+        "min_fasta_n50_bases": min_fasta_n50_bases,
+        "max_fasta_record_count": max_fasta_record_count,
+        "block_fragmented_fasta": block_fragmented_fasta,
+        "block_fasta_header_keywords": block_fasta_header_keywords,
+        "fasta_n50_below_minimum_count": n50_below_minimum_count,
+        "fasta_record_count_above_maximum_count": (
+            record_count_above_maximum_count
+        ),
+        "fragmented_fasta_signal_count": fragmented_signal_count,
+        "fasta_header_fragment_keyword_row_count": header_keyword_row_count,
         "status_counts": dict(sorted(status_counts.items())),
         "ready": ready,
         "blockers": blockers,
@@ -741,6 +807,10 @@ def _build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
     inspect = subcommands.add_parser("inspect")
     inspect.add_argument("--download-plan", required=True, type=Path)
+    inspect.add_argument("--min-fasta-n50-bases", type=int, default=0)
+    inspect.add_argument("--max-fasta-record-count", type=int, default=0)
+    inspect.add_argument("--block-fragmented-fasta", action="store_true")
+    inspect.add_argument("--block-fasta-header-keywords", action="store_true")
     inspect.add_argument("--write", action="store_true")
     inspect.add_argument("--outdir", type=Path)
     inspect.add_argument("--json", action="store_true", help=argparse.SUPPRESS)

@@ -221,6 +221,26 @@ _CATALOG_ENTRIES = (
         "boundary": "local result-shape validation only; no target execution, provider contact, downloads, or workflow mutation",
     },
     {
+        "command": "download-smoke",
+        "subcommand": "prepare",
+        "mode": "download_smoke",
+        "argv_pattern": "typetreeflow download-smoke prepare --download-plan <download_plan.tsv>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_pair",
+        "requires_outdir": False,
+        "boundary": "bounded download smoke input preparation only; no datasets execution, provider contact, or downloads",
+    },
+    {
+        "command": "download-smoke",
+        "subcommand": "inspect",
+        "mode": "download_smoke",
+        "argv_pattern": "typetreeflow download-smoke inspect --download-plan <bounded_download_smoke_plan.tsv>",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_inspection_pair",
+        "requires_outdir": False,
+        "boundary": "local ZIP/FASTA inspection only; no datasets execution, provider contact, or downloads",
+    },
+    {
         "command": "count-crosswalk",
         "subcommand": "build",
         "mode": "count_crosswalk",
@@ -835,6 +855,60 @@ _ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
     "recommended_request_target",
     "recommended_next_command",
 ]
+_DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS: list[str] = [
+    "selected_row_count",
+    "selected_high_quality_row_count",
+    "selected_assembly_level_counts",
+    "selected_accession_quality_preview",
+    "selected_datasets_command_preview",
+    "source_planned_row_count",
+    "source_high_quality_planned_row_count",
+    "source_draft_or_fragmented_planned_row_count",
+    "source_unknown_assembly_level_planned_row_count",
+    "quality_tier",
+    "ready",
+    "blockers",
+    "recommended_inspection_command",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+]
+_DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS: list[str] = [
+    "selected_row_count",
+    "zip_exists_count",
+    "zip_valid_count",
+    "genome_fasta_present_count",
+    "genome_fasta_member_count",
+    "fasta_record_count",
+    "fasta_total_bases",
+    "fasta_longest_record_bases",
+    "fasta_max_n50_bases",
+    "fasta_ambiguous_bases",
+    "fasta_header_wgs_keyword_count",
+    "fasta_header_scaffold_keyword_count",
+    "fasta_header_contig_keyword_count",
+    "fasta_fragmentation_signal_counts",
+    "min_fasta_n50_bases",
+    "max_fasta_record_count",
+    "block_fragmented_fasta",
+    "block_fasta_header_keywords",
+    "fasta_n50_below_minimum_count",
+    "fasta_record_count_above_maximum_count",
+    "fragmented_fasta_signal_count",
+    "fasta_header_fragment_keyword_row_count",
+    "status_counts",
+    "ready",
+    "blockers",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+]
 _OUTPUT_CONTRACT_CATALOG: dict[
     tuple[str, str | None],
     tuple[dict[str, object], ...],
@@ -856,6 +930,22 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "acquisition_worklist_packet.v1",
             "purpose": "offline acquisition worklist pair and summary",
             "summary_fields": _ACQUISITION_WORKLIST_SUMMARY_FIELDS,
+        },
+    ),
+    ("download-smoke", "prepare"): (
+        {
+            "name": "bounded_download_smoke_input_packet",
+            "schema_version": "bounded_download_smoke_input_summary.v1",
+            "purpose": "bounded NCBI download smoke input preparation pair",
+            "summary_fields": _DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS,
+        },
+    ),
+    ("download-smoke", "inspect"): (
+        {
+            "name": "bounded_download_smoke_inspection_packet",
+            "schema_version": "bounded_download_smoke_inspection_summary.v1",
+            "purpose": "local bounded download ZIP and FASTA quality inspection pair",
+            "summary_fields": _DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS,
         },
     ),
     ("coverage-plan", "build"): (
@@ -1978,6 +2068,108 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": True,
             "repeatable": False,
             "purpose": "explicit coverage_handoff_server_validation_result.json input",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("download-smoke", "prepare"): [
+        {
+            "name": "--download-plan",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "source cache/ncbi/download_plan.tsv input",
+        },
+        {
+            "name": "--limit",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "maximum planned download rows to include",
+        },
+        {
+            "name": "--quality-tier",
+            "kind": "choice",
+            "required": False,
+            "repeatable": False,
+            "purpose": "select all, high, or readiness-recommended rows",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated bounded download-smoke plan outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated bounded download-smoke output directory",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("download-smoke", "inspect"): [
+        {
+            "name": "--download-plan",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "bounded download-smoke plan TSV input",
+        },
+        {
+            "name": "--min-fasta-n50-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional blocker threshold for low FASTA N50",
+        },
+        {
+            "name": "--max-fasta-record-count",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional blocker threshold for too many FASTA records",
+        },
+        {
+            "name": "--block-fragmented-fasta",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "block when the bounded FASTA signal is multi-record fragmented",
+        },
+        {
+            "name": "--block-fasta-header-keywords",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "block when FASTA headers include WGS, scaffold, or contig keywords",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated bounded download-smoke inspection outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated bounded download-smoke inspection directory",
         },
         {
             "name": "--json",
@@ -3777,6 +3969,77 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 argv.extend(["--outdir", outdir])
             return _with_flags(argv, request, {"force": "--force"})
         return argv
+    if command == "download-smoke":
+        if subcommand == "prepare":
+            _reject_unknown_fields(
+                request,
+                {
+                    "command",
+                    "subcommand",
+                    "download_plan",
+                    "limit",
+                    "quality_tier",
+                    "write",
+                    "outdir",
+                    "json",
+                },
+            )
+            argv = [
+                "download-smoke",
+                "prepare",
+                "--download-plan",
+                _required_string(request, "download_plan"),
+            ]
+            limit = _optional_int(request, "limit")
+            if limit is not None:
+                argv.extend(["--limit", str(limit)])
+            quality_tier = _optional_string(request, "quality_tier")
+            if quality_tier:
+                argv.extend(["--quality-tier", quality_tier])
+            if _bool_flag(request, "write"):
+                argv.append("--write")
+            outdir = _optional_string(request, "outdir")
+            if outdir:
+                argv.extend(["--outdir", outdir])
+            return _with_flags(argv, request, {"json": "--json"})
+        if subcommand == "inspect":
+            _reject_unknown_fields(
+                request,
+                {
+                    "command",
+                    "subcommand",
+                    "download_plan",
+                    "min_fasta_n50_bases",
+                    "max_fasta_record_count",
+                    "block_fragmented_fasta",
+                    "block_fasta_header_keywords",
+                    "write",
+                    "outdir",
+                    "json",
+                },
+            )
+            argv = [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                _required_string(request, "download_plan"),
+            ]
+            min_n50 = _optional_int(request, "min_fasta_n50_bases")
+            if min_n50 is not None:
+                argv.extend(["--min-fasta-n50-bases", str(min_n50)])
+            max_records = _optional_int(request, "max_fasta_record_count")
+            if max_records is not None:
+                argv.extend(["--max-fasta-record-count", str(max_records)])
+            if _bool_flag(request, "block_fragmented_fasta"):
+                argv.append("--block-fragmented-fasta")
+            if _bool_flag(request, "block_fasta_header_keywords"):
+                argv.append("--block-fasta-header-keywords")
+            if _bool_flag(request, "write"):
+                argv.append("--write")
+            outdir = _optional_string(request, "outdir")
+            if outdir:
+                argv.extend(["--outdir", outdir])
+            return _with_flags(argv, request, {"json": "--json"})
     if command == "archive-candidates" and subcommand == "build":
         _reject_unknown_fields(
             request,

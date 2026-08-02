@@ -606,8 +606,76 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["fasta_fragmentation_signal_counts"] == {
         "multi_record_fragmented": 1
     }
+    assert summary["min_fasta_n50_bases"] == 0
+    assert summary["max_fasta_record_count"] == 0
+    assert summary["block_fragmented_fasta"] is False
+    assert summary["block_fasta_header_keywords"] is False
+    assert summary["fasta_n50_below_minimum_count"] == 0
+    assert summary["fasta_record_count_above_maximum_count"] == 0
+    assert summary["fragmented_fasta_signal_count"] == 1
+    assert summary["fasta_header_fragment_keyword_row_count"] == 1
     assert summary["status_counts"] == {"genome_fasta_present": 1}
     assert summary["ready"] is True
+
+
+def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    _write_zip(
+        zip_path,
+        content=(
+            ">NZ_FAKE000001.1 scaffold1, whole genome shotgun sequence\n"
+            "ACGTNN\n"
+            ">contig2\n"
+            "ACGT\n"
+        ),
+    )
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                str(plan),
+                "--min-fasta-n50-bases",
+                "7",
+                "--max-fasta-record-count",
+                "1",
+                "--block-fragmented-fasta",
+                "--block-fasta-header-keywords",
+            ]
+        )
+        == 2
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["ready"] is False
+    assert summary["blockers"] == [
+        "fasta_n50_below_minimum",
+        "fasta_record_count_above_maximum",
+        "fragmented_fasta_signal",
+        "fasta_header_fragment_keywords",
+    ]
+    assert summary["min_fasta_n50_bases"] == 7
+    assert summary["max_fasta_record_count"] == 1
+    assert summary["block_fragmented_fasta"] is True
+    assert summary["block_fasta_header_keywords"] is True
+    assert summary["fasta_n50_below_minimum_count"] == 1
+    assert summary["fasta_record_count_above_maximum_count"] == 1
+    assert summary["fragmented_fasta_signal_count"] == 1
+    assert summary["fasta_header_fragment_keyword_row_count"] == 1
+    assert summary["downloads_triggered"] == 0
+    assert summary["providers_contacted"] == 0
 
 
 def test_download_smoke_inspect_blocks_missing_invalid_and_no_genome_zips(
