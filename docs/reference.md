@@ -50,10 +50,14 @@ Primary commands write compact JSON to stdout by default. This does not require
   `strict_scientific_deliverable=false`.
   When an existing `cache/ncbi/genome_registration_results.tsv` is present,
   `status` also emits `genome_registration_summary` with the relative TSV path,
-  row count, `genome_ready_count`, and controlled status counts. This is local
-  ZIP extraction and reference-genome installation visibility only; it does not
-  expose raw FASTA text or notes and does not change strict type-strain status,
-  completion, or evidence policy. If non-ready registration statuses are
+  row count, `genome_ready_count`, and controlled status counts. When
+  count-only FASTA quality notes exist for genome-ready rows, the summary also
+  includes `fasta_quality_summary` with fragmentation signal counts, min N50,
+  max record count, ambiguous-base counts, and WGS/scaffold/contig keyword row
+  counts. This is local ZIP extraction and reference-genome installation
+  visibility only; it does not expose raw FASTA text or notes and does not
+  change strict type-strain status, completion, or evidence policy. If non-ready
+  registration statuses are
   present and no higher-priority manual handoff applies, `next-step` points at
   the same TSV before recommending downstream genome-dependent stages.
   When planned NCBI rows are ready, plan-only `status` and `next-step`
@@ -1447,7 +1451,7 @@ Recommended layout:
   `--download-smoke-inspection-dir <dir>` is an explicit read-only report/package surface for these two files. Report-only mode may show `## Bounded Download Smoke Inspection`; `package-results --include reports` and `--include all` may copy validated members under `download_smoke/` with `evidence_policy=download_smoke_inspection_audit` and `strict_scientific_deliverable=false`. Missing input is omitted; partial or malformed input copies only valid members and emits a compact warning. Failed-handoff packages exclude the inspection files.
   When quality-gate fields are present, report and package handoff text may summarize `fasta_quality_gate_passed_row_count`, `fasta_quality_gate_blocked_row_count`, `fasta_quality_gate_blocker_counts`, `quality_gate_recommendation`, and `quality_gate_recommendation_reasons` as controlled audit signals. Local recommended command paths are not surfaced there.
 - `cache/ncbi/download_results.tsv`: `record_id`, `normalized_id`, `assembly_accession`, `status`, `zip_path`, `returncode`, `stderr`, `notes`. Successful `datasets` commands that write valid ZIP files with unsafe member paths are recorded as `skipped_invalid_zip` with count-only notes before registration or extraction.
-- `cache/ncbi/genome_registration_results.tsv`: `record_id`, `normalized_id`, `source_fna`, `installed_genome_path`, `status`, `notes`. This records the durable ZIP extraction and reference-genome installation outcome after successful download results or reusable local ZIPs; it does not contain raw sequence text. Successful registration notes may include count-only FASTA quality signals such as record count, total bases, N50, ambiguous bases, scaffold/contig/WGS header keyword counts, and a fragmentation signal; raw FASTA headers and sequences are not copied into this TSV. When present, `report/summary.md` may show status counts from this TSV as local installation visibility only; those counts do not change strict type-strain status, completion, or evidence policy.
+- `cache/ncbi/genome_registration_results.tsv`: `record_id`, `normalized_id`, `source_fna`, `installed_genome_path`, `status`, `notes`. This records the durable ZIP extraction and reference-genome installation outcome after successful download results or reusable local ZIPs; it does not contain raw sequence text. Successful registration notes may include count-only FASTA quality signals such as record count, total bases, N50, ambiguous bases, scaffold/contig/WGS header keyword counts, and a fragmentation signal; raw FASTA headers and sequences are not copied into this TSV. When present, `report/summary.md` and `status` may show status counts and count-only FASTA quality summaries from this TSV as local installation visibility only; those counts do not change strict type-strain status, completion, or evidence policy.
 - `cache/ncbi/extracted/<record_id>`: extracted NCBI Datasets ZIP contents. Registration checks unsafe ZIP members before FASTA presence; absolute, path-traversing, Windows-drive-prefixed, or symlink-like member paths fail closed as `skipped_invalid_zip` without exposing member paths.
 - `rrna/rrna_plan.tsv`: `record_id`, `normalized_id`, `genome_path`, `expected_gff_path`, `expected_rrna_fasta_path`, `status`, `notes`
 - `report/artifact_scope.tsv`: `artifact_path`, `artifact_kind`, `scope`, `evidence_policy`, `record_count`, `strict_usable_count`, `candidate_count`, `excluded_mismatch_count`, `artifact_label`, `recommended_use`, `not_for`, `source_artifact`, `consumer_priority`, `strict_scientific_deliverable`, `notes`

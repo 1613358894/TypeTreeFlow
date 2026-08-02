@@ -17,6 +17,9 @@ from typetreeflow.download_plan_readiness import (
 )
 from typetreeflow.external.tools import IQTREE_EXECUTABLE_CANDIDATES
 from typetreeflow.genomes.extract import GENOME_REGISTRATION_RESULTS_FIELDS
+from typetreeflow.genomes.registration_quality import (
+    summarize_registration_fasta_quality,
+)
 from typetreeflow.manifest import read_manifest
 from typetreeflow.workflow.next_action import (
     can_refine_failed_run_state_next_action as _can_refine_failed_run_state_next_action,
@@ -510,6 +513,9 @@ def _read_genome_registration_summary(root: Path, paths) -> dict[str, Any]:
     payload["result_count"] = len(rows)
     payload["genome_ready_count"] = status_counts.get("genome_ready", 0)
     payload["status_counts"] = dict(sorted(status_counts.items()))
+    fasta_quality_summary = summarize_registration_fasta_quality(rows)
+    if fasta_quality_summary:
+        payload["fasta_quality_summary"] = fasta_quality_summary
     return payload
 
 
