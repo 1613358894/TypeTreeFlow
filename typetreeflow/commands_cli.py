@@ -861,6 +861,10 @@ _DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS: list[str] = [
     "selected_assembly_level_counts",
     "selected_accession_quality_preview",
     "selected_datasets_command_preview",
+    "inspection_min_fasta_n50_bases",
+    "inspection_max_fasta_record_count",
+    "inspection_block_fragmented_fasta",
+    "inspection_block_fasta_header_keywords",
     "source_planned_row_count",
     "source_high_quality_planned_row_count",
     "source_draft_or_fragmented_planned_row_count",
@@ -2098,6 +2102,34 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "select all, high, or readiness-recommended rows",
+        },
+        {
+            "name": "--inspection-min-fasta-n50-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommended inspect blocker threshold for low FASTA N50",
+        },
+        {
+            "name": "--inspection-max-fasta-record-count",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommended inspect blocker threshold for too many FASTA records",
+        },
+        {
+            "name": "--inspection-block-fragmented-fasta",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommend blocking fragmented FASTA signals during inspection",
+        },
+        {
+            "name": "--inspection-block-fasta-header-keywords",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommend blocking WGS/scaffold/contig FASTA header keywords during inspection",
         },
         {
             "name": "--write",
@@ -3979,6 +4011,10 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "download_plan",
                     "limit",
                     "quality_tier",
+                    "inspection_min_fasta_n50_bases",
+                    "inspection_max_fasta_record_count",
+                    "inspection_block_fragmented_fasta",
+                    "inspection_block_fasta_header_keywords",
                     "write",
                     "outdir",
                     "json",
@@ -3996,6 +4032,29 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             quality_tier = _optional_string(request, "quality_tier")
             if quality_tier:
                 argv.extend(["--quality-tier", quality_tier])
+            inspection_min_n50 = _optional_int(
+                request,
+                "inspection_min_fasta_n50_bases",
+            )
+            if inspection_min_n50 is not None:
+                argv.extend(
+                    ["--inspection-min-fasta-n50-bases", str(inspection_min_n50)]
+                )
+            inspection_max_records = _optional_int(
+                request,
+                "inspection_max_fasta_record_count",
+            )
+            if inspection_max_records is not None:
+                argv.extend(
+                    [
+                        "--inspection-max-fasta-record-count",
+                        str(inspection_max_records),
+                    ]
+                )
+            if _bool_flag(request, "inspection_block_fragmented_fasta"):
+                argv.append("--inspection-block-fragmented-fasta")
+            if _bool_flag(request, "inspection_block_fasta_header_keywords"):
+                argv.append("--inspection-block-fasta-header-keywords")
             if _bool_flag(request, "write"):
                 argv.append("--write")
             outdir = _optional_string(request, "outdir")

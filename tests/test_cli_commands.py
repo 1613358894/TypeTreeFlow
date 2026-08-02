@@ -2039,7 +2039,12 @@ def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys
                 (
                     '{"command":"download-smoke","subcommand":"prepare",'
                     '"download_plan":"download_plan.tsv","limit":2,'
-                    '"quality_tier":"high","write":true,'
+                    '"quality_tier":"high",'
+                    '"inspection_min_fasta_n50_bases":50000,'
+                    '"inspection_max_fasta_record_count":10,'
+                    '"inspection_block_fragmented_fasta":true,'
+                    '"inspection_block_fasta_header_keywords":true,'
+                    '"write":true,'
                     '"outdir":"bounded","json":true}'
                 ),
                 "--allow-write",
@@ -2060,6 +2065,12 @@ def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys
         "2",
         "--quality-tier",
         "high",
+        "--inspection-min-fasta-n50-bases",
+        "50000",
+        "--inspection-max-fasta-record-count",
+        "10",
+        "--inspection-block-fragmented-fasta",
+        "--inspection-block-fasta-header-keywords",
         "--write",
         "--outdir",
         "bounded",

@@ -101,6 +101,10 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
         ],
     }
     assert summary["selected_datasets_command_preview_truncated"] is False
+    assert summary["inspection_min_fasta_n50_bases"] == 0
+    assert summary["inspection_max_fasta_record_count"] == 0
+    assert summary["inspection_block_fragmented_fasta"] is False
+    assert summary["inspection_block_fasta_header_keywords"] is False
     assert summary["recommended_inspection_command"] == []
 
 
@@ -148,6 +152,65 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
         "inspect",
         "--download-plan",
         str(outdir / "bounded_download_smoke_plan.tsv"),
+        "--write",
+        "--outdir",
+        "<isolated-bounded-download-smoke-inspection-dir>",
+    ]
+    assert payload["bounded_download_smoke_summary"][
+        "recommended_inspection_command"
+    ] == summary["recommended_inspection_command"]
+
+
+def test_download_smoke_prepare_write_carries_inspection_quality_gates(
+    capsys, tmp_path
+):
+    plan = tmp_path / "download_plan.tsv"
+    outdir = tmp_path / "smoke-input"
+    _write_download_plan(plan, [_planned_row("rec-1"), _planned_row("rec-2")])
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "prepare",
+                "--download-plan",
+                str(plan),
+                "--limit",
+                "1",
+                "--inspection-min-fasta-n50-bases",
+                "50000",
+                "--inspection-max-fasta-record-count",
+                "10",
+                "--inspection-block-fragmented-fasta",
+                "--inspection-block-fasta-header-keywords",
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = json.loads(
+        (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["inspection_min_fasta_n50_bases"] == 50000
+    assert summary["inspection_max_fasta_record_count"] == 10
+    assert summary["inspection_block_fragmented_fasta"] is True
+    assert summary["inspection_block_fasta_header_keywords"] is True
+    assert summary["recommended_inspection_command"] == [
+        "typetreeflow",
+        "download-smoke",
+        "inspect",
+        "--download-plan",
+        str(outdir / "bounded_download_smoke_plan.tsv"),
+        "--min-fasta-n50-bases",
+        "50000",
+        "--max-fasta-record-count",
+        "10",
+        "--block-fragmented-fasta",
+        "--block-fasta-header-keywords",
         "--write",
         "--outdir",
         "<isolated-bounded-download-smoke-inspection-dir>",
