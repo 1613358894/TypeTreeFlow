@@ -326,7 +326,7 @@ def _classify_species(
             "public_linkage_review",
             selected,
             tier,
-            "public_archive_insdc_candidate_review",
+            _public_archive_candidate_reason(archive_candidate_rows),
             source_artifacts,
             candidate_provider_keys,
         )
@@ -440,7 +440,7 @@ def _review_signal_counts(rows: Iterable[AcquisitionWorklistRow]) -> dict[str, i
             signals["bacdive_or_dsmz_candidate"] += 1
         if reason == "public_candidate_biosample_linkage_review":
             signals["biosample_linkage_review"] += 1
-        if reason == "public_archive_insdc_candidate_review":
+        if _is_public_archive_candidate_reason(reason):
             signals["archive_candidate_review"] += 1
         if row.reason_code == "no_public_strict_genome_linkage":
             signals["missing_public_genome"] += 1
@@ -607,7 +607,10 @@ def _public_linkage_priority(reason_code: str) -> int:
         "public_candidate_biosample_linkage_review": 20,
         "public_candidate_bacdive_or_dsmz_review": 25,
         "public_candidate_ncbi_type_material_review": 30,
+        "public_archive_assembly_candidate_review": 32,
+        "public_archive_biosample_candidate_review": 34,
         "public_archive_insdc_candidate_review": 35,
+        "public_archive_sequence_candidate_review": 35,
         "expanded_discovery_matched_candidate_review": 36,
         "public_selected_accession_type_linkage_review": 37,
         "public_candidate_needs_type_linkage_review": 38,
@@ -867,6 +870,41 @@ def _has_archive_candidate(rows: Iterable[Mapping[str, object]]) -> bool:
         if status == "archive_candidate_for_public_linkage_review":
             return True
     return False
+
+
+def _public_archive_candidate_reason(
+    rows: Iterable[Mapping[str, object]],
+) -> str:
+    """Return the most actionable public-archive review reason for a species."""
+
+    candidate_rows = tuple(
+        row
+        for row in rows
+        if _value(row, "candidate_status", "status").casefold()
+        == "archive_candidate_for_public_linkage_review"
+    )
+    if any(
+        _value(row, "assembly_accession", "candidate_accession")
+        for row in candidate_rows
+    ):
+        return "public_archive_assembly_candidate_review"
+    if any(
+        _value(row, "biosample_accession", "candidate_biosample")
+        for row in candidate_rows
+    ):
+        return "public_archive_biosample_candidate_review"
+    if any(_value(row, "nuccore_accession", "wgs_accession") for row in candidate_rows):
+        return "public_archive_sequence_candidate_review"
+    return "public_archive_insdc_candidate_review"
+
+
+def _is_public_archive_candidate_reason(reason_code: str) -> bool:
+    return reason_code in {
+        "public_archive_assembly_candidate_review",
+        "public_archive_biosample_candidate_review",
+        "public_archive_insdc_candidate_review",
+        "public_archive_sequence_candidate_review",
+    }
 
 
 def _has_expanded_matched_candidate(rows: Iterable[Mapping[str, object]]) -> bool:

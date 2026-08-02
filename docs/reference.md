@@ -1669,6 +1669,10 @@ BV-BRC, PATRIC, IMG/M, and JGI IMG to provider hints. ENA, DDBJ, INSDC, NCBI
 Assembly, NCBI BioSample, GenBank, RefSeq, BV-BRC, and PATRIC remain
 metadata-only review hints; IMG/JGI remains a planning-only handoff hint and is
 not counted as a public archive metadata source.
+For archive-candidate rows, `reason_code` distinguishes the available
+accession class when possible: assembly, BioSample-only, or nuccore/WGS
+sequence accessions. All of these remain `public_linkage_review` rows and
+require manual linkage evidence before any download or strict use.
 The field is a provider handoff hint only; it does not confirm type-strain
 status, contact providers, authorize terms, or trigger downloads.
 
@@ -1827,10 +1831,13 @@ fixed no-execution fields. It is local prioritization metadata only and does
 not authorize provider contact or downloads. Public archive and public
 type-linkage rows without explicit hints use metadata-only defaults such as
 ENA, DDBJ, INSDC, GenBank, NCBI Assembly, NCBI BioSample, and RefSeq so public
-accession/linkage review pressure remains visible. Provider hints from supported worklist fields are
-additive: an unknown local label is retained as fail-closed planning-only
-handoff metadata and does not mask later canonical provider or public archive
-names in other fields.
+accession/linkage review pressure remains visible. Archive-candidate reason
+codes refine the required input for assembly, BioSample-only, or nuccore/WGS
+sequence accession review while keeping the same audit-only
+`review_public_archive_linkage` action. Provider hints from supported worklist
+fields are additive: an unknown local label is retained as fail-closed
+planning-only handoff metadata and does not mask later canonical provider or
+public archive names in other fields.
 Command metadata reports the target output contract as
 `coverage_plan_packet.v1`, so controllers can route the coverage-plan pair
 before running the command. When `--write` succeeds, stdout and the written

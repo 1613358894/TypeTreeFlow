@@ -146,6 +146,9 @@ handoff preparation, local evidence construction, or no-action strict records.
 When a public review row lacks explicit provider hints, default public metadata
 review labels may include ENA, DDBJ, INSDC, GenBank, RefSeq, NCBI Assembly, and
 NCBI BioSample to keep accession/linkage review pressure visible.
+Archive-candidate review may distinguish assembly, BioSample-only, and
+nuccore/WGS sequence accession starting points for local evidence review; that
+distinction does not authorize download execution or strict promotion.
 They must not contact providers, download genomes, write manifests, update
 completion metrics, create `external_genomes.tsv`, or convert candidate
 evidence into strict scientific deliverables.

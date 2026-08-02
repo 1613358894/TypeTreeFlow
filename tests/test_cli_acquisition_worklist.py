@@ -166,9 +166,9 @@ def test_acquisition_worklist_dry_run_is_single_json_and_writes_nothing(
     ] == [
         (10, "curator_conflict_resolution", "conflict_blocks_automatic_use"),
         (
-            35,
+            32,
             "public_linkage_review",
-            "public_archive_insdc_candidate_review",
+            "public_archive_assembly_candidate_review",
         ),
         (40, "external_registration_ready", "reviewed_external_fasta_ready"),
         (50, "external_fasta_required", "no_public_strict_genome_linkage"),

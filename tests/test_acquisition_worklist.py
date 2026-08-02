@@ -289,7 +289,7 @@ def test_worklist_archive_candidate_moves_gap_to_public_linkage_review():
     )
 
     assert report.rows[0].lane == "public_linkage_review"
-    assert report.rows[0].reason_code == "public_archive_insdc_candidate_review"
+    assert report.rows[0].reason_code == "public_archive_assembly_candidate_review"
     assert report.rows[0].candidate_provider_keys == "ena"
     assert report.rows[0].candidate_provider_statuses == "ena=metadata_only"
     assert report.rows[0].source_artifacts == "completion_gaps; archive_candidates"
@@ -315,7 +315,7 @@ def test_worklist_carries_bv_brc_archive_candidate_provider_hint():
 
     row = report.rows[0]
     assert row.lane == "public_linkage_review"
-    assert row.reason_code == "public_archive_insdc_candidate_review"
+    assert row.reason_code == "public_archive_sequence_candidate_review"
     assert row.candidate_provider_keys == "bv_brc"
     assert row.candidate_provider_statuses == "bv_brc=metadata_only"
     opportunity = report.summary["acquisition_opportunity_summary"][0]
@@ -353,7 +353,7 @@ def test_worklist_carries_ncbi_metadata_archive_candidate_provider_hints():
 
     row = report.rows[0]
     assert row.lane == "public_linkage_review"
-    assert row.reason_code == "public_archive_insdc_candidate_review"
+    assert row.reason_code == "public_archive_assembly_candidate_review"
     assert row.candidate_provider_keys == "ncbi_assembly; ncbi_biosample; insdc"
     assert row.candidate_provider_statuses == (
         "ncbi_assembly=metadata_only; ncbi_biosample=metadata_only; "
@@ -366,6 +366,33 @@ def test_worklist_carries_ncbi_metadata_archive_candidate_provider_hints():
         "ncbi_biosample": 1,
     }
     assert opportunity["safe_for_unattended_download"] is False
+
+
+def test_worklist_distinguishes_biosample_only_archive_candidate():
+    report = build_acquisition_worklist(
+        checklist_rows=[{"full_name": "Clostridium biosamplearchiveum"}],
+        completion_gap_rows=[
+            {
+                "species": "Clostridium biosamplearchiveum",
+                "reason_category": "missing_genome",
+            }
+        ],
+        archive_candidate_rows=[
+            {
+                "species": "Clostridium biosamplearchiveum",
+                "candidate_status": "archive_candidate_for_public_linkage_review",
+                "archive_source": "BioSample",
+                "biosample_accession": "SAMN000004",
+            }
+        ],
+    )
+
+    row = report.rows[0]
+    assert row.lane == "public_linkage_review"
+    assert row.reason_code == "public_archive_biosample_candidate_review"
+    assert row.candidate_provider_keys == "ncbi_biosample"
+    assert row.candidate_provider_statuses == "ncbi_biosample=metadata_only"
+    assert report.summary["review_signal_counts"]["archive_candidate_review"] == 1
 
 
 def test_worklist_carries_img_jgi_archive_candidate_as_planning_hint():
@@ -390,7 +417,7 @@ def test_worklist_carries_img_jgi_archive_candidate_as_planning_hint():
 
     row = report.rows[0]
     assert row.lane == "public_linkage_review"
-    assert row.reason_code == "public_archive_insdc_candidate_review"
+    assert row.reason_code == "public_archive_sequence_candidate_review"
     assert row.candidate_provider_keys == "img_jgi"
     assert row.candidate_provider_statuses == "img_jgi=planning_only"
     opportunity = report.summary["acquisition_opportunity_summary"][0]
@@ -475,7 +502,7 @@ def test_worklist_archive_candidate_provider_source_status_is_metadata_only():
 
     row = report.rows[0]
     assert row.lane == "public_linkage_review"
-    assert row.reason_code == "public_archive_insdc_candidate_review"
+    assert row.reason_code == "public_archive_assembly_candidate_review"
     assert row.candidate_provider_keys == "genbank"
     assert row.candidate_provider_statuses == "genbank=metadata_only"
     assert report.summary["candidate_provider_key_counts"] == {"genbank": 1}

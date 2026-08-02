@@ -52,6 +52,20 @@ PUBLIC_TYPE_LINKAGE_REVIEW_PROVIDER_KEYS: tuple[str, ...] = (
     "ncbi_biosample",
     "refseq",
 )
+PUBLIC_ARCHIVE_REVIEW_REASON_INPUTS: dict[str, str] = {
+    "public_archive_assembly_candidate_review": (
+        "assembly accession to type-strain direct evidence chain"
+    ),
+    "public_archive_biosample_candidate_review": (
+        "BioSample accession to assembly and type-strain direct evidence chain"
+    ),
+    "public_archive_insdc_candidate_review": (
+        "public archive accession to species type-strain direct evidence chain"
+    ),
+    "public_archive_sequence_candidate_review": (
+        "nuccore/WGS accession to assembly and type-strain direct evidence chain"
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -171,7 +185,7 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
             input_artifacts=input_artifacts,
         )
     if lane == "public_linkage_review":
-        if reason == "public_archive_insdc_candidate_review":
+        if reason in PUBLIC_ARCHIVE_REVIEW_REASON_INPUTS:
             return CoveragePlanAction(
                 priority=20,
                 species=species,
@@ -180,7 +194,7 @@ def _action_for_row(row: Mapping[str, object]) -> CoveragePlanAction:
                 action_label="Review public archive candidate against type-strain equivalence",
                 provider_keys=provider_keys
                 or "; ".join(PUBLIC_ARCHIVE_REVIEW_PROVIDER_KEYS),
-                required_input="public accession to type-strain direct evidence chain",
+                required_input=PUBLIC_ARCHIVE_REVIEW_REASON_INPUTS[reason],
                 recommended_next_command="manual-review validate --input <review.tsv>",
                 input_artifacts=input_artifacts,
             )

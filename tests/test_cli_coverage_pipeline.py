@@ -5753,7 +5753,7 @@ def test_coverage_pipeline_preview_groups_provider_handoff_after_review_actions(
             "source_lanes": ["public_linkage_review"],
             "provider_keys": ["ena"],
             "required_inputs": [
-                "public accession to type-strain direct evidence chain",
+                "assembly accession to type-strain direct evidence chain",
             ],
             "recommended_request": {
                 "command": "manual-review",
