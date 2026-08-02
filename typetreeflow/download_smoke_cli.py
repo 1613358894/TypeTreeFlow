@@ -45,6 +45,7 @@ INSPECTION_FIELDS = [
     "fasta_header_scaffold_keyword_count",
     "fasta_header_contig_keyword_count",
     "fasta_fragmentation_signal",
+    "fasta_quality_gate_blockers",
     "status",
 ]
 FASTA_FRAGMENTATION_SIGNAL_NOT_EVALUATED = "not_evaluated"
@@ -402,6 +403,18 @@ def inspect_bounded_download_smoke_outputs(
         if row.get("status", "").strip() == "planned"
     ]
     inspections = [_inspect_download_plan_row(row) for row in rows]
+    for row in inspections:
+        row["fasta_quality_gate_blockers"] = ";".join(
+            _fasta_quality_gate_blockers(
+                row,
+                min_fasta_n50_bases=min_fasta_n50_bases,
+                max_fasta_record_count=max_fasta_record_count,
+                min_fasta_total_bases=min_fasta_total_bases,
+                min_fasta_longest_record_bases=min_fasta_longest_record_bases,
+                block_fragmented_fasta=block_fragmented_fasta,
+                block_fasta_header_keywords=block_fasta_header_keywords,
+            )
+        )
     status_counts: dict[str, int] = {}
     fragmentation_signal_counts: dict[str, int] = {}
     for row in inspections:
@@ -594,8 +607,55 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         "genome_fasta_present": genome_fasta_present,
         **fasta_stats,
         "fasta_fragmentation_signal": _classify_fasta_fragmentation(fasta_stats),
+        "fasta_quality_gate_blockers": "",
         "status": status,
     }
+
+
+def _fasta_quality_gate_blockers(
+    row: dict[str, object],
+    *,
+    min_fasta_n50_bases: int,
+    max_fasta_record_count: int,
+    min_fasta_total_bases: int,
+    min_fasta_longest_record_bases: int,
+    block_fragmented_fasta: bool,
+    block_fasta_header_keywords: bool,
+) -> list[str]:
+    if not row["genome_fasta_present"]:
+        return []
+    blockers: list[str] = []
+    if min_fasta_n50_bases > 0 and int(row["fasta_n50_bases"]) < min_fasta_n50_bases:
+        blockers.append("fasta_n50_below_minimum")
+    if (
+        max_fasta_record_count > 0
+        and int(row["fasta_record_count"]) > max_fasta_record_count
+    ):
+        blockers.append("fasta_record_count_above_maximum")
+    if (
+        min_fasta_total_bases > 0
+        and int(row["fasta_total_bases"]) < min_fasta_total_bases
+    ):
+        blockers.append("fasta_total_bases_below_minimum")
+    if (
+        min_fasta_longest_record_bases > 0
+        and int(row["fasta_longest_record_bases"]) < min_fasta_longest_record_bases
+    ):
+        blockers.append("fasta_longest_record_below_minimum")
+    if (
+        block_fragmented_fasta
+        and row["fasta_fragmentation_signal"] == FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED
+    ):
+        blockers.append("fragmented_fasta_signal")
+    if (
+        block_fasta_header_keywords
+        and int(row["fasta_header_wgs_keyword_count"])
+        + int(row["fasta_header_scaffold_keyword_count"])
+        + int(row["fasta_header_contig_keyword_count"])
+        > 0
+    ):
+        blockers.append("fasta_header_fragment_keywords")
+    return blockers
 
 
 def _empty_fasta_stats() -> dict[str, int]:
@@ -909,6 +969,9 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                     ],
                     "fasta_fragmentation_signal": row[
                         "fasta_fragmentation_signal"
+                    ],
+                    "fasta_quality_gate_blockers": row[
+                        "fasta_quality_gate_blockers"
                     ],
                     "status": row["status"],
                 }

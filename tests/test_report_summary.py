@@ -381,6 +381,21 @@ def test_download_smoke_inspection_legacy_rows_remain_readable(tmp_path):
     assert not audit.warnings
 
 
+def test_download_smoke_inspection_pre_gate_rows_remain_readable(tmp_path):
+    inspection_dir = tmp_path / "inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+
+    audit = read_optional_download_smoke_inspection_audit(inspection_dir)
+
+    assert audit is not None
+    assert "bounded_download_smoke_inspection.tsv" in audit.present_files
+    assert (
+        "bounded_download_smoke_inspection.tsv malformed"
+        not in audit.warnings
+    )
+    assert audit.counts["selected_row_count"] == 2
+
+
 def test_download_smoke_inspection_partial_malformed_summary_warns(tmp_path):
     inspection_dir = tmp_path / "inspection"
     _write_download_smoke_inspection_pair(inspection_dir)

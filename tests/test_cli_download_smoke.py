@@ -767,6 +767,87 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["providers_contacted"] == 0
 
 
+def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    outdir = tmp_path / "inspection"
+    _write_zip(
+        zip_path,
+        content=(
+            ">NZ_FAKE000001.1 scaffold1, whole genome shotgun sequence\n"
+            "ACGTNN\n"
+            ">contig2\n"
+            "ACGT\n"
+        ),
+    )
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                str(plan),
+                "--min-fasta-n50-bases",
+                "7",
+                "--max-fasta-record-count",
+                "1",
+                "--min-fasta-total-bases",
+                "11",
+                "--min-fasta-longest-record-bases",
+                "7",
+                "--block-fragmented-fasta",
+                "--block-fasta-header-keywords",
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 2
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    rows = list(
+        csv.DictReader(
+            (outdir / "bounded_download_smoke_inspection.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
+    summary = json.loads(
+        (outdir / "bounded_download_smoke_inspection_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["writes_outputs"] is True
+    assert rows[0]["fasta_quality_gate_blockers"] == (
+        "fasta_n50_below_minimum;"
+        "fasta_record_count_above_maximum;"
+        "fasta_total_bases_below_minimum;"
+        "fasta_longest_record_below_minimum;"
+        "fragmented_fasta_signal;"
+        "fasta_header_fragment_keywords"
+    )
+    assert rows[0]["status"] == "genome_fasta_present"
+    assert summary["ready"] is False
+    assert summary["blockers"] == [
+        "fasta_n50_below_minimum",
+        "fasta_record_count_above_maximum",
+        "fasta_total_bases_below_minimum",
+        "fasta_longest_record_below_minimum",
+        "fragmented_fasta_signal",
+        "fasta_header_fragment_keywords",
+    ]
+
+
 def test_download_smoke_inspect_blocks_missing_invalid_and_no_genome_zips(
     capsys,
     tmp_path,
@@ -861,6 +942,7 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["fasta_header_scaffold_keyword_count"] == "0"
     assert rows[0]["fasta_header_contig_keyword_count"] == "0"
     assert rows[0]["fasta_fragmentation_signal"] == "single_record"
+    assert rows[0]["fasta_quality_gate_blockers"] == ""
     assert summary["ready"] is True
     assert summary["fasta_max_n50_bases"] == 4
     assert summary["fasta_header_wgs_keyword_count"] == 0
