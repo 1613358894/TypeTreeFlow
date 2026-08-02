@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import sys
 from pathlib import Path
 
@@ -55,8 +56,14 @@ def plan_only_guarded_download_next_action(paths) -> str:
         "selection is acceptable, rerun with --auto-accept-selection "
         "--enable-downloads."
     )
+    bounded_smoke = _bounded_smoke_prepare_next_action(paths)
     secondary = _secondary_plan_only_handoff(paths)
-    return f"{primary} {secondary}" if secondary else primary
+    parts = [primary]
+    if bounded_smoke:
+        parts.append(bounded_smoke)
+    if secondary:
+        parts.append(secondary)
+    return " ".join(parts)
 
 
 def refine_entrez_fallback_next_action(paths, next_action: str) -> str:
@@ -188,6 +195,55 @@ def read_optional_rows(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
     return read_tsv(path)
+
+
+def _bounded_smoke_prepare_next_action(paths) -> str:
+    summary_path = paths.download_plan_readiness_summary_path
+    if not summary_path.exists():
+        return ""
+    try:
+        payload = json.loads(summary_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    if payload.get("schema_version") != "download_plan_readiness_summary.v1":
+        return ""
+    if payload.get("bounded_ncbi_download_smoke_ready") is not True:
+        return ""
+    tier = str(
+        payload.get("bounded_ncbi_download_smoke_quality_tier_recommendation")
+        or "all"
+    ).strip()
+    if tier not in {"high", "all", "none"}:
+        tier = "all"
+    if tier == "none":
+        return ""
+    candidate_count = _int_payload_value(
+        payload,
+        "bounded_ncbi_download_smoke_candidate_count",
+    )
+    high_count = _int_payload_value(
+        payload,
+        "high_quality_bounded_ncbi_download_smoke_candidate_count",
+    )
+    plan_path = _relative_output_path(paths.cache_dir / "ncbi" / "download_plan.tsv", paths)
+    return (
+        "For bounded validation before guarded downloads, prepare an isolated "
+        "NCBI smoke plan with `typetreeflow download-smoke prepare "
+        f"--download-plan {plan_path} --quality-tier recommended --limit 1 "
+        "--outdir <smoke-handoff-dir>`; "
+        f"recommended currently resolves to {tier} "
+        f"({high_count} high-quality row(s), {candidate_count} planned row(s)). "
+        "This planning command does not download genomes."
+    )
+
+
+def _int_payload_value(payload: dict[str, object], key: str) -> int:
+    try:
+        return int(payload.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def read_tsv(path: Path) -> list[dict[str, str]]:
