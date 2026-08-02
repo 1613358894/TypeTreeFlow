@@ -12,6 +12,7 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
 
 FASTA_SUFFIXES = {".fna", ".fasta", ".fa"}
+FRAGMENT_HEADER_KEYWORDS = ("wgs", "scaffold", "contig")
 GENOME_REGISTRATION_RESULTS_FIELDS = [
     "record_id",
     "normalized_id",
@@ -242,6 +243,9 @@ def register_extracted_genomes(
 
             source_fna = choose_genomic_fna(candidates)
             install_reference_genome(source_fna, dest_fna, force=force)
+            quality_notes = _format_fasta_quality_notes(
+                _summarize_fasta_quality(source_fna)
+            )
         except ValueError as error:
             record.status = "genome_fna_ambiguous"
             record.notes = str(error)
@@ -282,7 +286,7 @@ def register_extracted_genomes(
         record.has_genome = True
         record.genome_path = str(dest_fna)
         record.status = "genome_ready"
-        record.notes = f"Installed reference genome: {dest_fna}"
+        record.notes = f"Installed reference genome: {dest_fna}; {quality_notes}"
         results.append(
             GenomeExtractionResult(
                 record_id=record.record_id,
@@ -295,6 +299,105 @@ def register_extracted_genomes(
         )
 
     return results
+
+
+def _summarize_fasta_quality(path: Path) -> dict[str, int | str]:
+    record_count = 0
+    total_bases = 0
+    longest_record_bases = 0
+    ambiguous_bases = 0
+    header_keyword_counts = {keyword: 0 for keyword in FRAGMENT_HEADER_KEYWORDS}
+    lengths: list[int] = []
+    current_length = 0
+
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith(">"):
+                if record_count:
+                    lengths.append(current_length)
+                    longest_record_bases = max(longest_record_bases, current_length)
+                record_count += 1
+                current_length = 0
+                lowered = stripped.lower()
+                for keyword in FRAGMENT_HEADER_KEYWORDS:
+                    if keyword == "wgs":
+                        matched = (
+                            "wgs" in lowered
+                            or "whole genome shotgun" in lowered
+                        )
+                    else:
+                        matched = keyword in lowered
+                    if matched:
+                        header_keyword_counts[keyword] += 1
+                continue
+            sequence = stripped.upper()
+            current_length += len(sequence)
+            total_bases += len(sequence)
+            ambiguous_bases += sequence.count("N")
+    if record_count:
+        lengths.append(current_length)
+        longest_record_bases = max(longest_record_bases, current_length)
+
+    return {
+        "record_count": record_count,
+        "total_bases": total_bases,
+        "longest_record_bases": longest_record_bases,
+        "n50_bases": _n50(lengths),
+        "ambiguous_bases": ambiguous_bases,
+        "header_wgs_keyword_count": header_keyword_counts["wgs"],
+        "header_scaffold_keyword_count": header_keyword_counts["scaffold"],
+        "header_contig_keyword_count": header_keyword_counts["contig"],
+        "fragmentation_signal": _classify_fasta_fragmentation(
+            record_count,
+            total_bases,
+            longest_record_bases,
+        ),
+    }
+
+
+def _format_fasta_quality_notes(summary: dict[str, int | str]) -> str:
+    return (
+        "fasta_quality "
+        f"record_count={summary['record_count']}; "
+        f"total_bases={summary['total_bases']}; "
+        f"longest_record_bases={summary['longest_record_bases']}; "
+        f"n50_bases={summary['n50_bases']}; "
+        f"ambiguous_bases={summary['ambiguous_bases']}; "
+        f"header_wgs_keyword_count={summary['header_wgs_keyword_count']}; "
+        f"header_scaffold_keyword_count={summary['header_scaffold_keyword_count']}; "
+        f"header_contig_keyword_count={summary['header_contig_keyword_count']}; "
+        f"fragmentation_signal={summary['fragmentation_signal']}"
+    )
+
+
+def _classify_fasta_fragmentation(
+    record_count: int,
+    total_bases: int,
+    longest_record_bases: int,
+) -> str:
+    if record_count <= 0:
+        return "not_evaluated"
+    if record_count == 1:
+        return "single_record"
+    if total_bases > 0 and longest_record_bases / total_bases >= 0.9:
+        return "multi_record_single_dominant"
+    return "multi_record_fragmented"
+
+
+def _n50(lengths: list[int]) -> int:
+    if not lengths:
+        return 0
+    total = sum(lengths)
+    threshold = total / 2
+    cumulative = 0
+    for length in sorted(lengths, reverse=True):
+        cumulative += length
+        if cumulative >= threshold:
+            return length
+    return 0
 
 
 def _resolve_paths_and_plan_items(
