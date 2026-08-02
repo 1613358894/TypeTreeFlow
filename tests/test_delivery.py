@@ -376,6 +376,11 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
         "rec-1\trec-1\tGCF_000001\tgenome_download_succeeded\tcache/ncbi/a.zip\t0\t\t\n",
         encoding="utf-8",
     )
+    paths.ncbi_genome_registration_results_path.write_text(
+        "record_id\tnormalized_id\tsource_fna\tinstalled_genome_path\tstatus\tnotes\n"
+        "rec-1\trec-1\tcache/ncbi/extracted/rec-1/genomic.fna\tgenomes/references/rec-1.fna\tgenome_ready\tinstalled\n",
+        encoding="utf-8",
+    )
 
     result = package_results(tmp_path, include="reports")
 
@@ -385,6 +390,7 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     assert (result.delivery_dir / "selected_accessions.tsv").exists()
     assert (result.delivery_dir / "evidence_summary.tsv").exists()
     assert (result.delivery_dir / "download_results.tsv").exists()
+    assert (result.delivery_dir / "genome_registration_results.tsv").exists()
     readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
     assert "TypeTreeFlow version:" in readme
     assert "Strict type-strain confirmed: 1" in readme

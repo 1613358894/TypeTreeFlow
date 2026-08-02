@@ -94,7 +94,9 @@ def test_enable_downloads_happy_path_registers_fake_zip(tmp_path, monkeypatch):
     assert required == ["datasets"]
     assert len(runner.commands) == 2
     assert paths.ncbi_download_results_path.exists()
+    assert paths.ncbi_genome_registration_results_path.exists()
     assert _download_result_statuses(paths) == {"genome_download_succeeded"}
+    assert _genome_registration_statuses(paths) == {"genome_ready"}
     assert paths.run_summary_path.exists()
     state = read_run_state(paths.run_state_path)
     assert state.stages["download"].status == "succeeded"
@@ -341,6 +343,18 @@ def _download_result_rows(paths):
 
 def _download_result_statuses(paths):
     return {row["status"] for row in _download_result_rows(paths)}
+
+
+def _genome_registration_result_rows(paths):
+    with paths.ncbi_genome_registration_results_path.open(
+        encoding="utf-8",
+        newline="",
+    ) as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _genome_registration_statuses(paths):
+    return {row["status"] for row in _genome_registration_result_rows(paths)}
 
 
 def _download_preflight_summary_row(paths):
