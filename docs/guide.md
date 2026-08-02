@@ -1233,7 +1233,10 @@ audit statistic and counts controlled FASTA header keywords such as WGS,
 scaffold, and contig without copying raw header text. These values help
 reviewers notice single-record, single-dominant multi-record, or visibly
 fragmented multi-record FASTA outputs; they are not strict gates, completion
-metrics, or genome usability decisions by default. Add explicit inspection
+metrics, or genome usability decisions by default. A genome FASTA member with
+zero records or zero bases is blocked by default as
+`empty_genome_fasta_outputs`, because it is not a usable downloaded genome.
+Add explicit inspection
 quality gates such as `--min-fasta-n50-bases <bases>`,
 `--max-fasta-record-count <count>`,
 `--max-fasta-ambiguous-bases <bases>`, `--min-fasta-total-bases <bases>`,

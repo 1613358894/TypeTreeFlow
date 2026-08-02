@@ -117,6 +117,7 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_selected_row_count: int = 0
     download_smoke_inspection_zip_valid_count: int = 0
     download_smoke_inspection_genome_fasta_present_count: int = 0
+    download_smoke_inspection_empty_genome_fasta_count: int = 0
     download_smoke_inspection_fasta_n50_below_minimum_count: int = 0
     download_smoke_inspection_fasta_record_count_above_maximum_count: int = 0
     download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count: int = 0
@@ -1912,6 +1913,13 @@ def _read_optional_server_validation_result(
             _safe_nonnegative_int_value(
                 payload.get(
                     "download_smoke_inspection_genome_fasta_present_count", 0
+                )
+            )
+        ),
+        download_smoke_inspection_empty_genome_fasta_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_empty_genome_fasta_count", 0
                 )
             )
         ),
@@ -4301,6 +4309,7 @@ def _server_validation_download_smoke_observations_available(
             audit.download_smoke_inspection_selected_row_count,
             audit.download_smoke_inspection_zip_valid_count,
             audit.download_smoke_inspection_genome_fasta_present_count,
+            audit.download_smoke_inspection_empty_genome_fasta_count,
             audit.download_smoke_inspection_fasta_n50_below_minimum_count,
             audit.download_smoke_inspection_fasta_record_count_above_maximum_count,
             audit.download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count,
@@ -4334,6 +4343,8 @@ def _server_validation_download_smoke_observation_lines(
         ),
         (
             "- Bounded FASTA quality-gate hits: "
+            "empty_genome_fasta="
+            f"{audit.download_smoke_inspection_empty_genome_fasta_count}, "
             "n50_below_minimum="
             f"{audit.download_smoke_inspection_fasta_n50_below_minimum_count}, "
             "record_count_above_maximum="
