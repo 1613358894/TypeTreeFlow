@@ -2769,7 +2769,13 @@ errors. The command contract exposes stable summary fields for validation
 status, result status, checked-surface count, boundary confirmation status,
 diagnostic count, optional source commit, TypeTreeFlow version, runtime Python,
 evidence run path, check count, failed count, optional observed
-external-registration realization fields, and no-execution boundary flags.
+external-registration realization fields, optional bounded download-smoke
+inspection observation fields, and no-execution boundary flags. The optional
+download-smoke fields use the `download_smoke_inspection_` prefix and can carry
+the explicit server-side inspection summary SHA-256, realized/ready booleans,
+selected row and ZIP/FASTA presence counts, and the bounded FASTA quality-gate
+hit counts for N50, record count, total bases, longest record, fragmentation
+signals, and FASTA header keyword rows.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.
@@ -2779,8 +2785,9 @@ same explicit result JSON to the pipeline status payload as
 the result path, SHA-256, schema/status, checked-surface count, boundary count,
 optional source commit, TypeTreeFlow version, runtime Python, evidence run
 path, check count, failed count, optional observed external-registration
-realization fields, and validation diagnostics. Invalid explicit results make
-status fail closed; omitting the option leaves the packet at `status=no_action`.
+realization fields, optional bounded download-smoke inspection observation
+fields, and validation diagnostics. Invalid explicit results make status fail
+closed; omitting the option leaves the packet at `status=no_action`.
 This is still a local result-shape/status read and does not execute the target
 command, contact providers, download genomes, mutate manifests, or register
 external genomes.

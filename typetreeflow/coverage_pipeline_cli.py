@@ -141,10 +141,13 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS = (
     "typetreeflow_version",
     "runtime_python",
     "evidence_run_path",
+    "download_smoke_inspection_summary_sha256",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS = (
     "external_genomes_registration_realized",
     "external_genomes_registration_manifest_available",
+    "download_smoke_inspection_realized",
+    "download_smoke_inspection_ready",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "check_count",
@@ -152,6 +155,21 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "external_genomes_registration_manifest_record_count",
     "external_genomes_registration_external_manifest_record_count",
     "external_genomes_registration_install_succeeded_count",
+    "download_smoke_inspection_selected_row_count",
+    "download_smoke_inspection_zip_exists_count",
+    "download_smoke_inspection_zip_valid_count",
+    "download_smoke_inspection_genome_fasta_present_count",
+    "download_smoke_inspection_genome_fasta_member_count",
+    "download_smoke_inspection_fasta_record_count",
+    "download_smoke_inspection_fasta_total_bases",
+    "download_smoke_inspection_fasta_longest_record_bases",
+    "download_smoke_inspection_fasta_max_n50_bases",
+    "download_smoke_inspection_fasta_n50_below_minimum_count",
+    "download_smoke_inspection_fasta_record_count_above_maximum_count",
+    "download_smoke_inspection_fasta_total_bases_below_minimum_count",
+    "download_smoke_inspection_fasta_longest_record_below_minimum_count",
+    "download_smoke_inspection_fragmented_fasta_signal_count",
+    "download_smoke_inspection_fasta_header_fragment_keyword_row_count",
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -2044,6 +2062,7 @@ def _server_validation_result_validation_payload(
                 )
             )
         ),
+        **_server_validation_observation_fields(result),
         "checked_surface_names": [str(item) for item in checked_surface_names],
         "checked_surface_count": len(checked_surface_names),
         "required_field_count": len(_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS),
@@ -2273,6 +2292,39 @@ def _optional_nonnegative_int(value: object) -> int:
 
 def _optional_bool(value: object) -> bool:
     return value if isinstance(value, bool) else False
+
+
+def _server_validation_observation_defaults() -> dict[str, object]:
+    return {
+        field: ""
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS
+        if field.startswith("download_smoke_inspection_")
+    } | {
+        field: False
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS
+        if field.startswith("download_smoke_inspection_")
+    } | {
+        field: 0
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS
+        if field.startswith("download_smoke_inspection_")
+    }
+
+
+def _server_validation_observation_fields(
+    result: Mapping[str, object],
+) -> dict[str, object]:
+    fields: dict[str, object] = {}
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS:
+        if field.startswith("download_smoke_inspection_"):
+            value = result.get(field, "")
+            fields[field] = value if isinstance(value, str) else ""
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS:
+        if field.startswith("download_smoke_inspection_"):
+            fields[field] = _optional_bool(result.get(field))
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS:
+        if field.startswith("download_smoke_inspection_"):
+            fields[field] = _optional_nonnegative_int(result.get(field))
+    return fields
 
 
 def _stage_repair_queue(stage: Mapping[str, object] | None) -> dict[str, object]:
@@ -5315,6 +5367,16 @@ def _coverage_handoff_server_validation_result_contract_packet(
         "expected_result_statuses": ["pass", "warning", "blocked", "failed"],
         "required_result_fields": required_result_fields,
         "required_result_field_count": len(required_result_fields),
+        "optional_download_smoke_inspection_result_fields": [
+            field
+            for field in (
+                _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS
+                + _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS
+                + _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS
+            )
+            if field.startswith("download_smoke_inspection_")
+        ],
+        "download_smoke_inspection_result_fields_are_audit_only": True,
         "checked_surface_names": checked_surfaces,
         "checked_surface_count": len(checked_surfaces),
         "source_packet_schema_version": str(
@@ -5493,6 +5555,7 @@ def _coverage_handoff_server_validation_result_template_packet(
         "external_genomes_registration_manifest_record_count": 0,
         "external_genomes_registration_external_manifest_record_count": 0,
         "external_genomes_registration_install_succeeded_count": 0,
+        **_server_validation_observation_defaults(),
         "blocking_ids": [],
         "warning_ids": [],
         "boundary_confirmations": boundary_confirmations,
@@ -5678,6 +5741,7 @@ def _coverage_handoff_server_validation_result_template_artifact_packet(
         "external_genomes_registration_manifest_record_count": 0,
         "external_genomes_registration_external_manifest_record_count": 0,
         "external_genomes_registration_install_succeeded_count": 0,
+        **_server_validation_observation_defaults(),
         "validation_status": "no_action",
         "checked_surface_count": 0,
         "boundary_confirmation_count": 0,
@@ -6010,6 +6074,7 @@ def _coverage_handoff_server_validation_result_artifact_packet(
                 )
             )
         ),
+        **_server_validation_observation_fields(result),
         "validation_status": validation_status,
         "checked_surface_count": len(checked_surface_names),
         "boundary_confirmation_count": _safe_int(
@@ -8241,6 +8306,79 @@ def _coverage_parent_controller_packet(
         ),
         "handoff_server_validation_result_artifact_diagnostic_count": _safe_int(
             result_artifact_packet.get("diagnostic_count", 0)
+        ),
+        "handoff_server_validation_download_smoke_inspection_realized": bool(
+            result_artifact_packet.get("download_smoke_inspection_realized")
+        ),
+        "handoff_server_validation_download_smoke_inspection_ready": bool(
+            result_artifact_packet.get("download_smoke_inspection_ready")
+        ),
+        "handoff_server_validation_download_smoke_inspection_selected_row_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_selected_row_count", 0
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_zip_valid_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_zip_valid_count", 0
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_genome_fasta_present_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_genome_fasta_present_count", 0
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_n50_below_minimum_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_n50_below_minimum_count", 0
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_record_count_above_maximum_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_record_count_above_maximum_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_total_bases_below_minimum_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_total_bases_below_minimum_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_longest_record_below_minimum_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_longest_record_below_minimum_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fragmented_fasta_signal_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fragmented_fasta_signal_count", 0
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_header_fragment_keyword_row_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_header_fragment_keyword_row_count",
+                    0,
+                )
+            )
         ),
         "recommended_surface": recommended_surface,
         "recommended_action": recommended_action,
