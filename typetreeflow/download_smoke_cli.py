@@ -6,6 +6,7 @@ import argparse
 import csv
 import json
 import sys
+import zipfile
 from pathlib import Path
 from typing import Sequence, TextIO
 
@@ -34,6 +35,11 @@ INSPECTION_FIELDS = [
     "zip_exists",
     "zip_valid",
     "genome_fasta_present",
+    "genome_fasta_member_count",
+    "fasta_record_count",
+    "fasta_total_bases",
+    "fasta_longest_record_bases",
+    "fasta_ambiguous_bases",
     "status",
 ]
 
@@ -305,6 +311,17 @@ def inspect_bounded_download_smoke_outputs(
         "genome_fasta_present_count": sum(
             1 for row in inspections if row["genome_fasta_present"]
         ),
+        "genome_fasta_member_count": sum(
+            int(row["genome_fasta_member_count"]) for row in inspections
+        ),
+        "fasta_record_count": sum(int(row["fasta_record_count"]) for row in inspections),
+        "fasta_total_bases": sum(int(row["fasta_total_bases"]) for row in inspections),
+        "fasta_longest_record_bases": max(
+            [int(row["fasta_longest_record_bases"]) for row in inspections] or [0]
+        ),
+        "fasta_ambiguous_bases": sum(
+            int(row["fasta_ambiguous_bases"]) for row in inspections
+        ),
         "status_counts": dict(sorted(status_counts.items())),
         "ready": ready,
         "blockers": blockers,
@@ -332,6 +349,11 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
     zip_exists = zip_path.exists()
     zip_valid = is_valid_zip(zip_path)
     genome_fasta_present = datasets_zip_has_genome(zip_path) if zip_valid else False
+    fasta_stats = (
+        _inspect_fasta_members(zip_path)
+        if genome_fasta_present
+        else _empty_fasta_stats()
+    )
     if not zip_exists:
         status = "zip_missing"
     elif not zip_valid:
@@ -347,7 +369,76 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         "zip_exists": zip_exists,
         "zip_valid": zip_valid,
         "genome_fasta_present": genome_fasta_present,
+        **fasta_stats,
         "status": status,
+    }
+
+
+def _empty_fasta_stats() -> dict[str, int]:
+    return {
+        "genome_fasta_member_count": 0,
+        "fasta_record_count": 0,
+        "fasta_total_bases": 0,
+        "fasta_longest_record_bases": 0,
+        "fasta_ambiguous_bases": 0,
+    }
+
+
+def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
+    stats = _empty_fasta_stats()
+    with zipfile.ZipFile(zip_path) as archive:
+        for member in archive.namelist():
+            if member.endswith("/") or Path(member).suffix.lower() not in {
+                ".fna",
+                ".fasta",
+                ".fa",
+            }:
+                continue
+            stats["genome_fasta_member_count"] += 1
+            member_stats = _inspect_fasta_member(archive, member)
+            stats["fasta_record_count"] += member_stats["fasta_record_count"]
+            stats["fasta_total_bases"] += member_stats["fasta_total_bases"]
+            stats["fasta_longest_record_bases"] = max(
+                stats["fasta_longest_record_bases"],
+                member_stats["fasta_longest_record_bases"],
+            )
+            stats["fasta_ambiguous_bases"] += member_stats["fasta_ambiguous_bases"]
+    return stats
+
+
+def _inspect_fasta_member(
+    archive: zipfile.ZipFile,
+    member: str,
+) -> dict[str, int]:
+    record_count = 0
+    total_bases = 0
+    longest_record = 0
+    ambiguous_bases = 0
+    current_record_bases = 0
+    with archive.open(member) as handle:
+        for raw_line in handle:
+            line = raw_line.decode("utf-8", errors="ignore").strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if record_count:
+                    longest_record = max(longest_record, current_record_bases)
+                record_count += 1
+                current_record_bases = 0
+                continue
+            sequence = "".join(line.split()).upper()
+            current_record_bases += len(sequence)
+            total_bases += len(sequence)
+            ambiguous_bases += sum(
+                1 for base in sequence if base not in {"A", "C", "G", "T"}
+            )
+    if record_count:
+        longest_record = max(longest_record, current_record_bases)
+    return {
+        "fasta_record_count": record_count,
+        "fasta_total_bases": total_bases,
+        "fasta_longest_record_bases": longest_record,
+        "fasta_ambiguous_bases": ambiguous_bases,
     }
 
 
@@ -503,6 +594,15 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                     "genome_fasta_present": str(
                         bool(row["genome_fasta_present"])
                     ).lower(),
+                    "genome_fasta_member_count": row[
+                        "genome_fasta_member_count"
+                    ],
+                    "fasta_record_count": row["fasta_record_count"],
+                    "fasta_total_bases": row["fasta_total_bases"],
+                    "fasta_longest_record_bases": row[
+                        "fasta_longest_record_bases"
+                    ],
+                    "fasta_ambiguous_bases": row["fasta_ambiguous_bases"],
                     "status": row["status"],
                 }
             )

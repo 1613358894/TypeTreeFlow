@@ -1195,9 +1195,11 @@ typetreeflow download-smoke inspect \
   --outdir <workspace>/handoffs/bounded_download_smoke_inspection
 ```
 
-The inspection checks only local ZIP existence, ZIP validity, and whether each
-ZIP contains a genome FASTA. It does not run `datasets`, extract ZIPs, access
-the network, contact providers, or mutate workflow outputs.
+The inspection checks only local ZIP existence, ZIP validity, whether each ZIP
+contains genome FASTA members, and bounded FASTA count statistics such as record
+count, total bases, longest record bases, and ambiguous bases. It does not run
+`datasets`, extract ZIPs, write raw sequence text, access the network, contact
+providers, or mutate workflow outputs.
 
 To surface that bounded inspection in an existing run report or delivery
 package, pass the isolated inspection directory explicitly:

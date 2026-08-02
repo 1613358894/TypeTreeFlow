@@ -45,10 +45,14 @@ def _write_assembly_candidates(path, rows):
     )
 
 
-def _write_zip(path, member="ncbi_dataset/data/GCF_000001.1/genomic.fna"):
+def _write_zip(
+    path,
+    member="ncbi_dataset/data/GCF_000001.1/genomic.fna",
+    content=">fake\nACGT\n",
+):
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr(member, ">fake\nACGT\n")
+        archive.writestr(member, content)
 
 
 def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
@@ -562,7 +566,7 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
 ):
     zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
     plan = tmp_path / "bounded_download_smoke_plan.tsv"
-    _write_zip(zip_path)
+    _write_zip(zip_path, content=">contig1\nACGTNN\n>contig2\nACGT\n")
     _write_download_plan(
         plan,
         [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
@@ -582,6 +586,11 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["zip_exists_count"] == 1
     assert summary["zip_valid_count"] == 1
     assert summary["genome_fasta_present_count"] == 1
+    assert summary["genome_fasta_member_count"] == 1
+    assert summary["fasta_record_count"] == 2
+    assert summary["fasta_total_bases"] == 10
+    assert summary["fasta_longest_record_bases"] == 6
+    assert summary["fasta_ambiguous_bases"] == 2
     assert summary["status_counts"] == {"genome_fasta_present": 1}
     assert summary["ready"] is True
 
@@ -670,6 +679,11 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["status"] == "genome_fasta_present"
     assert rows[0]["zip_valid"] == "true"
     assert rows[0]["genome_fasta_present"] == "true"
+    assert rows[0]["genome_fasta_member_count"] == "1"
+    assert rows[0]["fasta_record_count"] == "1"
+    assert rows[0]["fasta_total_bases"] == "4"
+    assert rows[0]["fasta_longest_record_bases"] == "4"
+    assert rows[0]["fasta_ambiguous_bases"] == "0"
     assert summary["ready"] is True
 
 
