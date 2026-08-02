@@ -2107,7 +2107,7 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "kind": "choice",
             "required": False,
             "repeatable": False,
-            "purpose": "select all, high, or readiness-recommended rows",
+            "purpose": "select all, high, or readiness-recommended rows; defaults to recommended",
         },
         {
             "name": "--inspection-min-fasta-n50-bases",
