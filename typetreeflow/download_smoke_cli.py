@@ -39,6 +39,7 @@ INSPECTION_FIELDS = [
     "fasta_record_count",
     "fasta_total_bases",
     "fasta_longest_record_bases",
+    "fasta_n50_bases",
     "fasta_ambiguous_bases",
     "fasta_fragmentation_signal",
     "status",
@@ -329,6 +330,9 @@ def inspect_bounded_download_smoke_outputs(
         "fasta_longest_record_bases": max(
             [int(row["fasta_longest_record_bases"]) for row in inspections] or [0]
         ),
+        "fasta_max_n50_bases": max(
+            [int(row["fasta_n50_bases"]) for row in inspections] or [0]
+        ),
         "fasta_ambiguous_bases": sum(
             int(row["fasta_ambiguous_bases"]) for row in inspections
         ),
@@ -394,6 +398,7 @@ def _empty_fasta_stats() -> dict[str, int]:
         "fasta_record_count": 0,
         "fasta_total_bases": 0,
         "fasta_longest_record_bases": 0,
+        "fasta_n50_bases": 0,
         "fasta_ambiguous_bases": 0,
     }
 
@@ -413,6 +418,7 @@ def _classify_fasta_fragmentation(fasta_stats: dict[str, int]) -> str:
 
 def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
     stats = _empty_fasta_stats()
+    record_lengths: list[int] = []
     with zipfile.ZipFile(zip_path) as archive:
         for member in archive.namelist():
             if member.endswith("/") or Path(member).suffix.lower() not in {
@@ -422,7 +428,8 @@ def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
             }:
                 continue
             stats["genome_fasta_member_count"] += 1
-            member_stats = _inspect_fasta_member(archive, member)
+            member_stats, member_lengths = _inspect_fasta_member(archive, member)
+            record_lengths.extend(member_lengths)
             stats["fasta_record_count"] += member_stats["fasta_record_count"]
             stats["fasta_total_bases"] += member_stats["fasta_total_bases"]
             stats["fasta_longest_record_bases"] = max(
@@ -430,18 +437,20 @@ def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
                 member_stats["fasta_longest_record_bases"],
             )
             stats["fasta_ambiguous_bases"] += member_stats["fasta_ambiguous_bases"]
+    stats["fasta_n50_bases"] = _calculate_n50(record_lengths)
     return stats
 
 
 def _inspect_fasta_member(
     archive: zipfile.ZipFile,
     member: str,
-) -> dict[str, int]:
+) -> tuple[dict[str, int], list[int]]:
     record_count = 0
     total_bases = 0
     longest_record = 0
     ambiguous_bases = 0
     current_record_bases = 0
+    record_lengths: list[int] = []
     with archive.open(member) as handle:
         for raw_line in handle:
             line = raw_line.decode("utf-8", errors="ignore").strip()
@@ -450,6 +459,7 @@ def _inspect_fasta_member(
             if line.startswith(">"):
                 if record_count:
                     longest_record = max(longest_record, current_record_bases)
+                    record_lengths.append(current_record_bases)
                 record_count += 1
                 current_record_bases = 0
                 continue
@@ -461,12 +471,32 @@ def _inspect_fasta_member(
             )
     if record_count:
         longest_record = max(longest_record, current_record_bases)
-    return {
-        "fasta_record_count": record_count,
-        "fasta_total_bases": total_bases,
-        "fasta_longest_record_bases": longest_record,
-        "fasta_ambiguous_bases": ambiguous_bases,
-    }
+        record_lengths.append(current_record_bases)
+    return (
+        {
+            "fasta_record_count": record_count,
+            "fasta_total_bases": total_bases,
+            "fasta_longest_record_bases": longest_record,
+            "fasta_ambiguous_bases": ambiguous_bases,
+        },
+        record_lengths,
+    )
+
+
+def _calculate_n50(record_lengths: list[int]) -> int:
+    positive_lengths = sorted(
+        (length for length in record_lengths if length > 0),
+        reverse=True,
+    )
+    if not positive_lengths:
+        return 0
+    half_total = (sum(positive_lengths) + 1) // 2
+    running = 0
+    for length in positive_lengths:
+        running += length
+        if running >= half_total:
+            return length
+    return 0
 
 
 def _resolve_quality_tier(quality_tier: str, readiness: dict[str, object]) -> str:
@@ -629,6 +659,7 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                     "fasta_longest_record_bases": row[
                         "fasta_longest_record_bases"
                     ],
+                    "fasta_n50_bases": row["fasta_n50_bases"],
                     "fasta_ambiguous_bases": row["fasta_ambiguous_bases"],
                     "fasta_fragmentation_signal": row[
                         "fasta_fragmentation_signal"

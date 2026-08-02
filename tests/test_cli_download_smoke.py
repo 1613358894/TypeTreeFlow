@@ -590,6 +590,7 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["fasta_record_count"] == 2
     assert summary["fasta_total_bases"] == 10
     assert summary["fasta_longest_record_bases"] == 6
+    assert summary["fasta_max_n50_bases"] == 6
     assert summary["fasta_ambiguous_bases"] == 2
     assert summary["fasta_fragmentation_signal_counts"] == {
         "multi_record_fragmented": 1
@@ -686,9 +687,11 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["fasta_record_count"] == "1"
     assert rows[0]["fasta_total_bases"] == "4"
     assert rows[0]["fasta_longest_record_bases"] == "4"
+    assert rows[0]["fasta_n50_bases"] == "4"
     assert rows[0]["fasta_ambiguous_bases"] == "0"
     assert rows[0]["fasta_fragmentation_signal"] == "single_record"
     assert summary["ready"] is True
+    assert summary["fasta_max_n50_bases"] == 4
     assert summary["fasta_fragmentation_signal_counts"] == {"single_record": 1}
 
 

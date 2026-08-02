@@ -313,6 +313,7 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "fasta_record_count",
     "fasta_total_bases",
     "fasta_longest_record_bases",
+    "fasta_max_n50_bases",
     "fasta_ambiguous_bases",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
@@ -4731,6 +4732,10 @@ def build_run_summary_markdown(
                     (
                         "- Longest FASTA record bases: "
                         f"{download_smoke_inspection_audit.counts.get('fasta_longest_record_bases', 0)}"
+                    ),
+                    (
+                        "- Max FASTA N50 bases: "
+                        f"{download_smoke_inspection_audit.counts.get('fasta_max_n50_bases', 0)}"
                     ),
                     (
                         "- FASTA fragmentation signals: "
