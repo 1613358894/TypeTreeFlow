@@ -626,6 +626,12 @@ and focused tests. Do not run live LPSN, NCBI, Entrez, provider lookups,
 datasets downloads, `barrnap`, `fastANI`, `MAFFT`, `trimAl`, or `IQ-TREE`
 unless the task explicitly asks for them.
 
+`download-smoke inspect` and the matching `--download-smoke-inspection-dir`
+report/package surface are local audit steps. They may inspect or package
+already-created bounded smoke ZIP artifacts, but they do not authorize
+unattended downloads, rerun `datasets`, extract ZIPs, mutate manifests, contact
+providers, or create strict scientific deliverables.
+
 ## Provider Boundary
 
 Provider planning is a review handoff only. It must not imply login, scraping,

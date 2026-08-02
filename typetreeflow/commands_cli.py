@@ -51,6 +51,7 @@ _AUDIT_DIR_RENDER_FIELDS = (
     ("archive_candidates_dir", "--archive-candidates-dir"),
     ("offline_readiness_dir", "--offline-readiness-dir"),
     ("strict_gating_dir", "--strict-gating-dir"),
+    ("download_smoke_inspection_dir", "--download-smoke-inspection-dir"),
 )
 _VERIFY_GENUS_LOCAL_RENDER_FIELDS = (
     ("species_checklist", "--species-checklist"),

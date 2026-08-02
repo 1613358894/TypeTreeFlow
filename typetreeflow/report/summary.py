@@ -22,6 +22,12 @@ from typetreeflow.completion_gaps import (
     read_completion_gap_records,
     summarize_completion_gap_records,
 )
+from typetreeflow.download_smoke_cli import (
+    INSPECTION_FIELDS as DOWNLOAD_SMOKE_INSPECTION_FIELDS,
+    INSPECTION_SCHEMA_VERSION as DOWNLOAD_SMOKE_INSPECTION_SCHEMA_VERSION,
+    OUTPUT_INSPECTION_NAME as DOWNLOAD_SMOKE_INSPECTION_NAME,
+    OUTPUT_INSPECTION_SUMMARY_NAME as DOWNLOAD_SMOKE_INSPECTION_SUMMARY_NAME,
+)
 from typetreeflow.expanded_discovery import (
     count_taxonomy_derived_plan_rows,
     read_manual_supplement_hints,
@@ -292,6 +298,17 @@ STRICT_GATING_COUNT_FIELDS = (
     "diagnostic_count",
 )
 STRICT_GATING_MAX_BYTES = 5 * 1024 * 1024
+DOWNLOAD_SMOKE_INSPECTION_MEMBERS = (
+    DOWNLOAD_SMOKE_INSPECTION_SUMMARY_NAME,
+    DOWNLOAD_SMOKE_INSPECTION_NAME,
+)
+DOWNLOAD_SMOKE_INSPECTION_COUNT_FIELDS = (
+    "selected_row_count",
+    "zip_exists_count",
+    "zip_valid_count",
+    "genome_fasta_present_count",
+)
+DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES = 5 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -439,6 +456,164 @@ class StrictGatingAuditSummary:
     present_files: list[str]
     warnings: list[str]
     top_codes: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
+class DownloadSmokeInspectionAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    status_counts: list[tuple[str, int]]
+    blockers: list[str]
+
+
+def read_optional_download_smoke_inspection_audit(
+    directory: str | Path | None,
+) -> DownloadSmokeInspectionAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name for name in DOWNLOAD_SMOKE_INSPECTION_MEMBERS if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    summary_data: dict[str, object] | None = None
+    summary_status_counts: Counter[str] = Counter()
+    row_status_counts: Counter[str] = Counter()
+    blockers: list[str] = []
+    observed_rows: int | None = None
+
+    missing = [name for name in DOWNLOAD_SMOKE_INSPECTION_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / DOWNLOAD_SMOKE_INSPECTION_SUMMARY_NAME
+    if summary_path.exists():
+        try:
+            _validate_download_smoke_inspection_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != DOWNLOAD_SMOKE_INSPECTION_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            for field in DOWNLOAD_SMOKE_INSPECTION_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            if loaded.get("safe_for_unattended_download") is not False:
+                raise ValueError("safe_for_unattended_download boundary violation")
+            if loaded.get("downloads_triggered") != 0:
+                raise ValueError("downloads_triggered boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("network_access") is not False:
+                raise ValueError("network_access boundary violation")
+            if loaded.get("external_tools") is not False:
+                raise ValueError("external_tools boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            raw_status_counts = loaded.get("status_counts", {})
+            if not isinstance(raw_status_counts, dict):
+                raise ValueError("invalid status_counts")
+            for status, value in raw_status_counts.items():
+                if (
+                    not isinstance(status, str)
+                    or not status.strip()
+                    or isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value < 0
+                ):
+                    raise ValueError("invalid status_counts")
+                summary_status_counts[status.strip()] = value
+            raw_blockers = loaded.get("blockers", [])
+            if not isinstance(raw_blockers, list) or any(
+                not isinstance(item, str) or not item.strip() for item in raw_blockers
+            ):
+                raise ValueError("invalid blockers")
+            blockers = [item.strip() for item in raw_blockers]
+            summary_data = loaded
+            counts = {
+                **{
+                    field: loaded[field]
+                    for field in DOWNLOAD_SMOKE_INSPECTION_COUNT_FIELDS
+                },
+                "ready": loaded.get("ready") is True,
+                "safe_for_unattended_download": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+            }
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append(f"{DOWNLOAD_SMOKE_INSPECTION_SUMMARY_NAME} malformed")
+
+    rows_path = input_dir / DOWNLOAD_SMOKE_INSPECTION_NAME
+    if rows_path.exists():
+        try:
+            rows = _read_download_smoke_inspection_tsv(rows_path)
+            observed_rows = len(rows)
+            for row in rows:
+                for field in ("zip_exists", "zip_valid", "genome_fasta_present"):
+                    if row.get(field) not in {"true", "false"}:
+                        raise ValueError("invalid boolean field")
+                status = row.get("status", "").strip()
+                if not status:
+                    raise ValueError("missing status")
+                row_status_counts[status] += 1
+            valid_files.append(rows_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{DOWNLOAD_SMOKE_INSPECTION_NAME} malformed")
+
+    if summary_data is not None:
+        if (
+            observed_rows is not None
+            and summary_data["selected_row_count"] != observed_rows
+        ):
+            warnings.append("selected_row_count does not match inspection rows")
+        if row_status_counts and summary_status_counts != row_status_counts:
+            warnings.append("status_counts do not match inspection rows")
+
+    displayed_status_counts = summary_status_counts or row_status_counts
+    return DownloadSmokeInspectionAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        status_counts=sorted(
+            displayed_status_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+        blockers=blockers[:5],
+    )
+
+
+def _validate_download_smoke_inspection_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_download_smoke_inspection_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_download_smoke_inspection_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != tuple(DOWNLOAD_SMOKE_INSPECTION_FIELDS):
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
 
 
 def read_optional_strict_gating_audit(
@@ -3222,6 +3397,9 @@ def build_run_summary_markdown(
     strict_gating_audit = read_optional_strict_gating_audit(
         getattr(args, "strict_gating_dir", None)
     )
+    download_smoke_inspection_audit = read_optional_download_smoke_inspection_audit(
+        getattr(args, "download_smoke_inspection_dir", None)
+    )
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -4424,6 +4602,80 @@ def build_run_summary_markdown(
                         "and does not authorize unattended downloads or change "
                         "strict scientific deliverable policy."
                     ),
+                ]
+            )
+
+    if download_smoke_inspection_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Bounded Download Smoke Inspection",
+                "",
+                (
+                    "This section is audit-only and summarizes a separately "
+                    "authorized bounded download smoke inspection. It reads "
+                    "local inspection outputs only; it does not run datasets, "
+                    "download genomes, extract ZIPs, contact providers, mutate "
+                    "manifests, or create strict scientific deliverables."
+                ),
+            ]
+        )
+        if download_smoke_inspection_audit.counts:
+            lines.extend(
+                [
+                    (
+                        "- Selected smoke rows: "
+                        f"{download_smoke_inspection_audit.counts.get('selected_row_count', 0)}"
+                    ),
+                    (
+                        "- ZIPs present: "
+                        f"{download_smoke_inspection_audit.counts.get('zip_exists_count', 0)}"
+                    ),
+                    (
+                        "- Valid ZIPs: "
+                        f"{download_smoke_inspection_audit.counts.get('zip_valid_count', 0)}"
+                    ),
+                    (
+                        "- Genome FASTA present: "
+                        f"{download_smoke_inspection_audit.counts.get('genome_fasta_present_count', 0)}"
+                    ),
+                    (
+                        "- Ready for bounded smoke review: "
+                        f"{str(download_smoke_inspection_audit.counts.get('ready', False)).lower()}"
+                    ),
+                ]
+            )
+        if download_smoke_inspection_audit.warnings:
+            lines.append(
+                "- Warning: " + "; ".join(download_smoke_inspection_audit.warnings)
+            )
+        if download_smoke_inspection_audit.present_files:
+            lines.append(
+                "- Audit files present: "
+                + "; ".join(download_smoke_inspection_audit.present_files)
+            )
+        if download_smoke_inspection_audit.status_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Inspection Status | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(status)} | {count} |"
+                        for status, count in download_smoke_inspection_audit.status_counts
+                    ],
+                ]
+            )
+        if download_smoke_inspection_audit.blockers:
+            lines.extend(
+                [
+                    "",
+                    "| Blocker |",
+                    "| --- |",
+                    *[
+                        f"| {_markdown_cell(blocker)} |"
+                        for blocker in download_smoke_inspection_audit.blockers
+                    ],
                 ]
             )
 

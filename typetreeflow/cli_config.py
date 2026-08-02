@@ -258,6 +258,15 @@ def build_app_config_from_args(
             "--strict-gating-dir is only supported with --report-only "
             "or package-results."
         )
+    if (
+        args.download_smoke_inspection_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
+        raise ValueError(
+            "--download-smoke-inspection-dir is only supported with "
+            "--report-only or package-results."
+        )
     load_env_files(args.env_file)
     _validate_bacdive_args(args, verify_genus=verify_genus)
     query_genomes = tuple(args.query_genome or ())
@@ -371,4 +380,5 @@ def build_app_config_from_args(
         archive_candidates_dir=args.archive_candidates_dir,
         offline_readiness_dir=args.offline_readiness_dir,
         strict_gating_dir=args.strict_gating_dir,
+        download_smoke_inspection_dir=args.download_smoke_inspection_dir,
     )

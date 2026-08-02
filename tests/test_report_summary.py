@@ -70,6 +70,7 @@ from typetreeflow.report.summary import (
     read_optional_acquisition_worklist_audit,
     read_optional_archive_candidates_audit,
     read_optional_coverage_plan_audit,
+    read_optional_download_smoke_inspection_audit,
     read_optional_external_genomes_install_plan_audit,
     read_optional_manual_review_import_audit,
     read_optional_offline_readiness_audit,
@@ -197,6 +198,140 @@ def _write_strict_gating_triplet(directory: Path) -> None:
                     "message": f"private-message-{index}",
                 }
             )
+
+
+def _write_download_smoke_inspection_pair(directory: Path) -> None:
+    directory.mkdir(parents=True)
+    (directory / "bounded_download_smoke_inspection_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "bounded_download_smoke_inspection_summary.v1",
+                "command": "download-smoke inspect",
+                "source_download_plan_path": "bounded_download_smoke_plan.tsv",
+                "selected_row_count": 2,
+                "zip_exists_count": 1,
+                "zip_valid_count": 1,
+                "genome_fasta_present_count": 1,
+                "status_counts": {"genome_fasta_present": 1, "zip_missing": 1},
+                "ready": False,
+                "blockers": ["missing_zip_outputs"],
+                "execution_boundary": (
+                    "local_zip_inspection_only_no_download_no_network_no_extraction"
+                ),
+                "safe_for_unattended_download": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "summary": "Bounded NCBI download smoke ZIP outputs are not ready.",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    header = [
+        "record_id",
+        "assembly_accession",
+        "zip_path",
+        "zip_exists",
+        "zip_valid",
+        "genome_fasta_present",
+        "status",
+    ]
+    (directory / "bounded_download_smoke_inspection.tsv").write_text(
+        "\t".join(header)
+        + "\n"
+        + "ref1\tGCF_000001\tlocal/ref1.zip\ttrue\ttrue\ttrue\tgenome_fasta_present\n"
+        + "ref2\tGCF_000002\tlocal/ref2.zip\tfalse\tfalse\tfalse\tzip_missing\n",
+        encoding="utf-8",
+    )
+
+
+def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    inspection_dir = tmp_path / "inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(download_smoke_inspection_dir=inspection_dir),
+    )
+
+    assert "## Bounded Download Smoke Inspection" in markdown
+    assert "- Selected smoke rows: 2" in markdown
+    assert "- ZIPs present: 1" in markdown
+    assert "- Valid ZIPs: 1" in markdown
+    assert "- Genome FASTA present: 1" in markdown
+    assert "- Ready for bounded smoke review: false" in markdown
+    assert "| genome_fasta_present | 1 |" in markdown
+    assert "| zip_missing | 1 |" in markdown
+    assert "| missing_zip_outputs |" in markdown
+    assert "does not run datasets" in markdown
+    assert "download genomes" in markdown
+    assert "create strict scientific deliverables" in markdown
+    assert "local/ref1.zip" not in markdown
+
+
+def test_download_smoke_inspection_absent_without_explicit_input_or_empty_dir(
+    tmp_path,
+):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    for args in (
+        None,
+        SimpleNamespace(download_smoke_inspection_dir=tmp_path / "missing"),
+        SimpleNamespace(download_smoke_inspection_dir=empty),
+    ):
+        markdown = build_run_summary_markdown(
+            [_record("ref1")],
+            get_output_paths(tmp_path / "run"),
+            args,
+        )
+        assert "Bounded Download Smoke Inspection" not in markdown
+
+
+def test_download_smoke_inspection_partial_malformed_summary_warns(tmp_path):
+    inspection_dir = tmp_path / "inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+    (inspection_dir / "bounded_download_smoke_inspection_summary.json").write_text(
+        '{"schema_version":"wrong","safe_for_unattended_download":true}',
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(download_smoke_inspection_dir=inspection_dir),
+    )
+
+    assert "## Bounded Download Smoke Inspection" in markdown
+    assert "bounded_download_smoke_inspection_summary.json malformed" in markdown
+    assert "| genome_fasta_present | 1 |" in markdown
+    assert "| zip_missing | 1 |" in markdown
+
+
+def test_download_smoke_inspection_reader_does_not_access_env_or_socket(
+    tmp_path, monkeypatch
+):
+    inspection_dir = tmp_path / "inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+
+    def fail_getenv(*args, **kwargs):
+        raise AssertionError("reader must not access environment")
+
+    monkeypatch.setattr("os.getenv", fail_getenv)
+
+    audit = read_optional_download_smoke_inspection_audit(inspection_dir)
+
+    assert audit is not None
+    assert audit.counts["downloads_triggered"] == 0
+    assert audit.counts["strict_scientific_deliverable"] is False
 
 
 def test_strict_gating_audit_section_is_explicit_bounded_and_audit_only(tmp_path):
