@@ -319,6 +319,7 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "fasta_header_scaffold_keyword_count",
     "fasta_header_contig_keyword_count",
     "empty_genome_fasta_count",
+    "multiple_genome_fasta_members_count",
     "min_fasta_n50_bases",
     "max_fasta_record_count",
     "max_fasta_ambiguous_bases",
@@ -389,6 +390,27 @@ DOWNLOAD_SMOKE_PRE_EMPTY_FASTA_INSPECTION_FIELDS = (
     "fasta_header_wgs_keyword_count",
     "fasta_header_scaffold_keyword_count",
     "fasta_header_contig_keyword_count",
+    "fasta_fragmentation_signal",
+    "fasta_quality_gate_blockers",
+    "status",
+)
+DOWNLOAD_SMOKE_PRE_MULTIPLE_FASTA_MEMBER_INSPECTION_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "zip_path",
+    "zip_exists",
+    "zip_valid",
+    "genome_fasta_present",
+    "genome_fasta_member_count",
+    "fasta_record_count",
+    "fasta_total_bases",
+    "fasta_longest_record_bases",
+    "fasta_n50_bases",
+    "fasta_ambiguous_bases",
+    "fasta_header_wgs_keyword_count",
+    "fasta_header_scaffold_keyword_count",
+    "fasta_header_contig_keyword_count",
+    "empty_genome_fasta_count",
     "fasta_fragmentation_signal",
     "fasta_quality_gate_blockers",
     "status",
@@ -772,6 +794,7 @@ def _read_download_smoke_inspection_tsv(path: Path) -> list[dict[str, str]]:
         fieldnames = tuple(reader.fieldnames or ())
         if fieldnames not in (
             tuple(DOWNLOAD_SMOKE_INSPECTION_FIELDS),
+            DOWNLOAD_SMOKE_PRE_MULTIPLE_FASTA_MEMBER_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_PRE_EMPTY_FASTA_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_PRE_GATE_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS,
@@ -4848,6 +4871,7 @@ def build_run_summary_markdown(
                     (
                         "- FASTA quality gate hits: "
                         f"empty_genome_fasta={download_smoke_inspection_audit.counts.get('empty_genome_fasta_count', 0)}, "
+                        f"multiple_genome_fasta_members={download_smoke_inspection_audit.counts.get('multiple_genome_fasta_members_count', 0)}, "
                         f"n50_below_minimum={download_smoke_inspection_audit.counts.get('fasta_n50_below_minimum_count', 0)}, "
                         f"record_count_above_maximum={download_smoke_inspection_audit.counts.get('fasta_record_count_above_maximum_count', 0)}, "
                         f"total_bases_below_minimum={download_smoke_inspection_audit.counts.get('fasta_total_bases_below_minimum_count', 0)}, "

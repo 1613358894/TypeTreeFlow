@@ -45,6 +45,7 @@ INSPECTION_FIELDS = [
     "fasta_header_scaffold_keyword_count",
     "fasta_header_contig_keyword_count",
     "empty_genome_fasta_count",
+    "multiple_genome_fasta_members_count",
     "fasta_fragmentation_signal",
     "fasta_quality_gate_blockers",
     "status",
@@ -539,8 +540,16 @@ def inspect_bounded_download_smoke_outputs(
         if row["genome_fasta_present"]
         and str(row["status"]) == "genome_fasta_empty"
     )
+    multiple_genome_fasta_members_count = sum(
+        1
+        for row in inspections
+        if row["genome_fasta_present"]
+        and int(row["genome_fasta_member_count"]) > 1
+    )
     if empty_genome_fasta_count:
         blockers.append("empty_genome_fasta_outputs")
+    if multiple_genome_fasta_members_count:
+        blockers.append("multiple_genome_fasta_members")
     if n50_below_minimum_count:
         blockers.append("fasta_n50_below_minimum")
     if record_count_above_maximum_count:
@@ -611,6 +620,7 @@ def inspect_bounded_download_smoke_outputs(
             int(row["fasta_header_contig_keyword_count"]) for row in inspections
         ),
         "empty_genome_fasta_count": empty_genome_fasta_count,
+        "multiple_genome_fasta_members_count": multiple_genome_fasta_members_count,
         "fasta_fragmentation_signal_counts": dict(
             sorted(fragmentation_signal_counts.items())
         ),
@@ -686,6 +696,8 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         status = "genome_fasta_missing"
     elif _fasta_stats_are_empty(fasta_stats):
         status = "genome_fasta_empty"
+    elif int(fasta_stats["genome_fasta_member_count"]) > 1:
+        status = "genome_fasta_multiple_members"
     else:
         status = "genome_fasta_present"
     return {
@@ -699,6 +711,11 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         "empty_genome_fasta_count": int(_fasta_stats_are_empty(fasta_stats))
         if genome_fasta_present
         else 0,
+        "multiple_genome_fasta_members_count": (
+            int(int(fasta_stats["genome_fasta_member_count"]) > 1)
+            if genome_fasta_present
+            else 0
+        ),
         "fasta_fragmentation_signal": _classify_fasta_fragmentation(fasta_stats),
         "fasta_quality_gate_blockers": "",
         "status": status,
@@ -1091,6 +1108,9 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                         "fasta_header_contig_keyword_count"
                     ],
                     "empty_genome_fasta_count": row["empty_genome_fasta_count"],
+                    "multiple_genome_fasta_members_count": row[
+                        "multiple_genome_fasta_members_count"
+                    ],
                     "fasta_fragmentation_signal": row[
                         "fasta_fragmentation_signal"
                     ],

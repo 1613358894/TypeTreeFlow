@@ -2541,6 +2541,7 @@ def _valid_server_validation_result():
         "download_smoke_inspection_fasta_longest_record_bases": 1234567,
         "download_smoke_inspection_fasta_max_n50_bases": 765432,
         "download_smoke_inspection_empty_genome_fasta_count": 1,
+        "download_smoke_inspection_multiple_genome_fasta_members_count": 1,
         "download_smoke_inspection_fasta_n50_below_minimum_count": 1,
         "download_smoke_inspection_fasta_record_count_above_maximum_count": 1,
         "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count": 1,
@@ -2552,6 +2553,7 @@ def _valid_server_validation_result():
         "download_smoke_inspection_fasta_quality_gate_blocked_row_count": 1,
         "download_smoke_inspection_fasta_quality_gate_blocker_counts": {
             "empty_genome_fasta_outputs": 1,
+            "multiple_genome_fasta_members": 1,
             "fasta_ambiguous_bases_above_maximum": 1,
             "fasta_longest_record_below_minimum": 1,
             "fasta_n50_below_minimum": 1,
@@ -2603,6 +2605,7 @@ def _expected_download_smoke_inspection_result_defaults():
         "download_smoke_inspection_fasta_longest_record_bases": 0,
         "download_smoke_inspection_fasta_max_n50_bases": 0,
         "download_smoke_inspection_empty_genome_fasta_count": 0,
+        "download_smoke_inspection_multiple_genome_fasta_members_count": 0,
         "download_smoke_inspection_fasta_n50_below_minimum_count": 0,
         "download_smoke_inspection_fasta_record_count_above_maximum_count": 0,
         "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count": 0,
@@ -2673,6 +2676,7 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["download_smoke_inspection_fasta_total_bases"] == 3123456
     assert payload["download_smoke_inspection_fasta_max_n50_bases"] == 765432
     assert payload["download_smoke_inspection_empty_genome_fasta_count"] == 1
+    assert payload["download_smoke_inspection_multiple_genome_fasta_members_count"] == 1
     assert payload["download_smoke_inspection_fasta_n50_below_minimum_count"] == 1
     assert (
         payload[
@@ -2703,6 +2707,7 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["download_smoke_inspection_fasta_quality_gate_blocked_row_count"] == 1
     assert payload["download_smoke_inspection_fasta_quality_gate_blocker_counts"] == {
         "empty_genome_fasta_outputs": 1,
+        "multiple_genome_fasta_members": 1,
         "fasta_ambiguous_bases_above_maximum": 1,
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
@@ -2797,6 +2802,7 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     result["download_smoke_inspection_summary_sha256"] = ["not", "a", "string"]
     result["download_smoke_inspection_selected_row_count"] = "2"
     result["download_smoke_inspection_empty_genome_fasta_count"] = -1
+    result["download_smoke_inspection_multiple_genome_fasta_members_count"] = -1
     result["download_smoke_inspection_fasta_n50_below_minimum_count"] = -1
     result[
         "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count"
@@ -2834,6 +2840,7 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
         "download_smoke_inspection_fasta_n50_below_minimum_count",
         "download_smoke_inspection_fasta_quality_gate_blocker_counts",
         "download_smoke_inspection_fasta_total_bases_below_minimum_count",
+        "download_smoke_inspection_multiple_genome_fasta_members_count",
         "download_smoke_inspection_quality_gate_recommendation",
         "download_smoke_inspection_quality_gate_recommendation_reasons",
         "download_smoke_inspection_ready",
@@ -2861,6 +2868,7 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["download_smoke_inspection_summary_sha256"] == ""
     assert payload["download_smoke_inspection_selected_row_count"] == 0
     assert payload["download_smoke_inspection_empty_genome_fasta_count"] == 0
+    assert payload["download_smoke_inspection_multiple_genome_fasta_members_count"] == 0
     assert (
         payload[
             "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count"
@@ -6053,6 +6061,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     result_template["download_smoke_inspection_zip_valid_count"] = 1
     result_template["download_smoke_inspection_genome_fasta_present_count"] = 1
     result_template["download_smoke_inspection_empty_genome_fasta_count"] = 1
+    result_template["download_smoke_inspection_multiple_genome_fasta_members_count"] = 1
     result_template["download_smoke_inspection_fasta_n50_below_minimum_count"] = 1
     result_template[
         "download_smoke_inspection_fasta_record_count_above_maximum_count"
@@ -6074,6 +6083,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     result_template["download_smoke_inspection_fasta_quality_gate_blocked_row_count"] = 1
     result_template["download_smoke_inspection_fasta_quality_gate_blocker_counts"] = {
         "empty_genome_fasta_outputs": 1,
+        "multiple_genome_fasta_members": 1,
         "fasta_ambiguous_bases_above_maximum": 1,
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
@@ -6147,6 +6157,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_artifact["download_smoke_inspection_zip_valid_count"] == 1
     assert result_artifact["download_smoke_inspection_genome_fasta_present_count"] == 1
     assert result_artifact["download_smoke_inspection_empty_genome_fasta_count"] == 1
+    assert result_artifact[
+        "download_smoke_inspection_multiple_genome_fasta_members_count"
+    ] == 1
     assert (
         result_artifact[
             "download_smoke_inspection_fasta_n50_below_minimum_count"
@@ -6175,6 +6188,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "download_smoke_inspection_fasta_quality_gate_blocker_counts"
     ] == {
         "empty_genome_fasta_outputs": 1,
+        "multiple_genome_fasta_members": 1,
         "fasta_ambiguous_bases_above_maximum": 1,
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
@@ -6275,6 +6289,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     )
     assert (
         result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_multiple_genome_fasta_members_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
             "handoff_server_validation_download_smoke_inspection_fasta_record_count_above_maximum_count"
         ]
         == 1
@@ -6325,6 +6345,7 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "handoff_server_validation_download_smoke_inspection_fasta_quality_gate_blocker_counts"
     ] == {
         "empty_genome_fasta_outputs": 1,
+        "multiple_genome_fasta_members": 1,
         "fasta_ambiguous_bases_above_maximum": 1,
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
