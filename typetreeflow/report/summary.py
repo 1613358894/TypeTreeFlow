@@ -426,6 +426,31 @@ DOWNLOAD_SMOKE_PRE_MULTIPLE_FASTA_MEMBER_INSPECTION_FIELDS = (
     "fasta_quality_gate_blockers",
     "status",
 )
+DOWNLOAD_SMOKE_PRE_ROW_READINESS_INSPECTION_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "zip_path",
+    "zip_exists",
+    "zip_valid",
+    "unsafe_zip_member_count",
+    "genome_fasta_present",
+    "genome_fasta_member_count",
+    "genomic_named_fasta_member_count",
+    "genome_fasta_install_selection_status",
+    "fasta_record_count",
+    "fasta_total_bases",
+    "fasta_longest_record_bases",
+    "fasta_n50_bases",
+    "fasta_ambiguous_bases",
+    "fasta_header_wgs_keyword_count",
+    "fasta_header_scaffold_keyword_count",
+    "fasta_header_contig_keyword_count",
+    "empty_genome_fasta_count",
+    "multiple_genome_fasta_members_count",
+    "fasta_fragmentation_signal",
+    "fasta_quality_gate_blockers",
+    "status",
+)
 
 
 @dataclass(frozen=True)
@@ -805,6 +830,7 @@ def _read_download_smoke_inspection_tsv(path: Path) -> list[dict[str, str]]:
         fieldnames = tuple(reader.fieldnames or ())
         if fieldnames not in (
             tuple(DOWNLOAD_SMOKE_INSPECTION_FIELDS),
+            DOWNLOAD_SMOKE_PRE_ROW_READINESS_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_PRE_MULTIPLE_FASTA_MEMBER_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_PRE_EMPTY_FASTA_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_PRE_GATE_INSPECTION_FIELDS,

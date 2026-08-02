@@ -60,6 +60,8 @@ INSPECTION_FIELDS = [
     "multiple_genome_fasta_members_count",
     "fasta_fragmentation_signal",
     "fasta_quality_gate_blockers",
+    "installable_genome_fasta_ready",
+    "installable_genome_fasta_not_ready_reasons",
     "status",
 ]
 FASTA_FRAGMENTATION_SIGNAL_NOT_EVALUATED = "not_evaluated"
@@ -479,17 +481,24 @@ def inspect_bounded_download_smoke_outputs(
     ]
     inspections = [_inspect_download_plan_row(row) for row in rows]
     for row in inspections:
-        row["fasta_quality_gate_blockers"] = ";".join(
-            _fasta_quality_gate_blockers(
-                row,
-                min_fasta_n50_bases=min_fasta_n50_bases,
-                max_fasta_record_count=max_fasta_record_count,
-                max_fasta_ambiguous_bases=max_fasta_ambiguous_bases,
-                min_fasta_total_bases=min_fasta_total_bases,
-                min_fasta_longest_record_bases=min_fasta_longest_record_bases,
-                block_fragmented_fasta=effective_fragmented_block,
-                block_fasta_header_keywords=effective_header_block,
-            )
+        row_quality_gate_blockers = _fasta_quality_gate_blockers(
+            row,
+            min_fasta_n50_bases=min_fasta_n50_bases,
+            max_fasta_record_count=max_fasta_record_count,
+            max_fasta_ambiguous_bases=max_fasta_ambiguous_bases,
+            min_fasta_total_bases=min_fasta_total_bases,
+            min_fasta_longest_record_bases=min_fasta_longest_record_bases,
+            block_fragmented_fasta=effective_fragmented_block,
+            block_fasta_header_keywords=effective_header_block,
+        )
+        row["fasta_quality_gate_blockers"] = ";".join(row_quality_gate_blockers)
+        row_not_ready_reasons = _installable_genome_fasta_not_ready_reasons(
+            row,
+            row_quality_gate_blockers,
+        )
+        row["installable_genome_fasta_ready"] = not row_not_ready_reasons
+        row["installable_genome_fasta_not_ready_reasons"] = ";".join(
+            row_not_ready_reasons
         )
     quality_gate_blocker_counts = _fasta_quality_gate_blocker_counts(inspections)
     quality_gate_blocked_row_count = sum(
@@ -828,6 +837,8 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         ),
         "fasta_fragmentation_signal": _classify_fasta_fragmentation(fasta_stats),
         "fasta_quality_gate_blockers": "",
+        "installable_genome_fasta_ready": False,
+        "installable_genome_fasta_not_ready_reasons": "",
         "status": status,
     }
 
@@ -903,6 +914,16 @@ def _installable_genome_fasta_not_ready_reason_counts(
     rows: Sequence[dict[str, object]],
 ) -> dict[str, int]:
     counts: dict[str, int] = {}
+    for row in rows:
+        for reason in _installable_genome_fasta_not_ready_reasons(row):
+            counts[reason] = counts.get(reason, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _installable_genome_fasta_not_ready_reasons(
+    row: dict[str, object],
+    quality_gate_blockers: Sequence[str] | None = None,
+) -> list[str]:
     status_reasons = {
         "zip_missing": "missing_zip_outputs",
         "zip_invalid": "invalid_zip_outputs",
@@ -913,21 +934,19 @@ def _installable_genome_fasta_not_ready_reason_counts(
             "genome_fasta_install_selection_ambiguous"
         ),
     }
-    for row in rows:
-        status = str(row.get("status", "")).strip()
-        if status == "genome_fasta_present":
-            raw_blockers = str(row.get("fasta_quality_gate_blockers", "")).strip()
-            if not raw_blockers:
-                continue
-            for blocker in raw_blockers.split(";"):
-                blocker = blocker.strip()
-                if blocker:
-                    counts[blocker] = counts.get(blocker, 0) + 1
-            continue
+    status = str(row.get("status", "")).strip()
+    if status != "genome_fasta_present":
         reason = status_reasons.get(status)
-        if reason:
-            counts[reason] = counts.get(reason, 0) + 1
-    return dict(sorted(counts.items()))
+        return [reason] if reason else []
+    blockers = list(quality_gate_blockers or [])
+    if not blockers:
+        raw_blockers = str(row.get("fasta_quality_gate_blockers", "")).strip()
+        blockers = [
+            blocker.strip()
+            for blocker in raw_blockers.split(";")
+            if blocker.strip()
+        ]
+    return sorted(dict.fromkeys(blockers))
 
 
 def _empty_fasta_stats() -> dict[str, int]:
@@ -1311,6 +1330,12 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                     ],
                     "fasta_quality_gate_blockers": row[
                         "fasta_quality_gate_blockers"
+                    ],
+                    "installable_genome_fasta_ready": str(
+                        bool(row["installable_genome_fasta_ready"])
+                    ).lower(),
+                    "installable_genome_fasta_not_ready_reasons": row[
+                        "installable_genome_fasta_not_ready_reasons"
                     ],
                     "status": row["status"],
                 }
