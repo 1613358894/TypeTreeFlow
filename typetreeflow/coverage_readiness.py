@@ -70,6 +70,7 @@ def build_coverage_acquisition_readiness_summary(
         "review_or_handoff_required_count": review_or_handoff_required_count,
         "recommended_acquisition_route": _recommended_acquisition_route(counts),
         "recommended_next_action": _recommended_next_action(counts),
+        "recommended_next_command": _recommended_next_command(counts),
         "queue_item_count": queue_item_count,
         "counts_are_exclusive": False,
         "download_ready_ncbi_count": counts["download_ready_ncbi"],
@@ -176,3 +177,26 @@ def _recommended_next_action(counts: Mapping[str, int]) -> str:
     if route == "operator_review":
         return "review remaining coverage queue items"
     return "no acquisition action available"
+
+
+def _recommended_next_command(counts: Mapping[str, int]) -> str:
+    route = _recommended_acquisition_route(counts)
+    if route == "ncbi_download_smoke":
+        return (
+            "typetreeflow download-smoke prepare --download-plan "
+            "<run>/cache/ncbi/download_plan.tsv --quality-tier recommended "
+            "--limit 1 --write --outdir <isolated-bounded-download-smoke-dir>"
+        )
+    if route == "external_genome_install_plan":
+        return (
+            "typetreeflow external-genomes install-plan --input "
+            "<external_genomes.tsv> --target-outdir <run> --write --outdir "
+            "<isolated-external-genomes-install-plan-dir>"
+        )
+    if route == "provider_handoff":
+        return (
+            "typetreeflow provider-request draft --provider-handoff-tsv "
+            "<provider_handoff.tsv> --write --outdir "
+            "<isolated-provider-request-dir>"
+        )
+    return ""
