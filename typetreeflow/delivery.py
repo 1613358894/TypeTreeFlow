@@ -11,6 +11,9 @@ from typing import Iterable
 
 from typetreeflow import __version__
 from typetreeflow.diagnostics import next_step_summary
+from typetreeflow.genomes.registration_quality import (
+    summarize_registration_fasta_quality,
+)
 from typetreeflow.manifest import read_manifest, resolve_manifest_path
 from typetreeflow.models import StrainRecord
 from typetreeflow.report.summary import (
@@ -920,6 +923,9 @@ def build_delivery_readme(
     record_list = list(records)
     type_counts = summarize_type_confirmation_counts(record_list)
     download_counts = _read_download_counts(paths.ncbi_download_results_path)
+    registration_quality_summary = _read_genome_registration_quality_summary(
+        paths.ncbi_genome_registration_results_path
+    )
     policy = _summarize_policy(record_list)
     acceptance = _selection_acceptance_status(paths)
     gtdb_audit = _read_gtdb_audit_if_available(paths)
@@ -1099,6 +1105,20 @@ def build_delivery_readme(
             "",
             f"- Download succeeded: {download_counts.get('succeeded', 0)}",
             f"- Download failed: {download_counts.get('failed', 0)}",
+        ]
+    )
+    if registration_quality_summary:
+        lines.append(
+            "- Genome registration FASTA quality: "
+            + _format_registration_quality_summary(registration_quality_summary)
+        )
+        lines.append(
+            "- Genome registration FASTA quality signals are count-only local "
+            "installation visibility; they do not change strict type-strain "
+            "status, completion, or evidence policy."
+        )
+    lines.extend(
+        [
             "",
             "## Missing Optional Files",
             "",
@@ -1165,6 +1185,9 @@ def build_handoff_index(
     record_list = list(records)
     type_counts = summarize_type_confirmation_counts(record_list)
     download_counts = _read_download_counts(paths.ncbi_download_results_path)
+    registration_quality_summary = _read_genome_registration_quality_summary(
+        paths.ncbi_genome_registration_results_path
+    )
     source_audit = _read_source_audit_for_handoff(paths)
     rrna_coverage = summarize_16s_coverage(record_list, source_audit)
     source_audit_summary = (
@@ -1229,6 +1252,13 @@ def build_handoff_index(
         ),
         f"- Report: {report_status}",
     ]
+    if registration_quality_summary:
+        lines.append(
+            "- Genome registration FASTA quality: "
+            + _format_registration_quality_summary(registration_quality_summary)
+            + "; count-only local installation visibility, not strict completion "
+            "or deliverable gating"
+        )
     if bacdive_review is not None:
         lines.append(
             "- BacDive candidate review: "
@@ -3628,6 +3658,39 @@ def _read_download_counts(path: Path) -> dict[str, int]:
             elif "failed" in status or status.endswith("_error"):
                 counts["failed"] += 1
     return counts
+
+
+def _read_genome_registration_quality_summary(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    try:
+        _allow_large_csv_fields()
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle, delimiter="\t"))
+    except (OSError, csv.Error, UnicodeDecodeError):
+        return {}
+    return summarize_registration_fasta_quality(rows)
+
+
+def _format_registration_quality_summary(summary: dict[str, object]) -> str:
+    return (
+        f"quality_rows={_summary_int(summary, 'quality_row_count')}; "
+        f"fragmented_rows={_summary_int(summary, 'fragmented_row_count')}; "
+        "wgs_scaffold_contig_keyword_rows="
+        f"{_summary_int(summary, 'header_fragment_keyword_row_count')}; "
+        f"max_record_count={_summary_int(summary, 'max_record_count')}; "
+        f"min_n50_bases={_summary_int(summary, 'min_n50_bases')}; "
+        f"max_ambiguous_bases={_summary_int(summary, 'max_ambiguous_bases')}"
+    )
+
+
+def _summary_int(summary: dict[str, object], key: str) -> int:
+    value = summary.get(key)
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    return 0
 
 
 def _allow_large_csv_fields() -> None:
