@@ -184,6 +184,8 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
                 "50000",
                 "--inspection-max-fasta-record-count",
                 "10",
+                "--inspection-max-fasta-ambiguous-bases",
+                "100",
                 "--inspection-min-fasta-total-bases",
                 "3000000",
                 "--inspection-min-fasta-longest-record-bases",
@@ -204,6 +206,7 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
     )
     assert summary["inspection_min_fasta_n50_bases"] == 50000
     assert summary["inspection_max_fasta_record_count"] == 10
+    assert summary["inspection_max_fasta_ambiguous_bases"] == 100
     assert summary["inspection_min_fasta_total_bases"] == 3000000
     assert summary["inspection_min_fasta_longest_record_bases"] == 100000
     assert summary["inspection_block_fragmented_fasta"] is True
@@ -218,6 +221,8 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
         "50000",
         "--max-fasta-record-count",
         "10",
+        "--max-fasta-ambiguous-bases",
+        "100",
         "--min-fasta-total-bases",
         "3000000",
         "--min-fasta-longest-record-bases",
@@ -753,6 +758,8 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
                 "7",
                 "--max-fasta-record-count",
                 "1",
+                "--max-fasta-ambiguous-bases",
+                "1",
                 "--min-fasta-total-bases",
                 "11",
                 "--min-fasta-longest-record-bases",
@@ -771,6 +778,7 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["blockers"] == [
         "fasta_n50_below_minimum",
         "fasta_record_count_above_maximum",
+        "fasta_ambiguous_bases_above_maximum",
         "fasta_total_bases_below_minimum",
         "fasta_longest_record_below_minimum",
         "fragmented_fasta_signal",
@@ -778,12 +786,14 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     ]
     assert summary["min_fasta_n50_bases"] == 7
     assert summary["max_fasta_record_count"] == 1
+    assert summary["max_fasta_ambiguous_bases"] == 1
     assert summary["min_fasta_total_bases"] == 11
     assert summary["min_fasta_longest_record_bases"] == 7
     assert summary["block_fragmented_fasta"] is True
     assert summary["block_fasta_header_keywords"] is True
     assert summary["fasta_n50_below_minimum_count"] == 1
     assert summary["fasta_record_count_above_maximum_count"] == 1
+    assert summary["fasta_ambiguous_bases_above_maximum_count"] == 1
     assert summary["fasta_total_bases_below_minimum_count"] == 1
     assert summary["fasta_longest_record_below_minimum_count"] == 1
     assert summary["fragmented_fasta_signal_count"] == 1
@@ -792,6 +802,7 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["fasta_quality_gate_blocked_row_count"] == 1
     assert summary["fasta_quality_gate_blocker_counts"] == {
         "fasta_header_fragment_keywords": 1,
+        "fasta_ambiguous_bases_above_maximum": 1,
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
         "fasta_record_count_above_maximum": 1,
@@ -837,6 +848,8 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
                 "7",
                 "--max-fasta-record-count",
                 "1",
+                "--max-fasta-ambiguous-bases",
+                "1",
                 "--min-fasta-total-bases",
                 "11",
                 "--min-fasta-longest-record-bases",
@@ -869,6 +882,7 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
     assert rows[0]["fasta_quality_gate_blockers"] == (
         "fasta_n50_below_minimum;"
         "fasta_record_count_above_maximum;"
+        "fasta_ambiguous_bases_above_maximum;"
         "fasta_total_bases_below_minimum;"
         "fasta_longest_record_below_minimum;"
         "fragmented_fasta_signal;"
@@ -879,6 +893,7 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
     assert summary["blockers"] == [
         "fasta_n50_below_minimum",
         "fasta_record_count_above_maximum",
+        "fasta_ambiguous_bases_above_maximum",
         "fasta_total_bases_below_minimum",
         "fasta_longest_record_below_minimum",
         "fragmented_fasta_signal",
@@ -888,6 +903,7 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
     assert summary["fasta_quality_gate_blocked_row_count"] == 1
     assert summary["fasta_quality_gate_blocker_counts"] == {
         "fasta_header_fragment_keywords": 1,
+        "fasta_ambiguous_bases_above_maximum": 1,
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
         "fasta_record_count_above_maximum": 1,

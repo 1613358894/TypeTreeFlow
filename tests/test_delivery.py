@@ -125,6 +125,7 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_genome_fasta_present_count": 1,
                 "download_smoke_inspection_fasta_n50_below_minimum_count": 1,
                 "download_smoke_inspection_fasta_record_count_above_maximum_count": 1,
+                "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count": 1,
                 "download_smoke_inspection_fasta_total_bases_below_minimum_count": 0,
                 "download_smoke_inspection_fasta_longest_record_below_minimum_count": 1,
                 "download_smoke_inspection_fragmented_fasta_signal_count": 1,
@@ -132,6 +133,7 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_fasta_quality_gate_passed_row_count": 0,
                 "download_smoke_inspection_fasta_quality_gate_blocked_row_count": 1,
                 "download_smoke_inspection_fasta_quality_gate_blocker_counts": {
+                    "fasta_ambiguous_bases_above_maximum": 1,
                     "fasta_longest_record_below_minimum": 1,
                     "fasta_n50_below_minimum": 1,
                 },
@@ -209,13 +211,16 @@ def _write_download_smoke_inspection_pair(directory):
                 "genome_fasta_present_count": 1,
                 "fasta_total_bases": 10,
                 "fasta_longest_record_bases": 6,
+                "max_fasta_ambiguous_bases": 1,
                 "min_fasta_total_bases": 11,
                 "min_fasta_longest_record_bases": 7,
+                "fasta_ambiguous_bases_above_maximum_count": 1,
                 "fasta_total_bases_below_minimum_count": 1,
                 "fasta_longest_record_below_minimum_count": 1,
                 "fasta_quality_gate_passed_row_count": 0,
                 "fasta_quality_gate_blocked_row_count": 1,
                 "fasta_quality_gate_blocker_counts": {
+                    "fasta_ambiguous_bases_above_maximum": 1,
                     "fasta_longest_record_below_minimum": 1,
                     "fasta_total_bases_below_minimum": 1,
                 },
@@ -500,11 +505,14 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "audit-only" in package_text
     assert "does not authorize unattended downloads" in package_text
     assert "create strict scientific deliverables" in package_text
+    assert "max_fasta_ambiguous_bases=1" in package_text
+    assert "fasta_ambiguous_bases_above_maximum_count=1" in package_text
     assert "min_fasta_total_bases=11" in package_text
     assert "fasta_total_bases_below_minimum_count=1" in package_text
     assert "FASTA quality gate rows: passed=0; blocked=1" in package_text
     assert (
         "FASTA quality gate blocker counts: "
+        "fasta_ambiguous_bases_above_maximum=1, "
         "fasta_longest_record_below_minimum=1, "
         "fasta_total_bases_below_minimum=1"
     ) in package_text
@@ -2528,6 +2536,7 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "Bounded FASTA quality-gate hits" in package_text
     assert "n50_below_minimum=1" in package_text
     assert "record_count_above_maximum=1" in package_text
+    assert "ambiguous_bases_above_maximum=1" in package_text
     assert "total_bases_below_minimum=0" in package_text
     assert "longest_record_below_minimum=1" in package_text
     assert "fragmented_signal=1" in package_text
@@ -2535,6 +2544,7 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "Bounded FASTA quality-gate rows" in package_text
     assert "passed=0, blocked=1" in package_text
     assert "Bounded FASTA quality-gate blocker counts" in package_text
+    assert "fasta_ambiguous_bases_above_maximum=1" in package_text
     assert "fasta_longest_record_below_minimum=1" in package_text
     assert "fasta_n50_below_minimum=1" in package_text
     assert "Bounded FASTA quality-gate recommendation" in package_text

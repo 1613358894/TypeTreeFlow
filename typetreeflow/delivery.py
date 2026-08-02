@@ -119,6 +119,7 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_genome_fasta_present_count: int = 0
     download_smoke_inspection_fasta_n50_below_minimum_count: int = 0
     download_smoke_inspection_fasta_record_count_above_maximum_count: int = 0
+    download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count: int = 0
     download_smoke_inspection_fasta_total_bases_below_minimum_count: int = 0
     download_smoke_inspection_fasta_longest_record_below_minimum_count: int = 0
     download_smoke_inspection_fragmented_fasta_signal_count: int = 0
@@ -1926,6 +1927,14 @@ def _read_optional_server_validation_result(
             _safe_nonnegative_int_value(
                 payload.get(
                     "download_smoke_inspection_fasta_record_count_above_maximum_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count",
                     0,
                 )
             )
@@ -4294,6 +4303,7 @@ def _server_validation_download_smoke_observations_available(
             audit.download_smoke_inspection_genome_fasta_present_count,
             audit.download_smoke_inspection_fasta_n50_below_minimum_count,
             audit.download_smoke_inspection_fasta_record_count_above_maximum_count,
+            audit.download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count,
             audit.download_smoke_inspection_fasta_total_bases_below_minimum_count,
             audit.download_smoke_inspection_fasta_longest_record_below_minimum_count,
             audit.download_smoke_inspection_fragmented_fasta_signal_count,
@@ -4328,6 +4338,8 @@ def _server_validation_download_smoke_observation_lines(
             f"{audit.download_smoke_inspection_fasta_n50_below_minimum_count}, "
             "record_count_above_maximum="
             f"{audit.download_smoke_inspection_fasta_record_count_above_maximum_count}, "
+            "ambiguous_bases_above_maximum="
+            f"{audit.download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count}, "
             "total_bases_below_minimum="
             f"{audit.download_smoke_inspection_fasta_total_bases_below_minimum_count}, "
             "longest_record_below_minimum="

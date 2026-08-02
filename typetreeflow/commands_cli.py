@@ -2124,6 +2124,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "recommended inspect blocker threshold for too many FASTA records",
         },
         {
+            "name": "--inspection-max-fasta-ambiguous-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommended inspect blocker threshold for too many ambiguous FASTA bases",
+        },
+        {
             "name": "--inspection-min-fasta-total-bases",
             "kind": "integer",
             "required": False,
@@ -2194,6 +2201,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "optional blocker threshold for too many FASTA records",
+        },
+        {
+            "name": "--max-fasta-ambiguous-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional blocker threshold for too many ambiguous FASTA bases",
         },
         {
             "name": "--min-fasta-total-bases",
