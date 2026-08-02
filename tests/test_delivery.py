@@ -129,6 +129,12 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_fasta_longest_record_below_minimum_count": 1,
                 "download_smoke_inspection_fragmented_fasta_signal_count": 1,
                 "download_smoke_inspection_fasta_header_fragment_keyword_row_count": 1,
+                "download_smoke_inspection_fasta_quality_gate_passed_row_count": 0,
+                "download_smoke_inspection_fasta_quality_gate_blocked_row_count": 1,
+                "download_smoke_inspection_fasta_quality_gate_blocker_counts": {
+                    "fasta_longest_record_below_minimum": 1,
+                    "fasta_n50_below_minimum": 1,
+                },
                 "checked_surface_names": ["provider_request_external_genomes"],
                 "input_readiness_status": "ready",
                 "blocking_ids": [],
@@ -2500,6 +2506,11 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "longest_record_below_minimum=1" in package_text
     assert "fragmented_signal=1" in package_text
     assert "header_keywords=1" in package_text
+    assert "Bounded FASTA quality-gate rows" in package_text
+    assert "passed=0, blocked=1" in package_text
+    assert "Bounded FASTA quality-gate blocker counts" in package_text
+    assert "fasta_longest_record_below_minimum=1" in package_text
+    assert "fasta_n50_below_minimum=1" in package_text
     assert "NZ_RJWG01000001.1" not in package_text
     assert "target command execution" in package_text
     assert "contact providers" in package_text
