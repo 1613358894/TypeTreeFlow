@@ -1281,6 +1281,10 @@ When quality gates are supplied, each inspection row includes
 `fasta_quality_gate_blockers` with semicolon-separated controlled blocker codes
 for that accession. The field is empty when the row does not trip a FASTA
 quality gate and never copies raw FASTA headers or sequence text.
+The summary also includes `installable_genome_fasta_ready_count` and
+`installable_genome_fasta_not_ready_count`, which combine local ZIP, genome
+FASTA selection, empty-FASTA, and enabled quality-gate outcomes into a quick
+bounded-smoke readiness count. These counts remain local audit signals only.
 If fragmented FASTA or WGS/scaffold/contig header signals are observed without
 the matching quality gates enabled, the summary keeps the current `ready`
 semantics but returns `quality_gate_recommendation` and
