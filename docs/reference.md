@@ -2316,7 +2316,11 @@ handoff file that freezes the current queue item, review-input packet, command
 plan, operator recipe, queue resume packet, and queue digest guard. The file is
 for AI/operator resume and review only; it does not dispatch commands, contact
 providers, download genomes, mutate workflow outputs, or promote strict
-deliverables. `coverage-pipeline status` reports
+deliverables. Provider-handoff queue items may also include a
+`recommended_write_request_template` and `recommended_write_command_plan` for a
+local `provider-handoff build --write --outdir <isolated-provider-handoff-directory>`
+handoff; this is still a preflighted template, not automatic provider contact or
+download. `coverage-pipeline status` reports
 `coverage_next_input_handoff_artifact_packet` with the file path, size,
 SHA-256, selected queue labels, and a `handoff_matches_embedded_packet` guard so
 controllers can fail closed if the saved handoff no longer matches the stored

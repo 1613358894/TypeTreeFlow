@@ -3618,6 +3618,12 @@ def test_coverage_pipeline_preview_chains_worklist_plan_and_handoff(capsys, tmp_
         payload["coverage_next_task_packet"]["review_input_packet"],
         recommended_request_target="manual-review validate",
     )
+    assert next_task_packet.pop("recommended_write_request_template") is None
+    assert next_task_packet.pop("recommended_write_request_target") == ""
+    assert next_task_packet.pop("recommended_write_next_command") == ""
+    assert next_task_packet.pop("recommended_write_command_plan")["status"] == (
+        "no_action"
+    )
     assert next_task_packet == {
         "available": True,
         "packet_status": "ready_for_operator_review",
@@ -4760,6 +4766,42 @@ def test_coverage_pipeline_queue_operator_route_selects_first_matching_task(
         "--provider-key",
         "kctc",
     ]
+    next_task_packet = payload["coverage_next_task_packet"]
+    assert next_task_packet["recommended_write_request_template"] == {
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": "coverage_plan/coverage_plan.tsv",
+        "provider_keys": ["dsmz", "kctc"],
+        "write": True,
+        "outdir": "<isolated-provider-handoff-directory>",
+    }
+    assert next_task_packet["recommended_write_request_target"] == (
+        "provider-handoff build"
+    )
+    assert next_task_packet["recommended_write_next_command"] == (
+        "typetreeflow provider-handoff build "
+        "--coverage-plan-tsv coverage_plan/coverage_plan.tsv "
+        "--provider-key dsmz --provider-key kctc --write "
+        "--outdir <isolated-provider-handoff-directory>"
+    )
+    write_plan = next_task_packet["recommended_write_command_plan"]
+    assert write_plan["decision"] == "allow"
+    assert write_plan["preflight_decision"] == "allow"
+    assert write_plan["target_argv"] == [
+        "provider-handoff",
+        "build",
+        "--coverage-plan-tsv",
+        "coverage_plan/coverage_plan.tsv",
+        "--provider-key",
+        "dsmz",
+        "--provider-key",
+        "kctc",
+        "--write",
+        "--outdir",
+        "<isolated-provider-handoff-directory>",
+    ]
+    assert write_plan["downloads_triggered"] == 0
+    assert write_plan["providers_contacted"] == 0
 
     outdir = tmp_path / "pipeline_outputs"
     code, build_payload, captured = _run(
@@ -4808,6 +4850,43 @@ def test_coverage_pipeline_queue_operator_route_selects_first_matching_task(
     )
     assert status_payload["coverage_next_task_packet"]["queue_item_id"] == (
         "cq004_prepare_provider_handoff"
+    )
+    provider_outdir = tmp_path / "pipeline_provider_outputs"
+    code, provider_build_payload, captured = _run(
+        [
+            "--checklist-tsv",
+            str(checklist),
+            "--reconciler-audit-tsv",
+            str(reconciler),
+            "--completion-gaps-tsv",
+            str(gaps),
+            "--archive-candidates-tsv",
+            str(archive),
+            "--queue-operator-route",
+            "provider_handoff",
+            "--write",
+            "--outdir",
+            str(provider_outdir),
+            "--json",
+        ],
+        capsys,
+        action="build",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    next_input_package = json.loads(
+        (provider_outdir / "coverage_next" / "next_input_package.json").read_text()
+    )
+    assert next_input_package["recommended_write_request_template"] == (
+        provider_build_payload["coverage_next_task_packet"][
+            "recommended_write_request_template"
+        ]
+    )
+    assert next_input_package["recommended_write_command_plan"]["target_argv"] == (
+        provider_build_payload["coverage_next_task_packet"][
+            "recommended_write_command_plan"
+        ]["target_argv"]
     )
 
 
@@ -8804,6 +8883,12 @@ def test_coverage_pipeline_preview_blocks_empty_or_unreadable_input(capsys, tmp_
     assert next_task_packet.pop("next_input_package") == _expected_next_input_package(
         payload["coverage_next_task_packet"]["review_input_packet"],
         recommended_request_target="",
+    )
+    assert next_task_packet.pop("recommended_write_request_template") is None
+    assert next_task_packet.pop("recommended_write_request_target") == ""
+    assert next_task_packet.pop("recommended_write_next_command") == ""
+    assert next_task_packet.pop("recommended_write_command_plan")["status"] == (
+        "no_action"
     )
     assert next_task_packet == {
         "available": False,
