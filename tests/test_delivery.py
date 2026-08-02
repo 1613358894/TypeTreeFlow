@@ -125,6 +125,9 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_genome_fasta_present_count": 1,
                 "download_smoke_inspection_installable_genome_fasta_ready_count": 1,
                 "download_smoke_inspection_installable_genome_fasta_not_ready_count": 1,
+                "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": {
+                    "empty_genome_fasta_outputs": 1
+                },
                 "download_smoke_inspection_empty_genome_fasta_count": 1,
                 "download_smoke_inspection_multiple_genome_fasta_members_count": 1,
                 "download_smoke_inspection_fasta_n50_below_minimum_count": 1,
@@ -217,6 +220,9 @@ def _write_download_smoke_inspection_pair(directory):
                 "genome_fasta_present_count": 1,
                 "installable_genome_fasta_ready_count": 1,
                 "installable_genome_fasta_not_ready_count": 1,
+                "installable_genome_fasta_not_ready_reason_counts": {
+                    "empty_genome_fasta_outputs": 1
+                },
                 "empty_genome_fasta_count": 1,
                 "multiple_genome_fasta_members_count": 1,
                 "fasta_total_bases": 10,
@@ -562,6 +568,11 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "installable_genome_fasta_not_ready_count=1" in package_text
     assert "Installable genome FASTA ready/not-ready: ready=1; not_ready=1" in (
         package_text
+    )
+    assert (
+        "Installable genome FASTA not-ready reason counts: "
+        "empty_genome_fasta_outputs=1"
+        in package_text
     )
     assert "empty_genome_fasta_count=1" in package_text
     assert "multiple_genome_fasta_members_count=1" in package_text
@@ -2596,6 +2607,11 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "zip_valid=1, genome_fasta_present=1" in package_text
     assert "Bounded download-smoke installable genome FASTA" in package_text
     assert "ready=1, not_ready=1" in package_text
+    assert (
+        "Bounded download-smoke installable genome FASTA not-ready reasons"
+        in package_text
+    )
+    assert "empty_genome_fasta_outputs=1" in package_text
     assert "Bounded FASTA quality-gate hits" in package_text
     assert "empty_genome_fasta=1" in package_text
     assert "multiple_genome_fasta_members=1" in package_text

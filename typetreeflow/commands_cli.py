@@ -898,6 +898,7 @@ _DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS: list[str] = [
     "genome_fasta_install_selection_ambiguous_count",
     "installable_genome_fasta_ready_count",
     "installable_genome_fasta_not_ready_count",
+    "installable_genome_fasta_not_ready_reason_counts",
     "fasta_record_count",
     "fasta_total_bases",
     "fasta_longest_record_bases",

@@ -346,6 +346,7 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
     "genome_fasta_install_selection_status_counts",
+    "installable_genome_fasta_not_ready_reason_counts",
     "fasta_fragmentation_signal_counts",
     "fasta_quality_gate_blocker_counts",
 )
@@ -4987,6 +4988,16 @@ def build_run_summary_markdown(
                         "- Installable genome FASTA ready/not-ready: "
                         f"ready={download_smoke_inspection_audit.counts.get('installable_genome_fasta_ready_count', 0)}, "
                         f"not_ready={download_smoke_inspection_audit.counts.get('installable_genome_fasta_not_ready_count', 0)}"
+                    ),
+                    (
+                        "- Installable genome FASTA not-ready reason counts: "
+                        + _format_count_pairs(
+                            _count_map_pairs(
+                                download_smoke_inspection_audit.counts.get(
+                                    "installable_genome_fasta_not_ready_reason_counts"
+                                )
+                            )
+                        )
                     ),
                     (
                         "- Genome FASTA members: "

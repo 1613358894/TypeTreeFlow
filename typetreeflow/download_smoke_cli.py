@@ -508,6 +508,9 @@ def inspect_bounded_download_smoke_outputs(
     installable_genome_fasta_not_ready_count = (
         len(rows) - installable_genome_fasta_ready_count
     )
+    installable_genome_fasta_not_ready_reason_counts = (
+        _installable_genome_fasta_not_ready_reason_counts(inspections)
+    )
     status_counts: dict[str, int] = {}
     fragmentation_signal_counts: dict[str, int] = {}
     for row in inspections:
@@ -686,6 +689,9 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "installable_genome_fasta_not_ready_count": (
             installable_genome_fasta_not_ready_count
+        ),
+        "installable_genome_fasta_not_ready_reason_counts": (
+            installable_genome_fasta_not_ready_reason_counts
         ),
         "fasta_record_count": sum(int(row["fasta_record_count"]) for row in inspections),
         "fasta_total_bases": sum(int(row["fasta_total_bases"]) for row in inspections),
@@ -890,6 +896,37 @@ def _fasta_quality_gate_blocker_counts(
             blocker = blocker.strip()
             if blocker:
                 counts[blocker] = counts.get(blocker, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _installable_genome_fasta_not_ready_reason_counts(
+    rows: Sequence[dict[str, object]],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    status_reasons = {
+        "zip_missing": "missing_zip_outputs",
+        "zip_invalid": "invalid_zip_outputs",
+        "zip_unsafe_members": "unsafe_zip_member_paths",
+        "genome_fasta_missing": "genome_fasta_missing",
+        "genome_fasta_empty": "empty_genome_fasta_outputs",
+        "genome_fasta_multiple_members": (
+            "genome_fasta_install_selection_ambiguous"
+        ),
+    }
+    for row in rows:
+        status = str(row.get("status", "")).strip()
+        if status == "genome_fasta_present":
+            raw_blockers = str(row.get("fasta_quality_gate_blockers", "")).strip()
+            if not raw_blockers:
+                continue
+            for blocker in raw_blockers.split(";"):
+                blocker = blocker.strip()
+                if blocker:
+                    counts[blocker] = counts.get(blocker, 0) + 1
+            continue
+        reason = status_reasons.get(status)
+        if reason:
+            counts[reason] = counts.get(reason, 0) + 1
     return dict(sorted(counts.items()))
 
 

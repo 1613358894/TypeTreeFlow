@@ -1285,6 +1285,9 @@ The summary also includes `installable_genome_fasta_ready_count` and
 `installable_genome_fasta_not_ready_count`, which combine local ZIP, genome
 FASTA selection, empty-FASTA, and enabled quality-gate outcomes into a quick
 bounded-smoke readiness count. These counts remain local audit signals only.
+`installable_genome_fasta_not_ready_reason_counts` gives controlled reason
+counts for the not-ready rows without copying raw paths, FASTA headers, or
+sequence text.
 If fragmented FASTA or WGS/scaffold/contig header signals are observed without
 the matching quality gates enabled, the summary keeps the current `ready`
 semantics but returns `quality_gate_recommendation` and
@@ -1313,9 +1316,9 @@ inspection artifacts only and does not authorize unattended downloads, rerun
 `datasets`, extract ZIPs, mutate manifests, or create strict deliverables. When
 local inspection readiness or quality gates are present, the report and package
 handoff summarize only the installable genome FASTA ready/not-ready counts,
-passed/blocked row counts, controlled blocker-code counts, and bounded
-quality-gate recommendation labels. They do not surface local recommended
-command paths.
+controlled not-ready reason counts, passed/blocked row counts, controlled
+blocker-code counts, and bounded quality-gate recommendation labels. They do
+not surface local recommended command paths.
 
 ```bash
 typetreeflow verify-genus Fusobacterium \

@@ -184,6 +184,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS = (
     "download_smoke_inspection_genome_fasta_install_selection_status_counts",
+    "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts",
     "download_smoke_inspection_fasta_quality_gate_blocker_counts",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS = (
@@ -8512,6 +8513,13 @@ def _coverage_parent_controller_packet(
                 result_artifact_packet.get(
                     "download_smoke_inspection_fasta_quality_gate_blocked_row_count",
                     0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": (
+            _safe_count_map(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts"
                 )
             )
         ),
