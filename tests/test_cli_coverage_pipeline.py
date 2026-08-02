@@ -2552,6 +2552,13 @@ def _valid_server_validation_result():
             "fasta_longest_record_below_minimum": 1,
             "fasta_n50_below_minimum": 1,
         },
+        "download_smoke_inspection_quality_gate_recommendation": (
+            "rerun_with_fragmentation_quality_gates"
+        ),
+        "download_smoke_inspection_quality_gate_recommendation_reasons": [
+            "fragmented_fasta_signal_observed",
+            "fasta_header_fragment_keywords_observed",
+        ],
         "checked_surface_names": [
             "coverage_handoff_server_validation_packet",
             "coverage_handoff_server_validation_runbook_packet",
@@ -2600,6 +2607,8 @@ def _expected_download_smoke_inspection_result_defaults():
         "download_smoke_inspection_fasta_quality_gate_passed_row_count": 0,
         "download_smoke_inspection_fasta_quality_gate_blocked_row_count": 0,
         "download_smoke_inspection_fasta_quality_gate_blocker_counts": {},
+        "download_smoke_inspection_quality_gate_recommendation": "",
+        "download_smoke_inspection_quality_gate_recommendation_reasons": [],
     }
 
 
@@ -2683,6 +2692,16 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
     }
+    assert (
+        payload["download_smoke_inspection_quality_gate_recommendation"]
+        == "rerun_with_fragmentation_quality_gates"
+    )
+    assert payload[
+        "download_smoke_inspection_quality_gate_recommendation_reasons"
+    ] == [
+        "fragmented_fasta_signal_observed",
+        "fasta_header_fragment_keywords_observed",
+    ]
     assert payload["checked_surface_count"] == 2
     assert payload["diagnostic_count"] == 0
     assert payload["boundary_confirmation_status"] == "pass"
@@ -2766,6 +2785,13 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     result["download_smoke_inspection_fasta_quality_gate_blocker_counts"] = {
         "": 1
     }
+    result["download_smoke_inspection_quality_gate_recommendation"] = [
+        "not string"
+    ]
+    result["download_smoke_inspection_quality_gate_recommendation_reasons"] = [
+        "ok",
+        "",
+    ]
     result_path = tmp_path / "coverage_handoff_server_validation_result.json"
     _write_server_validation_result(result_path, result)
 
@@ -2783,6 +2809,8 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
         "check_count",
         "download_smoke_inspection_fasta_n50_below_minimum_count",
         "download_smoke_inspection_fasta_quality_gate_blocker_counts",
+        "download_smoke_inspection_quality_gate_recommendation",
+        "download_smoke_inspection_quality_gate_recommendation_reasons",
         "download_smoke_inspection_ready",
         "download_smoke_inspection_realized",
         "download_smoke_inspection_selected_row_count",
@@ -2809,6 +2837,8 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["download_smoke_inspection_selected_row_count"] == 0
     assert payload["download_smoke_inspection_fasta_n50_below_minimum_count"] == 0
     assert payload["download_smoke_inspection_fasta_quality_gate_blocker_counts"] == {}
+    assert payload["download_smoke_inspection_quality_gate_recommendation"] == ""
+    assert payload["download_smoke_inspection_quality_gate_recommendation_reasons"] == []
 
 
 def test_coverage_pipeline_server_validation_result_validate_blocks_missing_input(
@@ -6004,6 +6034,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
     }
+    result_template["download_smoke_inspection_quality_gate_recommendation"] = (
+        "rerun_with_fragmentation_quality_gates"
+    )
+    result_template["download_smoke_inspection_quality_gate_recommendation_reasons"] = [
+        "fragmented_fasta_signal_observed",
+        "fasta_header_fragment_keywords_observed",
+    ]
     result_template_path.write_text(json.dumps(result_template), encoding="utf-8")
     code, validation_payload, validation_captured = _run(
         ["validate", "--input", str(result_template_path), "--json"],
@@ -6089,6 +6126,16 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
     }
+    assert (
+        result_artifact["download_smoke_inspection_quality_gate_recommendation"]
+        == "rerun_with_fragmentation_quality_gates"
+    )
+    assert result_artifact[
+        "download_smoke_inspection_quality_gate_recommendation_reasons"
+    ] == [
+        "fragmented_fasta_signal_observed",
+        "fasta_header_fragment_keywords_observed",
+    ]
     assert result_artifact["checked_surface_count"] == 2
     assert result_artifact["boundary_confirmation_count"] == 11
     assert result_artifact["diagnostic_count"] == 0
@@ -6215,6 +6262,18 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "fasta_longest_record_below_minimum": 1,
         "fasta_n50_below_minimum": 1,
     }
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_quality_gate_recommendation"
+        ]
+        == "rerun_with_fragmentation_quality_gates"
+    )
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_inspection_quality_gate_recommendation_reasons"
+    ] == [
+        "fragmented_fasta_signal_observed",
+        "fasta_header_fragment_keywords_observed",
+    ]
     result_status_surfaces = result_status_payload[
         "coverage_controller_inspection_summary"
     ]["surfaces"]

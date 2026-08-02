@@ -784,9 +784,10 @@ Python, evidence run path, check count, failed count, diagnostic count, and
 optional bounded download-smoke inspection observation counts and no-execution
 boundary flags so AI controllers can route the local validation result without
 parsing diagnostics. These observations can include quality-gate hit counts,
-passed/blocked row counts, and controlled blocker-code counts. The
-download-smoke observation fields are audit visibility only; they do not make
-rows complete, strict, or accepted for final genome use.
+passed/blocked row counts, controlled blocker-code counts, and controlled
+quality-gate recommendation labels with reasons. The download-smoke observation
+fields are audit visibility only; they do not make rows complete, strict, or
+accepted for final genome use.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
@@ -1533,8 +1534,9 @@ downloads, register external genomes, mutate manifests, or promote strict
 deliverables. If the result JSON includes optional bounded download-smoke
 inspection observations, package README and handoff text summarize only the
 controlled counts, quality-gate hits, passed/blocked rows, and blocker-code
-counts, never raw FASTA headers or sequence content. `--failed-handoff`
-excludes server-validation result artifacts.
+counts plus controlled quality-gate recommendation labels/reasons, never local
+recommended command paths, raw FASTA headers, or sequence content.
+`--failed-handoff` excludes server-validation result artifacts.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,

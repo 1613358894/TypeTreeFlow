@@ -512,8 +512,9 @@ commands, contact providers, trigger downloads, register external genomes,
 mutate manifests, change completion metrics, or promote strict deliverables.
 Optional embedded bounded download-smoke observations are controlled-count
 audit visibility only, including optional quality-gate passed/blocked rows and
-controlled blocker counts. They must not include raw FASTA headers, sequence
-text, or ZIP payloads.
+controlled blocker counts plus controlled quality-gate recommendation
+labels/reasons. They must not include local recommended command paths, raw
+FASTA headers, sequence text, or ZIP payloads.
 Failed-handoff packages exclude server-validation result artifacts.
 
 Offline readiness projection is an aggregate contract check over already

@@ -128,6 +128,10 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_fasta_quality_gate_blocker_counts: dict[str, int] = (
         field(default_factory=dict)
     )
+    download_smoke_inspection_quality_gate_recommendation: str = ""
+    download_smoke_inspection_quality_gate_recommendation_reasons: list[str] = (
+        field(default_factory=list)
+    )
     warnings: list[str] = field(default_factory=list)
 
 
@@ -1980,6 +1984,21 @@ def _read_optional_server_validation_result(
                 )
             )
         ),
+        download_smoke_inspection_quality_gate_recommendation=(
+            str(payload.get("download_smoke_inspection_quality_gate_recommendation", ""))
+            if isinstance(
+                payload.get("download_smoke_inspection_quality_gate_recommendation", ""),
+                str,
+            )
+            else ""
+        ),
+        download_smoke_inspection_quality_gate_recommendation_reasons=(
+            _safe_string_list_value(
+                payload.get(
+                    "download_smoke_inspection_quality_gate_recommendation_reasons"
+                )
+            )
+        ),
     )
 
 
@@ -3771,6 +3790,12 @@ def _safe_count_map_value(value: object) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def _safe_string_list_value(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
 def _gtdb_audit_enabled_for_delivery(paths: OutputPaths) -> bool:
     state = _read_run_state_if_available(paths)
     if state is None:
@@ -4276,6 +4301,8 @@ def _server_validation_download_smoke_observations_available(
             audit.download_smoke_inspection_fasta_quality_gate_passed_row_count,
             audit.download_smoke_inspection_fasta_quality_gate_blocked_row_count,
             bool(audit.download_smoke_inspection_fasta_quality_gate_blocker_counts),
+            audit.download_smoke_inspection_quality_gate_recommendation,
+            bool(audit.download_smoke_inspection_quality_gate_recommendation_reasons),
         )
     )
 
@@ -4321,6 +4348,16 @@ def _server_validation_download_smoke_observation_lines(
             "- Bounded FASTA quality-gate blocker counts: "
             + _format_download_smoke_count_value(
                 audit.download_smoke_inspection_fasta_quality_gate_blocker_counts
+            )
+        ),
+        (
+            "- Bounded FASTA quality-gate recommendation: "
+            f"{audit.download_smoke_inspection_quality_gate_recommendation or 'none'}"
+        ),
+        (
+            "- Bounded FASTA quality-gate recommendation reasons: "
+            + _format_download_smoke_string_list(
+                audit.download_smoke_inspection_quality_gate_recommendation_reasons
             )
         ),
     ]

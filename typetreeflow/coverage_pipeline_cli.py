@@ -142,6 +142,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS = (
     "runtime_python",
     "evidence_run_path",
     "download_smoke_inspection_summary_sha256",
+    "download_smoke_inspection_quality_gate_recommendation",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS = (
     "external_genomes_registration_realized",
@@ -175,6 +176,9 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS = (
     "download_smoke_inspection_fasta_quality_gate_blocker_counts",
+)
+_SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS = (
+    "download_smoke_inspection_quality_gate_recommendation_reasons",
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -1975,6 +1979,17 @@ def _validate_server_validation_result(
                     _diagnostic("server_validation_result", f"invalid_{field}")
                 )
                 break
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS:
+        raw_value = result.get(field)
+        if field not in result:
+            continue
+        if not isinstance(raw_value, list) or any(
+            not isinstance(item, str) or not item.strip() for item in raw_value
+        ):
+            invalid_fields.append(field)
+            diagnostics.append(
+                _diagnostic("server_validation_result", f"invalid_{field}")
+            )
     if "summary" in result and not isinstance(result.get("summary"), str):
         invalid_fields.append("summary")
         diagnostics.append(_diagnostic("server_validation_result", "invalid_summary"))
@@ -2035,6 +2050,12 @@ def _server_validation_result_validation_payload(
     checked_surface_names = result.get("checked_surface_names")
     if not isinstance(checked_surface_names, list):
         checked_surface_names = []
+    invalid_field_ids = list(validation.get("invalid_field_ids", []))
+    observations = _server_validation_observation_fields(result)
+    observation_defaults = _server_validation_observation_defaults()
+    for field in invalid_field_ids:
+        if field in observations and field in observation_defaults:
+            observations[field] = observation_defaults[field]
     return {
         "schema_version": SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION,
         "status": status,
@@ -2090,14 +2111,14 @@ def _server_validation_result_validation_payload(
                 )
             )
         ),
-        **_server_validation_observation_fields(result),
+        **observations,
         "checked_surface_names": [str(item) for item in checked_surface_names],
         "checked_surface_count": len(checked_surface_names),
         "required_field_count": len(_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS),
         "missing_required_fields": list(
             validation.get("missing_required_fields", [])
         ),
-        "invalid_field_ids": list(validation.get("invalid_field_ids", [])),
+        "invalid_field_ids": invalid_field_ids,
         "missing_checked_surfaces": list(
             validation.get("missing_checked_surfaces", [])
         ),
@@ -2312,6 +2333,12 @@ def _safe_count_map(value: object) -> dict[str, int]:
     )
 
 
+def _safe_string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
 def _optional_nonnegative_int(value: object) -> int:
     if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
         return value
@@ -2339,6 +2366,10 @@ def _server_validation_observation_defaults() -> dict[str, object]:
         field: {}
         for field in _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS
         if field.startswith("download_smoke_inspection_")
+    } | {
+        field: []
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS
+        if field.startswith("download_smoke_inspection_")
     }
 
 
@@ -2359,6 +2390,9 @@ def _server_validation_observation_fields(
     for field in _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS:
         if field.startswith("download_smoke_inspection_"):
             fields[field] = _safe_count_map(result.get(field))
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS:
+        if field.startswith("download_smoke_inspection_"):
+            fields[field] = _safe_string_list(result.get(field))
     return fields
 
 
@@ -5409,6 +5443,7 @@ def _coverage_handoff_server_validation_result_contract_packet(
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS
+                + _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS
             )
             if field.startswith("download_smoke_inspection_")
         ],
@@ -8437,6 +8472,17 @@ def _coverage_parent_controller_packet(
                 result_artifact_packet.get(
                     "download_smoke_inspection_fasta_quality_gate_blocker_counts"
                 )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_quality_gate_recommendation": str(
+            result_artifact_packet.get(
+                "download_smoke_inspection_quality_gate_recommendation", ""
+            )
+            or ""
+        ),
+        "handoff_server_validation_download_smoke_inspection_quality_gate_recommendation_reasons": _safe_string_list(
+            result_artifact_packet.get(
+                "download_smoke_inspection_quality_gate_recommendation_reasons"
             )
         ),
         "recommended_surface": recommended_surface,
