@@ -1197,6 +1197,16 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
         "fragmented_fasta_signal;"
         "fasta_header_fragment_keywords"
     )
+    assert rows[0]["installable_genome_fasta_ready"] == "false"
+    assert rows[0]["installable_genome_fasta_not_ready_reasons"] == (
+        "fasta_ambiguous_bases_above_maximum;"
+        "fasta_header_fragment_keywords;"
+        "fasta_longest_record_below_minimum;"
+        "fasta_n50_below_minimum;"
+        "fasta_record_count_above_maximum;"
+        "fasta_total_bases_below_minimum;"
+        "fragmented_fasta_signal"
+    )
     assert rows[0]["status"] == "genome_fasta_present"
     assert summary["ready"] is False
     assert summary["blockers"] == [
@@ -1321,6 +1331,8 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["multiple_genome_fasta_members_count"] == "0"
     assert rows[0]["fasta_fragmentation_signal"] == "single_record"
     assert rows[0]["fasta_quality_gate_blockers"] == ""
+    assert rows[0]["installable_genome_fasta_ready"] == "true"
+    assert rows[0]["installable_genome_fasta_not_ready_reasons"] == ""
     assert summary["ready"] is True
     assert summary["unsafe_zip_member_count"] == 0
     assert summary["genomic_named_fasta_member_count"] == 1

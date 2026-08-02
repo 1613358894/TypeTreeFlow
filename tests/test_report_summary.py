@@ -464,6 +464,53 @@ def test_download_smoke_inspection_pre_gate_rows_remain_readable(tmp_path):
     assert audit.counts["selected_row_count"] == 2
 
 
+def test_download_smoke_inspection_pre_row_readiness_rows_remain_readable(
+    tmp_path,
+):
+    inspection_dir = tmp_path / "inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+    previous_header = [
+        "record_id",
+        "assembly_accession",
+        "zip_path",
+        "zip_exists",
+        "zip_valid",
+        "unsafe_zip_member_count",
+        "genome_fasta_present",
+        "genome_fasta_member_count",
+        "genomic_named_fasta_member_count",
+        "genome_fasta_install_selection_status",
+        "fasta_record_count",
+        "fasta_total_bases",
+        "fasta_longest_record_bases",
+        "fasta_n50_bases",
+        "fasta_ambiguous_bases",
+        "fasta_header_wgs_keyword_count",
+        "fasta_header_scaffold_keyword_count",
+        "fasta_header_contig_keyword_count",
+        "empty_genome_fasta_count",
+        "multiple_genome_fasta_members_count",
+        "fasta_fragmentation_signal",
+        "fasta_quality_gate_blockers",
+        "status",
+    ]
+    (inspection_dir / "bounded_download_smoke_inspection.tsv").write_text(
+        "\t".join(previous_header)
+        + "\n"
+        + "ref1\tGCF_000001\tlocal/ref1.zip\ttrue\ttrue\t0\ttrue\t1\t1\tselected\t2\t10\t6\t6\t2\t1\t1\t1\t0\t0\tmulti_record_fragmented\t\tgenome_fasta_present\n",
+        encoding="utf-8",
+    )
+
+    audit = read_optional_download_smoke_inspection_audit(inspection_dir)
+
+    assert audit is not None
+    assert "bounded_download_smoke_inspection.tsv" in audit.present_files
+    assert (
+        "bounded_download_smoke_inspection.tsv malformed"
+        not in audit.warnings
+    )
+
+
 def test_download_smoke_inspection_partial_malformed_summary_warns(tmp_path):
     inspection_dir = tmp_path / "inspection"
     _write_download_smoke_inspection_pair(inspection_dir)

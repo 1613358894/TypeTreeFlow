@@ -1281,6 +1281,9 @@ When quality gates are supplied, each inspection row includes
 `fasta_quality_gate_blockers` with semicolon-separated controlled blocker codes
 for that accession. The field is empty when the row does not trip a FASTA
 quality gate and never copies raw FASTA headers or sequence text.
+Each row also includes `installable_genome_fasta_ready` and
+`installable_genome_fasta_not_ready_reasons` so an operator can see whether that
+specific bounded ZIP is locally installable and why it is not ready.
 The summary also includes `installable_genome_fasta_ready_count` and
 `installable_genome_fasta_not_ready_count`, which combine local ZIP, genome
 FASTA selection, empty-FASTA, and enabled quality-gate outcomes into a quick

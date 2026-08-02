@@ -515,9 +515,10 @@ commands, contact providers, trigger downloads, register external genomes,
 mutate manifests, change completion metrics, or promote strict deliverables.
 Optional embedded bounded download-smoke observations are controlled-count
 audit visibility only, including installable genome FASTA ready/not-ready
-counts, controlled not-ready reason counts, optional quality-gate passed/blocked
-rows, controlled blocker counts, and controlled quality-gate recommendation
-labels/reasons. The fragmentation quality profile is only a shorthand for
+counts, row-level local installable readiness/reason fields, controlled
+not-ready reason counts, optional quality-gate passed/blocked rows, controlled
+blocker counts, and controlled quality-gate recommendation labels/reasons. The
+fragmentation quality profile is only a shorthand for
 local smoke blockers over already downloaded ZIPs; it is not download
 authorization, strict evidence, or final genome usability approval. They must
 not include local recommended command paths, raw FASTA headers, sequence text,
