@@ -1113,6 +1113,7 @@ def _assert_handoff_next_step_packet(
         "external_genomes_registration_manifest_record_count": 0,
         "external_genomes_registration_external_manifest_record_count": 0,
         "external_genomes_registration_install_succeeded_count": 0,
+        **_expected_download_smoke_inspection_result_defaults(),
         "blocking_ids": [],
         "warning_ids": [],
         "boundary_confirmations": {
@@ -2527,6 +2528,24 @@ def _valid_server_validation_result():
         "external_genomes_registration_manifest_record_count": 2,
         "external_genomes_registration_external_manifest_record_count": 1,
         "external_genomes_registration_install_succeeded_count": 1,
+        "download_smoke_inspection_realized": True,
+        "download_smoke_inspection_ready": False,
+        "download_smoke_inspection_summary_sha256": "a" * 64,
+        "download_smoke_inspection_selected_row_count": 2,
+        "download_smoke_inspection_zip_exists_count": 2,
+        "download_smoke_inspection_zip_valid_count": 1,
+        "download_smoke_inspection_genome_fasta_present_count": 1,
+        "download_smoke_inspection_genome_fasta_member_count": 1,
+        "download_smoke_inspection_fasta_record_count": 14,
+        "download_smoke_inspection_fasta_total_bases": 3123456,
+        "download_smoke_inspection_fasta_longest_record_bases": 1234567,
+        "download_smoke_inspection_fasta_max_n50_bases": 765432,
+        "download_smoke_inspection_fasta_n50_below_minimum_count": 1,
+        "download_smoke_inspection_fasta_record_count_above_maximum_count": 1,
+        "download_smoke_inspection_fasta_total_bases_below_minimum_count": 0,
+        "download_smoke_inspection_fasta_longest_record_below_minimum_count": 1,
+        "download_smoke_inspection_fragmented_fasta_signal_count": 1,
+        "download_smoke_inspection_fasta_header_fragment_keyword_row_count": 1,
         "checked_surface_names": [
             "coverage_handoff_server_validation_packet",
             "coverage_handoff_server_validation_runbook_packet",
@@ -2549,6 +2568,29 @@ def _valid_server_validation_result():
         },
         "diagnostics": [],
         "summary": "Bounded server validation passed without execution.",
+    }
+
+
+def _expected_download_smoke_inspection_result_defaults():
+    return {
+        "download_smoke_inspection_summary_sha256": "",
+        "download_smoke_inspection_realized": False,
+        "download_smoke_inspection_ready": False,
+        "download_smoke_inspection_selected_row_count": 0,
+        "download_smoke_inspection_zip_exists_count": 0,
+        "download_smoke_inspection_zip_valid_count": 0,
+        "download_smoke_inspection_genome_fasta_present_count": 0,
+        "download_smoke_inspection_genome_fasta_member_count": 0,
+        "download_smoke_inspection_fasta_record_count": 0,
+        "download_smoke_inspection_fasta_total_bases": 0,
+        "download_smoke_inspection_fasta_longest_record_bases": 0,
+        "download_smoke_inspection_fasta_max_n50_bases": 0,
+        "download_smoke_inspection_fasta_n50_below_minimum_count": 0,
+        "download_smoke_inspection_fasta_record_count_above_maximum_count": 0,
+        "download_smoke_inspection_fasta_total_bases_below_minimum_count": 0,
+        "download_smoke_inspection_fasta_longest_record_below_minimum_count": 0,
+        "download_smoke_inspection_fragmented_fasta_signal_count": 0,
+        "download_smoke_inspection_fasta_header_fragment_keyword_row_count": 0,
     }
 
 
@@ -2598,6 +2640,34 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["external_genomes_registration_manifest_record_count"] == 2
     assert payload["external_genomes_registration_external_manifest_record_count"] == 1
     assert payload["external_genomes_registration_install_succeeded_count"] == 1
+    assert payload["download_smoke_inspection_realized"] is True
+    assert payload["download_smoke_inspection_ready"] is False
+    assert payload["download_smoke_inspection_summary_sha256"] == "a" * 64
+    assert payload["download_smoke_inspection_selected_row_count"] == 2
+    assert payload["download_smoke_inspection_zip_valid_count"] == 1
+    assert payload["download_smoke_inspection_genome_fasta_present_count"] == 1
+    assert payload["download_smoke_inspection_fasta_total_bases"] == 3123456
+    assert payload["download_smoke_inspection_fasta_max_n50_bases"] == 765432
+    assert payload["download_smoke_inspection_fasta_n50_below_minimum_count"] == 1
+    assert (
+        payload[
+            "download_smoke_inspection_fasta_record_count_above_maximum_count"
+        ]
+        == 1
+    )
+    assert (
+        payload[
+            "download_smoke_inspection_fasta_longest_record_below_minimum_count"
+        ]
+        == 1
+    )
+    assert payload["download_smoke_inspection_fragmented_fasta_signal_count"] == 1
+    assert (
+        payload[
+            "download_smoke_inspection_fasta_header_fragment_keyword_row_count"
+        ]
+        == 1
+    )
     assert payload["checked_surface_count"] == 2
     assert payload["diagnostic_count"] == 0
     assert payload["boundary_confirmation_status"] == "pass"
@@ -2673,6 +2743,11 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     result["external_genomes_registration_manifest_record_count"] = "2"
     result["external_genomes_registration_external_manifest_record_count"] = -1
     result["external_genomes_registration_install_succeeded_count"] = True
+    result["download_smoke_inspection_realized"] = "true"
+    result["download_smoke_inspection_ready"] = 1
+    result["download_smoke_inspection_summary_sha256"] = ["not", "a", "string"]
+    result["download_smoke_inspection_selected_row_count"] = "2"
+    result["download_smoke_inspection_fasta_n50_below_minimum_count"] = -1
     result_path = tmp_path / "coverage_handoff_server_validation_result.json"
     _write_server_validation_result(result_path, result)
 
@@ -2688,6 +2763,11 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["status"] == "blocked"
     assert payload["invalid_field_ids"] == [
         "check_count",
+        "download_smoke_inspection_fasta_n50_below_minimum_count",
+        "download_smoke_inspection_ready",
+        "download_smoke_inspection_realized",
+        "download_smoke_inspection_selected_row_count",
+        "download_smoke_inspection_summary_sha256",
         "external_genomes_registration_external_manifest_record_count",
         "external_genomes_registration_install_succeeded_count",
         "external_genomes_registration_manifest_available",
@@ -2704,6 +2784,11 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["external_genomes_registration_manifest_record_count"] == 0
     assert payload["external_genomes_registration_external_manifest_record_count"] == 0
     assert payload["external_genomes_registration_install_succeeded_count"] == 0
+    assert payload["download_smoke_inspection_realized"] is False
+    assert payload["download_smoke_inspection_ready"] is False
+    assert payload["download_smoke_inspection_summary_sha256"] == ""
+    assert payload["download_smoke_inspection_selected_row_count"] == 0
+    assert payload["download_smoke_inspection_fasta_n50_below_minimum_count"] == 0
 
 
 def test_coverage_pipeline_server_validation_result_validate_blocks_missing_input(
@@ -5673,6 +5758,20 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ]["result_template"]
     assert result_template["status"] == "blocked"
     assert result_template["boundary_confirmations"]["downloads_triggered"] == 0
+    assert result_template["download_smoke_inspection_realized"] is False
+    assert result_template["download_smoke_inspection_ready"] is False
+    assert result_template["download_smoke_inspection_selected_row_count"] == 0
+    assert result_template["download_smoke_inspection_zip_valid_count"] == 0
+    assert (
+        result_template["download_smoke_inspection_genome_fasta_present_count"]
+        == 0
+    )
+    assert (
+        result_template[
+            "download_smoke_inspection_fasta_n50_below_minimum_count"
+        ]
+        == 0
+    )
     next_input_package_path = (
         outdir / "coverage_next" / "next_input_package.json"
     )
@@ -5859,6 +5958,26 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     result_template["external_genomes_registration_manifest_record_count"] = 2
     result_template["external_genomes_registration_external_manifest_record_count"] = 1
     result_template["external_genomes_registration_install_succeeded_count"] = 1
+    result_template["download_smoke_inspection_realized"] = True
+    result_template["download_smoke_inspection_ready"] = False
+    result_template["download_smoke_inspection_summary_sha256"] = "b" * 64
+    result_template["download_smoke_inspection_selected_row_count"] = 2
+    result_template["download_smoke_inspection_zip_valid_count"] = 1
+    result_template["download_smoke_inspection_genome_fasta_present_count"] = 1
+    result_template["download_smoke_inspection_fasta_n50_below_minimum_count"] = 1
+    result_template[
+        "download_smoke_inspection_fasta_record_count_above_maximum_count"
+    ] = 1
+    result_template[
+        "download_smoke_inspection_fasta_total_bases_below_minimum_count"
+    ] = 0
+    result_template[
+        "download_smoke_inspection_fasta_longest_record_below_minimum_count"
+    ] = 1
+    result_template["download_smoke_inspection_fragmented_fasta_signal_count"] = 1
+    result_template[
+        "download_smoke_inspection_fasta_header_fragment_keyword_row_count"
+    ] = 1
     result_template_path.write_text(json.dumps(result_template), encoding="utf-8")
     code, validation_payload, validation_captured = _run(
         ["validate", "--input", str(result_template_path), "--json"],
@@ -5914,6 +6033,18 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         == 1
     )
     assert result_artifact["external_genomes_registration_install_succeeded_count"] == 1
+    assert result_artifact["download_smoke_inspection_realized"] is True
+    assert result_artifact["download_smoke_inspection_ready"] is False
+    assert result_artifact["download_smoke_inspection_summary_sha256"] == "b" * 64
+    assert result_artifact["download_smoke_inspection_selected_row_count"] == 2
+    assert result_artifact["download_smoke_inspection_zip_valid_count"] == 1
+    assert result_artifact["download_smoke_inspection_genome_fasta_present_count"] == 1
+    assert (
+        result_artifact[
+            "download_smoke_inspection_fasta_n50_below_minimum_count"
+        ]
+        == 1
+    )
     assert result_artifact["checked_surface_count"] == 2
     assert result_artifact["boundary_confirmation_count"] == 11
     assert result_artifact["diagnostic_count"] == 0
@@ -5955,6 +6086,72 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
             "handoff_server_validation_result_artifact_diagnostic_count"
         ]
         == 0
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_realized"
+        ]
+        is True
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_ready"
+        ]
+        is False
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_selected_row_count"
+        ]
+        == 2
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_zip_valid_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_genome_fasta_present_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_fasta_n50_below_minimum_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_fasta_record_count_above_maximum_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_fasta_total_bases_below_minimum_count"
+        ]
+        == 0
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_fasta_longest_record_below_minimum_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_fragmented_fasta_signal_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_fasta_header_fragment_keyword_row_count"
+        ]
+        == 1
     )
     result_status_surfaces = result_status_payload[
         "coverage_controller_inspection_summary"

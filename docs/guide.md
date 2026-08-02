@@ -781,8 +781,11 @@ scientific deliverables. Its command contract advertises stable summary fields
 such as validation status, result status, checked-surface count, boundary
 confirmation status, optional source commit, TypeTreeFlow version, runtime
 Python, evidence run path, check count, failed count, diagnostic count, and
-no-execution boundary flags so AI controllers can route the local validation
-result without parsing diagnostics.
+optional bounded download-smoke inspection observation counts and no-execution
+boundary flags so AI controllers can route the local validation result without
+parsing diagnostics. The download-smoke observation fields are audit visibility
+only; they do not make rows complete, strict, or accepted for final genome
+use.
 When `build --write` receives a complete archive-candidates audit TSV, it also
 publishes `archive_candidates/` under the isolated coverage-pipeline directory
 for later report and package handoff. This is only public-archive linkage
@@ -851,10 +854,10 @@ bounded server-validation result JSON and reports
 `coverage_handoff_server_validation_result_artifact_packet` with the result
 path, SHA-256, schema/status, checked-surface count, boundary count, optional
 source commit, TypeTreeFlow version, runtime Python, evidence run path, check
-count, failed count, and validation diagnostics. Invalid explicit results fail
-closed. The option does not run the target command, validate server artifacts,
-contact providers, download genomes, mutate manifests, or register external
-genomes.
+count, failed count, optional bounded download-smoke inspection observation
+counts, and validation diagnostics. Invalid explicit results fail closed. The
+option does not run the target command, validate server artifacts, contact
+providers, download genomes, mutate manifests, or register external genomes.
 
 The status command reads standard downstream child directories under the same
 isolated pipeline directory when present. To override those locations, pass:
