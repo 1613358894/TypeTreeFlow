@@ -629,10 +629,11 @@ unless the task explicitly asks for them.
 `download-smoke inspect` and the matching `--download-smoke-inspection-dir`
 report/package surface are local audit steps. They may inspect or package
 already-created bounded smoke ZIP artifacts and record bounded FASTA count
-statistics, FASTA N50 bases, and a descriptive FASTA fragmentation signal, but
-they do not authorize unattended downloads, rerun `datasets`, extract ZIPs,
-write raw sequence text, mutate manifests, contact providers, create strict
-scientific deliverables, or decide genome usability.
+statistics, FASTA N50 bases, controlled FASTA header keyword counts, and a
+descriptive FASTA fragmentation signal, but they do not authorize unattended
+downloads, rerun `datasets`, extract ZIPs, write raw sequence text or raw FASTA
+headers, mutate manifests, contact providers, create strict scientific
+deliverables, or decide genome usability.
 
 ## Provider Boundary
 
