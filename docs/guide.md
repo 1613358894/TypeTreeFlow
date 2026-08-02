@@ -1520,7 +1520,10 @@ malformed, or wrong-schema input is not copied and produces only a compact
 package warning. This file is audit-only bounded validation evidence: package
 inclusion does not execute target commands, contact providers, trigger
 downloads, register external genomes, mutate manifests, or promote strict
-deliverables. `--failed-handoff` excludes server-validation result artifacts.
+deliverables. If the result JSON includes optional bounded download-smoke
+inspection observations, package README and handoff text summarize only the
+controlled counts and quality-gate hits, never raw FASTA headers or sequence
+content. `--failed-handoff` excludes server-validation result artifacts.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,

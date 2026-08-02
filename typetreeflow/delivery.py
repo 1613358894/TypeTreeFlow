@@ -112,6 +112,17 @@ class ServerValidationResultPackageSummary:
     failed_count: int
     source_commit: str
     typetreeflow_version: str
+    download_smoke_inspection_realized: bool = False
+    download_smoke_inspection_ready: bool = False
+    download_smoke_inspection_selected_row_count: int = 0
+    download_smoke_inspection_zip_valid_count: int = 0
+    download_smoke_inspection_genome_fasta_present_count: int = 0
+    download_smoke_inspection_fasta_n50_below_minimum_count: int = 0
+    download_smoke_inspection_fasta_record_count_above_maximum_count: int = 0
+    download_smoke_inspection_fasta_total_bases_below_minimum_count: int = 0
+    download_smoke_inspection_fasta_longest_record_below_minimum_count: int = 0
+    download_smoke_inspection_fragmented_fasta_signal_count: int = 0
+    download_smoke_inspection_fasta_header_fragment_keyword_row_count: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -1870,6 +1881,76 @@ def _read_optional_server_validation_result(
             str(payload.get("typetreeflow_version", ""))
             if isinstance(payload.get("typetreeflow_version", ""), str)
             else ""
+        ),
+        download_smoke_inspection_realized=(
+            payload.get("download_smoke_inspection_realized") is True
+        ),
+        download_smoke_inspection_ready=(
+            payload.get("download_smoke_inspection_ready") is True
+        ),
+        download_smoke_inspection_selected_row_count=(
+            _safe_nonnegative_int_value(
+                payload.get("download_smoke_inspection_selected_row_count", 0)
+            )
+        ),
+        download_smoke_inspection_zip_valid_count=(
+            _safe_nonnegative_int_value(
+                payload.get("download_smoke_inspection_zip_valid_count", 0)
+            )
+        ),
+        download_smoke_inspection_genome_fasta_present_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_genome_fasta_present_count", 0
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_n50_below_minimum_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_n50_below_minimum_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_record_count_above_maximum_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_record_count_above_maximum_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_total_bases_below_minimum_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_total_bases_below_minimum_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_longest_record_below_minimum_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_longest_record_below_minimum_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_fragmented_fasta_signal_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fragmented_fasta_signal_count", 0
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_header_fragment_keyword_row_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_header_fragment_keyword_row_count",
+                    0,
+                )
+            )
         ),
     )
 
@@ -3642,6 +3723,10 @@ def _safe_int_value(value: object) -> int:
     return 0
 
 
+def _safe_nonnegative_int_value(value: object) -> int:
+    return max(_safe_int_value(value), 0)
+
+
 def _gtdb_audit_enabled_for_delivery(paths: OutputPaths) -> bool:
     state = _read_run_state_if_available(paths)
     if state is None:
@@ -4128,6 +4213,59 @@ def _server_validation_result_boundary_lines() -> list[str]:
     ]
 
 
+def _server_validation_download_smoke_observations_available(
+    audit: ServerValidationResultPackageSummary,
+) -> bool:
+    return any(
+        (
+            audit.download_smoke_inspection_realized,
+            audit.download_smoke_inspection_ready,
+            audit.download_smoke_inspection_selected_row_count,
+            audit.download_smoke_inspection_zip_valid_count,
+            audit.download_smoke_inspection_genome_fasta_present_count,
+            audit.download_smoke_inspection_fasta_n50_below_minimum_count,
+            audit.download_smoke_inspection_fasta_record_count_above_maximum_count,
+            audit.download_smoke_inspection_fasta_total_bases_below_minimum_count,
+            audit.download_smoke_inspection_fasta_longest_record_below_minimum_count,
+            audit.download_smoke_inspection_fragmented_fasta_signal_count,
+            audit.download_smoke_inspection_fasta_header_fragment_keyword_row_count,
+        )
+    )
+
+
+def _server_validation_download_smoke_observation_lines(
+    audit: ServerValidationResultPackageSummary,
+) -> list[str]:
+    if not _server_validation_download_smoke_observations_available(audit):
+        return []
+    return [
+        (
+            "- Bounded download-smoke inspection observations: "
+            f"realized={str(audit.download_smoke_inspection_realized).lower()}, "
+            f"ready={str(audit.download_smoke_inspection_ready).lower()}, "
+            f"selected_rows={audit.download_smoke_inspection_selected_row_count}, "
+            f"zip_valid={audit.download_smoke_inspection_zip_valid_count}, "
+            "genome_fasta_present="
+            f"{audit.download_smoke_inspection_genome_fasta_present_count}"
+        ),
+        (
+            "- Bounded FASTA quality-gate hits: "
+            "n50_below_minimum="
+            f"{audit.download_smoke_inspection_fasta_n50_below_minimum_count}, "
+            "record_count_above_maximum="
+            f"{audit.download_smoke_inspection_fasta_record_count_above_maximum_count}, "
+            "total_bases_below_minimum="
+            f"{audit.download_smoke_inspection_fasta_total_bases_below_minimum_count}, "
+            "longest_record_below_minimum="
+            f"{audit.download_smoke_inspection_fasta_longest_record_below_minimum_count}, "
+            "fragmented_signal="
+            f"{audit.download_smoke_inspection_fragmented_fasta_signal_count}, "
+            "header_keywords="
+            f"{audit.download_smoke_inspection_fasta_header_fragment_keyword_row_count}"
+        ),
+    ]
+
+
 def _server_validation_result_readme_lines(
     audit: ServerValidationResultPackageSummary,
 ) -> list[str]:
@@ -4140,6 +4278,7 @@ def _server_validation_result_readme_lines(
     lines.append(f"- Result status: {audit.status or 'unknown'}")
     lines.append(f"- Validation status: {audit.validation_status or 'unknown'}")
     lines.append(f"- Checks: {audit.check_count}; failed: {audit.failed_count}")
+    lines.extend(_server_validation_download_smoke_observation_lines(audit))
     if audit.warnings:
         lines.append("- Warning: " + "; ".join(audit.warnings))
     return lines
@@ -4154,6 +4293,7 @@ def _server_validation_result_handoff_lines(
         "- Server-validation checks: "
         f"{audit.check_count}; failed: {audit.failed_count}"
     )
+    lines.extend(_server_validation_download_smoke_observation_lines(audit))
     if audit.warnings:
         lines.append("- Server-validation result warning: " + "; ".join(audit.warnings))
     return lines

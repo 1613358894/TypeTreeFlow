@@ -510,6 +510,9 @@ valid explicitly supplied `--server-validation-result` JSON under
 server validation evidence availability only. It must not execute target
 commands, contact providers, trigger downloads, register external genomes,
 mutate manifests, change completion metrics, or promote strict deliverables.
+Optional embedded bounded download-smoke observations are controlled-count
+audit visibility only and must not include raw FASTA headers, sequence text, or
+ZIP payloads.
 Failed-handoff packages exclude server-validation result artifacts.
 
 Offline readiness projection is an aggregate contract check over already
