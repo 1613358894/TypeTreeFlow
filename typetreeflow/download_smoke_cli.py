@@ -571,8 +571,6 @@ def inspect_bounded_download_smoke_outputs(
     )
     if empty_genome_fasta_count:
         blockers.append("empty_genome_fasta_outputs")
-    if multiple_genome_fasta_members_count:
-        blockers.append("multiple_genome_fasta_members")
     if ambiguous_install_selection_count:
         blockers.append("genome_fasta_install_selection_ambiguous")
     if n50_below_minimum_count:
@@ -731,6 +729,11 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         if genome_fasta_present
         else _empty_fasta_stats()
     )
+    install_selection_status = (
+        _classify_genome_fasta_install_selection(fasta_stats)
+        if genome_fasta_present
+        else INSTALL_SELECTION_NOT_EVALUATED
+    )
     if not zip_exists:
         status = "zip_missing"
     elif not zip_valid:
@@ -741,7 +744,7 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         status = "genome_fasta_missing"
     elif _fasta_stats_are_empty(fasta_stats):
         status = "genome_fasta_empty"
-    elif int(fasta_stats["genome_fasta_member_count"]) > 1:
+    elif install_selection_status == INSTALL_SELECTION_AMBIGUOUS:
         status = "genome_fasta_multiple_members"
     else:
         status = "genome_fasta_present"
@@ -754,11 +757,7 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         "unsafe_zip_member_count": unsafe_zip_member_count,
         "genome_fasta_present": genome_fasta_present,
         **fasta_stats,
-        "genome_fasta_install_selection_status": (
-            _classify_genome_fasta_install_selection(fasta_stats)
-            if genome_fasta_present
-            else INSTALL_SELECTION_NOT_EVALUATED
-        ),
+        "genome_fasta_install_selection_status": install_selection_status,
         "empty_genome_fasta_count": int(_fasta_stats_are_empty(fasta_stats))
         if genome_fasta_present
         else 0,

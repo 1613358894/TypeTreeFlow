@@ -766,7 +766,7 @@ def test_download_smoke_inspect_blocks_empty_genome_fasta_by_default(
     assert summary["network_access"] is False
 
 
-def test_download_smoke_inspect_blocks_multiple_genome_fasta_members_by_default(
+def test_download_smoke_inspect_allows_multiple_members_with_unique_install_selection(
     capsys,
     tmp_path,
 ):
@@ -781,13 +781,13 @@ def test_download_smoke_inspect_blocks_multiple_genome_fasta_members_by_default(
         [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
     )
 
-    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 2
+    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 0
 
     payload = json.loads(capsys.readouterr().out)
     summary = payload["bounded_download_smoke_inspection_summary"]
-    assert payload["status"] == "blocked"
-    assert summary["ready"] is False
-    assert summary["blockers"] == ["multiple_genome_fasta_members"]
+    assert payload["status"] == "pass"
+    assert summary["ready"] is True
+    assert summary["blockers"] == []
     assert summary["genome_fasta_present_count"] == 1
     assert summary["unsafe_zip_member_count"] == 0
     assert summary["genome_fasta_member_count"] == 2
@@ -799,9 +799,9 @@ def test_download_smoke_inspect_blocks_multiple_genome_fasta_members_by_default(
     assert summary["multiple_genome_fasta_members_count"] == 1
     assert summary["fasta_record_count"] == 2
     assert summary["fasta_total_bases"] == 8
-    assert summary["fasta_quality_gate_passed_row_count"] == 0
+    assert summary["fasta_quality_gate_passed_row_count"] == 1
     assert summary["fasta_quality_gate_blocked_row_count"] == 0
-    assert summary["status_counts"] == {"genome_fasta_multiple_members": 1}
+    assert summary["status_counts"] == {"genome_fasta_present": 1}
 
 
 def test_download_smoke_inspect_blocks_unsafe_zip_member_paths_by_default(
@@ -856,10 +856,7 @@ def test_download_smoke_inspect_flags_ambiguous_install_selection(
     summary = payload["bounded_download_smoke_inspection_summary"]
     assert payload["status"] == "blocked"
     assert summary["ready"] is False
-    assert summary["blockers"] == [
-        "multiple_genome_fasta_members",
-        "genome_fasta_install_selection_ambiguous",
-    ]
+    assert summary["blockers"] == ["genome_fasta_install_selection_ambiguous"]
     assert summary["genome_fasta_member_count"] == 2
     assert summary["genomic_named_fasta_member_count"] == 0
     assert summary["genome_fasta_install_selection_status_counts"] == {

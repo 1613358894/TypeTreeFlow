@@ -1238,13 +1238,14 @@ path-traversing, Windows-drive-prefixed, or symlink-like paths are blocked by
 default as `unsafe_zip_member_paths` before FASTA content is inspected. A genome
 FASTA member with zero records or zero bases is blocked by default as
 `empty_genome_fasta_outputs`, because it is not a usable downloaded genome.
-A bounded row with more than one genome FASTA member is blocked by default as
-`multiple_genome_fasta_members`, because the installed genome source may be
-ambiguous. Inspection also reports `genome_fasta_install_selection_status` using
-the same selection rule as the reference-genome installer: one FASTA member is
-selectable, and multiple members are selectable only when exactly one member is
-named `genomic.fna` or `*_genomic.fna`. If that rule cannot choose one source
-member, `genome_fasta_install_selection_ambiguous` is reported.
+A bounded row with more than one genome FASTA member remains visible as the
+count-only `multiple_genome_fasta_members_count` audit signal. It is blocked by
+default only when the installed genome source cannot be selected uniquely.
+Inspection reports `genome_fasta_install_selection_status` using the same
+selection rule as the reference-genome installer: one FASTA member is selectable,
+and multiple members are selectable only when exactly one member is named
+`genomic.fna` or `*_genomic.fna`. If that rule cannot choose one source member,
+`genome_fasta_install_selection_ambiguous` is reported.
 Add explicit inspection
 quality gates such as `--min-fasta-n50-bases <bases>`,
 `--max-fasta-record-count <count>`,
