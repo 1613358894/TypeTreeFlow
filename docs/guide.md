@@ -1311,7 +1311,8 @@ typetreeflow package-results \
 The report/package surface is still audit-only. It copies or summarizes local
 inspection artifacts only and does not authorize unattended downloads, rerun
 `datasets`, extract ZIPs, mutate manifests, or create strict deliverables. When
-quality gates are present, the report and package handoff summarize only the
+local inspection readiness or quality gates are present, the report and package
+handoff summarize only the installable genome FASTA ready/not-ready counts,
 passed/blocked row counts, controlled blocker-code counts, and bounded
 quality-gate recommendation labels. They do not surface local recommended
 command paths.
