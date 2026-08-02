@@ -16,6 +16,7 @@ from typetreeflow.download_plan_readiness import (
     build_download_plan_readiness_summary,
 )
 from typetreeflow.external.tools import IQTREE_EXECUTABLE_CANDIDATES
+from typetreeflow.genomes.extract import GENOME_REGISTRATION_RESULTS_FIELDS
 from typetreeflow.manifest import read_manifest
 from typetreeflow.workflow.next_action import (
     can_refine_failed_run_state_next_action as _can_refine_failed_run_state_next_action,
@@ -105,6 +106,7 @@ class WorkflowStatusSummary:
     outdir: str = ""
     run_state_path: str = ""
     download_plan_readiness_summary: dict[str, Any] = field(default_factory=dict)
+    genome_registration_summary: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -147,6 +149,8 @@ class WorkflowStatusSummary:
             payload["download_plan_readiness_summary"] = (
                 self.download_plan_readiness_summary
             )
+        if self.genome_registration_summary:
+            payload["genome_registration_summary"] = self.genome_registration_summary
         return payload
 
 
@@ -288,6 +292,7 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
                 download_plan_readiness_summary=(
                     summary.download_plan_readiness_summary
                 ),
+                genome_registration_summary=summary.genome_registration_summary,
             )
         if _stage_status(summary.stages, "download") == "blocked_by_manual_review":
             guarded_download_action = plan_only_guarded_download_next_action(paths)
@@ -302,6 +307,7 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
                     download_plan_readiness_summary=(
                         summary.download_plan_readiness_summary
                     ),
+                    genome_registration_summary=summary.genome_registration_summary,
                 )
         if next_action != summary.next_action:
             return WorkflowStatusSummary(
@@ -314,6 +320,7 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
                 download_plan_readiness_summary=(
                     summary.download_plan_readiness_summary
                 ),
+                genome_registration_summary=summary.genome_registration_summary,
             )
         return summary
 
@@ -443,6 +450,7 @@ def _with_status_paths(
     root: Path,
     run_state_path: Path,
 ) -> WorkflowStatusSummary:
+    paths = get_output_paths(root)
     download_plan_path = root / "cache" / "ncbi" / "download_plan.tsv"
     readiness_summary = (
         build_download_plan_readiness_summary(download_plan_path)
@@ -457,7 +465,51 @@ def _with_status_paths(
         outdir=str(root),
         run_state_path=str(run_state_path),
         download_plan_readiness_summary=readiness_summary,
+        genome_registration_summary=_read_genome_registration_summary(root, paths),
     )
+
+
+def _read_genome_registration_summary(root: Path, paths) -> dict[str, Any]:
+    path = paths.ncbi_genome_registration_results_path
+    if not path.exists():
+        return {}
+    payload: dict[str, Any] = {
+        "schema_version": "genome_registration_status_summary.v1",
+        "path": _relative_to_root(path, root),
+        "result_count": 0,
+        "genome_ready_count": 0,
+        "status_counts": {},
+    }
+    try:
+        rows = _read_tsv(path)
+    except (OSError, csv.Error) as error:
+        payload["read_error"] = str(error)
+        return payload
+    if rows:
+        missing_fields = set(GENOME_REGISTRATION_RESULTS_FIELDS) - set(rows[0])
+        if missing_fields:
+            payload["read_error"] = (
+                "genome_registration_results.tsv missing fields: "
+                + ", ".join(sorted(missing_fields))
+            )
+            return payload
+    status_counts: dict[str, int] = {}
+    for row in rows:
+        status = str(row.get("status", "")).strip()
+        if not status:
+            continue
+        status_counts[status] = status_counts.get(status, 0) + 1
+    payload["result_count"] = len(rows)
+    payload["genome_ready_count"] = status_counts.get("genome_ready", 0)
+    payload["status_counts"] = dict(sorted(status_counts.items()))
+    return payload
+
+
+def _relative_to_root(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _public_workflow_status(

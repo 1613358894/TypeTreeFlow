@@ -48,6 +48,12 @@ Primary commands write compact JSON to stdout by default. This does not require
   `safe_for_unattended_download=false`, `downloads_triggered=0`,
   `providers_contacted=0`, `manifest_mutated=false`, and
   `strict_scientific_deliverable=false`.
+  When an existing `cache/ncbi/genome_registration_results.tsv` is present,
+  `status` also emits `genome_registration_summary` with the relative TSV path,
+  row count, `genome_ready_count`, and controlled status counts. This is local
+  ZIP extraction and reference-genome installation visibility only; it does not
+  expose raw FASTA text or notes and does not change strict type-strain status,
+  completion, or evidence policy.
   When planned NCBI rows are ready, plan-only `status` and `next-step`
   guidance can include `download-smoke prepare --quality-tier recommended` as
   an isolated smoke-input handoff; this remains planning-only and does not
