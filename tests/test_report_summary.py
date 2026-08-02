@@ -213,6 +213,11 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "zip_valid_count": 1,
                 "genome_fasta_present_count": 1,
                 "genome_fasta_member_count": 1,
+                "genomic_named_fasta_member_count": 1,
+                "genome_fasta_install_selection_status_counts": {
+                    "selected": 1
+                },
+                "genome_fasta_install_selection_ambiguous_count": 0,
                 "fasta_record_count": 2,
                 "fasta_total_bases": 10,
                 "fasta_longest_record_bases": 6,
@@ -330,6 +335,8 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     assert "- Valid ZIPs: 1" in markdown
     assert "- Genome FASTA present: 1" in markdown
     assert "- Genome FASTA members: 1" in markdown
+    assert "- Genomic-named FASTA members: 1" in markdown
+    assert "- Genome FASTA install selection statuses: selected=1" in markdown
     assert "- FASTA records: 2" in markdown
     assert "- FASTA total bases: 10" in markdown
     assert "- Longest FASTA record bases: 6" in markdown
@@ -345,7 +352,8 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     ) in markdown
     assert (
         "- FASTA quality gate hits: empty_genome_fasta=1, "
-        "multiple_genome_fasta_members=1, n50_below_minimum=1, "
+        "multiple_genome_fasta_members=1, install_selection_ambiguous=0, "
+        "n50_below_minimum=1, "
         "record_count_above_maximum=1, total_bases_below_minimum=1, "
         "longest_record_below_minimum=1, fragmented_signal=1, "
         "header_keywords=1"

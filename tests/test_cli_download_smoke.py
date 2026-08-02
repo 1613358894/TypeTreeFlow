@@ -678,6 +678,11 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["zip_valid_count"] == 1
     assert summary["genome_fasta_present_count"] == 1
     assert summary["genome_fasta_member_count"] == 1
+    assert summary["genomic_named_fasta_member_count"] == 1
+    assert summary["genome_fasta_install_selection_status_counts"] == {
+        "selected": 1
+    }
+    assert summary["genome_fasta_install_selection_ambiguous_count"] == 0
     assert summary["fasta_record_count"] == 2
     assert summary["fasta_total_bases"] == 10
     assert summary["fasta_longest_record_bases"] == 6
@@ -783,6 +788,11 @@ def test_download_smoke_inspect_blocks_multiple_genome_fasta_members_by_default(
     assert summary["blockers"] == ["multiple_genome_fasta_members"]
     assert summary["genome_fasta_present_count"] == 1
     assert summary["genome_fasta_member_count"] == 2
+    assert summary["genomic_named_fasta_member_count"] == 1
+    assert summary["genome_fasta_install_selection_status_counts"] == {
+        "selected": 1
+    }
+    assert summary["genome_fasta_install_selection_ambiguous_count"] == 0
     assert summary["multiple_genome_fasta_members_count"] == 1
     assert summary["fasta_record_count"] == 2
     assert summary["fasta_total_bases"] == 8
@@ -791,6 +801,40 @@ def test_download_smoke_inspect_blocks_multiple_genome_fasta_members_by_default(
     assert summary["status_counts"] == {"genome_fasta_multiple_members": 1}
     assert summary["downloads_triggered"] == 0
     assert summary["network_access"] is False
+
+
+def test_download_smoke_inspect_flags_ambiguous_install_selection(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("ncbi_dataset/data/GCF_000001.1/alpha.fna", ">a\nACGT\n")
+        archive.writestr("ncbi_dataset/data/GCF_000001.1/beta.fasta", ">b\nACGT\n")
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["ready"] is False
+    assert summary["blockers"] == [
+        "multiple_genome_fasta_members",
+        "genome_fasta_install_selection_ambiguous",
+    ]
+    assert summary["genome_fasta_member_count"] == 2
+    assert summary["genomic_named_fasta_member_count"] == 0
+    assert summary["genome_fasta_install_selection_status_counts"] == {
+        "ambiguous": 1
+    }
+    assert summary["genome_fasta_install_selection_ambiguous_count"] == 1
+    assert summary["status_counts"] == {"genome_fasta_multiple_members": 1}
 
 
 def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
@@ -1063,6 +1107,8 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["zip_valid"] == "true"
     assert rows[0]["genome_fasta_present"] == "true"
     assert rows[0]["genome_fasta_member_count"] == "1"
+    assert rows[0]["genomic_named_fasta_member_count"] == "1"
+    assert rows[0]["genome_fasta_install_selection_status"] == "selected"
     assert rows[0]["fasta_record_count"] == "1"
     assert rows[0]["fasta_total_bases"] == "4"
     assert rows[0]["fasta_longest_record_bases"] == "4"
@@ -1076,6 +1122,11 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["fasta_fragmentation_signal"] == "single_record"
     assert rows[0]["fasta_quality_gate_blockers"] == ""
     assert summary["ready"] is True
+    assert summary["genomic_named_fasta_member_count"] == 1
+    assert summary["genome_fasta_install_selection_status_counts"] == {
+        "selected": 1
+    }
+    assert summary["genome_fasta_install_selection_ambiguous_count"] == 0
     assert summary["fasta_max_n50_bases"] == 4
     assert summary["fasta_header_wgs_keyword_count"] == 0
     assert summary["fasta_header_scaffold_keyword_count"] == 0
