@@ -1175,8 +1175,11 @@ readiness recommendation without a separate manual tier choice.
 
 The command copies only `status=planned` rows into
 `bounded_download_smoke_plan.tsv` and writes
-`bounded_download_smoke_summary.json`. It does not run `datasets`, access the
-network, contact providers, mutate a manifest, or authorize broad downloads.
+`bounded_download_smoke_summary.json`. The summary includes selected accession
+assembly-level counts and a bounded accession quality preview so the smoke
+handoff can be checked before execution. It does not run `datasets`, access
+the network, contact providers, mutate a manifest, or authorize broad
+downloads.
 
 ```bash
 typetreeflow verify-genus Fusobacterium \

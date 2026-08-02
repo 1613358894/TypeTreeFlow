@@ -148,6 +148,7 @@ def prepare_bounded_download_smoke_input(
         else (planned_rows if resolved_quality_tier == "all" else [])
     )
     selected = selected_pool[:limit]
+    selected_quality = _selected_quality_summary(assembly_metadata, selected)
     blockers: list[str] = []
     if not selected:
         if resolved_quality_tier == "high":
@@ -173,9 +174,12 @@ def prepare_bounded_download_smoke_input(
         "resolved_quality_tier": resolved_quality_tier,
         "quality_tier": resolved_quality_tier,
         "selected_row_count": len(selected),
-        "selected_high_quality_row_count": (
-            len(selected) if resolved_quality_tier == "high" else quality_counts["high"]
-        ),
+        "selected_high_quality_row_count": selected_quality["high_quality_count"],
+        "selected_assembly_level_counts": selected_quality["assembly_level_counts"],
+        "selected_accession_quality_preview": selected_quality["accession_preview"],
+        "selected_accession_quality_preview_truncated": selected_quality[
+            "accession_preview_truncated"
+        ],
         "source_planned_row_count": readiness.get("download_ready_ncbi_count", 0),
         "source_high_quality_planned_row_count": quality_counts["high"],
         "source_draft_or_fragmented_planned_row_count": quality_counts[
@@ -244,6 +248,47 @@ def _planned_quality_counts(
         else:
             counts["unknown"] += 1
     return counts
+
+
+def _selected_quality_summary(
+    assembly_metadata: dict[str, tuple[str, str]],
+    rows: list[dict[str, str]],
+) -> dict[str, object]:
+    counts: dict[str, int] = {}
+    preview: list[dict[str, str]] = []
+    preview_limit = 10
+    for row in rows:
+        accession = row.get("assembly_accession", "").strip()
+        level = _planned_row_assembly_level(assembly_metadata, row) or "unknown"
+        counts[level] = counts.get(level, 0) + 1
+        if len(preview) < preview_limit:
+            preview.append(
+                {
+                    "record_id": row.get("record_id", "").strip(),
+                    "assembly_accession": accession,
+                    "assembly_level": level,
+                    "quality_tier": _quality_tier_for_assembly_level(level),
+                }
+            )
+    return {
+        "assembly_level_counts": dict(sorted(counts.items())),
+        "accession_preview": preview,
+        "accession_preview_truncated": len(rows) > preview_limit,
+        "high_quality_count": sum(
+            count
+            for level, count in counts.items()
+            if _quality_tier_for_assembly_level(level) == "high"
+        ),
+    }
+
+
+def _quality_tier_for_assembly_level(level: str) -> str:
+    normalized = _normalize_assembly_level(level)
+    if normalized in {"Complete Genome", "Chromosome"}:
+        return "high"
+    if normalized in {"Scaffold", "Contig"}:
+        return "draft_or_fragmented"
+    return "unknown"
 
 
 def _planned_row_assembly_level(
