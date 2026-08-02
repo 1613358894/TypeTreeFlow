@@ -43,6 +43,7 @@ from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_STATUSES,
 )
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS, DOWNLOAD_RESULTS_FIELDS
+from typetreeflow.genomes.extract import GENOME_REGISTRATION_RESULTS_FIELDS
 from typetreeflow.genomes.preflight import DOWNLOAD_PREFLIGHT_SUMMARY_FIELDS
 from typetreeflow.manifest import MANIFEST_FIELDS, NAME_MAP_FIELDS
 from typetreeflow.phylo.plan import PHYLO_PLAN_FIELDS
@@ -462,6 +463,9 @@ def test_schema_docs_cover_public_tsv_field_constants():
         "completion/manual_supplement_hints.tsv": MANUAL_SUPPLEMENT_HINT_FIELDS,
         "cache/ncbi/download_plan.tsv": DOWNLOAD_PLAN_FIELDS,
         "cache/ncbi/download_results.tsv": DOWNLOAD_RESULTS_FIELDS,
+        "cache/ncbi/genome_registration_results.tsv": (
+            GENOME_REGISTRATION_RESULTS_FIELDS
+        ),
         "rrna/rrna_plan.tsv": RRNA_PLAN_FIELDS,
         "ani/ani_plan.tsv": ANI_PLAN_FIELDS,
         "ani/ani_query_vs_refs.tsv": ANI_QUERY_VS_REFS_FIELDS,

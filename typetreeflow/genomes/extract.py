@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import shutil
 import zipfile
 from dataclasses import dataclass
@@ -11,6 +12,14 @@ from typetreeflow.models import StrainRecord
 from typetreeflow.workflow.paths import OutputPaths, get_output_paths
 
 FASTA_SUFFIXES = {".fna", ".fasta", ".fa"}
+GENOME_REGISTRATION_RESULTS_FIELDS = [
+    "record_id",
+    "normalized_id",
+    "source_fna",
+    "installed_genome_path",
+    "status",
+    "notes",
+]
 
 
 @dataclass(frozen=True)
@@ -21,6 +30,28 @@ class GenomeExtractionResult:
     installed_genome_path: str = ""
     status: str = ""
     notes: str = ""
+
+
+def write_genome_registration_results(
+    results: Iterable[GenomeExtractionResult],
+    path: str | Path,
+) -> None:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=GENOME_REGISTRATION_RESULTS_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        for result in results:
+            writer.writerow(
+                {
+                    field: str(getattr(result, field))
+                    for field in GENOME_REGISTRATION_RESULTS_FIELDS
+                }
+            )
 
 
 def extract_datasets_zip(zip_path: Path, extract_dir: Path, force: bool = False) -> Path:

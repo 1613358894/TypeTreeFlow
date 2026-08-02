@@ -21,6 +21,7 @@ class OutputPaths:
     reconciler_diagnostics_path: Path
     biosample_records_path: Path
     ncbi_download_results_path: Path
+    ncbi_genome_registration_results_path: Path
     ncbi_extracted_dir: Path
     genomes_references_dir: Path
     genomes_query_dir: Path
@@ -110,6 +111,9 @@ def get_output_paths(outdir: str | Path) -> OutputPaths:
         reconciler_diagnostics_path=evidence_dir / "reconciler_diagnostics.tsv",
         biosample_records_path=ncbi_cache_dir / "biosample_records.tsv",
         ncbi_download_results_path=ncbi_cache_dir / "download_results.tsv",
+        ncbi_genome_registration_results_path=(
+            ncbi_cache_dir / "genome_registration_results.tsv"
+        ),
         ncbi_extracted_dir=ncbi_cache_dir / "extracted",
         genomes_references_dir=root / "genomes" / "references",
         genomes_query_dir=root / "genomes" / "query",

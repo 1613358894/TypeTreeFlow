@@ -1,9 +1,12 @@
+import csv
 import zipfile
 from pathlib import Path
 
 import pytest
 
 from typetreeflow.genomes.extract import (
+    GENOME_REGISTRATION_RESULTS_FIELDS,
+    GenomeExtractionResult,
     choose_genomic_fna,
     count_unsafe_datasets_zip_members,
     datasets_zip_has_genome,
@@ -13,6 +16,7 @@ from typetreeflow.genomes.extract import (
     install_reference_genome,
     is_valid_zip,
     register_extracted_genomes,
+    write_genome_registration_results,
 )
 from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.genomes.plan import build_genome_download_plan
@@ -303,6 +307,34 @@ def test_register_extracted_genomes_updates_manifest_record(tmp_path):
     assert record.status == "genome_ready"
     assert Path(record.genome_path) == expected
     assert expected.read_text(encoding="utf-8") == ">seq\nACGT\n"
+
+
+def test_write_genome_registration_results_tsv(tmp_path):
+    results_path = tmp_path / "cache" / "ncbi" / "genome_registration_results.tsv"
+    result = GenomeExtractionResult(
+        record_id="rec-1",
+        normalized_id="rec_1",
+        source_fna="cache/ncbi/extracted/rec-1/genomic.fna",
+        installed_genome_path="genomes/references/rec_1.fna",
+        status="genome_ready",
+        notes="Installed reference genome",
+    )
+
+    write_genome_registration_results([result], results_path)
+
+    with results_path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    assert rows == [
+        {
+            "record_id": "rec-1",
+            "normalized_id": "rec_1",
+            "source_fna": "cache/ncbi/extracted/rec-1/genomic.fna",
+            "installed_genome_path": "genomes/references/rec_1.fna",
+            "status": "genome_ready",
+            "notes": "Installed reference genome",
+        }
+    ]
+    assert list(rows[0]) == GENOME_REGISTRATION_RESULTS_FIELDS
 
 
 def test_register_recovers_from_existing_zip_when_manifest_not_registered(tmp_path):

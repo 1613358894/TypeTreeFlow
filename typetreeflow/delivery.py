@@ -193,6 +193,12 @@ def package_results(
         copied,
         missing,
     )
+    _copy_optional(
+        paths.ncbi_genome_registration_results_path,
+        output_dir / "genome_registration_results.tsv",
+        copied,
+        missing,
+    )
 
     bacdive_outputs_copied = False
     reconciler_outputs_copied: list[Path] = []
@@ -1047,6 +1053,7 @@ def build_delivery_readme(
             "- Selected accessions: selected_accessions.tsv when available",
             "- Evidence summary: evidence_summary.tsv when available",
             "- Download results: download_results.tsv when available",
+            "- Genome registration results: genome_registration_results.tsv when available",
             "- Run state: run_state.json when available",
             "- Reports: reports/summary.md and reports/run_review.md when requested and available",
             "- Artifact scope manifest: artifact_scope.tsv and reports/artifact_scope.tsv when available",
@@ -3617,6 +3624,7 @@ def _display_optional_path(path: Path) -> str:
         "selection/user_selection.tsv",
         "selection/download_preflight_summary.tsv",
         "cache/ncbi/download_results.tsv",
+        "cache/ncbi/genome_registration_results.tsv",
         "report/summary.md",
         "report/run_review.md",
         "run_state.json",

@@ -108,6 +108,7 @@ from typetreeflow.genomes.extract import (
     find_existing_extracted_dir,
     is_valid_zip,
     register_extracted_genomes,
+    write_genome_registration_results,
 )
 from typetreeflow.genomes.plan import build_genome_download_plan
 from typetreeflow.genomes.preflight import (
@@ -5382,6 +5383,10 @@ def _register_downloaded_genomes(records, plan_items, paths, force: bool) -> Non
         return
 
     results = register_extracted_genomes(records, ready_plan_items, force=force)
+    write_genome_registration_results(
+        results,
+        paths.ncbi_genome_registration_results_path,
+    )
     summary: dict[str, int] = {}
     for result in results:
         summary[result.status] = summary.get(result.status, 0) + 1
