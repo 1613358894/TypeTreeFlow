@@ -1215,9 +1215,14 @@ audit statistic and counts controlled FASTA header keywords such as WGS,
 scaffold, and contig without copying raw header text. These values help
 reviewers notice single-record, single-dominant multi-record, or visibly
 fragmented multi-record FASTA outputs; they are not strict gates, completion
-metrics, or genome usability decisions. The inspection does not run `datasets`,
-extract ZIPs, write raw sequence text, access the network, contact providers, or
-mutate workflow outputs.
+metrics, or genome usability decisions by default. Add explicit inspection
+quality gates such as `--min-fasta-n50-bases <bases>`,
+`--max-fasta-record-count <count>`, `--block-fragmented-fasta`, or
+`--block-fasta-header-keywords` when a bounded smoke should fail closed on
+obvious scaffold/contig/WGS-style outputs. These optional blockers are local
+smoke acceptance criteria only; they still do not create strict deliverables.
+The inspection does not run `datasets`, extract ZIPs, write raw sequence text,
+access the network, contact providers, or mutate workflow outputs.
 
 To surface that bounded inspection in an existing run report or delivery
 package, pass the isolated inspection directory explicitly:

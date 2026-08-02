@@ -1981,6 +1981,98 @@ def test_commands_render_emits_normalized_provider_handoff_argv(capsys):
     )
 
 
+def test_commands_render_emits_download_smoke_quality_gate_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"download-smoke","subcommand":"inspect",'
+                    '"download_plan":"bounded.tsv",'
+                    '"min_fasta_n50_bases":50000,'
+                    '"max_fasta_record_count":10,'
+                    '"block_fragmented_fasta":true,'
+                    '"block_fasta_header_keywords":true,'
+                    '"write":true,"outdir":"inspection","json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "download-smoke",
+        "inspect",
+        "--download-plan",
+        "bounded.tsv",
+        "--min-fasta-n50-bases",
+        "50000",
+        "--max-fasta-record-count",
+        "10",
+        "--block-fragmented-fasta",
+        "--block-fasta-header-keywords",
+        "--write",
+        "--outdir",
+        "inspection",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "download-smoke"
+    assert payload["recognized"]["mode"] == "download_smoke"
+    assert payload["recognized"]["requires_outdir"] is True
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert _output_contract_names(payload) == {
+        "bounded_download_smoke_inspection_packet"
+    }
+    assert payload["output_contracts"][0]["summary_fields"]
+
+
+def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--request-json",
+                (
+                    '{"command":"download-smoke","subcommand":"prepare",'
+                    '"download_plan":"download_plan.tsv","limit":2,'
+                    '"quality_tier":"high","write":true,'
+                    '"outdir":"bounded","json":true}'
+                ),
+                "--allow-write",
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["preflight"]["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "download-smoke",
+        "prepare",
+        "--download-plan",
+        "download_plan.tsv",
+        "--limit",
+        "2",
+        "--quality-tier",
+        "high",
+        "--write",
+        "--outdir",
+        "bounded",
+        "--json",
+    ]
+    assert payload["target_writes_outputs_declared"] is True
+    assert payload["target_network_declared"] is False
+    assert payload["target_external_tools_declared"] is False
+    assert _output_contract_names(payload) == {
+        "bounded_download_smoke_input_packet"
+    }
+
+
 def test_commands_render_emits_normalized_provider_request_argv(capsys):
     assert (
         main(
@@ -3630,6 +3722,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_providers": False,
         "is_curator_packet": False,
         "is_strict_gate_state": False,
+        "is_download_smoke": False,
         "provider_key_filter": [],
         "provider_key_filter_count": 0,
         "writes_outputs_declared": False,

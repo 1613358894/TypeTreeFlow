@@ -29,6 +29,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "providers",
         "curator-packet",
         "strict-gate-state",
+        "download-smoke",
         "commands",
     }
 )
@@ -61,6 +62,7 @@ _EXTERNAL_GENOMES_SUBCOMMANDS = {
 _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
+_DOWNLOAD_SMOKE_SUBCOMMANDS = {"prepare", "inspect"}
 _COMMANDS_SUBCOMMANDS = {"catalog", "plan", "preflight", "recognize", "render"}
 
 
@@ -93,6 +95,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_providers = first == "providers"
     is_curator_packet = first == "curator-packet"
     is_strict_gate_state = first == "strict-gate-state"
+    is_download_smoke = first == "download-smoke"
     unknown = False
     invalid = False
 
@@ -110,6 +113,15 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         unknown = (
             subcommand is not None
             and subcommand not in _ACQUISITION_WORKLIST_SUBCOMMANDS
+        )
+    elif is_download_smoke:
+        command = "download-smoke"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "download_smoke"
+        invalid = subcommand not in _DOWNLOAD_SMOKE_SUBCOMMANDS
+        unknown = (
+            subcommand is not None
+            and subcommand not in _DOWNLOAD_SMOKE_SUBCOMMANDS
         )
     elif is_coverage_pipeline:
         command = "coverage-pipeline"
@@ -290,6 +302,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_providers": is_providers,
         "is_curator_packet": is_curator_packet,
         "is_strict_gate_state": is_strict_gate_state,
+        "is_download_smoke": is_download_smoke,
         "provider_key_filter": provider_key_filter,
         "provider_key_filter_count": len(provider_key_filter),
         "writes_outputs_declared": writes_outputs_declared,
@@ -384,6 +397,8 @@ def _writes_outputs_declared(
         return subcommand == "build" and "--write" in tokens
     if command == "coverage-pipeline":
         return subcommand == "build" and "--write" in tokens
+    if command == "download-smoke":
+        return subcommand in {"prepare", "inspect"} and "--write" in tokens
     if command == "count-crosswalk":
         return subcommand == "build" and "--write" in tokens
     if command == "archive-candidates":
@@ -454,6 +469,8 @@ def _requires_outdir(
         return subcommand == "build" and writes_outputs_declared
     if command == "coverage-pipeline":
         return subcommand == "build" and writes_outputs_declared
+    if command == "download-smoke":
+        return subcommand in {"prepare", "inspect"} and writes_outputs_declared
     if command == "count-crosswalk":
         return subcommand == "build" and writes_outputs_declared
     if command == "archive-candidates":
