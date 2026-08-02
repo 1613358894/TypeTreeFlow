@@ -101,6 +101,11 @@ def run_download_smoke_command(
         )
         return 2
 
+    if args.action == "prepare" and args.write:
+        result["summary"]["recommended_inspection_command"] = (  # type: ignore[index]
+            _recommended_inspection_command(Path(args.outdir) / OUTPUT_PLAN_NAME)
+        )
+
     if args.write:
         try:
             if args.action == "prepare":
@@ -222,6 +227,7 @@ def prepare_bounded_download_smoke_input(
         "selected_datasets_command_preview_truncated": selected_commands[
             "command_preview_truncated"
         ],
+        "recommended_inspection_command": [],
         "source_planned_row_count": readiness.get("download_ready_ncbi_count", 0),
         "source_high_quality_planned_row_count": quality_counts["high"],
         "source_draft_or_fragmented_planned_row_count": quality_counts[
@@ -248,6 +254,19 @@ def prepare_bounded_download_smoke_input(
         ),
     }
     return {"rows": selected, "summary": summary}
+
+
+def _recommended_inspection_command(bounded_plan_path: str | Path) -> list[str]:
+    return [
+        "typetreeflow",
+        "download-smoke",
+        "inspect",
+        "--download-plan",
+        str(bounded_plan_path),
+        "--write",
+        "--outdir",
+        "<isolated-bounded-download-smoke-inspection-dir>",
+    ]
 
 
 def inspect_bounded_download_smoke_outputs(

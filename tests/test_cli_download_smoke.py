@@ -97,6 +97,7 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
         ],
     }
     assert summary["selected_datasets_command_preview_truncated"] is False
+    assert summary["recommended_inspection_command"] == []
 
 
 def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
@@ -137,6 +138,19 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows == [_planned_row("rec-1")]
     assert summary["selected_row_count"] == 1
     assert summary["downloads_triggered"] == 0
+    assert summary["recommended_inspection_command"] == [
+        "typetreeflow",
+        "download-smoke",
+        "inspect",
+        "--download-plan",
+        str(outdir / "bounded_download_smoke_plan.tsv"),
+        "--write",
+        "--outdir",
+        "<isolated-bounded-download-smoke-inspection-dir>",
+    ]
+    assert payload["bounded_download_smoke_summary"][
+        "recommended_inspection_command"
+    ] == summary["recommended_inspection_command"]
 
 
 def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):

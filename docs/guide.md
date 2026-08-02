@@ -1181,6 +1181,9 @@ handoff can be checked before execution. It also previews at most five
 corresponding `datasets download genome accession` command arrays for operator
 inspection. It does not run `datasets`, access the network, contact providers,
 mutate a manifest, or authorize broad downloads.
+When `prepare --write` succeeds, `recommended_inspection_command` points to the
+matching local `download-smoke inspect` command for the written bounded plan;
+choose a fresh isolated inspection `--outdir` before running it.
 
 After a separately authorized bounded smoke has run those commands, inspect the
 resulting ZIP paths locally before treating the smoke as usable:
