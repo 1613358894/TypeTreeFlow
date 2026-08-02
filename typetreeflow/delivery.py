@@ -4424,8 +4424,12 @@ def _download_smoke_inspection_readme_lines(
     if audit.counts:
         lines.append(
             "- Counts: "
-            + "; ".join(f"{field}={value}" for field, value in audit.counts.items())
+            + "; ".join(
+                f"{field}={_format_download_smoke_count_value(value)}"
+                for field, value in audit.counts.items()
+            )
         )
+        lines.extend(_download_smoke_inspection_quality_gate_lines(audit))
     if audit.present_files:
         lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
     if audit.warnings:
@@ -4437,6 +4441,7 @@ def _download_smoke_inspection_handoff_lines(
     audit: DownloadSmokeInspectionAuditSummary,
 ) -> list[str]:
     lines = _download_smoke_inspection_boundary_lines()
+    lines.extend(_download_smoke_inspection_quality_gate_lines(audit))
     if audit.present_files:
         lines.append(
             "- Bounded download-smoke inspection files copied: "
@@ -4448,6 +4453,56 @@ def _download_smoke_inspection_handoff_lines(
             + "; ".join(audit.warnings)
         )
     return lines
+
+
+def _download_smoke_inspection_quality_gate_lines(
+    audit: DownloadSmokeInspectionAuditSummary,
+) -> list[str]:
+    passed = audit.counts.get("fasta_quality_gate_passed_row_count")
+    blocked = audit.counts.get("fasta_quality_gate_blocked_row_count")
+    blocker_counts = audit.counts.get("fasta_quality_gate_blocker_counts")
+    if not (
+        _is_non_bool_int(passed)
+        or _is_non_bool_int(blocked)
+        or isinstance(blocker_counts, dict)
+    ):
+        return []
+    lines: list[str] = []
+    if _is_non_bool_int(passed) or _is_non_bool_int(blocked):
+        lines.append(
+            "- FASTA quality gate rows: "
+            f"passed={passed if _is_non_bool_int(passed) else 0}; "
+            f"blocked={blocked if _is_non_bool_int(blocked) else 0}"
+        )
+    if isinstance(blocker_counts, dict):
+        lines.append(
+            "- FASTA quality gate blocker counts: "
+            + _format_download_smoke_count_value(blocker_counts)
+        )
+    return lines
+
+
+def _format_download_smoke_count_value(value: object) -> str:
+    if isinstance(value, dict):
+        pairs = [
+            (key.strip(), count)
+            for key, count in value.items()
+            if isinstance(key, str)
+            and key.strip()
+            and isinstance(count, int)
+            and not isinstance(count, bool)
+            and count >= 0
+        ]
+        if not pairs:
+            return "none"
+        return ", ".join(
+            f"{key}={count}" for key, count in sorted(pairs, key=lambda item: item[0])
+        )
+    return str(value).lower() if isinstance(value, bool) else str(value)
+
+
+def _is_non_bool_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
 def _archive_candidates_handoff_lines(
