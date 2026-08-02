@@ -1546,7 +1546,11 @@ package-root and reports scope manifests add audit-only rows with
 `evidence_policy=genome_registration_audit`,
 `strict_scientific_deliverable=false`, and `not_for=strict deliverable gating`.
 These rows document local download command outcomes and ZIP/FASTA installation
-outcomes only; they do not confirm strict type-strain status.
+outcomes only; they do not confirm strict type-strain status. If packaged
+registration rows include count-only FASTA quality notes, package README and
+handoff-index text summarize fragmented-row, WGS/scaffold/contig keyword-row,
+record-count, N50, and ambiguous-base signals without copying raw FASTA headers
+or sequences.
 When `selection/download_plan_readiness_summary.json` exists,
 `package-results --include reports` and `--include all` copy it to
 `reports/download_plan_readiness_summary.json`. Package-root and reports scope

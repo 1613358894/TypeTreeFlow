@@ -378,7 +378,12 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     )
     paths.ncbi_genome_registration_results_path.write_text(
         "record_id\tnormalized_id\tsource_fna\tinstalled_genome_path\tstatus\tnotes\n"
-        "rec-1\trec-1\tcache/ncbi/extracted/rec-1/genomic.fna\tgenomes/references/rec-1.fna\tgenome_ready\tinstalled\n",
+        "rec-1\trec-1\tcache/ncbi/extracted/rec-1/genomic.fna\tgenomes/references/rec-1.fna\tgenome_ready\t"
+        "Installed reference genome: genomes/references/rec-1.fna; "
+        "fasta_quality record_count=2; total_bases=10; longest_record_bases=6; "
+        "n50_bases=6; ambiguous_bases=2; header_wgs_keyword_count=1; "
+        "header_scaffold_keyword_count=1; header_contig_keyword_count=1; "
+        "fragmentation_signal=multi_record_fragmented\n",
         encoding="utf-8",
     )
 
@@ -413,7 +418,18 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     assert "TypeTreeFlow version:" in readme
     assert "Strict type-strain confirmed: 1" in readme
     assert "Download succeeded: 1" in readme
+    assert "Genome registration FASTA quality:" in readme
+    assert "quality_rows=1" in readme
+    assert "fragmented_rows=1" in readme
+    assert "wgs_scaffold_contig_keyword_rows=1" in readme
+    assert "min_n50_bases=6" in readme
+    assert "count-only local installation visibility" in readme
     assert "Credentials are not included." in readme
+    index = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Genome registration FASTA quality:" in index
+    assert "fragmented_rows=1" in index
+    assert "not strict completion or deliverable gating" in index
+    assert "scaffold1" not in readme + index
 
 
 def test_package_results_includes_download_readiness_summary_and_scope(tmp_path):

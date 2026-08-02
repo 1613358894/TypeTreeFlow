@@ -1451,6 +1451,11 @@ typetreeflow package-results \
 `handoff_index.md` is a delivery-package navigation index and status summary.
 It is not a new scientific decision source. The authoritative interpretation
 remains with `manifest.tsv`, source audits, completion tables, and reports.
+When packaged `genome_registration_results.tsv` rows include count-only FASTA
+quality notes, `README.md` and `handoff_index.md` summarize the fragmented-row,
+WGS/scaffold/contig keyword-row, record-count, N50, and ambiguous-base signals
+as local installation visibility only. These summaries do not change strict
+type-strain status, completion, or evidence-policy results.
 When local strict-reconciliation audit files exist, `--include reports` and
 `--include all` copy them under `evidence/` for audit availability only.
 `strict_count` and `strict_usable=true` values in those files are audit row
