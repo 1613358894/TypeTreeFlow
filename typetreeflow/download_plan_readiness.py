@@ -16,7 +16,19 @@ _STATUS_TO_SIGNAL = {
     EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE: "external_registered_count",
 }
 
-
+_ASSEMBLY_LEVELS = (
+    "Complete Genome",
+    "Chromosome",
+    "Scaffold",
+    "Contig",
+    "unknown",
+)
+_ASSEMBLY_LEVEL_ALIASES = {
+    "complete genome": "Complete Genome",
+    "chromosome": "Chromosome",
+    "scaffold": "Scaffold",
+    "contig": "Contig",
+}
 def build_download_plan_readiness_summary(path: str | Path) -> dict[str, Any]:
     """Summarize an existing download plan without creating or executing one."""
 
@@ -26,6 +38,7 @@ def build_download_plan_readiness_summary(path: str | Path) -> dict[str, Any]:
 
     status_counts: dict[str, int] = {}
     malformed_row_count = 0
+    planned_accessions: list[str] = []
     try:
         with plan_path.open(newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle, delimiter="\t")
@@ -35,6 +48,10 @@ def build_download_plan_readiness_summary(path: str | Path) -> dict[str, Any]:
                     malformed_row_count += 1
                     continue
                 status_counts[status] = status_counts.get(status, 0) + 1
+                if status == "planned":
+                    planned_accessions.append(
+                        str(row.get("assembly_accession", "")).strip()
+                    )
     except (OSError, csv.Error, UnicodeDecodeError) as error:
         summary = _empty_summary(str(plan_path), available=False)
         summary["error"] = str(error)
@@ -74,6 +91,7 @@ def build_download_plan_readiness_summary(path: str | Path) -> dict[str, Any]:
         summary
     )
     summary["whole_plan_requires_review"] = summary["review_or_handoff_count"] > 0
+    _add_assembly_quality_summary(summary, plan_path, planned_accessions)
     return summary
 
 
@@ -113,6 +131,24 @@ def _empty_summary(path: str, *, available: bool) -> dict[str, Any]:
             [] if available else ["download_plan_missing"]
         ),
         "whole_plan_requires_review": False,
+        "assembly_quality_summary_available": False,
+        "planned_assembly_level_counts": {
+            level: 0 for level in _ASSEMBLY_LEVELS
+        },
+        "planned_refseq_category_counts": {
+            "reference genome": 0,
+            "representative genome": 0,
+            "unknown": 0,
+        },
+        "planned_complete_or_chromosome_count": 0,
+        "planned_scaffold_or_contig_count": 0,
+        "planned_unknown_assembly_level_count": 0,
+        "planned_high_quality_download_candidate_count": 0,
+        "planned_draft_or_fragmented_download_candidate_count": 0,
+        "assembly_quality_notes": _assembly_quality_notes(
+            planned_count=0,
+            known_assembly_level_count=0,
+        ),
         "safe_for_unattended_download": False,
         "downloads_triggered": 0,
         "providers_contacted": 0,
@@ -130,3 +166,152 @@ def _bounded_smoke_blockers(summary: dict[str, Any]) -> list[str]:
     if summary["malformed_row_count"] > 0:
         blockers.append("malformed_download_plan_rows")
     return blockers
+
+
+def _add_assembly_quality_summary(
+    summary: dict[str, Any],
+    plan_path: Path,
+    planned_accessions: list[str],
+) -> None:
+    metadata = _read_assembly_quality_metadata(plan_path)
+    assembly_level_counts = {level: 0 for level in _ASSEMBLY_LEVELS}
+    refseq_category_counts = {
+        "reference genome": 0,
+        "representative genome": 0,
+        "unknown": 0,
+    }
+
+    for accession in planned_accessions:
+        assembly_level, refseq_category = metadata.get(
+            accession.upper(),
+            ("", ""),
+        )
+        normalized_level = _normalize_assembly_level(assembly_level)
+        normalized_category = _normalize_refseq_category(refseq_category)
+        assembly_level_counts[normalized_level] += 1
+        refseq_category_counts[normalized_category] = (
+            refseq_category_counts.get(normalized_category, 0) + 1
+        )
+
+    complete_or_chromosome = (
+        assembly_level_counts["Complete Genome"]
+        + assembly_level_counts["Chromosome"]
+    )
+    scaffold_or_contig = (
+        assembly_level_counts["Scaffold"] + assembly_level_counts["Contig"]
+    )
+    unknown = assembly_level_counts["unknown"]
+    summary.update(
+        {
+            "assembly_quality_summary_available": (
+                complete_or_chromosome + scaffold_or_contig > 0
+            ),
+            "planned_assembly_level_counts": assembly_level_counts,
+            "planned_refseq_category_counts": dict(
+                sorted(refseq_category_counts.items())
+            ),
+            "planned_complete_or_chromosome_count": complete_or_chromosome,
+            "planned_scaffold_or_contig_count": scaffold_or_contig,
+            "planned_unknown_assembly_level_count": unknown,
+            "planned_high_quality_download_candidate_count": (
+                complete_or_chromosome
+            ),
+            "planned_draft_or_fragmented_download_candidate_count": (
+                scaffold_or_contig
+            ),
+            "assembly_quality_notes": _assembly_quality_notes(
+                planned_count=len(planned_accessions),
+                known_assembly_level_count=(
+                    complete_or_chromosome + scaffold_or_contig
+                ),
+            ),
+        }
+    )
+
+
+def _read_assembly_quality_metadata(
+    plan_path: Path,
+) -> dict[str, tuple[str, str]]:
+    outdir = _infer_workflow_outdir(plan_path)
+    if outdir is None:
+        return {}
+
+    metadata: dict[str, tuple[str, str]] = {}
+    metadata_paths = (
+        outdir / "selection" / "user_selection.tsv",
+        outdir / "candidates" / "assembly_candidates.tsv",
+    )
+    for metadata_path in metadata_paths:
+        if not metadata_path.exists():
+            continue
+        try:
+            with metadata_path.open(newline="", encoding="utf-8") as handle:
+                reader = csv.DictReader(handle, delimiter="\t")
+                fields = set(reader.fieldnames or [])
+                if "assembly_accession" not in fields or not (
+                    {"assembly_level", "refseq_category"} & fields
+                ):
+                    continue
+                for row in reader:
+                    accession = str(row.get("assembly_accession", "")).strip().upper()
+                    if not accession:
+                        continue
+                    existing_level, existing_category = metadata.get(
+                        accession,
+                        ("", ""),
+                    )
+                    metadata[accession] = (
+                        existing_level
+                        or str(row.get("assembly_level", "")).strip(),
+                        existing_category
+                        or str(row.get("refseq_category", "")).strip(),
+                    )
+        except (OSError, csv.Error, UnicodeDecodeError):
+            continue
+    return metadata
+
+
+def _infer_workflow_outdir(plan_path: Path) -> Path | None:
+    if (
+        plan_path.name.casefold() == "download_plan.tsv"
+        and plan_path.parent.name.casefold() == "ncbi"
+        and plan_path.parent.parent.name.casefold() == "cache"
+    ):
+        return plan_path.parent.parent.parent
+    return None
+
+
+def _normalize_assembly_level(value: str) -> str:
+    return _ASSEMBLY_LEVEL_ALIASES.get(value.strip().casefold(), "unknown")
+
+
+def _normalize_refseq_category(value: str) -> str:
+    normalized = value.strip().casefold()
+    if normalized in {"reference genome", "representative genome"}:
+        return normalized
+    return "unknown"
+
+
+def _assembly_quality_notes(
+    *,
+    planned_count: int,
+    known_assembly_level_count: int,
+) -> list[str]:
+    notes = [
+        "Assembly quality is reported for status=planned NCBI rows only.",
+        "Scaffold and Contig are draft_or_fragmented tiers, not invalid rows.",
+        "Quality tiers do not change selection, download readiness, or strict policy.",
+    ]
+    if planned_count == 0:
+        notes.append("No planned NCBI rows are available for quality classification.")
+    elif known_assembly_level_count == 0:
+        notes.append(
+            "No recognized assembly-level metadata was available; all planned rows "
+            "are counted as unknown."
+        )
+    elif known_assembly_level_count < planned_count:
+        notes.append(
+            "Assembly-level metadata is incomplete; unmatched or unrecognized "
+            "planned rows are counted as unknown."
+        )
+    return notes

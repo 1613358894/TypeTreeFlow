@@ -719,6 +719,11 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     verify_readiness = verify_payload["download_plan_readiness_summary"]
     assert verify_readiness["download_ready_ncbi_count"] == 1
     assert verify_readiness["review_or_handoff_count"] == 0
+    assert verify_readiness["assembly_quality_summary_available"] is True
+    assert verify_readiness["planned_scaffold_or_contig_count"] == 1
+    assert verify_readiness[
+        "planned_draft_or_fragmented_download_candidate_count"
+    ] == 1
     assert verify_readiness["downloads_triggered"] == 0
     assert verify_readiness["providers_contacted"] == 0
     assert paths.download_plan_readiness_summary_path.exists()

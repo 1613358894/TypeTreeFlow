@@ -1128,6 +1128,13 @@ scope small and auditable.
 Before running a real NCBI download smoke, prepare an isolated input package
 from an existing dry-run download plan:
 
+First inspect `selection/download_plan_readiness_summary.json` (or the same
+object in `status --json`). Its planned-row assembly-quality counts separate
+Complete Genome/Chromosome from Scaffold/Contig and report missing metadata as
+`unknown`. Scaffold and Contig remain valid planned rows in a draft or
+fragmented tier; the breakdown does not alter the existing bounded-smoke ready
+decision, selection, download plan, manifest, or strict scientific policy.
+
 ```bash
 typetreeflow download-smoke prepare \
   --download-plan <run>/cache/ncbi/download_plan.tsv \
