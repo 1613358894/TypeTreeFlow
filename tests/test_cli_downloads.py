@@ -1,4 +1,5 @@
 import csv
+import json
 import zipfile
 from pathlib import Path
 
@@ -104,6 +105,55 @@ def test_enable_downloads_happy_path_registers_fake_zip(tmp_path, monkeypatch):
     assert {record.status for record in records} == {"genome_ready"}
     assert all(record.has_genome for record in records)
     assert all((paths.manifest.parent / record.genome_path).exists() for record in records)
+
+
+def test_status_reports_genome_registration_counts(tmp_path, monkeypatch, capsys):
+    runner = FakeDatasetsRunner(returncode=0, zip_mode="valid")
+    outdir = tmp_path / "out"
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    assert (
+        main(
+            [
+                "--genus",
+                "Aliivibrio",
+                "--gtdb-metadata",
+                str(FIXTURE),
+                "--outdir",
+                str(outdir),
+                "--enable-downloads",
+            ],
+            download_runner=runner,
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert main(["status", "--outdir", str(outdir)]) == 0
+    status_stdout = capsys.readouterr().out
+    payload = json.loads(status_stdout)
+
+    summary = payload["genome_registration_summary"]
+    assert summary["schema_version"] == "genome_registration_status_summary.v1"
+    assert summary["path"] == "cache/ncbi/genome_registration_results.tsv"
+    assert summary["result_count"] == 2
+    assert summary["genome_ready_count"] == 2
+    assert summary["status_counts"] == {"genome_ready": 2}
+    assert "installed" not in status_stdout
+
+    paths = get_output_paths(outdir)
+    paths.ncbi_genome_registration_results_path.write_text(
+        "status\n"
+        "genome_ready\n",
+        encoding="utf-8",
+    )
+
+    assert main(["status", "--outdir", str(outdir)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["genome_registration_summary"]
+    assert summary["result_count"] == 0
+    assert summary["status_counts"] == {}
+    assert "genome_registration_results.tsv missing fields" in summary["read_error"]
 
 
 def test_enable_downloads_command_failure_writes_manifest_and_report(tmp_path, monkeypatch):
