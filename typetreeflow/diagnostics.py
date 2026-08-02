@@ -539,19 +539,42 @@ def _genome_registration_review_next_action(paths) -> str:
     result_count = _safe_int(summary.get("result_count"))
     ready_count = _safe_int(summary.get("genome_ready_count"))
     non_ready_count = max(result_count - ready_count, 0)
-    if non_ready_count <= 0:
+    if non_ready_count > 0:
+        status_text = ", ".join(
+            f"{status}={count}"
+            for status, count in sorted(status_counts.items())
+            if status != "genome_ready"
+        )
+        detail = f" ({status_text})" if status_text else ""
+        return (
+            f"Review {relative_path} for {non_ready_count} non-ready genome "
+            f"registration result(s){detail}. These are local ZIP extraction and "
+            "reference-genome installation outcomes; fix missing/invalid ZIP content "
+            "or rerun bounded downloads before downstream genome-dependent stages."
+        )
+
+    fasta_quality_summary = summary.get("fasta_quality_summary", {})
+    if not isinstance(fasta_quality_summary, dict):
         return ""
-    status_text = ", ".join(
-        f"{status}={count}"
-        for status, count in sorted(status_counts.items())
-        if status != "genome_ready"
+    fragmented_count = _safe_int(fasta_quality_summary.get("fragmented_row_count"))
+    header_keyword_count = _safe_int(
+        fasta_quality_summary.get("header_fragment_keyword_row_count")
     )
-    detail = f" ({status_text})" if status_text else ""
+    if fragmented_count <= 0 and header_keyword_count <= 0:
+        return ""
+    signals = []
+    if fragmented_count > 0:
+        signals.append(f"fragmented FASTA rows={fragmented_count}")
+    if header_keyword_count > 0:
+        signals.append(
+            f"rows with WGS/scaffold/contig header keywords={header_keyword_count}"
+        )
+    signal_text = ", ".join(signals)
     return (
-        f"Review {relative_path} for {non_ready_count} non-ready genome "
-        f"registration result(s){detail}. These are local ZIP extraction and "
-        "reference-genome installation outcomes; fix missing/invalid ZIP content "
-        "or rerun bounded downloads before downstream genome-dependent stages."
+        f"Review {relative_path} for genome-ready registration FASTA quality "
+        f"signals ({signal_text}) before downstream genome-dependent stages. "
+        "These are count-only local installation visibility signals; they do "
+        "not change strict type-strain status, completion, or evidence policy."
     )
 
 

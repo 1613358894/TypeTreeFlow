@@ -57,7 +57,8 @@ Primary commands write compact JSON to stdout by default. This does not require
   counts. This is local ZIP extraction and reference-genome installation
   visibility only; it does not expose raw FASTA text or notes and does not
   change strict type-strain status, completion, or evidence policy. If non-ready
-  registration statuses are
+  registration statuses, fragmented FASTA signals, or WGS/scaffold/contig header
+  keyword signals are
   present and no higher-priority manual handoff applies, `next-step` points at
   the same TSV before recommending downstream genome-dependent stages.
   When planned NCBI rows are ready, plan-only `status` and `next-step`

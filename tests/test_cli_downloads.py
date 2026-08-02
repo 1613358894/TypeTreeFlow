@@ -295,6 +295,63 @@ def test_next_step_points_to_non_ready_genome_registration_results(
     assert "package-results" not in message
 
 
+def test_next_step_points_to_fragmented_genome_registration_quality(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    runner = FakeDatasetsRunner(returncode=0, zip_mode="valid")
+    outdir = tmp_path / "out"
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    result = main(
+        [
+            "--genus",
+            "Aliivibrio",
+            "--gtdb-metadata",
+            str(FIXTURE),
+            "--outdir",
+            str(outdir),
+            "--enable-downloads",
+        ],
+        download_runner=runner,
+    )
+
+    paths = get_output_paths(outdir)
+    assert result == 0
+    rows = _genome_registration_result_rows(paths)
+    rows[0]["notes"] = (
+        "Installed reference genome: genomes/references/ref1.fna; "
+        "fasta_quality record_count=2; total_bases=10; "
+        "longest_record_bases=6; n50_bases=6; ambiguous_bases=2; "
+        "header_wgs_keyword_count=1; "
+        "header_scaffold_keyword_count=1; "
+        "header_contig_keyword_count=1; "
+        "fragmentation_signal=multi_record_fragmented"
+    )
+    with paths.ncbi_genome_registration_results_path.open(
+        "w",
+        encoding="utf-8",
+        newline="",
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]), delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+    capsys.readouterr()
+
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    message = payload["recommended_action"]["message"]
+    assert payload["recommended_action"]["id"] == "review_genome_registration_results"
+    assert "cache/ncbi/genome_registration_results.tsv" in message
+    assert "fragmented FASTA rows=1" in message
+    assert "rows with WGS/scaffold/contig header keywords=1" in message
+    assert "count-only local installation visibility signals" in message
+    assert "do not change strict type-strain status" in message
+    assert "package-results" not in message
+    assert "scaffold1" not in message
+
+
 def test_dry_run_enable_downloads_does_not_require_tool_or_run(tmp_path, monkeypatch):
     runner = FakeDatasetsRunner(returncode=0, zip_mode="valid")
     outdir = tmp_path / "out"
