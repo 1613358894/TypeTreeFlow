@@ -11,6 +11,8 @@ from typing import Sequence, TextIO
 
 from typetreeflow.download_plan_readiness import (
     build_download_plan_readiness_summary,
+    _normalize_assembly_level,
+    _read_assembly_quality_metadata,
 )
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
 
@@ -65,6 +67,7 @@ def run_download_smoke_command(
         result = prepare_bounded_download_smoke_input(
             args.download_plan,
             limit=args.limit,
+            quality_tier=args.quality_tier,
         )
     except (OSError, UnicodeError, csv.Error, ValueError) as error:
         _emit(
@@ -121,18 +124,36 @@ def prepare_bounded_download_smoke_input(
     download_plan_path: str | Path,
     *,
     limit: int,
+    quality_tier: str = "all",
 ) -> dict[str, object]:
     if limit <= 0:
         raise ValueError("limit must be a positive integer")
+    if quality_tier not in {"all", "high"}:
+        raise ValueError("quality_tier must be all or high")
     plan_path = Path(download_plan_path)
     rows = _read_download_plan_rows(plan_path)
-    selected = [row for row in rows if row.get("status", "").strip() == "planned"][
-        :limit
-    ]
+    planned_rows = [row for row in rows if row.get("status", "").strip() == "planned"]
+    assembly_metadata = _read_assembly_quality_metadata(plan_path)
+    quality_counts = _planned_quality_counts(assembly_metadata, planned_rows)
+    selected_pool = (
+        [
+            row
+            for row in planned_rows
+            if _planned_row_assembly_level(assembly_metadata, row)
+            in {"Complete Genome", "Chromosome"}
+        ]
+        if quality_tier == "high"
+        else planned_rows
+    )
+    selected = selected_pool[:limit]
     readiness = build_download_plan_readiness_summary(plan_path)
     blockers: list[str] = []
     if not selected:
-        blockers.append("no_planned_ncbi_download_rows")
+        blockers.append(
+            "no_high_quality_planned_ncbi_download_rows"
+            if quality_tier == "high"
+            else "no_planned_ncbi_download_rows"
+        )
     if readiness.get("malformed_row_count", 0):
         blockers.append("malformed_download_plan_rows")
     summary = {
@@ -140,8 +161,17 @@ def prepare_bounded_download_smoke_input(
         "command": COMMAND,
         "source_download_plan_path": str(plan_path),
         "limit": limit,
+        "quality_tier": quality_tier,
         "selected_row_count": len(selected),
+        "selected_high_quality_row_count": (
+            len(selected) if quality_tier == "high" else quality_counts["high"]
+        ),
         "source_planned_row_count": readiness.get("download_ready_ncbi_count", 0),
+        "source_high_quality_planned_row_count": quality_counts["high"],
+        "source_draft_or_fragmented_planned_row_count": quality_counts[
+            "draft_or_fragmented"
+        ],
+        "source_unknown_assembly_level_planned_row_count": quality_counts["unknown"],
         "source_total_rows": readiness.get("total_rows", 0),
         "ready": not blockers,
         "blockers": blockers,
@@ -174,6 +204,31 @@ def _read_download_plan_rows(path: Path) -> list[dict[str, str]]:
         return [{field: str(row.get(field, "")) for field in DOWNLOAD_PLAN_FIELDS} for row in reader]
 
 
+def _planned_quality_counts(
+    assembly_metadata: dict[str, tuple[str, str]],
+    rows: list[dict[str, str]],
+) -> dict[str, int]:
+    counts = {"high": 0, "draft_or_fragmented": 0, "unknown": 0}
+    for row in rows:
+        level = _planned_row_assembly_level(assembly_metadata, row)
+        if level in {"Complete Genome", "Chromosome"}:
+            counts["high"] += 1
+        elif level in {"Scaffold", "Contig"}:
+            counts["draft_or_fragmented"] += 1
+        else:
+            counts["unknown"] += 1
+    return counts
+
+
+def _planned_row_assembly_level(
+    assembly_metadata: dict[str, tuple[str, str]],
+    row: dict[str, str],
+) -> str:
+    accession = row.get("assembly_accession", "").strip().upper()
+    assembly_level = assembly_metadata.get(accession, ("", ""))[0]
+    return _normalize_assembly_level(assembly_level)
+
+
 def _write_outputs(result: dict[str, object], outdir: str | Path) -> None:
     target = Path(outdir)
     if target.exists() and any(target.iterdir()):
@@ -196,6 +251,7 @@ def _build_parser() -> argparse.ArgumentParser:
     prepare = subcommands.add_parser("prepare")
     prepare.add_argument("--download-plan", required=True, type=Path)
     prepare.add_argument("--limit", type=int, default=3)
+    prepare.add_argument("--quality-tier", choices=("all", "high"), default="all")
     prepare.add_argument("--write", action="store_true")
     prepare.add_argument("--outdir", type=Path)
     prepare.add_argument("--json", action="store_true", help=argparse.SUPPRESS)

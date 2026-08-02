@@ -1143,6 +1143,18 @@ typetreeflow download-smoke prepare \
   --outdir <workspace>/handoffs/bounded_download_smoke
 ```
 
+Use `--quality-tier high` to prepare a smaller smoke input from planned
+Complete Genome or Chromosome rows only:
+
+```bash
+typetreeflow download-smoke prepare \
+  --download-plan <run>/cache/ncbi/download_plan.tsv \
+  --quality-tier high \
+  --limit 3 \
+  --write \
+  --outdir <workspace>/handoffs/bounded_download_smoke_high_quality
+```
+
 The command copies only `status=planned` rows into
 `bounded_download_smoke_plan.tsv` and writes
 `bounded_download_smoke_summary.json`. It does not run `datasets`, access the
