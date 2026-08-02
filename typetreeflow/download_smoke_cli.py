@@ -40,8 +40,13 @@ INSPECTION_FIELDS = [
     "fasta_total_bases",
     "fasta_longest_record_bases",
     "fasta_ambiguous_bases",
+    "fasta_fragmentation_signal",
     "status",
 ]
+FASTA_FRAGMENTATION_SIGNAL_NOT_EVALUATED = "not_evaluated"
+FASTA_FRAGMENTATION_SIGNAL_SINGLE_RECORD = "single_record"
+FASTA_FRAGMENTATION_SIGNAL_SINGLE_DOMINANT = "multi_record_single_dominant"
+FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED = "multi_record_fragmented"
 
 
 class _UsageError(Exception):
@@ -286,9 +291,14 @@ def inspect_bounded_download_smoke_outputs(
     ]
     inspections = [_inspect_download_plan_row(row) for row in rows]
     status_counts: dict[str, int] = {}
+    fragmentation_signal_counts: dict[str, int] = {}
     for row in inspections:
         status = str(row["status"])
         status_counts[status] = status_counts.get(status, 0) + 1
+        signal = str(row["fasta_fragmentation_signal"])
+        fragmentation_signal_counts[signal] = (
+            fragmentation_signal_counts.get(signal, 0) + 1
+        )
 
     blockers: list[str] = []
     if not rows:
@@ -321,6 +331,9 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "fasta_ambiguous_bases": sum(
             int(row["fasta_ambiguous_bases"]) for row in inspections
+        ),
+        "fasta_fragmentation_signal_counts": dict(
+            sorted(fragmentation_signal_counts.items())
         ),
         "status_counts": dict(sorted(status_counts.items())),
         "ready": ready,
@@ -370,6 +383,7 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         "zip_valid": zip_valid,
         "genome_fasta_present": genome_fasta_present,
         **fasta_stats,
+        "fasta_fragmentation_signal": _classify_fasta_fragmentation(fasta_stats),
         "status": status,
     }
 
@@ -382,6 +396,19 @@ def _empty_fasta_stats() -> dict[str, int]:
         "fasta_longest_record_bases": 0,
         "fasta_ambiguous_bases": 0,
     }
+
+
+def _classify_fasta_fragmentation(fasta_stats: dict[str, int]) -> str:
+    record_count = int(fasta_stats.get("fasta_record_count", 0))
+    total_bases = int(fasta_stats.get("fasta_total_bases", 0))
+    longest_record = int(fasta_stats.get("fasta_longest_record_bases", 0))
+    if record_count <= 0 or total_bases <= 0:
+        return FASTA_FRAGMENTATION_SIGNAL_NOT_EVALUATED
+    if record_count == 1:
+        return FASTA_FRAGMENTATION_SIGNAL_SINGLE_RECORD
+    if longest_record * 10 >= total_bases * 9:
+        return FASTA_FRAGMENTATION_SIGNAL_SINGLE_DOMINANT
+    return FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED
 
 
 def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
@@ -603,6 +630,9 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                         "fasta_longest_record_bases"
                     ],
                     "fasta_ambiguous_bases": row["fasta_ambiguous_bases"],
+                    "fasta_fragmentation_signal": row[
+                        "fasta_fragmentation_signal"
+                    ],
                     "status": row["status"],
                 }
             )
