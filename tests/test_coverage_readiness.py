@@ -40,6 +40,10 @@ def test_coverage_acquisition_readiness_classifies_review_and_handoff_signals():
     }
     assert summary["acquisition_ready_count"] == 0
     assert summary["review_or_handoff_required_count"] == 14
+    assert summary["recommended_acquisition_route"] == "provider_handoff"
+    assert summary["recommended_next_action"] == (
+        "prepare provider/local FASTA handoff for operator review"
+    )
     assert summary["safe_for_unattended_download"] is False
     assert summary["downloads_triggered"] == 0
     assert summary["strict_scientific_deliverable"] is False
@@ -62,4 +66,50 @@ def test_coverage_acquisition_readiness_promotes_local_external_handoff_signal()
     assert summary["external_genome_handoff_ready_count"] == 1
     assert summary["provider_handoff_only_count"] == 1
     assert summary["acquisition_ready_count"] == 1
+    assert summary["recommended_acquisition_route"] == "external_genome_install_plan"
+    assert summary["recommended_next_action"] == (
+        "review external-genomes install plan readiness"
+    )
     assert summary["counts_are_exclusive"] is False
+
+
+def test_coverage_acquisition_readiness_prefers_ncbi_download_smoke_route():
+    summary = build_coverage_acquisition_readiness_summary(
+        coverage_action_queue=[
+            {
+                "action_code": "download_ready",
+                "record_count": 2,
+                "safe_for_unattended_download": True,
+            },
+            {
+                "action_code": "prepare_provider_handoff",
+                "record_count": 5,
+                "requires_provider_handoff": True,
+            },
+        ],
+    )
+
+    assert summary["download_ready_ncbi_count"] == 2
+    assert summary["provider_handoff_only_count"] == 5
+    assert summary["recommended_acquisition_route"] == "ncbi_download_smoke"
+    assert summary["recommended_next_action"] == (
+        "prepare bounded NCBI download smoke input before any guarded "
+        "download execution"
+    )
+
+
+def test_coverage_acquisition_readiness_routes_true_gaps_without_ready_signals():
+    summary = build_coverage_acquisition_readiness_summary(
+        coverage_action_queue=[
+            {
+                "action_code": "build_local_evidence",
+                "record_count": 3,
+            },
+        ],
+    )
+
+    assert summary["true_gap_count"] == 3
+    assert summary["recommended_acquisition_route"] == "new_evidence_required"
+    assert summary["recommended_next_action"] == (
+        "seek new public or curated evidence for true gaps"
+    )
