@@ -770,6 +770,10 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["fasta_fragmentation_signal_counts"] == {
         "multi_record_fragmented": 1
     }
+    assert summary["installable_genome_fasta_fragmentation_signal_counts"] == {
+        "multi_record_fragmented": 1
+    }
+    assert summary["installable_genome_fasta_header_fragment_keyword_row_count"] == 1
     assert summary["min_fasta_n50_bases"] == 0
     assert summary["max_fasta_record_count"] == 0
     assert summary["min_fasta_total_bases"] == 0
@@ -859,6 +863,8 @@ def test_download_smoke_inspect_quality_profile_blocks_fragmentation(
         "fasta_header_fragment_keywords": 1,
         "fragmented_fasta_signal": 1,
     }
+    assert summary["installable_genome_fasta_fragmentation_signal_counts"] == {}
+    assert summary["installable_genome_fasta_header_fragment_keyword_row_count"] == 0
     assert summary["fasta_quality_gate_passed_row_count"] == 0
     assert summary["fasta_quality_gate_blocked_row_count"] == 1
     assert summary["fasta_quality_gate_blocker_counts"] == {

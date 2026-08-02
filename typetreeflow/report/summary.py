@@ -329,6 +329,7 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "fasta_header_contig_keyword_count",
     "empty_genome_fasta_count",
     "multiple_genome_fasta_members_count",
+    "installable_genome_fasta_header_fragment_keyword_row_count",
     "min_fasta_n50_bases",
     "max_fasta_record_count",
     "max_fasta_ambiguous_bases",
@@ -348,6 +349,7 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
     "genome_fasta_install_selection_status_counts",
     "installable_genome_fasta_not_ready_reason_counts",
     "fasta_fragmentation_signal_counts",
+    "installable_genome_fasta_fragmentation_signal_counts",
     "fasta_quality_gate_blocker_counts",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_FIELDS = (
@@ -5024,6 +5026,20 @@ def build_run_summary_markdown(
                                 )
                             )
                         )
+                    ),
+                    (
+                        "- Installable genome FASTA fragmentation signals: "
+                        + _format_count_pairs(
+                            _count_map_pairs(
+                                download_smoke_inspection_audit.counts.get(
+                                    "installable_genome_fasta_fragmentation_signal_counts"
+                                )
+                            )
+                        )
+                    ),
+                    (
+                        "- Installable genome FASTA header keyword rows: "
+                        f"{download_smoke_inspection_audit.counts.get('installable_genome_fasta_header_fragment_keyword_row_count', 0)}"
                     ),
                     (
                         "- Genome FASTA members: "

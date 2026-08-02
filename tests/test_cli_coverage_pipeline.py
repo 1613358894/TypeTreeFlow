@@ -2541,6 +2541,10 @@ def _valid_server_validation_result():
         "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": {
             "empty_genome_fasta_outputs": 1
         },
+        "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {
+            "multi_record_fragmented": 1
+        },
+        "download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count": 1,
         "download_smoke_inspection_fasta_record_count": 14,
         "download_smoke_inspection_fasta_total_bases": 3123456,
         "download_smoke_inspection_fasta_longest_record_bases": 1234567,
@@ -2612,6 +2616,8 @@ def _expected_download_smoke_inspection_result_defaults():
         "download_smoke_inspection_installable_genome_fasta_ready_count": 0,
         "download_smoke_inspection_installable_genome_fasta_not_ready_count": 0,
         "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": {},
+        "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {},
+        "download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count": 0,
         "download_smoke_inspection_fasta_record_count": 0,
         "download_smoke_inspection_fasta_total_bases": 0,
         "download_smoke_inspection_fasta_longest_record_bases": 0,
@@ -6088,6 +6094,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     result_template[
         "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts"
     ] = {"empty_genome_fasta_outputs": 1}
+    result_template[
+        "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts"
+    ] = {"multi_record_fragmented": 1}
+    result_template[
+        "download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count"
+    ] = 1
     result_template["download_smoke_inspection_empty_genome_fasta_count"] = 1
     result_template["download_smoke_inspection_multiple_genome_fasta_members_count"] = 1
     result_template["download_smoke_inspection_fasta_n50_below_minimum_count"] = 1
@@ -6386,6 +6398,12 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     )
     assert (
         result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
             "handoff_server_validation_download_smoke_inspection_fasta_quality_gate_passed_row_count"
         ]
         == 0
@@ -6399,6 +6417,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_status_parent[
         "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts"
     ] == {"empty_genome_fasta_outputs": 1}
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts"
+    ] == {"multi_record_fragmented": 1}
     assert result_status_parent[
         "handoff_server_validation_download_smoke_inspection_fasta_quality_gate_blocker_counts"
     ] == {

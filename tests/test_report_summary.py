@@ -250,6 +250,10 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                     "multi_record_fragmented": 1,
                     "not_evaluated": 1,
                 },
+                "installable_genome_fasta_fragmentation_signal_counts": {
+                    "multi_record_fragmented": 1,
+                },
+                "installable_genome_fasta_header_fragment_keyword_row_count": 1,
                 "fasta_quality_gate_blocker_counts": {
                     "fasta_header_fragment_keywords": 1,
                     "fasta_longest_record_below_minimum": 1,
@@ -361,6 +365,12 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
         "- FASTA fragmentation signals: multi_record_fragmented=1, not_evaluated=1"
         in markdown
     )
+    assert (
+        "- Installable genome FASTA fragmentation signals: "
+        "multi_record_fragmented=1"
+        in markdown
+    )
+    assert "- Installable genome FASTA header keyword rows: 1" in markdown
     assert "- FASTA header keyword signals: wgs=1, scaffold=1, contig=1" in markdown
     assert (
         "- FASTA quality gate thresholds: min_n50=7, max_records=1, "

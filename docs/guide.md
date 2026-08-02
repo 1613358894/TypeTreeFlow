@@ -1291,6 +1291,11 @@ bounded-smoke readiness count. These counts remain local audit signals only.
 `installable_genome_fasta_not_ready_reason_counts` gives controlled reason
 counts for the not-ready rows without copying raw paths, FASTA headers, or
 sequence text.
+For rows that are locally installable, the summary also reports
+`installable_genome_fasta_fragmentation_signal_counts` and
+`installable_genome_fasta_header_fragment_keyword_row_count`. These fields make
+it visible when an installable FASTA is still scaffold/contig/WGS-like; they do
+not change readiness unless the matching quality gates are enabled.
 If fragmented FASTA or WGS/scaffold/contig header signals are observed without
 the matching quality gates enabled, the summary keeps the current `ready`
 semantics but returns `quality_gate_recommendation` and
