@@ -172,6 +172,10 @@ review without scanning every row or treating those counts as completion or
 download readiness. Expanded discovery and manual-supplement inputs are local
 TSV handoffs only; this command does not run discovery, query providers, or
 auto-select any accession.
+Archive-candidate rows keep the same public-linkage lane but distinguish
+assembly, BioSample-only, and nuccore/WGS sequence accession review in
+`reason_code`, so the next manual evidence task is clearer without authorizing
+downloads.
 The same summary also reports `unrouted_type_strain_token_counts` plus bounded
 examples for uppercase provider-like type-strain or culture-collection prefixes
 that were visible in local evidence but did not match the static provider
@@ -208,6 +212,9 @@ For public archive and public type-linkage review rows without explicit hints,
 coverage-plan uses metadata-only public review labels such as ENA, DDBJ,
 INSDC, GenBank, NCBI Assembly, NCBI BioSample, and RefSeq so those rows remain
 visible to accession/linkage review without becoming downloads.
+Archive-candidate reason codes keep the same `review_public_archive_linkage`
+action while refining whether the required input starts from an assembly,
+BioSample-only, or nuccore/WGS sequence accession.
 Culture-collection provider hints may be written with a separator or joined
 directly to the collection number, such as `DSM 123`, `DSM-123`, `DSM123`, or
 `ATCC700964`; recognition still only routes the row to planning handoff and

@@ -117,6 +117,44 @@ def test_coverage_plan_serializers_are_stable():
     assert summary["action_counts"] == {"review_public_archive_linkage": 1}
 
 
+def test_coverage_plan_refines_public_archive_required_input_by_reason():
+    plan = build_coverage_plan(
+        [
+            _row(
+                "Clostridium assemblyum",
+                "public_linkage_review",
+                reason_code="public_archive_assembly_candidate_review",
+            ),
+            _row(
+                "Clostridium biosampleum",
+                "public_linkage_review",
+                reason_code="public_archive_biosample_candidate_review",
+            ),
+            _row(
+                "Clostridium sequenceum",
+                "public_linkage_review",
+                reason_code="public_archive_sequence_candidate_review",
+            ),
+        ]
+    )
+
+    by_species = {action.species: action for action in plan.actions}
+    assert by_species["Clostridium assemblyum"].action_code == (
+        "review_public_archive_linkage"
+    )
+    assert by_species["Clostridium assemblyum"].required_input == (
+        "assembly accession to type-strain direct evidence chain"
+    )
+    assert by_species["Clostridium biosampleum"].required_input == (
+        "BioSample accession to assembly and type-strain direct evidence chain"
+    )
+    assert by_species["Clostridium sequenceum"].required_input == (
+        "nuccore/WGS accession to assembly and type-strain direct evidence chain"
+    )
+    summary = json.loads(plan.summary_json())
+    assert summary["action_counts"] == {"review_public_archive_linkage": 3}
+
+
 def test_coverage_plan_defaults_public_type_linkage_to_ncbi_metadata_review():
     plan = build_coverage_plan(
         [_row("Clostridium publicum", "public_linkage_review")]
