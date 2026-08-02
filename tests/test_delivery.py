@@ -128,6 +128,10 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": {
                     "empty_genome_fasta_outputs": 1
                 },
+                "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {
+                    "multi_record_fragmented": 1
+                },
+                "download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count": 1,
                 "download_smoke_inspection_empty_genome_fasta_count": 1,
                 "download_smoke_inspection_multiple_genome_fasta_members_count": 1,
                 "download_smoke_inspection_fasta_n50_below_minimum_count": 1,
@@ -2622,6 +2626,15 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
         in package_text
     )
     assert "empty_genome_fasta_outputs=1" in package_text
+    assert (
+        "Bounded download-smoke installable genome FASTA fragmentation signals"
+        in package_text
+    )
+    assert "multi_record_fragmented=1" in package_text
+    assert (
+        "Bounded download-smoke installable genome FASTA header keyword rows"
+        in package_text
+    )
     assert "Bounded FASTA quality-gate hits" in package_text
     assert "empty_genome_fasta=1" in package_text
     assert "multiple_genome_fasta_members=1" in package_text

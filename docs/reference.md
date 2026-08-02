@@ -2814,9 +2814,11 @@ the explicit server-side inspection summary SHA-256, realized/ready booleans,
 selected row and ZIP/FASTA presence counts, and the bounded FASTA quality-gate
 hit counts for N50, record count, total bases, longest record, fragmentation
 signals, FASTA header keyword rows, and installable genome FASTA ready/not-ready
-counts. It may also carry controlled installable genome FASTA not-ready reason
-counts, quality-gate passed/blocked row counts, a controlled blocker-count map,
-and controlled quality-gate recommendation labels/reasons.
+counts. It may also carry controlled installable genome FASTA fragmentation
+signal counts, installable FASTA header keyword row counts, installable genome
+FASTA not-ready reason counts, quality-gate passed/blocked row counts, a
+controlled blocker-count map, and controlled quality-gate recommendation
+labels/reasons.
 It does not carry local recommended quality-gate command paths.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
