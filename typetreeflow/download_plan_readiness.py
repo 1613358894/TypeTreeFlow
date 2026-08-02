@@ -29,6 +29,8 @@ _ASSEMBLY_LEVEL_ALIASES = {
     "scaffold": "Scaffold",
     "contig": "Contig",
 }
+
+
 def build_download_plan_readiness_summary(path: str | Path) -> dict[str, Any]:
     """Summarize an existing download plan without creating or executing one."""
 
@@ -152,6 +154,14 @@ def _empty_summary(path: str, *, available: bool) -> dict[str, Any]:
         "planned_unknown_assembly_level_count": 0,
         "planned_high_quality_download_candidate_count": 0,
         "planned_draft_or_fragmented_download_candidate_count": 0,
+        "download_quality_coverage_summary": _download_quality_coverage_summary(
+            planned_count=0,
+            complete_or_chromosome_count=0,
+            scaffold_or_contig_count=0,
+            unknown_count=0,
+            assembly_quality_summary_available=False,
+            quality_tier_recommendation="none",
+        ),
         "assembly_quality_notes": _assembly_quality_notes(
             planned_count=0,
             known_assembly_level_count=0,
@@ -226,6 +236,16 @@ def _add_assembly_quality_summary(
             "planned_draft_or_fragmented_download_candidate_count": (
                 scaffold_or_contig
             ),
+            "download_quality_coverage_summary": _download_quality_coverage_summary(
+                planned_count=len(planned_accessions),
+                complete_or_chromosome_count=complete_or_chromosome,
+                scaffold_or_contig_count=scaffold_or_contig,
+                unknown_count=unknown,
+                assembly_quality_summary_available=(
+                    complete_or_chromosome + scaffold_or_contig > 0
+                ),
+                quality_tier_recommendation="none",
+            ),
             "assembly_quality_notes": _assembly_quality_notes(
                 planned_count=len(planned_accessions),
                 known_assembly_level_count=(
@@ -269,6 +289,56 @@ def _add_high_quality_bounded_smoke_summary(summary: dict[str, Any]) -> None:
             ),
         }
     )
+    quality_summary = dict(summary["download_quality_coverage_summary"])
+    quality_summary["recommended_bounded_smoke_quality_tier"] = summary[
+        "bounded_ncbi_download_smoke_quality_tier_recommendation"
+    ]
+    summary["download_quality_coverage_summary"] = quality_summary
+
+
+def _download_quality_coverage_summary(
+    *,
+    planned_count: int,
+    complete_or_chromosome_count: int,
+    scaffold_or_contig_count: int,
+    unknown_count: int,
+    assembly_quality_summary_available: bool,
+    quality_tier_recommendation: str,
+) -> dict[str, Any]:
+    high_fraction = _safe_fraction(complete_or_chromosome_count, planned_count)
+    draft_or_fragmented_fraction = _safe_fraction(
+        scaffold_or_contig_count,
+        planned_count,
+    )
+    unknown_fraction = _safe_fraction(unknown_count, planned_count)
+    return {
+        "schema_version": "download_quality_coverage_summary.v1",
+        "planned_ncbi_download_row_count": planned_count,
+        "high_quality_download_candidate_count": complete_or_chromosome_count,
+        "draft_or_fragmented_download_candidate_count": scaffold_or_contig_count,
+        "unknown_assembly_level_download_candidate_count": unknown_count,
+        "high_quality_fraction": high_fraction,
+        "draft_or_fragmented_fraction": draft_or_fragmented_fraction,
+        "unknown_assembly_level_fraction": unknown_fraction,
+        "assembly_quality_summary_available": assembly_quality_summary_available,
+        "recommended_bounded_smoke_quality_tier": quality_tier_recommendation,
+        "high_quality_definition": "Complete Genome or Chromosome",
+        "draft_or_fragmented_definition": "Scaffold or Contig",
+        "counts_change_scientific_policy": False,
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+    }
+
+
+def _safe_fraction(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return round(numerator / denominator, 6)
 
 
 def _read_assembly_quality_metadata(
