@@ -219,6 +219,28 @@ def test_download_plan_readiness_summary_counts_acquisition_routes(tmp_path):
     assert summary["manifest_mutated"] is False
     assert summary["assembly_quality_summary_available"] is False
     assert summary["planned_unknown_assembly_level_count"] == 1
+    assert summary["download_quality_coverage_summary"] == {
+        "schema_version": "download_quality_coverage_summary.v1",
+        "planned_ncbi_download_row_count": 1,
+        "high_quality_download_candidate_count": 0,
+        "draft_or_fragmented_download_candidate_count": 0,
+        "unknown_assembly_level_download_candidate_count": 1,
+        "high_quality_fraction": 0.0,
+        "draft_or_fragmented_fraction": 0.0,
+        "unknown_assembly_level_fraction": 1.0,
+        "assembly_quality_summary_available": False,
+        "recommended_bounded_smoke_quality_tier": "all",
+        "high_quality_definition": "Complete Genome or Chromosome",
+        "draft_or_fragmented_definition": "Scaffold or Contig",
+        "counts_change_scientific_policy": False,
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+    }
 
 
 def test_download_plan_readiness_summarizes_planned_assembly_quality(tmp_path):
@@ -296,6 +318,28 @@ def test_download_plan_readiness_summarizes_planned_assembly_quality(tmp_path):
     assert summary[
         "planned_draft_or_fragmented_download_candidate_count"
     ] == 2
+    assert summary["download_quality_coverage_summary"] == {
+        "schema_version": "download_quality_coverage_summary.v1",
+        "planned_ncbi_download_row_count": 5,
+        "high_quality_download_candidate_count": 2,
+        "draft_or_fragmented_download_candidate_count": 2,
+        "unknown_assembly_level_download_candidate_count": 1,
+        "high_quality_fraction": 0.4,
+        "draft_or_fragmented_fraction": 0.4,
+        "unknown_assembly_level_fraction": 0.2,
+        "assembly_quality_summary_available": True,
+        "recommended_bounded_smoke_quality_tier": "high",
+        "high_quality_definition": "Complete Genome or Chromosome",
+        "draft_or_fragmented_definition": "Scaffold or Contig",
+        "counts_change_scientific_policy": False,
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+    }
     assert json.loads(json.dumps(summary))["assembly_quality_notes"] == summary[
         "assembly_quality_notes"
     ]
@@ -383,9 +427,13 @@ def test_download_plan_readiness_missing_plan_has_bounded_smoke_blocker(tmp_path
         "planned_unknown_assembly_level_count",
         "planned_high_quality_download_candidate_count",
         "planned_draft_or_fragmented_download_candidate_count",
+        "download_quality_coverage_summary",
         "assembly_quality_notes",
     } <= summary.keys()
     assert summary["planned_unknown_assembly_level_count"] == 0
+    assert summary["download_quality_coverage_summary"][
+        "recommended_bounded_smoke_quality_tier"
+    ] == "none"
 
 
 def test_manifest_status_updates_to_genome_download_planned(tmp_path):
