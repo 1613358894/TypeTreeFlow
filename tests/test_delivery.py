@@ -223,6 +223,10 @@ def _write_download_smoke_inspection_pair(directory):
                 "installable_genome_fasta_not_ready_reason_counts": {
                     "empty_genome_fasta_outputs": 1
                 },
+                "installable_genome_fasta_fragmentation_signal_counts": {
+                    "multi_record_fragmented": 1
+                },
+                "installable_genome_fasta_header_fragment_keyword_row_count": 1,
                 "empty_genome_fasta_count": 1,
                 "multiple_genome_fasta_members_count": 1,
                 "fasta_total_bases": 10,
@@ -574,6 +578,12 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
         "empty_genome_fasta_outputs=1"
         in package_text
     )
+    assert (
+        "Installable genome FASTA fragmentation signals: "
+        "multi_record_fragmented=1"
+        in package_text
+    )
+    assert "Installable genome FASTA header keyword rows: 1" in package_text
     assert "empty_genome_fasta_count=1" in package_text
     assert "multiple_genome_fasta_members_count=1" in package_text
     assert "fasta_ambiguous_bases_above_maximum_count=1" in package_text

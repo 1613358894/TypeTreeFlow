@@ -522,6 +522,7 @@ def inspect_bounded_download_smoke_outputs(
     )
     status_counts: dict[str, int] = {}
     fragmentation_signal_counts: dict[str, int] = {}
+    installable_fragmentation_signal_counts: dict[str, int] = {}
     for row in inspections:
         status = str(row["status"])
         status_counts[status] = status_counts.get(status, 0) + 1
@@ -529,6 +530,10 @@ def inspect_bounded_download_smoke_outputs(
         fragmentation_signal_counts[signal] = (
             fragmentation_signal_counts.get(signal, 0) + 1
         )
+        if row["installable_genome_fasta_ready"]:
+            installable_fragmentation_signal_counts[signal] = (
+                installable_fragmentation_signal_counts.get(signal, 0) + 1
+            )
 
     blockers: list[str] = []
     if not rows:
@@ -600,6 +605,17 @@ def inspect_bounded_download_smoke_outputs(
         1
         for row in inspections
         if row["genome_fasta_present"]
+        and (
+            int(row["fasta_header_wgs_keyword_count"])
+            + int(row["fasta_header_scaffold_keyword_count"])
+            + int(row["fasta_header_contig_keyword_count"])
+        )
+        > 0
+    )
+    installable_header_keyword_row_count = sum(
+        1
+        for row in inspections
+        if row["installable_genome_fasta_ready"]
         and (
             int(row["fasta_header_wgs_keyword_count"])
             + int(row["fasta_header_scaffold_keyword_count"])
@@ -726,6 +742,12 @@ def inspect_bounded_download_smoke_outputs(
         "multiple_genome_fasta_members_count": multiple_genome_fasta_members_count,
         "fasta_fragmentation_signal_counts": dict(
             sorted(fragmentation_signal_counts.items())
+        ),
+        "installable_genome_fasta_fragmentation_signal_counts": dict(
+            sorted(installable_fragmentation_signal_counts.items())
+        ),
+        "installable_genome_fasta_header_fragment_keyword_row_count": (
+            installable_header_keyword_row_count
         ),
         "min_fasta_n50_bases": min_fasta_n50_bases,
         "max_fasta_record_count": max_fasta_record_count,
