@@ -1182,6 +1182,20 @@ corresponding `datasets download genome accession` command arrays for operator
 inspection. It does not run `datasets`, access the network, contact providers,
 mutate a manifest, or authorize broad downloads.
 
+After a separately authorized bounded smoke has run those commands, inspect the
+resulting ZIP paths locally before treating the smoke as usable:
+
+```bash
+typetreeflow download-smoke inspect \
+  --download-plan <handoff>/bounded_download_smoke_plan.tsv \
+  --write \
+  --outdir <workspace>/handoffs/bounded_download_smoke_inspection
+```
+
+The inspection checks only local ZIP existence, ZIP validity, and whether each
+ZIP contains a genome FASTA. It does not run `datasets`, extract ZIPs, access
+the network, contact providers, or mutate workflow outputs.
+
 ```bash
 typetreeflow verify-genus Fusobacterium \
   --outdir <workspace>/runs/fusobacterium_limit4_real \
