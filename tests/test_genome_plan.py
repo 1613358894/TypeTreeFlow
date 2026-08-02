@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 
 from typetreeflow.download_plan_readiness import (
@@ -7,6 +8,11 @@ from typetreeflow.download_plan_readiness import (
 from typetreeflow.genomes.download import mark_planned_records, write_download_plan
 from typetreeflow.genomes.plan import build_genome_download_plan
 from typetreeflow.models import StrainRecord
+from typetreeflow.taxonomy.candidates import (
+    AssemblyCandidate,
+    write_assembly_candidates,
+)
+from typetreeflow.taxonomy.selection import StrainSelectionRow, write_user_selection
 
 
 def _record(
@@ -204,6 +210,110 @@ def test_download_plan_readiness_summary_counts_acquisition_routes(tmp_path):
     assert summary["downloads_triggered"] == 0
     assert summary["providers_contacted"] == 0
     assert summary["manifest_mutated"] is False
+    assert summary["assembly_quality_summary_available"] is False
+    assert summary["planned_unknown_assembly_level_count"] == 1
+
+
+def test_download_plan_readiness_summarizes_planned_assembly_quality(tmp_path):
+    levels = [
+        ("GCF_000001.1", "Complete Genome", "reference genome"),
+        ("GCF_000002.1", "Chromosome", "representative genome"),
+        ("GCF_000003.1", "Scaffold", ""),
+        ("GCF_000004.1", "Contig", "na"),
+    ]
+    records = [
+        _record(f"rec-{index}", f"rec_{index}", accession=accession)
+        for index, accession in enumerate(
+            [accession for accession, _, _ in levels] + ["GCF_000005.1"],
+            start=1,
+        )
+    ]
+    plan_path = tmp_path / "cache" / "ncbi" / "download_plan.tsv"
+    write_download_plan(build_genome_download_plan(records, tmp_path), plan_path)
+    write_user_selection(
+        [
+            StrainSelectionRow(
+                species="Aliivibrio fischeri",
+                assembly_accession=record.assembly_accession,
+                selected=True,
+            )
+            for record in records
+        ],
+        tmp_path / "selection" / "user_selection.tsv",
+    )
+    write_assembly_candidates(
+        [
+            AssemblyCandidate(
+                species="Aliivibrio fischeri",
+                assembly_accession=accession,
+                assembly_level=assembly_level,
+                refseq_category=refseq_category,
+            )
+            for accession, assembly_level, refseq_category in levels
+        ],
+        tmp_path / "candidates" / "assembly_candidates.tsv",
+    )
+
+    summary = build_download_plan_readiness_summary(plan_path)
+
+    assert summary["status_counts"] == {"planned": 5}
+    assert summary["download_ready_ncbi_count"] == 5
+    assert summary["bounded_ncbi_download_smoke_candidate_count"] == 5
+    assert summary["bounded_ncbi_download_smoke_ready"] is True
+    assert summary["bounded_ncbi_download_smoke_blockers"] == []
+    assert summary["assembly_quality_summary_available"] is True
+    assert summary["planned_assembly_level_counts"] == {
+        "Complete Genome": 1,
+        "Chromosome": 1,
+        "Scaffold": 1,
+        "Contig": 1,
+        "unknown": 1,
+    }
+    assert summary["planned_refseq_category_counts"] == {
+        "reference genome": 1,
+        "representative genome": 1,
+        "unknown": 3,
+    }
+    assert summary["planned_complete_or_chromosome_count"] == 2
+    assert summary["planned_scaffold_or_contig_count"] == 2
+    assert summary["planned_unknown_assembly_level_count"] == 1
+    assert summary["planned_high_quality_download_candidate_count"] == 2
+    assert summary[
+        "planned_draft_or_fragmented_download_candidate_count"
+    ] == 2
+    assert json.loads(json.dumps(summary))["assembly_quality_notes"] == summary[
+        "assembly_quality_notes"
+    ]
+
+
+def test_download_plan_readiness_uses_unknown_without_quality_metadata(tmp_path):
+    plan_path = tmp_path / "cache" / "ncbi" / "download_plan.tsv"
+    write_download_plan(
+        build_genome_download_plan(
+            [_record("rec-1", "rec_1", accession="GCF_000001.1")],
+            tmp_path,
+        ),
+        plan_path,
+    )
+
+    summary = build_download_plan_readiness_summary(plan_path)
+
+    assert summary["available"] is True
+    assert summary["assembly_quality_summary_available"] is False
+    assert summary["planned_assembly_level_counts"] == {
+        "Complete Genome": 0,
+        "Chromosome": 0,
+        "Scaffold": 0,
+        "Contig": 0,
+        "unknown": 1,
+    }
+    assert summary["planned_refseq_category_counts"] == {
+        "reference genome": 0,
+        "representative genome": 0,
+        "unknown": 1,
+    }
+    assert summary["planned_unknown_assembly_level_count"] == 1
+    assert summary["bounded_ncbi_download_smoke_ready"] is True
 
 
 def test_download_plan_readiness_blocks_bounded_smoke_without_planned_rows(tmp_path):
@@ -237,6 +347,18 @@ def test_download_plan_readiness_missing_plan_has_bounded_smoke_blocker(tmp_path
     assert summary["bounded_ncbi_download_smoke_blockers"] == ["download_plan_missing"]
     assert summary["whole_plan_requires_review"] is False
     assert summary["safe_for_unattended_download"] is False
+    assert {
+        "assembly_quality_summary_available",
+        "planned_assembly_level_counts",
+        "planned_refseq_category_counts",
+        "planned_complete_or_chromosome_count",
+        "planned_scaffold_or_contig_count",
+        "planned_unknown_assembly_level_count",
+        "planned_high_quality_download_candidate_count",
+        "planned_draft_or_fragmented_download_candidate_count",
+        "assembly_quality_notes",
+    } <= summary.keys()
+    assert summary["planned_unknown_assembly_level_count"] == 0
 
 
 def test_manifest_status_updates_to_genome_download_planned(tmp_path):

@@ -591,6 +591,8 @@ def test_status_reports_download_plan_readiness_summary(tmp_path, capsys):
     assert readiness["missing_accession_count"] == 1
     assert readiness["external_registered_count"] == 1
     assert readiness["review_or_handoff_count"] == 2
+    assert readiness["assembly_quality_summary_available"] is False
+    assert readiness["planned_unknown_assembly_level_count"] == 1
     assert readiness["safe_for_unattended_download"] is False
     assert readiness["downloads_triggered"] == 0
     assert readiness["providers_contacted"] == 0
