@@ -170,6 +170,11 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "download_smoke_inspection_fasta_longest_record_below_minimum_count",
     "download_smoke_inspection_fragmented_fasta_signal_count",
     "download_smoke_inspection_fasta_header_fragment_keyword_row_count",
+    "download_smoke_inspection_fasta_quality_gate_passed_row_count",
+    "download_smoke_inspection_fasta_quality_gate_blocked_row_count",
+)
+_SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS = (
+    "download_smoke_inspection_fasta_quality_gate_blocker_counts",
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -1947,6 +1952,29 @@ def _validate_server_validation_result(
             diagnostics.append(
                 _diagnostic("server_validation_result", f"invalid_{field}")
             )
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS:
+        raw_value = result.get(field)
+        if field not in result:
+            continue
+        if not isinstance(raw_value, Mapping):
+            invalid_fields.append(field)
+            diagnostics.append(
+                _diagnostic("server_validation_result", f"invalid_{field}")
+            )
+            continue
+        for key, value in raw_value.items():
+            if (
+                not isinstance(key, str)
+                or not key.strip()
+                or not isinstance(value, int)
+                or isinstance(value, bool)
+                or value < 0
+            ):
+                invalid_fields.append(field)
+                diagnostics.append(
+                    _diagnostic("server_validation_result", f"invalid_{field}")
+                )
+                break
     if "summary" in result and not isinstance(result.get("summary"), str):
         invalid_fields.append("summary")
         diagnostics.append(_diagnostic("server_validation_result", "invalid_summary"))
@@ -2307,6 +2335,10 @@ def _server_validation_observation_defaults() -> dict[str, object]:
         field: 0
         for field in _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS
         if field.startswith("download_smoke_inspection_")
+    } | {
+        field: {}
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS
+        if field.startswith("download_smoke_inspection_")
     }
 
 
@@ -2324,6 +2356,9 @@ def _server_validation_observation_fields(
     for field in _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS:
         if field.startswith("download_smoke_inspection_"):
             fields[field] = _optional_nonnegative_int(result.get(field))
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS:
+        if field.startswith("download_smoke_inspection_"):
+            fields[field] = _safe_count_map(result.get(field))
     return fields
 
 
@@ -5373,6 +5408,7 @@ def _coverage_handoff_server_validation_result_contract_packet(
                 _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS
+                + _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS
             )
             if field.startswith("download_smoke_inspection_")
         ],
@@ -8377,6 +8413,29 @@ def _coverage_parent_controller_packet(
                 result_artifact_packet.get(
                     "download_smoke_inspection_fasta_header_fragment_keyword_row_count",
                     0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_quality_gate_passed_row_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_quality_gate_passed_row_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_quality_gate_blocked_row_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_quality_gate_blocked_row_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_quality_gate_blocker_counts": (
+            _safe_count_map(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_quality_gate_blocker_counts"
                 )
             )
         ),

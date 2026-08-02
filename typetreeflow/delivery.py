@@ -123,6 +123,11 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_fasta_longest_record_below_minimum_count: int = 0
     download_smoke_inspection_fragmented_fasta_signal_count: int = 0
     download_smoke_inspection_fasta_header_fragment_keyword_row_count: int = 0
+    download_smoke_inspection_fasta_quality_gate_passed_row_count: int = 0
+    download_smoke_inspection_fasta_quality_gate_blocked_row_count: int = 0
+    download_smoke_inspection_fasta_quality_gate_blocker_counts: dict[str, int] = (
+        field(default_factory=dict)
+    )
     warnings: list[str] = field(default_factory=list)
 
 
@@ -1952,6 +1957,29 @@ def _read_optional_server_validation_result(
                 )
             )
         ),
+        download_smoke_inspection_fasta_quality_gate_passed_row_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_quality_gate_passed_row_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_quality_gate_blocked_row_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_quality_gate_blocked_row_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_fasta_quality_gate_blocker_counts=(
+            _safe_count_map_value(
+                payload.get(
+                    "download_smoke_inspection_fasta_quality_gate_blocker_counts"
+                )
+            )
+        ),
     )
 
 
@@ -3727,6 +3755,22 @@ def _safe_nonnegative_int_value(value: object) -> int:
     return max(_safe_int_value(value), 0)
 
 
+def _safe_count_map_value(value: object) -> dict[str, int]:
+    if not isinstance(value, dict):
+        return {}
+    counts: dict[str, int] = {}
+    for key, count in value.items():
+        if (
+            isinstance(key, str)
+            and key.strip()
+            and isinstance(count, int)
+            and not isinstance(count, bool)
+            and count >= 0
+        ):
+            counts[key.strip()] = count
+    return dict(sorted(counts.items()))
+
+
 def _gtdb_audit_enabled_for_delivery(paths: OutputPaths) -> bool:
     state = _read_run_state_if_available(paths)
     if state is None:
@@ -4229,6 +4273,9 @@ def _server_validation_download_smoke_observations_available(
             audit.download_smoke_inspection_fasta_longest_record_below_minimum_count,
             audit.download_smoke_inspection_fragmented_fasta_signal_count,
             audit.download_smoke_inspection_fasta_header_fragment_keyword_row_count,
+            audit.download_smoke_inspection_fasta_quality_gate_passed_row_count,
+            audit.download_smoke_inspection_fasta_quality_gate_blocked_row_count,
+            bool(audit.download_smoke_inspection_fasta_quality_gate_blocker_counts),
         )
     )
 
@@ -4262,6 +4309,19 @@ def _server_validation_download_smoke_observation_lines(
             f"{audit.download_smoke_inspection_fragmented_fasta_signal_count}, "
             "header_keywords="
             f"{audit.download_smoke_inspection_fasta_header_fragment_keyword_row_count}"
+        ),
+        (
+            "- Bounded FASTA quality-gate rows: "
+            "passed="
+            f"{audit.download_smoke_inspection_fasta_quality_gate_passed_row_count}, "
+            "blocked="
+            f"{audit.download_smoke_inspection_fasta_quality_gate_blocked_row_count}"
+        ),
+        (
+            "- Bounded FASTA quality-gate blocker counts: "
+            + _format_download_smoke_count_value(
+                audit.download_smoke_inspection_fasta_quality_gate_blocker_counts
+            )
         ),
     ]
 

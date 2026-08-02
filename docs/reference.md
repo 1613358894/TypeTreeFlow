@@ -2779,7 +2779,8 @@ download-smoke fields use the `download_smoke_inspection_` prefix and can carry
 the explicit server-side inspection summary SHA-256, realized/ready booleans,
 selected row and ZIP/FASTA presence counts, and the bounded FASTA quality-gate
 hit counts for N50, record count, total bases, longest record, fragmentation
-signals, and FASTA header keyword rows.
+signals, and FASTA header keyword rows. It may also carry quality-gate
+passed/blocked row counts and a controlled blocker-count map.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.
