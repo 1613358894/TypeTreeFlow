@@ -1197,9 +1197,12 @@ typetreeflow download-smoke inspect \
 
 The inspection checks only local ZIP existence, ZIP validity, whether each ZIP
 contains genome FASTA members, and bounded FASTA count statistics such as record
-count, total bases, longest record bases, and ambiguous bases. It does not run
-`datasets`, extract ZIPs, write raw sequence text, access the network, contact
-providers, or mutate workflow outputs.
+count, total bases, longest record bases, ambiguous bases, and a descriptive
+fragmentation signal. The signal helps reviewers notice single-record,
+single-dominant multi-record, or visibly fragmented multi-record FASTA outputs;
+it is not a strict gate, completion metric, or genome usability decision. It
+does not run `datasets`, extract ZIPs, write raw sequence text, access the
+network, contact providers, or mutate workflow outputs.
 
 To surface that bounded inspection in an existing run report or delivery
 package, pass the isolated inspection directory explicitly:
