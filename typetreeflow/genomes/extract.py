@@ -166,6 +166,22 @@ def register_extracted_genomes(
                         )
                     )
                     continue
+                unsafe_member_count = count_unsafe_datasets_zip_members(zip_path)
+                if unsafe_member_count:
+                    record.status = "skipped_invalid_zip"
+                    record.notes = (
+                        "Unsafe NCBI Datasets ZIP member path count: "
+                        f"{unsafe_member_count}"
+                    )
+                    results.append(
+                        GenomeExtractionResult(
+                            record_id=record.record_id,
+                            normalized_id=record.normalized_id,
+                            status="skipped_invalid_zip",
+                            notes=record.notes,
+                        )
+                    )
+                    continue
                 if not datasets_zip_has_genome(zip_path):
                     record.status = "genome_fna_missing"
                     record.notes = f"No genomic FASTA found in NCBI Datasets ZIP: {zip_path}"

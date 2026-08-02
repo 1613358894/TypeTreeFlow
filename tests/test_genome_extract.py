@@ -154,9 +154,24 @@ def test_register_extracted_genomes_skips_unsafe_zip_member_path(tmp_path):
     results = register_extracted_genomes([record], plan)
 
     assert results[0].status == "skipped_invalid_zip"
-    assert "Unsafe NCBI Datasets ZIP member" in results[0].notes
+    assert results[0].notes == "Unsafe NCBI Datasets ZIP member path count: 1"
     assert record.status == "skipped_invalid_zip"
     assert not (tmp_path / "escape.fna").exists()
+
+
+def test_register_extracted_genomes_checks_unsafe_members_before_fasta_presence(
+    tmp_path,
+):
+    record = _record()
+    plan = build_genome_download_plan([record], tmp_path)
+    _write_zip(Path(plan[0].datasets_zip_path), "../README.txt", "not a genome")
+
+    results = register_extracted_genomes([record], plan)
+
+    assert results[0].status == "skipped_invalid_zip"
+    assert results[0].notes == "Unsafe NCBI Datasets ZIP member path count: 1"
+    assert record.status == "skipped_invalid_zip"
+    assert not (tmp_path / "README.txt").exists()
 
 
 def test_extract_datasets_zip_reuses_existing_dir_without_force(tmp_path):
