@@ -73,6 +73,23 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
     assert summary["source_planned_row_count"] == 2
     assert summary["ready"] is True
     assert summary["safe_for_unattended_download"] is False
+    assert summary["selected_datasets_command_preview"][0] == {
+        "record_id": "rec-1",
+        "assembly_accession": "GCF_000001.1",
+        "datasets_zip_path": "cache/ncbi/rec-1.zip",
+        "command": [
+            "datasets",
+            "download",
+            "genome",
+            "accession",
+            "GCF_000001.1",
+            "--include",
+            "genome",
+            "--filename",
+            "cache/ncbi/rec-1.zip",
+        ],
+    }
+    assert summary["selected_datasets_command_preview_truncated"] is False
 
 
 def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
@@ -180,6 +197,25 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
         }
     ]
     assert summary["selected_accession_quality_preview_truncated"] is False
+    assert summary["selected_datasets_command_preview"] == [
+        {
+            "record_id": "complete",
+            "assembly_accession": "GCF_000002.1",
+            "datasets_zip_path": "cache/ncbi/complete.zip",
+            "command": [
+                "datasets",
+                "download",
+                "genome",
+                "accession",
+                "GCF_000002.1",
+                "--include",
+                "genome",
+                "--filename",
+                "cache/ncbi/complete.zip",
+            ],
+        }
+    ]
+    assert summary["selected_datasets_command_preview_truncated"] is False
     assert summary["source_high_quality_planned_row_count"] == 2
     assert summary["source_draft_or_fragmented_planned_row_count"] == 1
     assert summary["source_unknown_assembly_level_planned_row_count"] == 1
@@ -368,6 +404,46 @@ def test_download_smoke_prepare_blocks_high_quality_without_quality_rows(
     assert summary["quality_tier"] == "high"
     assert summary["blockers"] == ["no_high_quality_planned_ncbi_download_rows"]
     assert summary["source_draft_or_fragmented_planned_row_count"] == 1
+    assert summary["selected_datasets_command_preview"] == []
+    assert summary["selected_datasets_command_preview_truncated"] is False
+
+
+def test_download_smoke_prepare_truncates_datasets_command_preview(capsys, tmp_path):
+    plan = tmp_path / "download_plan.tsv"
+    _write_download_plan(
+        plan,
+        [
+            _planned_row(f"rec-{index}", f"GCF_00000{index}.1")
+            for index in range(1, 8)
+        ],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "prepare",
+                "--download-plan",
+                str(plan),
+                "--limit",
+                "7",
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_summary"]
+    preview = summary["selected_datasets_command_preview"]
+    assert summary["selected_row_count"] == 7
+    assert len(preview) == 5
+    assert preview[0]["command"][0:4] == [
+        "datasets",
+        "download",
+        "genome",
+        "accession",
+    ]
+    assert summary["selected_datasets_command_preview_truncated"] is True
 
 
 def test_download_smoke_prepare_blocks_without_planned_rows(capsys, tmp_path):

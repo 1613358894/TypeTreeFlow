@@ -15,6 +15,7 @@ from typetreeflow.download_plan_readiness import (
     _read_assembly_quality_metadata,
 )
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
+from typetreeflow.sources.ncbi_datasets import build_datasets_download_command
 
 
 COMMAND = "download-smoke prepare"
@@ -149,6 +150,7 @@ def prepare_bounded_download_smoke_input(
     )
     selected = selected_pool[:limit]
     selected_quality = _selected_quality_summary(assembly_metadata, selected)
+    selected_commands = _selected_datasets_command_preview(selected)
     blockers: list[str] = []
     if not selected:
         if resolved_quality_tier == "high":
@@ -179,6 +181,10 @@ def prepare_bounded_download_smoke_input(
         "selected_accession_quality_preview": selected_quality["accession_preview"],
         "selected_accession_quality_preview_truncated": selected_quality[
             "accession_preview_truncated"
+        ],
+        "selected_datasets_command_preview": selected_commands["command_preview"],
+        "selected_datasets_command_preview_truncated": selected_commands[
+            "command_preview_truncated"
         ],
         "source_planned_row_count": readiness.get("download_ready_ncbi_count", 0),
         "source_high_quality_planned_row_count": quality_counts["high"],
@@ -279,6 +285,28 @@ def _selected_quality_summary(
             for level, count in counts.items()
             if _quality_tier_for_assembly_level(level) == "high"
         ),
+    }
+
+
+def _selected_datasets_command_preview(
+    rows: list[dict[str, str]],
+) -> dict[str, object]:
+    preview: list[dict[str, object]] = []
+    preview_limit = 5
+    for row in rows[:preview_limit]:
+        accession = row.get("assembly_accession", "").strip()
+        zip_path = row.get("datasets_zip_path", "").strip()
+        preview.append(
+            {
+                "record_id": row.get("record_id", "").strip(),
+                "assembly_accession": accession,
+                "datasets_zip_path": zip_path,
+                "command": build_datasets_download_command([accession], zip_path),
+            }
+        )
+    return {
+        "command_preview": preview,
+        "command_preview_truncated": len(rows) > preview_limit,
     }
 
 
