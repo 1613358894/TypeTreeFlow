@@ -307,6 +307,37 @@ def test_register_extracted_genomes_updates_manifest_record(tmp_path):
     assert record.status == "genome_ready"
     assert Path(record.genome_path) == expected
     assert expected.read_text(encoding="utf-8") == ">seq\nACGT\n"
+    assert "fasta_quality record_count=1" in results[0].notes
+    assert "fragmentation_signal=single_record" in results[0].notes
+
+
+def test_register_extracted_genomes_notes_fragmentation_quality_counts(tmp_path):
+    record = _record()
+    plan = build_genome_download_plan([record], tmp_path)
+    _write_zip(
+        Path(plan[0].datasets_zip_path),
+        "ncbi_dataset/data/GCF_000011805.1/GCF_000011805.1_genomic.fna",
+        (
+            ">NZ_FAKE000001.1 scaffold1, whole genome shotgun sequence\n"
+            "ACGTNN\n"
+            ">contig2\n"
+            "ACGT\n"
+        ),
+    )
+
+    results = register_extracted_genomes([record], plan)
+
+    assert results[0].status == "genome_ready"
+    assert "record_count=2" in results[0].notes
+    assert "total_bases=10" in results[0].notes
+    assert "n50_bases=6" in results[0].notes
+    assert "ambiguous_bases=2" in results[0].notes
+    assert "header_wgs_keyword_count=1" in results[0].notes
+    assert "header_scaffold_keyword_count=1" in results[0].notes
+    assert "header_contig_keyword_count=1" in results[0].notes
+    assert "fragmentation_signal=multi_record_fragmented" in results[0].notes
+    assert "NZ_FAKE000001.1" not in results[0].notes
+    assert "scaffold1" not in results[0].notes
 
 
 def test_write_genome_registration_results_tsv(tmp_path):
