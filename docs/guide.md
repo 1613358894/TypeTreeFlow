@@ -1206,6 +1206,7 @@ matching local `download-smoke inspect` command for the written bounded plan;
 choose a fresh isolated inspection `--outdir` before running it. Optional
 prepare flags such as `--inspection-min-fasta-n50-bases <bases>`,
 `--inspection-max-fasta-record-count <count>`,
+`--inspection-max-fasta-ambiguous-bases <bases>`,
 `--inspection-min-fasta-total-bases <bases>`,
 `--inspection-min-fasta-longest-record-bases <bases>`,
 `--inspection-block-fragmented-fasta`, and
@@ -1234,10 +1235,12 @@ reviewers notice single-record, single-dominant multi-record, or visibly
 fragmented multi-record FASTA outputs; they are not strict gates, completion
 metrics, or genome usability decisions by default. Add explicit inspection
 quality gates such as `--min-fasta-n50-bases <bases>`,
-`--max-fasta-record-count <count>`, `--min-fasta-total-bases <bases>`,
+`--max-fasta-record-count <count>`,
+`--max-fasta-ambiguous-bases <bases>`, `--min-fasta-total-bases <bases>`,
 `--min-fasta-longest-record-bases <bases>`, `--block-fragmented-fasta`, or
 `--block-fasta-header-keywords` when a bounded smoke should fail closed on
-obviously short, scaffold/contig, or WGS-style outputs. These optional blockers
+obviously short, ambiguous-base-heavy, scaffold/contig, or WGS-style outputs.
+These optional blockers
 are local smoke acceptance criteria only; they still do not create strict
 deliverables.
 When quality gates are supplied, each inspection row includes

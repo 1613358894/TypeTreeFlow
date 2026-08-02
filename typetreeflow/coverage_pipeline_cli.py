@@ -167,6 +167,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "download_smoke_inspection_fasta_max_n50_bases",
     "download_smoke_inspection_fasta_n50_below_minimum_count",
     "download_smoke_inspection_fasta_record_count_above_maximum_count",
+    "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count",
     "download_smoke_inspection_fasta_total_bases_below_minimum_count",
     "download_smoke_inspection_fasta_longest_record_below_minimum_count",
     "download_smoke_inspection_fragmented_fasta_signal_count",
@@ -8416,6 +8417,14 @@ def _coverage_parent_controller_packet(
             _safe_int(
                 result_artifact_packet.get(
                     "download_smoke_inspection_fasta_record_count_above_maximum_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count",
                     0,
                 )
             )
