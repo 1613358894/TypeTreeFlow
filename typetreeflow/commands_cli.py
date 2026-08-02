@@ -1695,6 +1695,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "select a stable coverage queue item for task packet metadata",
         },
         {
+            "name": "--queue-operator-route",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "select the first coverage queue item matching an operator route",
+        },
+        {
             "name": "--stage",
             "kind": "string",
             "required": False,
@@ -1815,6 +1822,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "select a stable coverage queue item for task packet metadata",
         },
         {
+            "name": "--queue-operator-route",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "select the first coverage queue item matching an operator route",
+        },
+        {
             "name": "--stage",
             "kind": "string",
             "required": False,
@@ -1913,6 +1927,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "select a stable coverage queue item for task packet metadata",
+        },
+        {
+            "name": "--queue-operator-route",
+            "kind": "string",
+            "required": False,
+            "repeatable": False,
+            "purpose": "select the first coverage queue item matching an operator route",
         },
         {
             "name": "--stage",
@@ -3566,6 +3587,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "registration_run_dir",
                     "queue_preview_limit",
                     "queue_item_id",
+                    "queue_operator_route",
                     "stage",
                     "expected_queue_snapshot_sha256",
                     "expected_operator_chain_snapshot_sha256",
@@ -3602,6 +3624,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             queue_item_id = _optional_string(request, "queue_item_id")
             if queue_item_id:
                 argv.extend(["--queue-item-id", queue_item_id])
+            queue_operator_route = _optional_string(request, "queue_operator_route")
+            if queue_operator_route:
+                argv.extend(["--queue-operator-route", queue_operator_route])
             stage = _optional_string(request, "stage")
             if stage:
                 argv.extend(["--stage", stage])
@@ -3647,6 +3672,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "manual_supplement_hints_tsv",
             "queue_preview_limit",
             "queue_item_id",
+            "queue_operator_route",
             "stage",
             "expected_queue_snapshot_sha256",
             "expected_operator_chain_snapshot_sha256",
@@ -3683,6 +3709,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         queue_item_id = _optional_string(request, "queue_item_id")
         if queue_item_id:
             argv.extend(["--queue-item-id", queue_item_id])
+        queue_operator_route = _optional_string(request, "queue_operator_route")
+        if queue_operator_route:
+            argv.extend(["--queue-operator-route", queue_operator_route])
         stage = _optional_string(request, "stage")
         if stage:
             argv.extend(["--stage", stage])

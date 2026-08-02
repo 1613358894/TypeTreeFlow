@@ -626,6 +626,12 @@ packet remains a
 digest-guarded handoff and does not authorize execution. It does not change the
 bounded preview prefix, execute
 the target command, or authorize provider access/downloads.
+When a controller wants the first queued item for a route without first looking
+up a stable item ID, pass `--queue-operator-route <operator_route>` to
+`preview`, `build`, or `status`. If both `--queue-item-id` and
+`--queue-operator-route` are supplied, they must refer to the same item;
+mismatches or unknown routes are blocked instead of falling back to another
+queue item.
 Controllers that persist `queue_snapshot_sha256` can pass
 `--expected-queue-snapshot-sha256 <sha256>` on the next metadata call; a
 mismatch is refused with exit code `2` so stale queue selections fail closed.

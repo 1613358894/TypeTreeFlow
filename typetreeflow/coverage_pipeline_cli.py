@@ -466,6 +466,7 @@ def run_coverage_pipeline_command(
         dry_run=not args.write,
         queue_preview_limit=queue_preview_limit,
         queue_item_id=args.queue_item_id,
+        queue_operator_route=args.queue_operator_route,
         stage_name=args.stage,
         expected_queue_snapshot_sha256=args.expected_queue_snapshot_sha256,
         expected_operator_chain_snapshot_sha256=(
@@ -594,6 +595,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     preview.add_argument("--queue-item-id")
+    preview.add_argument("--queue-operator-route")
     preview.add_argument("--stage")
     preview.add_argument("--expected-queue-snapshot-sha256")
     preview.add_argument("--expected-operator-chain-snapshot-sha256")
@@ -626,6 +628,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     build.add_argument("--queue-item-id")
+    build.add_argument("--queue-operator-route")
     build.add_argument("--stage")
     build.add_argument("--expected-queue-snapshot-sha256")
     build.add_argument("--expected-operator-chain-snapshot-sha256")
@@ -648,6 +651,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
     )
     status.add_argument("--queue-item-id")
+    status.add_argument("--queue-operator-route")
     status.add_argument("--stage")
     status.add_argument("--expected-queue-snapshot-sha256")
     status.add_argument("--expected-operator-chain-snapshot-sha256")
@@ -1125,6 +1129,7 @@ def _run_status(
     selected_queue_item = _selected_coverage_queue_item(
         coverage_action_queue,
         getattr(args, "queue_item_id", None),
+        getattr(args, "queue_operator_route", None),
         diagnostics=diagnostics,
     )
     selected_queue = [selected_queue_item] if selected_queue_item else []
@@ -1383,6 +1388,9 @@ def _run_status(
         ),
         "selected_coverage_queue_item_id": str(
             getattr(args, "queue_item_id", "") or ""
+        ),
+        "selected_coverage_queue_operator_route": str(
+            getattr(args, "queue_operator_route", "") or ""
         ),
         "selected_coverage_queue_item_found": bool(selected_queue_item),
         "expected_queue_snapshot_sha256": str(
@@ -3402,6 +3410,7 @@ def _payload(
     dry_run: bool,
     queue_preview_limit: int,
     queue_item_id: str | None,
+    queue_operator_route: str | None,
     stage_name: str | None,
     expected_queue_snapshot_sha256: str | None,
     expected_operator_chain_snapshot_sha256: str | None,
@@ -3584,6 +3593,7 @@ def _payload(
     selected_queue_item = _selected_coverage_queue_item(
         coverage_action_queue,
         queue_item_id,
+        queue_operator_route,
         diagnostics=diagnostics,
     )
     selected_queue = [selected_queue_item] if selected_queue_item else []
@@ -3779,6 +3789,7 @@ def _payload(
         "coverage_action_queue_summary": coverage_action_queue_summary,
         "current_coverage_action_queue_item": current_coverage_action_queue_item,
         "selected_coverage_queue_item_id": str(queue_item_id or ""),
+        "selected_coverage_queue_operator_route": str(queue_operator_route or ""),
         "selected_coverage_queue_item_found": bool(selected_queue_item),
         "expected_queue_snapshot_sha256": str(expected_queue_snapshot_sha256 or ""),
         "current_queue_snapshot_sha256": queue_snapshot_sha256,
@@ -9461,21 +9472,44 @@ def _coverage_operator_queue_preview(
 def _selected_coverage_queue_item(
     coverage_action_queue: Sequence[object],
     queue_item_id: str | None,
+    queue_operator_route: str | None,
     *,
     diagnostics: list[dict[str, object]],
 ) -> dict[str, object] | None:
     requested_id = str(queue_item_id or "").strip()
+    requested_route = str(queue_operator_route or "").strip()
     items = [
         dict(item)
         for item in coverage_action_queue
         if isinstance(item, Mapping)
     ]
-    if not requested_id:
+    if not requested_id and not requested_route:
         return items[0] if items else None
     for item in items:
         if str(item.get("queue_item_id", "")) == requested_id:
+            if (
+                requested_route
+                and str(item.get("operator_route", "")) != requested_route
+            ):
+                diagnostics.append(
+                    _diagnostic(
+                        "coverage_action_queue",
+                        "queue_item_operator_route_mismatch",
+                    )
+                )
+                return None
             return item
-    diagnostics.append(_diagnostic("coverage_action_queue", "queue_item_id_not_found"))
+    if requested_id:
+        diagnostics.append(
+            _diagnostic("coverage_action_queue", "queue_item_id_not_found")
+        )
+        return None
+    for item in items:
+        if str(item.get("operator_route", "")) == requested_route:
+            return item
+    diagnostics.append(
+        _diagnostic("coverage_action_queue", "queue_operator_route_not_found")
+    )
     return None
 
 
@@ -10127,6 +10161,7 @@ def _failure(code: str, message: str) -> dict[str, object]:
         "coverage_controller_runbook_packet": empty_controller_runbook_packet,
         "current_coverage_action_queue_item": {},
         "selected_coverage_queue_item_id": "",
+        "selected_coverage_queue_operator_route": "",
         "selected_coverage_queue_item_found": False,
         "expected_queue_snapshot_sha256": "",
         "current_queue_snapshot_sha256": empty_queue_snapshot_sha256,

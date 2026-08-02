@@ -829,6 +829,7 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--external-genomes-install-plan-dir",
         "--registration-run-dir",
         "--stage",
+        "--queue-operator-route",
         "--expected-operator-chain-snapshot-sha256",
         "--require-complete",
         "--json",
@@ -839,10 +840,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--curated-provider-request-tsv",
         "--external-genomes-install-target-outdir",
         "--stage",
+        "--queue-operator-route",
         "--expected-operator-chain-snapshot-sha256",
     } <= parameter_names[("coverage-pipeline", "build")]
     assert {
         "--stage",
+        "--queue-operator-route",
         "--expected-operator-chain-snapshot-sha256",
     } <= parameter_names[("coverage-pipeline", "preview")]
     assert {"--input", "--json"} <= parameter_names[
@@ -1509,6 +1512,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
                     '"archive_candidates_tsv":"archive.tsv",'
                     '"expanded_discovery_results_tsv":"expanded.tsv",'
                     '"manual_supplement_hints_tsv":"manual_hints.tsv",'
+                    '"queue_operator_route":"public_metadata_review",'
                     '"stage":"provider_request_validation",'
                     '"validate_provider_request":true,'
                     '"provider_request_validation_base_dir":"provider_request",'
@@ -1539,6 +1543,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_build_argv(capsys):
         "expanded.tsv",
         "--manual-supplement-hints-tsv",
         "manual_hints.tsv",
+        "--queue-operator-route",
+        "public_metadata_review",
         "--stage",
         "provider_request_validation",
         "--validate-provider-request",
@@ -1575,6 +1581,7 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
                     '"registration_run_dir":"registration",'
                     '"queue_preview_limit":"5",'
                     '"queue_item_id":"cq004_prepare_provider_handoff",'
+                    '"queue_operator_route":"provider_handoff",'
                     '"stage":"external_genomes_install_plan",'
                     '"expected_queue_snapshot_sha256":'
                     '"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",'
@@ -1607,6 +1614,8 @@ def test_commands_render_emits_normalized_coverage_pipeline_status_argv(capsys):
         "5",
         "--queue-item-id",
         "cq004_prepare_provider_handoff",
+        "--queue-operator-route",
+        "provider_handoff",
         "--stage",
         "external_genomes_install_plan",
         "--expected-queue-snapshot-sha256",

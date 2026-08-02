@@ -2134,9 +2134,9 @@ recommended next command for reviewing `provider/proposed_external_genomes.tsv`.
 The isolated coverage pipeline adapter is:
 
 ```text
-typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--provider-key <provider-key-or-alias> ...] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json]
-typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--provider-key <provider-key-or-alias> ...] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
-typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--manual-review-import-dir <dir>] [--strict-gating-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--server-validation-result <coverage_handoff_server_validation_result.json>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
+typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--provider-key <provider-key-or-alias> ...] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--queue-operator-route <operator_route>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json]
+typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--provider-key <provider-key-or-alias> ...] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--queue-operator-route <operator_route>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
+typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--manual-review-import-dir <dir>] [--strict-gating-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--server-validation-result <coverage_handoff_server_validation_result.json>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--queue-operator-route <operator_route>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
 typetreeflow coverage-pipeline server-validation-result validate --input <coverage_handoff_server_validation_result.json> [--json]
 ```
 
@@ -2372,7 +2372,8 @@ metadata only and does not authorize provider access, downloads, registration,
 manifest mutation, or strict completion.
 `coverage_next_task_packet` is the single current-task packet derived from the
 first queued item, or from the stable queue item selected by
-`--queue-item-id <queue_item_id>`. It repeats the action code, route,
+`--queue-item-id <queue_item_id>`, or from the first queued item matching
+`--queue-operator-route <operator_route>`. It repeats the action code, route,
 next-input class, required inputs, structured `recommended_request`,
 compact `recommended_request_target`, recommended command, and explicit
 no-execution safety fields so AI controllers can pass the request through
@@ -2383,7 +2384,11 @@ always reports `safe_for_unattended_download=false`. It also carries
 `has_recommended_request`, `required_before_execution`,
 `requires_operator_review`, `safe_for_unattended_execution=false`, and explicit
 download/provider/manifest denials. Unknown queue item IDs are refused with
-`diagnostic_code=queue_item_id_not_found` and exit code `2`.
+`diagnostic_code=queue_item_id_not_found` and exit code `2`; unknown operator
+routes are refused with `diagnostic_code=queue_operator_route_not_found`. If
+both queue selectors are supplied, the item ID must belong to the requested
+operator route or the call is blocked with
+`diagnostic_code=queue_item_operator_route_mismatch`.
 `coverage_next_command_plan` and `coverage_next_operator_recipe` echo the
 planned target command's `recommended_request_target` and `output_contracts` so
 controllers can route readiness or handoff packets without a separate catalog
@@ -2488,7 +2493,7 @@ route the preview prefix without expanding every item first. It includes
 digest of the current coverage action queue metadata, and `preview_item_ids`,
 the item IDs included in the bounded preview. Controllers can compare the
 digest before resuming a previously inspected queue. Passing `--queue-item-id`
-selects the current
+or `--queue-operator-route` selects the current
 packet, command plan, recipe, and `current_coverage_action_queue_item`, but it
 does not change this bounded preview prefix. It is a routing preview, not a
 queue runner.
