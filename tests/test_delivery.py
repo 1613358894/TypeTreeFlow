@@ -183,9 +183,18 @@ def _write_download_smoke_inspection_pair(directory):
                 "zip_exists_count": 1,
                 "zip_valid_count": 1,
                 "genome_fasta_present_count": 1,
+                "fasta_total_bases": 10,
+                "fasta_longest_record_bases": 6,
+                "min_fasta_total_bases": 11,
+                "min_fasta_longest_record_bases": 7,
+                "fasta_total_bases_below_minimum_count": 1,
+                "fasta_longest_record_below_minimum_count": 1,
                 "status_counts": {"genome_fasta_present": 1, "zip_missing": 1},
                 "ready": False,
-                "blockers": ["missing_zip_outputs"],
+                "blockers": [
+                    "missing_zip_outputs",
+                    "fasta_total_bases_below_minimum",
+                ],
                 "execution_boundary": (
                     "local_zip_inspection_only_no_download_no_network_no_extraction"
                 ),
@@ -447,6 +456,8 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "audit-only" in package_text
     assert "does not authorize unattended downloads" in package_text
     assert "create strict scientific deliverables" in package_text
+    assert "min_fasta_total_bases=11" in package_text
+    assert "fasta_total_bases_below_minimum_count=1" in package_text
 
 
 def test_package_results_download_smoke_inspection_is_missing_safe(tmp_path):

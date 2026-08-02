@@ -318,6 +318,16 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "fasta_header_wgs_keyword_count",
     "fasta_header_scaffold_keyword_count",
     "fasta_header_contig_keyword_count",
+    "min_fasta_n50_bases",
+    "max_fasta_record_count",
+    "min_fasta_total_bases",
+    "min_fasta_longest_record_bases",
+    "fasta_n50_below_minimum_count",
+    "fasta_record_count_above_maximum_count",
+    "fasta_total_bases_below_minimum_count",
+    "fasta_longest_record_below_minimum_count",
+    "fragmented_fasta_signal_count",
+    "fasta_header_fragment_keyword_row_count",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
     "fasta_fragmentation_signal_counts",
@@ -4751,6 +4761,22 @@ def build_run_summary_markdown(
                         f"wgs={download_smoke_inspection_audit.counts.get('fasta_header_wgs_keyword_count', 0)}, "
                         f"scaffold={download_smoke_inspection_audit.counts.get('fasta_header_scaffold_keyword_count', 0)}, "
                         f"contig={download_smoke_inspection_audit.counts.get('fasta_header_contig_keyword_count', 0)}"
+                    ),
+                    (
+                        "- FASTA quality gate thresholds: "
+                        f"min_n50={download_smoke_inspection_audit.counts.get('min_fasta_n50_bases', 0)}, "
+                        f"max_records={download_smoke_inspection_audit.counts.get('max_fasta_record_count', 0)}, "
+                        f"min_total_bases={download_smoke_inspection_audit.counts.get('min_fasta_total_bases', 0)}, "
+                        f"min_longest_record={download_smoke_inspection_audit.counts.get('min_fasta_longest_record_bases', 0)}"
+                    ),
+                    (
+                        "- FASTA quality gate hits: "
+                        f"n50_below_minimum={download_smoke_inspection_audit.counts.get('fasta_n50_below_minimum_count', 0)}, "
+                        f"record_count_above_maximum={download_smoke_inspection_audit.counts.get('fasta_record_count_above_maximum_count', 0)}, "
+                        f"total_bases_below_minimum={download_smoke_inspection_audit.counts.get('fasta_total_bases_below_minimum_count', 0)}, "
+                        f"longest_record_below_minimum={download_smoke_inspection_audit.counts.get('fasta_longest_record_below_minimum_count', 0)}, "
+                        f"fragmented_signal={download_smoke_inspection_audit.counts.get('fragmented_fasta_signal_count', 0)}, "
+                        f"header_keywords={download_smoke_inspection_audit.counts.get('fasta_header_fragment_keyword_row_count', 0)}"
                     ),
                     (
                         "- Ready for bounded smoke review: "

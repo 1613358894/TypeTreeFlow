@@ -221,13 +221,26 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "fasta_header_wgs_keyword_count": 1,
                 "fasta_header_scaffold_keyword_count": 1,
                 "fasta_header_contig_keyword_count": 1,
+                "min_fasta_n50_bases": 7,
+                "max_fasta_record_count": 1,
+                "min_fasta_total_bases": 11,
+                "min_fasta_longest_record_bases": 7,
+                "fasta_n50_below_minimum_count": 1,
+                "fasta_record_count_above_maximum_count": 1,
+                "fasta_total_bases_below_minimum_count": 1,
+                "fasta_longest_record_below_minimum_count": 1,
+                "fragmented_fasta_signal_count": 1,
+                "fasta_header_fragment_keyword_row_count": 1,
                 "fasta_fragmentation_signal_counts": {
                     "multi_record_fragmented": 1,
                     "not_evaluated": 1,
                 },
                 "status_counts": {"genome_fasta_present": 1, "zip_missing": 1},
                 "ready": False,
-                "blockers": ["missing_zip_outputs"],
+                "blockers": [
+                    "missing_zip_outputs",
+                    "fasta_total_bases_below_minimum",
+                ],
                 "execution_boundary": (
                     "local_zip_inspection_only_no_download_no_network_no_extraction"
                 ),
@@ -300,10 +313,21 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
         in markdown
     )
     assert "- FASTA header keyword signals: wgs=1, scaffold=1, contig=1" in markdown
+    assert (
+        "- FASTA quality gate thresholds: min_n50=7, max_records=1, "
+        "min_total_bases=11, min_longest_record=7"
+    ) in markdown
+    assert (
+        "- FASTA quality gate hits: n50_below_minimum=1, "
+        "record_count_above_maximum=1, total_bases_below_minimum=1, "
+        "longest_record_below_minimum=1, fragmented_signal=1, "
+        "header_keywords=1"
+    ) in markdown
     assert "- Ready for bounded smoke review: false" in markdown
     assert "| genome_fasta_present | 1 |" in markdown
     assert "| zip_missing | 1 |" in markdown
     assert "| missing_zip_outputs |" in markdown
+    assert "| fasta_total_bases_below_minimum |" in markdown
     assert "does not run datasets" in markdown
     assert "download genomes" in markdown
     assert "create strict scientific deliverables" in markdown
