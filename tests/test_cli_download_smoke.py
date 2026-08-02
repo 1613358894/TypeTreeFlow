@@ -775,7 +775,10 @@ def test_download_smoke_inspect_allows_multiple_members_with_unique_install_sele
     zip_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path, "w") as archive:
         archive.writestr("ncbi_dataset/data/GCF_000001.1/genomic.fna", ">a\nACGT\n")
-        archive.writestr("ncbi_dataset/data/GCF_000001.1/extra.fna", ">b\nACGT\n")
+        archive.writestr(
+            "ncbi_dataset/data/GCF_000001.1/extra.fna",
+            ">b\nNNNN\n>c scaffold\nACGT\n",
+        )
     _write_download_plan(
         plan,
         [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
@@ -797,8 +800,10 @@ def test_download_smoke_inspect_allows_multiple_members_with_unique_install_sele
     }
     assert summary["genome_fasta_install_selection_ambiguous_count"] == 0
     assert summary["multiple_genome_fasta_members_count"] == 1
-    assert summary["fasta_record_count"] == 2
-    assert summary["fasta_total_bases"] == 8
+    assert summary["fasta_record_count"] == 1
+    assert summary["fasta_total_bases"] == 4
+    assert summary["fasta_ambiguous_bases"] == 0
+    assert summary["fasta_header_scaffold_keyword_count"] == 0
     assert summary["fasta_quality_gate_passed_row_count"] == 1
     assert summary["fasta_quality_gate_blocked_row_count"] == 0
     assert summary["status_counts"] == {"genome_fasta_present": 1}

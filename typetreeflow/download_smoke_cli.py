@@ -890,16 +890,17 @@ def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
     stats = _empty_fasta_stats()
     record_lengths: list[int] = []
     with zipfile.ZipFile(zip_path) as archive:
-        for member in archive.namelist():
-            if member.endswith("/") or Path(member).suffix.lower() not in {
-                ".fna",
-                ".fasta",
-                ".fa",
-            }:
-                continue
-            stats["genome_fasta_member_count"] += 1
-            if _is_genomic_fasta_name(Path(member).name):
-                stats["genomic_named_fasta_member_count"] += 1
+        fasta_members = [
+            member
+            for member in archive.namelist()
+            if not member.endswith("/")
+            and Path(member).suffix.lower() in {".fna", ".fasta", ".fa"}
+        ]
+        stats["genome_fasta_member_count"] = len(fasta_members)
+        stats["genomic_named_fasta_member_count"] = sum(
+            1 for member in fasta_members if _is_genomic_fasta_name(Path(member).name)
+        )
+        for member in _quality_inspection_members(fasta_members):
             member_stats, member_lengths = _inspect_fasta_member(archive, member)
             record_lengths.extend(member_lengths)
             stats["fasta_record_count"] += member_stats["fasta_record_count"]
@@ -920,6 +921,19 @@ def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
             ]
     stats["fasta_n50_bases"] = _calculate_n50(record_lengths)
     return stats
+
+
+def _quality_inspection_members(fasta_members: Sequence[str]) -> list[str]:
+    if len(fasta_members) <= 1:
+        return list(fasta_members)
+    genomic_named = [
+        member
+        for member in fasta_members
+        if _is_genomic_fasta_name(Path(member).name)
+    ]
+    if len(genomic_named) == 1:
+        return genomic_named
+    return list(fasta_members)
 
 
 def _inspect_fasta_member(
