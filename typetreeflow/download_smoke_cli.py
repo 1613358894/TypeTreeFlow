@@ -18,6 +18,7 @@ from typetreeflow.download_plan_readiness import (
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
 from typetreeflow.genomes.extract import (
     _is_genomic_fasta_name,
+    count_unsafe_datasets_zip_members,
     datasets_zip_has_genome,
     is_valid_zip,
 )
@@ -38,6 +39,7 @@ INSPECTION_FIELDS = [
     "zip_path",
     "zip_exists",
     "zip_valid",
+    "unsafe_zip_member_count",
     "genome_fasta_present",
     "genome_fasta_member_count",
     "genomic_named_fasta_member_count",
@@ -475,6 +477,8 @@ def inspect_bounded_download_smoke_outputs(
         blockers.append("missing_zip_outputs")
     if status_counts.get("zip_invalid", 0):
         blockers.append("invalid_zip_outputs")
+    if status_counts.get("zip_unsafe_members", 0):
+        blockers.append("unsafe_zip_member_paths")
     if status_counts.get("genome_fasta_missing", 0):
         blockers.append("genome_fasta_missing")
     n50_below_minimum_count = (
@@ -614,6 +618,9 @@ def inspect_bounded_download_smoke_outputs(
         "selected_row_count": len(rows),
         "zip_exists_count": sum(1 for row in inspections if row["zip_exists"]),
         "zip_valid_count": sum(1 for row in inspections if row["zip_valid"]),
+        "unsafe_zip_member_count": sum(
+            int(row["unsafe_zip_member_count"]) for row in inspections
+        ),
         "genome_fasta_present_count": sum(
             1 for row in inspections if row["genome_fasta_present"]
         ),
@@ -712,7 +719,13 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
     zip_path = Path(row.get("datasets_zip_path", "").strip())
     zip_exists = zip_path.exists()
     zip_valid = is_valid_zip(zip_path)
-    genome_fasta_present = datasets_zip_has_genome(zip_path) if zip_valid else False
+    unsafe_zip_member_count = (
+        count_unsafe_datasets_zip_members(zip_path) if zip_valid else 0
+    )
+    zip_members_safe = unsafe_zip_member_count == 0
+    genome_fasta_present = (
+        datasets_zip_has_genome(zip_path) if zip_valid and zip_members_safe else False
+    )
     fasta_stats = (
         _inspect_fasta_members(zip_path)
         if genome_fasta_present
@@ -722,6 +735,8 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         status = "zip_missing"
     elif not zip_valid:
         status = "zip_invalid"
+    elif not zip_members_safe:
+        status = "zip_unsafe_members"
     elif not genome_fasta_present:
         status = "genome_fasta_missing"
     elif _fasta_stats_are_empty(fasta_stats):
@@ -736,6 +751,7 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         "zip_path": str(zip_path),
         "zip_exists": zip_exists,
         "zip_valid": zip_valid,
+        "unsafe_zip_member_count": unsafe_zip_member_count,
         "genome_fasta_present": genome_fasta_present,
         **fasta_stats,
         "genome_fasta_install_selection_status": (
@@ -1135,6 +1151,7 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                     "zip_path": row["zip_path"],
                     "zip_exists": str(bool(row["zip_exists"])).lower(),
                     "zip_valid": str(bool(row["zip_valid"])).lower(),
+                    "unsafe_zip_member_count": row["unsafe_zip_member_count"],
                     "genome_fasta_present": str(
                         bool(row["genome_fasta_present"])
                     ).lower(),

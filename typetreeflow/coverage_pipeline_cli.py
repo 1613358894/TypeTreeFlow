@@ -159,6 +159,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "download_smoke_inspection_selected_row_count",
     "download_smoke_inspection_zip_exists_count",
     "download_smoke_inspection_zip_valid_count",
+    "download_smoke_inspection_unsafe_zip_member_count",
     "download_smoke_inspection_genome_fasta_present_count",
     "download_smoke_inspection_genome_fasta_member_count",
     "download_smoke_inspection_genomic_named_fasta_member_count",

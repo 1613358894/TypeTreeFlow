@@ -676,6 +676,7 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["selected_row_count"] == 1
     assert summary["zip_exists_count"] == 1
     assert summary["zip_valid_count"] == 1
+    assert summary["unsafe_zip_member_count"] == 0
     assert summary["genome_fasta_present_count"] == 1
     assert summary["genome_fasta_member_count"] == 1
     assert summary["genomic_named_fasta_member_count"] == 1
@@ -753,6 +754,7 @@ def test_download_smoke_inspect_blocks_empty_genome_fasta_by_default(
     assert summary["ready"] is False
     assert summary["blockers"] == ["empty_genome_fasta_outputs"]
     assert summary["genome_fasta_present_count"] == 1
+    assert summary["unsafe_zip_member_count"] == 0
     assert summary["empty_genome_fasta_count"] == 1
     assert summary["multiple_genome_fasta_members_count"] == 0
     assert summary["fasta_record_count"] == 1
@@ -787,6 +789,7 @@ def test_download_smoke_inspect_blocks_multiple_genome_fasta_members_by_default(
     assert summary["ready"] is False
     assert summary["blockers"] == ["multiple_genome_fasta_members"]
     assert summary["genome_fasta_present_count"] == 1
+    assert summary["unsafe_zip_member_count"] == 0
     assert summary["genome_fasta_member_count"] == 2
     assert summary["genomic_named_fasta_member_count"] == 1
     assert summary["genome_fasta_install_selection_status_counts"] == {
@@ -799,6 +802,35 @@ def test_download_smoke_inspect_blocks_multiple_genome_fasta_members_by_default(
     assert summary["fasta_quality_gate_passed_row_count"] == 0
     assert summary["fasta_quality_gate_blocked_row_count"] == 0
     assert summary["status_counts"] == {"genome_fasta_multiple_members": 1}
+
+
+def test_download_smoke_inspect_blocks_unsafe_zip_member_paths_by_default(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("../genomic.fna", ">a\nACGT\n")
+        archive.writestr("ncbi_dataset/data/GCF_000001.1/genomic.fna", ">b\nACGT\n")
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["ready"] is False
+    assert summary["blockers"] == ["unsafe_zip_member_paths"]
+    assert summary["zip_valid_count"] == 1
+    assert summary["unsafe_zip_member_count"] == 1
+    assert summary["genome_fasta_present_count"] == 0
+    assert summary["genome_fasta_member_count"] == 0
+    assert summary["status_counts"] == {"zip_unsafe_members": 1}
     assert summary["downloads_triggered"] == 0
     assert summary["network_access"] is False
 
@@ -1105,6 +1137,7 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert payload["writes_outputs"] is True
     assert rows[0]["status"] == "genome_fasta_present"
     assert rows[0]["zip_valid"] == "true"
+    assert rows[0]["unsafe_zip_member_count"] == "0"
     assert rows[0]["genome_fasta_present"] == "true"
     assert rows[0]["genome_fasta_member_count"] == "1"
     assert rows[0]["genomic_named_fasta_member_count"] == "1"
@@ -1122,6 +1155,7 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["fasta_fragmentation_signal"] == "single_record"
     assert rows[0]["fasta_quality_gate_blockers"] == ""
     assert summary["ready"] is True
+    assert summary["unsafe_zip_member_count"] == 0
     assert summary["genomic_named_fasta_member_count"] == 1
     assert summary["genome_fasta_install_selection_status_counts"] == {
         "selected": 1
