@@ -161,6 +161,8 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "download_smoke_inspection_zip_valid_count",
     "download_smoke_inspection_genome_fasta_present_count",
     "download_smoke_inspection_genome_fasta_member_count",
+    "download_smoke_inspection_genomic_named_fasta_member_count",
+    "download_smoke_inspection_genome_fasta_install_selection_ambiguous_count",
     "download_smoke_inspection_fasta_record_count",
     "download_smoke_inspection_fasta_total_bases",
     "download_smoke_inspection_fasta_longest_record_bases",
@@ -178,6 +180,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "download_smoke_inspection_fasta_quality_gate_blocked_row_count",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS = (
+    "download_smoke_inspection_genome_fasta_install_selection_status_counts",
     "download_smoke_inspection_fasta_quality_gate_blocker_counts",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS = (

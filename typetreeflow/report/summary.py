@@ -310,6 +310,8 @@ DOWNLOAD_SMOKE_INSPECTION_COUNT_FIELDS = (
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "genome_fasta_member_count",
+    "genomic_named_fasta_member_count",
+    "genome_fasta_install_selection_ambiguous_count",
     "fasta_record_count",
     "fasta_total_bases",
     "fasta_longest_record_bases",
@@ -336,6 +338,7 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "fasta_quality_gate_blocked_row_count",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
+    "genome_fasta_install_selection_status_counts",
     "fasta_fragmentation_signal_counts",
     "fasta_quality_gate_blocker_counts",
 )
@@ -4834,6 +4837,20 @@ def build_run_summary_markdown(
                         f"{download_smoke_inspection_audit.counts.get('genome_fasta_member_count', 0)}"
                     ),
                     (
+                        "- Genomic-named FASTA members: "
+                        f"{download_smoke_inspection_audit.counts.get('genomic_named_fasta_member_count', 0)}"
+                    ),
+                    (
+                        "- Genome FASTA install selection statuses: "
+                        + _format_count_pairs(
+                            _count_map_pairs(
+                                download_smoke_inspection_audit.counts.get(
+                                    "genome_fasta_install_selection_status_counts"
+                                )
+                            )
+                        )
+                    ),
+                    (
                         "- FASTA records: "
                         f"{download_smoke_inspection_audit.counts.get('fasta_record_count', 0)}"
                     ),
@@ -4872,6 +4889,7 @@ def build_run_summary_markdown(
                         "- FASTA quality gate hits: "
                         f"empty_genome_fasta={download_smoke_inspection_audit.counts.get('empty_genome_fasta_count', 0)}, "
                         f"multiple_genome_fasta_members={download_smoke_inspection_audit.counts.get('multiple_genome_fasta_members_count', 0)}, "
+                        f"install_selection_ambiguous={download_smoke_inspection_audit.counts.get('genome_fasta_install_selection_ambiguous_count', 0)}, "
                         f"n50_below_minimum={download_smoke_inspection_audit.counts.get('fasta_n50_below_minimum_count', 0)}, "
                         f"record_count_above_maximum={download_smoke_inspection_audit.counts.get('fasta_record_count_above_maximum_count', 0)}, "
                         f"total_bases_below_minimum={download_smoke_inspection_audit.counts.get('fasta_total_bases_below_minimum_count', 0)}, "

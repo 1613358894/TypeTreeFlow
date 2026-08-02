@@ -16,7 +16,11 @@ from typetreeflow.download_plan_readiness import (
     _read_assembly_quality_metadata,
 )
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
-from typetreeflow.genomes.extract import datasets_zip_has_genome, is_valid_zip
+from typetreeflow.genomes.extract import (
+    _is_genomic_fasta_name,
+    datasets_zip_has_genome,
+    is_valid_zip,
+)
 from typetreeflow.sources.ncbi_datasets import build_datasets_download_command
 
 
@@ -36,6 +40,8 @@ INSPECTION_FIELDS = [
     "zip_valid",
     "genome_fasta_present",
     "genome_fasta_member_count",
+    "genomic_named_fasta_member_count",
+    "genome_fasta_install_selection_status",
     "fasta_record_count",
     "fasta_total_bases",
     "fasta_longest_record_bases",
@@ -54,6 +60,9 @@ FASTA_FRAGMENTATION_SIGNAL_NOT_EVALUATED = "not_evaluated"
 FASTA_FRAGMENTATION_SIGNAL_SINGLE_RECORD = "single_record"
 FASTA_FRAGMENTATION_SIGNAL_SINGLE_DOMINANT = "multi_record_single_dominant"
 FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED = "multi_record_fragmented"
+INSTALL_SELECTION_NOT_EVALUATED = "not_evaluated"
+INSTALL_SELECTION_SELECTED = "selected"
+INSTALL_SELECTION_AMBIGUOUS = "ambiguous"
 
 
 class _UsageError(Exception):
@@ -546,10 +555,22 @@ def inspect_bounded_download_smoke_outputs(
         if row["genome_fasta_present"]
         and int(row["genome_fasta_member_count"]) > 1
     )
+    install_selection_status_counts: dict[str, int] = {}
+    for row in inspections:
+        selection_status = str(row["genome_fasta_install_selection_status"])
+        install_selection_status_counts[selection_status] = (
+            install_selection_status_counts.get(selection_status, 0) + 1
+        )
+    ambiguous_install_selection_count = install_selection_status_counts.get(
+        INSTALL_SELECTION_AMBIGUOUS,
+        0,
+    )
     if empty_genome_fasta_count:
         blockers.append("empty_genome_fasta_outputs")
     if multiple_genome_fasta_members_count:
         blockers.append("multiple_genome_fasta_members")
+    if ambiguous_install_selection_count:
+        blockers.append("genome_fasta_install_selection_ambiguous")
     if n50_below_minimum_count:
         blockers.append("fasta_n50_below_minimum")
     if record_count_above_maximum_count:
@@ -598,6 +619,15 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "genome_fasta_member_count": sum(
             int(row["genome_fasta_member_count"]) for row in inspections
+        ),
+        "genomic_named_fasta_member_count": sum(
+            int(row["genomic_named_fasta_member_count"]) for row in inspections
+        ),
+        "genome_fasta_install_selection_status_counts": dict(
+            sorted(install_selection_status_counts.items())
+        ),
+        "genome_fasta_install_selection_ambiguous_count": (
+            ambiguous_install_selection_count
         ),
         "fasta_record_count": sum(int(row["fasta_record_count"]) for row in inspections),
         "fasta_total_bases": sum(int(row["fasta_total_bases"]) for row in inspections),
@@ -708,6 +738,11 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
         "zip_valid": zip_valid,
         "genome_fasta_present": genome_fasta_present,
         **fasta_stats,
+        "genome_fasta_install_selection_status": (
+            _classify_genome_fasta_install_selection(fasta_stats)
+            if genome_fasta_present
+            else INSTALL_SELECTION_NOT_EVALUATED
+        ),
         "empty_genome_fasta_count": int(_fasta_stats_are_empty(fasta_stats))
         if genome_fasta_present
         else 0,
@@ -792,6 +827,7 @@ def _fasta_quality_gate_blocker_counts(
 def _empty_fasta_stats() -> dict[str, int]:
     return {
         "genome_fasta_member_count": 0,
+        "genomic_named_fasta_member_count": 0,
         "fasta_record_count": 0,
         "fasta_total_bases": 0,
         "fasta_longest_record_bases": 0,
@@ -816,6 +852,18 @@ def _classify_fasta_fragmentation(fasta_stats: dict[str, int]) -> str:
     return FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED
 
 
+def _classify_genome_fasta_install_selection(fasta_stats: dict[str, int]) -> str:
+    member_count = int(fasta_stats.get("genome_fasta_member_count", 0))
+    genomic_named_count = int(fasta_stats.get("genomic_named_fasta_member_count", 0))
+    if member_count <= 0:
+        return INSTALL_SELECTION_NOT_EVALUATED
+    if member_count == 1:
+        return INSTALL_SELECTION_SELECTED
+    if genomic_named_count == 1:
+        return INSTALL_SELECTION_SELECTED
+    return INSTALL_SELECTION_AMBIGUOUS
+
+
 def _fasta_stats_are_empty(fasta_stats: dict[str, int]) -> bool:
     return (
         int(fasta_stats.get("fasta_record_count", 0)) <= 0
@@ -835,6 +883,8 @@ def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
             }:
                 continue
             stats["genome_fasta_member_count"] += 1
+            if _is_genomic_fasta_name(Path(member).name):
+                stats["genomic_named_fasta_member_count"] += 1
             member_stats, member_lengths = _inspect_fasta_member(archive, member)
             record_lengths.extend(member_lengths)
             stats["fasta_record_count"] += member_stats["fasta_record_count"]
@@ -1090,6 +1140,12 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                     ).lower(),
                     "genome_fasta_member_count": row[
                         "genome_fasta_member_count"
+                    ],
+                    "genomic_named_fasta_member_count": row[
+                        "genomic_named_fasta_member_count"
+                    ],
+                    "genome_fasta_install_selection_status": row[
+                        "genome_fasta_install_selection_status"
                     ],
                     "fasta_record_count": row["fasta_record_count"],
                     "fasta_total_bases": row["fasta_total_bases"],
