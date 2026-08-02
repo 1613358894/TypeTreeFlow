@@ -164,6 +164,8 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "download_smoke_inspection_genome_fasta_member_count",
     "download_smoke_inspection_genomic_named_fasta_member_count",
     "download_smoke_inspection_genome_fasta_install_selection_ambiguous_count",
+    "download_smoke_inspection_installable_genome_fasta_ready_count",
+    "download_smoke_inspection_installable_genome_fasta_not_ready_count",
     "download_smoke_inspection_fasta_record_count",
     "download_smoke_inspection_fasta_total_bases",
     "download_smoke_inspection_fasta_longest_record_bases",
@@ -8409,6 +8411,22 @@ def _coverage_parent_controller_packet(
             _safe_int(
                 result_artifact_packet.get(
                     "download_smoke_inspection_genome_fasta_present_count", 0
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_ready_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_installable_genome_fasta_ready_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_not_ready_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_installable_genome_fasta_not_ready_count",
+                    0,
                 )
             )
         ),
