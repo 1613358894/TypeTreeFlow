@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Iterable
 
 from typetreeflow.external.runner import CommandResult, CommandRunner
+from typetreeflow.genomes.extract import count_unsafe_datasets_zip_members
 from typetreeflow.genomes.plan import (
     EXTERNAL_GENOME_DOWNLOAD_NOT_APPLICABLE,
     GenomeDownloadPlanItem,
@@ -205,8 +206,16 @@ def _executed_result(
         status = "genome_download_failed"
         notes = f"Download command failed with return code {command_result.returncode}."
     elif zip_path.exists() and zipfile.is_zipfile(zip_path):
-        status = "genome_download_succeeded"
-        notes = f"Downloaded ZIP: {item.datasets_zip_path}"
+        unsafe_member_count = count_unsafe_datasets_zip_members(zip_path)
+        if unsafe_member_count:
+            status = "skipped_invalid_zip"
+            notes = (
+                "Downloaded ZIP has unsafe member path count: "
+                f"{unsafe_member_count}"
+            )
+        else:
+            status = "genome_download_succeeded"
+            notes = f"Downloaded ZIP: {item.datasets_zip_path}"
     elif zip_path.exists():
         status = "skipped_invalid_zip"
         notes = f"Downloaded ZIP is not a valid ZIP archive: {item.datasets_zip_path}"

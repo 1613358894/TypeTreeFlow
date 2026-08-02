@@ -160,6 +160,38 @@ def test_invalid_zip_updates_manifest_status(tmp_path):
     assert "not a valid ZIP" in record.notes
 
 
+def test_unsafe_zip_member_updates_manifest_status_without_exposing_path(tmp_path):
+    record = _record()
+    plan = build_genome_download_plan([record], tmp_path)
+
+    class UnsafeZipRunner(FakeRunner):
+        def run(self, command: list[str], cwd=None) -> CommandResult:
+            self.commands.append(command)
+            zip_path = command[command.index("--filename") + 1]
+            from pathlib import Path
+
+            Path(zip_path).parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("../genomic.fna", ">fake\nACGT\n")
+                archive.writestr(
+                    "ncbi_dataset/data/GCF_000011805.1/genomic.fna",
+                    ">fake\nACGT\n",
+                )
+            return CommandResult(command=command, returncode=0, stdout="", stderr="")
+
+    runner = UnsafeZipRunner(returncode=0)
+
+    results = execute_download_plan(plan, runner, dry_run=False)
+    apply_download_results_to_records([record], results)
+
+    assert len(runner.commands) == 1
+    assert results[0].status == "skipped_invalid_zip"
+    assert results[0].notes == "Downloaded ZIP has unsafe member path count: 1"
+    assert "../genomic.fna" not in results[0].notes
+    assert record.status == "skipped_invalid_zip"
+    assert record.notes == results[0].notes
+
+
 def test_failure_updates_manifest_status_and_stderr(tmp_path):
     record = _record()
     plan = build_genome_download_plan([record], tmp_path)
