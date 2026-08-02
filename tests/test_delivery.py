@@ -123,6 +123,7 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_selected_row_count": 2,
                 "download_smoke_inspection_zip_valid_count": 1,
                 "download_smoke_inspection_genome_fasta_present_count": 1,
+                "download_smoke_inspection_empty_genome_fasta_count": 1,
                 "download_smoke_inspection_fasta_n50_below_minimum_count": 1,
                 "download_smoke_inspection_fasta_record_count_above_maximum_count": 1,
                 "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count": 1,
@@ -133,6 +134,7 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_fasta_quality_gate_passed_row_count": 0,
                 "download_smoke_inspection_fasta_quality_gate_blocked_row_count": 1,
                 "download_smoke_inspection_fasta_quality_gate_blocker_counts": {
+                    "empty_genome_fasta_outputs": 1,
                     "fasta_ambiguous_bases_above_maximum": 1,
                     "fasta_longest_record_below_minimum": 1,
                     "fasta_n50_below_minimum": 1,
@@ -209,6 +211,7 @@ def _write_download_smoke_inspection_pair(directory):
                 "zip_exists_count": 1,
                 "zip_valid_count": 1,
                 "genome_fasta_present_count": 1,
+                "empty_genome_fasta_count": 1,
                 "fasta_total_bases": 10,
                 "fasta_longest_record_bases": 6,
                 "max_fasta_ambiguous_bases": 1,
@@ -220,6 +223,7 @@ def _write_download_smoke_inspection_pair(directory):
                 "fasta_quality_gate_passed_row_count": 0,
                 "fasta_quality_gate_blocked_row_count": 1,
                 "fasta_quality_gate_blocker_counts": {
+                    "empty_genome_fasta_outputs": 1,
                     "fasta_ambiguous_bases_above_maximum": 1,
                     "fasta_longest_record_below_minimum": 1,
                     "fasta_total_bases_below_minimum": 1,
@@ -506,12 +510,14 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "does not authorize unattended downloads" in package_text
     assert "create strict scientific deliverables" in package_text
     assert "max_fasta_ambiguous_bases=1" in package_text
+    assert "empty_genome_fasta_count=1" in package_text
     assert "fasta_ambiguous_bases_above_maximum_count=1" in package_text
     assert "min_fasta_total_bases=11" in package_text
     assert "fasta_total_bases_below_minimum_count=1" in package_text
     assert "FASTA quality gate rows: passed=0; blocked=1" in package_text
     assert (
         "FASTA quality gate blocker counts: "
+        "empty_genome_fasta_outputs=1, "
         "fasta_ambiguous_bases_above_maximum=1, "
         "fasta_longest_record_below_minimum=1, "
         "fasta_total_bases_below_minimum=1"
@@ -2534,6 +2540,7 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "realized=true, ready=false, selected_rows=2" in package_text
     assert "zip_valid=1, genome_fasta_present=1" in package_text
     assert "Bounded FASTA quality-gate hits" in package_text
+    assert "empty_genome_fasta=1" in package_text
     assert "n50_below_minimum=1" in package_text
     assert "record_count_above_maximum=1" in package_text
     assert "ambiguous_bases_above_maximum=1" in package_text
@@ -2544,6 +2551,7 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "Bounded FASTA quality-gate rows" in package_text
     assert "passed=0, blocked=1" in package_text
     assert "Bounded FASTA quality-gate blocker counts" in package_text
+    assert "empty_genome_fasta_outputs=1" in package_text
     assert "fasta_ambiguous_bases_above_maximum=1" in package_text
     assert "fasta_longest_record_below_minimum=1" in package_text
     assert "fasta_n50_below_minimum=1" in package_text

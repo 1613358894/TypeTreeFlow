@@ -727,6 +727,36 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["ready"] is True
 
 
+def test_download_smoke_inspect_blocks_empty_genome_fasta_by_default(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    _write_zip(zip_path, content=">empty\n")
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["ready"] is False
+    assert summary["blockers"] == ["empty_genome_fasta_outputs"]
+    assert summary["genome_fasta_present_count"] == 1
+    assert summary["empty_genome_fasta_count"] == 1
+    assert summary["fasta_record_count"] == 1
+    assert summary["fasta_total_bases"] == 0
+    assert summary["fasta_quality_gate_passed_row_count"] == 0
+    assert summary["fasta_quality_gate_blocked_row_count"] == 0
+    assert summary["status_counts"] == {"genome_fasta_empty": 1}
+    assert summary["downloads_triggered"] == 0
+    assert summary["network_access"] is False
+
+
 def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     capsys,
     tmp_path,

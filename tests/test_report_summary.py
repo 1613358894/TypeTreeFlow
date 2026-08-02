@@ -221,6 +221,7 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "fasta_header_wgs_keyword_count": 1,
                 "fasta_header_scaffold_keyword_count": 1,
                 "fasta_header_contig_keyword_count": 1,
+                "empty_genome_fasta_count": 1,
                 "min_fasta_n50_bases": 7,
                 "max_fasta_record_count": 1,
                 "min_fasta_total_bases": 11,
@@ -342,7 +343,8 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
         "min_total_bases=11, min_longest_record=7"
     ) in markdown
     assert (
-        "- FASTA quality gate hits: n50_below_minimum=1, "
+        "- FASTA quality gate hits: empty_genome_fasta=1, "
+        "n50_below_minimum=1, "
         "record_count_above_maximum=1, total_bases_below_minimum=1, "
         "longest_record_below_minimum=1, fragmented_signal=1, "
         "header_keywords=1"
