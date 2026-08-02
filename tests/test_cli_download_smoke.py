@@ -108,10 +108,12 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
     assert summary["selected_datasets_command_preview_truncated"] is False
     assert summary["inspection_min_fasta_n50_bases"] == 0
     assert summary["inspection_max_fasta_record_count"] == 0
+    assert summary["inspection_max_fasta_ambiguous_bases"] == 0
     assert summary["inspection_min_fasta_total_bases"] == 0
     assert summary["inspection_min_fasta_longest_record_bases"] == 0
-    assert summary["inspection_block_fragmented_fasta"] is False
-    assert summary["inspection_block_fasta_header_keywords"] is False
+    assert summary["inspection_quality_profile"] == "fragmentation"
+    assert summary["inspection_block_fragmented_fasta"] is True
+    assert summary["inspection_block_fasta_header_keywords"] is True
     assert summary["recommended_inspection_command"] == []
 
 
@@ -153,12 +155,17 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows == [_planned_row("rec-1")]
     assert summary["selected_row_count"] == 1
     assert summary["downloads_triggered"] == 0
+    assert summary["inspection_quality_profile"] == "fragmentation"
+    assert summary["inspection_block_fragmented_fasta"] is True
+    assert summary["inspection_block_fasta_header_keywords"] is True
     assert summary["recommended_inspection_command"] == [
         "typetreeflow",
         "download-smoke",
         "inspect",
         "--download-plan",
         str(outdir / "bounded_download_smoke_plan.tsv"),
+        "--quality-profile",
+        "fragmentation",
         "--write",
         "--outdir",
         "<isolated-bounded-download-smoke-inspection-dir>",
@@ -213,6 +220,7 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
     assert summary["inspection_max_fasta_ambiguous_bases"] == 100
     assert summary["inspection_min_fasta_total_bases"] == 3000000
     assert summary["inspection_min_fasta_longest_record_bases"] == 100000
+    assert summary["inspection_quality_profile"] == "fragmentation"
     assert summary["inspection_block_fragmented_fasta"] is True
     assert summary["inspection_block_fasta_header_keywords"] is True
     assert summary["recommended_inspection_command"] == [
@@ -231,12 +239,52 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
         "3000000",
         "--min-fasta-longest-record-bases",
         "100000",
+        "--quality-profile",
+        "fragmentation",
         "--block-fragmented-fasta",
         "--block-fasta-header-keywords",
         "--write",
         "--outdir",
         "<isolated-bounded-download-smoke-inspection-dir>",
     ]
+    assert payload["bounded_download_smoke_summary"][
+        "recommended_inspection_command"
+    ] == summary["recommended_inspection_command"]
+
+
+def test_download_smoke_prepare_write_can_disable_inspection_quality_profile(
+    capsys,
+    tmp_path,
+):
+    plan = tmp_path / "download_plan.tsv"
+    outdir = tmp_path / "smoke-input"
+    _write_download_plan(plan, [_planned_row("rec-1")])
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "prepare",
+                "--download-plan",
+                str(plan),
+                "--inspection-quality-profile",
+                "none",
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = json.loads(
+        (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
+    )
+    assert summary["inspection_quality_profile"] == "none"
+    assert summary["inspection_block_fragmented_fasta"] is False
+    assert summary["inspection_block_fasta_header_keywords"] is False
+    assert "--quality-profile" not in summary["recommended_inspection_command"]
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"
     ] == summary["recommended_inspection_command"]
@@ -723,6 +771,7 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["max_fasta_record_count"] == 0
     assert summary["min_fasta_total_bases"] == 0
     assert summary["min_fasta_longest_record_bases"] == 0
+    assert summary["quality_profile"] == "none"
     assert summary["block_fragmented_fasta"] is False
     assert summary["block_fasta_header_keywords"] is False
     assert summary["fasta_n50_below_minimum_count"] == 0
@@ -747,14 +796,68 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
         "inspect",
         "--download-plan",
         str(plan),
-        "--block-fragmented-fasta",
-        "--block-fasta-header-keywords",
+        "--quality-profile",
+        "fragmentation",
         "--write",
         "--outdir",
         "<isolated-bounded-download-smoke-inspection-dir>",
     ]
     assert summary["status_counts"] == {"genome_fasta_present": 1}
     assert summary["ready"] is True
+
+
+def test_download_smoke_inspect_quality_profile_blocks_fragmentation(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    _write_zip(
+        zip_path,
+        content=(
+            ">NZ_FAKE000001.1 scaffold1, whole genome shotgun sequence\n"
+            "ACGTNN\n"
+            ">contig2\n"
+            "ACGT\n"
+        ),
+    )
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                str(plan),
+                "--quality-profile",
+                "fragmentation",
+            ]
+        )
+        == 2
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["quality_profile"] == "fragmentation"
+    assert summary["block_fragmented_fasta"] is True
+    assert summary["block_fasta_header_keywords"] is True
+    assert summary["blockers"] == [
+        "fragmented_fasta_signal",
+        "fasta_header_fragment_keywords",
+    ]
+    assert summary["fasta_quality_gate_passed_row_count"] == 0
+    assert summary["fasta_quality_gate_blocked_row_count"] == 1
+    assert summary["fasta_quality_gate_blocker_counts"] == {
+        "fasta_header_fragment_keywords": 1,
+        "fragmented_fasta_signal": 1,
+    }
+    assert summary["quality_gate_recommendation"] == "none"
+    assert summary["recommended_quality_gate_command"] == []
 
 
 def test_download_smoke_inspect_blocks_empty_genome_fasta_by_default(
@@ -956,6 +1059,7 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["max_fasta_ambiguous_bases"] == 1
     assert summary["min_fasta_total_bases"] == 11
     assert summary["min_fasta_longest_record_bases"] == 7
+    assert summary["quality_profile"] == "none"
     assert summary["block_fragmented_fasta"] is True
     assert summary["block_fasta_header_keywords"] is True
     assert summary["fasta_n50_below_minimum_count"] == 1
