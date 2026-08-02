@@ -863,6 +863,8 @@ _DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS: list[str] = [
     "selected_datasets_command_preview",
     "inspection_min_fasta_n50_bases",
     "inspection_max_fasta_record_count",
+    "inspection_min_fasta_total_bases",
+    "inspection_min_fasta_longest_record_bases",
     "inspection_block_fragmented_fasta",
     "inspection_block_fasta_header_keywords",
     "source_planned_row_count",
@@ -897,10 +899,14 @@ _DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS: list[str] = [
     "fasta_fragmentation_signal_counts",
     "min_fasta_n50_bases",
     "max_fasta_record_count",
+    "min_fasta_total_bases",
+    "min_fasta_longest_record_bases",
     "block_fragmented_fasta",
     "block_fasta_header_keywords",
     "fasta_n50_below_minimum_count",
     "fasta_record_count_above_maximum_count",
+    "fasta_total_bases_below_minimum_count",
+    "fasta_longest_record_below_minimum_count",
     "fragmented_fasta_signal_count",
     "fasta_header_fragment_keyword_row_count",
     "status_counts",
@@ -2118,6 +2124,20 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "recommended inspect blocker threshold for too many FASTA records",
         },
         {
+            "name": "--inspection-min-fasta-total-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommended inspect blocker threshold for low total FASTA bases",
+        },
+        {
+            "name": "--inspection-min-fasta-longest-record-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommended inspect blocker threshold for a short longest FASTA record",
+        },
+        {
             "name": "--inspection-block-fragmented-fasta",
             "kind": "flag",
             "required": False,
@@ -2174,6 +2194,20 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "optional blocker threshold for too many FASTA records",
+        },
+        {
+            "name": "--min-fasta-total-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional blocker threshold for low total FASTA bases",
+        },
+        {
+            "name": "--min-fasta-longest-record-bases",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional blocker threshold for a short longest FASTA record",
         },
         {
             "name": "--block-fragmented-fasta",
@@ -4013,6 +4047,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "quality_tier",
                     "inspection_min_fasta_n50_bases",
                     "inspection_max_fasta_record_count",
+                    "inspection_min_fasta_total_bases",
+                    "inspection_min_fasta_longest_record_bases",
                     "inspection_block_fragmented_fasta",
                     "inspection_block_fasta_header_keywords",
                     "write",
@@ -4051,6 +4087,28 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                         str(inspection_max_records),
                     ]
                 )
+            inspection_min_total = _optional_int(
+                request,
+                "inspection_min_fasta_total_bases",
+            )
+            if inspection_min_total is not None:
+                argv.extend(
+                    [
+                        "--inspection-min-fasta-total-bases",
+                        str(inspection_min_total),
+                    ]
+                )
+            inspection_min_longest = _optional_int(
+                request,
+                "inspection_min_fasta_longest_record_bases",
+            )
+            if inspection_min_longest is not None:
+                argv.extend(
+                    [
+                        "--inspection-min-fasta-longest-record-bases",
+                        str(inspection_min_longest),
+                    ]
+                )
             if _bool_flag(request, "inspection_block_fragmented_fasta"):
                 argv.append("--inspection-block-fragmented-fasta")
             if _bool_flag(request, "inspection_block_fasta_header_keywords"):
@@ -4070,6 +4128,8 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "download_plan",
                     "min_fasta_n50_bases",
                     "max_fasta_record_count",
+                    "min_fasta_total_bases",
+                    "min_fasta_longest_record_bases",
                     "block_fragmented_fasta",
                     "block_fasta_header_keywords",
                     "write",
@@ -4089,6 +4149,12 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             max_records = _optional_int(request, "max_fasta_record_count")
             if max_records is not None:
                 argv.extend(["--max-fasta-record-count", str(max_records)])
+            min_total = _optional_int(request, "min_fasta_total_bases")
+            if min_total is not None:
+                argv.extend(["--min-fasta-total-bases", str(min_total)])
+            min_longest = _optional_int(request, "min_fasta_longest_record_bases")
+            if min_longest is not None:
+                argv.extend(["--min-fasta-longest-record-bases", str(min_longest)])
             if _bool_flag(request, "block_fragmented_fasta"):
                 argv.append("--block-fragmented-fasta")
             if _bool_flag(request, "block_fasta_header_keywords"):

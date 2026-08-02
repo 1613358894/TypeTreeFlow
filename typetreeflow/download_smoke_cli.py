@@ -106,6 +106,12 @@ def run_download_smoke_command(
                 inspection_max_fasta_record_count=(
                     args.inspection_max_fasta_record_count
                 ),
+                inspection_min_fasta_total_bases=(
+                    args.inspection_min_fasta_total_bases
+                ),
+                inspection_min_fasta_longest_record_bases=(
+                    args.inspection_min_fasta_longest_record_bases
+                ),
                 inspection_block_fragmented_fasta=(
                     args.inspection_block_fragmented_fasta
                 ),
@@ -118,6 +124,10 @@ def run_download_smoke_command(
                 args.download_plan,
                 min_fasta_n50_bases=args.min_fasta_n50_bases,
                 max_fasta_record_count=args.max_fasta_record_count,
+                min_fasta_total_bases=args.min_fasta_total_bases,
+                min_fasta_longest_record_bases=(
+                    args.min_fasta_longest_record_bases
+                ),
                 block_fragmented_fasta=args.block_fragmented_fasta,
                 block_fasta_header_keywords=args.block_fasta_header_keywords,
             )
@@ -140,6 +150,10 @@ def run_download_smoke_command(
                 Path(args.outdir) / OUTPUT_PLAN_NAME,
                 min_fasta_n50_bases=args.inspection_min_fasta_n50_bases,
                 max_fasta_record_count=args.inspection_max_fasta_record_count,
+                min_fasta_total_bases=args.inspection_min_fasta_total_bases,
+                min_fasta_longest_record_bases=(
+                    args.inspection_min_fasta_longest_record_bases
+                ),
                 block_fragmented_fasta=args.inspection_block_fragmented_fasta,
                 block_fasta_header_keywords=(
                     args.inspection_block_fasta_header_keywords
@@ -210,12 +224,19 @@ def prepare_bounded_download_smoke_input(
     quality_tier: str = "all",
     inspection_min_fasta_n50_bases: int = 0,
     inspection_max_fasta_record_count: int = 0,
+    inspection_min_fasta_total_bases: int = 0,
+    inspection_min_fasta_longest_record_bases: int = 0,
     inspection_block_fragmented_fasta: bool = False,
     inspection_block_fasta_header_keywords: bool = False,
 ) -> dict[str, object]:
     if limit <= 0:
         raise ValueError("limit must be a positive integer")
-    if inspection_min_fasta_n50_bases < 0 or inspection_max_fasta_record_count < 0:
+    if (
+        inspection_min_fasta_n50_bases < 0
+        or inspection_max_fasta_record_count < 0
+        or inspection_min_fasta_total_bases < 0
+        or inspection_min_fasta_longest_record_bases < 0
+    ):
         raise ValueError("inspection FASTA quality thresholds must be non-negative")
     if quality_tier not in {"all", "high", "recommended"}:
         raise ValueError("quality_tier must be all, high, or recommended")
@@ -276,6 +297,10 @@ def prepare_bounded_download_smoke_input(
         ],
         "inspection_min_fasta_n50_bases": inspection_min_fasta_n50_bases,
         "inspection_max_fasta_record_count": inspection_max_fasta_record_count,
+        "inspection_min_fasta_total_bases": inspection_min_fasta_total_bases,
+        "inspection_min_fasta_longest_record_bases": (
+            inspection_min_fasta_longest_record_bases
+        ),
         "inspection_block_fragmented_fasta": inspection_block_fragmented_fasta,
         "inspection_block_fasta_header_keywords": (
             inspection_block_fasta_header_keywords
@@ -314,6 +339,8 @@ def _recommended_inspection_command(
     *,
     min_fasta_n50_bases: int = 0,
     max_fasta_record_count: int = 0,
+    min_fasta_total_bases: int = 0,
+    min_fasta_longest_record_bases: int = 0,
     block_fragmented_fasta: bool = False,
     block_fasta_header_keywords: bool = False,
 ) -> list[str]:
@@ -328,6 +355,15 @@ def _recommended_inspection_command(
         command.extend(["--min-fasta-n50-bases", str(min_fasta_n50_bases)])
     if max_fasta_record_count > 0:
         command.extend(["--max-fasta-record-count", str(max_fasta_record_count)])
+    if min_fasta_total_bases > 0:
+        command.extend(["--min-fasta-total-bases", str(min_fasta_total_bases)])
+    if min_fasta_longest_record_bases > 0:
+        command.extend(
+            [
+                "--min-fasta-longest-record-bases",
+                str(min_fasta_longest_record_bases),
+            ]
+        )
     if block_fragmented_fasta:
         command.append("--block-fragmented-fasta")
     if block_fasta_header_keywords:
@@ -347,10 +383,17 @@ def inspect_bounded_download_smoke_outputs(
     *,
     min_fasta_n50_bases: int = 0,
     max_fasta_record_count: int = 0,
+    min_fasta_total_bases: int = 0,
+    min_fasta_longest_record_bases: int = 0,
     block_fragmented_fasta: bool = False,
     block_fasta_header_keywords: bool = False,
 ) -> dict[str, object]:
-    if min_fasta_n50_bases < 0 or max_fasta_record_count < 0:
+    if (
+        min_fasta_n50_bases < 0
+        or max_fasta_record_count < 0
+        or min_fasta_total_bases < 0
+        or min_fasta_longest_record_bases < 0
+    ):
         raise ValueError("FASTA quality thresholds must be non-negative")
     plan_path = Path(download_plan_path)
     rows = [
@@ -398,6 +441,27 @@ def inspect_bounded_download_smoke_outputs(
         if max_fasta_record_count > 0
         else 0
     )
+    total_bases_below_minimum_count = (
+        sum(
+            1
+            for row in inspections
+            if row["genome_fasta_present"]
+            and int(row["fasta_total_bases"]) < min_fasta_total_bases
+        )
+        if min_fasta_total_bases > 0
+        else 0
+    )
+    longest_record_below_minimum_count = (
+        sum(
+            1
+            for row in inspections
+            if row["genome_fasta_present"]
+            and int(row["fasta_longest_record_bases"])
+            < min_fasta_longest_record_bases
+        )
+        if min_fasta_longest_record_bases > 0
+        else 0
+    )
     fragmented_signal_count = fragmentation_signal_counts.get(
         FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED,
         0,
@@ -417,6 +481,10 @@ def inspect_bounded_download_smoke_outputs(
         blockers.append("fasta_n50_below_minimum")
     if record_count_above_maximum_count:
         blockers.append("fasta_record_count_above_maximum")
+    if total_bases_below_minimum_count:
+        blockers.append("fasta_total_bases_below_minimum")
+    if longest_record_below_minimum_count:
+        blockers.append("fasta_longest_record_below_minimum")
     if block_fragmented_fasta and fragmented_signal_count:
         blockers.append("fragmented_fasta_signal")
     if block_fasta_header_keywords and header_keyword_row_count:
@@ -461,11 +529,19 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "min_fasta_n50_bases": min_fasta_n50_bases,
         "max_fasta_record_count": max_fasta_record_count,
+        "min_fasta_total_bases": min_fasta_total_bases,
+        "min_fasta_longest_record_bases": min_fasta_longest_record_bases,
         "block_fragmented_fasta": block_fragmented_fasta,
         "block_fasta_header_keywords": block_fasta_header_keywords,
         "fasta_n50_below_minimum_count": n50_below_minimum_count,
         "fasta_record_count_above_maximum_count": (
             record_count_above_maximum_count
+        ),
+        "fasta_total_bases_below_minimum_count": (
+            total_bases_below_minimum_count
+        ),
+        "fasta_longest_record_below_minimum_count": (
+            longest_record_below_minimum_count
         ),
         "fragmented_fasta_signal_count": fragmented_signal_count,
         "fasta_header_fragment_keyword_row_count": header_keyword_row_count,
@@ -856,6 +932,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     prepare.add_argument("--inspection-min-fasta-n50-bases", type=int, default=0)
     prepare.add_argument("--inspection-max-fasta-record-count", type=int, default=0)
+    prepare.add_argument("--inspection-min-fasta-total-bases", type=int, default=0)
+    prepare.add_argument(
+        "--inspection-min-fasta-longest-record-bases",
+        type=int,
+        default=0,
+    )
     prepare.add_argument("--inspection-block-fragmented-fasta", action="store_true")
     prepare.add_argument(
         "--inspection-block-fasta-header-keywords",
@@ -868,6 +950,8 @@ def _build_parser() -> argparse.ArgumentParser:
     inspect.add_argument("--download-plan", required=True, type=Path)
     inspect.add_argument("--min-fasta-n50-bases", type=int, default=0)
     inspect.add_argument("--max-fasta-record-count", type=int, default=0)
+    inspect.add_argument("--min-fasta-total-bases", type=int, default=0)
+    inspect.add_argument("--min-fasta-longest-record-bases", type=int, default=0)
     inspect.add_argument("--block-fragmented-fasta", action="store_true")
     inspect.add_argument("--block-fasta-header-keywords", action="store_true")
     inspect.add_argument("--write", action="store_true")
