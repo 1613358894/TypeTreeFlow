@@ -1134,6 +1134,10 @@ Complete Genome/Chromosome from Scaffold/Contig and report missing metadata as
 `unknown`. Scaffold and Contig remain valid planned rows in a draft or
 fragmented tier; the breakdown does not alter the existing bounded-smoke ready
 decision, selection, download plan, manifest, or strict scientific policy.
+When `high_quality_bounded_ncbi_download_smoke_ready=true`, prefer
+`--quality-tier high`; otherwise follow
+`bounded_ncbi_download_smoke_quality_tier_recommendation` and review the
+associated blockers before preparing a real smoke input.
 
 ```bash
 typetreeflow download-smoke prepare \

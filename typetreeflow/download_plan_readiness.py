@@ -130,6 +130,13 @@ def _empty_summary(path: str, *, available: bool) -> dict[str, Any]:
         "bounded_ncbi_download_smoke_blockers": (
             [] if available else ["download_plan_missing"]
         ),
+        "high_quality_bounded_ncbi_download_smoke_candidate_count": 0,
+        "high_quality_bounded_ncbi_download_smoke_ready": False,
+        "high_quality_bounded_ncbi_download_smoke_scope": "none",
+        "high_quality_bounded_ncbi_download_smoke_blockers": (
+            [] if available else ["download_plan_missing"]
+        ),
+        "bounded_ncbi_download_smoke_quality_tier_recommendation": "none",
         "whole_plan_requires_review": False,
         "assembly_quality_summary_available": False,
         "planned_assembly_level_counts": {
@@ -224,6 +231,41 @@ def _add_assembly_quality_summary(
                 known_assembly_level_count=(
                     complete_or_chromosome + scaffold_or_contig
                 ),
+            ),
+        }
+    )
+    _add_high_quality_bounded_smoke_summary(summary)
+
+
+def _add_high_quality_bounded_smoke_summary(summary: dict[str, Any]) -> None:
+    high_quality_count = int(summary["planned_complete_or_chromosome_count"])
+    malformed_count = int(summary["malformed_row_count"])
+    blockers: list[str] = []
+    if high_quality_count <= 0:
+        blockers.append("no_high_quality_planned_ncbi_download_rows")
+    if malformed_count > 0:
+        blockers.append("malformed_download_plan_rows")
+
+    summary.update(
+        {
+            "high_quality_bounded_ncbi_download_smoke_candidate_count": (
+                high_quality_count
+            ),
+            "high_quality_bounded_ncbi_download_smoke_ready": not blockers,
+            "high_quality_bounded_ncbi_download_smoke_scope": (
+                "planned_complete_or_chromosome_ncbi_rows_only"
+                if not blockers
+                else "none"
+            ),
+            "high_quality_bounded_ncbi_download_smoke_blockers": blockers,
+            "bounded_ncbi_download_smoke_quality_tier_recommendation": (
+                "high"
+                if not blockers
+                else (
+                    "all"
+                    if summary["bounded_ncbi_download_smoke_ready"]
+                    else "none"
+                )
             ),
         }
     )
