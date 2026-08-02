@@ -2821,6 +2821,23 @@ def read_optional_download_preflight_summary(
     return read_download_preflight_summary(input_path)
 
 
+def read_optional_download_plan_readiness_summary(
+    path: str | Path,
+) -> dict[str, object] | None:
+    input_path = Path(path)
+    if not input_path.exists():
+        return None
+    try:
+        payload = json.loads(input_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(str(error)) from error
+    if not isinstance(payload, dict):
+        raise ValueError("download plan readiness summary must be a JSON object")
+    if payload.get("schema_version") != "download_plan_readiness_summary.v1":
+        raise ValueError("download plan readiness summary schema mismatch")
+    return payload
+
+
 def read_optional_selection_rows(path: str | Path) -> list[StrainSelectionRow] | None:
     input_path = Path(path)
     if not input_path.exists():
@@ -3261,6 +3278,14 @@ def build_run_summary_markdown(
         download_preflight_summary = summarize_selection_evidence_from_manifest(
             record_list
         )
+    download_plan_readiness_error = ""
+    try:
+        download_plan_readiness_summary = read_optional_download_plan_readiness_summary(
+            paths.download_plan_readiness_summary_path
+        )
+    except ValueError as error:
+        download_plan_readiness_summary = None
+        download_plan_readiness_error = str(error)
     selection_guard_error = ""
     try:
         selection_rows = read_optional_selection_rows(paths.user_selection_path)
@@ -4351,6 +4376,56 @@ def build_run_summary_markdown(
                 ),
             ]
         )
+
+    if download_plan_readiness_error:
+        lines.extend(
+            [
+                "",
+                "## Download Quality Coverage",
+                "",
+                "Download plan readiness summary could not be read: "
+                f"{download_plan_readiness_error}",
+            ]
+        )
+    elif download_plan_readiness_summary is not None:
+        quality_summary = download_plan_readiness_summary.get(
+            "download_quality_coverage_summary"
+        )
+        if isinstance(quality_summary, dict):
+            lines.extend(
+                [
+                    "",
+                    "## Download Quality Coverage",
+                    "",
+                    (
+                        "- Planned NCBI download rows: "
+                        f"{quality_summary.get('planned_ncbi_download_row_count', 0)}"
+                    ),
+                    (
+                        "- High-quality planned rows "
+                        "(Complete Genome or Chromosome): "
+                        f"{quality_summary.get('high_quality_download_candidate_count', 0)}"
+                    ),
+                    (
+                        "- Draft or fragmented planned rows "
+                        "(Scaffold or Contig): "
+                        f"{quality_summary.get('draft_or_fragmented_download_candidate_count', 0)}"
+                    ),
+                    (
+                        "- Unknown assembly-level planned rows: "
+                        f"{quality_summary.get('unknown_assembly_level_download_candidate_count', 0)}"
+                    ),
+                    (
+                        "- Recommended bounded-smoke quality tier: "
+                        f"{quality_summary.get('recommended_bounded_smoke_quality_tier', 'none')}"
+                    ),
+                    (
+                        "Download quality coverage is a read-only planning view "
+                        "and does not authorize unattended downloads or change "
+                        "strict scientific deliverable policy."
+                    ),
+                ]
+            )
 
     if selection_guard_error:
         lines.extend(

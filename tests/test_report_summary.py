@@ -80,6 +80,7 @@ from typetreeflow.report.summary import (
     read_optional_strict_gating_audit,
     read_optional_checklist_comparison,
     read_optional_completion_summary,
+    read_optional_download_plan_readiness_summary,
     read_optional_download_preflight_summary,
     read_optional_provider_registration_plan,
     read_optional_sequence_source_audit,
@@ -2739,6 +2740,68 @@ def test_report_summary_includes_download_preflight_summary(tmp_path):
     assert "- Download not applicable: 1" in markdown
     assert "Representative-only rows are exploratory" in markdown
     assert "not strict type-strain completion" in markdown
+
+
+def test_report_summary_includes_download_quality_coverage(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.download_plan_readiness_summary_path.parent.mkdir(parents=True)
+    paths.download_plan_readiness_summary_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "download_plan_readiness_summary.v1",
+                "download_quality_coverage_summary": {
+                    "schema_version": "download_quality_coverage_summary.v1",
+                    "planned_ncbi_download_row_count": 5,
+                    "high_quality_download_candidate_count": 2,
+                    "draft_or_fragmented_download_candidate_count": 2,
+                    "unknown_assembly_level_download_candidate_count": 1,
+                    "recommended_bounded_smoke_quality_tier": "high",
+                    "safe_for_unattended_download": False,
+                    "strict_scientific_deliverable": False,
+                },
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Download Quality Coverage" in markdown
+    assert "- Planned NCBI download rows: 5" in markdown
+    assert "- High-quality planned rows (Complete Genome or Chromosome): 2" in markdown
+    assert "- Draft or fragmented planned rows (Scaffold or Contig): 2" in markdown
+    assert "- Unknown assembly-level planned rows: 1" in markdown
+    assert "- Recommended bounded-smoke quality tier: high" in markdown
+    assert "does not authorize unattended downloads" in markdown
+    assert "strict scientific deliverable policy" in markdown
+
+
+def test_report_summary_warns_on_malformed_download_quality_summary(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.download_plan_readiness_summary_path.parent.mkdir(parents=True)
+    paths.download_plan_readiness_summary_path.write_text(
+        '{"schema_version":"wrong"}\n',
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Download Quality Coverage" in markdown
+    assert "download plan readiness summary schema mismatch" in markdown
+
+
+def test_read_optional_download_plan_readiness_summary_requires_object(tmp_path):
+    path = tmp_path / "summary.json"
+    path.write_text("[]\n", encoding="utf-8")
+
+    try:
+        read_optional_download_plan_readiness_summary(path)
+    except ValueError as error:
+        assert "must be a JSON object" in str(error)
+    else:
+        raise AssertionError("malformed readiness summary was accepted")
 
 
 def test_report_summary_counts_rejected_species_mismatch_without_completion_credit(

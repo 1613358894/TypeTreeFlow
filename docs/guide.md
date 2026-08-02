@@ -1119,6 +1119,11 @@ the same workflow run when that run generates or refreshes the report.
 Treat that section as audit-only: counts do not change completion metrics, do
 not by themselves make package artifacts strict scientific deliverables, and do
 not enable strict gating or package tiering.
+When `selection/download_plan_readiness_summary.json` exists, `report/summary.md`
+also shows Download Quality Coverage for planned NCBI rows, separating
+Complete Genome/Chromosome from Scaffold/Contig and unknown assembly-level
+rows. This is a planning view for bounded smoke selection, not unattended
+download authorization.
 
 ## Bounded Real Smoke
 
