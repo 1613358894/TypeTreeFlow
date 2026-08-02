@@ -58,6 +58,58 @@ def test_extract_datasets_zip_extracts_zip(tmp_path):
     ).exists()
 
 
+@pytest.mark.parametrize(
+    "inner_path",
+    [
+        "../escape.fna",
+        "ncbi_dataset/../../escape.fna",
+        "/absolute/escape.fna",
+        "C:/absolute/escape.fna",
+        "ncbi_dataset\\..\\escape.fna",
+    ],
+)
+def test_extract_datasets_zip_rejects_unsafe_member_paths(tmp_path, inner_path):
+    zip_path = tmp_path / "sample.zip"
+    extract_dir = tmp_path / "extracted"
+    _write_zip(zip_path, inner_path)
+
+    with pytest.raises(zipfile.BadZipFile, match="Unsafe NCBI Datasets ZIP member"):
+        extract_datasets_zip(zip_path, extract_dir)
+
+    assert not (tmp_path / "escape.fna").exists()
+    assert not any(extract_dir.rglob("*.fna"))
+
+
+def test_extract_datasets_zip_rejects_zip_symlink_member(tmp_path):
+    zip_path = tmp_path / "sample.zip"
+    extract_dir = tmp_path / "extracted"
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    info = zipfile.ZipInfo("ncbi_dataset/data/GCF_000001.1/genomic.fna")
+    info.external_attr = (0o120777 << 16)
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr(info, "target")
+
+    with pytest.raises(zipfile.BadZipFile, match="Unsafe NCBI Datasets ZIP member"):
+        extract_datasets_zip(zip_path, extract_dir)
+
+    assert not any(extract_dir.rglob("*"))
+
+
+def test_extract_datasets_zip_force_keeps_existing_dir_when_zip_is_unsafe(tmp_path):
+    zip_path = tmp_path / "sample.zip"
+    extract_dir = tmp_path / "extracted"
+    stale = extract_dir / "stale.fna"
+    stale.parent.mkdir(parents=True)
+    stale.write_text(">stale\nAAAA\n", encoding="utf-8")
+    _write_zip(zip_path, "../escape.fna")
+
+    with pytest.raises(zipfile.BadZipFile, match="Unsafe NCBI Datasets ZIP member"):
+        extract_datasets_zip(zip_path, extract_dir, force=True)
+
+    assert stale.read_text(encoding="utf-8") == ">stale\nAAAA\n"
+    assert not (tmp_path / "escape.fna").exists()
+
+
 def test_is_valid_zip_and_datasets_zip_has_genome(tmp_path):
     zip_path = tmp_path / "sample.zip"
     _write_zip(zip_path, "ncbi_dataset/data/GCF_000011805.1/genomic.fna")
@@ -80,6 +132,19 @@ def test_register_extracted_genomes_skips_invalid_zip(tmp_path):
 
     assert results[0].status == "skipped_invalid_zip"
     assert record.status == "skipped_invalid_zip"
+
+
+def test_register_extracted_genomes_skips_unsafe_zip_member_path(tmp_path):
+    record = _record()
+    plan = build_genome_download_plan([record], tmp_path)
+    _write_zip(Path(plan[0].datasets_zip_path), "../escape.fna")
+
+    results = register_extracted_genomes([record], plan)
+
+    assert results[0].status == "skipped_invalid_zip"
+    assert "Unsafe NCBI Datasets ZIP member" in results[0].notes
+    assert record.status == "skipped_invalid_zip"
+    assert not (tmp_path / "escape.fna").exists()
 
 
 def test_extract_datasets_zip_reuses_existing_dir_without_force(tmp_path):

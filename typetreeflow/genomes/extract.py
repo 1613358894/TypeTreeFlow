@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 import zipfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Iterable
 
 from typetreeflow.genomes.plan import GenomeDownloadPlanItem
@@ -26,16 +26,17 @@ class GenomeExtractionResult:
 def extract_datasets_zip(zip_path: Path, extract_dir: Path, force: bool = False) -> Path:
     if not zip_path.exists():
         raise FileNotFoundError(f"NCBI Datasets ZIP does not exist: {zip_path}")
-    if extract_dir.exists() and force:
-        shutil.rmtree(extract_dir)
     if extract_dir.exists() and not force:
         return extract_dir
     if not is_valid_zip(zip_path):
         raise zipfile.BadZipFile(f"Invalid NCBI Datasets ZIP: {zip_path}")
 
-    extract_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path) as archive:
-        archive.extractall(extract_dir)
+        targets = _validated_zip_member_targets(archive, extract_dir)
+        if extract_dir.exists() and force:
+            shutil.rmtree(extract_dir)
+        extract_dir.mkdir(parents=True, exist_ok=True)
+        _extract_archive_members_safely(archive, targets)
     return extract_dir
 
 
@@ -266,3 +267,59 @@ def _candidate_sort_key(path: Path) -> tuple[int, str]:
     name = path.name
     accession_priority = 0 if name.startswith(("GCF", "GCA")) else 1
     return accession_priority, str(path)
+
+
+def _extract_archive_members_safely(
+    archive: zipfile.ZipFile,
+    targets: list[tuple[zipfile.ZipInfo, Path]],
+) -> None:
+    for info, target in targets:
+        if info.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(info) as source, target.open("wb") as destination:
+            shutil.copyfileobj(source, destination)
+
+
+def _validated_zip_member_targets(
+    archive: zipfile.ZipFile,
+    extract_dir: Path,
+) -> list[tuple[zipfile.ZipInfo, Path]]:
+    return [
+        (info, _validated_zip_member_target(info, extract_dir))
+        for info in archive.infolist()
+    ]
+
+
+def _validated_zip_member_target(info: zipfile.ZipInfo, extract_dir: Path) -> Path:
+    name = info.filename
+    normalized = name.replace("\\", "/")
+    path = PurePosixPath(normalized)
+    if (
+        not normalized
+        or normalized.startswith("/")
+        or path.is_absolute()
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or _has_windows_drive_prefix(normalized)
+        or _is_zip_symlink(info)
+    ):
+        raise zipfile.BadZipFile(f"Unsafe NCBI Datasets ZIP member path: {name}")
+
+    base = extract_dir.resolve()
+    target = (base / Path(*path.parts)).resolve()
+    try:
+        target.relative_to(base)
+    except ValueError as error:
+        raise zipfile.BadZipFile(
+            f"Unsafe NCBI Datasets ZIP member path: {name}"
+        ) from error
+    return target
+
+
+def _has_windows_drive_prefix(name: str) -> bool:
+    return len(name) >= 2 and name[1] == ":" and name[0].isalpha()
+
+
+def _is_zip_symlink(info: zipfile.ZipInfo) -> bool:
+    return ((info.external_attr >> 16) & 0o170000) == 0o120000
