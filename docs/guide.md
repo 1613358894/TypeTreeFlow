@@ -1232,6 +1232,10 @@ quality gates such as `--min-fasta-n50-bases <bases>`,
 obviously short, scaffold/contig, or WGS-style outputs. These optional blockers
 are local smoke acceptance criteria only; they still do not create strict
 deliverables.
+When quality gates are supplied, each inspection row includes
+`fasta_quality_gate_blockers` with semicolon-separated controlled blocker codes
+for that accession. The field is empty when the row does not trip a FASTA
+quality gate and never copies raw FASTA headers or sequence text.
 The inspection does not run `datasets`, extract ZIPs, write raw sequence text,
 access the network, contact providers, or mutate workflow outputs.
 

@@ -342,6 +342,25 @@ DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS = (
     "genome_fasta_present",
     "status",
 )
+DOWNLOAD_SMOKE_PRE_GATE_INSPECTION_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "zip_path",
+    "zip_exists",
+    "zip_valid",
+    "genome_fasta_present",
+    "genome_fasta_member_count",
+    "fasta_record_count",
+    "fasta_total_bases",
+    "fasta_longest_record_bases",
+    "fasta_n50_bases",
+    "fasta_ambiguous_bases",
+    "fasta_header_wgs_keyword_count",
+    "fasta_header_scaffold_keyword_count",
+    "fasta_header_contig_keyword_count",
+    "fasta_fragmentation_signal",
+    "status",
+)
 
 
 @dataclass(frozen=True)
@@ -698,6 +717,7 @@ def _read_download_smoke_inspection_tsv(path: Path) -> list[dict[str, str]]:
         fieldnames = tuple(reader.fieldnames or ())
         if fieldnames not in (
             tuple(DOWNLOAD_SMOKE_INSPECTION_FIELDS),
+            DOWNLOAD_SMOKE_PRE_GATE_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS,
         ):
             raise ValueError("unexpected TSV header")
