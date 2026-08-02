@@ -287,6 +287,7 @@ def prepare_bounded_download_smoke_input(
         "quality_tier": resolved_quality_tier,
         "selected_row_count": len(selected),
         "selected_high_quality_row_count": selected_quality["high_quality_count"],
+        "selected_quality_tier_counts": selected_quality["quality_tier_counts"],
         "selected_assembly_level_counts": selected_quality["assembly_level_counts"],
         "selected_accession_quality_preview": selected_quality["accession_preview"],
         "selected_accession_quality_preview_truncated": selected_quality[
@@ -898,30 +899,32 @@ def _selected_quality_summary(
     rows: list[dict[str, str]],
 ) -> dict[str, object]:
     counts: dict[str, int] = {}
+    tier_counts = {"high": 0, "draft_or_fragmented": 0, "unknown": 0}
     preview: list[dict[str, str]] = []
     preview_limit = 10
     for row in rows:
         accession = row.get("assembly_accession", "").strip()
         level = _planned_row_assembly_level(assembly_metadata, row) or "unknown"
+        quality_tier = _quality_tier_for_assembly_level(level)
         counts[level] = counts.get(level, 0) + 1
+        tier_counts[quality_tier] += 1
         if len(preview) < preview_limit:
             preview.append(
                 {
                     "record_id": row.get("record_id", "").strip(),
                     "assembly_accession": accession,
                     "assembly_level": level,
-                    "quality_tier": _quality_tier_for_assembly_level(level),
+                    "quality_tier": quality_tier,
                 }
             )
     return {
         "assembly_level_counts": dict(sorted(counts.items())),
+        "quality_tier_counts": {
+            key: count for key, count in tier_counts.items() if count
+        },
         "accession_preview": preview,
         "accession_preview_truncated": len(rows) > preview_limit,
-        "high_quality_count": sum(
-            count
-            for level, count in counts.items()
-            if _quality_tier_for_assembly_level(level) == "high"
-        ),
+        "high_quality_count": tier_counts["high"],
     }
 
 

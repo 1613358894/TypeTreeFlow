@@ -81,6 +81,7 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
     assert summary["resolved_quality_tier"] == "all"
     assert summary["quality_tier"] == "all"
     assert summary["selected_row_count"] == 2
+    assert summary["selected_quality_tier_counts"] == {"unknown": 2}
     assert summary["source_planned_row_count"] == 2
     assert summary["ready"] is True
     assert summary["safe_for_unattended_download"] is False
@@ -287,6 +288,7 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
     assert summary["resolved_quality_tier"] == "high"
     assert summary["selected_row_count"] == 1
     assert summary["selected_high_quality_row_count"] == 1
+    assert summary["selected_quality_tier_counts"] == {"high": 1}
     assert summary["selected_assembly_level_counts"] == {"Complete Genome": 1}
     assert summary["selected_accession_quality_preview"] == [
         {
@@ -377,6 +379,7 @@ def test_download_smoke_prepare_default_recommended_selects_high_quality_rows(
     assert summary["quality_tier"] == "high"
     assert summary["selected_row_count"] == 1
     assert summary["selected_high_quality_row_count"] == 1
+    assert summary["selected_quality_tier_counts"] == {"high": 1}
     assert summary["selected_assembly_level_counts"] == {"Complete Genome": 1}
     assert summary["selected_accession_quality_preview"][0]["quality_tier"] == "high"
     assert rows == [_planned_row("complete", "GCF_000002.1")]
@@ -422,6 +425,7 @@ def test_download_smoke_prepare_selected_high_quality_count_tracks_selected_rows
     summary = payload["bounded_download_smoke_summary"]
     assert summary["selected_row_count"] == 1
     assert summary["selected_high_quality_row_count"] == 0
+    assert summary["selected_quality_tier_counts"] == {"draft_or_fragmented": 1}
     assert summary["source_high_quality_planned_row_count"] == 1
     assert summary["selected_assembly_level_counts"] == {"Scaffold": 1}
     assert summary["selected_accession_quality_preview"] == [
@@ -466,6 +470,7 @@ def test_download_smoke_prepare_recommended_falls_back_to_all_without_quality_ro
     assert summary["resolved_quality_tier"] == "all"
     assert summary["quality_tier"] == "all"
     assert summary["selected_row_count"] == 1
+    assert summary["selected_quality_tier_counts"] == {"draft_or_fragmented": 1}
     assert summary["source_draft_or_fragmented_planned_row_count"] == 1
 
 
