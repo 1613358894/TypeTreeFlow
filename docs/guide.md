@@ -1233,8 +1233,10 @@ audit statistic and counts controlled FASTA header keywords such as WGS,
 scaffold, and contig without copying raw header text. These values help
 reviewers notice single-record, single-dominant multi-record, or visibly
 fragmented multi-record FASTA outputs; they are not strict gates, completion
-metrics, or genome usability decisions by default. A genome FASTA member with
-zero records or zero bases is blocked by default as
+metrics, or genome usability decisions by default. ZIP members with absolute,
+path-traversing, Windows-drive-prefixed, or symlink-like paths are blocked by
+default as `unsafe_zip_member_paths` before FASTA content is inspected. A genome
+FASTA member with zero records or zero bases is blocked by default as
 `empty_genome_fasta_outputs`, because it is not a usable downloaded genome.
 A bounded row with more than one genome FASTA member is blocked by default as
 `multiple_genome_fasta_members`, because the installed genome source may be

@@ -55,6 +55,20 @@ def datasets_zip_has_genome(zip_path: Path) -> bool:
         )
 
 
+def count_unsafe_datasets_zip_members(zip_path: Path) -> int:
+    if not is_valid_zip(zip_path):
+        return 0
+    unsafe_count = 0
+    with zipfile.ZipFile(zip_path) as archive:
+        base = zip_path.parent.resolve()
+        for info in archive.infolist():
+            try:
+                _validated_zip_member_target(info, base)
+            except zipfile.BadZipFile:
+                unsafe_count += 1
+    return unsafe_count
+
+
 def find_existing_extracted_dir(record_id: str, paths: OutputPaths) -> Path | None:
     candidate = paths.ncbi_extracted_dir / record_id
     if candidate.exists() and candidate.is_dir():

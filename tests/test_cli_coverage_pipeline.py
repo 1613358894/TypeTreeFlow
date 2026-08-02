@@ -2598,6 +2598,7 @@ def _expected_download_smoke_inspection_result_defaults():
         "download_smoke_inspection_selected_row_count": 0,
         "download_smoke_inspection_zip_exists_count": 0,
         "download_smoke_inspection_zip_valid_count": 0,
+        "download_smoke_inspection_unsafe_zip_member_count": 0,
         "download_smoke_inspection_genome_fasta_present_count": 0,
         "download_smoke_inspection_genome_fasta_member_count": 0,
         "download_smoke_inspection_genomic_named_fasta_member_count": 0,

@@ -309,6 +309,7 @@ DOWNLOAD_SMOKE_INSPECTION_COUNT_FIELDS = (
     "genome_fasta_present_count",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
+    "unsafe_zip_member_count",
     "genome_fasta_member_count",
     "genomic_named_fasta_member_count",
     "genome_fasta_install_selection_ambiguous_count",
@@ -4827,6 +4828,10 @@ def build_run_summary_markdown(
                     (
                         "- Valid ZIPs: "
                         f"{download_smoke_inspection_audit.counts.get('zip_valid_count', 0)}"
+                    ),
+                    (
+                        "- Unsafe ZIP members: "
+                        f"{download_smoke_inspection_audit.counts.get('unsafe_zip_member_count', 0)}"
                     ),
                     (
                         "- Genome FASTA present: "

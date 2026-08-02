@@ -886,6 +886,7 @@ _DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS: list[str] = [
     "selected_row_count",
     "zip_exists_count",
     "zip_valid_count",
+    "unsafe_zip_member_count",
     "genome_fasta_present_count",
     "genome_fasta_member_count",
     "genomic_named_fasta_member_count",

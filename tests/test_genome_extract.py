@@ -5,6 +5,7 @@ import pytest
 
 from typetreeflow.genomes.extract import (
     choose_genomic_fna,
+    count_unsafe_datasets_zip_members,
     datasets_zip_has_genome,
     extract_datasets_zip,
     find_genomic_fna,
@@ -78,6 +79,17 @@ def test_extract_datasets_zip_rejects_unsafe_member_paths(tmp_path, inner_path):
 
     assert not (tmp_path / "escape.fna").exists()
     assert not any(extract_dir.rglob("*.fna"))
+
+
+def test_count_unsafe_datasets_zip_members_is_count_only(tmp_path):
+    zip_path = tmp_path / "sample.zip"
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("ncbi_dataset/data/GCF_000001.1/genomic.fna", ">a\nACGT\n")
+        archive.writestr("../escape.fna", ">b\nACGT\n")
+        archive.writestr("C:/absolute/escape.fna", ">c\nACGT\n")
+
+    assert count_unsafe_datasets_zip_members(zip_path) == 2
 
 
 def test_extract_datasets_zip_rejects_zip_symlink_member(tmp_path):

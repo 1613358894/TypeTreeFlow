@@ -211,6 +211,7 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "selected_row_count": 2,
                 "zip_exists_count": 1,
                 "zip_valid_count": 1,
+                "unsafe_zip_member_count": 1,
                 "genome_fasta_present_count": 1,
                 "genome_fasta_member_count": 1,
                 "genomic_named_fasta_member_count": 1,
@@ -333,6 +334,7 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     assert "- Selected smoke rows: 2" in markdown
     assert "- ZIPs present: 1" in markdown
     assert "- Valid ZIPs: 1" in markdown
+    assert "- Unsafe ZIP members: 1" in markdown
     assert "- Genome FASTA present: 1" in markdown
     assert "- Genome FASTA members: 1" in markdown
     assert "- Genomic-named FASTA members: 1" in markdown
