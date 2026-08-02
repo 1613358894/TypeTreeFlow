@@ -1196,6 +1196,25 @@ The inspection checks only local ZIP existence, ZIP validity, and whether each
 ZIP contains a genome FASTA. It does not run `datasets`, extract ZIPs, access
 the network, contact providers, or mutate workflow outputs.
 
+To surface that bounded inspection in an existing run report or delivery
+package, pass the isolated inspection directory explicitly:
+
+```bash
+typetreeflow verify-genus Clostridium \
+  --outdir <workspace>/runs/clostridium \
+  --report-only \
+  --download-smoke-inspection-dir <workspace>/handoffs/bounded_download_smoke_inspection
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/clostridium \
+  --include reports \
+  --download-smoke-inspection-dir <workspace>/handoffs/bounded_download_smoke_inspection
+```
+
+The report/package surface is still audit-only. It copies or summarizes local
+inspection artifacts only and does not authorize unattended downloads, rerun
+`datasets`, extract ZIPs, mutate manifests, or create strict deliverables.
+
 ```bash
 typetreeflow verify-genus Fusobacterium \
   --outdir <workspace>/runs/fusobacterium_limit4_real \

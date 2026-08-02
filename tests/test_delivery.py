@@ -171,6 +171,48 @@ def _write_strict_gating_triplet(directory):
     )
 
 
+def _write_download_smoke_inspection_pair(directory):
+    directory.mkdir(parents=True)
+    (directory / "bounded_download_smoke_inspection_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "bounded_download_smoke_inspection_summary.v1",
+                "command": "download-smoke inspect",
+                "source_download_plan_path": "bounded_download_smoke_plan.tsv",
+                "selected_row_count": 2,
+                "zip_exists_count": 1,
+                "zip_valid_count": 1,
+                "genome_fasta_present_count": 1,
+                "status_counts": {"genome_fasta_present": 1, "zip_missing": 1},
+                "ready": False,
+                "blockers": ["missing_zip_outputs"],
+                "execution_boundary": (
+                    "local_zip_inspection_only_no_download_no_network_no_extraction"
+                ),
+                "safe_for_unattended_download": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "summary": "Bounded NCBI download smoke ZIP outputs are not ready.",
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (directory / "bounded_download_smoke_inspection.tsv").write_text(
+        "record_id\tassembly_accession\tzip_path\tzip_exists\tzip_valid\t"
+        "genome_fasta_present\tstatus\n"
+        "ref1\tGCF_000001\tlocal/ref1.zip\ttrue\ttrue\ttrue\t"
+        "genome_fasta_present\n"
+        "ref2\tGCF_000002\tlocal/ref2.zip\tfalse\tfalse\tfalse\tzip_missing\n",
+        encoding="utf-8",
+    )
+
+
 def _write_coverage_next_input_package(directory):
     directory.mkdir(parents=True)
     (directory / "next_input_package.json").write_text(
@@ -352,6 +394,176 @@ def test_package_results_failed_handoff_excludes_download_readiness_summary(tmp_
         result.delivery_dir / "selection" / "download_plan_readiness_summary.json"
     ).exists()
     assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_download_smoke_inspection_pair_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    inspection_dir = tmp_path / "isolated-download-smoke-inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        download_smoke_inspection_dir=inspection_dir,
+    )
+
+    delivered = result.delivery_dir / "download_smoke"
+    assert {path.name for path in delivered.iterdir()} == {
+        "bounded_download_smoke_inspection.tsv",
+        "bounded_download_smoke_inspection_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    smoke_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("download_smoke/")
+    ]
+    assert len(smoke_rows) == 2
+    assert {row["scope"] for row in smoke_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in smoke_rows} == {
+        "download_smoke_inspection_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in smoke_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in smoke_rows} == {
+        "bounded download smoke review"
+    }
+    assert {row["not_for"] for row in smoke_rows} == {
+        "unattended download authorization or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in smoke_rows} == {
+        "download_smoke_inspect"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Bounded Download Smoke Inspection" in package_text
+    assert "audit-only" in package_text
+    assert "does not authorize unattended downloads" in package_text
+    assert "create strict scientific deliverables" in package_text
+
+
+def test_package_results_download_smoke_inspection_is_missing_safe(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    for result in (
+        package_results(
+            tmp_path,
+            delivery_dir=tmp_path / "delivery-without-input",
+            include="reports",
+        ),
+        package_results(
+            tmp_path,
+            delivery_dir=tmp_path / "delivery-missing-input",
+            include="reports",
+            download_smoke_inspection_dir=tmp_path / "missing-inspection",
+        ),
+    ):
+        assert not (result.delivery_dir / "download_smoke").exists()
+        assert result.download_smoke_inspection_warnings == []
+
+
+def test_package_results_partial_download_smoke_inspection_warns_and_copies_valid(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    inspection_dir = tmp_path / "partial-download-smoke-inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+    (inspection_dir / "bounded_download_smoke_inspection_summary.json").write_text(
+        '{"schema_version":"wrong","safe_for_unattended_download":true}',
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        download_smoke_inspection_dir=inspection_dir,
+    )
+
+    assert (
+        result.delivery_dir
+        / "download_smoke"
+        / "bounded_download_smoke_inspection.tsv"
+    ).exists()
+    assert not (
+        result.delivery_dir
+        / "download_smoke"
+        / "bounded_download_smoke_inspection_summary.json"
+    ).exists()
+    assert result.download_smoke_inspection_warnings == [
+        "bounded_download_smoke_inspection_summary.json malformed"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "bounded_download_smoke_inspection_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_download_smoke_inspection(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    inspection_dir = tmp_path / "download-smoke-inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        download_smoke_inspection_dir=inspection_dir,
+    )
+
+    assert not (result.delivery_dir / "download_smoke").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Bounded Download Smoke Inspection" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_download_smoke_inspection_and_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    inspection_dir = tmp_path / "download-smoke-inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+
+    assert (
+        main(
+            [
+                "package-results",
+                "--outdir",
+                str(tmp_path),
+                "--include",
+                "reports",
+                "--download-smoke-inspection-dir",
+                str(inspection_dir),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "package-results"
+    assert payload["schema_version"] == "1"
+    assert not any(
+        warning["id"] == "download_smoke_inspection_warning"
+        for warning in payload["warnings"]
+    )
+    assert (
+        tmp_path
+        / "delivery"
+        / "download_smoke"
+        / "bounded_download_smoke_inspection_summary.json"
+    ).exists()
 
 
 def test_package_results_does_not_expect_gtdb_audit_when_absent(tmp_path):
