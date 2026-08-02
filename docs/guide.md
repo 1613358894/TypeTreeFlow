@@ -1214,8 +1214,13 @@ inspection. It does not run `datasets`, access the network, contact providers,
 mutate a manifest, or authorize broad downloads.
 When `prepare --write` succeeds, `recommended_inspection_command` points to the
 matching local `download-smoke inspect` command for the written bounded plan;
-choose a fresh isolated inspection `--outdir` before running it. Optional
-prepare flags such as `--inspection-min-fasta-n50-bases <bases>`,
+choose a fresh isolated inspection `--outdir` before running it. By default,
+that command includes `--quality-profile fragmentation`, which blocks visibly
+fragmented multi-record FASTA signals and WGS/scaffold/contig FASTA header
+keywords during the later local inspection. Use
+`--inspection-quality-profile none` when the follow-up inspection should remain
+descriptive-only unless explicit gate flags are provided. Optional prepare
+flags such as `--inspection-min-fasta-n50-bases <bases>`,
 `--inspection-max-fasta-record-count <count>`,
 `--inspection-max-fasta-ambiguous-bases <bases>`,
 `--inspection-min-fasta-total-bases <bases>`,
@@ -1267,6 +1272,8 @@ quality gates such as `--min-fasta-n50-bases <bases>`,
 `--min-fasta-longest-record-bases <bases>`, `--block-fragmented-fasta`, or
 `--block-fasta-header-keywords` when a bounded smoke should fail closed on
 obviously short, ambiguous-base-heavy, scaffold/contig, or WGS-style outputs.
+The shorthand `--quality-profile fragmentation` enables both fragmentation
+gates without requiring the two explicit boolean flags.
 These optional blockers
 are local smoke acceptance criteria only; they still do not create strict
 deliverables.

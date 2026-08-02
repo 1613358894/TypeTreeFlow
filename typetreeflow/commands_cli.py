@@ -864,8 +864,10 @@ _DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS: list[str] = [
     "selected_datasets_command_preview",
     "inspection_min_fasta_n50_bases",
     "inspection_max_fasta_record_count",
+    "inspection_max_fasta_ambiguous_bases",
     "inspection_min_fasta_total_bases",
     "inspection_min_fasta_longest_record_bases",
+    "inspection_quality_profile",
     "inspection_block_fragmented_fasta",
     "inspection_block_fasta_header_keywords",
     "source_planned_row_count",
@@ -910,6 +912,7 @@ _DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS: list[str] = [
     "max_fasta_ambiguous_bases",
     "min_fasta_total_bases",
     "min_fasta_longest_record_bases",
+    "quality_profile",
     "block_fragmented_fasta",
     "block_fasta_header_keywords",
     "fasta_n50_below_minimum_count",
@@ -2161,6 +2164,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "purpose": "recommended inspect blocker threshold for a short longest FASTA record",
         },
         {
+            "name": "--inspection-quality-profile",
+            "kind": "choice",
+            "required": False,
+            "repeatable": False,
+            "purpose": "recommended inspect quality profile; fragmentation blocks fragmented FASTA and WGS/scaffold/contig header keywords",
+        },
+        {
             "name": "--inspection-block-fragmented-fasta",
             "kind": "flag",
             "required": False,
@@ -2238,6 +2248,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "optional blocker threshold for a short longest FASTA record",
+        },
+        {
+            "name": "--quality-profile",
+            "kind": "choice",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional local quality profile; fragmentation blocks fragmented FASTA and WGS/scaffold/contig header keywords",
         },
         {
             "name": "--block-fragmented-fasta",
@@ -4077,8 +4094,10 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "quality_tier",
                     "inspection_min_fasta_n50_bases",
                     "inspection_max_fasta_record_count",
+                    "inspection_max_fasta_ambiguous_bases",
                     "inspection_min_fasta_total_bases",
                     "inspection_min_fasta_longest_record_bases",
+                    "inspection_quality_profile",
                     "inspection_block_fragmented_fasta",
                     "inspection_block_fasta_header_keywords",
                     "write",
@@ -4117,6 +4136,17 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                         str(inspection_max_records),
                     ]
                 )
+            inspection_max_ambiguous = _optional_int(
+                request,
+                "inspection_max_fasta_ambiguous_bases",
+            )
+            if inspection_max_ambiguous is not None:
+                argv.extend(
+                    [
+                        "--inspection-max-fasta-ambiguous-bases",
+                        str(inspection_max_ambiguous),
+                    ]
+                )
             inspection_min_total = _optional_int(
                 request,
                 "inspection_min_fasta_total_bases",
@@ -4139,6 +4169,17 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                         str(inspection_min_longest),
                     ]
                 )
+            inspection_quality_profile = _optional_string(
+                request,
+                "inspection_quality_profile",
+            )
+            if inspection_quality_profile:
+                argv.extend(
+                    [
+                        "--inspection-quality-profile",
+                        inspection_quality_profile,
+                    ]
+                )
             if _bool_flag(request, "inspection_block_fragmented_fasta"):
                 argv.append("--inspection-block-fragmented-fasta")
             if _bool_flag(request, "inspection_block_fasta_header_keywords"):
@@ -4158,8 +4199,10 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     "download_plan",
                     "min_fasta_n50_bases",
                     "max_fasta_record_count",
+                    "max_fasta_ambiguous_bases",
                     "min_fasta_total_bases",
                     "min_fasta_longest_record_bases",
+                    "quality_profile",
                     "block_fragmented_fasta",
                     "block_fasta_header_keywords",
                     "write",
@@ -4179,12 +4222,18 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             max_records = _optional_int(request, "max_fasta_record_count")
             if max_records is not None:
                 argv.extend(["--max-fasta-record-count", str(max_records)])
+            max_ambiguous = _optional_int(request, "max_fasta_ambiguous_bases")
+            if max_ambiguous is not None:
+                argv.extend(["--max-fasta-ambiguous-bases", str(max_ambiguous)])
             min_total = _optional_int(request, "min_fasta_total_bases")
             if min_total is not None:
                 argv.extend(["--min-fasta-total-bases", str(min_total)])
             min_longest = _optional_int(request, "min_fasta_longest_record_bases")
             if min_longest is not None:
                 argv.extend(["--min-fasta-longest-record-bases", str(min_longest)])
+            quality_profile = _optional_string(request, "quality_profile")
+            if quality_profile:
+                argv.extend(["--quality-profile", quality_profile])
             if _bool_flag(request, "block_fragmented_fasta"):
                 argv.append("--block-fragmented-fasta")
             if _bool_flag(request, "block_fasta_header_keywords"):

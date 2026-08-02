@@ -1993,8 +1993,10 @@ def test_commands_render_emits_download_smoke_quality_gate_argv(capsys):
                     '"download_plan":"bounded.tsv",'
                     '"min_fasta_n50_bases":50000,'
                     '"max_fasta_record_count":10,'
+                    '"max_fasta_ambiguous_bases":100,'
                     '"min_fasta_total_bases":3000000,'
                     '"min_fasta_longest_record_bases":100000,'
+                    '"quality_profile":"fragmentation",'
                     '"block_fragmented_fasta":true,'
                     '"block_fasta_header_keywords":true,'
                     '"write":true,"outdir":"inspection","json":true}'
@@ -2014,10 +2016,14 @@ def test_commands_render_emits_download_smoke_quality_gate_argv(capsys):
         "50000",
         "--max-fasta-record-count",
         "10",
+        "--max-fasta-ambiguous-bases",
+        "100",
         "--min-fasta-total-bases",
         "3000000",
         "--min-fasta-longest-record-bases",
         "100000",
+        "--quality-profile",
+        "fragmentation",
         "--block-fragmented-fasta",
         "--block-fasta-header-keywords",
         "--write",
@@ -2048,8 +2054,10 @@ def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys
                     '"quality_tier":"high",'
                     '"inspection_min_fasta_n50_bases":50000,'
                     '"inspection_max_fasta_record_count":10,'
+                    '"inspection_max_fasta_ambiguous_bases":100,'
                     '"inspection_min_fasta_total_bases":3000000,'
                     '"inspection_min_fasta_longest_record_bases":100000,'
+                    '"inspection_quality_profile":"fragmentation",'
                     '"inspection_block_fragmented_fasta":true,'
                     '"inspection_block_fasta_header_keywords":true,'
                     '"write":true,'
@@ -2077,10 +2085,14 @@ def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys
         "50000",
         "--inspection-max-fasta-record-count",
         "10",
+        "--inspection-max-fasta-ambiguous-bases",
+        "100",
         "--inspection-min-fasta-total-bases",
         "3000000",
         "--inspection-min-fasta-longest-record-bases",
         "100000",
+        "--inspection-quality-profile",
+        "fragmentation",
         "--inspection-block-fragmented-fasta",
         "--inspection-block-fasta-header-keywords",
         "--write",

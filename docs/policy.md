@@ -516,8 +516,11 @@ mutate manifests, change completion metrics, or promote strict deliverables.
 Optional embedded bounded download-smoke observations are controlled-count
 audit visibility only, including optional quality-gate passed/blocked rows and
 controlled blocker counts plus controlled quality-gate recommendation
-labels/reasons. They must not include local recommended command paths, raw
-FASTA headers, sequence text, or ZIP payloads.
+labels/reasons. The fragmentation quality profile is only a shorthand for
+local smoke blockers over already downloaded ZIPs; it is not download
+authorization, strict evidence, or final genome usability approval. They must
+not include local recommended command paths, raw FASTA headers, sequence text,
+or ZIP payloads.
 Failed-handoff packages exclude server-validation result artifacts.
 
 Offline readiness projection is an aggregate contract check over already
