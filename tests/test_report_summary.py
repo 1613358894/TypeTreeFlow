@@ -4338,7 +4338,15 @@ def test_markdown_includes_genome_registration_result_counts(tmp_path):
                 "cache/ncbi/extracted/ref1/genomic.fna",
                 "genomes/references/ref1.fna",
                 "genome_ready",
-                "installed",
+                (
+                    "Installed reference genome: genomes/references/ref1.fna; "
+                    "fasta_quality record_count=2; total_bases=10; "
+                    "longest_record_bases=6; n50_bases=6; ambiguous_bases=2; "
+                    "header_wgs_keyword_count=1; "
+                    "header_scaffold_keyword_count=1; "
+                    "header_contig_keyword_count=1; "
+                    "fragmentation_signal=multi_record_fragmented"
+                ),
             ]
         )
         + "\n"
@@ -4364,6 +4372,14 @@ def test_markdown_includes_genome_registration_result_counts(tmp_path):
     assert "## Genome Registration Results" in markdown
     assert "| genome_ready | 1 |" in markdown
     assert "| genome_fna_missing | 1 |" in markdown
+    assert "FASTA quality signals from genome-ready registration rows" in markdown
+    assert "| fragmented FASTA rows | 1 |" in markdown
+    assert "| rows with WGS/scaffold/contig header keywords | 1 |" in markdown
+    assert "| max record count | 2 |" in markdown
+    assert "| min N50 bases | 6 |" in markdown
+    assert "multi_record_fragmented=1" in markdown
+    assert "raw FASTA headers and sequences are not copied" in markdown
+    assert "scaffold1" not in markdown
     assert "they do not change strict type-strain status" in markdown
 
 

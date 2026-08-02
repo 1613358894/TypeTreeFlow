@@ -146,6 +146,16 @@ def test_status_reports_genome_registration_counts(tmp_path, monkeypatch, capsys
     assert summary["result_count"] == 2
     assert summary["genome_ready_count"] == 2
     assert summary["status_counts"] == {"genome_ready": 2}
+    fasta_quality_summary = summary["fasta_quality_summary"]
+    assert fasta_quality_summary["schema_version"] == (
+        "genome_registration_fasta_quality_summary.v1"
+    )
+    assert fasta_quality_summary["quality_row_count"] == 2
+    assert fasta_quality_summary["fragmentation_signal_counts"] == {"single_record": 2}
+    assert fasta_quality_summary["fragmented_row_count"] == 0
+    assert fasta_quality_summary["header_fragment_keyword_row_count"] == 0
+    assert fasta_quality_summary["max_record_count"] == 1
+    assert fasta_quality_summary["min_n50_bases"] == 4
     assert "installed" not in status_stdout
 
     paths = get_output_paths(outdir)

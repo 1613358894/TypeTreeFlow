@@ -76,6 +76,9 @@ from typetreeflow.genomes.preflight import (
     read_download_preflight_summary,
 )
 from typetreeflow.genomes.extract import GENOME_REGISTRATION_RESULTS_FIELDS
+from typetreeflow.genomes.registration_quality import (
+    summarize_registration_fasta_quality,
+)
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
 from typetreeflow.rrna.provenance import (
@@ -3194,11 +3197,18 @@ def read_optional_download_preflight_summary(
 def read_optional_genome_registration_status_counts(
     path: str | Path | None,
 ) -> list[tuple[str, int]]:
+    summary = read_optional_genome_registration_summary(path)
+    return list(summary.get("status_counts_list", []))
+
+
+def read_optional_genome_registration_summary(
+    path: str | Path | None,
+) -> dict[str, object]:
     if path is None:
-        return []
+        return {}
     input_path = Path(path)
     if not input_path.exists():
-        return []
+        return {}
     rows = _read_tsv_rows(input_path)
     if rows:
         missing_fields = set(GENOME_REGISTRATION_RESULTS_FIELDS) - set(rows[0])
@@ -3212,7 +3222,13 @@ def read_optional_genome_registration_status_counts(
         status = str(row.get("status", "")).strip()
         if status:
             counts[status] += 1
-    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return {
+        "status_counts_list": sorted(
+            counts.items(),
+            key=lambda item: (-item[1], item[0]),
+        ),
+        "fasta_quality_summary": summarize_registration_fasta_quality(rows),
+    }
 
 
 def read_optional_download_plan_readiness_summary(
@@ -3620,11 +3636,23 @@ def build_run_summary_markdown(
         getattr(args, "download_smoke_inspection_dir", None)
     )
     genome_registration_counts: list[tuple[str, int]] = []
+    genome_registration_fasta_quality_summary: dict[str, object] = {}
     genome_registration_error = ""
     try:
-        genome_registration_counts = read_optional_genome_registration_status_counts(
+        genome_registration_summary = read_optional_genome_registration_summary(
             paths.ncbi_genome_registration_results_path
         )
+        genome_registration_counts = list(
+            genome_registration_summary.get("status_counts_list", [])
+        )
+        maybe_fasta_quality_summary = genome_registration_summary.get(
+            "fasta_quality_summary",
+            {},
+        )
+        if isinstance(maybe_fasta_quality_summary, dict):
+            genome_registration_fasta_quality_summary = (
+                maybe_fasta_quality_summary
+            )
     except ValueError as error:
         genome_registration_error = str(error)
     completion_summary_error = ""
@@ -4753,6 +4781,57 @@ def build_run_summary_markdown(
                 ),
             ]
         )
+        if genome_registration_fasta_quality_summary:
+            signal_counts = genome_registration_fasta_quality_summary.get(
+                "fragmentation_signal_counts",
+                {},
+            )
+            signal_text = ""
+            if isinstance(signal_counts, dict):
+                signal_text = ", ".join(
+                    f"{_markdown_cell(str(signal))}={count}"
+                    for signal, count in sorted(signal_counts.items())
+                )
+            lines.extend(
+                [
+                    "",
+                    "FASTA quality signals from genome-ready registration rows:",
+                    "",
+                    "| Signal | Count |",
+                    "| --- | ---: |",
+                    (
+                        "| genome-ready rows with FASTA quality notes | "
+                        f"{genome_registration_fasta_quality_summary.get('quality_row_count', 0)} |"
+                    ),
+                    (
+                        "| fragmented FASTA rows | "
+                        f"{genome_registration_fasta_quality_summary.get('fragmented_row_count', 0)} |"
+                    ),
+                    (
+                        "| rows with WGS/scaffold/contig header keywords | "
+                        f"{genome_registration_fasta_quality_summary.get('header_fragment_keyword_row_count', 0)} |"
+                    ),
+                    (
+                        "| max record count | "
+                        f"{genome_registration_fasta_quality_summary.get('max_record_count', 0)} |"
+                    ),
+                    (
+                        "| min N50 bases | "
+                        f"{genome_registration_fasta_quality_summary.get('min_n50_bases', 0)} |"
+                    ),
+                    (
+                        "| max ambiguous bases | "
+                        f"{genome_registration_fasta_quality_summary.get('max_ambiguous_bases', 0)} |"
+                    ),
+                ]
+            )
+            if signal_text:
+                lines.append(f"Fragmentation signal counts: {signal_text}.")
+            lines.append(
+                "These are count-only local FASTA visibility signals; raw FASTA "
+                "headers and sequences are not copied, and the signals do not "
+                "change strict type-strain status or completion."
+            )
 
     if download_preflight_error:
         lines.extend(
