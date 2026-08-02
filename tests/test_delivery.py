@@ -212,6 +212,20 @@ def _write_download_smoke_inspection_pair(directory):
                     "fasta_longest_record_below_minimum": 1,
                     "fasta_total_bases_below_minimum": 1,
                 },
+                "quality_gate_recommendation": (
+                    "rerun_with_fragmentation_quality_gates"
+                ),
+                "quality_gate_recommendation_reasons": [
+                    "fragmented_fasta_signal_observed",
+                    "fasta_header_fragment_keywords_observed",
+                ],
+                "recommended_quality_gate_command": [
+                    "typetreeflow",
+                    "download-smoke",
+                    "inspect",
+                    "--download-plan",
+                    "local/bounded_download_smoke_plan.tsv",
+                ],
                 "status_counts": {"genome_fasta_present": 1, "zip_missing": 1},
                 "ready": False,
                 "blockers": [
@@ -487,6 +501,11 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
         "fasta_longest_record_below_minimum=1, "
         "fasta_total_bases_below_minimum=1"
     ) in package_text
+    assert "FASTA quality gate recommendation" in package_text
+    assert "rerun_with_fragmentation_quality_gates" in package_text
+    assert "fragmented_fasta_signal_observed" in package_text
+    assert "fasta_header_fragment_keywords_observed" in package_text
+    assert "local/bounded_download_smoke_plan.tsv" not in package_text
 
 
 def test_package_results_download_smoke_inspection_is_missing_safe(tmp_path):

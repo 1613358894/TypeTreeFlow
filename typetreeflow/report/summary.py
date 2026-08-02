@@ -335,6 +335,12 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
     "fasta_fragmentation_signal_counts",
     "fasta_quality_gate_blocker_counts",
 )
+DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_FIELDS = (
+    "quality_gate_recommendation",
+)
+DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_LIST_FIELDS = (
+    "quality_gate_recommendation_reasons",
+)
 DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES = 5 * 1024 * 1024
 DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS = (
     "record_id",
@@ -594,6 +600,27 @@ def read_optional_download_smoke_inspection_audit(
                     if field == "fasta_fragmentation_signal_counts":
                         summary_fragmentation_signal_counts[key.strip()] = count
                 optional_maps[field] = dict(sorted(validated.items()))
+            optional_strings: dict[str, str] = {}
+            for field in DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_FIELDS:
+                value = loaded.get(field)
+                if value is None:
+                    continue
+                if not isinstance(value, str):
+                    raise ValueError(f"invalid {field}")
+                optional_strings[field] = value.strip()
+            optional_string_lists: dict[str, list[str]] = {}
+            for field in DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_LIST_FIELDS:
+                value = loaded.get(field)
+                if value is None:
+                    continue
+                if not isinstance(value, list):
+                    raise ValueError(f"invalid {field}")
+                values: list[str] = []
+                for item in value:
+                    if not isinstance(item, str) or not item.strip():
+                        raise ValueError(f"invalid {field}")
+                    values.append(item.strip())
+                optional_string_lists[field] = values
             if loaded.get("safe_for_unattended_download") is not False:
                 raise ValueError("safe_for_unattended_download boundary violation")
             if loaded.get("downloads_triggered") != 0:
@@ -635,6 +662,8 @@ def read_optional_download_smoke_inspection_audit(
                 },
                 **optional_counts,
                 **optional_maps,
+                **optional_strings,
+                **optional_string_lists,
                 "ready": loaded.get("ready") is True,
                 "safe_for_unattended_download": False,
                 "downloads_triggered": 0,
@@ -4817,6 +4846,18 @@ def build_run_summary_markdown(
                         )
                     ),
                     (
+                        "- FASTA quality gate recommendation: "
+                        f"{download_smoke_inspection_audit.counts.get('quality_gate_recommendation', 'none')}"
+                    ),
+                    (
+                        "- FASTA quality gate recommendation reasons: "
+                        + _format_string_list(
+                            download_smoke_inspection_audit.counts.get(
+                                "quality_gate_recommendation_reasons"
+                            )
+                        )
+                    ),
+                    (
                         "- Ready for bounded smoke review: "
                         f"{str(download_smoke_inspection_audit.counts.get('ready', False)).lower()}"
                     ),
@@ -6401,6 +6442,13 @@ def _count_map_pairs(value: object) -> list[tuple[str, int]]:
         ):
             pairs.append((key.strip(), count))
     return sorted(pairs, key=lambda item: (-item[1], item[0]))
+
+
+def _format_string_list(value: object) -> str:
+    if not isinstance(value, list):
+        return "none"
+    items = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+    return ", ".join(items) if items else "none"
 
 
 def _sorted_16s_artifact_scope_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:

@@ -4521,10 +4521,14 @@ def _download_smoke_inspection_quality_gate_lines(
     passed = audit.counts.get("fasta_quality_gate_passed_row_count")
     blocked = audit.counts.get("fasta_quality_gate_blocked_row_count")
     blocker_counts = audit.counts.get("fasta_quality_gate_blocker_counts")
+    recommendation = audit.counts.get("quality_gate_recommendation")
+    reasons = audit.counts.get("quality_gate_recommendation_reasons")
     if not (
         _is_non_bool_int(passed)
         or _is_non_bool_int(blocked)
         or isinstance(blocker_counts, dict)
+        or isinstance(recommendation, str)
+        or isinstance(reasons, list)
     ):
         return []
     lines: list[str] = []
@@ -4539,6 +4543,17 @@ def _download_smoke_inspection_quality_gate_lines(
             "- FASTA quality gate blocker counts: "
             + _format_download_smoke_count_value(blocker_counts)
         )
+    if isinstance(recommendation, str) and recommendation.strip():
+        lines.append(
+            "- FASTA quality gate recommendation: " + recommendation.strip()
+        )
+    if isinstance(reasons, list):
+        formatted_reasons = _format_download_smoke_string_list(reasons)
+        if formatted_reasons != "none":
+            lines.append(
+                "- FASTA quality gate recommendation reasons: "
+                + formatted_reasons
+            )
     return lines
 
 
@@ -4559,6 +4574,13 @@ def _format_download_smoke_count_value(value: object) -> str:
             f"{key}={count}" for key, count in sorted(pairs, key=lambda item: item[0])
         )
     return str(value).lower() if isinstance(value, bool) else str(value)
+
+
+def _format_download_smoke_string_list(value: object) -> str:
+    if not isinstance(value, list):
+        return "none"
+    items = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+    return ", ".join(items) if items else "none"
 
 
 def _is_non_bool_int(value: object) -> bool:

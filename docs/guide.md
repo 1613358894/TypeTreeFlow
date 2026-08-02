@@ -1267,7 +1267,9 @@ The report/package surface is still audit-only. It copies or summarizes local
 inspection artifacts only and does not authorize unattended downloads, rerun
 `datasets`, extract ZIPs, mutate manifests, or create strict deliverables. When
 quality gates are present, the report and package handoff summarize only the
-passed/blocked row counts and controlled blocker-code counts.
+passed/blocked row counts, controlled blocker-code counts, and bounded
+quality-gate recommendation labels. They do not surface local recommended
+command paths.
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
