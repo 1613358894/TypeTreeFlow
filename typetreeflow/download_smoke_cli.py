@@ -41,6 +41,9 @@ INSPECTION_FIELDS = [
     "fasta_longest_record_bases",
     "fasta_n50_bases",
     "fasta_ambiguous_bases",
+    "fasta_header_wgs_keyword_count",
+    "fasta_header_scaffold_keyword_count",
+    "fasta_header_contig_keyword_count",
     "fasta_fragmentation_signal",
     "status",
 ]
@@ -336,6 +339,15 @@ def inspect_bounded_download_smoke_outputs(
         "fasta_ambiguous_bases": sum(
             int(row["fasta_ambiguous_bases"]) for row in inspections
         ),
+        "fasta_header_wgs_keyword_count": sum(
+            int(row["fasta_header_wgs_keyword_count"]) for row in inspections
+        ),
+        "fasta_header_scaffold_keyword_count": sum(
+            int(row["fasta_header_scaffold_keyword_count"]) for row in inspections
+        ),
+        "fasta_header_contig_keyword_count": sum(
+            int(row["fasta_header_contig_keyword_count"]) for row in inspections
+        ),
         "fasta_fragmentation_signal_counts": dict(
             sorted(fragmentation_signal_counts.items())
         ),
@@ -400,6 +412,9 @@ def _empty_fasta_stats() -> dict[str, int]:
         "fasta_longest_record_bases": 0,
         "fasta_n50_bases": 0,
         "fasta_ambiguous_bases": 0,
+        "fasta_header_wgs_keyword_count": 0,
+        "fasta_header_scaffold_keyword_count": 0,
+        "fasta_header_contig_keyword_count": 0,
     }
 
 
@@ -437,6 +452,15 @@ def _inspect_fasta_members(zip_path: Path) -> dict[str, int]:
                 member_stats["fasta_longest_record_bases"],
             )
             stats["fasta_ambiguous_bases"] += member_stats["fasta_ambiguous_bases"]
+            stats["fasta_header_wgs_keyword_count"] += member_stats[
+                "fasta_header_wgs_keyword_count"
+            ]
+            stats["fasta_header_scaffold_keyword_count"] += member_stats[
+                "fasta_header_scaffold_keyword_count"
+            ]
+            stats["fasta_header_contig_keyword_count"] += member_stats[
+                "fasta_header_contig_keyword_count"
+            ]
     stats["fasta_n50_bases"] = _calculate_n50(record_lengths)
     return stats
 
@@ -449,6 +473,9 @@ def _inspect_fasta_member(
     total_bases = 0
     longest_record = 0
     ambiguous_bases = 0
+    wgs_header_keyword_count = 0
+    scaffold_header_keyword_count = 0
+    contig_header_keyword_count = 0
     current_record_bases = 0
     record_lengths: list[int] = []
     with archive.open(member) as handle:
@@ -462,6 +489,10 @@ def _inspect_fasta_member(
                     record_lengths.append(current_record_bases)
                 record_count += 1
                 current_record_bases = 0
+                header_counts = _count_fasta_header_keywords(line)
+                wgs_header_keyword_count += header_counts["wgs"]
+                scaffold_header_keyword_count += header_counts["scaffold"]
+                contig_header_keyword_count += header_counts["contig"]
                 continue
             sequence = "".join(line.split()).upper()
             current_record_bases += len(sequence)
@@ -478,9 +509,21 @@ def _inspect_fasta_member(
             "fasta_total_bases": total_bases,
             "fasta_longest_record_bases": longest_record,
             "fasta_ambiguous_bases": ambiguous_bases,
+            "fasta_header_wgs_keyword_count": wgs_header_keyword_count,
+            "fasta_header_scaffold_keyword_count": scaffold_header_keyword_count,
+            "fasta_header_contig_keyword_count": contig_header_keyword_count,
         },
         record_lengths,
     )
+
+
+def _count_fasta_header_keywords(header: str) -> dict[str, int]:
+    lowered = header.lower()
+    return {
+        "wgs": int("whole genome shotgun" in lowered or " wgs " in f" {lowered} "),
+        "scaffold": int("scaffold" in lowered),
+        "contig": int("contig" in lowered),
+    }
 
 
 def _calculate_n50(record_lengths: list[int]) -> int:
@@ -661,6 +704,15 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                     ],
                     "fasta_n50_bases": row["fasta_n50_bases"],
                     "fasta_ambiguous_bases": row["fasta_ambiguous_bases"],
+                    "fasta_header_wgs_keyword_count": row[
+                        "fasta_header_wgs_keyword_count"
+                    ],
+                    "fasta_header_scaffold_keyword_count": row[
+                        "fasta_header_scaffold_keyword_count"
+                    ],
+                    "fasta_header_contig_keyword_count": row[
+                        "fasta_header_contig_keyword_count"
+                    ],
                     "fasta_fragmentation_signal": row[
                         "fasta_fragmentation_signal"
                     ],

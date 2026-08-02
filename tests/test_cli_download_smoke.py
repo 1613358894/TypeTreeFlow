@@ -566,7 +566,15 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
 ):
     zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
     plan = tmp_path / "bounded_download_smoke_plan.tsv"
-    _write_zip(zip_path, content=">contig1\nACGTNN\n>contig2\nACGT\n")
+    _write_zip(
+        zip_path,
+        content=(
+            ">NZ_FAKE000001.1 scaffold1, whole genome shotgun sequence\n"
+            "ACGTNN\n"
+            ">contig2\n"
+            "ACGT\n"
+        ),
+    )
     _write_download_plan(
         plan,
         [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
@@ -592,6 +600,9 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["fasta_longest_record_bases"] == 6
     assert summary["fasta_max_n50_bases"] == 6
     assert summary["fasta_ambiguous_bases"] == 2
+    assert summary["fasta_header_wgs_keyword_count"] == 1
+    assert summary["fasta_header_scaffold_keyword_count"] == 1
+    assert summary["fasta_header_contig_keyword_count"] == 1
     assert summary["fasta_fragmentation_signal_counts"] == {
         "multi_record_fragmented": 1
     }
@@ -689,9 +700,15 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     assert rows[0]["fasta_longest_record_bases"] == "4"
     assert rows[0]["fasta_n50_bases"] == "4"
     assert rows[0]["fasta_ambiguous_bases"] == "0"
+    assert rows[0]["fasta_header_wgs_keyword_count"] == "0"
+    assert rows[0]["fasta_header_scaffold_keyword_count"] == "0"
+    assert rows[0]["fasta_header_contig_keyword_count"] == "0"
     assert rows[0]["fasta_fragmentation_signal"] == "single_record"
     assert summary["ready"] is True
     assert summary["fasta_max_n50_bases"] == 4
+    assert summary["fasta_header_wgs_keyword_count"] == 0
+    assert summary["fasta_header_scaffold_keyword_count"] == 0
+    assert summary["fasta_header_contig_keyword_count"] == 0
     assert summary["fasta_fragmentation_signal_counts"] == {"single_record": 1}
 
 

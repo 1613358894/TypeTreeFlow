@@ -315,6 +315,9 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "fasta_longest_record_bases",
     "fasta_max_n50_bases",
     "fasta_ambiguous_bases",
+    "fasta_header_wgs_keyword_count",
+    "fasta_header_scaffold_keyword_count",
+    "fasta_header_contig_keyword_count",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
     "fasta_fragmentation_signal_counts",
@@ -4742,6 +4745,12 @@ def build_run_summary_markdown(
                         + _format_count_pairs(
                             download_smoke_inspection_audit.fragmentation_signal_counts
                         )
+                    ),
+                    (
+                        "- FASTA header keyword signals: "
+                        f"wgs={download_smoke_inspection_audit.counts.get('fasta_header_wgs_keyword_count', 0)}, "
+                        f"scaffold={download_smoke_inspection_audit.counts.get('fasta_header_scaffold_keyword_count', 0)}, "
+                        f"contig={download_smoke_inspection_audit.counts.get('fasta_header_contig_keyword_count', 0)}"
                     ),
                     (
                         "- Ready for bounded smoke review: "
