@@ -48,6 +48,10 @@ Primary commands write compact JSON to stdout by default. This does not require
   `safe_for_unattended_download=false`, `downloads_triggered=0`,
   `providers_contacted=0`, `manifest_mutated=false`, and
   `strict_scientific_deliverable=false`.
+  When planned NCBI rows are ready, plan-only `status` and `next-step`
+  guidance can include `download-smoke prepare --quality-tier recommended` as
+  an isolated smoke-input handoff; this remains planning-only and does not
+  download genomes.
 - `package-results`: compact JSON with delivery directory, included artifacts,
   missing optional files, success/failure handoff status, warnings, and next
   action.

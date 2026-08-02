@@ -1145,6 +1145,10 @@ should resolve `bounded_ncbi_download_smoke_quality_tier_recommendation`
 directly; it selects `high` when Complete Genome or Chromosome rows are ready,
 falls back to `all` when only draft or unknown planned rows are ready, and
 blocks when no bounded smoke input is ready.
+For plan-only runs with ready planned NCBI rows, `status` and `next-step`
+include the `download-smoke prepare --quality-tier recommended` command as a
+bounded validation handoff. That command prepares an isolated smoke input and
+does not download genomes.
 
 ```bash
 typetreeflow download-smoke prepare \
