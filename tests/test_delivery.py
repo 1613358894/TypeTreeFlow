@@ -135,6 +135,13 @@ def _write_server_validation_result(path):
                     "fasta_longest_record_below_minimum": 1,
                     "fasta_n50_below_minimum": 1,
                 },
+                "download_smoke_inspection_quality_gate_recommendation": (
+                    "rerun_with_fragmentation_quality_gates"
+                ),
+                "download_smoke_inspection_quality_gate_recommendation_reasons": [
+                    "fragmented_fasta_signal_observed",
+                    "fasta_header_fragment_keywords_observed",
+                ],
                 "checked_surface_names": ["provider_request_external_genomes"],
                 "input_readiness_status": "ready",
                 "blocking_ids": [],
@@ -2530,6 +2537,11 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "Bounded FASTA quality-gate blocker counts" in package_text
     assert "fasta_longest_record_below_minimum=1" in package_text
     assert "fasta_n50_below_minimum=1" in package_text
+    assert "Bounded FASTA quality-gate recommendation" in package_text
+    assert "rerun_with_fragmentation_quality_gates" in package_text
+    assert "Bounded FASTA quality-gate recommendation reasons" in package_text
+    assert "fragmented_fasta_signal_observed" in package_text
+    assert "fasta_header_fragment_keywords_observed" in package_text
     assert "NZ_RJWG01000001.1" not in package_text
     assert "target command execution" in package_text
     assert "contact providers" in package_text
