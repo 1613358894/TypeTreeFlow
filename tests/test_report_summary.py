@@ -4313,6 +4313,79 @@ def test_markdown_includes_status_distribution_and_output_files(tmp_path):
     assert "| report/run_review.md | report/run_review.md | true |" in markdown
 
 
+def test_markdown_includes_genome_registration_result_counts(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.ncbi_genome_registration_results_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    paths.ncbi_genome_registration_results_path.write_text(
+        "\t".join(
+            [
+                "record_id",
+                "normalized_id",
+                "source_fna",
+                "installed_genome_path",
+                "status",
+                "notes",
+            ]
+        )
+        + "\n"
+        + "\t".join(
+            [
+                "ref1",
+                "ref1",
+                "cache/ncbi/extracted/ref1/genomic.fna",
+                "genomes/references/ref1.fna",
+                "genome_ready",
+                "installed",
+            ]
+        )
+        + "\n"
+        + "\t".join(
+            [
+                "ref2",
+                "ref2",
+                "",
+                "",
+                "genome_fna_missing",
+                "missing",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1", status="genome_ready", has_genome=True)],
+        paths,
+    )
+
+    assert "## Genome Registration Results" in markdown
+    assert "| genome_ready | 1 |" in markdown
+    assert "| genome_fna_missing | 1 |" in markdown
+    assert "they do not change strict type-strain status" in markdown
+
+
+def test_malformed_genome_registration_results_warn_without_failing(tmp_path):
+    paths = get_output_paths(tmp_path)
+    paths.ncbi_genome_registration_results_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    paths.ncbi_genome_registration_results_path.write_text(
+        "status\n"
+        "genome_ready\n",
+        encoding="utf-8",
+    )
+
+    markdown = build_run_summary_markdown([_record("ref1")], paths)
+
+    assert "## Genome Registration Results" in markdown
+    assert "Genome registration results could not be read" in markdown
+    assert "genome_registration_results.tsv missing fields" in markdown
+
+
 def test_markdown_truncates_problem_records_after_20(tmp_path):
     paths = get_output_paths(tmp_path)
     records = [

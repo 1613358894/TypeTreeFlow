@@ -75,6 +75,7 @@ from typetreeflow.genomes.preflight import (
     build_download_preflight_summary,
     read_download_preflight_summary,
 )
+from typetreeflow.genomes.extract import GENOME_REGISTRATION_RESULTS_FIELDS
 from typetreeflow.models import StrainRecord
 from typetreeflow.phylo.plan import MIN_PHYLO_SEQUENCES, count_fasta_sequences
 from typetreeflow.rrna.provenance import (
@@ -3190,6 +3191,30 @@ def read_optional_download_preflight_summary(
     return read_download_preflight_summary(input_path)
 
 
+def read_optional_genome_registration_status_counts(
+    path: str | Path | None,
+) -> list[tuple[str, int]]:
+    if path is None:
+        return []
+    input_path = Path(path)
+    if not input_path.exists():
+        return []
+    rows = _read_tsv_rows(input_path)
+    if rows:
+        missing_fields = set(GENOME_REGISTRATION_RESULTS_FIELDS) - set(rows[0])
+        if missing_fields:
+            raise ValueError(
+                "genome_registration_results.tsv missing fields: "
+                + ", ".join(sorted(missing_fields))
+            )
+    counts: Counter[str] = Counter()
+    for row in rows:
+        status = str(row.get("status", "")).strip()
+        if status:
+            counts[status] += 1
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+
+
 def read_optional_download_plan_readiness_summary(
     path: str | Path,
 ) -> dict[str, object] | None:
@@ -3594,6 +3619,14 @@ def build_run_summary_markdown(
     download_smoke_inspection_audit = read_optional_download_smoke_inspection_audit(
         getattr(args, "download_smoke_inspection_dir", None)
     )
+    genome_registration_counts: list[tuple[str, int]] = []
+    genome_registration_error = ""
+    try:
+        genome_registration_counts = read_optional_genome_registration_status_counts(
+            paths.ncbi_genome_registration_results_path
+        )
+    except ValueError as error:
+        genome_registration_error = str(error)
     completion_summary_error = ""
     try:
         completion_summary = read_optional_completion_summary(
@@ -4688,6 +4721,38 @@ def build_run_summary_markdown(
             ),
         ]
     )
+
+    if genome_registration_error:
+        lines.extend(
+            [
+                "",
+                "## Genome Registration Results",
+                "",
+                (
+                    "Genome registration results could not be read: "
+                    f"{genome_registration_error}"
+                ),
+            ]
+        )
+    elif genome_registration_counts:
+        lines.extend(
+            [
+                "",
+                "## Genome Registration Results",
+                "",
+                "| Status | Count |",
+                "| --- | ---: |",
+                *[
+                    f"| {_markdown_cell(status)} | {count} |"
+                    for status, count in genome_registration_counts[:8]
+                ],
+                (
+                    "These counts summarize local ZIP extraction and "
+                    "reference-genome installation outcomes; they do not change "
+                    "strict type-strain status."
+                ),
+            ]
+        )
 
     if download_preflight_error:
         lines.extend(
