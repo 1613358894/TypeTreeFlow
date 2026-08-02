@@ -77,7 +77,7 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
     assert payload["downloads_triggered"] == 0
     assert payload["network_access"] is False
     assert summary["schema_version"] == "bounded_download_smoke_input_summary.v1"
-    assert summary["requested_quality_tier"] == "all"
+    assert summary["requested_quality_tier"] == "recommended"
     assert summary["resolved_quality_tier"] == "all"
     assert summary["quality_tier"] == "all"
     assert summary["selected_row_count"] == 2
@@ -322,7 +322,7 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
     assert rows == [_planned_row("complete", "GCF_000002.1")]
 
 
-def test_download_smoke_prepare_recommended_selects_high_quality_rows(
+def test_download_smoke_prepare_default_recommended_selects_high_quality_rows(
     capsys,
     tmp_path,
 ):
@@ -352,8 +352,6 @@ def test_download_smoke_prepare_recommended_selects_high_quality_rows(
                 "prepare",
                 "--download-plan",
                 str(plan),
-                "--quality-tier",
-                "recommended",
                 "--limit",
                 "1",
                 "--write",

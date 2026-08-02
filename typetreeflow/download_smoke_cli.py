@@ -222,7 +222,7 @@ def prepare_bounded_download_smoke_input(
     download_plan_path: str | Path,
     *,
     limit: int,
-    quality_tier: str = "all",
+    quality_tier: str = "recommended",
     inspection_min_fasta_n50_bases: int = 0,
     inspection_max_fasta_record_count: int = 0,
     inspection_min_fasta_total_bases: int = 0,
@@ -1046,7 +1046,7 @@ def _build_parser() -> argparse.ArgumentParser:
     prepare.add_argument(
         "--quality-tier",
         choices=("all", "high", "recommended"),
-        default="all",
+        default="recommended",
     )
     prepare.add_argument("--inspection-min-fasta-n50-bases", type=int, default=0)
     prepare.add_argument("--inspection-max-fasta-record-count", type=int, default=0)

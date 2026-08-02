@@ -1157,11 +1157,14 @@ Complete Genome/Chromosome from Scaffold/Contig and report missing metadata as
 fragmented tier; the breakdown does not alter the existing bounded-smoke ready
 decision, selection, download plan, manifest, or strict scientific policy.
 When `high_quality_bounded_ncbi_download_smoke_ready=true`, prefer
-`--quality-tier high`. Use `--quality-tier recommended` when an automation
-should resolve `bounded_ncbi_download_smoke_quality_tier_recommendation`
-directly; it selects `high` when Complete Genome or Chromosome rows are ready,
+the default `--quality-tier recommended` behavior, or pass `--quality-tier high`
+when the smoke must be limited to Complete Genome or Chromosome rows. The
+recommended tier resolves `bounded_ncbi_download_smoke_quality_tier_recommendation`
+directly: it selects `high` when Complete Genome or Chromosome rows are ready,
 falls back to `all` when only draft or unknown planned rows are ready, and
-blocks when no bounded smoke input is ready.
+blocks when no bounded smoke input is ready. Use `--quality-tier all`
+explicitly when the purpose is maximum bounded coverage rather than the safer
+default quality preference.
 For plan-only runs with ready planned NCBI rows, `status` and `next-step`
 include the `download-smoke prepare --quality-tier recommended` command as a
 bounded validation handoff. That command prepares an isolated smoke input and
@@ -1187,8 +1190,8 @@ typetreeflow download-smoke prepare \
   --outdir <workspace>/handoffs/bounded_download_smoke_high_quality
 ```
 
-Use `--quality-tier recommended` when the smoke input should follow the
-readiness recommendation without a separate manual tier choice.
+Omit `--quality-tier` when the smoke input should follow the readiness
+recommendation without a separate manual tier choice.
 
 The command copies only `status=planned` rows into
 `bounded_download_smoke_plan.tsv` and writes
