@@ -200,6 +200,12 @@ def _write_download_smoke_inspection_pair(directory):
                 "min_fasta_longest_record_bases": 7,
                 "fasta_total_bases_below_minimum_count": 1,
                 "fasta_longest_record_below_minimum_count": 1,
+                "fasta_quality_gate_passed_row_count": 0,
+                "fasta_quality_gate_blocked_row_count": 1,
+                "fasta_quality_gate_blocker_counts": {
+                    "fasta_longest_record_below_minimum": 1,
+                    "fasta_total_bases_below_minimum": 1,
+                },
                 "status_counts": {"genome_fasta_present": 1, "zip_missing": 1},
                 "ready": False,
                 "blockers": [
@@ -469,6 +475,12 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "create strict scientific deliverables" in package_text
     assert "min_fasta_total_bases=11" in package_text
     assert "fasta_total_bases_below_minimum_count=1" in package_text
+    assert "FASTA quality gate rows: passed=0; blocked=1" in package_text
+    assert (
+        "FASTA quality gate blocker counts: "
+        "fasta_longest_record_below_minimum=1, "
+        "fasta_total_bases_below_minimum=1"
+    ) in package_text
 
 
 def test_package_results_download_smoke_inspection_is_missing_safe(tmp_path):

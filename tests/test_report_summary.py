@@ -231,9 +231,19 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "fasta_longest_record_below_minimum_count": 1,
                 "fragmented_fasta_signal_count": 1,
                 "fasta_header_fragment_keyword_row_count": 1,
+                "fasta_quality_gate_passed_row_count": 0,
+                "fasta_quality_gate_blocked_row_count": 1,
                 "fasta_fragmentation_signal_counts": {
                     "multi_record_fragmented": 1,
                     "not_evaluated": 1,
+                },
+                "fasta_quality_gate_blocker_counts": {
+                    "fasta_header_fragment_keywords": 1,
+                    "fasta_longest_record_below_minimum": 1,
+                    "fasta_n50_below_minimum": 1,
+                    "fasta_record_count_above_maximum": 1,
+                    "fasta_total_bases_below_minimum": 1,
+                    "fragmented_fasta_signal": 1,
                 },
                 "status_counts": {"genome_fasta_present": 1, "zip_missing": 1},
                 "ready": False,
@@ -322,6 +332,13 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
         "record_count_above_maximum=1, total_bases_below_minimum=1, "
         "longest_record_below_minimum=1, fragmented_signal=1, "
         "header_keywords=1"
+    ) in markdown
+    assert "- FASTA quality gate rows: passed=0, blocked=1" in markdown
+    assert (
+        "- FASTA quality gate blocker counts: fasta_header_fragment_keywords=1, "
+        "fasta_longest_record_below_minimum=1, fasta_n50_below_minimum=1, "
+        "fasta_record_count_above_maximum=1, "
+        "fasta_total_bases_below_minimum=1, fragmented_fasta_signal=1"
     ) in markdown
     assert "- Ready for bounded smoke review: false" in markdown
     assert "| genome_fasta_present | 1 |" in markdown

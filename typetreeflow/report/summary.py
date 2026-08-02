@@ -328,9 +328,12 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "fasta_longest_record_below_minimum_count",
     "fragmented_fasta_signal_count",
     "fasta_header_fragment_keyword_row_count",
+    "fasta_quality_gate_passed_row_count",
+    "fasta_quality_gate_blocked_row_count",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
     "fasta_fragmentation_signal_counts",
+    "fasta_quality_gate_blocker_counts",
 )
 DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES = 5 * 1024 * 1024
 DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS = (
@@ -4799,6 +4802,21 @@ def build_run_summary_markdown(
                         f"header_keywords={download_smoke_inspection_audit.counts.get('fasta_header_fragment_keyword_row_count', 0)}"
                     ),
                     (
+                        "- FASTA quality gate rows: "
+                        f"passed={download_smoke_inspection_audit.counts.get('fasta_quality_gate_passed_row_count', 0)}, "
+                        f"blocked={download_smoke_inspection_audit.counts.get('fasta_quality_gate_blocked_row_count', 0)}"
+                    ),
+                    (
+                        "- FASTA quality gate blocker counts: "
+                        + _format_count_pairs(
+                            _count_map_pairs(
+                                download_smoke_inspection_audit.counts.get(
+                                    "fasta_quality_gate_blocker_counts"
+                                )
+                            )
+                        )
+                    ),
+                    (
                         "- Ready for bounded smoke review: "
                         f"{str(download_smoke_inspection_audit.counts.get('ready', False)).lower()}"
                     ),
@@ -6367,6 +6385,22 @@ def _format_count_pairs(pairs: list[tuple[str, int]]) -> str:
     if not pairs:
         return "none"
     return ", ".join(f"{name}={count}" for name, count in pairs)
+
+
+def _count_map_pairs(value: object) -> list[tuple[str, int]]:
+    if not isinstance(value, dict):
+        return []
+    pairs: list[tuple[str, int]] = []
+    for key, count in value.items():
+        if (
+            isinstance(key, str)
+            and key.strip()
+            and isinstance(count, int)
+            and not isinstance(count, bool)
+            and count >= 0
+        ):
+            pairs.append((key.strip(), count))
+    return sorted(pairs, key=lambda item: (-item[1], item[0]))
 
 
 def _sorted_16s_artifact_scope_rows(rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
