@@ -1141,6 +1141,10 @@ also shows Download Quality Coverage for planned NCBI rows, separating
 Complete Genome/Chromosome from Scaffold/Contig and unknown assembly-level
 rows. This is a planning view for bounded smoke selection, not unattended
 download authorization.
+When `cache/ncbi/genome_registration_results.tsv` exists, the report also
+summarizes reference-genome registration result status counts. Those counts
+describe local ZIP extraction and FASTA installation outcomes only; they do not
+change strict type-strain status, completion, or evidence policy.
 
 ## Bounded Real Smoke
 
