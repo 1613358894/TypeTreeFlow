@@ -520,7 +520,9 @@ labels/reasons. The fragmentation quality profile is only a shorthand for
 local smoke blockers over already downloaded ZIPs; it is not download
 authorization, strict evidence, or final genome usability approval. They must
 not include local recommended command paths, raw FASTA headers, sequence text,
-or ZIP payloads.
+or ZIP payloads. Installable-genome ready/not-ready smoke counts are local
+inspection summaries only; they do not create completion credit or strict
+scientific deliverables.
 Failed-handoff packages exclude server-validation result artifacts.
 
 Offline readiness projection is an aggregate contract check over already

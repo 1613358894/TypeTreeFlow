@@ -504,6 +504,10 @@ def inspect_bounded_download_smoke_outputs(
         if str(row["status"]) == "genome_fasta_present"
         and not row["fasta_quality_gate_blockers"]
     )
+    installable_genome_fasta_ready_count = quality_gate_passed_row_count
+    installable_genome_fasta_not_ready_count = (
+        len(rows) - installable_genome_fasta_ready_count
+    )
     status_counts: dict[str, int] = {}
     fragmentation_signal_counts: dict[str, int] = {}
     for row in inspections:
@@ -676,6 +680,12 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "genome_fasta_install_selection_ambiguous_count": (
             ambiguous_install_selection_count
+        ),
+        "installable_genome_fasta_ready_count": (
+            installable_genome_fasta_ready_count
+        ),
+        "installable_genome_fasta_not_ready_count": (
+            installable_genome_fasta_not_ready_count
         ),
         "fasta_record_count": sum(int(row["fasta_record_count"]) for row in inspections),
         "fasta_total_bases": sum(int(row["fasta_total_bases"]) for row in inspections),
