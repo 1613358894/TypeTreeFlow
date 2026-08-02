@@ -415,6 +415,17 @@ def inspect_bounded_download_smoke_outputs(
                 block_fasta_header_keywords=block_fasta_header_keywords,
             )
         )
+    quality_gate_blocker_counts = _fasta_quality_gate_blocker_counts(inspections)
+    quality_gate_blocked_row_count = sum(
+        1
+        for row in inspections
+        if row["genome_fasta_present"] and row["fasta_quality_gate_blockers"]
+    )
+    quality_gate_passed_row_count = sum(
+        1
+        for row in inspections
+        if row["genome_fasta_present"] and not row["fasta_quality_gate_blockers"]
+    )
     status_counts: dict[str, int] = {}
     fragmentation_signal_counts: dict[str, int] = {}
     for row in inspections:
@@ -558,6 +569,9 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "fragmented_fasta_signal_count": fragmented_signal_count,
         "fasta_header_fragment_keyword_row_count": header_keyword_row_count,
+        "fasta_quality_gate_passed_row_count": quality_gate_passed_row_count,
+        "fasta_quality_gate_blocked_row_count": quality_gate_blocked_row_count,
+        "fasta_quality_gate_blocker_counts": quality_gate_blocker_counts,
         "status_counts": dict(sorted(status_counts.items())),
         "ready": ready,
         "blockers": blockers,
@@ -656,6 +670,21 @@ def _fasta_quality_gate_blockers(
     ):
         blockers.append("fasta_header_fragment_keywords")
     return blockers
+
+
+def _fasta_quality_gate_blocker_counts(
+    rows: Sequence[dict[str, object]],
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        raw_blockers = str(row.get("fasta_quality_gate_blockers", "")).strip()
+        if not raw_blockers:
+            continue
+        for blocker in raw_blockers.split(";"):
+            blocker = blocker.strip()
+            if blocker:
+                counts[blocker] = counts.get(blocker, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _empty_fasta_stats() -> dict[str, int]:

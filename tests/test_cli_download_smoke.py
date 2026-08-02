@@ -693,6 +693,9 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["fasta_longest_record_below_minimum_count"] == 0
     assert summary["fragmented_fasta_signal_count"] == 1
     assert summary["fasta_header_fragment_keyword_row_count"] == 1
+    assert summary["fasta_quality_gate_passed_row_count"] == 1
+    assert summary["fasta_quality_gate_blocked_row_count"] == 0
+    assert summary["fasta_quality_gate_blocker_counts"] == {}
     assert summary["status_counts"] == {"genome_fasta_present": 1}
     assert summary["ready"] is True
 
@@ -763,6 +766,16 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["fasta_longest_record_below_minimum_count"] == 1
     assert summary["fragmented_fasta_signal_count"] == 1
     assert summary["fasta_header_fragment_keyword_row_count"] == 1
+    assert summary["fasta_quality_gate_passed_row_count"] == 0
+    assert summary["fasta_quality_gate_blocked_row_count"] == 1
+    assert summary["fasta_quality_gate_blocker_counts"] == {
+        "fasta_header_fragment_keywords": 1,
+        "fasta_longest_record_below_minimum": 1,
+        "fasta_n50_below_minimum": 1,
+        "fasta_record_count_above_maximum": 1,
+        "fasta_total_bases_below_minimum": 1,
+        "fragmented_fasta_signal": 1,
+    }
     assert summary["downloads_triggered"] == 0
     assert summary["providers_contacted"] == 0
 
@@ -846,6 +859,16 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
         "fragmented_fasta_signal",
         "fasta_header_fragment_keywords",
     ]
+    assert summary["fasta_quality_gate_passed_row_count"] == 0
+    assert summary["fasta_quality_gate_blocked_row_count"] == 1
+    assert summary["fasta_quality_gate_blocker_counts"] == {
+        "fasta_header_fragment_keywords": 1,
+        "fasta_longest_record_below_minimum": 1,
+        "fasta_n50_below_minimum": 1,
+        "fasta_record_count_above_maximum": 1,
+        "fasta_total_bases_below_minimum": 1,
+        "fragmented_fasta_signal": 1,
+    }
 
 
 def test_download_smoke_inspect_blocks_missing_invalid_and_no_genome_zips(
