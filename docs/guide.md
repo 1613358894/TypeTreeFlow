@@ -525,6 +525,12 @@ rows carry the same structured
 they still require normal planning or preflight before execution. They also carry
 bounded species previews so an AI/operator can see which records start each
 action group without treating the preview as a replacement for the source TSVs.
+Provider-handoff queue items additionally carry a
+`recommended_write_request_template` for a local
+`provider-handoff build --write --outdir <isolated-provider-handoff-directory>`
+handoff plus its allow-write command plan. The template writes only local
+handoff files after explicit operator approval; it does not contact providers or
+download genomes.
 Stage-specific top-level command-plan companions preflight those same requests
 without dispatching them; write-capable stages remain blocked until an operator
 or parent controller grants the corresponding allowance. The

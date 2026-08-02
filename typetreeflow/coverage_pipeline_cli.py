@@ -8667,6 +8667,13 @@ def _coverage_next_task_packet(
     coverage_action_queue: list[dict[str, object]],
 ) -> dict[str, object]:
     if not coverage_action_queue:
+        write_command_plan = _coverage_next_command_plan(
+            {"available": False, "recommended_request": None},
+            request_source=(
+                "coverage_next_task_packet.recommended_write_request_template"
+            ),
+            allow_write=True,
+        )
         operator_execution_gate = _coverage_operator_execution_gate(
             available=False,
             recommended_request=None,
@@ -8693,6 +8700,10 @@ def _coverage_next_task_packet(
             "recommended_request": None,
             "recommended_request_target": "",
             "recommended_next_command": "",
+            "recommended_write_request_template": None,
+            "recommended_write_request_target": "",
+            "recommended_write_next_command": "",
+            "recommended_write_command_plan": write_command_plan,
             "operator_execution_gate": operator_execution_gate,
             "review_input_packet": review_input_packet,
             "next_input_package": _coverage_next_input_package(
@@ -8713,6 +8724,18 @@ def _coverage_next_task_packet(
     )
     recommended_request_target = _coverage_recommended_request_target(
         recommended_request
+    )
+    recommended_write_request_template = _coverage_next_write_request_template(
+        item,
+        recommended_request=recommended_request,
+    )
+    recommended_write_command_plan = _coverage_next_command_plan(
+        {
+            "available": recommended_write_request_template is not None,
+            "recommended_request": recommended_write_request_template,
+        },
+        request_source="coverage_next_task_packet.recommended_write_request_template",
+        allow_write=True,
     )
     action_code = str(item.get("action_code", ""))
     operator_execution_gate = _coverage_item_execution_gate(item)
@@ -8742,6 +8765,16 @@ def _coverage_next_task_packet(
         "recommended_request": recommended_request,
         "recommended_request_target": recommended_request_target,
         "recommended_next_command": str(item.get("recommended_next_command", "")),
+        "recommended_write_request_template": recommended_write_request_template,
+        "recommended_write_request_target": _coverage_recommended_request_target(
+            recommended_write_request_template
+        ),
+        "recommended_write_next_command": (
+            _recommended_next_command_from_request(recommended_write_request_template)
+            if isinstance(recommended_write_request_template, Mapping)
+            else ""
+        ),
+        "recommended_write_command_plan": recommended_write_command_plan,
         "operator_execution_gate": operator_execution_gate,
         "review_input_packet": review_input_packet,
         "next_input_package": _coverage_next_input_package(
@@ -8754,6 +8787,36 @@ def _coverage_next_task_packet(
         "manifest_mutated": False,
         "strict_scientific_deliverable": False,
         "execution_boundary": "metadata_only_run_commands_plan_or_preflight_first",
+    }
+
+
+def _coverage_next_write_request_template(
+    item: Mapping[str, object],
+    *,
+    recommended_request: Mapping[str, object] | None,
+) -> dict[str, object] | None:
+    if str(item.get("action_code", "")) != "prepare_provider_handoff":
+        return None
+    if not isinstance(recommended_request, Mapping):
+        return None
+    provider_keys = recommended_request.get("provider_keys", [])
+    if not isinstance(provider_keys, list) or not provider_keys:
+        return None
+    normalized_provider_keys = [str(key) for key in provider_keys if str(key)]
+    if not normalized_provider_keys:
+        return None
+    return {
+        "command": "provider-handoff",
+        "subcommand": "build",
+        "coverage_plan_tsv": str(
+            recommended_request.get(
+                "coverage_plan_tsv",
+                OUTPUT_PATHS["coverage_plan"],
+            )
+        ),
+        "provider_keys": normalized_provider_keys,
+        "write": True,
+        "outdir": "<isolated-provider-handoff-directory>",
     }
 
 
@@ -9909,6 +9972,28 @@ def _coverage_next_input_handoff_packet(
         ),
         "recommended_next_command": str(
             next_task_packet.get("recommended_next_command", "")
+        ),
+        "recommended_write_request_template": (
+            dict(next_task_packet.get("recommended_write_request_template", {}))
+            if isinstance(
+                next_task_packet.get("recommended_write_request_template"),
+                Mapping,
+            )
+            else None
+        ),
+        "recommended_write_request_target": str(
+            next_task_packet.get("recommended_write_request_target", "")
+        ),
+        "recommended_write_next_command": str(
+            next_task_packet.get("recommended_write_next_command", "")
+        ),
+        "recommended_write_command_plan": (
+            dict(next_task_packet.get("recommended_write_command_plan", {}))
+            if isinstance(
+                next_task_packet.get("recommended_write_command_plan"),
+                Mapping,
+            )
+            else {}
         ),
         "review_input_packet": (
             dict(next_task_packet.get("review_input_packet", {}))
