@@ -317,6 +317,8 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "genome_fasta_member_count",
     "genomic_named_fasta_member_count",
     "genome_fasta_install_selection_ambiguous_count",
+    "installable_genome_fasta_ready_count",
+    "installable_genome_fasta_not_ready_count",
     "fasta_record_count",
     "fasta_total_bases",
     "fasta_longest_record_bases",
@@ -4980,6 +4982,11 @@ def build_run_summary_markdown(
                     (
                         "- Genome FASTA present: "
                         f"{download_smoke_inspection_audit.counts.get('genome_fasta_present_count', 0)}"
+                    ),
+                    (
+                        "- Installable genome FASTA ready/not-ready: "
+                        f"ready={download_smoke_inspection_audit.counts.get('installable_genome_fasta_ready_count', 0)}, "
+                        f"not_ready={download_smoke_inspection_audit.counts.get('installable_genome_fasta_not_ready_count', 0)}"
                     ),
                     (
                         "- Genome FASTA members: "

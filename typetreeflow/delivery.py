@@ -120,6 +120,8 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_selected_row_count: int = 0
     download_smoke_inspection_zip_valid_count: int = 0
     download_smoke_inspection_genome_fasta_present_count: int = 0
+    download_smoke_inspection_installable_genome_fasta_ready_count: int = 0
+    download_smoke_inspection_installable_genome_fasta_not_ready_count: int = 0
     download_smoke_inspection_empty_genome_fasta_count: int = 0
     download_smoke_inspection_multiple_genome_fasta_members_count: int = 0
     download_smoke_inspection_fasta_n50_below_minimum_count: int = 0
@@ -1951,6 +1953,22 @@ def _read_optional_server_validation_result(
             _safe_nonnegative_int_value(
                 payload.get(
                     "download_smoke_inspection_genome_fasta_present_count", 0
+                )
+            )
+        ),
+        download_smoke_inspection_installable_genome_fasta_ready_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_installable_genome_fasta_ready_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_installable_genome_fasta_not_ready_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_installable_genome_fasta_not_ready_count",
+                    0,
                 )
             )
         ),
@@ -4446,6 +4464,8 @@ def _server_validation_download_smoke_observations_available(
             audit.download_smoke_inspection_selected_row_count,
             audit.download_smoke_inspection_zip_valid_count,
             audit.download_smoke_inspection_genome_fasta_present_count,
+            audit.download_smoke_inspection_installable_genome_fasta_ready_count,
+            audit.download_smoke_inspection_installable_genome_fasta_not_ready_count,
             audit.download_smoke_inspection_empty_genome_fasta_count,
             audit.download_smoke_inspection_multiple_genome_fasta_members_count,
             audit.download_smoke_inspection_fasta_n50_below_minimum_count,
@@ -4478,6 +4498,13 @@ def _server_validation_download_smoke_observation_lines(
             f"zip_valid={audit.download_smoke_inspection_zip_valid_count}, "
             "genome_fasta_present="
             f"{audit.download_smoke_inspection_genome_fasta_present_count}"
+        ),
+        (
+            "- Bounded download-smoke installable genome FASTA: "
+            "ready="
+            f"{audit.download_smoke_inspection_installable_genome_fasta_ready_count}, "
+            "not_ready="
+            f"{audit.download_smoke_inspection_installable_genome_fasta_not_ready_count}"
         ),
         (
             "- Bounded FASTA quality-gate hits: "
@@ -4720,18 +4747,33 @@ def _download_smoke_inspection_quality_gate_lines(
 ) -> list[str]:
     passed = audit.counts.get("fasta_quality_gate_passed_row_count")
     blocked = audit.counts.get("fasta_quality_gate_blocked_row_count")
+    installable_ready = audit.counts.get("installable_genome_fasta_ready_count")
+    installable_not_ready = audit.counts.get(
+        "installable_genome_fasta_not_ready_count"
+    )
     blocker_counts = audit.counts.get("fasta_quality_gate_blocker_counts")
     recommendation = audit.counts.get("quality_gate_recommendation")
     reasons = audit.counts.get("quality_gate_recommendation_reasons")
     if not (
         _is_non_bool_int(passed)
         or _is_non_bool_int(blocked)
+        or _is_non_bool_int(installable_ready)
+        or _is_non_bool_int(installable_not_ready)
         or isinstance(blocker_counts, dict)
         or isinstance(recommendation, str)
         or isinstance(reasons, list)
     ):
         return []
     lines: list[str] = []
+    if _is_non_bool_int(installable_ready) or _is_non_bool_int(
+        installable_not_ready
+    ):
+        lines.append(
+            "- Installable genome FASTA ready/not-ready: "
+            f"ready={installable_ready if _is_non_bool_int(installable_ready) else 0}; "
+            "not_ready="
+            f"{installable_not_ready if _is_non_bool_int(installable_not_ready) else 0}"
+        )
     if _is_non_bool_int(passed) or _is_non_bool_int(blocked):
         lines.append(
             "- FASTA quality gate rows: "
