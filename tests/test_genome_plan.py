@@ -205,6 +205,13 @@ def test_download_plan_readiness_summary_counts_acquisition_routes(tmp_path):
     assert summary["bounded_ncbi_download_smoke_ready"] is True
     assert summary["bounded_ncbi_download_smoke_scope"] == "planned_ncbi_rows_only"
     assert summary["bounded_ncbi_download_smoke_blockers"] == []
+    assert summary["high_quality_bounded_ncbi_download_smoke_candidate_count"] == 0
+    assert summary["high_quality_bounded_ncbi_download_smoke_ready"] is False
+    assert summary["high_quality_bounded_ncbi_download_smoke_scope"] == "none"
+    assert summary["high_quality_bounded_ncbi_download_smoke_blockers"] == [
+        "no_high_quality_planned_ncbi_download_rows"
+    ]
+    assert summary["bounded_ncbi_download_smoke_quality_tier_recommendation"] == "all"
     assert summary["whole_plan_requires_review"] is True
     assert summary["safe_for_unattended_download"] is False
     assert summary["downloads_triggered"] == 0
@@ -277,6 +284,14 @@ def test_download_plan_readiness_summarizes_planned_assembly_quality(tmp_path):
     assert summary["planned_complete_or_chromosome_count"] == 2
     assert summary["planned_scaffold_or_contig_count"] == 2
     assert summary["planned_unknown_assembly_level_count"] == 1
+    assert summary["high_quality_bounded_ncbi_download_smoke_candidate_count"] == 2
+    assert summary["high_quality_bounded_ncbi_download_smoke_ready"] is True
+    assert (
+        summary["high_quality_bounded_ncbi_download_smoke_scope"]
+        == "planned_complete_or_chromosome_ncbi_rows_only"
+    )
+    assert summary["high_quality_bounded_ncbi_download_smoke_blockers"] == []
+    assert summary["bounded_ncbi_download_smoke_quality_tier_recommendation"] == "high"
     assert summary["planned_high_quality_download_candidate_count"] == 2
     assert summary[
         "planned_draft_or_fragmented_download_candidate_count"
@@ -314,6 +329,8 @@ def test_download_plan_readiness_uses_unknown_without_quality_metadata(tmp_path)
     }
     assert summary["planned_unknown_assembly_level_count"] == 1
     assert summary["bounded_ncbi_download_smoke_ready"] is True
+    assert summary["high_quality_bounded_ncbi_download_smoke_ready"] is False
+    assert summary["bounded_ncbi_download_smoke_quality_tier_recommendation"] == "all"
 
 
 def test_download_plan_readiness_blocks_bounded_smoke_without_planned_rows(tmp_path):
@@ -331,6 +348,11 @@ def test_download_plan_readiness_blocks_bounded_smoke_without_planned_rows(tmp_p
     assert summary["bounded_ncbi_download_smoke_blockers"] == [
         "no_planned_ncbi_download_rows"
     ]
+    assert summary["high_quality_bounded_ncbi_download_smoke_ready"] is False
+    assert summary["high_quality_bounded_ncbi_download_smoke_blockers"] == [
+        "no_high_quality_planned_ncbi_download_rows"
+    ]
+    assert summary["bounded_ncbi_download_smoke_quality_tier_recommendation"] == "none"
     assert summary["whole_plan_requires_review"] is True
     assert summary["safe_for_unattended_download"] is False
 
@@ -345,6 +367,11 @@ def test_download_plan_readiness_missing_plan_has_bounded_smoke_blocker(tmp_path
     assert summary["bounded_ncbi_download_smoke_ready"] is False
     assert summary["bounded_ncbi_download_smoke_scope"] == "none"
     assert summary["bounded_ncbi_download_smoke_blockers"] == ["download_plan_missing"]
+    assert summary["high_quality_bounded_ncbi_download_smoke_ready"] is False
+    assert summary["high_quality_bounded_ncbi_download_smoke_blockers"] == [
+        "download_plan_missing"
+    ]
+    assert summary["bounded_ncbi_download_smoke_quality_tier_recommendation"] == "none"
     assert summary["whole_plan_requires_review"] is False
     assert summary["safe_for_unattended_download"] is False
     assert {

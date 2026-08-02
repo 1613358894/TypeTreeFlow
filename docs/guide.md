@@ -1134,6 +1134,12 @@ Complete Genome/Chromosome from Scaffold/Contig and report missing metadata as
 `unknown`. Scaffold and Contig remain valid planned rows in a draft or
 fragmented tier; the breakdown does not alter the existing bounded-smoke ready
 decision, selection, download plan, manifest, or strict scientific policy.
+When `high_quality_bounded_ncbi_download_smoke_ready=true`, prefer
+`--quality-tier high`. Use `--quality-tier recommended` when an automation
+should resolve `bounded_ncbi_download_smoke_quality_tier_recommendation`
+directly; it selects `high` when Complete Genome or Chromosome rows are ready,
+falls back to `all` when only draft or unknown planned rows are ready, and
+blocks when no bounded smoke input is ready.
 
 ```bash
 typetreeflow download-smoke prepare \
@@ -1154,6 +1160,9 @@ typetreeflow download-smoke prepare \
   --write \
   --outdir <workspace>/handoffs/bounded_download_smoke_high_quality
 ```
+
+Use `--quality-tier recommended` when the smoke input should follow the
+readiness recommendation without a separate manual tier choice.
 
 The command copies only `status=planned` rows into
 `bounded_download_smoke_plan.tsv` and writes
