@@ -38,8 +38,12 @@ def _write_assembly_candidates(path, rows):
                 species="Clostridium example",
                 assembly_accession=accession,
                 assembly_level=assembly_level,
+                refseq_category=refseq_category,
             )
-            for accession, assembly_level in rows
+            for accession, assembly_level, refseq_category in (
+                row if len(row) == 3 else (*row, "")
+                for row in rows
+            )
         ],
         path,
     )
@@ -253,9 +257,9 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
     _write_assembly_candidates(
         tmp_path / "candidates" / "assembly_candidates.tsv",
         [
-            ("GCF_000001.1", "Scaffold"),
-            ("GCF_000002.1", "Complete Genome"),
-            ("GCF_000003.1", "Chromosome"),
+            ("GCF_000001.1", "Scaffold", ""),
+            ("GCF_000002.1", "Complete Genome", "reference genome"),
+            ("GCF_000003.1", "Chromosome", "representative genome"),
         ],
     )
 
@@ -295,11 +299,13 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
     assert summary["selected_high_quality_row_count"] == 1
     assert summary["selected_quality_tier_counts"] == {"high": 1}
     assert summary["selected_assembly_level_counts"] == {"Complete Genome": 1}
+    assert summary["selected_refseq_category_counts"] == {"reference genome": 1}
     assert summary["selected_accession_quality_preview"] == [
         {
             "record_id": "complete",
             "assembly_accession": "GCF_000002.1",
             "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
             "quality_tier": "high",
         }
     ]
@@ -346,9 +352,9 @@ def test_download_smoke_prepare_default_recommended_selects_high_quality_rows(
     _write_assembly_candidates(
         tmp_path / "candidates" / "assembly_candidates.tsv",
         [
-            ("GCF_000001.1", "Scaffold"),
-            ("GCF_000002.1", "Complete Genome"),
-            ("GCF_000003.1", "Chromosome"),
+            ("GCF_000001.1", "Scaffold", ""),
+            ("GCF_000002.1", "Complete Genome", "reference genome"),
+            ("GCF_000003.1", "Chromosome", "representative genome"),
         ],
     )
 
@@ -386,7 +392,12 @@ def test_download_smoke_prepare_default_recommended_selects_high_quality_rows(
     assert summary["selected_high_quality_row_count"] == 1
     assert summary["selected_quality_tier_counts"] == {"high": 1}
     assert summary["selected_assembly_level_counts"] == {"Complete Genome": 1}
+    assert summary["selected_refseq_category_counts"] == {"reference genome": 1}
     assert summary["selected_accession_quality_preview"][0]["quality_tier"] == "high"
+    assert (
+        summary["selected_accession_quality_preview"][0]["refseq_category"]
+        == "reference genome"
+    )
     assert rows == [_planned_row("complete", "GCF_000002.1")]
 
 
@@ -433,11 +444,13 @@ def test_download_smoke_prepare_selected_high_quality_count_tracks_selected_rows
     assert summary["selected_quality_tier_counts"] == {"draft_or_fragmented": 1}
     assert summary["source_high_quality_planned_row_count"] == 1
     assert summary["selected_assembly_level_counts"] == {"Scaffold": 1}
+    assert summary["selected_refseq_category_counts"] == {"unknown": 1}
     assert summary["selected_accession_quality_preview"] == [
         {
             "record_id": "draft",
             "assembly_accession": "GCF_000001.1",
             "assembly_level": "Scaffold",
+            "refseq_category": "unknown",
             "quality_tier": "draft_or_fragmented",
         }
     ]

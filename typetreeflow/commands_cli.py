@@ -859,6 +859,7 @@ _DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS: list[str] = [
     "selected_row_count",
     "selected_high_quality_row_count",
     "selected_assembly_level_counts",
+    "selected_refseq_category_counts",
     "selected_accession_quality_preview",
     "selected_datasets_command_preview",
     "inspection_min_fasta_n50_bases",
