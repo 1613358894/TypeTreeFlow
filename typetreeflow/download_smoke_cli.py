@@ -15,13 +15,27 @@ from typetreeflow.download_plan_readiness import (
     _read_assembly_quality_metadata,
 )
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
+from typetreeflow.genomes.extract import datasets_zip_has_genome, is_valid_zip
 from typetreeflow.sources.ncbi_datasets import build_datasets_download_command
 
 
 COMMAND = "download-smoke prepare"
+INSPECT_COMMAND = "download-smoke inspect"
 SUMMARY_SCHEMA_VERSION = "bounded_download_smoke_input_summary.v1"
+INSPECTION_SCHEMA_VERSION = "bounded_download_smoke_inspection_summary.v1"
 OUTPUT_PLAN_NAME = "bounded_download_smoke_plan.tsv"
 OUTPUT_SUMMARY_NAME = "bounded_download_smoke_summary.json"
+OUTPUT_INSPECTION_NAME = "bounded_download_smoke_inspection.tsv"
+OUTPUT_INSPECTION_SUMMARY_NAME = "bounded_download_smoke_inspection_summary.json"
+INSPECTION_FIELDS = [
+    "record_id",
+    "assembly_accession",
+    "zip_path",
+    "zip_exists",
+    "zip_valid",
+    "genome_fasta_present",
+    "status",
+]
 
 
 class _UsageError(Exception):
@@ -49,7 +63,7 @@ def run_download_smoke_command(
         _emit(_payload("failed", "invalid_command_usage", "Invalid download-smoke usage"), output)
         return 2
 
-    if args.action != "prepare":
+    if args.action not in {"prepare", "inspect"}:
         _emit(_payload("failed", "invalid_command_usage", "Invalid download-smoke action"), output)
         return 2
 
@@ -65,17 +79,22 @@ def run_download_smoke_command(
         return 2
 
     try:
-        result = prepare_bounded_download_smoke_input(
-            args.download_plan,
-            limit=args.limit,
-            quality_tier=args.quality_tier,
-        )
+        command = INSPECT_COMMAND if args.action == "inspect" else COMMAND
+        if args.action == "prepare":
+            result = prepare_bounded_download_smoke_input(
+                args.download_plan,
+                limit=args.limit,
+                quality_tier=args.quality_tier,
+            )
+        else:
+            result = inspect_bounded_download_smoke_outputs(args.download_plan)
     except (OSError, UnicodeError, csv.Error, ValueError) as error:
         _emit(
             _payload(
                 "blocked",
                 "input_invalid",
                 str(error),
+                command=command,
                 download_plan_path=str(args.download_plan),
             ),
             output,
@@ -84,13 +103,17 @@ def run_download_smoke_command(
 
     if args.write:
         try:
-            _write_outputs(result, args.outdir)
+            if args.action == "prepare":
+                _write_outputs(result, args.outdir)
+            else:
+                _write_inspection_outputs(result, args.outdir)
         except OSError as error:
             _emit(
                 _payload(
                     "failed",
                     "output_write_failed",
                     str(error),
+                    command=INSPECT_COMMAND if args.action == "inspect" else COMMAND,
                     download_plan_path=str(args.download_plan),
                     summary=result["summary"],
                     outdir=str(args.outdir),
@@ -100,23 +123,36 @@ def run_download_smoke_command(
             return 1
 
     status = "pass" if result["summary"]["ready"] else "blocked"
+    command = INSPECT_COMMAND if args.action == "inspect" else COMMAND
     payload = _payload(
         status,
         "",
         result["summary"]["summary"],
+        command=command,
         download_plan_path=str(args.download_plan),
-        summary=result["summary"],
         outdir=str(args.outdir) if args.write else "",
     )
+    if args.action == "prepare":
+        payload["bounded_download_smoke_summary"] = result["summary"]
+    else:
+        payload["bounded_download_smoke_inspection_summary"] = result["summary"]
     payload["writes_outputs"] = bool(args.write)
-    payload["output_files"] = (
-        {
+    if args.write and args.action == "prepare":
+        payload["output_files"] = {
             "bounded_download_smoke_plan": str(Path(args.outdir) / OUTPUT_PLAN_NAME),
             "bounded_download_smoke_summary": str(Path(args.outdir) / OUTPUT_SUMMARY_NAME),
         }
-        if args.write
-        else {}
-    )
+    elif args.write:
+        payload["output_files"] = {
+            "bounded_download_smoke_inspection": str(
+                Path(args.outdir) / OUTPUT_INSPECTION_NAME
+            ),
+            "bounded_download_smoke_inspection_summary": str(
+                Path(args.outdir) / OUTPUT_INSPECTION_SUMMARY_NAME
+            ),
+        }
+    else:
+        payload["output_files"] = {}
     _emit(payload, output)
     return 0 if status == "pass" else 2
 
@@ -212,6 +248,88 @@ def prepare_bounded_download_smoke_input(
         ),
     }
     return {"rows": selected, "summary": summary}
+
+
+def inspect_bounded_download_smoke_outputs(
+    download_plan_path: str | Path,
+) -> dict[str, object]:
+    plan_path = Path(download_plan_path)
+    rows = [
+        row
+        for row in _read_download_plan_rows(plan_path)
+        if row.get("status", "").strip() == "planned"
+    ]
+    inspections = [_inspect_download_plan_row(row) for row in rows]
+    status_counts: dict[str, int] = {}
+    for row in inspections:
+        status = str(row["status"])
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+    blockers: list[str] = []
+    if not rows:
+        blockers.append("no_bounded_download_smoke_rows")
+    if status_counts.get("zip_missing", 0):
+        blockers.append("missing_zip_outputs")
+    if status_counts.get("zip_invalid", 0):
+        blockers.append("invalid_zip_outputs")
+    if status_counts.get("genome_fasta_missing", 0):
+        blockers.append("genome_fasta_missing")
+
+    ready = not blockers
+    summary = {
+        "schema_version": INSPECTION_SCHEMA_VERSION,
+        "command": INSPECT_COMMAND,
+        "source_download_plan_path": str(plan_path),
+        "selected_row_count": len(rows),
+        "zip_exists_count": sum(1 for row in inspections if row["zip_exists"]),
+        "zip_valid_count": sum(1 for row in inspections if row["zip_valid"]),
+        "genome_fasta_present_count": sum(
+            1 for row in inspections if row["genome_fasta_present"]
+        ),
+        "status_counts": dict(sorted(status_counts.items())),
+        "ready": ready,
+        "blockers": blockers,
+        "execution_boundary": (
+            "local_zip_inspection_only_no_download_no_network_no_extraction"
+        ),
+        "safe_for_unattended_download": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "summary": (
+            "Bounded NCBI download smoke ZIP outputs are locally inspectable."
+            if ready
+            else "Bounded NCBI download smoke ZIP outputs are not ready."
+        ),
+    }
+    return {"rows": inspections, "summary": summary}
+
+
+def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
+    zip_path = Path(row.get("datasets_zip_path", "").strip())
+    zip_exists = zip_path.exists()
+    zip_valid = is_valid_zip(zip_path)
+    genome_fasta_present = datasets_zip_has_genome(zip_path) if zip_valid else False
+    if not zip_exists:
+        status = "zip_missing"
+    elif not zip_valid:
+        status = "zip_invalid"
+    elif not genome_fasta_present:
+        status = "genome_fasta_missing"
+    else:
+        status = "genome_fasta_present"
+    return {
+        "record_id": row.get("record_id", "").strip(),
+        "assembly_accession": row.get("assembly_accession", "").strip(),
+        "zip_path": str(zip_path),
+        "zip_exists": zip_exists,
+        "zip_valid": zip_valid,
+        "genome_fasta_present": genome_fasta_present,
+        "status": status,
+    }
 
 
 def _resolve_quality_tier(quality_tier: str, readiness: dict[str, object]) -> str:
@@ -344,6 +462,37 @@ def _write_outputs(result: dict[str, object], outdir: str | Path) -> None:
     )
 
 
+def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> None:
+    target = Path(outdir)
+    if target.exists() and any(target.iterdir()):
+        raise OSError("output directory already exists and is not empty")
+    target.mkdir(parents=True, exist_ok=True)
+    rows = result["rows"]
+    with (target / OUTPUT_INSPECTION_NAME).open(
+        "w", newline="", encoding="utf-8"
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=INSPECTION_FIELDS, delimiter="\t")
+        writer.writeheader()
+        for row in rows:  # type: ignore[assignment]
+            writer.writerow(
+                {
+                    "record_id": row["record_id"],
+                    "assembly_accession": row["assembly_accession"],
+                    "zip_path": row["zip_path"],
+                    "zip_exists": str(bool(row["zip_exists"])).lower(),
+                    "zip_valid": str(bool(row["zip_valid"])).lower(),
+                    "genome_fasta_present": str(
+                        bool(row["genome_fasta_present"])
+                    ).lower(),
+                    "status": row["status"],
+                }
+            )
+    (target / OUTPUT_INSPECTION_SUMMARY_NAME).write_text(
+        json.dumps(result["summary"], sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = _JsonArgumentParser(prog="typetreeflow download-smoke", add_help=True)
     subcommands = parser.add_subparsers(dest="action", required=True)
@@ -358,6 +507,11 @@ def _build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--write", action="store_true")
     prepare.add_argument("--outdir", type=Path)
     prepare.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
+    inspect = subcommands.add_parser("inspect")
+    inspect.add_argument("--download-plan", required=True, type=Path)
+    inspect.add_argument("--write", action="store_true")
+    inspect.add_argument("--outdir", type=Path)
+    inspect.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
@@ -366,13 +520,18 @@ def _payload(
     code: str,
     summary_text: str,
     *,
+    command: str = COMMAND,
     download_plan_path: str = "",
     summary: dict[str, object] | None = None,
     outdir: str = "",
 ) -> dict[str, object]:
     payload: dict[str, object] = {
-        "command": COMMAND,
-        "schema_version": "download_smoke_prepare.v1",
+        "command": command,
+        "schema_version": (
+            "download_smoke_inspect.v1"
+            if command == INSPECT_COMMAND
+            else "download_smoke_prepare.v1"
+        ),
         "status": status,
         "summary": summary_text,
         "download_plan_path": download_plan_path,
@@ -389,7 +548,10 @@ def _payload(
     if code:
         payload["blocking"] = [{"id": code, "message": summary_text}]
     if summary is not None:
-        payload["bounded_download_smoke_summary"] = summary
+        if command == INSPECT_COMMAND:
+            payload["bounded_download_smoke_inspection_summary"] = summary
+        else:
+            payload["bounded_download_smoke_summary"] = summary
     return payload
 
 

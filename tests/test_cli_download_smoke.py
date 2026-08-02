@@ -1,5 +1,6 @@
 import csv
 import json
+import zipfile
 
 from typetreeflow.cli import main
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
@@ -42,6 +43,12 @@ def _write_assembly_candidates(path, rows):
         ],
         path,
     )
+
+
+def _write_zip(path, member="ncbi_dataset/data/GCF_000001.1/genomic.fna"):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(member, ">fake\nACGT\n")
 
 
 def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
@@ -532,4 +539,169 @@ def test_download_smoke_prepare_refuses_existing_nonempty_output(capsys, tmp_pat
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "failed"
     assert payload["blocking"][0]["id"] == "output_write_failed"
+    assert (outdir / "existing.txt").read_text(encoding="utf-8") == "keep\n"
+
+
+def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    _write_zip(zip_path)
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["command"] == "download-smoke inspect"
+    assert payload["schema_version"] == "download_smoke_inspect.v1"
+    assert payload["dry_run"] is True
+    assert payload["downloads_triggered"] == 0
+    assert payload["network_access"] is False
+    assert summary["schema_version"] == "bounded_download_smoke_inspection_summary.v1"
+    assert summary["selected_row_count"] == 1
+    assert summary["zip_exists_count"] == 1
+    assert summary["zip_valid_count"] == 1
+    assert summary["genome_fasta_present_count"] == 1
+    assert summary["status_counts"] == {"genome_fasta_present": 1}
+    assert summary["ready"] is True
+
+
+def test_download_smoke_inspect_blocks_missing_invalid_and_no_genome_zips(
+    capsys,
+    tmp_path,
+):
+    missing_zip = tmp_path / "cache" / "ncbi" / "missing.zip"
+    invalid_zip = tmp_path / "cache" / "ncbi" / "invalid.zip"
+    no_genome_zip = tmp_path / "cache" / "ncbi" / "no-genome.zip"
+    invalid_zip.parent.mkdir(parents=True, exist_ok=True)
+    invalid_zip.write_text("not a zip\n", encoding="utf-8")
+    with zipfile.ZipFile(no_genome_zip, "w") as archive:
+        archive.writestr("README.txt", "no genome here\n")
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    _write_download_plan(
+        plan,
+        [
+            {**_planned_row("missing"), "datasets_zip_path": str(missing_zip)},
+            {**_planned_row("invalid"), "datasets_zip_path": str(invalid_zip)},
+            {**_planned_row("no-genome"), "datasets_zip_path": str(no_genome_zip)},
+        ],
+    )
+
+    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["ready"] is False
+    assert summary["blockers"] == [
+        "missing_zip_outputs",
+        "invalid_zip_outputs",
+        "genome_fasta_missing",
+    ]
+    assert summary["status_counts"] == {
+        "genome_fasta_missing": 1,
+        "zip_invalid": 1,
+        "zip_missing": 1,
+    }
+    assert summary["downloads_triggered"] == 0
+    assert summary["external_tools"] is False
+
+
+def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    outdir = tmp_path / "inspection"
+    _write_zip(zip_path)
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                str(plan),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    rows = list(
+        csv.DictReader(
+            (outdir / "bounded_download_smoke_inspection.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
+    summary = json.loads(
+        (outdir / "bounded_download_smoke_inspection_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["writes_outputs"] is True
+    assert rows[0]["status"] == "genome_fasta_present"
+    assert rows[0]["zip_valid"] == "true"
+    assert rows[0]["genome_fasta_present"] == "true"
+    assert summary["ready"] is True
+
+
+def test_download_smoke_inspect_rejects_wrong_schema(capsys, tmp_path):
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    plan.write_text("record_id\tstatus\nrec-1\tplanned\n", encoding="utf-8")
+
+    assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "download-smoke inspect"
+    assert payload["status"] == "blocked"
+    assert payload["blocking"][0]["id"] == "input_invalid"
+
+
+def test_download_smoke_inspect_refuses_existing_nonempty_output(capsys, tmp_path):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    outdir = tmp_path / "inspection"
+    outdir.mkdir()
+    (outdir / "existing.txt").write_text("keep\n", encoding="utf-8")
+    _write_zip(zip_path)
+    _write_download_plan(
+        plan,
+        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                str(plan),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 1
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "download-smoke inspect"
+    assert payload["status"] == "failed"
+    assert payload["blocking"][0]["id"] == "output_write_failed"
+    assert "bounded_download_smoke_inspection_summary" in payload
+    assert "bounded_download_smoke_summary" not in payload
     assert (outdir / "existing.txt").read_text(encoding="utf-8") == "keep\n"
