@@ -13,6 +13,7 @@ from typing import Sequence, TextIO
 from typetreeflow.download_plan_readiness import (
     build_download_plan_readiness_summary,
     _normalize_assembly_level,
+    _normalize_refseq_category,
     _read_assembly_quality_metadata,
 )
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
@@ -309,6 +310,9 @@ def prepare_bounded_download_smoke_input(
         "selected_high_quality_row_count": selected_quality["high_quality_count"],
         "selected_quality_tier_counts": selected_quality["quality_tier_counts"],
         "selected_assembly_level_counts": selected_quality["assembly_level_counts"],
+        "selected_refseq_category_counts": selected_quality[
+            "refseq_category_counts"
+        ],
         "selected_accession_quality_preview": selected_quality["accession_preview"],
         "selected_accession_quality_preview_truncated": selected_quality[
             "accession_preview_truncated"
@@ -1060,14 +1064,20 @@ def _selected_quality_summary(
     rows: list[dict[str, str]],
 ) -> dict[str, object]:
     counts: dict[str, int] = {}
+    refseq_category_counts: dict[str, int] = {}
     tier_counts = {"high": 0, "draft_or_fragmented": 0, "unknown": 0}
     preview: list[dict[str, str]] = []
     preview_limit = 10
     for row in rows:
         accession = row.get("assembly_accession", "").strip()
-        level = _planned_row_assembly_level(assembly_metadata, row) or "unknown"
+        metadata = _planned_row_assembly_metadata(assembly_metadata, row)
+        level = metadata[0] or "unknown"
+        refseq_category = metadata[1] or "unknown"
         quality_tier = _quality_tier_for_assembly_level(level)
         counts[level] = counts.get(level, 0) + 1
+        refseq_category_counts[refseq_category] = (
+            refseq_category_counts.get(refseq_category, 0) + 1
+        )
         tier_counts[quality_tier] += 1
         if len(preview) < preview_limit:
             preview.append(
@@ -1075,11 +1085,13 @@ def _selected_quality_summary(
                     "record_id": row.get("record_id", "").strip(),
                     "assembly_accession": accession,
                     "assembly_level": level,
+                    "refseq_category": refseq_category,
                     "quality_tier": quality_tier,
                 }
             )
     return {
         "assembly_level_counts": dict(sorted(counts.items())),
+        "refseq_category_counts": dict(sorted(refseq_category_counts.items())),
         "quality_tier_counts": {
             key: count for key, count in tier_counts.items() if count
         },
@@ -1124,9 +1136,19 @@ def _planned_row_assembly_level(
     assembly_metadata: dict[str, tuple[str, str]],
     row: dict[str, str],
 ) -> str:
+    return _planned_row_assembly_metadata(assembly_metadata, row)[0]
+
+
+def _planned_row_assembly_metadata(
+    assembly_metadata: dict[str, tuple[str, str]],
+    row: dict[str, str],
+) -> tuple[str, str]:
     accession = row.get("assembly_accession", "").strip().upper()
-    assembly_level = assembly_metadata.get(accession, ("", ""))[0]
-    return _normalize_assembly_level(assembly_level)
+    assembly_level, refseq_category = assembly_metadata.get(accession, ("", ""))
+    return (
+        _normalize_assembly_level(assembly_level),
+        _normalize_refseq_category(refseq_category),
+    )
 
 
 def _write_outputs(result: dict[str, object], outdir: str | Path) -> None:
