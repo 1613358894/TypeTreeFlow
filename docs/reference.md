@@ -1535,6 +1535,13 @@ copied file with `scope=audit`,
 `strict_scientific_deliverable=false`. Reconciler package inclusion means audit
 availability, not strict scientific delivery, completion gating, manifest
 mutation, evidence-policy changes, or future package-tier policy.
+When `download_results.tsv` or `genome_registration_results.tsv` is packaged,
+package-root and reports scope manifests add audit-only rows with
+`evidence_policy=download_execution_audit` or
+`evidence_policy=genome_registration_audit`,
+`strict_scientific_deliverable=false`, and `not_for=strict deliverable gating`.
+These rows document local download command outcomes and ZIP/FASTA installation
+outcomes only; they do not confirm strict type-strain status.
 When `selection/download_plan_readiness_summary.json` exists,
 `package-results --include reports` and `--include all` copy it to
 `reports/download_plan_readiness_summary.json`. Package-root and reports scope

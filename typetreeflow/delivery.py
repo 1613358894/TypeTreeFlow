@@ -2208,6 +2208,8 @@ def _write_package_artifact_scope(
 ) -> None:
     source_rows = read_artifact_scope(paths.artifact_scope_path)
     rows = list(source_rows)
+    core_download_rows = _core_download_artifact_scope_rows(delivery_dir)
+    rows.extend(core_download_rows)
     if include_bacdive:
         rows.extend(_bacdive_artifact_scope_rows(paths))
     rows.extend(
@@ -2337,6 +2339,7 @@ def _write_package_artifact_scope(
         or strict_gating_outputs_copied
         or download_smoke_inspection_outputs_copied
         or download_readiness_outputs_copied
+        or core_download_rows
         or not paths.artifact_scope_path.exists()
     ):
         write_artifact_scope(rows, root_scope)
@@ -2364,12 +2367,66 @@ def _write_package_artifact_scope(
             or strict_gating_outputs_copied
             or download_smoke_inspection_outputs_copied
             or download_readiness_outputs_copied
+            or core_download_rows
             or not paths.artifact_scope_path.exists()
         ):
             write_artifact_scope(rows, reports_scope)
             copied.append(reports_scope)
         elif paths.artifact_scope_path.exists():
             copied.append(_copy_required(paths.artifact_scope_path, reports_scope))
+
+
+def _core_download_artifact_scope_rows(delivery_dir: Path) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    download_results = delivery_dir / "download_results.tsv"
+    if download_results.exists():
+        rows.append(
+            {
+                "artifact_path": "download_results.tsv",
+                "artifact_kind": "ncbi_download_results",
+                "scope": "audit",
+                "evidence_policy": "download_execution_audit",
+                "record_count": str(_safe_tsv_row_count(download_results)),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": "NCBI download execution results",
+                "recommended_use": "download execution review",
+                "not_for": "strict deliverable gating",
+                "source_artifact": "ncbi_download_stage",
+                "consumer_priority": "35",
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Local download command outcomes; successful rows require "
+                    "registration review before genome usability is assumed."
+                ),
+            }
+        )
+    registration_results = delivery_dir / "genome_registration_results.tsv"
+    if registration_results.exists():
+        rows.append(
+            {
+                "artifact_path": "genome_registration_results.tsv",
+                "artifact_kind": "ncbi_genome_registration_results",
+                "scope": "audit",
+                "evidence_policy": "genome_registration_audit",
+                "record_count": str(_safe_tsv_row_count(registration_results)),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": "NCBI genome registration results",
+                "recommended_use": "reference-genome installation review",
+                "not_for": "strict deliverable gating",
+                "source_artifact": "ncbi_genome_registration",
+                "consumer_priority": "34",
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Local ZIP extraction and reference-genome installation "
+                    "outcomes; rows do not confirm strict type-strain status."
+                ),
+            }
+        )
+    return rows
 
 
 def _bacdive_artifact_scope_rows(paths: OutputPaths) -> list[dict[str, str]]:

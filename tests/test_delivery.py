@@ -391,6 +391,24 @@ def test_package_results_writes_readme_and_core_tsvs(tmp_path):
     assert (result.delivery_dir / "evidence_summary.tsv").exists()
     assert (result.delivery_dir / "download_results.tsv").exists()
     assert (result.delivery_dir / "genome_registration_results.tsv").exists()
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    download_row = next(
+        row for row in scope_rows if row["artifact_path"] == "download_results.tsv"
+    )
+    assert download_row["scope"] == "audit"
+    assert download_row["evidence_policy"] == "download_execution_audit"
+    assert download_row["strict_scientific_deliverable"] == "false"
+    assert download_row["recommended_use"] == "download execution review"
+    registration_row = next(
+        row
+        for row in scope_rows
+        if row["artifact_path"] == "genome_registration_results.tsv"
+    )
+    assert registration_row["scope"] == "audit"
+    assert registration_row["evidence_policy"] == "genome_registration_audit"
+    assert registration_row["strict_scientific_deliverable"] == "false"
+    assert registration_row["recommended_use"] == "reference-genome installation review"
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
     readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
     assert "TypeTreeFlow version:" in readme
     assert "Strict type-strain confirmed: 1" in readme
