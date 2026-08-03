@@ -743,6 +743,11 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     )
     assert "download-smoke prepare" in status_payload["next_actions"][0]["message"]
     assert "--quality-tier recommended" in status_payload["next_actions"][0]["message"]
+    assert "--write --outdir" in status_payload["next_actions"][0]["message"]
+    assert (
+        "<isolated-bounded-download-smoke-dir>"
+        in status_payload["next_actions"][0]["message"]
+    )
     assert "does not download genomes" in status_payload["next_actions"][0]["message"]
     assert "completion/manual_supplement_hints.tsv" in status_payload["next_actions"][0]["message"]
 
@@ -755,6 +760,8 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert "--auto-accept-selection --enable-downloads" in next_step
     assert "download-smoke prepare" in next_step
     assert "--quality-tier recommended" in next_step
+    assert "--write --outdir" in next_step
+    assert "<isolated-bounded-download-smoke-dir>" in next_step
     assert "does not download genomes" in next_step
     assert "Secondary/optional handoff:" in next_step
     assert "completion/manual_supplement_hints.tsv" in next_step

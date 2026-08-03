@@ -72,8 +72,9 @@ Primary commands write compact JSON to stdout by default. This does not require
   present and no higher-priority manual handoff applies, `next-step` points at
   the same TSV before recommending downstream genome-dependent stages.
   When planned NCBI rows are ready, plan-only `status` and `next-step`
-  guidance can include `download-smoke prepare --quality-tier recommended` as
-  an isolated smoke-input handoff; this remains planning-only and does not
+  guidance can include an isolated smoke-input handoff using
+  `download-smoke prepare` with `--quality-tier recommended`, `--write`, and
+  an operator-chosen `--outdir`; this remains planning-only and does not
   download genomes.
 - `selection-review strategy`: compact JSON strategy for the default
   `selection_review_required` checkpoint. It reads an existing `verify-genus`
