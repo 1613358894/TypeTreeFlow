@@ -4832,6 +4832,8 @@ def _download_smoke_inspection_quality_gate_lines(
     blocker_counts = audit.counts.get("fasta_quality_gate_blocker_counts")
     recommendation = audit.counts.get("quality_gate_recommendation")
     reasons = audit.counts.get("quality_gate_recommendation_reasons")
+    next_action = audit.counts.get("bounded_smoke_next_action")
+    next_action_reasons = audit.counts.get("bounded_smoke_next_action_reasons")
     if not (
         _is_non_bool_int(passed)
         or _is_non_bool_int(blocked)
@@ -4850,6 +4852,8 @@ def _download_smoke_inspection_quality_gate_lines(
         or isinstance(blocker_counts, dict)
         or isinstance(recommendation, str)
         or isinstance(reasons, list)
+        or isinstance(next_action, str)
+        or isinstance(next_action_reasons, list)
     ):
         return []
     lines: list[str] = []
@@ -4936,6 +4940,17 @@ def _download_smoke_inspection_quality_gate_lines(
             lines.append(
                 "- FASTA quality gate recommendation reasons: "
                 + formatted_reasons
+            )
+    if isinstance(next_action, str) and next_action.strip():
+        lines.append("- Bounded smoke next action: " + next_action.strip())
+    if isinstance(next_action_reasons, list):
+        formatted_next_action_reasons = _format_download_smoke_string_list(
+            next_action_reasons
+        )
+        if formatted_next_action_reasons != "none":
+            lines.append(
+                "- Bounded smoke next action reasons: "
+                + formatted_next_action_reasons
             )
     return lines
 

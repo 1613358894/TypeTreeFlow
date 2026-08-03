@@ -711,6 +711,18 @@ def inspect_bounded_download_smoke_outputs(
         )
 
     ready = not blockers
+    next_action, next_action_reasons = _bounded_smoke_next_action(
+        ready=ready,
+        blockers=blockers,
+        status_counts=status_counts,
+        recommendation_reasons=recommendation_reasons,
+        metadata_high_quality_fasta_quality_blocked_count=len(
+            metadata_high_quality_fasta_quality_blocked_rows
+        ),
+        metadata_high_quality_fasta_quality_blocker_counts=(
+            metadata_high_quality_fasta_quality_blocker_counts
+        ),
+    )
     summary = {
         "schema_version": INSPECTION_SCHEMA_VERSION,
         "command": INSPECT_COMMAND,
@@ -821,6 +833,8 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "quality_gate_recommendation_reasons": recommendation_reasons,
         "recommended_quality_gate_command": recommended_quality_gate_command,
+        "bounded_smoke_next_action": next_action,
+        "bounded_smoke_next_action_reasons": next_action_reasons,
         "status_counts": dict(sorted(status_counts.items())),
         "ready": ready,
         "blockers": blockers,
@@ -841,6 +855,48 @@ def inspect_bounded_download_smoke_outputs(
         ),
     }
     return {"rows": inspections, "summary": summary}
+
+
+def _bounded_smoke_next_action(
+    *,
+    ready: bool,
+    blockers: Sequence[str],
+    status_counts: dict[str, int],
+    recommendation_reasons: Sequence[str],
+    metadata_high_quality_fasta_quality_blocked_count: int,
+    metadata_high_quality_fasta_quality_blocker_counts: dict[str, int],
+) -> tuple[str, list[str]]:
+    if recommendation_reasons:
+        return (
+            "rerun_with_fragmentation_quality_gates",
+            list(recommendation_reasons),
+        )
+    if ready:
+        return ("review_bounded_smoke_outputs", [])
+    if "no_bounded_download_smoke_rows" in blockers:
+        return ("prepare_bounded_download_smoke_plan", ["no_bounded_download_smoke_rows"])
+    if metadata_high_quality_fasta_quality_blocked_count > 0:
+        return (
+            "review_high_quality_metadata_fasta_quality_blockers",
+            [
+                "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+                *metadata_high_quality_fasta_quality_blocker_counts.keys(),
+            ],
+        )
+    output_statuses = {
+        "zip_missing",
+        "zip_invalid",
+        "zip_unsafe_members",
+        "genome_fasta_missing",
+        "genome_fasta_empty",
+        "genome_fasta_multiple_members",
+    }
+    if any(status_counts.get(status, 0) for status in output_statuses):
+        return (
+            "review_or_rerun_bounded_download_outputs",
+            list(blockers),
+        )
+    return ("review_bounded_smoke_blockers", list(blockers))
 
 
 def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:

@@ -2038,7 +2038,12 @@ def test_commands_render_emits_download_smoke_quality_gate_argv(capsys):
     assert _output_contract_names(payload) == {
         "bounded_download_smoke_inspection_packet"
     }
-    assert payload["output_contracts"][0]["summary_fields"]
+    summary_fields = payload["output_contracts"][0]["summary_fields"]
+    assert "assembly_metadata_high_quality_fasta_quality_blocked_count" in (
+        summary_fields
+    )
+    assert "bounded_smoke_next_action" in summary_fields
+    assert "bounded_smoke_next_action_reasons" in summary_fields
 
 
 def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys):

@@ -358,9 +358,11 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_FIELDS = (
     "quality_gate_recommendation",
+    "bounded_smoke_next_action",
 )
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_LIST_FIELDS = (
     "quality_gate_recommendation_reasons",
+    "bounded_smoke_next_action_reasons",
 )
 DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES = 5 * 1024 * 1024
 DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS = (
@@ -5203,6 +5205,18 @@ def build_run_summary_markdown(
                         + _format_string_list(
                             download_smoke_inspection_audit.counts.get(
                                 "quality_gate_recommendation_reasons"
+                            )
+                        )
+                    ),
+                    (
+                        "- Bounded smoke next action: "
+                        f"{download_smoke_inspection_audit.counts.get('bounded_smoke_next_action', 'review_bounded_smoke_outputs')}"
+                    ),
+                    (
+                        "- Bounded smoke next action reasons: "
+                        + _format_string_list(
+                            download_smoke_inspection_audit.counts.get(
+                                "bounded_smoke_next_action_reasons"
                             )
                         )
                     ),
