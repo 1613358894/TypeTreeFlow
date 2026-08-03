@@ -177,11 +177,54 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
             delimiter="\t",
         )
     )
+    command_rows = list(
+        csv.DictReader(
+            (outdir / "bounded_download_smoke_commands.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
     summary = json.loads(
         (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
     )
     assert payload["writes_outputs"] is True
     assert rows == [_bounded_row("rec-1")]
+    assert command_rows == [
+        {
+            "record_id": "rec-1",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "unknown",
+            "refseq_category": "unknown",
+            "quality_tier": "unknown",
+            "datasets_zip_path": "cache/ncbi/rec-1.zip",
+            "command_json": json.dumps(
+                [
+                    "datasets",
+                    "download",
+                    "genome",
+                    "accession",
+                    "GCF_000001.1",
+                    "--include",
+                    "genome",
+                    "--filename",
+                    "cache/ncbi/rec-1.zip",
+                ],
+                separators=(",", ":"),
+            ),
+        }
+    ]
+    assert json.loads(command_rows[0]["command_json"]) == [
+        "datasets",
+        "download",
+        "genome",
+        "accession",
+        "GCF_000001.1",
+        "--include",
+        "genome",
+        "--filename",
+        "cache/ncbi/rec-1.zip",
+    ]
     assert summary["selected_row_count"] == 1
     assert summary["downloads_triggered"] == 0
     assert summary["inspection_quality_profile"] == "fragmentation"
@@ -428,6 +471,14 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
             delimiter="\t",
         )
     )
+    command_rows = list(
+        csv.DictReader(
+            (outdir / "bounded_download_smoke_commands.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
     assert summary["quality_tier"] == "high"
     assert summary["requested_quality_tier"] == "high"
     assert summary["resolved_quality_tier"] == "high"
@@ -481,6 +532,30 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
             refseq_category="reference genome",
             quality_tier="high",
         )
+    ]
+    assert command_rows == [
+        {
+            "record_id": "complete",
+            "assembly_accession": "GCF_000002.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "datasets_zip_path": "cache/ncbi/complete.zip",
+            "command_json": json.dumps(
+                [
+                    "datasets",
+                    "download",
+                    "genome",
+                    "accession",
+                    "GCF_000002.1",
+                    "--include",
+                    "genome",
+                    "--filename",
+                    "cache/ncbi/complete.zip",
+                ],
+                separators=(",", ":"),
+            ),
+        }
     ]
 
 

@@ -31,6 +31,7 @@ INSPECT_COMMAND = "download-smoke inspect"
 SUMMARY_SCHEMA_VERSION = "bounded_download_smoke_input_summary.v1"
 INSPECTION_SCHEMA_VERSION = "bounded_download_smoke_inspection_summary.v1"
 OUTPUT_PLAN_NAME = "bounded_download_smoke_plan.tsv"
+OUTPUT_COMMANDS_NAME = "bounded_download_smoke_commands.tsv"
 OUTPUT_SUMMARY_NAME = "bounded_download_smoke_summary.json"
 OUTPUT_INSPECTION_NAME = "bounded_download_smoke_inspection.tsv"
 OUTPUT_INSPECTION_SUMMARY_NAME = "bounded_download_smoke_inspection_summary.json"
@@ -43,6 +44,15 @@ BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS = [
     "assembly_level",
     "refseq_category",
     "quality_tier",
+]
+BOUNDED_DOWNLOAD_SMOKE_COMMAND_FIELDS = [
+    "record_id",
+    "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+    "datasets_zip_path",
+    "command_json",
 ]
 INSPECTION_FIELDS = [
     "record_id",
@@ -1435,6 +1445,30 @@ def _selected_datasets_command_preview(
     }
 
 
+def _selected_datasets_command_rows(
+    rows: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    command_rows: list[dict[str, str]] = []
+    for row in rows:
+        accession = row.get("assembly_accession", "").strip()
+        zip_path = row.get("datasets_zip_path", "").strip()
+        command_rows.append(
+            {
+                "record_id": row.get("record_id", "").strip(),
+                "assembly_accession": accession,
+                "assembly_level": row.get("assembly_level", "").strip(),
+                "refseq_category": row.get("refseq_category", "").strip(),
+                "quality_tier": row.get("quality_tier", "").strip(),
+                "datasets_zip_path": zip_path,
+                "command_json": json.dumps(
+                    build_datasets_download_command([accession], zip_path),
+                    separators=(",", ":"),
+                ),
+            }
+        )
+    return command_rows
+
+
 def _quality_tier_for_assembly_level(level: str) -> str:
     normalized = _normalize_assembly_level(level)
     if normalized in {"Complete Genome", "Chromosome"}:
@@ -1477,6 +1511,16 @@ def _write_outputs(result: dict[str, object], outdir: str | Path) -> None:
         )
         writer.writeheader()
         writer.writerows(rows)  # type: ignore[arg-type]
+    with (target / OUTPUT_COMMANDS_NAME).open(
+        "w", newline="", encoding="utf-8"
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=BOUNDED_DOWNLOAD_SMOKE_COMMAND_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerows(_selected_datasets_command_rows(rows))  # type: ignore[arg-type]
     (target / OUTPUT_SUMMARY_NAME).write_text(
         json.dumps(result["summary"], sort_keys=True, indent=2) + "\n",
         encoding="utf-8",
