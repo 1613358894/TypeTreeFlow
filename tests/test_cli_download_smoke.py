@@ -1009,6 +1009,28 @@ def test_download_smoke_inspect_default_quality_profile_blocks_fragmentation(
         "fasta_header_fragment_keywords": 1,
         "fragmented_fasta_signal": 1,
     }
+    assert summary[
+        "assembly_metadata_high_quality_fasta_quality_blocked_preview"
+    ] == [
+        {
+            "record_id": "rec-1",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+        }
+    ]
+    assert (
+        summary[
+            "assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+        ]
+        is False
+    )
     assert summary["installable_genome_fasta_fragmentation_signal_counts"] == {}
     assert summary["installable_genome_fasta_header_fragment_keyword_row_count"] == 0
     assert summary["fasta_quality_gate_passed_row_count"] == 0
