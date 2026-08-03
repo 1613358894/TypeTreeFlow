@@ -1387,6 +1387,16 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     commands = {
         command["id"]: command for command in checkpoint["recommended_commands"]
     }
+    assert checkpoint["recommended_commands"][0]["id"] == "selection_review_strategy"
+    strategy = commands["selection_review_strategy"]
+    assert strategy["argv"] == [
+        "typetreeflow",
+        "selection-review",
+        "strategy",
+        "--outdir",
+        str(outdir),
+    ]
+    assert "does not write files or run datasets" in strategy["purpose"]
     assert commands["status"]["argv"] == [
         "typetreeflow",
         "status",
