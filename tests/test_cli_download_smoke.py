@@ -247,6 +247,7 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     summary = json.loads(
         (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
     )
+    inspection_outdir = outdir / "inspection"
     assert payload["writes_outputs"] is True
     assert payload["output_files"] == {
         "bounded_download_smoke_plan": str(
@@ -309,13 +310,13 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
         "download_plan": str(outdir / "bounded_download_smoke_plan.tsv"),
         "quality_profile": "fragmentation",
         "write": True,
-        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+        "outdir": str(inspection_outdir),
     }
     assert summary["recommended_inspection_next_command"] == (
         "typetreeflow download-smoke inspect --download-plan "
         f"{outdir / 'bounded_download_smoke_plan.tsv'} "
         "--quality-profile fragmentation --write --outdir "
-        "<isolated-bounded-download-smoke-inspection-dir>"
+        f"{inspection_outdir}"
     )
     assert summary["recommended_inspection_command"] == [
         "typetreeflow",
@@ -327,8 +328,9 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
         "fragmentation",
         "--write",
         "--outdir",
-        "<isolated-bounded-download-smoke-inspection-dir>",
+        str(inspection_outdir),
     ]
+    assert not inspection_outdir.exists()
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"
     ] == summary["recommended_inspection_command"]
@@ -422,13 +424,14 @@ def test_download_smoke_execute_dry_run_validates_command_manifest(
     assert summary["executed_command_count"] == 0
     assert summary["status_counts"] == {"execution_planned": 1}
     assert summary["ready"] is True
+    inspection_outdir = commands.parent / "inspection"
     assert summary["recommended_inspection_request_target"] == "download-smoke inspect"
     assert summary["recommended_inspection_request"] == {
         "command": "download-smoke",
         "subcommand": "inspect",
         "download_plan": str(commands.parent / "bounded_download_smoke_plan.tsv"),
         "write": True,
-        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+        "outdir": str(inspection_outdir),
         "quality_profile": "fragmentation",
     }
     assert summary["recommended_inspection_request_blockers"] == []
@@ -436,7 +439,7 @@ def test_download_smoke_execute_dry_run_validates_command_manifest(
         "typetreeflow download-smoke inspect --download-plan "
         f"{commands.parent / 'bounded_download_smoke_plan.tsv'} "
         "--quality-profile fragmentation --write --outdir "
-        "<isolated-bounded-download-smoke-inspection-dir>"
+        f"{inspection_outdir}"
     )
     assert summary["recommended_inspection_command"] == [
         "typetreeflow",
@@ -448,7 +451,7 @@ def test_download_smoke_execute_dry_run_validates_command_manifest(
         "fragmentation",
         "--write",
         "--outdir",
-        "<isolated-bounded-download-smoke-inspection-dir>",
+        str(inspection_outdir),
     ]
     assert (
         main(
@@ -705,6 +708,7 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
     summary = json.loads(
         (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
     )
+    inspection_outdir = outdir / "inspection"
     assert summary["inspection_min_fasta_n50_bases"] == 50000
     assert summary["inspection_max_fasta_record_count"] == 10
     assert summary["inspection_max_fasta_ambiguous_bases"] == 100
@@ -735,7 +739,7 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
         "--block-fasta-header-keywords",
         "--write",
         "--outdir",
-        "<isolated-bounded-download-smoke-inspection-dir>",
+        str(inspection_outdir),
     ]
     assert summary["recommended_inspection_request"] == {
         "command": "download-smoke",
@@ -750,7 +754,7 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
         "block_fragmented_fasta": True,
         "block_fasta_header_keywords": True,
         "write": True,
-        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+        "outdir": str(inspection_outdir),
     }
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"
@@ -786,6 +790,7 @@ def test_download_smoke_prepare_write_can_disable_inspection_quality_profile(
     summary = json.loads(
         (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
     )
+    inspection_outdir = outdir / "inspection"
     assert summary["inspection_quality_profile"] == "none"
     assert summary["inspection_block_fragmented_fasta"] is False
     assert summary["inspection_block_fasta_header_keywords"] is False
@@ -794,7 +799,7 @@ def test_download_smoke_prepare_write_can_disable_inspection_quality_profile(
         "subcommand": "inspect",
         "download_plan": str(outdir / "bounded_download_smoke_plan.tsv"),
         "write": True,
-        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+        "outdir": str(inspection_outdir),
     }
     assert "--quality-profile" not in summary["recommended_inspection_command"]
     assert payload["bounded_download_smoke_summary"][
@@ -1405,18 +1410,19 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["recommended_quality_gate_request_target"] == (
         "download-smoke inspect"
     )
+    inspection_outdir = plan.parent / "inspection"
     assert summary["recommended_quality_gate_request"] == {
         "command": "download-smoke",
         "subcommand": "inspect",
         "download_plan": str(plan),
         "quality_profile": "fragmentation",
         "write": True,
-        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+        "outdir": str(inspection_outdir),
     }
     assert summary["recommended_quality_gate_next_command"] == (
         "typetreeflow download-smoke inspect --download-plan "
         f"{plan} --quality-profile fragmentation --write --outdir "
-        "<isolated-bounded-download-smoke-inspection-dir>"
+        f"{inspection_outdir}"
     )
     assert summary["recommended_quality_gate_command"] == [
         "typetreeflow",
@@ -1428,7 +1434,7 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
         "fragmentation",
         "--write",
         "--outdir",
-        "<isolated-bounded-download-smoke-inspection-dir>",
+        str(inspection_outdir),
     ]
     assert (
         main(

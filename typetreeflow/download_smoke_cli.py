@@ -606,12 +606,13 @@ def _recommended_inspection_request(
     block_fragmented_fasta: bool = False,
     block_fasta_header_keywords: bool = False,
 ) -> dict[str, object]:
+    inspection_outdir = Path(bounded_plan_path).parent / "inspection"
     request: dict[str, object] = {
         "command": "download-smoke",
         "subcommand": "inspect",
         "download_plan": str(bounded_plan_path),
         "write": True,
-        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+        "outdir": str(inspection_outdir),
     }
     if min_fasta_n50_bases > 0:
         request["min_fasta_n50_bases"] = min_fasta_n50_bases
@@ -721,7 +722,7 @@ def _recommended_inspection_command(
         [
             "--write",
             "--outdir",
-            "<isolated-bounded-download-smoke-inspection-dir>",
+            str(Path(bounded_plan_path).parent / "inspection"),
         ]
     )
     return command
@@ -1260,6 +1261,8 @@ def execute_bounded_download_smoke_commands(
     succeeded_count = sum(
         1 for row in results if row["status"] == "datasets_zip_ready_for_inspection"
     )
+    bounded_plan_path = manifest_path.parent / OUTPUT_PLAN_NAME
+    inspection_outdir = manifest_path.parent / "inspection"
     summary = {
         "schema_version": EXECUTION_SCHEMA_VERSION,
         "command": EXECUTE_COMMAND,
@@ -1291,12 +1294,12 @@ def execute_bounded_download_smoke_commands(
             "download-smoke",
             "inspect",
             "--download-plan",
-            "<bounded_download_smoke_plan.tsv>",
+            str(bounded_plan_path),
             "--quality-profile",
             "fragmentation",
             "--write",
             "--outdir",
-            "<isolated-bounded-download-smoke-inspection-dir>",
+            str(inspection_outdir),
         ],
         "summary": (
             "Bounded datasets command manifest is valid."
