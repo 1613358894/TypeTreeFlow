@@ -46,6 +46,9 @@ BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS = [
 INSPECTION_FIELDS = [
     "record_id",
     "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
     "zip_path",
     "zip_exists",
     "zip_valid",
@@ -849,6 +852,10 @@ def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
     return {
         "record_id": row.get("record_id", "").strip(),
         "assembly_accession": row.get("assembly_accession", "").strip(),
+        "assembly_level": row.get("assembly_level", "").strip() or "unknown",
+        "refseq_category": row.get("refseq_category", "").strip() or "unknown",
+        "quality_tier": row.get("quality_tier", "").strip()
+        or _quality_tier_for_assembly_level(row.get("assembly_level", "")),
         "zip_path": str(zip_path),
         "zip_exists": zip_exists,
         "zip_valid": zip_valid,
@@ -1178,10 +1185,30 @@ def _read_download_plan_rows(path: Path) -> list[dict[str, str]]:
             BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS,
         ):
             raise ValueError("download plan schema does not match")
-        return [
-            {field: str(row.get(field, "")) for field in DOWNLOAD_PLAN_FIELDS}
-            for row in reader
-        ]
+        rows: list[dict[str, str]] = []
+        for row in reader:
+            normalized = {
+                field: str(row.get(field, "")) for field in DOWNLOAD_PLAN_FIELDS
+            }
+            if reader.fieldnames == BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS:
+                assembly_level = (
+                    _normalize_assembly_level(str(row.get("assembly_level", "")))
+                    or "unknown"
+                )
+                refseq_category = (
+                    _normalize_refseq_category(str(row.get("refseq_category", "")))
+                    or "unknown"
+                )
+                normalized.update(
+                    {
+                        "assembly_level": assembly_level,
+                        "refseq_category": refseq_category,
+                        "quality_tier": str(row.get("quality_tier", "")).strip()
+                        or _quality_tier_for_assembly_level(assembly_level),
+                    }
+                )
+            rows.append(normalized)
+        return rows
 
 
 def _planned_quality_counts(
@@ -1348,6 +1375,9 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
                 {
                     "record_id": row["record_id"],
                     "assembly_accession": row["assembly_accession"],
+                    "assembly_level": row["assembly_level"],
+                    "refseq_category": row["refseq_category"],
+                    "quality_tier": row["quality_tier"],
                     "zip_path": row["zip_path"],
                     "zip_exists": str(bool(row["zip_exists"])).lower(),
                     "zip_valid": str(bool(row["zip_valid"])).lower(),
