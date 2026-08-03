@@ -2811,6 +2811,8 @@ external-registration realization fields, optional bounded download-smoke
 inspection observation fields, and no-execution boundary flags. The optional
 download-smoke fields use the `download_smoke_inspection_` prefix and can carry
 the explicit server-side inspection summary SHA-256, realized/ready booleans,
+the active inspection `quality_profile`, whether fragmented-FASTA and
+FASTA-header keyword blockers were enabled,
 selected row and ZIP/FASTA presence counts, and the bounded FASTA quality-gate
 hit counts for N50, record count, total bases, longest record, fragmentation
 signals, FASTA header keyword rows, and installable genome FASTA ready/not-ready
@@ -2830,7 +2832,8 @@ the result path, SHA-256, schema/status, checked-surface count, boundary count,
 optional source commit, TypeTreeFlow version, runtime Python, evidence run
 path, check count, failed count, optional observed external-registration
 realization fields, optional bounded download-smoke inspection observation
-fields, and validation diagnostics. Invalid explicit results make status fail
+fields including the active inspection quality profile and quality-gate blocker
+switches, and validation diagnostics. Invalid explicit results make status fail
 closed; omitting the option leaves the packet at `status=no_action`.
 This is still a local result-shape/status read and does not execute the target
 command, contact providers, download genomes, mutate manifests, or register

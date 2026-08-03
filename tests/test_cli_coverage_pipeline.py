@@ -2531,6 +2531,9 @@ def _valid_server_validation_result():
         "download_smoke_inspection_realized": True,
         "download_smoke_inspection_ready": False,
         "download_smoke_inspection_summary_sha256": "a" * 64,
+        "download_smoke_inspection_quality_profile": "fragmentation",
+        "download_smoke_inspection_block_fragmented_fasta": True,
+        "download_smoke_inspection_block_fasta_header_keywords": True,
         "download_smoke_inspection_selected_row_count": 2,
         "download_smoke_inspection_zip_exists_count": 2,
         "download_smoke_inspection_zip_valid_count": 1,
@@ -2602,8 +2605,11 @@ def _valid_server_validation_result():
 def _expected_download_smoke_inspection_result_defaults():
     return {
         "download_smoke_inspection_summary_sha256": "",
+        "download_smoke_inspection_quality_profile": "",
         "download_smoke_inspection_realized": False,
         "download_smoke_inspection_ready": False,
+        "download_smoke_inspection_block_fragmented_fasta": False,
+        "download_smoke_inspection_block_fasta_header_keywords": False,
         "download_smoke_inspection_selected_row_count": 0,
         "download_smoke_inspection_zip_exists_count": 0,
         "download_smoke_inspection_zip_valid_count": 0,
@@ -2688,6 +2694,9 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["download_smoke_inspection_realized"] is True
     assert payload["download_smoke_inspection_ready"] is False
     assert payload["download_smoke_inspection_summary_sha256"] == "a" * 64
+    assert payload["download_smoke_inspection_quality_profile"] == "fragmentation"
+    assert payload["download_smoke_inspection_block_fragmented_fasta"] is True
+    assert payload["download_smoke_inspection_block_fasta_header_keywords"] is True
     assert payload["download_smoke_inspection_selected_row_count"] == 2
     assert payload["download_smoke_inspection_zip_valid_count"] == 1
     assert payload["download_smoke_inspection_genome_fasta_present_count"] == 1
@@ -2825,6 +2834,9 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     result["download_smoke_inspection_realized"] = "true"
     result["download_smoke_inspection_ready"] = 1
     result["download_smoke_inspection_summary_sha256"] = ["not", "a", "string"]
+    result["download_smoke_inspection_quality_profile"] = ["fragmentation"]
+    result["download_smoke_inspection_block_fragmented_fasta"] = 1
+    result["download_smoke_inspection_block_fasta_header_keywords"] = "true"
     result["download_smoke_inspection_selected_row_count"] = "2"
     result["download_smoke_inspection_empty_genome_fasta_count"] = -1
     result["download_smoke_inspection_multiple_genome_fasta_members_count"] = -1
@@ -2860,6 +2872,8 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["status"] == "blocked"
     assert payload["invalid_field_ids"] == [
         "check_count",
+        "download_smoke_inspection_block_fasta_header_keywords",
+        "download_smoke_inspection_block_fragmented_fasta",
         "download_smoke_inspection_empty_genome_fasta_count",
         "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count",
         "download_smoke_inspection_fasta_n50_below_minimum_count",
@@ -2868,6 +2882,7 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
         "download_smoke_inspection_multiple_genome_fasta_members_count",
         "download_smoke_inspection_quality_gate_recommendation",
         "download_smoke_inspection_quality_gate_recommendation_reasons",
+        "download_smoke_inspection_quality_profile",
         "download_smoke_inspection_ready",
         "download_smoke_inspection_realized",
         "download_smoke_inspection_selected_row_count",
@@ -2891,6 +2906,9 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["download_smoke_inspection_realized"] is False
     assert payload["download_smoke_inspection_ready"] is False
     assert payload["download_smoke_inspection_summary_sha256"] == ""
+    assert payload["download_smoke_inspection_quality_profile"] == ""
+    assert payload["download_smoke_inspection_block_fragmented_fasta"] is False
+    assert payload["download_smoke_inspection_block_fasta_header_keywords"] is False
     assert payload["download_smoke_inspection_selected_row_count"] == 0
     assert payload["download_smoke_inspection_empty_genome_fasta_count"] == 0
     assert payload["download_smoke_inspection_multiple_genome_fasta_members_count"] == 0
@@ -6082,6 +6100,9 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     result_template["download_smoke_inspection_realized"] = True
     result_template["download_smoke_inspection_ready"] = False
     result_template["download_smoke_inspection_summary_sha256"] = "b" * 64
+    result_template["download_smoke_inspection_quality_profile"] = "fragmentation"
+    result_template["download_smoke_inspection_block_fragmented_fasta"] = True
+    result_template["download_smoke_inspection_block_fasta_header_keywords"] = True
     result_template["download_smoke_inspection_selected_row_count"] = 2
     result_template["download_smoke_inspection_zip_valid_count"] = 1
     result_template["download_smoke_inspection_genome_fasta_present_count"] = 1
@@ -6193,6 +6214,18 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_artifact["download_smoke_inspection_realized"] is True
     assert result_artifact["download_smoke_inspection_ready"] is False
     assert result_artifact["download_smoke_inspection_summary_sha256"] == "b" * 64
+    assert result_artifact["download_smoke_inspection_quality_profile"] == (
+        "fragmentation"
+    )
+    assert (
+        result_artifact["download_smoke_inspection_block_fragmented_fasta"] is True
+    )
+    assert (
+        result_artifact[
+            "download_smoke_inspection_block_fasta_header_keywords"
+        ]
+        is True
+    )
     assert result_artifact["download_smoke_inspection_selected_row_count"] == 2
     assert result_artifact["download_smoke_inspection_zip_valid_count"] == 1
     assert result_artifact["download_smoke_inspection_genome_fasta_present_count"] == 1
@@ -6311,6 +6344,24 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
             "handoff_server_validation_download_smoke_inspection_ready"
         ]
         is False
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_quality_profile"
+        ]
+        == "fragmentation"
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_block_fragmented_fasta"
+        ]
+        is True
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_block_fasta_header_keywords"
+        ]
+        is True
     )
     assert (
         result_status_parent[
