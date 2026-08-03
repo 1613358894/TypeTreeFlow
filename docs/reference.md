@@ -2183,6 +2183,7 @@ typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconcil
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--manual-review-import-dir <dir>] [--strict-gating-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--server-validation-result <coverage_handoff_server_validation_result.json>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--queue-operator-route <operator_route>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
 typetreeflow coverage-pipeline server-validation-result validate --input <coverage_handoff_server_validation_result.json> [--json]
 typetreeflow coverage-pipeline server-validation-result review-queue --input <coverage_handoff_server_validation_result.json> [--json] [--write --out <download_smoke_review_queue.tsv> [--force]]
+typetreeflow coverage-pipeline server-validation-result triage-queue --input <download_smoke_review_queue.tsv> [--json] [--write --out <download_smoke_review_queue_triage.tsv> [--force]]
 ```
 
 `coverage-pipeline preview`, `build`, and `status` read only explicitly named
@@ -2857,6 +2858,23 @@ failures, and only allows `--force` to replace an existing TSV whose header
 matches this schema. It remains a local handoff export and does not inspect ZIP
 files, execute downloads, contact providers, mutate workflow outputs, install
 genomes, or change strict scientific status.
+`coverage-pipeline server-validation-result triage-queue --input <tsv>` is the
+matching offline adapter for the exported review queue TSV. By default it emits
+compact JSON and writes nothing. With `--write --out <tsv>`, it writes a single
+explicit TSV using the review queue fields plus `triage_status`,
+`triage_reason`, `recommended_next_step`, and `strict_upgrade_applied`. Valid
+empty queues write a header-only file. Every generated row uses
+`triage_status=local_fasta_quality_review_required`; `triage_reason` echoes the
+controlled blocker codes, and `recommended_next_step` is a controlled
+AI/operator routing hint such as `review_fragmentation_signal`,
+`review_fasta_header_fragment_keywords`, or
+`review_fragmentation_and_header_keywords`. The command returns exit `2`
+without writing for invalid queue TSV input, returns exit `1` for output-path
+or write failures, and only allows `--force` to replace an existing TSV whose
+header matches this schema. It remains local triage visibility only: it does
+not inspect ZIP files, read FASTA payloads, execute downloads, contact
+providers, mutate workflow outputs, install genomes, accept genomes for final
+use, or change strict scientific status.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.

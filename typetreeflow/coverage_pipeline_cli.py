@@ -101,6 +101,9 @@ COMMAND_SERVER_VALIDATION_RESULT_VALIDATE = (
 COMMAND_SERVER_VALIDATION_RESULT_REVIEW_QUEUE = (
     "coverage-pipeline server-validation-result review-queue"
 )
+COMMAND_SERVER_VALIDATION_RESULT_TRIAGE_QUEUE = (
+    "coverage-pipeline server-validation-result triage-queue"
+)
 STATUS_SCHEMA_VERSION = "coverage_pipeline_status.v1"
 SERVER_VALIDATION_RESULT_SCHEMA_VERSION = "coverage_handoff_server_validation_result.v1"
 SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION = (
@@ -108,6 +111,9 @@ SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION = (
 )
 SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SCHEMA_VERSION = (
     "coverage_handoff_server_validation_result_review_queue.v1"
+)
+SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SCHEMA_VERSION = (
+    "download_smoke_review_queue_triage.v1"
 )
 QUEUE_PREVIEW_DEFAULT_LIMIT = 3
 QUEUE_PREVIEW_MAX_LIMIT = 10
@@ -233,6 +239,16 @@ _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS = (
     "status",
     "fasta_quality_gate_blockers",
     "recommended_action",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS = (
+    *_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS,
+    "triage_status",
+    "triage_reason",
+    "recommended_next_step",
+    "strict_upgrade_applied",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_STATUS = (
+    "local_fasta_quality_review_required"
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -389,6 +405,8 @@ def run_coverage_pipeline_command(
         return _run_server_validation_result_validate(args, output)
     if args.action == "server-validation-result-review-queue":
         return _run_server_validation_result_review_queue(args, output)
+    if args.action == "server-validation-result-triage-queue":
+        return _run_server_validation_result_triage_queue(args, output)
     if args.action == "status":
         return _run_status(args, output, queue_preview_limit=queue_preview_limit)
     outdir = Path(args.outdir) if getattr(args, "outdir", None) else None
@@ -766,6 +784,21 @@ def _build_parser() -> argparse.ArgumentParser:
     result_review_queue.add_argument("--json", action="store_true")
     result_review_queue.set_defaults(
         action="server-validation-result-review-queue",
+        queue_preview_limit=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
+        outdir=None,
+        validate_provider_request=False,
+        provider_request_validation_base_dir=None,
+        curated_provider_request_tsv=None,
+        external_genomes_install_target_outdir=None,
+    )
+    result_triage_queue = result_actions.add_parser("triage-queue", add_help=False)
+    result_triage_queue.add_argument("--input", required=True)
+    result_triage_queue.add_argument("--write", action="store_true")
+    result_triage_queue.add_argument("--out")
+    result_triage_queue.add_argument("--force", action="store_true")
+    result_triage_queue.add_argument("--json", action="store_true")
+    result_triage_queue.set_defaults(
+        action="server-validation-result-triage-queue",
         queue_preview_limit=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
         outdir=None,
         validate_provider_request=False,
@@ -2065,6 +2098,103 @@ def _run_server_validation_result_review_queue(
     return 0
 
 
+def _run_server_validation_result_triage_queue(
+    args: argparse.Namespace, output: TextIO
+) -> int:
+    input_path = Path(args.input)
+    output_path = Path(args.out) if args.out is not None else None
+    if (
+        (args.write and output_path is None)
+        or (output_path is not None and not args.write)
+        or (args.force and not args.write)
+    ):
+        _emit(
+            _server_validation_result_triage_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                triage_rows=[],
+                status="blocked",
+                diagnostic_code="invalid_command_usage",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 2
+
+    try:
+        queue_rows = _read_download_smoke_review_queue_tsv(input_path)
+        triage_rows = _download_smoke_review_queue_triage_rows(queue_rows)
+    except ValueError:
+        _emit(
+            _server_validation_result_triage_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                triage_rows=[],
+                status="blocked",
+                diagnostic_code="review_queue_input_invalid",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 2
+    except Exception:
+        _emit(
+            _server_validation_result_triage_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                triage_rows=[],
+                status="failed",
+                diagnostic_code="internal_error",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 1
+
+    output_written = False
+    try:
+        if args.write:
+            assert output_path is not None
+            _write_download_smoke_review_queue_triage_tsv(
+                output_path,
+                triage_rows,
+                input_path=input_path,
+                force=args.force,
+            )
+            output_written = True
+    except Exception:
+        _emit(
+            _server_validation_result_triage_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                triage_rows=triage_rows,
+                status="failed",
+                diagnostic_code="triage_queue_output_write_failed",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 1
+
+    _emit(
+        _server_validation_result_triage_queue_payload(
+            input_path=input_path,
+            output_path=output_path,
+            triage_rows=triage_rows,
+            status="pass",
+            diagnostic_code=None,
+            output_written=output_written,
+            dry_run=not args.write,
+        ),
+        output,
+    )
+    return 0
+
+
 def _validate_server_validation_result(
     result: Mapping[str, object],
     diagnostics: list[dict[str, object]],
@@ -2736,6 +2866,167 @@ def _write_download_smoke_review_queue_tsv(
             temp_path.unlink()
 
 
+def _read_download_smoke_review_queue_tsv(path: Path) -> list[dict[str, object]]:
+    if not path.is_file() or path.is_symlink():
+        raise ValueError("review queue input is not a regular file")
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if reader.fieldnames != list(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS
+        ):
+            raise ValueError("review queue schema does not match")
+        rows: list[dict[str, object]] = []
+        for raw_row in reader:
+            if raw_row is None:
+                continue
+            if None in raw_row:
+                raise ValueError("review queue row has extra fields")
+            row = {
+                field: _format_tsv_value(raw_row.get(field, "")).strip()
+                for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS
+            }
+            blockers = [
+                blocker.strip()
+                for blocker in row["fasta_quality_gate_blockers"].split(";")
+                if blocker.strip()
+            ]
+            if (
+                not row["record_id"]
+                or not row["assembly_accession"]
+                or not blockers
+                or row["recommended_action"]
+                != _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_ACTION
+            ):
+                raise ValueError("review queue row is invalid")
+            row["fasta_quality_gate_blockers"] = blockers
+            rows.append(row)
+    return rows
+
+
+def _download_smoke_review_queue_triage_rows(
+    queue_rows: Sequence[Mapping[str, object]],
+) -> list[dict[str, object]]:
+    return [
+        {
+            **{
+                field: row.get(field, "")
+                for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS
+            },
+            "triage_status": (
+                _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_STATUS
+            ),
+            "triage_reason": _download_smoke_review_queue_triage_reason(row),
+            "recommended_next_step": (
+                _download_smoke_review_queue_recommended_next_step(row)
+            ),
+            "strict_upgrade_applied": False,
+        }
+        for row in queue_rows
+    ]
+
+
+def _download_smoke_review_queue_triage_reason(
+    row: Mapping[str, object],
+) -> str:
+    blockers = row.get("fasta_quality_gate_blockers", [])
+    if not isinstance(blockers, list):
+        return str(blockers).strip()
+    return ";".join(
+        str(blocker).strip() for blocker in blockers if str(blocker).strip()
+    )
+
+
+def _download_smoke_review_queue_recommended_next_step(
+    row: Mapping[str, object],
+) -> str:
+    blockers = set(
+        _download_smoke_review_queue_triage_reason(row).split(";")
+    )
+    blockers.discard("")
+    if {
+        "fragmented_fasta_signal",
+        "fasta_header_fragment_keywords",
+    }.issubset(blockers):
+        return "review_fragmentation_and_header_keywords"
+    if "fasta_header_fragment_keywords" in blockers:
+        return "review_fasta_header_fragment_keywords"
+    if "fragmented_fasta_signal" in blockers:
+        return "review_fragmentation_signal"
+    return "review_local_fasta_quality_blockers"
+
+
+def _download_smoke_review_queue_triage_tsv(
+    rows: Sequence[Mapping[str, object]],
+) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS,
+        delimiter="\t",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in rows:
+        blockers = row.get("fasta_quality_gate_blockers", [])
+        blocker_text = (
+            ";".join(
+                str(blocker).strip()
+                for blocker in blockers
+                if str(blocker).strip()
+            )
+            if isinstance(blockers, list)
+            else str(blockers).strip()
+        )
+        writer.writerow(
+            {
+                field: _format_tsv_value(
+                    blocker_text
+                    if field == "fasta_quality_gate_blockers"
+                    else row.get(field, "")
+                )
+                for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS
+            }
+        )
+    return output.getvalue()
+
+
+def _write_download_smoke_review_queue_triage_tsv(
+    path: Path,
+    rows: Sequence[Mapping[str, object]],
+    *,
+    input_path: Path,
+    force: bool,
+) -> None:
+    if path.suffix.lower() != ".tsv":
+        raise ValueError("triage queue output must be a TSV file")
+    if not path.parent.is_dir() or _has_symlink_component(path.parent):
+        raise ValueError("triage queue output parent is unsafe")
+    if path.resolve(strict=False) == input_path.resolve(strict=False):
+        raise ValueError("triage queue output cannot overwrite input")
+    if path.exists():
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("triage queue output path is unsafe")
+        if not force:
+            raise FileExistsError(str(path))
+        header = path.read_text(encoding="utf-8").splitlines()[:1]
+        expected = "\t".join(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS
+        )
+        if header != [expected]:
+            raise ValueError("existing triage queue schema does not match")
+    text = _download_smoke_review_queue_triage_tsv(rows)
+    temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temp_path.open("x", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def _server_validation_result_review_queue_payload(
     *,
     input_path: Path,
@@ -2810,6 +3101,69 @@ def _server_validation_result_review_queue_payload(
         "external_genomes_registration_applied": False,
         "execution_boundary": (
             "local_result_review_queue_export_only_no_target_execution"
+        ),
+    }
+
+
+def _server_validation_result_triage_queue_payload(
+    *,
+    input_path: Path,
+    output_path: Path | None,
+    triage_rows: Sequence[Mapping[str, object]],
+    status: str,
+    diagnostic_code: str | None,
+    output_written: bool,
+    dry_run: bool,
+) -> dict[str, object]:
+    diagnostics = []
+    if diagnostic_code:
+        diagnostics.append(_diagnostic("server_validation_result", diagnostic_code))
+    next_step_counts = Counter(
+        str(row.get("recommended_next_step", ""))
+        for row in triage_rows
+        if str(row.get("recommended_next_step", ""))
+    )
+    blocker_counts: Counter[str] = Counter()
+    for row in triage_rows:
+        blockers = row.get("fasta_quality_gate_blockers", [])
+        if isinstance(blockers, list):
+            blocker_counts.update(
+                str(blocker).strip()
+                for blocker in blockers
+                if str(blocker).strip()
+            )
+    return {
+        "schema_version": SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SCHEMA_VERSION,
+        "status": status,
+        "command": COMMAND_SERVER_VALIDATION_RESULT_TRIAGE_QUEUE,
+        "input_path": str(input_path),
+        "output_path": str(output_path) if output_path else "",
+        "output_written": output_written,
+        "queue_count": len(triage_rows),
+        "triage_row_count": len(triage_rows),
+        "triage_status_counts": (
+            {_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_STATUS: len(triage_rows)}
+            if triage_rows
+            else {}
+        ),
+        "fasta_quality_gate_blocker_counts": _sorted_count_map(blocker_counts),
+        "recommended_next_step_counts": _sorted_count_map(next_step_counts),
+        "triage_preview": [dict(row) for row in triage_rows[:5]],
+        "triage_preview_truncated": len(triage_rows) > 5,
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "dry_run": dry_run,
+        "writes_outputs": output_written,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "local_review_queue_triage_only_no_target_execution"
         ),
     }
 

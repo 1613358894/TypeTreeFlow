@@ -231,6 +231,16 @@ _CATALOG_ENTRIES = (
         "boundary": "local review-queue export only; no target execution, provider contact, downloads, or workflow mutation",
     },
     {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result triage-queue",
+        "mode": "coverage_pipeline",
+        "argv_pattern": "typetreeflow coverage-pipeline server-validation-result triage-queue --input <download_smoke_review_queue.tsv> [--write --out <tsv>]",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_tsv",
+        "requires_outdir": False,
+        "boundary": "local review-queue triage only; no target execution, provider contact, downloads, or workflow mutation",
+    },
+    {
         "command": "download-smoke",
         "subcommand": "prepare",
         "mode": "download_smoke",
@@ -865,6 +875,28 @@ _SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SUMMARY_FIELDS: list[str] = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+_SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS: list[str] = [
+    "status",
+    "queue_count",
+    "triage_row_count",
+    "triage_status_counts",
+    "fasta_quality_gate_blocker_counts",
+    "recommended_next_step_counts",
+    "output_path",
+    "output_written",
+    "diagnostic_count",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+    "external_genomes_registration_applied",
+    "execution_boundary",
+]
 _ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
     "record_count",
     "lane_counts",
@@ -999,6 +1031,14 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "coverage_handoff_server_validation_result_review_queue.v1",
             "purpose": "local-only bounded download-smoke review queue export",
             "summary_fields": _SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SUMMARY_FIELDS,
+        },
+    ),
+    ("coverage-pipeline", "server-validation-result triage-queue"): (
+        {
+            "name": "download_smoke_review_queue_triage",
+            "schema_version": "download_smoke_review_queue_triage.v1",
+            "purpose": "local-only bounded FASTA-quality review queue triage",
+            "summary_fields": _SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS,
         },
     ),
     ("acquisition-worklist", "build"): (
@@ -2182,6 +2222,43 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "allow replacing an existing schema-matching review queue TSV",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("coverage-pipeline", "server-validation-result triage-queue"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "explicit download_smoke_review_queue.tsv input",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write the derived triage TSV",
+        },
+        {
+            "name": "--out",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit output TSV path used only with --write",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "allow replacing an existing schema-matching triage TSV",
         },
         {
             "name": "--json",
@@ -3982,6 +4059,35 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             "coverage-pipeline",
             "server-validation-result",
             "review-queue",
+            "--input",
+            _required_string(request, "input"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        out = _optional_string(request, "out")
+        if out:
+            argv.extend(["--out", out])
+        return _with_flags(argv, request, {"force": "--force", "json": "--json"})
+    if (
+        command == "coverage-pipeline"
+        and subcommand == "server-validation-result triage-queue"
+    ):
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input",
+                "write",
+                "out",
+                "force",
+                "json",
+            },
+        )
+        argv = [
+            "coverage-pipeline",
+            "server-validation-result",
+            "triage-queue",
             "--input",
             _required_string(request, "input"),
         ]

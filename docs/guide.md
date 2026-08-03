@@ -802,8 +802,24 @@ typetreeflow coverage-pipeline server-validation-result review-queue \
 The export writes only the explicit TSV path and does not inspect ZIP files,
 execute downloads, contact providers, mutate manifests, install genomes, or
 change strict scientific status.
-boundary flags so AI controllers can route the local validation result without
-parsing diagnostics. These observations can include quality-gate hit counts,
+To convert that queue into a bounded local triage worklist, run:
+
+```bash
+typetreeflow coverage-pipeline server-validation-result triage-queue \
+  --input <download_smoke_review_queue.tsv> \
+  --write --out <download_smoke_review_queue_triage.tsv> \
+  --json
+```
+
+The triage command reads only the explicit review queue TSV and writes only the
+explicit triage TSV when `--write` is present. It adds controlled triage status,
+reason, and next-step fields for AI/operator review of local FASTA quality
+blockers. It does not inspect ZIP files, read FASTA payloads, execute downloads,
+contact providers, mutate workflow outputs, install genomes, or change strict
+scientific status.
+The server-validation result includes boundary flags so AI controllers can
+route the local validation result without parsing diagnostics. These
+observations can include quality-gate hit counts,
 passed/blocked row counts, controlled blocker-code counts, the active
 inspection quality profile, enabled fragmented-FASTA/header-keyword blocker
 switches, and controlled quality-gate recommendation labels with reasons. The
