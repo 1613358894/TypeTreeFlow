@@ -64,6 +64,16 @@ from typetreeflow.workflow.state import StageState, WorkflowState, read_run_stat
 
 INCLUDE_CHOICES = {"genomes", "16s", "reports", "all"}
 DEFAULT_INCLUDE = "all"
+_DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD = (
+    "assembly_metadata_high_quality_fasta_quality_blocked_preview"
+)
+_DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD = (
+    "assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+)
+_DOWNLOAD_SMOKE_INSPECTION_PREVIEW_COUNT_FIELDS = {
+    _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD,
+    _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD,
+}
 
 
 @dataclass(frozen=True)
@@ -4861,6 +4871,7 @@ def _download_smoke_inspection_readme_lines(
             + "; ".join(
                 f"{field}={_format_download_smoke_count_value(value)}"
                 for field, value in audit.counts.items()
+                if field not in _DOWNLOAD_SMOKE_INSPECTION_PREVIEW_COUNT_FIELDS
             )
         )
         lines.extend(_download_smoke_inspection_quality_gate_lines(audit))
@@ -4927,6 +4938,9 @@ def _download_smoke_inspection_quality_gate_lines(
     reasons = audit.counts.get("quality_gate_recommendation_reasons")
     next_action = audit.counts.get("bounded_smoke_next_action")
     next_action_reasons = audit.counts.get("bounded_smoke_next_action_reasons")
+    blocked_preview = audit.counts.get(
+        _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD
+    )
     if not (
         _is_non_bool_int(passed)
         or _is_non_bool_int(blocked)
@@ -4947,6 +4961,7 @@ def _download_smoke_inspection_quality_gate_lines(
         or isinstance(reasons, list)
         or isinstance(next_action, str)
         or isinstance(next_action_reasons, list)
+        or isinstance(blocked_preview, list)
     ):
         return []
     lines: list[str] = []
@@ -4985,6 +5000,7 @@ def _download_smoke_inspection_quality_gate_lines(
                 metadata_high_quality_blocker_counts
             )
         )
+    lines.extend(_format_download_smoke_blocked_preview_lines(audit.counts))
     if isinstance(assembly_level_counts, dict):
         lines.append(
             "- Bounded smoke assembly levels: "
@@ -5072,6 +5088,45 @@ def _format_download_smoke_string_list(value: object) -> str:
         return "none"
     items = [item.strip() for item in value if isinstance(item, str) and item.strip()]
     return ", ".join(items) if items else "none"
+
+
+def _format_download_smoke_blocked_preview_lines(
+    counts: dict[str, object],
+) -> list[str]:
+    preview = counts.get(_DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD)
+    if not isinstance(preview, list) or not preview:
+        return []
+    lines: list[str] = []
+    rendered_rows: list[str] = []
+    for item in preview:
+        if not isinstance(item, dict):
+            continue
+        blockers = _format_download_smoke_string_list(
+            item.get("fasta_quality_gate_blockers")
+        )
+        rendered_rows.append(
+            (
+                f"{_markdown_cell(str(item.get('record_id', '')))}/"
+                f"{_markdown_cell(str(item.get('assembly_accession', '')))} "
+                f"[assembly_level={_markdown_cell(str(item.get('assembly_level', '')))}; "
+                "refseq_category="
+                f"{_markdown_cell(str(item.get('refseq_category', '')))}; "
+                f"quality_tier={_markdown_cell(str(item.get('quality_tier', '')))}; "
+                f"status={_markdown_cell(str(item.get('status', '')))}; "
+                f"blockers={_markdown_cell(blockers)}]"
+            )
+        )
+    if not rendered_rows:
+        return []
+    lines.append(
+        "- Assembly-metadata high-quality FASTA blocked preview: "
+        + " | ".join(rendered_rows)
+    )
+    if counts.get(_DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD) is True:
+        lines.append(
+            "- Assembly-metadata high-quality FASTA blocked preview truncated: true"
+        )
+    return lines
 
 
 def _is_non_bool_int(value: object) -> bool:

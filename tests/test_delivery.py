@@ -249,6 +249,20 @@ def _write_download_smoke_inspection_pair(directory):
                 "assembly_metadata_high_quality_fasta_quality_blocker_counts": {
                     "fragmented_fasta_signal": 1
                 },
+                "assembly_metadata_high_quality_fasta_quality_blocked_preview": [
+                    {
+                        "record_id": "ref1",
+                        "assembly_accession": "GCF_000001",
+                        "assembly_level": "Complete Genome",
+                        "refseq_category": "reference genome",
+                        "quality_tier": "high",
+                        "status": "genome_fasta_present",
+                        "fasta_quality_gate_blockers": [
+                            "fragmented_fasta_signal"
+                        ],
+                    }
+                ],
+                "assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated": False,
                 "installable_genome_fasta_fragmentation_signal_counts": {
                     "multi_record_fragmented": 1
                 },
@@ -693,6 +707,17 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
         "fragmented_fasta_signal=1"
         in package_text
     )
+    assert "Assembly-metadata high-quality FASTA blocked preview" in package_text
+    assert "ref1/GCF_000001" in package_text
+    assert "assembly_level=Complete Genome" in package_text
+    assert "refseq_category=reference genome" in package_text
+    assert "quality_tier=high" in package_text
+    assert "status=genome_fasta_present" in package_text
+    assert "blockers=fragmented_fasta_signal" in package_text
+    assert (
+        "assembly_metadata_high_quality_fasta_quality_blocked_preview=["
+        not in package_text
+    )
     assert (
         "Bounded smoke assembly levels: Complete Genome=1, Scaffold=1"
         in package_text
@@ -732,6 +757,8 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "Bounded smoke next action" in package_text
     assert "Bounded smoke next action reasons" in package_text
     assert "local/bounded_download_smoke_plan.tsv" not in package_text
+    assert "local/ref1.zip" not in package_text
+    assert "whole genome shotgun" not in package_text
 
 
 def test_package_results_download_smoke_inspection_is_missing_safe(tmp_path):

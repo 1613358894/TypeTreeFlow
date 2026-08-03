@@ -233,6 +233,20 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                 "assembly_metadata_high_quality_fasta_quality_blocker_counts": {
                     "fragmented_fasta_signal": 1
                 },
+                "assembly_metadata_high_quality_fasta_quality_blocked_preview": [
+                    {
+                        "record_id": "ref1",
+                        "assembly_accession": "GCF_000001",
+                        "assembly_level": "Complete Genome",
+                        "refseq_category": "reference genome",
+                        "quality_tier": "high",
+                        "status": "genome_fasta_present",
+                        "fasta_quality_gate_blockers": [
+                            "fragmented_fasta_signal"
+                        ],
+                    }
+                ],
+                "assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated": False,
                 "fasta_record_count": 2,
                 "fasta_total_bases": 10,
                 "fasta_longest_record_bases": 6,
@@ -440,6 +454,11 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
         "fragmented_fasta_signal=1"
         in markdown
     )
+    assert "Assembly-metadata high-quality FASTA blocked preview:" in markdown
+    assert (
+        "| ref1 | GCF_000001 | Complete Genome | reference genome | high | "
+        "genome_fasta_present | fragmented_fasta_signal |"
+    ) in markdown
     assert "- Genome FASTA members: 1" in markdown
     assert "- Genomic-named FASTA members: 1" in markdown
     assert "- Genome FASTA install selection statuses: selected=1" in markdown
@@ -506,6 +525,7 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     assert "download genomes" in markdown
     assert "create strict scientific deliverables" in markdown
     assert "local/ref1.zip" not in markdown
+    assert "local/bounded_download_smoke_plan.tsv" not in markdown
     assert "whole genome shotgun" not in markdown
 
 
@@ -635,6 +655,27 @@ def test_download_smoke_inspection_partial_malformed_summary_warns(tmp_path):
     assert "bounded_download_smoke_inspection_summary.json malformed" in markdown
     assert "| genome_fasta_present | 1 |" in markdown
     assert "| zip_missing | 1 |" in markdown
+
+
+def test_download_smoke_inspection_preview_rejects_non_allowlisted_fields(tmp_path):
+    inspection_dir = tmp_path / "inspection"
+    _write_download_smoke_inspection_pair(inspection_dir)
+    summary_path = inspection_dir / "bounded_download_smoke_inspection_summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary["assembly_metadata_high_quality_fasta_quality_blocked_preview"][0][
+        "zip_path"
+    ] = "local/ref1.zip"
+    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(download_smoke_inspection_dir=inspection_dir),
+    )
+
+    assert "bounded_download_smoke_inspection_summary.json malformed" in markdown
+    assert "Assembly-metadata high-quality FASTA blocked preview:" not in markdown
+    assert "local/ref1.zip" not in markdown
 
 
 def test_download_smoke_inspection_reader_does_not_access_env_or_socket(
