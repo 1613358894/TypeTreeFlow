@@ -3367,6 +3367,9 @@ def test_coverage_pipeline_server_validation_result_triage_queue_dry_run(
     assert payload["recommended_next_step_counts"] == {
         "review_fragmentation_and_header_keywords": 1
     }
+    assert payload["quality_review_template_recommended_request"] == {}
+    assert payload["quality_review_template_recommended_request_target"] == ""
+    assert payload["quality_review_template_recommended_next_command"] == ""
     assert payload["triage_preview"][0]["strict_upgrade_applied"] is False
     assert payload["output_written"] is False
     assert payload["dry_run"] is True
@@ -3432,6 +3435,22 @@ def test_coverage_pipeline_server_validation_result_triage_queue_writes_tsv(
     assert payload["output_written"] is True
     assert payload["dry_run"] is False
     assert payload["writes_outputs"] is True
+    assert payload["quality_review_template_recommended_request"] == {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result quality-review-template",
+        "triage": str(output_path),
+        "write": True,
+        "out": "<download_smoke_quality_review_decisions.tsv>",
+        "json": True,
+    }
+    assert payload["quality_review_template_recommended_request_target"] == (
+        "coverage-pipeline server-validation-result quality-review-template"
+    )
+    assert payload["quality_review_template_recommended_next_command"] == (
+        "typetreeflow coverage-pipeline server-validation-result "
+        f"quality-review-template --triage {output_path} --write --out "
+        "<download_smoke_quality_review_decisions.tsv> --json"
+    )
     rows = _read_tsv(output_path)
     assert rows == [
         {
@@ -3729,6 +3748,9 @@ def test_coverage_pipeline_server_validation_result_quality_review_template_dry_
     assert payload["writes_workflow_outputs"] is False
     assert payload["template_only"] is True
     assert payload["completed_review"] is False
+    assert payload["quality_review_recommended_request"] == {}
+    assert payload["quality_review_recommended_request_target"] == ""
+    assert payload["quality_review_recommended_next_command"] == ""
     assert payload["accepted_for_bounded_smoke_count"] == 0
     assert payload["accepted_for_final_use"] is False
     assert payload["downloads_triggered"] == 0
@@ -3776,6 +3798,23 @@ def test_coverage_pipeline_server_validation_result_quality_review_template_writ
     assert payload["output_path"] == str(output_path)
     assert payload["output_written"] is True
     assert payload["writes_outputs"] is True
+    assert payload["quality_review_recommended_request"] == {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result quality-review",
+        "triage": str(triage_path),
+        "decisions": str(output_path),
+        "write": True,
+        "outdir": "<download_smoke_quality_review_dir>",
+        "json": True,
+    }
+    assert payload["quality_review_recommended_request_target"] == (
+        "coverage-pipeline server-validation-result quality-review"
+    )
+    assert payload["quality_review_recommended_next_command"] == (
+        "typetreeflow coverage-pipeline server-validation-result "
+        f"quality-review --triage {triage_path} --decisions {output_path} "
+        "--write --outdir <download_smoke_quality_review_dir> --json"
+    )
     rows = _read_tsv(output_path)
     assert rows == [
         {

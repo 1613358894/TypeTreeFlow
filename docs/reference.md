@@ -2968,10 +2968,14 @@ AI/operator routing hint such as `review_fragmentation_signal`,
 `review_fragmentation_and_header_keywords`. The command returns exit `2`
 without writing for invalid queue TSV input, returns exit `1` for output-path
 or write failures, and only allows `--force` to replace an existing TSV whose
-header matches this schema. It remains local triage visibility only: it does
-not inspect ZIP files, read FASTA payloads, execute downloads, contact
-providers, mutate workflow outputs, install genomes, accept genomes for final
-use, or change strict scientific status.
+header matches this schema. When the triage TSV is written successfully, stdout
+also includes `quality_review_template_recommended_request_target`,
+`quality_review_template_recommended_request`, and a renderable
+`quality_review_template_recommended_next_command` for the optional template
+step. It remains local triage visibility only: it does not inspect ZIP files,
+read FASTA payloads, execute downloads, contact providers, mutate workflow
+outputs, install genomes, accept genomes for final use, or change strict
+scientific status.
 `coverage-pipeline server-validation-result quality-review-template --triage
 <tsv>` is the optional offline adapter for creating a decision TSV skeleton
 from that triage file. By default it emits compact JSON and writes nothing.
@@ -2982,7 +2986,10 @@ intentionally blank; this file is a template, not a completed review. It does
 not accept rows for bounded smoke, final use, strict status, manifest mutation,
 downloads, provider access, or workflow output changes. Output write failures
 return exit `1`; `--force` may replace only an existing TSV with the same
-decision-template header.
+decision-template header. When the template is written successfully, stdout
+also includes `quality_review_recommended_request_target`,
+`quality_review_recommended_request`, and a renderable
+`quality_review_recommended_next_command` for the later completed review import.
 `coverage-pipeline server-validation-result quality-review --triage <tsv>
 --decisions <tsv>` is the matching offline import adapter for completed
 FASTA-quality review decisions. The triage TSV must use the

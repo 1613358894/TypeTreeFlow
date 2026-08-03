@@ -829,7 +829,9 @@ explicit triage TSV when `--write` is present. It adds controlled triage status,
 reason, and next-step fields for AI/operator review of local FASTA quality
 blockers. It does not inspect ZIP files, read FASTA payloads, execute downloads,
 contact providers, mutate workflow outputs, install genomes, or change strict
-scientific status.
+scientific status. When the TSV is written, stdout includes a renderable
+`quality_review_template_recommended_next_command` for the next local template
+step.
 To create the empty decision TSV that a reviewer or AI controller can fill,
 run:
 
@@ -842,7 +844,9 @@ typetreeflow coverage-pipeline server-validation-result quality-review-template 
 
 The template command copies only `record_id` and `assembly_accession` and
 leaves all decision fields blank. It is not a completed review and does not
-accept genomes for bounded smoke, final use, strict status, or downloads.
+accept genomes for bounded smoke, final use, strict status, or downloads. When
+the template is written, stdout includes a renderable
+`quality_review_recommended_next_command` for the later completed review import.
 After local AI/operator review, import a complete decision TSV with:
 
 ```bash
