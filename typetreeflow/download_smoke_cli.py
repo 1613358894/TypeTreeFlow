@@ -234,6 +234,10 @@ def run_download_smoke_command(
         return 2
 
     if args.action == "prepare" and args.write:
+        execution_validation_request = _recommended_execution_validation_request(
+            Path(args.outdir) / OUTPUT_COMMANDS_NAME,
+            limit=int(result["summary"].get("selected_row_count", args.limit)),  # type: ignore[union-attr]
+        )
         inspection_request = _recommended_inspection_request(
             Path(args.outdir) / OUTPUT_PLAN_NAME,
             min_fasta_n50_bases=args.inspection_min_fasta_n50_bases,
@@ -260,6 +264,18 @@ def run_download_smoke_command(
         )
         result["summary"]["recommended_inspection_command"] = (  # type: ignore[index]
             _recommended_inspection_command_from_request(inspection_request)
+        )
+        result["summary"]["recommended_execution_validation_request_target"] = (  # type: ignore[index]
+            EXECUTE_COMMAND
+        )
+        result["summary"]["recommended_execution_validation_request"] = (  # type: ignore[index]
+            execution_validation_request
+        )
+        result["summary"]["recommended_execution_validation_next_command"] = (  # type: ignore[index]
+            _recommended_next_command(execution_validation_request)
+        )
+        result["summary"]["recommended_execution_validation_command"] = (  # type: ignore[index]
+            _recommended_command_from_request(execution_validation_request)
         )
     if args.action == "inspect":
         summary = result["summary"]  # type: ignore[index]
@@ -520,6 +536,10 @@ def prepare_bounded_download_smoke_input(
         "recommended_inspection_request": {},
         "recommended_inspection_next_command": "",
         "recommended_inspection_command": [],
+        "recommended_execution_validation_request_target": "",
+        "recommended_execution_validation_request": {},
+        "recommended_execution_validation_next_command": "",
+        "recommended_execution_validation_command": [],
         "handoff_checklist": _prepare_handoff_checklist(
             writes_outputs=False,
             ready=not blockers,
@@ -633,6 +653,22 @@ def _recommended_inspection_request(
     return request
 
 
+def _recommended_execution_validation_request(
+    commands_manifest_path: str | Path,
+    *,
+    limit: int,
+) -> dict[str, object]:
+    commands_path = Path(commands_manifest_path)
+    return {
+        "command": "download-smoke",
+        "subcommand": "execute",
+        "commands_manifest": str(commands_path),
+        "limit": limit,
+        "write": True,
+        "outdir": str(commands_path.parent / "execution"),
+    }
+
+
 def _recommended_next_command(request: dict[str, object]) -> str:
     if not request:
         return ""
@@ -647,6 +683,12 @@ def _recommended_next_command(request: dict[str, object]) -> str:
 
 
 def _recommended_inspection_command_from_request(
+    request: dict[str, object],
+) -> list[str]:
+    return _recommended_command_from_request(request)
+
+
+def _recommended_command_from_request(
     request: dict[str, object],
 ) -> list[str]:
     if not request:
