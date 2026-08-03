@@ -189,6 +189,17 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
         (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
     )
     assert payload["writes_outputs"] is True
+    assert payload["output_files"] == {
+        "bounded_download_smoke_plan": str(
+            outdir / "bounded_download_smoke_plan.tsv"
+        ),
+        "bounded_download_smoke_commands": str(
+            outdir / "bounded_download_smoke_commands.tsv"
+        ),
+        "bounded_download_smoke_summary": str(
+            outdir / "bounded_download_smoke_summary.json"
+        ),
+    }
     assert rows == [_bounded_row("rec-1")]
     assert command_rows == [
         {

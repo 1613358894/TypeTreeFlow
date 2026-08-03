@@ -248,7 +248,12 @@ def run_download_smoke_command(
     if args.write and args.action == "prepare":
         payload["output_files"] = {
             "bounded_download_smoke_plan": str(Path(args.outdir) / OUTPUT_PLAN_NAME),
-            "bounded_download_smoke_summary": str(Path(args.outdir) / OUTPUT_SUMMARY_NAME),
+            "bounded_download_smoke_commands": str(
+                Path(args.outdir) / OUTPUT_COMMANDS_NAME
+            ),
+            "bounded_download_smoke_summary": str(
+                Path(args.outdir) / OUTPUT_SUMMARY_NAME
+            ),
         }
     elif args.write:
         payload["output_files"] = {
