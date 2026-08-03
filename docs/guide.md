@@ -1521,7 +1521,9 @@ compatibility argv list. When `inspect --write` succeeds on at least one
 bounded row, `recommended_review_queue_request_target`,
 `recommended_review_queue_request`, and `recommended_review_queue_next_command`
 point to the next local `coverage-pipeline server-validation-result
-review-queue` handoff for the written inspection directory.
+review-queue` handoff for the written inspection directory, using
+`download_smoke_review_queue.tsv` inside that inspection directory as the
+default output path.
 The inspection does not run `datasets`, extract ZIPs, write raw sequence text,
 access the network, contact providers, or mutate workflow outputs.
 
