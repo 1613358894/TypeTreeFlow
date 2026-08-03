@@ -1239,7 +1239,9 @@ handoff when high-quality Complete Genome or Chromosome planned rows are
 available and keeps scaffold/contig or WGS-like outputs behind later local
 inspection gates. `--bounded-smoke-outdir` only fills in the later
 `download-smoke prepare --write --outdir ...` handoff; the strategy command
-itself still writes nothing.
+itself still writes nothing. The JSON `selected_datasets_command_preview` field
+is preview-only, and `handoff_checklist` marks actual bounded `datasets`
+execution plus final genome acceptance as separate approval/review steps.
 
 First inspect `selection/download_plan_readiness_summary.json` (or the same
 object in `status --json`). Its planned-row assembly-quality counts separate

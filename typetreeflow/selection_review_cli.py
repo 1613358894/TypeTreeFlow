@@ -155,12 +155,23 @@ def build_selection_review_strategy(
         "selected_accession_quality_preview_truncated": bool(
             summary.get("selected_accession_quality_preview_truncated", False)
         ),
+        "selected_datasets_command_preview": summary.get(
+            "selected_datasets_command_preview",
+            [],
+        ),
+        "selected_datasets_command_preview_truncated": bool(
+            summary.get("selected_datasets_command_preview_truncated", False)
+        ),
+        "selected_datasets_command_preview_only": True,
         "blockers": blockers,
         "review_artifacts": _review_artifacts(paths),
         "recommended_commands": _recommended_commands(
             outdir_path,
             download_plan,
             limit=limit,
+            bounded_smoke_outdir=bounded_smoke_outdir,
+        ),
+        "handoff_checklist": _handoff_checklist(
             bounded_smoke_outdir=bounded_smoke_outdir,
         ),
         "review_guidance": [
@@ -274,6 +285,44 @@ def _recommended_commands(
             ],
             "purpose": "write an isolated bounded smoke input package; does not run datasets",
             "requires_operator_outdir": not bool(bounded_smoke_outdir),
+        },
+    ]
+
+
+def _handoff_checklist(
+    *,
+    bounded_smoke_outdir: str | Path | None = None,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": "review_selection_strategy",
+            "status": "ready",
+            "requires_explicit_approval": False,
+            "purpose": "review this compact strategy JSON and selected accessions",
+        },
+        {
+            "id": "prepare_bounded_download_smoke_input",
+            "status": "ready" if bounded_smoke_outdir else "needs_isolated_outdir",
+            "requires_explicit_approval": False,
+            "purpose": "write an isolated bounded smoke plan and command manifest",
+        },
+        {
+            "id": "run_bounded_datasets_download",
+            "status": "approval_required",
+            "requires_explicit_approval": True,
+            "purpose": "execute only the bounded datasets commands after operator approval",
+        },
+        {
+            "id": "inspect_bounded_download_outputs",
+            "status": "after_bounded_download",
+            "requires_explicit_approval": False,
+            "purpose": "inspect local ZIP/FASTA outputs with fragmentation quality gates",
+        },
+        {
+            "id": "accept_final_genomes",
+            "status": "not_authorized_by_strategy",
+            "requires_explicit_approval": True,
+            "purpose": "requires separate quality review; scaffold/contig/WGS-like outputs are not final acceptance",
         },
     ]
 

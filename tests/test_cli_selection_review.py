@@ -79,6 +79,14 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
     assert payload["high_quality_planned_row_count"] == 1
     assert payload["draft_or_fragmented_planned_row_count"] == 1
     assert payload["bounded_smoke_selected_row_count"] == 1
+    assert payload["selected_datasets_command_preview"]
+    assert payload["selected_datasets_command_preview"][0]["command"][:4] == [
+        "datasets",
+        "download",
+        "genome",
+        "accession",
+    ]
+    assert payload["selected_datasets_command_preview_only"] is True
     assert payload["writes_outputs"] is False
     assert payload["downloads_triggered"] is False
     assert payload["providers_contacted"] is False
@@ -105,6 +113,14 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
     assert "Start with Complete Genome or Chromosome rows when available." in payload[
         "review_guidance"
     ]
+    checklist = {item["id"]: item for item in payload["handoff_checklist"]}
+    assert checklist["prepare_bounded_download_smoke_input"]["status"] == (
+        "needs_isolated_outdir"
+    )
+    assert checklist["run_bounded_datasets_download"]["requires_explicit_approval"]
+    assert checklist["accept_final_genomes"]["status"] == (
+        "not_authorized_by_strategy"
+    )
 
 
 def test_selection_review_strategy_renders_concrete_bounded_smoke_outdir(
@@ -138,6 +154,11 @@ def test_selection_review_strategy_renders_concrete_bounded_smoke_outdir(
     assert payload["bounded_smoke_outdir"] == str(smoke_outdir)
     assert prepare["requires_operator_outdir"] is False
     assert prepare["argv"][-2:] == ["--outdir", str(smoke_outdir)]
+    checklist = {item["id"]: item for item in payload["handoff_checklist"]}
+    assert checklist["prepare_bounded_download_smoke_input"]["status"] == "ready"
+    assert checklist["run_bounded_datasets_download"]["status"] == (
+        "approval_required"
+    )
     assert payload["writes_outputs"] is False
     assert not smoke_outdir.exists()
 
