@@ -40,12 +40,59 @@ def _write_selection(path):
         )
 
 
+def _write_selection_with_three_high_quality_rows(path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "species",
+                "selected",
+                "assembly_accession",
+                "assembly_level",
+                "refseq_category",
+            ],
+            delimiter="\t",
+        )
+        writer.writeheader()
+        for index in range(1, 4):
+            writer.writerow(
+                {
+                    "species": f"Clostridium selected {index}",
+                    "selected": "yes",
+                    "assembly_accession": f"GCF_00000000{index}.1",
+                    "assembly_level": "Complete Genome",
+                    "refseq_category": "reference genome",
+                }
+            )
+
+
 def _write_download_plan(path):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=DOWNLOAD_PLAN_FIELDS, delimiter="\t")
         writer.writeheader()
         for accession in ("GCF_000000001.1", "GCF_000000002.1"):
+            writer.writerow(
+                {
+                    "record_id": accession,
+                    "normalized_id": accession.replace(".", "_"),
+                    "assembly_accession": accession,
+                    "expected_genome_path": f"genomes/references/{accession}.fna",
+                    "datasets_zip_path": f"cache/ncbi/downloads/{accession}.zip",
+                    "download_dir": "cache/ncbi/downloads",
+                    "status": "planned",
+                    "notes": "",
+                }
+            )
+
+
+def _write_download_plan_for_accessions(path, accessions):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=DOWNLOAD_PLAN_FIELDS, delimiter="\t")
+        writer.writeheader()
+        for accession in accessions:
             writer.writerow(
                 {
                     "record_id": accession,
@@ -143,6 +190,40 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
         "not_authorized_by_strategy"
     )
     assert not default_smoke_outdir.exists()
+
+
+def test_selection_review_strategy_marks_selected_quality_preview_truncated(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "clostridium_download"
+    _write_selection_with_three_high_quality_rows(
+        outdir / "selection" / "user_selection.tsv"
+    )
+    _write_download_plan_for_accessions(
+        outdir / "cache" / "ncbi" / "download_plan.tsv",
+        ["GCF_000000001.1", "GCF_000000002.1", "GCF_000000003.1"],
+    )
+
+    assert (
+        main(
+            [
+                "selection-review",
+                "strategy",
+                "--outdir",
+                str(outdir),
+                "--limit",
+                "1",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["selected_row_count"] == 3
+    assert len(payload["selected_accession_quality_preview"]) == 1
+    assert payload["selected_accession_quality_preview_truncated"] is True
+    assert payload["bounded_smoke_selected_row_count"] == 1
 
 
 def test_selection_review_strategy_renders_concrete_bounded_smoke_outdir(

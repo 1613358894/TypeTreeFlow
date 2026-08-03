@@ -129,6 +129,15 @@ def build_selection_review_strategy(
         bounded_smoke_outdir=bounded_smoke_outdir,
         selected_smoke_count=selected_smoke_count,
     )
+    selected_accession_quality_preview = summary.get(
+        "selected_accession_quality_preview",
+        [],
+    )
+    if not isinstance(selected_accession_quality_preview, list):
+        selected_accession_quality_preview = []
+    selected_accession_quality_preview_truncated = bool(
+        summary.get("selected_accession_quality_preview_truncated", False)
+    ) or selected_rows > len(selected_accession_quality_preview)
     return {
         "schema_version": SCHEMA_VERSION,
         "command": COMMAND,
@@ -158,12 +167,9 @@ def build_selection_review_strategy(
         "draft_or_fragmented_planned_row_count": draft_count,
         "unknown_assembly_level_planned_row_count": unknown_count,
         "planned_refseq_category_counts": summary.get("source_refseq_category_counts", {}),
-        "selected_accession_quality_preview": summary.get(
-            "selected_accession_quality_preview",
-            [],
-        ),
-        "selected_accession_quality_preview_truncated": bool(
-            summary.get("selected_accession_quality_preview_truncated", False)
+        "selected_accession_quality_preview": selected_accession_quality_preview,
+        "selected_accession_quality_preview_truncated": (
+            selected_accession_quality_preview_truncated
         ),
         "selected_datasets_command_preview": summary.get(
             "selected_datasets_command_preview",
