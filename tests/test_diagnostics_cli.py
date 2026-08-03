@@ -876,6 +876,9 @@ def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
     payload, _ = _stdout_payload(capsys)
     output = payload["recommended_action"]["message"]
     assert payload["status"] == "blocked"
+    assert payload["recommended_action"]["command"] == payload["recommended_action"][
+        "recommended_next_command"
+    ]
     assert output.startswith("Run `typetreeflow selection-review strategy ")
     assert "--bounded-smoke-outdir" in output
     assert "without running datasets" in output

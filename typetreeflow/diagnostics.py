@@ -747,10 +747,15 @@ def _action_id(message: str) -> str:
 
 
 def _action_command(message: str) -> str:
-    if message.strip() == "package-results":
+    stripped = message.strip()
+    if stripped == "package-results":
         return "typetreeflow package-results --outdir <run_dir>"
-    if message.strip().startswith("typetreeflow "):
-        return message.strip()
+    if stripped.startswith("typetreeflow "):
+        return stripped
+    if "`typetreeflow " in stripped:
+        command = stripped.split("`typetreeflow ", 1)[1].split("`", 1)[0].strip()
+        if command:
+            return "typetreeflow " + command
     return ""
 
 
