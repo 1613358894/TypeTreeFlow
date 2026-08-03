@@ -1524,6 +1524,10 @@ point to the next local `coverage-pipeline server-validation-result
 review-queue` handoff for the written inspection directory, using
 `download_smoke_review_queue.tsv` inside that inspection directory as the
 default output path.
+When ZIP outputs are missing and the sibling
+`bounded_download_smoke_commands.tsv` is present, the summary also includes a
+validation-only `recommended_execution_validation_request` for
+`download-smoke execute`; it does not include `--execute` and does not download.
 The inspection does not run `datasets`, extract ZIPs, write raw sequence text,
 access the network, contact providers, or mutate workflow outputs.
 
