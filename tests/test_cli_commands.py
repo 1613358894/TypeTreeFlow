@@ -331,6 +331,31 @@ ACQUISITION_WORKLIST_SUMMARY_FIELDS = [
     "recommended_request_target",
     "recommended_next_command",
 ]
+SELECTION_REVIEW_STRATEGY_SUMMARY_FIELDS = [
+    "selection_review_required",
+    "selected_row_count",
+    "manifest_row_count",
+    "recommended_strategy",
+    "recommended_quality_tier",
+    "first_round_limit",
+    "bounded_smoke_selected_row_count",
+    "high_quality_planned_row_count",
+    "draft_or_fragmented_planned_row_count",
+    "unknown_assembly_level_planned_row_count",
+    "planned_refseq_category_counts",
+    "selected_accession_quality_preview",
+    "review_artifacts",
+    "recommended_commands",
+    "review_guidance",
+    "forbidden_without_explicit_approval",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_upgrade_applied",
+    "accepted_for_final_use",
+]
 
 
 def test_commands_recognize_accepts_json_argv_and_emits_compact_json(capsys):
@@ -657,6 +682,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "acquisition_worklist_packet.v1",
             "offline acquisition worklist pair and summary",
             ACQUISITION_WORKLIST_SUMMARY_FIELDS,
+        ),
+        ("selection-review", "strategy"): (
+            "selection_review_strategy",
+            "selection_review_strategy.v1",
+            "read-only selection and bounded download strategy review",
+            SELECTION_REVIEW_STRATEGY_SUMMARY_FIELDS,
         ),
     }
     for key, (name, schema_version, purpose, summary_fields) in (
@@ -2448,6 +2479,39 @@ def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys
     }
 
 
+def test_commands_plan_allows_selection_review_strategy_without_write(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "plan",
+                "--request-json",
+                (
+                    '{"command":"selection-review","subcommand":"strategy",'
+                    '"outdir":"run","limit":3,"json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["decision"] == "allow"
+    assert payload["target_argv"] == [
+        "selection-review",
+        "strategy",
+        "--outdir",
+        "run",
+        "--limit",
+        "3",
+        "--json",
+    ]
+    assert payload["target_writes_outputs_declared"] is False
+    assert payload["target_network_declared"] is False
+    assert payload["target_external_tools_declared"] is False
+    assert _output_contract_names(payload) == {"selection_review_strategy"}
+
+
 def test_commands_render_emits_normalized_provider_request_argv(capsys):
     assert (
         main(
@@ -4098,6 +4162,7 @@ def test_recognizer_knows_commands_recognize_surface():
         "is_curator_packet": False,
         "is_strict_gate_state": False,
         "is_download_smoke": False,
+        "is_selection_review": False,
         "provider_key_filter": [],
         "provider_key_filter_count": 0,
         "writes_outputs_declared": False,

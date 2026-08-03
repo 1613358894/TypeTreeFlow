@@ -255,6 +255,16 @@ _CATALOG_ENTRIES = (
         "boundary": "local FASTA-quality review import only; no target execution, provider contact, downloads, workflow mutation, or strict upgrade",
     },
     {
+        "command": "selection-review",
+        "subcommand": "strategy",
+        "mode": "selection_review",
+        "argv_pattern": "typetreeflow selection-review strategy --outdir <verify-genus-run>",
+        "json_stdout": True,
+        "write_behavior": "none",
+        "requires_outdir": True,
+        "boundary": "read-only selection/download strategy review only; no datasets execution, provider contact, or workflow mutation",
+    },
+    {
         "command": "download-smoke",
         "subcommand": "prepare",
         "mode": "download_smoke",
@@ -955,6 +965,31 @@ _ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
     "recommended_request_target",
     "recommended_next_command",
 ]
+_SELECTION_REVIEW_STRATEGY_SUMMARY_FIELDS: list[str] = [
+    "selection_review_required",
+    "selected_row_count",
+    "manifest_row_count",
+    "recommended_strategy",
+    "recommended_quality_tier",
+    "first_round_limit",
+    "bounded_smoke_selected_row_count",
+    "high_quality_planned_row_count",
+    "draft_or_fragmented_planned_row_count",
+    "unknown_assembly_level_planned_row_count",
+    "planned_refseq_category_counts",
+    "selected_accession_quality_preview",
+    "review_artifacts",
+    "recommended_commands",
+    "review_guidance",
+    "forbidden_without_explicit_approval",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_upgrade_applied",
+    "accepted_for_final_use",
+]
 _DOWNLOAD_SMOKE_PREPARE_SUMMARY_FIELDS: list[str] = [
     "selected_row_count",
     "selected_high_quality_row_count",
@@ -1092,6 +1127,14 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "acquisition_worklist_packet.v1",
             "purpose": "offline acquisition worklist pair and summary",
             "summary_fields": _ACQUISITION_WORKLIST_SUMMARY_FIELDS,
+        },
+    ),
+    ("selection-review", "strategy"): (
+        {
+            "name": "selection_review_strategy",
+            "schema_version": "selection_review_strategy.v1",
+            "purpose": "read-only selection and bounded download strategy review",
+            "summary_fields": _SELECTION_REVIEW_STRATEGY_SUMMARY_FIELDS,
         },
     ),
     ("download-smoke", "prepare"): (
@@ -2455,6 +2498,29 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "isolated bounded download-smoke output directory",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("selection-review", "strategy"): [
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "existing verify-genus run directory to inspect",
+        },
+        {
+            "name": "--limit",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "first-round bounded download-smoke row limit",
         },
         {
             "name": "--json",
@@ -4592,6 +4658,27 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             if outdir:
                 argv.extend(["--outdir", outdir])
             return _with_flags(argv, request, {"json": "--json"})
+    if command == "selection-review" and subcommand == "strategy":
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "outdir",
+                "limit",
+                "json",
+            },
+        )
+        argv = [
+            "selection-review",
+            "strategy",
+            "--outdir",
+            _required_string(request, "outdir"),
+        ]
+        limit = _optional_int(request, "limit")
+        if limit is not None:
+            argv.extend(["--limit", str(limit)])
+        return _with_flags(argv, request, {"json": "--json"})
     if command == "archive-candidates" and subcommand == "build":
         _reject_unknown_fields(
             request,
