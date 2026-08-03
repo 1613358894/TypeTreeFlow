@@ -142,6 +142,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS = (
     "runtime_python",
     "evidence_run_path",
     "download_smoke_inspection_summary_sha256",
+    "download_smoke_inspection_quality_profile",
     "download_smoke_inspection_quality_gate_recommendation",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS = (
@@ -149,6 +150,8 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS = (
     "external_genomes_registration_manifest_available",
     "download_smoke_inspection_realized",
     "download_smoke_inspection_ready",
+    "download_smoke_inspection_block_fragmented_fasta",
+    "download_smoke_inspection_block_fasta_header_keywords",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "check_count",
@@ -8395,6 +8398,22 @@ def _coverage_parent_controller_packet(
         ),
         "handoff_server_validation_download_smoke_inspection_ready": bool(
             result_artifact_packet.get("download_smoke_inspection_ready")
+        ),
+        "handoff_server_validation_download_smoke_inspection_quality_profile": str(
+            result_artifact_packet.get(
+                "download_smoke_inspection_quality_profile", ""
+            )
+            or ""
+        ),
+        "handoff_server_validation_download_smoke_inspection_block_fragmented_fasta": bool(
+            result_artifact_packet.get(
+                "download_smoke_inspection_block_fragmented_fasta"
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_block_fasta_header_keywords": bool(
+            result_artifact_packet.get(
+                "download_smoke_inspection_block_fasta_header_keywords"
+            )
         ),
         "handoff_server_validation_download_smoke_inspection_selected_row_count": (
             _safe_int(
