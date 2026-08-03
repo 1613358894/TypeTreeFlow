@@ -158,9 +158,9 @@ def test_plan_only_guarded_download_includes_secondary_handoff(tmp_path):
 
     action = plan_only_guarded_download_next_action(paths)
 
-    assert action.startswith(
-        "Review selection/user_selection.tsv before guarded downloads"
-    )
+    assert action.startswith("Run `typetreeflow selection-review strategy ")
+    assert "--bounded-smoke-outdir" in action
+    assert "without running datasets" in action
     assert "--auto-accept-selection --enable-downloads" in action
     assert "download-smoke prepare" in action
     assert "--quality-tier recommended --limit 1 --write --outdir" in action

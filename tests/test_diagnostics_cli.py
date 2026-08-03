@@ -876,9 +876,9 @@ def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
     payload, _ = _stdout_payload(capsys)
     output = payload["recommended_action"]["message"]
     assert payload["status"] == "blocked"
-    assert output.startswith(
-        "Review selection/user_selection.tsv before guarded downloads"
-    )
+    assert output.startswith("Run `typetreeflow selection-review strategy ")
+    assert "--bounded-smoke-outdir" in output
+    assert "without running datasets" in output
     assert "--auto-accept-selection --enable-downloads" in output
     assert "Secondary/optional handoff:" in output
     assert "completion/manual_supplement_hints.tsv" in output
@@ -894,9 +894,7 @@ def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
     stages = {item["id"]: item for item in payload["stages"]}
     assert stages["download"]["status"] == "blocked"
     assert (
-        status_output.startswith(
-            "Review selection/user_selection.tsv before guarded downloads"
-        )
+        status_output.startswith("Run `typetreeflow selection-review strategy ")
     )
 
 
@@ -930,9 +928,9 @@ def test_next_step_plan_only_rejected_mismatch_is_secondary_rejected_candidate(
     assert main(["next-step", "--outdir", str(tmp_path)]) == 0
 
     output = _recommended_message(capsys)
-    assert output.startswith(
-        "Review selection/user_selection.tsv before guarded downloads"
-    )
+    assert output.startswith("Run `typetreeflow selection-review strategy ")
+    assert "--bounded-smoke-outdir" in output
+    assert "without running datasets" in output
     assert "rejected_species_mismatch/species_identity_mismatch" in output
     assert "These are rejected candidates, not download failures" in output
     assert "retry download" not in output

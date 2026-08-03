@@ -688,8 +688,10 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert state.status == "partial"
     assert state.stages["download"].status == "blocked_by_manual_review"
     assert state.next_action.startswith(
-        "Review selection/user_selection.tsv before guarded downloads"
+        "Run `typetreeflow selection-review strategy "
     )
+    assert "--bounded-smoke-outdir" in state.next_action
+    assert "without running datasets" in state.next_action
     assert "--auto-accept-selection --enable-downloads" in state.next_action
     assert "Secondary/optional handoff:" in state.next_action
     assert "completion/manual_supplement_hints.tsv" in state.next_action
@@ -741,8 +743,10 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     stages = {stage["id"]: stage for stage in status_payload["stages"]}
     assert stages["download"]["status"] == "blocked"
     assert status_payload["next_actions"][0]["message"].startswith(
-        "Review selection/user_selection.tsv before guarded downloads"
+        "Run `typetreeflow selection-review strategy "
     )
+    assert "--bounded-smoke-outdir" in status_payload["next_actions"][0]["message"]
+    assert "without running datasets" in status_payload["next_actions"][0]["message"]
     assert "download-smoke prepare" in status_payload["next_actions"][0]["message"]
     assert "--quality-tier recommended" in status_payload["next_actions"][0]["message"]
     assert "--write --outdir" in status_payload["next_actions"][0]["message"]
@@ -771,9 +775,9 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     next_step_payload = json.loads(capsys.readouterr().out)
     recommended_action = next_step_payload["recommended_action"]
     next_step = recommended_action["message"]
-    assert next_step.startswith(
-        "Review selection/user_selection.tsv before guarded downloads"
-    )
+    assert next_step.startswith("Run `typetreeflow selection-review strategy ")
+    assert "--bounded-smoke-outdir" in next_step
+    assert "without running datasets" in next_step
     assert "--auto-accept-selection --enable-downloads" in next_step
     assert "download-smoke prepare" in next_step
     assert "--quality-tier recommended" in next_step
@@ -1685,7 +1689,9 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert "strict_count=2" in state.stages["strict_reconciliation"].summary
     assert "audit_only=true" in state.stages["strict_reconciliation"].summary
     assert state.stages["download"].status == "blocked_by_manual_review"
-    assert "Review selection/user_selection.tsv" in state.next_action
+    assert state.next_action.startswith("Run `typetreeflow selection-review strategy ")
+    assert "--bounded-smoke-outdir" in state.next_action
+    assert "without running datasets" in state.next_action
     assert not paths.ncbi_download_results_path.exists()
     policies = {row.selection_policy for row in read_user_selection(paths.user_selection_path)}
     assert policies == {"balanced"}
