@@ -248,6 +248,7 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
         (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
     )
     inspection_outdir = outdir / "inspection"
+    execution_outdir = outdir / "execution"
     assert payload["writes_outputs"] is True
     assert payload["output_files"] == {
         "bounded_download_smoke_plan": str(
@@ -337,6 +338,36 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_request"
     ] == summary["recommended_inspection_request"]
+    assert summary["recommended_execution_validation_request_target"] == (
+        "download-smoke execute"
+    )
+    assert summary["recommended_execution_validation_request"] == {
+        "command": "download-smoke",
+        "subcommand": "execute",
+        "commands_manifest": str(outdir / "bounded_download_smoke_commands.tsv"),
+        "limit": 1,
+        "write": True,
+        "outdir": str(execution_outdir),
+    }
+    assert summary["recommended_execution_validation_next_command"] == (
+        "typetreeflow download-smoke execute --commands-manifest "
+        f"{outdir / 'bounded_download_smoke_commands.tsv'} "
+        f"--limit 1 --write --outdir {execution_outdir}"
+    )
+    assert summary["recommended_execution_validation_command"] == [
+        "typetreeflow",
+        "download-smoke",
+        "execute",
+        "--commands-manifest",
+        str(outdir / "bounded_download_smoke_commands.tsv"),
+        "--limit",
+        "1",
+        "--write",
+        "--outdir",
+        str(execution_outdir),
+    ]
+    assert "--execute" not in summary["recommended_execution_validation_command"]
+    assert not execution_outdir.exists()
     assert (
         main(
             [
@@ -350,6 +381,21 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     )
     rendered = json.loads(capsys.readouterr().out)
     assert rendered["target_argv"] == summary["recommended_inspection_command"][1:]
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(summary["recommended_execution_validation_request"]),
+            ]
+        )
+        == 0
+    )
+    rendered = json.loads(capsys.readouterr().out)
+    assert rendered["target_argv"] == (
+        summary["recommended_execution_validation_command"][1:]
+    )
     checklist = {item["id"]: item for item in summary["handoff_checklist"]}
     assert checklist["prepare_bounded_download_smoke_input"]["status"] == "written"
     assert checklist["run_bounded_datasets_download"]["requires_explicit_approval"]

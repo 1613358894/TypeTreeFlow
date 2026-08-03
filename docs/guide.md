@@ -1351,6 +1351,13 @@ five corresponding command arrays for operator inspection. It does not run
 authorize broad downloads. The summary `handoff_checklist` keeps bounded
 `datasets` execution and final genome acceptance as separate approval/review
 steps.
+When `prepare --write` succeeds, stdout also includes
+`recommended_execution_validation_request_target`,
+`recommended_execution_validation_request`, and
+`recommended_execution_validation_next_command` for the matching
+validation-only `download-smoke execute` handoff. That recommended command does
+not include `--execute`; it only validates the pinned command manifest and
+writes an isolated execution audit.
 
 Before running any bounded datasets command, validate the command manifest and
 write an isolated execution audit:
@@ -1412,11 +1419,12 @@ When `prepare --write` succeeds, `recommended_inspection_request_target`,
 point to the matching local `download-smoke inspect` handoff for the written
 bounded plan; controllers can pass the request to `commands render` instead of
 parsing command text. The compatibility `recommended_inspection_command` argv
-list remains available for operator inspection; choose a fresh isolated
-inspection `--outdir` before running it. By default, that handoff includes
-`--quality-profile fragmentation`, which blocks visibly fragmented multi-record
-FASTA signals and WGS/scaffold/contig FASTA header keywords during the later
-local inspection. Use
+list remains available for operator inspection. The default handoff writes to
+the deterministic sibling `inspection/` directory; copy the command and change
+`--outdir` only when a different isolated inspection directory is needed. By
+default, that handoff includes `--quality-profile fragmentation`, which blocks
+visibly fragmented multi-record FASTA signals and WGS/scaffold/contig FASTA
+header keywords during the later local inspection. Use
 `--inspection-quality-profile none` when the follow-up inspection should remain
 descriptive-only unless explicit gate flags are provided. Optional prepare
 flags such as `--inspection-min-fasta-n50-bases <bases>`,
