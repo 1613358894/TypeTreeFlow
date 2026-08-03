@@ -137,6 +137,21 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts": {
                     "fragmented_fasta_signal": 1
                 },
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview": [
+                    {
+                        "record_id": "rec-high-quality-blocked",
+                        "assembly_accession": "GCF_000001.1",
+                        "assembly_level": "Complete Genome",
+                        "refseq_category": "reference genome",
+                        "quality_tier": "high",
+                        "status": "genome_fasta_present",
+                        "fasta_quality_gate_blockers": [
+                            "fragmented_fasta_signal",
+                            "fasta_header_fragment_keywords",
+                        ],
+                    }
+                ],
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated": False,
                 "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {
                     "multi_record_fragmented": 1
                 },
@@ -2790,6 +2805,23 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
         in package_text
     )
     assert "fragmented_fasta_signal=1" in package_text
+    assert (
+        "Bounded download-smoke assembly-metadata high-quality FASTA blocked preview"
+        in package_text
+    )
+    assert "rec-high-quality-blocked/GCF_000001.1" in package_text
+    assert "assembly_level=Complete Genome" in package_text
+    assert "refseq_category=reference genome" in package_text
+    assert "quality_tier=high" in package_text
+    assert "blockers=fragmented_fasta_signal, fasta_header_fragment_keywords" in (
+        package_text
+    )
+    assert (
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview=["
+        not in package_text
+    )
+    assert "zip_path" not in package_text
+    assert "whole genome shotgun sequence" not in package_text
     assert (
         "Bounded download-smoke installable genome FASTA fragmentation signals"
         in package_text

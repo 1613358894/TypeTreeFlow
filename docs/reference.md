@@ -642,9 +642,11 @@ does not execute target commands, contact providers, trigger downloads,
 register external genomes, mutate manifests, or promote strict deliverables.
 When the JSON carries optional `download_smoke_inspection_` observation fields,
 README and handoff text summarize only controlled counts, high-quality
-assembly-metadata FASTA blocker summaries, quality-gate hits, and bounded
-smoke next-action labels/reasons; they do not copy raw FASTA headers, sequence
-text, local command paths, or ZIP contents.
+assembly-metadata FASTA blocker summaries, safe high-quality blocked preview
+rows, quality-gate hits, and bounded smoke next-action labels/reasons. Preview
+rows are limited to record IDs, accessions, assembly metadata, row status, and
+controlled blocker codes; they do not copy raw FASTA headers, sequence text,
+local command paths, ZIP paths, or ZIP contents.
 Failed-handoff packages exclude this artifact.
 
 `--offline-readiness-dir <dir>` is accepted with `--report-only`. It is an
@@ -2837,8 +2839,8 @@ path, check count, failed count, optional observed external-registration
 realization fields, optional bounded download-smoke inspection observation
 fields including the active inspection quality profile and quality-gate blocker
 switches, high-quality assembly-metadata FASTA blocker summaries, bounded
-smoke next-action labels/reasons, and validation diagnostics. Invalid explicit
-results make status fail
+smoke next-action labels/reasons, safe high-quality blocked preview rows, and
+validation diagnostics. Invalid explicit results make status fail
 closed; omitting the option leaves the packet at `status=no_action`.
 This is still a local result-shape/status read and does not execute the target
 command, contact providers, download genomes, mutate manifests, or register

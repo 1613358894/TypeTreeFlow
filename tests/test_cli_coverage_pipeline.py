@@ -2550,6 +2550,21 @@ def _valid_server_validation_result():
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts": {
             "fragmented_fasta_signal": 1
         },
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview": [
+            {
+                "record_id": "rec-high-quality-blocked",
+                "assembly_accession": "GCF_000001.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": [
+                    "fragmented_fasta_signal",
+                    "fasta_header_fragment_keywords",
+                ],
+            }
+        ],
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated": False,
         "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {
             "multi_record_fragmented": 1
         },
@@ -2639,6 +2654,8 @@ def _expected_download_smoke_inspection_result_defaults():
         "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count": 0,
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count": 0,
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts": {},
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview": [],
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated": False,
         "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {},
         "download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count": 0,
         "download_smoke_inspection_fasta_record_count": 0,
@@ -2787,6 +2804,28 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload[
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
     ] == {"fragmented_fasta_signal": 1}
+    assert payload[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview"
+    ] == [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+        }
+    ]
+    assert (
+        payload[
+            "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+        ]
+        is False
+    )
     assert payload["download_smoke_inspection_bounded_smoke_next_action"] == (
         "review_high_quality_metadata_fasta_quality_blockers"
     )
@@ -2887,6 +2926,23 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     result[
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
     ] = {"": 1}
+    result[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview"
+    ] = [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": ["fragmented_fasta_signal"],
+            "zip_path": "/tmp/raw-download.zip",
+        }
+    ]
+    result[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+    ] = "false"
     result["download_smoke_inspection_empty_genome_fasta_count"] = -1
     result["download_smoke_inspection_multiple_genome_fasta_members_count"] = -1
     result["download_smoke_inspection_fasta_n50_below_minimum_count"] = -1
@@ -2929,6 +2985,8 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["invalid_field_ids"] == [
         "check_count",
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count",
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview",
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated",
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts",
         "download_smoke_inspection_assembly_metadata_high_quality_row_count",
         "download_smoke_inspection_block_fasta_header_keywords",
@@ -6189,6 +6247,25 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
     ] = {"fragmented_fasta_signal": 1}
     result_template[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview"
+    ] = [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+        }
+    ]
+    result_template[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+    ] = False
+    result_template[
         "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts"
     ] = {"multi_record_fragmented": 1}
     result_template[
@@ -6599,6 +6676,28 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_status_parent[
         "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
     ] == {"fragmented_fasta_signal": 1}
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview"
+    ] == [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+        }
+    ]
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+        ]
+        is False
+    )
     assert result_status_parent[
         "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts"
     ] == {"multi_record_fragmented": 1}
