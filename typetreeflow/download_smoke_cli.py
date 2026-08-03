@@ -1420,7 +1420,14 @@ def _execution_row_for_manifest_row(
             "notes": "dry-run only; datasets was not executed",
         }
 
-    command_result = runner.run(command)
+    try:
+        command_result = runner.run(command)
+    except FileNotFoundError:
+        return {
+            **base,
+            "status": "datasets_executable_missing",
+            "notes": "datasets executable was not found; install or expose NCBI Datasets before executing bounded downloads",
+        }
     zip_path = Path(row.get("datasets_zip_path", "").strip())
     executed_base = {
         **base,
