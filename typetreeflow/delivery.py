@@ -4808,6 +4808,9 @@ def _download_smoke_inspection_quality_gate_lines(
     not_ready_reason_counts = audit.counts.get(
         "installable_genome_fasta_not_ready_reason_counts"
     )
+    assembly_level_counts = audit.counts.get("assembly_level_counts")
+    refseq_category_counts = audit.counts.get("refseq_category_counts")
+    quality_tier_counts = audit.counts.get("quality_tier_counts")
     installable_fragmentation_counts = audit.counts.get(
         "installable_genome_fasta_fragmentation_signal_counts"
     )
@@ -4823,6 +4826,9 @@ def _download_smoke_inspection_quality_gate_lines(
         or _is_non_bool_int(installable_ready)
         or _is_non_bool_int(installable_not_ready)
         or isinstance(not_ready_reason_counts, dict)
+        or isinstance(assembly_level_counts, dict)
+        or isinstance(refseq_category_counts, dict)
+        or isinstance(quality_tier_counts, dict)
         or isinstance(installable_fragmentation_counts, dict)
         or _is_non_bool_int(installable_header_keyword_rows)
         or isinstance(blocker_counts, dict)
@@ -4844,6 +4850,21 @@ def _download_smoke_inspection_quality_gate_lines(
         lines.append(
             "- Installable genome FASTA not-ready reason counts: "
             + _format_download_smoke_count_value(not_ready_reason_counts)
+        )
+    if isinstance(assembly_level_counts, dict):
+        lines.append(
+            "- Bounded smoke assembly levels: "
+            + _format_download_smoke_count_value(assembly_level_counts)
+        )
+    if isinstance(refseq_category_counts, dict):
+        lines.append(
+            "- Bounded smoke RefSeq categories: "
+            + _format_download_smoke_count_value(refseq_category_counts)
+        )
+    if isinstance(quality_tier_counts, dict):
+        lines.append(
+            "- Bounded smoke quality tiers: "
+            + _format_download_smoke_count_value(quality_tier_counts)
         )
     if isinstance(installable_fragmentation_counts, dict):
         lines.append(

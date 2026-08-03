@@ -609,6 +609,9 @@ class DownloadSmokeInspectionAuditSummary:
     warnings: list[str]
     status_counts: list[tuple[str, int]]
     fragmentation_signal_counts: list[tuple[str, int]]
+    assembly_level_counts: list[tuple[str, int]]
+    refseq_category_counts: list[tuple[str, int]]
+    quality_tier_counts: list[tuple[str, int]]
     blockers: list[str]
 
 
@@ -634,6 +637,9 @@ def read_optional_download_smoke_inspection_audit(
     summary_fragmentation_signal_counts: Counter[str] = Counter()
     row_status_counts: Counter[str] = Counter()
     row_fragmentation_signal_counts: Counter[str] = Counter()
+    row_assembly_level_counts: Counter[str] = Counter()
+    row_refseq_category_counts: Counter[str] = Counter()
+    row_quality_tier_counts: Counter[str] = Counter()
     blockers: list[str] = []
     observed_rows: int | None = None
 
@@ -778,6 +784,18 @@ def read_optional_download_smoke_inspection_audit(
                     if not signal:
                         raise ValueError("missing fasta_fragmentation_signal")
                     row_fragmentation_signal_counts[signal] += 1
+                if "assembly_level" in row:
+                    row_assembly_level_counts[
+                        row.get("assembly_level", "").strip() or "unknown"
+                    ] += 1
+                if "refseq_category" in row:
+                    row_refseq_category_counts[
+                        row.get("refseq_category", "").strip() or "unknown"
+                    ] += 1
+                if "quality_tier" in row:
+                    row_quality_tier_counts[
+                        row.get("quality_tier", "").strip() or "unknown"
+                    ] += 1
             valid_files.append(rows_path.name)
         except (OSError, UnicodeError, csv.Error, ValueError):
             warnings.append(f"{DOWNLOAD_SMOKE_INSPECTION_NAME} malformed")
@@ -803,6 +821,14 @@ def read_optional_download_smoke_inspection_audit(
     displayed_fragmentation_signal_counts = (
         summary_fragmentation_signal_counts or row_fragmentation_signal_counts
     )
+    row_quality_count_maps = {
+        "assembly_level_counts": dict(sorted(row_assembly_level_counts.items())),
+        "refseq_category_counts": dict(sorted(row_refseq_category_counts.items())),
+        "quality_tier_counts": dict(sorted(row_quality_tier_counts.items())),
+    }
+    for key, value in row_quality_count_maps.items():
+        if value:
+            counts[key] = value
     return DownloadSmokeInspectionAuditSummary(
         counts=counts,
         present_files=valid_files,
@@ -813,6 +839,15 @@ def read_optional_download_smoke_inspection_audit(
         fragmentation_signal_counts=sorted(
             displayed_fragmentation_signal_counts.items(),
             key=lambda item: (-item[1], item[0]),
+        )[:5],
+        assembly_level_counts=sorted(
+            row_assembly_level_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+        refseq_category_counts=sorted(
+            row_refseq_category_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+        quality_tier_counts=sorted(
+            row_quality_tier_counts.items(), key=lambda item: (-item[1], item[0])
         )[:5],
         blockers=blockers[:5],
     )
@@ -5011,6 +5046,24 @@ def build_run_summary_markdown(
                     (
                         "- Genome FASTA present: "
                         f"{download_smoke_inspection_audit.counts.get('genome_fasta_present_count', 0)}"
+                    ),
+                    (
+                        "- Bounded smoke assembly levels: "
+                        + _format_count_pairs(
+                            download_smoke_inspection_audit.assembly_level_counts
+                        )
+                    ),
+                    (
+                        "- Bounded smoke RefSeq categories: "
+                        + _format_count_pairs(
+                            download_smoke_inspection_audit.refseq_category_counts
+                        )
+                    ),
+                    (
+                        "- Bounded smoke quality tiers: "
+                        + _format_count_pairs(
+                            download_smoke_inspection_audit.quality_tier_counts
+                        )
                     ),
                     (
                         "- Installable genome FASTA ready/not-ready: "

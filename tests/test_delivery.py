@@ -9,6 +9,9 @@ import pytest
 
 from typetreeflow.cli import main
 from typetreeflow.delivery import DeliveryResult, package_results
+from typetreeflow.download_smoke_cli import (
+    INSPECTION_FIELDS as DOWNLOAD_SMOKE_INSPECTION_FIELDS,
+)
 from typetreeflow.evidence.acquisition_worklist import (
     ACQUISITION_WORKLIST_FIELDS,
     ACQUISITION_WORKLIST_LANES,
@@ -287,14 +290,83 @@ def _write_download_smoke_inspection_pair(directory):
         + "\n",
         encoding="utf-8",
     )
-    (directory / "bounded_download_smoke_inspection.tsv").write_text(
-        "record_id\tassembly_accession\tzip_path\tzip_exists\tzip_valid\t"
-        "genome_fasta_present\tstatus\n"
-        "ref1\tGCF_000001\tlocal/ref1.zip\ttrue\ttrue\ttrue\t"
-        "genome_fasta_present\n"
-        "ref2\tGCF_000002\tlocal/ref2.zip\tfalse\tfalse\tfalse\tzip_missing\n",
-        encoding="utf-8",
-    )
+    with (directory / "bounded_download_smoke_inspection.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=DOWNLOAD_SMOKE_INSPECTION_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "record_id": "ref1",
+                "assembly_accession": "GCF_000001",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "zip_path": "local/ref1.zip",
+                "zip_exists": "true",
+                "zip_valid": "true",
+                "unsafe_zip_member_count": "0",
+                "genome_fasta_present": "true",
+                "genome_fasta_member_count": "1",
+                "genomic_named_fasta_member_count": "1",
+                "genome_fasta_install_selection_status": "selected",
+                "fasta_record_count": "2",
+                "fasta_total_bases": "10",
+                "fasta_longest_record_bases": "6",
+                "fasta_n50_bases": "6",
+                "fasta_ambiguous_bases": "2",
+                "fasta_header_wgs_keyword_count": "1",
+                "fasta_header_scaffold_keyword_count": "1",
+                "fasta_header_contig_keyword_count": "1",
+                "empty_genome_fasta_count": "0",
+                "multiple_genome_fasta_members_count": "0",
+                "fasta_fragmentation_signal": "multi_record_fragmented",
+                "fasta_quality_gate_blockers": "fragmented_fasta_signal",
+                "installable_genome_fasta_ready": "false",
+                "installable_genome_fasta_not_ready_reasons": (
+                    "fragmented_fasta_signal"
+                ),
+                "status": "genome_fasta_present",
+            }
+        )
+        writer.writerow(
+            {
+                "record_id": "ref2",
+                "assembly_accession": "GCF_000002",
+                "assembly_level": "Scaffold",
+                "refseq_category": "unknown",
+                "quality_tier": "draft_or_fragmented",
+                "zip_path": "local/ref2.zip",
+                "zip_exists": "false",
+                "zip_valid": "false",
+                "unsafe_zip_member_count": "1",
+                "genome_fasta_present": "false",
+                "genome_fasta_member_count": "0",
+                "genomic_named_fasta_member_count": "0",
+                "genome_fasta_install_selection_status": "not_evaluated",
+                "fasta_record_count": "0",
+                "fasta_total_bases": "0",
+                "fasta_longest_record_bases": "0",
+                "fasta_n50_bases": "0",
+                "fasta_ambiguous_bases": "0",
+                "fasta_header_wgs_keyword_count": "0",
+                "fasta_header_scaffold_keyword_count": "0",
+                "fasta_header_contig_keyword_count": "0",
+                "empty_genome_fasta_count": "1",
+                "multiple_genome_fasta_members_count": "1",
+                "fasta_fragmentation_signal": "not_evaluated",
+                "fasta_quality_gate_blockers": "",
+                "installable_genome_fasta_ready": "false",
+                "installable_genome_fasta_not_ready_reasons": (
+                    "missing_zip_outputs"
+                ),
+                "status": "zip_missing",
+            }
+        )
 
 
 def _write_coverage_next_input_package(directory):
@@ -572,6 +644,9 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "does not authorize unattended downloads" in package_text
     assert "create strict scientific deliverables" in package_text
     assert "max_fasta_ambiguous_bases=1" in package_text
+    assert "assembly_level_counts=Complete Genome=1, Scaffold=1" in package_text
+    assert "refseq_category_counts=reference genome=1, unknown=1" in package_text
+    assert "quality_tier_counts=draft_or_fragmented=1, high=1" in package_text
     assert "installable_genome_fasta_ready_count=1" in package_text
     assert "installable_genome_fasta_not_ready_count=1" in package_text
     assert "Installable genome FASTA ready/not-ready: ready=1; not_ready=1" in (
@@ -580,6 +655,18 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert (
         "Installable genome FASTA not-ready reason counts: "
         "empty_genome_fasta_outputs=1"
+        in package_text
+    )
+    assert (
+        "Bounded smoke assembly levels: Complete Genome=1, Scaffold=1"
+        in package_text
+    )
+    assert (
+        "Bounded smoke RefSeq categories: reference genome=1, unknown=1"
+        in package_text
+    )
+    assert (
+        "Bounded smoke quality tiers: draft_or_fragmented=1, high=1"
         in package_text
     )
     assert (
