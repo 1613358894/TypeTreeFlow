@@ -118,6 +118,7 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
     assert summary["source_planned_row_count"] == 2
     assert summary["ready"] is True
     assert summary["safe_for_unattended_download"] is False
+    assert summary["selected_datasets_command_preview_only"] is True
     assert summary["selected_datasets_command_preview"][0] == {
         "record_id": "rec-1",
         "assembly_accession": "GCF_000001.1",
@@ -135,6 +136,18 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
         ],
     }
     assert summary["selected_datasets_command_preview_truncated"] is False
+    checklist = {item["id"]: item for item in summary["handoff_checklist"]}
+    assert checklist["review_bounded_smoke_input_summary"]["status"] == "ready"
+    assert checklist["prepare_bounded_download_smoke_input"]["status"] == (
+        "not_written"
+    )
+    assert checklist["run_bounded_datasets_download"]["status"] == (
+        "approval_required"
+    )
+    assert checklist["run_bounded_datasets_download"]["requires_explicit_approval"]
+    assert checklist["accept_final_genomes"]["status"] == (
+        "not_authorized_by_prepare"
+    )
     assert summary["inspection_min_fasta_n50_bases"] == 0
     assert summary["inspection_max_fasta_record_count"] == 0
     assert summary["inspection_max_fasta_ambiguous_bases"] == 0
@@ -256,6 +269,9 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"
     ] == summary["recommended_inspection_command"]
+    checklist = {item["id"]: item for item in summary["handoff_checklist"]}
+    assert checklist["prepare_bounded_download_smoke_input"]["status"] == "written"
+    assert checklist["run_bounded_datasets_download"]["requires_explicit_approval"]
 
 
 def test_download_smoke_inspect_accepts_annotated_prepare_plan(capsys, tmp_path):

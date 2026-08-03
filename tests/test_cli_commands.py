@@ -2482,6 +2482,9 @@ def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys
     assert _output_contract_names(payload) == {
         "bounded_download_smoke_input_packet"
     }
+    summary_fields = payload["output_contracts"][0]["summary_fields"]
+    assert "selected_datasets_command_preview_only" in summary_fields
+    assert "handoff_checklist" in summary_fields
 
 
 def test_commands_plan_allows_selection_review_strategy_without_write(capsys):

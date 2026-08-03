@@ -208,6 +208,12 @@ def run_download_smoke_command(
                 ),
             )
         )
+    if args.action == "prepare":
+        result["summary"]["selected_datasets_command_preview_only"] = True  # type: ignore[index]
+        result["summary"]["handoff_checklist"] = _prepare_handoff_checklist(  # type: ignore[index]
+            writes_outputs=bool(args.write),
+            ready=bool(result["summary"].get("ready", False)),  # type: ignore[union-attr]
+        )
 
     if args.write:
         try:
@@ -363,6 +369,7 @@ def prepare_bounded_download_smoke_input(
         "selected_datasets_command_preview_truncated": selected_commands[
             "command_preview_truncated"
         ],
+        "selected_datasets_command_preview_only": True,
         "inspection_min_fasta_n50_bases": inspection_min_fasta_n50_bases,
         "inspection_max_fasta_record_count": inspection_max_fasta_record_count,
         "inspection_max_fasta_ambiguous_bases": (
@@ -378,6 +385,10 @@ def prepare_bounded_download_smoke_input(
             effective_header_block
         ),
         "recommended_inspection_command": [],
+        "handoff_checklist": _prepare_handoff_checklist(
+            writes_outputs=False,
+            ready=not blockers,
+        ),
         "source_planned_row_count": readiness.get("download_ready_ncbi_count", 0),
         "source_high_quality_planned_row_count": quality_counts["high"],
         "source_draft_or_fragmented_planned_row_count": quality_counts[
@@ -407,6 +418,45 @@ def prepare_bounded_download_smoke_input(
         ),
     }
     return {"rows": annotated_selected, "summary": summary}
+
+
+def _prepare_handoff_checklist(
+    *,
+    writes_outputs: bool,
+    ready: bool,
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": "review_bounded_smoke_input_summary",
+            "status": "ready" if ready else "blocked",
+            "requires_explicit_approval": False,
+            "purpose": "review selected accessions, quality tier, and blockers",
+        },
+        {
+            "id": "prepare_bounded_download_smoke_input",
+            "status": "written" if writes_outputs and ready else "not_written",
+            "requires_explicit_approval": False,
+            "purpose": "write the isolated bounded plan and command manifest only",
+        },
+        {
+            "id": "run_bounded_datasets_download",
+            "status": "approval_required" if ready else "blocked",
+            "requires_explicit_approval": True,
+            "purpose": "execute only the bounded datasets commands after operator approval",
+        },
+        {
+            "id": "inspect_bounded_download_outputs",
+            "status": "after_bounded_download" if ready else "blocked",
+            "requires_explicit_approval": False,
+            "purpose": "inspect local ZIP/FASTA outputs with fragmentation quality gates",
+        },
+        {
+            "id": "accept_final_genomes",
+            "status": "not_authorized_by_prepare",
+            "requires_explicit_approval": True,
+            "purpose": "requires separate quality review; scaffold/contig/WGS-like outputs are not final acceptance",
+        },
+    ]
 
 
 def _recommended_inspection_command(
