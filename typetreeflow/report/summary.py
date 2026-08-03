@@ -319,6 +319,9 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
     "genome_fasta_install_selection_ambiguous_count",
     "installable_genome_fasta_ready_count",
     "installable_genome_fasta_not_ready_count",
+    "assembly_metadata_high_quality_row_count",
+    "assembly_metadata_high_quality_installable_ready_count",
+    "assembly_metadata_high_quality_fasta_quality_blocked_count",
     "fasta_record_count",
     "fasta_total_bases",
     "fasta_longest_record_bases",
@@ -348,6 +351,7 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_COUNT_FIELDS = (
 DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_MAP_FIELDS = (
     "genome_fasta_install_selection_status_counts",
     "installable_genome_fasta_not_ready_reason_counts",
+    "assembly_metadata_high_quality_fasta_quality_blocker_counts",
     "fasta_fragmentation_signal_counts",
     "installable_genome_fasta_fragmentation_signal_counts",
     "fasta_quality_gate_blocker_counts",
@@ -5076,6 +5080,22 @@ def build_run_summary_markdown(
                             _count_map_pairs(
                                 download_smoke_inspection_audit.counts.get(
                                     "installable_genome_fasta_not_ready_reason_counts"
+                                )
+                            )
+                        )
+                    ),
+                    (
+                        "- Assembly-metadata high-quality rows: "
+                        f"total={download_smoke_inspection_audit.counts.get('assembly_metadata_high_quality_row_count', 0)}, "
+                        f"installable_ready={download_smoke_inspection_audit.counts.get('assembly_metadata_high_quality_installable_ready_count', 0)}, "
+                        f"local_fasta_quality_blocked={download_smoke_inspection_audit.counts.get('assembly_metadata_high_quality_fasta_quality_blocked_count', 0)}"
+                    ),
+                    (
+                        "- Assembly-metadata high-quality FASTA blocker counts: "
+                        + _format_count_pairs(
+                            _count_map_pairs(
+                                download_smoke_inspection_audit.counts.get(
+                                    "assembly_metadata_high_quality_fasta_quality_blocker_counts"
                                 )
                             )
                         )

@@ -4808,6 +4808,18 @@ def _download_smoke_inspection_quality_gate_lines(
     not_ready_reason_counts = audit.counts.get(
         "installable_genome_fasta_not_ready_reason_counts"
     )
+    metadata_high_quality_total = audit.counts.get(
+        "assembly_metadata_high_quality_row_count"
+    )
+    metadata_high_quality_ready = audit.counts.get(
+        "assembly_metadata_high_quality_installable_ready_count"
+    )
+    metadata_high_quality_blocked = audit.counts.get(
+        "assembly_metadata_high_quality_fasta_quality_blocked_count"
+    )
+    metadata_high_quality_blocker_counts = audit.counts.get(
+        "assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    )
     assembly_level_counts = audit.counts.get("assembly_level_counts")
     refseq_category_counts = audit.counts.get("refseq_category_counts")
     quality_tier_counts = audit.counts.get("quality_tier_counts")
@@ -4826,6 +4838,10 @@ def _download_smoke_inspection_quality_gate_lines(
         or _is_non_bool_int(installable_ready)
         or _is_non_bool_int(installable_not_ready)
         or isinstance(not_ready_reason_counts, dict)
+        or _is_non_bool_int(metadata_high_quality_total)
+        or _is_non_bool_int(metadata_high_quality_ready)
+        or _is_non_bool_int(metadata_high_quality_blocked)
+        or isinstance(metadata_high_quality_blocker_counts, dict)
         or isinstance(assembly_level_counts, dict)
         or isinstance(refseq_category_counts, dict)
         or isinstance(quality_tier_counts, dict)
@@ -4850,6 +4866,27 @@ def _download_smoke_inspection_quality_gate_lines(
         lines.append(
             "- Installable genome FASTA not-ready reason counts: "
             + _format_download_smoke_count_value(not_ready_reason_counts)
+        )
+    if (
+        _is_non_bool_int(metadata_high_quality_total)
+        or _is_non_bool_int(metadata_high_quality_ready)
+        or _is_non_bool_int(metadata_high_quality_blocked)
+    ):
+        lines.append(
+            "- Assembly-metadata high-quality rows: "
+            "total="
+            f"{metadata_high_quality_total if _is_non_bool_int(metadata_high_quality_total) else 0}; "
+            "installable_ready="
+            f"{metadata_high_quality_ready if _is_non_bool_int(metadata_high_quality_ready) else 0}; "
+            "local_fasta_quality_blocked="
+            f"{metadata_high_quality_blocked if _is_non_bool_int(metadata_high_quality_blocked) else 0}"
+        )
+    if isinstance(metadata_high_quality_blocker_counts, dict):
+        lines.append(
+            "- Assembly-metadata high-quality FASTA blocker counts: "
+            + _format_download_smoke_count_value(
+                metadata_high_quality_blocker_counts
+            )
         )
     if isinstance(assembly_level_counts, dict):
         lines.append(
