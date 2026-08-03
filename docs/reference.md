@@ -48,7 +48,12 @@ Primary commands write compact JSON to stdout by default. This does not require
   before any `datasets` execution.
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
-  still require separate explicit authorization.
+  still require separate explicit authorization. When the current guidance is
+  the default selection/manual-review checkpoint, `status.next_actions[]` and
+  `next-step.recommended_action` also include
+  `recommended_request_target=selection-review strategy`,
+  `recommended_request`, and `recommended_next_command` so controllers can
+  render the local strategy command without parsing human text.
   When an existing `cache/ncbi/download_plan.tsv` is present, `status` also
   emits `download_plan_readiness_summary`: an acquisition-facing, read-only
   count summary for planned NCBI downloads, existing genomes, missing

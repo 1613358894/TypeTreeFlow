@@ -752,10 +752,23 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     )
     assert "does not download genomes" in status_payload["next_actions"][0]["message"]
     assert "completion/manual_supplement_hints.tsv" in status_payload["next_actions"][0]["message"]
+    status_action = status_payload["next_actions"][0]
+    assert status_action["recommended_request_target"] == "selection-review strategy"
+    assert status_action["recommended_request"] == {
+        "command": "selection-review",
+        "subcommand": "strategy",
+        "outdir": str(outdir),
+        "json": True,
+    }
+    assert status_action["recommended_next_command"] == (
+        "typetreeflow selection-review strategy "
+        f"--outdir {outdir} --json"
+    )
 
     assert main(["next-step", "--outdir", str(outdir)]) == 0
     next_step_payload = json.loads(capsys.readouterr().out)
-    next_step = next_step_payload["recommended_action"]["message"]
+    recommended_action = next_step_payload["recommended_action"]
+    next_step = recommended_action["message"]
     assert next_step.startswith(
         "Review selection/user_selection.tsv before guarded downloads"
     )
@@ -768,6 +781,34 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert "Secondary/optional handoff:" in next_step
     assert "completion/manual_supplement_hints.tsv" in next_step
     assert "curator review" in next_step
+    assert recommended_action["recommended_request_target"] == (
+        "selection-review strategy"
+    )
+    assert recommended_action["recommended_request"] == status_action[
+        "recommended_request"
+    ]
+    assert recommended_action["recommended_next_command"] == status_action[
+        "recommended_next_command"
+    ]
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(recommended_action["recommended_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "selection-review",
+        "strategy",
+        "--outdir",
+        str(outdir),
+        "--json",
+    ]
 
     assert main(["package-results", "--outdir", str(outdir), "--include", "reports"]) == 0
     delivery = outdir / "delivery"

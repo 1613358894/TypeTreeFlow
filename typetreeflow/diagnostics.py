@@ -131,7 +131,13 @@ class WorkflowStatusSummary:
         blocking = _blocking_items(self.stages)
         warnings = _warning_items(self.stages)
         next_actions = (
-            [{"id": _action_id(self.next_action), "message": self.next_action}]
+            [
+                _with_selection_review_strategy_request(
+                    {"id": _action_id(self.next_action), "message": self.next_action},
+                    outdir=self.outdir,
+                    next_action=self.next_action,
+                )
+            ]
             if self.next_action
             else []
         )
@@ -184,13 +190,18 @@ class NextStepSummary:
                     "message": self.next_action,
                 }
             )
+        recommended_action = _with_selection_review_strategy_request(
+            _recommended_action(self.next_action),
+            outdir=self.outdir,
+            next_action=self.next_action,
+        )
         return {
             "command": "next-step",
             "schema_version": "1",
             "status": self.status,
             "summary": _next_step_summary(self.status),
             "outdir": self.outdir,
-            "recommended_action": _recommended_action(self.next_action),
+            "recommended_action": recommended_action,
             "alternatives": [],
             "blocking": blocking,
             "warnings": warnings,
@@ -740,6 +751,48 @@ def _action_command(message: str) -> str:
     if message.strip().startswith("typetreeflow "):
         return message.strip()
     return ""
+
+
+def _selection_review_strategy_request(
+    *,
+    outdir: str,
+    next_action: str,
+) -> dict[str, object]:
+    if not outdir or _action_id(next_action) != "review_user_selection":
+        return {}
+    return {
+        "command": "selection-review",
+        "subcommand": "strategy",
+        "outdir": outdir,
+        "json": True,
+    }
+
+
+def _selection_review_strategy_next_command(request: dict[str, object]) -> str:
+    outdir = str(request.get("outdir", "")).strip()
+    if not outdir:
+        return ""
+    return f"typetreeflow selection-review strategy --outdir {outdir} --json"
+
+
+def _with_selection_review_strategy_request(
+    action: dict[str, Any],
+    *,
+    outdir: str,
+    next_action: str,
+) -> dict[str, Any]:
+    request = _selection_review_strategy_request(
+        outdir=outdir,
+        next_action=next_action,
+    )
+    if not request:
+        return action
+    return {
+        **action,
+        "recommended_request_target": "selection-review strategy",
+        "recommended_request": request,
+        "recommended_next_command": _selection_review_strategy_next_command(request),
+    }
 
 
 def _error_id(error: Exception) -> str:
