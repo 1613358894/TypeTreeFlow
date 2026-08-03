@@ -758,11 +758,13 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
         "command": "selection-review",
         "subcommand": "strategy",
         "outdir": str(outdir),
+        "bounded_smoke_outdir": str(tmp_path / "handoffs" / "bounded_download_smoke"),
         "json": True,
     }
     assert status_action["recommended_next_command"] == (
         "typetreeflow selection-review strategy "
-        f"--outdir {outdir} --json"
+        f"--outdir {outdir} --bounded-smoke-outdir "
+        f"{tmp_path / 'handoffs' / 'bounded_download_smoke'} --json"
     )
 
     assert main(["next-step", "--outdir", str(outdir)]) == 0
@@ -807,6 +809,8 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
         "strategy",
         "--outdir",
         str(outdir),
+        "--bounded-smoke-outdir",
+        str(tmp_path / "handoffs" / "bounded_download_smoke"),
         "--json",
     ]
 
@@ -1480,11 +1484,13 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         "command": "selection-review",
         "subcommand": "strategy",
         "outdir": str(outdir),
+        "bounded_smoke_outdir": str(tmp_path / "handoffs" / "bounded_download_smoke"),
         "json": True,
     }
     assert payload["recommended_next_command"] == (
         "typetreeflow selection-review strategy "
-        f"--outdir {outdir} --json"
+        f"--outdir {outdir} --bounded-smoke-outdir "
+        f"{tmp_path / 'handoffs' / 'bounded_download_smoke'} --json"
     )
     assert strategy_action["recommended_request_target"] == (
         "selection-review strategy"
@@ -1510,6 +1516,8 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         "strategy",
         "--outdir",
         str(outdir),
+        "--bounded-smoke-outdir",
+        str(tmp_path / "handoffs" / "bounded_download_smoke"),
         "--json",
     ]
     checkpoint = payload["checkpoint"]
@@ -1539,7 +1547,10 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         "strategy",
         "--outdir",
         str(outdir),
+        "--bounded-smoke-outdir",
+        str(tmp_path / "handoffs" / "bounded_download_smoke"),
     ]
+    assert "default isolated bounded-smoke handoff directory" in strategy["purpose"]
     assert "does not write files or run datasets" in strategy["purpose"]
     assert commands["status"]["argv"] == [
         "typetreeflow",
@@ -1565,9 +1576,9 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert "--write" in smoke_prepare["argv"]
     assert smoke_prepare["argv"][-2:] == [
         "--outdir",
-        "<isolated-bounded-download-smoke-dir>",
+        str(tmp_path / "handoffs" / "bounded_download_smoke"),
     ]
-    assert "operator-chosen directory" in smoke_prepare["purpose"]
+    assert "does not run datasets" in smoke_prepare["purpose"]
     assert "run_datasets_download" in checkpoint["forbidden_without_explicit_approval"]
     assert (
         "treat_scaffold_contig_or_wgs_fasta_as_final_genome"
@@ -1725,6 +1736,8 @@ def test_verify_genus_checkpoint_structured_route_to_bounded_smoke_prepare(
         "strategy",
         "--outdir",
         str(outdir),
+        "--bounded-smoke-outdir",
+        str(tmp_path / "handoffs" / "bounded_download_smoke"),
         "--json",
     ]
 
@@ -1875,6 +1888,8 @@ def test_verify_genus_live_flags_dry_run_remains_review_checkpoint(
         "strategy",
         "--outdir",
         str(outdir),
+        "--bounded-smoke-outdir",
+        str(tmp_path / "handoffs" / "bounded_download_smoke"),
     ]
     smoke_prepare = commands["bounded_download_smoke_prepare"]
     assert smoke_prepare["argv"][:5] == [

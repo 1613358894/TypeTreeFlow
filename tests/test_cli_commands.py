@@ -378,6 +378,7 @@ SELECTION_REVIEW_STRATEGY_SUMMARY_FIELDS = [
     "recommended_quality_tier",
     "first_round_limit",
     "bounded_smoke_outdir",
+    "bounded_smoke_outdir_defaulted",
     "bounded_smoke_selected_row_count",
     "high_quality_planned_row_count",
     "draft_or_fragmented_planned_row_count",

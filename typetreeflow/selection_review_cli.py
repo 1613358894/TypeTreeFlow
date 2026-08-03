@@ -18,6 +18,7 @@ from typetreeflow.workflow.paths import get_output_paths
 COMMAND = "selection-review strategy"
 SCHEMA_VERSION = "selection_review_strategy.v1"
 DEFAULT_LIMIT = 5
+DEFAULT_BOUNDED_SMOKE_HANDOFF_DIR = "bounded_download_smoke"
 
 
 class _UsageError(Exception):
@@ -106,6 +107,9 @@ def build_selection_review_strategy(
     summary = smoke["summary"]
     if not isinstance(summary, dict):
         raise ValueError("download-smoke summary is invalid")
+    resolved_bounded_smoke_outdir = Path(
+        bounded_smoke_outdir
+    ) if bounded_smoke_outdir else default_bounded_smoke_outdir(outdir_path)
     selected_rows = _count_selected_rows(paths.user_selection_path)
     manifest_rows = _count_manifest_rows(paths.manifest)
     high_count = _int(summary.get("source_high_quality_planned_row_count"))
@@ -147,9 +151,8 @@ def build_selection_review_strategy(
         "recommended_strategy": strategy,
         "recommended_quality_tier": str(summary.get("quality_tier", "")),
         "first_round_limit": limit,
-        "bounded_smoke_outdir": (
-            str(Path(bounded_smoke_outdir)) if bounded_smoke_outdir else ""
-        ),
+        "bounded_smoke_outdir": str(resolved_bounded_smoke_outdir),
+        "bounded_smoke_outdir_defaulted": not bool(bounded_smoke_outdir),
         "bounded_smoke_selected_row_count": selected_smoke_count,
         "high_quality_planned_row_count": high_count,
         "draft_or_fragmented_planned_row_count": draft_count,
@@ -182,6 +185,7 @@ def build_selection_review_strategy(
             download_plan,
             limit=limit,
             bounded_smoke_outdir=bounded_smoke_outdir,
+            resolved_bounded_smoke_outdir=resolved_bounded_smoke_outdir,
         ),
         "handoff_checklist": _handoff_checklist(
             bounded_smoke_outdir=bounded_smoke_outdir,
@@ -208,6 +212,10 @@ def build_selection_review_strategy(
             else "No bounded download rows are ready; review selection and coverage gaps."
         ),
     }
+
+
+def default_bounded_smoke_outdir(outdir: str | Path) -> Path:
+    return Path(outdir).parent / "handoffs" / DEFAULT_BOUNDED_SMOKE_HANDOFF_DIR
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -262,11 +270,13 @@ def _recommended_commands(
     *,
     limit: int,
     bounded_smoke_outdir: str | Path | None = None,
+    resolved_bounded_smoke_outdir: Path | None = None,
 ) -> list[dict[str, object]]:
-    smoke_outdir = (
-        str(Path(bounded_smoke_outdir))
+    smoke_outdir = str(
+        Path(bounded_smoke_outdir)
         if bounded_smoke_outdir
-        else "<isolated-bounded-download-smoke-dir>"
+        else resolved_bounded_smoke_outdir
+        or default_bounded_smoke_outdir(outdir)
     )
     return [
         {
@@ -296,7 +306,7 @@ def _recommended_commands(
                 smoke_outdir,
             ],
             "purpose": "write an isolated bounded smoke input package; does not run datasets",
-            "requires_operator_outdir": not bool(bounded_smoke_outdir),
+            "requires_operator_outdir": False,
         },
     ]
 
@@ -308,8 +318,11 @@ def _recommended_request(
     bounded_smoke_outdir: str | Path | None,
     selected_smoke_count: int,
 ) -> dict[str, object]:
-    if selected_smoke_count <= 0 or not bounded_smoke_outdir:
+    if selected_smoke_count <= 0:
         return {}
+    outdir = Path(bounded_smoke_outdir) if bounded_smoke_outdir else (
+        default_bounded_smoke_outdir(download_plan.parents[2])
+    )
     return {
         "command": "download-smoke",
         "subcommand": "prepare",
@@ -317,7 +330,7 @@ def _recommended_request(
         "quality_tier": "recommended",
         "limit": limit,
         "write": True,
-        "outdir": str(Path(bounded_smoke_outdir)),
+        "outdir": str(outdir),
         "json": True,
     }
 
@@ -348,7 +361,7 @@ def _handoff_checklist(
         },
         {
             "id": "prepare_bounded_download_smoke_input",
-            "status": "ready" if bounded_smoke_outdir else "needs_isolated_outdir",
+            "status": "ready",
             "requires_explicit_approval": False,
             "purpose": "write an isolated bounded smoke plan and command manifest",
         },

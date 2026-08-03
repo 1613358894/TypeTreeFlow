@@ -1267,14 +1267,15 @@ instead of reconstructing strategy from paths or logs:
 ```bash
 typetreeflow selection-review strategy \
   --outdir <run> \
-  --limit 3 \
-  --bounded-smoke-outdir <workspace>/handoffs/bounded_download_smoke
+  --limit 3
 ```
 
 Current `verify-genus` stdout also surfaces this as top-level
 `recommended_next_command` plus the matching structured `recommended_request`;
 AI controllers should follow that field before attempting any datasets
-execution.
+execution. If `--bounded-smoke-outdir` is omitted, the strategy output uses a
+deterministic sibling `<workspace>/handoffs/bounded_download_smoke` suggestion
+for the later handoff; operators can still override it explicitly.
 
 This command is read-only. It does not write files, run `datasets`, access the
 network, contact providers, mutate manifests, accept genomes for final use, or
@@ -1286,10 +1287,11 @@ inspection gates. `--bounded-smoke-outdir` only fills in the later
 itself still writes nothing. The JSON `selected_datasets_command_preview` field
 is preview-only, and `handoff_checklist` marks actual bounded `datasets`
 execution plus final genome acceptance as separate approval/review steps.
-When that isolated outdir is supplied, stdout also includes top-level
-`recommended_request` and `recommended_next_command` fields for the matching
-`download-smoke prepare --write` handoff. Without it, those fields stay empty
-so a controller does not guess a write location.
+Stdout includes top-level `recommended_request` and `recommended_next_command`
+fields for the matching `download-smoke prepare --write` handoff when bounded
+rows are available. Those fields use either the explicit
+`--bounded-smoke-outdir` value or the default sibling `handoffs/` suggestion, so
+a controller does not have to invent a write location.
 
 First inspect `selection/download_plan_readiness_summary.json` (or the same
 object in `status --json`). Its planned-row assembly-quality counts separate

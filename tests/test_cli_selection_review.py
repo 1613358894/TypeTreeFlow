@@ -62,6 +62,7 @@ def _write_download_plan(path):
 
 def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, capsys):
     outdir = tmp_path / "clostridium_download"
+    default_smoke_outdir = tmp_path / "handoffs" / "bounded_download_smoke"
     _write_selection(outdir / "selection" / "user_selection.tsv")
     _write_download_plan(outdir / "cache" / "ncbi" / "download_plan.tsv")
     (outdir / "report").mkdir(parents=True)
@@ -88,8 +89,24 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
     ]
     assert payload["selected_datasets_command_preview_only"] is True
     assert payload["recommended_request_target"] == "download-smoke prepare"
-    assert payload["recommended_request"] == {}
-    assert payload["recommended_next_command"] == ""
+    assert payload["bounded_smoke_outdir"] == str(default_smoke_outdir)
+    assert payload["bounded_smoke_outdir_defaulted"] is True
+    assert payload["recommended_request"] == {
+        "command": "download-smoke",
+        "subcommand": "prepare",
+        "download_plan": str(outdir / "cache" / "ncbi" / "download_plan.tsv"),
+        "quality_tier": "recommended",
+        "limit": 5,
+        "write": True,
+        "outdir": str(default_smoke_outdir),
+        "json": True,
+    }
+    assert payload["recommended_next_command"] == (
+        "typetreeflow download-smoke prepare --download-plan "
+        f"{outdir / 'cache' / 'ncbi' / 'download_plan.tsv'} "
+        "--limit 5 --quality-tier recommended --write "
+        f"--outdir {default_smoke_outdir} --json"
+    )
     assert payload["writes_outputs"] is False
     assert payload["downloads_triggered"] is False
     assert payload["providers_contacted"] is False
@@ -108,7 +125,8 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
     ]
     assert "--quality-tier" in prepare["argv"]
     assert "does not run datasets" in prepare["purpose"]
-    assert prepare["requires_operator_outdir"] is True
+    assert prepare["requires_operator_outdir"] is False
+    assert prepare["argv"][-2:] == ["--outdir", str(default_smoke_outdir)]
     assert (
         "treat_scaffold_contig_or_wgs_fasta_as_final_genome"
         in payload["forbidden_without_explicit_approval"]
@@ -118,12 +136,13 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
     ]
     checklist = {item["id"]: item for item in payload["handoff_checklist"]}
     assert checklist["prepare_bounded_download_smoke_input"]["status"] == (
-        "needs_isolated_outdir"
+        "ready"
     )
     assert checklist["run_bounded_datasets_download"]["requires_explicit_approval"]
     assert checklist["accept_final_genomes"]["status"] == (
         "not_authorized_by_strategy"
     )
+    assert not default_smoke_outdir.exists()
 
 
 def test_selection_review_strategy_renders_concrete_bounded_smoke_outdir(
@@ -155,6 +174,7 @@ def test_selection_review_strategy_renders_concrete_bounded_smoke_outdir(
     commands = {item["id"]: item for item in payload["recommended_commands"]}
     prepare = commands["bounded_download_smoke_prepare"]
     assert payload["bounded_smoke_outdir"] == str(smoke_outdir)
+    assert payload["bounded_smoke_outdir_defaulted"] is False
     assert payload["recommended_request_target"] == "download-smoke prepare"
     assert payload["recommended_request"] == {
         "command": "download-smoke",

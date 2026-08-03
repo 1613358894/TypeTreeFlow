@@ -160,6 +160,7 @@ from typetreeflow.rrna.plan import (
     write_rrna_plan,
 )
 from typetreeflow.rrna.workflow import prepare_local_16s
+from typetreeflow.selection_review_cli import default_bounded_smoke_outdir
 from typetreeflow.selection.type_strains import select_type_strains
 from typetreeflow.sources.entrez import BiopythonEntrezClient
 from typetreeflow.sources.ncbi_biosample import (
@@ -680,14 +681,31 @@ def _verify_genus_recommended_request(
             and command.get("id") == "selection_review_strategy"
         ):
             argv = command.get("argv")
-            if isinstance(argv, list) and len(argv) >= 5:
-                return {
+            outdir = _argv_value(argv, "--outdir")
+            if outdir:
+                request = {
                     "command": "selection-review",
                     "subcommand": "strategy",
-                    "outdir": str(argv[4]),
+                    "outdir": outdir,
                     "json": True,
                 }
+                bounded_smoke_outdir = _argv_value(argv, "--bounded-smoke-outdir")
+                if bounded_smoke_outdir:
+                    request["bounded_smoke_outdir"] = bounded_smoke_outdir
+                return request
     return {}
+
+
+def _argv_value(argv: object, flag: str) -> str:
+    if not isinstance(argv, list):
+        return ""
+    try:
+        index = argv.index(flag)
+    except ValueError:
+        return ""
+    if index + 1 >= len(argv):
+        return ""
+    return str(argv[index + 1])
 
 
 def _verify_genus_recommended_next_command(
@@ -752,6 +770,7 @@ def _verify_genus_checkpoint_guidance(
             }
         )
     outdir = str(config.outdir)
+    bounded_smoke_outdir = str(default_bounded_smoke_outdir(config.outdir))
     genus = str(config.acquire_genus or config.genus or "")
     return {
         "id": "selection_review_required",
@@ -772,10 +791,13 @@ def _verify_genus_checkpoint_guidance(
                     "strategy",
                     "--outdir",
                     outdir,
+                    "--bounded-smoke-outdir",
+                    bounded_smoke_outdir,
                 ],
                 "purpose": (
                     "summarize selection and planned-download strategy as "
-                    "compact JSON; does not write files or run datasets"
+                    "compact JSON with a default isolated bounded-smoke handoff "
+                    "directory; does not write files or run datasets"
                 ),
             },
             {
@@ -800,11 +822,11 @@ def _verify_genus_checkpoint_guidance(
                     "recommended",
                     "--write",
                     "--outdir",
-                    "<isolated-bounded-download-smoke-dir>",
+                    bounded_smoke_outdir,
                 ],
                 "purpose": (
-                    "write an inspection-only bounded download command handoff "
-                    "in a separate operator-chosen directory; does not run datasets"
+                    "write an inspection-only bounded download command handoff; "
+                    "does not run datasets"
                 ),
             },
         ],
