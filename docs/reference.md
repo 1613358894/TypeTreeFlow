@@ -2826,7 +2826,13 @@ FASTA not-ready reason counts, quality-gate passed/blocked row counts, a
 controlled blocker-count map, high-quality assembly-metadata local FASTA
 readiness and blocker counts, controlled quality-gate recommendation
 labels/reasons, and controlled bounded-smoke next-action labels/reasons.
-It does not carry local recommended quality-gate command paths.
+It also emits `download_smoke_next_action`,
+`download_smoke_next_action_reasons`, and `download_smoke_next_action_source`
+as controlled AI/operator routing hints derived from the validated result
+itself. Those fields may ask the operator to fix the result, run a bounded
+download-smoke inspection, review local FASTA quality blockers, or review
+validated bounded-smoke outputs. It does not carry local recommended
+quality-gate command paths.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.
