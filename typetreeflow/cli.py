@@ -446,9 +446,9 @@ def _verify_genus_public_status_reason(
     stage_statuses = {
         stage.status for stage in state.stages.values()
     } if state is not None else set()
+    if _looks_like_selection_review_required(error):
+        return "blocked", "manual_review_required"
     if exit_code != 0:
-        if _looks_like_selection_review_required(error):
-            return "blocked", "manual_review_required"
         if (
             state_status == "blocked_by_dependency"
             or "blocked_by_dependency" in stage_statuses
@@ -1204,6 +1204,10 @@ def main(
                 return 0
         except (ManifestError, ValueError, RuntimeError) as error:
             run_error = error
+            if config.verify_genus and _looks_like_selection_review_required(error):
+                exit_code = 0
+                LOGGER.info("%s", error)
+                return 0
             exit_code = 2
             LOGGER.error("%s", error)
             return 2

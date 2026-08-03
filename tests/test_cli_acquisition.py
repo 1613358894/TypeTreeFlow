@@ -899,6 +899,56 @@ def test_verify_genus_checkpoint_native_exit_zero_with_blocked_json(tmp_path):
     )
 
 
+def test_verify_genus_selection_review_exception_returns_blocked_json(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+
+    def raise_review_checkpoint(*args, **kwargs):
+        raise RuntimeError(
+            "manual_review_required: review selection/user_selection.tsv before "
+            "enabling downloads."
+        )
+
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_genus_acquisition_workflow",
+        raise_review_checkpoint,
+    )
+
+    result = main(
+        [
+            "verify-genus",
+            "Clostridium",
+            "--enable-lpsn-api",
+            "--enable-ncbi-discovery",
+            "--email",
+            "operator@example.org",
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+            "--force",
+        ]
+    )
+
+    payload, output = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert output.strip().startswith("{")
+    assert payload["command"] == "verify-genus"
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "manual_review_required"
+    assert payload["summary"].startswith("manual_review_required")
+    assert payload["blocking"][0]["id"] == "manual_review_required"
+    checkpoint = payload["checkpoint"]
+    assert checkpoint["id"] == "selection_review_required"
+    assert checkpoint["safe_to_continue"] is True
+    assert checkpoint["downloads_triggered"] is False
+    assert checkpoint["providers_contacted"] is False
+    assert payload["next_actions"][0]["id"] == "selection_review_strategy"
+    assert "selection-review strategy" in payload["next_actions"][0]["message"]
+
+
 def test_offline_acquire_genus_dry_run_writes_key_files(tmp_path, monkeypatch):
     outdir = tmp_path / "out"
     lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
