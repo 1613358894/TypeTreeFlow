@@ -593,6 +593,9 @@ def test_download_smoke_execute_blocks_mutated_command_manifest(capsys, tmp_path
     assert payload["status"] == "blocked"
     assert payload["downloads_triggered"] == 0
     assert payload["network_access"] is False
+    assert payload["blocking"] == [
+        {"id": "command_manifest_invalid", "message": "command_manifest_invalid"}
+    ]
     assert summary["command_invalid_count"] == 1
     assert summary["blockers"] == ["command_manifest_invalid"]
     assert rows[0]["command_valid"] == "false"
@@ -1310,6 +1313,12 @@ def test_download_smoke_prepare_blocks_without_planned_rows(capsys, tmp_path):
     payload = json.loads(capsys.readouterr().out)
     summary = payload["bounded_download_smoke_summary"]
     assert payload["status"] == "blocked"
+    assert payload["blocking"] == [
+        {
+            "id": "no_planned_ncbi_download_rows",
+            "message": "no_planned_ncbi_download_rows",
+        }
+    ]
     assert summary["ready"] is False
     assert summary["blockers"] == ["no_planned_ncbi_download_rows"]
 
