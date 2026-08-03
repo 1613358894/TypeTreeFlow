@@ -830,6 +830,19 @@ reason, and next-step fields for AI/operator review of local FASTA quality
 blockers. It does not inspect ZIP files, read FASTA payloads, execute downloads,
 contact providers, mutate workflow outputs, install genomes, or change strict
 scientific status.
+To create the empty decision TSV that a reviewer or AI controller can fill,
+run:
+
+```bash
+typetreeflow coverage-pipeline server-validation-result quality-review-template \
+  --triage <download_smoke_review_queue_triage.tsv> \
+  --write --out <download_smoke_quality_review_decisions.tsv> \
+  --json
+```
+
+The template command copies only `record_id` and `assembly_accession` and
+leaves all decision fields blank. It is not a completed review and does not
+accept genomes for bounded smoke, final use, strict status, or downloads.
 After local AI/operator review, import a complete decision TSV with:
 
 ```bash
