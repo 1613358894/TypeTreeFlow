@@ -230,6 +230,12 @@ def _write_download_smoke_inspection_pair(directory):
                 "installable_genome_fasta_not_ready_reason_counts": {
                     "empty_genome_fasta_outputs": 1
                 },
+                "assembly_metadata_high_quality_row_count": 1,
+                "assembly_metadata_high_quality_installable_ready_count": 0,
+                "assembly_metadata_high_quality_fasta_quality_blocked_count": 1,
+                "assembly_metadata_high_quality_fasta_quality_blocker_counts": {
+                    "fragmented_fasta_signal": 1
+                },
                 "installable_genome_fasta_fragmentation_signal_counts": {
                     "multi_record_fragmented": 1
                 },
@@ -655,6 +661,16 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert (
         "Installable genome FASTA not-ready reason counts: "
         "empty_genome_fasta_outputs=1"
+        in package_text
+    )
+    assert (
+        "Assembly-metadata high-quality rows: total=1; "
+        "installable_ready=0; local_fasta_quality_blocked=1"
+        in package_text
+    )
+    assert (
+        "Assembly-metadata high-quality FASTA blocker counts: "
+        "fragmented_fasta_signal=1"
         in package_text
     )
     assert (

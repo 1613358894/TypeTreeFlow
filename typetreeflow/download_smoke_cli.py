@@ -530,6 +530,23 @@ def inspect_bounded_download_smoke_outputs(
     installable_genome_fasta_not_ready_reason_counts = (
         _installable_genome_fasta_not_ready_reason_counts(inspections)
     )
+    metadata_high_quality_rows = [
+        row for row in inspections if str(row.get("quality_tier", "")).strip() == "high"
+    ]
+    metadata_high_quality_installable_ready_count = sum(
+        1 for row in metadata_high_quality_rows if row["installable_genome_fasta_ready"]
+    )
+    metadata_high_quality_fasta_quality_blocked_rows = [
+        row
+        for row in metadata_high_quality_rows
+        if str(row["status"]) == "genome_fasta_present"
+        and str(row.get("fasta_quality_gate_blockers", "")).strip()
+    ]
+    metadata_high_quality_fasta_quality_blocker_counts = (
+        _fasta_quality_gate_blocker_counts(
+            metadata_high_quality_fasta_quality_blocked_rows
+        )
+    )
     status_counts: dict[str, int] = {}
     fragmentation_signal_counts: dict[str, int] = {}
     installable_fragmentation_signal_counts: dict[str, int] = {}
@@ -727,6 +744,18 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "installable_genome_fasta_not_ready_reason_counts": (
             installable_genome_fasta_not_ready_reason_counts
+        ),
+        "assembly_metadata_high_quality_row_count": len(
+            metadata_high_quality_rows
+        ),
+        "assembly_metadata_high_quality_installable_ready_count": (
+            metadata_high_quality_installable_ready_count
+        ),
+        "assembly_metadata_high_quality_fasta_quality_blocked_count": len(
+            metadata_high_quality_fasta_quality_blocked_rows
+        ),
+        "assembly_metadata_high_quality_fasta_quality_blocker_counts": (
+            metadata_high_quality_fasta_quality_blocker_counts
         ),
         "fasta_record_count": sum(int(row["fasta_record_count"]) for row in inspections),
         "fasta_total_bases": sum(int(row["fasta_total_bases"]) for row in inspections),

@@ -3,6 +3,7 @@ import json
 import zipfile
 
 from typetreeflow.cli import main
+from typetreeflow.download_smoke_cli import BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
 from typetreeflow.taxonomy.candidates import (
     AssemblyCandidate,
@@ -14,6 +15,18 @@ def _write_download_plan(path, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=DOWNLOAD_PLAN_FIELDS, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_bounded_download_plan(path, rows):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS,
+            delimiter="\t",
+        )
         writer.writeheader()
         writer.writerows(rows)
 
@@ -820,9 +833,19 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
             "ACGT\n"
         ),
     )
-    _write_download_plan(
+    _write_bounded_download_plan(
         plan,
-        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+        [
+            {
+                **_bounded_row(
+                    "rec-1",
+                    assembly_level="Complete Genome",
+                    refseq_category="reference genome",
+                    quality_tier="high",
+                ),
+                "datasets_zip_path": str(zip_path),
+            }
+        ],
     )
 
     assert (
@@ -861,6 +884,12 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["installable_genome_fasta_ready_count"] == 1
     assert summary["installable_genome_fasta_not_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_reason_counts"] == {}
+    assert summary["assembly_metadata_high_quality_row_count"] == 1
+    assert summary["assembly_metadata_high_quality_installable_ready_count"] == 1
+    assert summary["assembly_metadata_high_quality_fasta_quality_blocked_count"] == 0
+    assert summary[
+        "assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    ] == {}
     assert summary["fasta_record_count"] == 2
     assert summary["fasta_total_bases"] == 10
     assert summary["fasta_longest_record_bases"] == 6
@@ -931,9 +960,19 @@ def test_download_smoke_inspect_default_quality_profile_blocks_fragmentation(
             "ACGT\n"
         ),
     )
-    _write_download_plan(
+    _write_bounded_download_plan(
         plan,
-        [{**_planned_row("rec-1"), "datasets_zip_path": str(zip_path)}],
+        [
+            {
+                **_bounded_row(
+                    "rec-1",
+                    assembly_level="Complete Genome",
+                    refseq_category="reference genome",
+                    quality_tier="high",
+                ),
+                "datasets_zip_path": str(zip_path),
+            }
+        ],
     )
 
     assert main(["download-smoke", "inspect", "--download-plan", str(plan)]) == 2
@@ -951,6 +990,15 @@ def test_download_smoke_inspect_default_quality_profile_blocks_fragmentation(
     assert summary["installable_genome_fasta_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_count"] == 1
     assert summary["installable_genome_fasta_not_ready_reason_counts"] == {
+        "fasta_header_fragment_keywords": 1,
+        "fragmented_fasta_signal": 1,
+    }
+    assert summary["assembly_metadata_high_quality_row_count"] == 1
+    assert summary["assembly_metadata_high_quality_installable_ready_count"] == 0
+    assert summary["assembly_metadata_high_quality_fasta_quality_blocked_count"] == 1
+    assert summary[
+        "assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    ] == {
         "fasta_header_fragment_keywords": 1,
         "fragmented_fasta_signal": 1,
     }
