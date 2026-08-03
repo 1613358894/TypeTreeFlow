@@ -714,10 +714,13 @@ def _verify_genus_checkpoint_guidance(
                     str(paths.cache_dir / "ncbi" / "download_plan.tsv"),
                     "--quality-tier",
                     "recommended",
+                    "--write",
+                    "--outdir",
+                    "<isolated-bounded-download-smoke-dir>",
                 ],
                 "purpose": (
-                    "prepare an inspection-only bounded download command plan; "
-                    "does not run datasets"
+                    "write an inspection-only bounded download command handoff "
+                    "in a separate operator-chosen directory; does not run datasets"
                 ),
             },
         ],
