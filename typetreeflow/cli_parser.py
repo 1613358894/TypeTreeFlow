@@ -661,6 +661,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--download-smoke-quality-review-dir",
+        type=Path,
+        help=(
+            "Explicit read-only directory containing bounded download-smoke "
+            "quality-review audit outputs for --report-only audit reporting "
+            "or package-results; no automatic discovery."
+        ),
+    )
+    parser.add_argument(
         "--log-level",
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],

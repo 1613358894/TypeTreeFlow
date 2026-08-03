@@ -110,6 +110,7 @@ class AppConfig:
     offline_readiness_dir: Path | None = None
     strict_gating_dir: Path | None = None
     download_smoke_inspection_dir: Path | None = None
+    download_smoke_quality_review_dir: Path | None = None
 
 
 def ensure_real_action_allowed(

@@ -52,6 +52,10 @@ _AUDIT_DIR_RENDER_FIELDS = (
     ("offline_readiness_dir", "--offline-readiness-dir"),
     ("strict_gating_dir", "--strict-gating-dir"),
     ("download_smoke_inspection_dir", "--download-smoke-inspection-dir"),
+    (
+        "download_smoke_quality_review_dir",
+        "--download-smoke-quality-review-dir",
+    ),
 )
 _VERIFY_GENUS_LOCAL_RENDER_FIELDS = (
     ("species_checklist", "--species-checklist"),
@@ -1684,6 +1688,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "explicit strict-gating audit triplet directory",
+        },
+        {
+            "name": "--download-smoke-quality-review-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit bounded download-smoke quality-review audit triplet directory",
         },
     ],
     ("manual-review", "validate"): [

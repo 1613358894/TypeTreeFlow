@@ -834,6 +834,18 @@ requires exact `record_id` and `assembly_accession` linkage to every triage row
 and writes an isolated audit triplet only when `--write --outdir` is explicit.
 It does not accept genomes for final use, mutate manifests, install FASTA
 files, promote strict rows, or authorize downloads.
+To refresh the run report from that explicit triplet, use report-only mode:
+
+```bash
+typetreeflow verify-genus <Genus> \
+  --outdir <workspace>/runs/<genus> \
+  --resume --report-only \
+  --download-smoke-quality-review-dir <download_smoke_quality_review_dir>
+```
+
+The report section is audit-only. `bounded_smoke_quality_accepted` means
+bounded-smoke follow-up acceptance only; it is not final genome acceptance,
+type-strain confirmation, or a strict deliverable upgrade.
 The server-validation result includes boundary flags so AI controllers can
 route the local validation result without parsing diagnostics. These
 observations can include quality-gate hit counts,
@@ -1526,6 +1538,11 @@ typetreeflow package-results \
   --strict-gating-dir <isolated-triplet-directory>
 
 typetreeflow package-results \
+  --outdir <workspace>/runs/fusobacterium_plan \
+  --include reports \
+  --download-smoke-quality-review-dir <download_smoke_quality_review_dir>
+
+typetreeflow package-results \
   --outdir <workspace>/runs/fusobacterium_failed \
   --delivery-dir <workspace>/deliveries/fusobacterium_failed \
   --failed-handoff
@@ -1622,8 +1639,9 @@ With an explicit `--coverage-pipeline-dir`, `--include reports` and
 `provider_request_validation/`, and `provider_request_external_genomes/` under
 the isolated pipeline directory when present. They also derive
 `external_genomes_install_plan/`, `archive_candidates/`,
-`manual_review_import/`, and `strict_gating/` when present, then apply the same
-copy and artifact-scope contracts as the individual directory options.
+`manual_review_import/`, `strict_gating/`, and
+`download_smoke_quality_review/` when present, then apply the same copy and
+artifact-scope contracts as the individual directory options.
 `coverage_next/next_input_package.json` is copied only when it is a valid
 metadata-only next-input handoff packet; its artifact-scope row uses
 `evidence_policy=coverage_next_handoff_audit` and
@@ -1652,6 +1670,15 @@ quality-gate hits, passed/blocked rows, and blocker-code counts plus controlled
 quality-gate recommendation and bounded-smoke next-action labels/reasons, never
 local recommended command paths, raw FASTA headers, or sequence content.
 `--failed-handoff` excludes server-validation result artifacts.
+With an explicit `--download-smoke-quality-review-dir`, `--include reports`
+and `--include all` copy each validated quality-review member under
+`download_smoke/` and add one `scope=audit`,
+`evidence_policy=download_smoke_quality_review_audit` artifact-scope row per
+copied member. Missing input is omitted; partial or malformed input copies
+only validated members and records a compact warning. These files are
+audit-only: bounded-smoke acceptance does not accept genomes for final use,
+authorize unattended downloads, mutate manifests, change completion credit, or
+promote strict deliverables. `--failed-handoff` excludes these artifacts.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under
 `offline_readiness/` and add one `scope=audit`,
