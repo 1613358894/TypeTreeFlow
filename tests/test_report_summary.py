@@ -47,6 +47,9 @@ from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_AUDIT_FIELDS,
     STRICT_GATING_DIAGNOSTIC_FIELDS,
 )
+from typetreeflow.download_smoke_cli import (
+    INSPECTION_FIELDS as DOWNLOAD_SMOKE_INSPECTION_FIELDS,
+)
 from typetreeflow.external_genomes import (
     EXTERNAL_GENOME_FIELDS,
     EXTERNAL_GENOME_INSTALL_PLAN_FIELDS,
@@ -299,32 +302,83 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
-    header = [
-        "record_id",
-        "assembly_accession",
-        "zip_path",
-        "zip_exists",
-        "zip_valid",
-        "genome_fasta_present",
-        "genome_fasta_member_count",
-        "fasta_record_count",
-        "fasta_total_bases",
-        "fasta_longest_record_bases",
-        "fasta_n50_bases",
-        "fasta_ambiguous_bases",
-        "fasta_header_wgs_keyword_count",
-        "fasta_header_scaffold_keyword_count",
-        "fasta_header_contig_keyword_count",
-        "fasta_fragmentation_signal",
-        "status",
-    ]
-    (directory / "bounded_download_smoke_inspection.tsv").write_text(
-        "\t".join(header)
-        + "\n"
-        + "ref1\tGCF_000001\tlocal/ref1.zip\ttrue\ttrue\ttrue\t1\t2\t10\t6\t6\t2\t1\t1\t1\tmulti_record_fragmented\tgenome_fasta_present\n"
-        + "ref2\tGCF_000002\tlocal/ref2.zip\tfalse\tfalse\tfalse\t0\t0\t0\t0\t0\t0\t0\t0\t0\tnot_evaluated\tzip_missing\n",
-        encoding="utf-8",
-    )
+    with (directory / "bounded_download_smoke_inspection.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=DOWNLOAD_SMOKE_INSPECTION_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "record_id": "ref1",
+                "assembly_accession": "GCF_000001",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "zip_path": "local/ref1.zip",
+                "zip_exists": "true",
+                "zip_valid": "true",
+                "unsafe_zip_member_count": "0",
+                "genome_fasta_present": "true",
+                "genome_fasta_member_count": "1",
+                "genomic_named_fasta_member_count": "1",
+                "genome_fasta_install_selection_status": "selected",
+                "fasta_record_count": "2",
+                "fasta_total_bases": "10",
+                "fasta_longest_record_bases": "6",
+                "fasta_n50_bases": "6",
+                "fasta_ambiguous_bases": "2",
+                "fasta_header_wgs_keyword_count": "1",
+                "fasta_header_scaffold_keyword_count": "1",
+                "fasta_header_contig_keyword_count": "1",
+                "empty_genome_fasta_count": "0",
+                "multiple_genome_fasta_members_count": "0",
+                "fasta_fragmentation_signal": "multi_record_fragmented",
+                "fasta_quality_gate_blockers": "fragmented_fasta_signal",
+                "installable_genome_fasta_ready": "false",
+                "installable_genome_fasta_not_ready_reasons": (
+                    "fragmented_fasta_signal"
+                ),
+                "status": "genome_fasta_present",
+            }
+        )
+        writer.writerow(
+            {
+                "record_id": "ref2",
+                "assembly_accession": "GCF_000002",
+                "assembly_level": "Scaffold",
+                "refseq_category": "unknown",
+                "quality_tier": "draft_or_fragmented",
+                "zip_path": "local/ref2.zip",
+                "zip_exists": "false",
+                "zip_valid": "false",
+                "unsafe_zip_member_count": "1",
+                "genome_fasta_present": "false",
+                "genome_fasta_member_count": "0",
+                "genomic_named_fasta_member_count": "0",
+                "genome_fasta_install_selection_status": "not_evaluated",
+                "fasta_record_count": "0",
+                "fasta_total_bases": "0",
+                "fasta_longest_record_bases": "0",
+                "fasta_n50_bases": "0",
+                "fasta_ambiguous_bases": "0",
+                "fasta_header_wgs_keyword_count": "0",
+                "fasta_header_scaffold_keyword_count": "0",
+                "fasta_header_contig_keyword_count": "0",
+                "empty_genome_fasta_count": "1",
+                "multiple_genome_fasta_members_count": "1",
+                "fasta_fragmentation_signal": "not_evaluated",
+                "fasta_quality_gate_blockers": "",
+                "installable_genome_fasta_ready": "false",
+                "installable_genome_fasta_not_ready_reasons": (
+                    "missing_zip_outputs"
+                ),
+                "status": "zip_missing",
+            }
+        )
 
 
 def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
@@ -345,6 +399,15 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     assert "- Valid ZIPs: 1" in markdown
     assert "- Unsafe ZIP members: 1" in markdown
     assert "- Genome FASTA present: 1" in markdown
+    assert "- Bounded smoke assembly levels: Complete Genome=1, Scaffold=1" in markdown
+    assert (
+        "- Bounded smoke RefSeq categories: reference genome=1, unknown=1"
+        in markdown
+    )
+    assert (
+        "- Bounded smoke quality tiers: draft_or_fragmented=1, high=1"
+        in markdown
+    )
     assert (
         "- Installable genome FASTA ready/not-ready: ready=1, not_ready=1"
         in markdown
