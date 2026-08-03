@@ -814,7 +814,10 @@ Use exactly one of `--input` or `--download-smoke-inspection-dir`.
 
 The export writes only the explicit TSV path and does not inspect ZIP files,
 execute downloads, contact providers, mutate manifests, install genomes, or
-change strict scientific status.
+change strict scientific status. When the TSV is written, stdout includes
+`triage_queue_recommended_request_target`,
+`triage_queue_recommended_request`, and a renderable
+`triage_queue_recommended_next_command` for the next local triage step.
 To convert that queue into a bounded local triage worklist, run:
 
 ```bash

@@ -3956,6 +3956,16 @@ def _server_validation_result_review_queue_payload(
     diagnostics = []
     if diagnostic_code:
         diagnostics.append(_diagnostic("server_validation_result", diagnostic_code))
+    triage_request = (
+        _triage_queue_recommended_request(output_path)
+        if output_written and output_path is not None
+        else {}
+    )
+    triage_command = (
+        _recommended_next_command_from_request(triage_request)
+        if triage_request
+        else ""
+    )
     return {
         "schema_version": SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SCHEMA_VERSION,
         "status": status,
@@ -3996,6 +4006,13 @@ def _server_validation_result_review_queue_payload(
             if validation_payload
             else []
         ),
+        "triage_queue_recommended_request": triage_request,
+        "triage_queue_recommended_request_target": (
+            "coverage-pipeline server-validation-result triage-queue"
+            if triage_request
+            else ""
+        ),
+        "triage_queue_recommended_next_command": triage_command,
         "diagnostic_count": len(diagnostics),
         "diagnostics": diagnostics,
         "dry_run": dry_run,
@@ -4011,6 +4028,17 @@ def _server_validation_result_review_queue_payload(
         "execution_boundary": (
             "local_result_review_queue_export_only_no_target_execution"
         ),
+    }
+
+
+def _triage_queue_recommended_request(review_queue_path: Path) -> dict[str, object]:
+    return {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result triage-queue",
+        "input": str(review_queue_path),
+        "write": True,
+        "out": "<download_smoke_review_queue_triage.tsv>",
+        "json": True,
     }
 
 

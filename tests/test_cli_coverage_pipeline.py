@@ -2978,6 +2978,9 @@ def test_coverage_pipeline_server_validation_result_review_queue_dry_run(
     )
     assert payload["output_path"] == ""
     assert payload["output_written"] is False
+    assert payload["triage_queue_recommended_request"] == {}
+    assert payload["triage_queue_recommended_request_target"] == ""
+    assert payload["triage_queue_recommended_next_command"] == ""
     assert payload["dry_run"] is True
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False
@@ -3016,6 +3019,45 @@ def test_coverage_pipeline_server_validation_result_review_queue_writes_tsv(
     assert payload["status"] == "pass"
     assert payload["output_path"] == str(output_path)
     assert payload["output_written"] is True
+    assert payload["triage_queue_recommended_request"] == {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result triage-queue",
+        "input": str(output_path),
+        "write": True,
+        "out": "<download_smoke_review_queue_triage.tsv>",
+        "json": True,
+    }
+    assert payload["triage_queue_recommended_request_target"] == (
+        "coverage-pipeline server-validation-result triage-queue"
+    )
+    assert payload["triage_queue_recommended_next_command"] == (
+        "typetreeflow coverage-pipeline server-validation-result triage-queue "
+        f"--input {output_path} --write --out "
+        "<download_smoke_review_queue_triage.tsv> --json"
+    )
+    assert (
+        cli.main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(payload["triage_queue_recommended_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "triage-queue",
+        "--input",
+        str(output_path),
+        "--write",
+        "--out",
+        "<download_smoke_review_queue_triage.tsv>",
+        "--json",
+    ]
     assert payload["dry_run"] is False
     assert payload["writes_outputs"] is True
     rows = _read_tsv(output_path)

@@ -2958,6 +2958,10 @@ for output-path or write failures, and only allows `--force` to replace an
 existing TSV whose header matches this schema. It remains a local handoff
 export and does not inspect ZIP files, execute downloads, contact providers,
 mutate workflow outputs, install genomes, or change strict scientific status.
+When the queue TSV is written successfully, stdout also includes
+`triage_queue_recommended_request_target`,
+`triage_queue_recommended_request`, and a renderable
+`triage_queue_recommended_next_command` for the matching local triage step.
 `coverage-pipeline server-validation-result triage-queue --input <tsv>` is the
 matching offline adapter for the exported review queue TSV. By default it emits
 compact JSON and writes nothing. With `--write --out <tsv>`, it writes a single
