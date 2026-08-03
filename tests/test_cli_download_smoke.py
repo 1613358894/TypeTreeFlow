@@ -31,6 +31,22 @@ def _planned_row(record_id="rec-1", accession="GCF_000001.1"):
     }
 
 
+def _bounded_row(
+    record_id="rec-1",
+    accession="GCF_000001.1",
+    *,
+    assembly_level="unknown",
+    refseq_category="unknown",
+    quality_tier="unknown",
+):
+    return {
+        **_planned_row(record_id, accession),
+        "assembly_level": assembly_level,
+        "refseq_category": refseq_category,
+        "quality_tier": quality_tier,
+    }
+
+
 def _write_assembly_candidates(path, rows):
     write_assembly_candidates(
         [
@@ -152,7 +168,7 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
         (outdir / "bounded_download_smoke_summary.json").read_text(encoding="utf-8")
     )
     assert payload["writes_outputs"] is True
-    assert rows == [_planned_row("rec-1")]
+    assert rows == [_bounded_row("rec-1")]
     assert summary["selected_row_count"] == 1
     assert summary["downloads_triggered"] == 0
     assert summary["inspection_quality_profile"] == "fragmentation"
@@ -173,6 +189,50 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"
     ] == summary["recommended_inspection_command"]
+
+
+def test_download_smoke_inspect_accepts_annotated_prepare_plan(capsys, tmp_path):
+    plan = tmp_path / "cache" / "ncbi" / "download_plan.tsv"
+    outdir = tmp_path / "smoke-input"
+    _write_download_plan(plan, [_planned_row("complete", "GCF_000002.1")])
+    _write_assembly_candidates(
+        tmp_path / "candidates" / "assembly_candidates.tsv",
+        [("GCF_000002.1", "Complete Genome", "reference genome")],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "prepare",
+                "--download-plan",
+                str(plan),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                str(outdir / "bounded_download_smoke_plan.tsv"),
+            ]
+        )
+        == 2
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "blocked"
+    assert summary["selected_row_count"] == 1
+    assert summary["blockers"] == ["missing_zip_outputs"]
 
 
 def test_download_smoke_prepare_write_carries_inspection_quality_gates(
@@ -385,7 +445,15 @@ def test_download_smoke_prepare_can_select_high_quality_rows(capsys, tmp_path):
         "representative genome": 1,
         "unknown": 2,
     }
-    assert rows == [_planned_row("complete", "GCF_000002.1")]
+    assert rows == [
+        _bounded_row(
+            "complete",
+            "GCF_000002.1",
+            assembly_level="Complete Genome",
+            refseq_category="reference genome",
+            quality_tier="high",
+        )
+    ]
 
 
 def test_download_smoke_prepare_default_recommended_selects_high_quality_rows(
@@ -456,7 +524,15 @@ def test_download_smoke_prepare_default_recommended_selects_high_quality_rows(
         summary["selected_accession_quality_preview"][0]["refseq_category"]
         == "reference genome"
     )
-    assert rows == [_planned_row("complete", "GCF_000002.1")]
+    assert rows == [
+        _bounded_row(
+            "complete",
+            "GCF_000002.1",
+            assembly_level="Complete Genome",
+            refseq_category="reference genome",
+            quality_tier="high",
+        )
+    ]
 
 
 def test_download_smoke_prepare_selected_high_quality_count_tracks_selected_rows(
