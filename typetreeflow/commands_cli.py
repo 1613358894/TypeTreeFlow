@@ -1190,6 +1190,7 @@ _DOWNLOAD_SMOKE_EXECUTION_SUMMARY_FIELDS: list[str] = [
     "blockers",
     "recommended_inspection_request_target",
     "recommended_inspection_request",
+    "recommended_inspection_request_blockers",
     "recommended_inspection_next_command",
     "recommended_inspection_command",
     "recommended_next_command",

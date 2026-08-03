@@ -278,18 +278,35 @@ def run_download_smoke_command(
         )
     if args.action == "execute":
         summary = result["summary"]  # type: ignore[index]
+        inspection_plan_path = _bounded_plan_path_for_commands_manifest(
+            args.commands_manifest
+        )
+        inspection_request_blockers: list[str] = []
+        if (
+            args.write
+            and int(summary.get("selected_row_count", 0)) > 0
+            and not inspection_plan_path.exists()
+        ):
+            inspection_request_blockers.append("bounded_download_smoke_plan_missing")
         inspection_request = (
             _recommended_inspection_request(
-                _bounded_plan_path_for_commands_manifest(args.commands_manifest),
+                inspection_plan_path,
                 quality_profile=QUALITY_PROFILE_FRAGMENTATION,
             )
-            if args.write and int(summary.get("selected_row_count", 0)) > 0
+            if (
+                args.write
+                and int(summary.get("selected_row_count", 0)) > 0
+                and not inspection_request_blockers
+            )
             else {}
         )
         summary["recommended_inspection_request_target"] = (  # type: ignore[index]
             INSPECT_COMMAND if inspection_request else ""
         )
         summary["recommended_inspection_request"] = inspection_request  # type: ignore[index]
+        summary["recommended_inspection_request_blockers"] = (  # type: ignore[index]
+            inspection_request_blockers
+        )
         summary["recommended_inspection_next_command"] = (  # type: ignore[index]
             _recommended_next_command(inspection_request)
         )
