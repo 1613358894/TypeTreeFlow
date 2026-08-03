@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from typetreeflow.manifest import write_manifest
@@ -131,6 +132,22 @@ def test_plan_only_guarded_download_includes_secondary_handoff(tmp_path):
     paths = get_output_paths(tmp_path)
     _write_positive_species_checklist(tmp_path)
     _write_selected_user_selection(paths.user_selection_path)
+    paths.download_plan_readiness_summary_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    paths.download_plan_readiness_summary_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "download_plan_readiness_summary.v1",
+                "bounded_ncbi_download_smoke_ready": True,
+                "bounded_ncbi_download_smoke_quality_tier_recommendation": "high",
+                "bounded_ncbi_download_smoke_candidate_count": 2,
+                "high_quality_bounded_ncbi_download_smoke_candidate_count": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
     paths.manual_supplement_hints_path.parent.mkdir(parents=True, exist_ok=True)
     paths.manual_supplement_hints_path.write_text(
         "species\trecommended_action\treason\thandoff_path\n"
@@ -145,6 +162,11 @@ def test_plan_only_guarded_download_includes_secondary_handoff(tmp_path):
         "Review selection/user_selection.tsv before guarded downloads"
     )
     assert "--auto-accept-selection --enable-downloads" in action
+    assert "download-smoke prepare" in action
+    assert "--quality-tier recommended --limit 1 --write --outdir" in action
+    assert "<isolated-bounded-download-smoke-dir>" in action
+    assert "writes only the bounded plan and command manifest" in action
+    assert "does not download genomes" in action
     assert "Secondary/optional handoff:" in action
     assert "completion/manual_supplement_hints.tsv" in action
 

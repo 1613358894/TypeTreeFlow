@@ -230,12 +230,13 @@ def _bounded_smoke_prepare_next_action(paths) -> str:
     plan_path = _relative_output_path(paths.cache_dir / "ncbi" / "download_plan.tsv", paths)
     return (
         "For bounded validation before guarded downloads, prepare an isolated "
-        "NCBI smoke plan with `typetreeflow download-smoke prepare "
+        "NCBI smoke handoff with `typetreeflow download-smoke prepare "
         f"--download-plan {plan_path} --quality-tier recommended --limit 1 "
-        "--outdir <smoke-handoff-dir>`; "
+        "--write --outdir <isolated-bounded-download-smoke-dir>`; "
         f"recommended currently resolves to {tier} "
         f"({high_count} high-quality row(s), {candidate_count} planned row(s)). "
-        "This planning command does not download genomes."
+        "This handoff command writes only the bounded plan and command manifest; "
+        "it does not download genomes."
     )
 
 
