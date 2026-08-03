@@ -34,6 +34,7 @@ OUTPUT_PLAN_NAME = "bounded_download_smoke_plan.tsv"
 OUTPUT_SUMMARY_NAME = "bounded_download_smoke_summary.json"
 OUTPUT_INSPECTION_NAME = "bounded_download_smoke_inspection.tsv"
 OUTPUT_INSPECTION_SUMMARY_NAME = "bounded_download_smoke_inspection_summary.json"
+INSPECTION_PREVIEW_LIMIT = 5
 QUALITY_PROFILE_NONE = "none"
 QUALITY_PROFILE_FRAGMENTATION = "fragmentation"
 QUALITY_PROFILES = {QUALITY_PROFILE_NONE, QUALITY_PROFILE_FRAGMENTATION}
@@ -547,6 +548,11 @@ def inspect_bounded_download_smoke_outputs(
             metadata_high_quality_fasta_quality_blocked_rows
         )
     )
+    metadata_high_quality_fasta_quality_blocked_preview = (
+        _blocked_high_quality_row_preview(
+            metadata_high_quality_fasta_quality_blocked_rows
+        )
+    )
     status_counts: dict[str, int] = {}
     fragmentation_signal_counts: dict[str, int] = {}
     installable_fragmentation_signal_counts: dict[str, int] = {}
@@ -768,6 +774,13 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "assembly_metadata_high_quality_fasta_quality_blocker_counts": (
             metadata_high_quality_fasta_quality_blocker_counts
+        ),
+        "assembly_metadata_high_quality_fasta_quality_blocked_preview": (
+            metadata_high_quality_fasta_quality_blocked_preview
+        ),
+        "assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated": (
+            len(metadata_high_quality_fasta_quality_blocked_rows)
+            > INSPECTION_PREVIEW_LIMIT
         ),
         "fasta_record_count": sum(int(row["fasta_record_count"]) for row in inspections),
         "fasta_total_bases": sum(int(row["fasta_total_bases"]) for row in inspections),
@@ -1029,6 +1042,32 @@ def _fasta_quality_gate_blocker_counts(
             if blocker:
                 counts[blocker] = counts.get(blocker, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _blocked_high_quality_row_preview(
+    rows: Sequence[dict[str, object]],
+) -> list[dict[str, object]]:
+    preview: list[dict[str, object]] = []
+    for row in rows[:INSPECTION_PREVIEW_LIMIT]:
+        raw_blockers = str(row.get("fasta_quality_gate_blockers", "")).strip()
+        preview.append(
+            {
+                "record_id": str(row.get("record_id", "")).strip(),
+                "assembly_accession": str(
+                    row.get("assembly_accession", "")
+                ).strip(),
+                "assembly_level": str(row.get("assembly_level", "")).strip(),
+                "refseq_category": str(row.get("refseq_category", "")).strip(),
+                "quality_tier": str(row.get("quality_tier", "")).strip(),
+                "status": str(row.get("status", "")).strip(),
+                "fasta_quality_gate_blockers": [
+                    blocker.strip()
+                    for blocker in raw_blockers.split(";")
+                    if blocker.strip()
+                ],
+            }
+        )
+    return preview
 
 
 def _installable_genome_fasta_not_ready_reason_counts(
