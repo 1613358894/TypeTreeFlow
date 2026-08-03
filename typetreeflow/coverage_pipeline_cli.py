@@ -4041,6 +4041,16 @@ def _server_validation_result_triage_queue_payload(
                 for blocker in blockers
                 if str(blocker).strip()
             )
+    recommended_template_request = (
+        _quality_review_template_recommended_request(output_path)
+        if output_written and output_path is not None
+        else {}
+    )
+    recommended_template_command = (
+        _recommended_next_command_from_request(recommended_template_request)
+        if recommended_template_request
+        else ""
+    )
     return {
         "schema_version": SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SCHEMA_VERSION,
         "status": status,
@@ -4057,6 +4067,17 @@ def _server_validation_result_triage_queue_payload(
         ),
         "fasta_quality_gate_blocker_counts": _sorted_count_map(blocker_counts),
         "recommended_next_step_counts": _sorted_count_map(next_step_counts),
+        "quality_review_template_recommended_request": (
+            recommended_template_request
+        ),
+        "quality_review_template_recommended_request_target": (
+            "coverage-pipeline server-validation-result quality-review-template"
+            if recommended_template_request
+            else ""
+        ),
+        "quality_review_template_recommended_next_command": (
+            recommended_template_command
+        ),
         "triage_preview": [dict(row) for row in triage_rows[:5]],
         "triage_preview_truncated": len(triage_rows) > 5,
         "diagnostic_count": len(diagnostics),
@@ -4148,6 +4169,16 @@ def _server_validation_result_quality_review_template_payload(
     diagnostics = []
     if diagnostic_code:
         diagnostics.append(_diagnostic("quality_review_template", diagnostic_code))
+    recommended_review_request = (
+        _quality_review_recommended_request(triage_path, output_path)
+        if output_written and output_path is not None
+        else {}
+    )
+    recommended_review_command = (
+        _recommended_next_command_from_request(recommended_review_request)
+        if recommended_review_request
+        else ""
+    )
     return {
         "schema_version": (
             SERVER_VALIDATION_RESULT_QUALITY_REVIEW_TEMPLATE_SCHEMA_VERSION
@@ -4169,6 +4200,13 @@ def _server_validation_result_quality_review_template_payload(
         "allowed_decision_reason_codes": list(
             _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_REASON_CODES
         ),
+        "quality_review_recommended_request": recommended_review_request,
+        "quality_review_recommended_request_target": (
+            "coverage-pipeline server-validation-result quality-review"
+            if recommended_review_request
+            else ""
+        ),
+        "quality_review_recommended_next_command": recommended_review_command,
         "template_only": True,
         "completed_review": False,
         "accepted_for_bounded_smoke_count": 0,
@@ -4189,6 +4227,36 @@ def _server_validation_result_quality_review_template_payload(
         "execution_boundary": (
             "local_fasta_quality_review_template_only_no_review_decision_no_target_execution"
         ),
+    }
+
+
+def _quality_review_template_recommended_request(
+    triage_path: Path,
+) -> dict[str, object]:
+    return {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result quality-review-template",
+        "triage": str(triage_path),
+        "write": True,
+        "out": "<download_smoke_quality_review_decisions.tsv>",
+        "json": True,
+    }
+
+
+def _quality_review_recommended_request(
+    triage_path: Path,
+    decisions_path: Path | None,
+) -> dict[str, object]:
+    if decisions_path is None:
+        return {}
+    return {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result quality-review",
+        "triage": str(triage_path),
+        "decisions": str(decisions_path),
+        "write": True,
+        "outdir": "<download_smoke_quality_review_dir>",
+        "json": True,
     }
 
 
