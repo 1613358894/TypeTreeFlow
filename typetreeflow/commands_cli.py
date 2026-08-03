@@ -241,6 +241,16 @@ _CATALOG_ENTRIES = (
         "boundary": "local review-queue triage only; no target execution, provider contact, downloads, or workflow mutation",
     },
     {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result quality-review",
+        "mode": "coverage_pipeline",
+        "argv_pattern": "typetreeflow coverage-pipeline server-validation-result quality-review --triage <download_smoke_review_queue_triage.tsv> --decisions <download_smoke_quality_review_decisions.tsv> [--write --outdir <dir>]",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_triplet",
+        "requires_outdir": False,
+        "boundary": "local FASTA-quality review import only; no target execution, provider contact, downloads, workflow mutation, or strict upgrade",
+    },
+    {
         "command": "download-smoke",
         "subcommand": "prepare",
         "mode": "download_smoke",
@@ -897,6 +907,29 @@ _SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS: list[str] = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+_SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS: list[str] = [
+    "status",
+    "row_count",
+    "accepted_for_bounded_smoke_count",
+    "decision_counts",
+    "decision_reason_counts",
+    "outdir",
+    "output_written",
+    "diagnostic_count",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "accepted_for_final_use",
+    "strict_scientific_deliverable",
+    "strict_upgrade_applied",
+    "external_genomes_registration_applied",
+    "execution_boundary",
+]
 _ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
     "record_count",
     "lane_counts",
@@ -1039,6 +1072,14 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "download_smoke_review_queue_triage.v1",
             "purpose": "local-only bounded FASTA-quality review queue triage",
             "summary_fields": _SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS,
+        },
+    ),
+    ("coverage-pipeline", "server-validation-result quality-review"): (
+        {
+            "name": "download_smoke_quality_review",
+            "schema_version": "download_smoke_quality_review.v1",
+            "purpose": "local-only bounded FASTA-quality review decision import",
+            "summary_fields": _SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS,
         },
     ),
     ("acquisition-worklist", "build"): (
@@ -2259,6 +2300,50 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "allow replacing an existing schema-matching triage TSV",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("coverage-pipeline", "server-validation-result quality-review"): [
+        {
+            "name": "--triage",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "explicit download_smoke_review_queue_triage.tsv input",
+        },
+        {
+            "name": "--decisions",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "explicit download_smoke_quality_review_decisions.tsv input",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated quality-review audit triplet",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit isolated output directory used only with --write",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "allow replacing an existing schema-matching quality-review triplet",
         },
         {
             "name": "--json",
@@ -4096,6 +4181,38 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         out = _optional_string(request, "out")
         if out:
             argv.extend(["--out", out])
+        return _with_flags(argv, request, {"force": "--force", "json": "--json"})
+    if (
+        command == "coverage-pipeline"
+        and subcommand == "server-validation-result quality-review"
+    ):
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "triage",
+                "decisions",
+                "write",
+                "outdir",
+                "force",
+                "json",
+            },
+        )
+        argv = [
+            "coverage-pipeline",
+            "server-validation-result",
+            "quality-review",
+            "--triage",
+            _required_string(request, "triage"),
+            "--decisions",
+            _required_string(request, "decisions"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        outdir = _optional_string(request, "outdir")
+        if outdir:
+            argv.extend(["--outdir", outdir])
         return _with_flags(argv, request, {"force": "--force", "json": "--json"})
     if command == "coverage-pipeline" and subcommand in {"build", "preview", "status"}:
         if subcommand == "status":

@@ -2184,6 +2184,7 @@ typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-c
 typetreeflow coverage-pipeline server-validation-result validate --input <coverage_handoff_server_validation_result.json> [--json]
 typetreeflow coverage-pipeline server-validation-result review-queue --input <coverage_handoff_server_validation_result.json> [--json] [--write --out <download_smoke_review_queue.tsv> [--force]]
 typetreeflow coverage-pipeline server-validation-result triage-queue --input <download_smoke_review_queue.tsv> [--json] [--write --out <download_smoke_review_queue_triage.tsv> [--force]]
+typetreeflow coverage-pipeline server-validation-result quality-review --triage <download_smoke_review_queue_triage.tsv> --decisions <download_smoke_quality_review_decisions.tsv> [--json] [--write --outdir <dir> [--force]]
 ```
 
 `coverage-pipeline preview`, `build`, and `status` read only explicitly named
@@ -2875,6 +2876,31 @@ header matches this schema. It remains local triage visibility only: it does
 not inspect ZIP files, read FASTA payloads, execute downloads, contact
 providers, mutate workflow outputs, install genomes, accept genomes for final
 use, or change strict scientific status.
+`coverage-pipeline server-validation-result quality-review --triage <tsv>
+--decisions <tsv>` is the matching offline import adapter for completed
+FASTA-quality review decisions. The triage TSV must use the
+`download_smoke_review_queue_triage.tsv` schema. The decisions TSV must use
+fields `record_id`, `assembly_accession`, `quality_review_decision`,
+`decision_reason_code`, `reviewer_id`, and `reviewed_at`. Allowed decisions are
+`bounded_smoke_quality_accepted`, `bounded_smoke_quality_rejected`,
+`needs_manual_fasta_quality_review`, and `needs_bounded_smoke_rerun`. Allowed
+reason codes are `header_keywords_false_positive`,
+`fragmentation_signal_false_positive`, `fragmented_or_scaffold_like_fasta`,
+`insufficient_quality_evidence`, and `rerun_required`. The command requires
+one exact linked decision for every triage row, rejects duplicate or unlinked
+decisions, requires controlled reviewer identifiers and `YYYY-MM-DD` review
+dates, and returns exit `2` without writing for validation failures. By default
+it emits compact JSON and writes nothing. With `--write --outdir <dir>`, it
+writes `download_smoke_quality_review.tsv`,
+`download_smoke_quality_review_summary.json`, and
+`download_smoke_quality_review_diagnostics.tsv` under only that explicit
+isolated directory. Output write failures return exit `1`; `--force` may
+replace only an existing schema-matching quality-review triplet. A
+`bounded_smoke_quality_accepted` decision means the local bounded-smoke quality
+review accepted that row for bounded-smoke follow-up only. It does not accept a
+genome for final use, install FASTA files, mutate workflow outputs, change
+completion or strict status, authorize downloads, or promote strict scientific
+deliverables.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.

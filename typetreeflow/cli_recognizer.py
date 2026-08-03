@@ -39,6 +39,7 @@ _READINESS_SUBCOMMANDS = {"evaluate"}
 _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
 _COVERAGE_PIPELINE_SUBCOMMANDS = {
     "build",
+    "server-validation-result quality-review",
     "preview",
     "server-validation-result review-queue",
     "server-validation-result triage-queue",
@@ -400,6 +401,7 @@ def _writes_outputs_declared(
     if command == "coverage-pipeline":
         return subcommand in {
             "build",
+            "server-validation-result quality-review",
             "server-validation-result review-queue",
             "server-validation-result triage-queue",
         } and "--write" in tokens
