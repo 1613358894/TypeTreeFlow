@@ -2979,6 +2979,87 @@ def _server_validation_download_smoke_review_queue(
     return queue
 
 
+def _download_smoke_review_queue_from_inspection_rows(
+    input_dir: Path,
+    diagnostics: list[dict[str, object]],
+) -> tuple[list[dict[str, object]], bool]:
+    rows_path = input_dir / "bounded_download_smoke_inspection.tsv"
+    if not rows_path.exists():
+        return [], False
+    if not rows_path.is_file() or rows_path.is_symlink():
+        diagnostics.append(
+            _diagnostic("download_smoke_inspection", "inspection_rows_unreadable")
+        )
+        return [], True
+
+    required_fields = {
+        "record_id",
+        "assembly_accession",
+        "assembly_level",
+        "refseq_category",
+        "quality_tier",
+        "status",
+        "fasta_quality_gate_blockers",
+        "installable_genome_fasta_ready",
+        "installable_genome_fasta_not_ready_reasons",
+    }
+    queue: list[dict[str, object]] = []
+    try:
+        with rows_path.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            fieldnames = set(reader.fieldnames or [])
+            if not required_fields.issubset(fieldnames):
+                diagnostics.append(
+                    _diagnostic(
+                        "download_smoke_inspection",
+                        "invalid_inspection_rows_schema",
+                    )
+                )
+                return [], True
+            for row in reader:
+                ready = str(row.get("installable_genome_fasta_ready", "")).strip()
+                if ready.lower() == "true":
+                    continue
+                blocker_text = str(
+                    row.get("installable_genome_fasta_not_ready_reasons", "")
+                    or row.get("fasta_quality_gate_blockers", "")
+                    or ""
+                )
+                blockers = [
+                    value.strip()
+                    for value in blocker_text.replace(",", ";").split(";")
+                    if value.strip()
+                ]
+                if not blockers:
+                    continue
+                queue.append(
+                    {
+                        "record_id": str(row.get("record_id", "")).strip(),
+                        "assembly_accession": str(
+                            row.get("assembly_accession", "")
+                        ).strip(),
+                        "assembly_level": str(
+                            row.get("assembly_level", "")
+                        ).strip(),
+                        "refseq_category": str(
+                            row.get("refseq_category", "")
+                        ).strip(),
+                        "quality_tier": str(row.get("quality_tier", "")).strip(),
+                        "status": str(row.get("status", "")).strip(),
+                        "fasta_quality_gate_blockers": blockers,
+                        "recommended_action": (
+                            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_ACTION
+                        ),
+                    }
+                )
+    except OSError:
+        diagnostics.append(
+            _diagnostic("download_smoke_inspection", "inspection_rows_unreadable")
+        )
+        return [], True
+    return queue, True
+
+
 def _safe_download_smoke_review_queue(value: object) -> list[dict[str, object]]:
     if not isinstance(value, list):
         return []
@@ -4026,16 +4107,31 @@ def _download_smoke_inspection_review_queue_payload(
             **observations,
         }
     )
-    download_smoke_review_queue = _server_validation_download_smoke_review_queue(
-        observations
+    row_review_queue, row_review_queue_available = (
+        _download_smoke_review_queue_from_inspection_rows(input_dir, diagnostics)
+        if summary and not diagnostics
+        else ([], False)
     )
-    download_smoke_review_queue_count = _optional_nonnegative_int(
-        observations.get(
-            "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
-        )
-    )
-    if download_smoke_review_queue_count == 0:
+    if row_review_queue_available and not diagnostics:
+        download_smoke_review_queue = row_review_queue
         download_smoke_review_queue_count = len(download_smoke_review_queue)
+        download_smoke_review_queue_preview_truncated = False
+    else:
+        download_smoke_review_queue = _server_validation_download_smoke_review_queue(
+            observations
+        )
+        download_smoke_review_queue_count = _optional_nonnegative_int(
+            observations.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+            )
+        )
+        if download_smoke_review_queue_count == 0:
+            download_smoke_review_queue_count = len(download_smoke_review_queue)
+        download_smoke_review_queue_preview_truncated = _optional_bool(
+            observations.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+            )
+        )
     return {
         "schema_version": SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION,
         "status": status,
@@ -4052,10 +4148,8 @@ def _download_smoke_inspection_review_queue_payload(
         "download_smoke_next_action_source": download_smoke_next_action["source"],
         "download_smoke_review_queue": download_smoke_review_queue,
         "download_smoke_review_queue_count": download_smoke_review_queue_count,
-        "download_smoke_review_queue_preview_truncated": _optional_bool(
-            observations.get(
-                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
-            )
+        "download_smoke_review_queue_preview_truncated": (
+            download_smoke_review_queue_preview_truncated
         ),
         "diagnostic_count": len(diagnostics),
         "diagnostics": [dict(entry) for entry in diagnostics],
