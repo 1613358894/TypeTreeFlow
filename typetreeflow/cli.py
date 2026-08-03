@@ -648,12 +648,22 @@ def _verify_genus_next_actions(
         return actions
     if any(action.get("id") == "selection_review_strategy" for action in actions):
         return actions
+    recommended_next_command = _verify_genus_recommended_next_command(
+        recommended_request
+    )
     selection_review_action: dict[str, object] = {
         "id": "selection_review_strategy",
         "message": (
-            "Run `typetreeflow selection-review strategy --outdir "
-            f"{outdir}` to summarize the review checkpoint and bounded "
-            "download-smoke handoff before any datasets execution."
+            "Run `"
+            f"{recommended_next_command}"
+            "` to summarize the review checkpoint and bounded download-smoke "
+            "handoff before any datasets execution."
+            if recommended_next_command
+            else (
+                "Run `typetreeflow selection-review strategy --outdir "
+                f"{outdir}` to summarize the review checkpoint and bounded "
+                "download-smoke handoff before any datasets execution."
+            )
         ),
     }
     if recommended_request:
@@ -661,9 +671,7 @@ def _verify_genus_next_actions(
             {
                 "recommended_request_target": "selection-review strategy",
                 "recommended_request": recommended_request,
-                "recommended_next_command": _verify_genus_recommended_next_command(
-                    recommended_request
-                ),
+                "recommended_next_command": recommended_next_command,
             }
         )
     routed_actions = [selection_review_action]
@@ -674,11 +682,7 @@ def _verify_genus_next_actions(
                     {
                         "recommended_request_target": "selection-review strategy",
                         "recommended_request": recommended_request,
-                        "recommended_next_command": (
-                            _verify_genus_recommended_next_command(
-                                recommended_request
-                            )
-                        ),
+                        "recommended_next_command": recommended_next_command,
                     }
                 )
             routed_actions.append(action)
