@@ -72,7 +72,8 @@ Primary commands write compact JSON to stdout by default. This does not require
   download smoke input package. It reads only the explicit `--download-plan`
   TSV, selects up to `--limit` rows with `status=planned`, and never runs
   `datasets`, opens the network, contacts providers, mutates the manifest, or
-  creates strict scientific deliverables.
+  creates strict scientific deliverables. When `--write` is used, `output_files`
+  lists the bounded plan TSV, complete command handoff TSV, and summary JSON.
 
 AI-facing stdout must stay short. Long logs, reports, tables, diagnostics, and
 evidence belong in the run directory.
