@@ -144,6 +144,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS = (
     "download_smoke_inspection_summary_sha256",
     "download_smoke_inspection_quality_profile",
     "download_smoke_inspection_quality_gate_recommendation",
+    "download_smoke_inspection_bounded_smoke_next_action",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS = (
     "external_genomes_registration_realized",
@@ -169,6 +170,9 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "download_smoke_inspection_genome_fasta_install_selection_ambiguous_count",
     "download_smoke_inspection_installable_genome_fasta_ready_count",
     "download_smoke_inspection_installable_genome_fasta_not_ready_count",
+    "download_smoke_inspection_assembly_metadata_high_quality_row_count",
+    "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count",
+    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count",
     "download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count",
     "download_smoke_inspection_fasta_record_count",
     "download_smoke_inspection_fasta_total_bases",
@@ -189,11 +193,13 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
 _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS = (
     "download_smoke_inspection_genome_fasta_install_selection_status_counts",
     "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts",
+    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts",
     "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts",
     "download_smoke_inspection_fasta_quality_gate_blocker_counts",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS = (
     "download_smoke_inspection_quality_gate_recommendation_reasons",
+    "download_smoke_inspection_bounded_smoke_next_action_reasons",
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -8452,6 +8458,30 @@ def _coverage_parent_controller_packet(
                 )
             )
         ),
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_row_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_row_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count",
+                    0,
+                )
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count": (
+            _safe_int(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count",
+                    0,
+                )
+            )
+        ),
         "handoff_server_validation_download_smoke_inspection_fasta_n50_below_minimum_count": (
             _safe_int(
                 result_artifact_packet.get(
@@ -8552,6 +8582,13 @@ def _coverage_parent_controller_packet(
                 )
             )
         ),
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts": (
+            _safe_count_map(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
+                )
+            )
+        ),
         "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": (
             _safe_count_map(
                 result_artifact_packet.get(
@@ -8575,6 +8612,17 @@ def _coverage_parent_controller_packet(
         "handoff_server_validation_download_smoke_inspection_quality_gate_recommendation_reasons": _safe_string_list(
             result_artifact_packet.get(
                 "download_smoke_inspection_quality_gate_recommendation_reasons"
+            )
+        ),
+        "handoff_server_validation_download_smoke_inspection_bounded_smoke_next_action": str(
+            result_artifact_packet.get(
+                "download_smoke_inspection_bounded_smoke_next_action", ""
+            )
+            or ""
+        ),
+        "handoff_server_validation_download_smoke_inspection_bounded_smoke_next_action_reasons": _safe_string_list(
+            result_artifact_packet.get(
+                "download_smoke_inspection_bounded_smoke_next_action_reasons"
             )
         ),
         "recommended_surface": recommended_surface,

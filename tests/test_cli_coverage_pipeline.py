@@ -2544,6 +2544,12 @@ def _valid_server_validation_result():
         "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": {
             "empty_genome_fasta_outputs": 1
         },
+        "download_smoke_inspection_assembly_metadata_high_quality_row_count": 1,
+        "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count": 0,
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count": 1,
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts": {
+            "fragmented_fasta_signal": 1
+        },
         "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {
             "multi_record_fragmented": 1
         },
@@ -2576,6 +2582,13 @@ def _valid_server_validation_result():
         "download_smoke_inspection_quality_gate_recommendation_reasons": [
             "fragmented_fasta_signal_observed",
             "fasta_header_fragment_keywords_observed",
+        ],
+        "download_smoke_inspection_bounded_smoke_next_action": (
+            "review_high_quality_metadata_fasta_quality_blockers"
+        ),
+        "download_smoke_inspection_bounded_smoke_next_action_reasons": [
+            "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+            "fragmented_fasta_signal",
         ],
         "checked_surface_names": [
             "coverage_handoff_server_validation_packet",
@@ -2622,6 +2635,10 @@ def _expected_download_smoke_inspection_result_defaults():
         "download_smoke_inspection_installable_genome_fasta_ready_count": 0,
         "download_smoke_inspection_installable_genome_fasta_not_ready_count": 0,
         "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": {},
+        "download_smoke_inspection_assembly_metadata_high_quality_row_count": 0,
+        "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count": 0,
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count": 0,
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts": {},
         "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {},
         "download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count": 0,
         "download_smoke_inspection_fasta_record_count": 0,
@@ -2642,6 +2659,8 @@ def _expected_download_smoke_inspection_result_defaults():
         "download_smoke_inspection_fasta_quality_gate_blocker_counts": {},
         "download_smoke_inspection_quality_gate_recommendation": "",
         "download_smoke_inspection_quality_gate_recommendation_reasons": [],
+        "download_smoke_inspection_bounded_smoke_next_action": "",
+        "download_smoke_inspection_bounded_smoke_next_action_reasons": [],
     }
 
 
@@ -2756,6 +2775,27 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
         "fragmented_fasta_signal_observed",
         "fasta_header_fragment_keywords_observed",
     ]
+    assert payload[
+        "download_smoke_inspection_assembly_metadata_high_quality_row_count"
+    ] == 1
+    assert payload[
+        "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count"
+    ] == 0
+    assert payload[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+    ] == 1
+    assert payload[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    ] == {"fragmented_fasta_signal": 1}
+    assert payload["download_smoke_inspection_bounded_smoke_next_action"] == (
+        "review_high_quality_metadata_fasta_quality_blockers"
+    )
+    assert payload[
+        "download_smoke_inspection_bounded_smoke_next_action_reasons"
+    ] == [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fragmented_fasta_signal",
+    ]
     assert payload["checked_surface_count"] == 2
     assert payload["diagnostic_count"] == 0
     assert payload["boundary_confirmation_status"] == "pass"
@@ -2838,6 +2878,15 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     result["download_smoke_inspection_block_fragmented_fasta"] = 1
     result["download_smoke_inspection_block_fasta_header_keywords"] = "true"
     result["download_smoke_inspection_selected_row_count"] = "2"
+    result[
+        "download_smoke_inspection_assembly_metadata_high_quality_row_count"
+    ] = -1
+    result[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+    ] = "1"
+    result[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    ] = {"": 1}
     result["download_smoke_inspection_empty_genome_fasta_count"] = -1
     result["download_smoke_inspection_multiple_genome_fasta_members_count"] = -1
     result["download_smoke_inspection_fasta_n50_below_minimum_count"] = -1
@@ -2857,6 +2906,13 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
         "ok",
         "",
     ]
+    result["download_smoke_inspection_bounded_smoke_next_action"] = [
+        "not string"
+    ]
+    result["download_smoke_inspection_bounded_smoke_next_action_reasons"] = [
+        "ok",
+        "",
+    ]
     result_path = tmp_path / "coverage_handoff_server_validation_result.json"
     _write_server_validation_result(result_path, result)
 
@@ -2872,8 +2928,13 @@ def test_coverage_pipeline_server_validation_result_blocks_invalid_metadata(
     assert payload["status"] == "blocked"
     assert payload["invalid_field_ids"] == [
         "check_count",
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count",
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts",
+        "download_smoke_inspection_assembly_metadata_high_quality_row_count",
         "download_smoke_inspection_block_fasta_header_keywords",
         "download_smoke_inspection_block_fragmented_fasta",
+        "download_smoke_inspection_bounded_smoke_next_action",
+        "download_smoke_inspection_bounded_smoke_next_action_reasons",
         "download_smoke_inspection_empty_genome_fasta_count",
         "download_smoke_inspection_fasta_ambiguous_bases_above_maximum_count",
         "download_smoke_inspection_fasta_n50_below_minimum_count",
@@ -6116,6 +6177,18 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts"
     ] = {"empty_genome_fasta_outputs": 1}
     result_template[
+        "download_smoke_inspection_assembly_metadata_high_quality_row_count"
+    ] = 1
+    result_template[
+        "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count"
+    ] = 0
+    result_template[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+    ] = 1
+    result_template[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    ] = {"fragmented_fasta_signal": 1}
+    result_template[
         "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts"
     ] = {"multi_record_fragmented": 1}
     result_template[
@@ -6155,6 +6228,13 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     result_template["download_smoke_inspection_quality_gate_recommendation_reasons"] = [
         "fragmented_fasta_signal_observed",
         "fasta_header_fragment_keywords_observed",
+    ]
+    result_template["download_smoke_inspection_bounded_smoke_next_action"] = (
+        "review_high_quality_metadata_fasta_quality_blockers"
+    )
+    result_template["download_smoke_inspection_bounded_smoke_next_action_reasons"] = [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fragmented_fasta_signal",
     ]
     result_template_path.write_text(json.dumps(result_template), encoding="utf-8")
     code, validation_payload, validation_captured = _run(
@@ -6244,6 +6324,27 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_artifact[
         "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts"
     ] == {"empty_genome_fasta_outputs": 1}
+    assert (
+        result_artifact[
+            "download_smoke_inspection_assembly_metadata_high_quality_row_count"
+        ]
+        == 1
+    )
+    assert (
+        result_artifact[
+            "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count"
+        ]
+        == 0
+    )
+    assert (
+        result_artifact[
+            "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+        ]
+        == 1
+    )
+    assert result_artifact[
+        "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    ] == {"fragmented_fasta_signal": 1}
     assert result_artifact["download_smoke_inspection_empty_genome_fasta_count"] == 1
     assert result_artifact[
         "download_smoke_inspection_multiple_genome_fasta_members_count"
@@ -6290,6 +6391,15 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ] == [
         "fragmented_fasta_signal_observed",
         "fasta_header_fragment_keywords_observed",
+    ]
+    assert result_artifact["download_smoke_inspection_bounded_smoke_next_action"] == (
+        "review_high_quality_metadata_fasta_quality_blockers"
+    )
+    assert result_artifact[
+        "download_smoke_inspection_bounded_smoke_next_action_reasons"
+    ] == [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fragmented_fasta_signal",
     ]
     assert result_artifact["checked_surface_count"] == 2
     assert result_artifact["boundary_confirmation_count"] == 11
@@ -6468,6 +6578,27 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     assert result_status_parent[
         "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts"
     ] == {"empty_genome_fasta_outputs": 1}
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_row_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count"
+        ]
+        == 0
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+        ]
+        == 1
+    )
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
+    ] == {"fragmented_fasta_signal": 1}
     assert result_status_parent[
         "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts"
     ] == {"multi_record_fragmented": 1}
@@ -6491,6 +6622,18 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
     ] == [
         "fragmented_fasta_signal_observed",
         "fasta_header_fragment_keywords_observed",
+    ]
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_inspection_bounded_smoke_next_action"
+        ]
+        == "review_high_quality_metadata_fasta_quality_blockers"
+    )
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_inspection_bounded_smoke_next_action_reasons"
+    ] == [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fragmented_fasta_signal",
     ]
     result_status_surfaces = result_status_payload[
         "coverage_controller_inspection_summary"

@@ -131,6 +131,12 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts": {
                     "empty_genome_fasta_outputs": 1
                 },
+                "download_smoke_inspection_assembly_metadata_high_quality_row_count": 1,
+                "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count": 0,
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count": 1,
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts": {
+                    "fragmented_fasta_signal": 1
+                },
                 "download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": {
                     "multi_record_fragmented": 1
                 },
@@ -159,6 +165,13 @@ def _write_server_validation_result(path):
                 "download_smoke_inspection_quality_gate_recommendation_reasons": [
                     "fragmented_fasta_signal_observed",
                     "fasta_header_fragment_keywords_observed",
+                ],
+                "download_smoke_inspection_bounded_smoke_next_action": (
+                    "review_high_quality_metadata_fasta_quality_blockers"
+                ),
+                "download_smoke_inspection_bounded_smoke_next_action_reasons": [
+                    "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+                    "fragmented_fasta_signal",
                 ],
                 "checked_surface_names": ["provider_request_external_genomes"],
                 "input_readiness_status": "ready",
@@ -2739,6 +2752,18 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     )
     assert "empty_genome_fasta_outputs=1" in package_text
     assert (
+        "Bounded download-smoke assembly-metadata high-quality rows"
+        in package_text
+    )
+    assert "total=1, installable_ready=0, local_fasta_quality_blocked=1" in (
+        package_text
+    )
+    assert (
+        "Bounded download-smoke assembly-metadata high-quality FASTA blocker counts"
+        in package_text
+    )
+    assert "fragmented_fasta_signal=1" in package_text
+    assert (
         "Bounded download-smoke installable genome FASTA fragmentation signals"
         in package_text
     )
@@ -2770,6 +2795,12 @@ def test_package_results_includes_server_validation_result_and_scope(tmp_path):
     assert "Bounded FASTA quality-gate recommendation reasons" in package_text
     assert "fragmented_fasta_signal_observed" in package_text
     assert "fasta_header_fragment_keywords_observed" in package_text
+    assert "Bounded download-smoke next action" in package_text
+    assert "review_high_quality_metadata_fasta_quality_blockers" in package_text
+    assert "Bounded download-smoke next action reasons" in package_text
+    assert "high_quality_metadata_rows_failed_local_fasta_quality_gates" in (
+        package_text
+    )
     assert "NZ_RJWG01000001.1" not in package_text
     assert "target command execution" in package_text
     assert "contact providers" in package_text
