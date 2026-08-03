@@ -2100,6 +2100,14 @@ def _server_validation_result_validation_payload(
     for field in invalid_field_ids:
         if field in observations and field in observation_defaults:
             observations[field] = observation_defaults[field]
+    download_smoke_next_action = _server_validation_download_smoke_next_action(
+        {
+            "available": True,
+            "status": status,
+            "validation_status": status,
+            **observations,
+        }
+    )
     return {
         "schema_version": SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION,
         "status": status,
@@ -2156,6 +2164,9 @@ def _server_validation_result_validation_payload(
             )
         ),
         **observations,
+        "download_smoke_next_action": download_smoke_next_action["action"],
+        "download_smoke_next_action_reasons": download_smoke_next_action["reasons"],
+        "download_smoke_next_action_source": download_smoke_next_action["source"],
         "checked_surface_names": [str(item) for item in checked_surface_names],
         "checked_surface_count": len(checked_surface_names),
         "required_field_count": len(_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS),

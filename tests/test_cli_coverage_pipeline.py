@@ -2844,6 +2844,16 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
         "high_quality_metadata_rows_failed_local_fasta_quality_gates",
         "fragmented_fasta_signal",
     ]
+    assert payload["download_smoke_next_action"] == (
+        "review_high_quality_metadata_fasta_quality_blockers"
+    )
+    assert payload["download_smoke_next_action_reasons"] == [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fragmented_fasta_signal",
+    ]
+    assert payload["download_smoke_next_action_source"] == (
+        "download_smoke_inspection_bounded_smoke_next_action"
+    )
     assert payload["checked_surface_count"] == 2
     assert payload["diagnostic_count"] == 0
     assert payload["boundary_confirmation_status"] == "pass"
@@ -2857,6 +2867,40 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["manifest_mutated"] is False
     assert payload["strict_scientific_deliverable"] is False
     assert payload["external_genomes_registration_applied"] is False
+
+
+def test_coverage_pipeline_server_validation_result_validate_guides_missing_download_smoke(
+    capsys, tmp_path
+):
+    result = _valid_server_validation_result()
+    result["download_smoke_inspection_realized"] = False
+    result["download_smoke_inspection_ready"] = False
+    result["download_smoke_inspection_bounded_smoke_next_action"] = ""
+    result["download_smoke_inspection_bounded_smoke_next_action_reasons"] = []
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path, result)
+
+    code, payload, captured = _run(
+        ["validate", "--input", str(result_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["download_smoke_next_action"] == (
+        "run_bounded_download_smoke_inspection"
+    )
+    assert payload["download_smoke_next_action_reasons"] == [
+        "download_smoke_inspection_not_realized"
+    ]
+    assert payload["download_smoke_next_action_source"] == (
+        "coverage_parent_controller_packet"
+    )
+    assert payload["downloads_triggered"] == 0
+    assert payload["network_access"] is False
 
 
 def test_coverage_pipeline_server_validation_result_validate_blocks_missing_field(
@@ -2881,6 +2925,13 @@ def test_coverage_pipeline_server_validation_result_validate_blocks_missing_fiel
     assert payload["missing_required_fields"] == ["boundary_confirmations"]
     assert payload["boundary_confirmation_status"] == "blocked"
     assert "missing_boundary_confirmations" in payload["boundary_blocker_ids"]
+    assert payload["download_smoke_next_action"] == "fix_server_validation_result"
+    assert payload["download_smoke_next_action_reasons"] == [
+        "server_validation_result_invalid_or_blocked"
+    ]
+    assert payload["download_smoke_next_action_source"] == (
+        "coverage_parent_controller_packet"
+    )
     assert "do not echo this raw diagnostic" not in captured.out
 
 
