@@ -51,10 +51,15 @@ def plan_only_guarded_download_next_action(paths) -> str:
     selected_count = selected_count_from_tsv(paths.user_selection_path)
     if not checklist_count or not selected_count:
         return ""
+    outdir = paths.manifest.parent
+    bounded_smoke_outdir = outdir.parent / "handoffs" / "bounded_download_smoke"
     primary = (
-        "Review selection/user_selection.tsv before guarded downloads; if the "
-        "selection is acceptable, rerun with --auto-accept-selection "
-        "--enable-downloads."
+        "Run `typetreeflow selection-review strategy "
+        f"--outdir {outdir} --bounded-smoke-outdir {bounded_smoke_outdir} "
+        "--json` before guarded downloads. This summarizes "
+        "selection/user_selection.tsv and the bounded smoke handoff without "
+        "running datasets. After that review, guarded downloads still require "
+        "separate explicit approval with --auto-accept-selection --enable-downloads."
     )
     bounded_smoke = _bounded_smoke_prepare_next_action(paths)
     secondary = _secondary_plan_only_handoff(paths)

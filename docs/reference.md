@@ -57,7 +57,11 @@ Primary commands write compact JSON to stdout by default. This does not require
   `next-step.recommended_action` also include
   `recommended_request_target=selection-review strategy`,
   `recommended_request`, and `recommended_next_command` so controllers can
-  render the local strategy command without parsing human text.
+  render the local strategy command without parsing human text. The human
+  message for that checkpoint also starts with the local
+  `selection-review strategy` command before mentioning separately approved
+  guarded downloads, so text-only controllers do not treat
+  `--enable-downloads` as the first recovery step.
   When an existing `cache/ncbi/download_plan.tsv` is present, `status` also
   emits `download_plan_readiness_summary`: an acquisition-facing, read-only
   count summary for planned NCBI downloads, existing genomes, missing
