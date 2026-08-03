@@ -221,6 +221,16 @@ _CATALOG_ENTRIES = (
         "boundary": "local result-shape validation only; no target execution, provider contact, downloads, or workflow mutation",
     },
     {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result review-queue",
+        "mode": "coverage_pipeline",
+        "argv_pattern": "typetreeflow coverage-pipeline server-validation-result review-queue --input <json> [--write --out <tsv>]",
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_tsv",
+        "requires_outdir": False,
+        "boundary": "local review-queue export only; no target execution, provider contact, downloads, or workflow mutation",
+    },
+    {
         "command": "download-smoke",
         "subcommand": "prepare",
         "mode": "download_smoke",
@@ -834,6 +844,27 @@ _SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS: list[str] = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+_SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SUMMARY_FIELDS: list[str] = [
+    "status",
+    "validation_status",
+    "queue_count",
+    "queue_preview_count",
+    "queue_preview_truncated",
+    "output_path",
+    "output_written",
+    "diagnostic_count",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+    "external_genomes_registration_applied",
+    "execution_boundary",
+]
 _ACQUISITION_WORKLIST_SUMMARY_FIELDS: list[str] = [
     "record_count",
     "lane_counts",
@@ -960,6 +991,14 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "coverage_handoff_server_validation_result_validation.v1",
             "purpose": "local-only bounded server-validation result shape and boundary validation",
             "summary_fields": _SERVER_VALIDATION_RESULT_VALIDATION_SUMMARY_FIELDS,
+        },
+    ),
+    ("coverage-pipeline", "server-validation-result review-queue"): (
+        {
+            "name": "coverage_handoff_server_validation_result_review_queue",
+            "schema_version": "coverage_handoff_server_validation_result_review_queue.v1",
+            "purpose": "local-only bounded download-smoke review queue export",
+            "summary_fields": _SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SUMMARY_FIELDS,
         },
     ),
     ("acquisition-worklist", "build"): (
@@ -2106,6 +2145,43 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": True,
             "repeatable": False,
             "purpose": "explicit coverage_handoff_server_validation_result.json input",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("coverage-pipeline", "server-validation-result review-queue"): [
+        {
+            "name": "--input",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "explicit coverage_handoff_server_validation_result.json input",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write the derived review queue TSV",
+        },
+        {
+            "name": "--out",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit output TSV path used only with --write",
+        },
+        {
+            "name": "--force",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "allow replacing an existing schema-matching review queue TSV",
         },
         {
             "name": "--json",
@@ -3886,6 +3962,35 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
             _required_string(request, "input"),
         ]
         return _with_flags(argv, request, {"json": "--json"})
+    if (
+        command == "coverage-pipeline"
+        and subcommand == "server-validation-result review-queue"
+    ):
+        _reject_unknown_fields(
+            request,
+            {
+                "command",
+                "subcommand",
+                "input",
+                "write",
+                "out",
+                "force",
+                "json",
+            },
+        )
+        argv = [
+            "coverage-pipeline",
+            "server-validation-result",
+            "review-queue",
+            "--input",
+            _required_string(request, "input"),
+        ]
+        if _bool_flag(request, "write"):
+            argv.append("--write")
+        out = _optional_string(request, "out")
+        if out:
+            argv.extend(["--out", out])
+        return _with_flags(argv, request, {"force": "--force", "json": "--json"})
     if command == "coverage-pipeline" and subcommand in {"build", "preview", "status"}:
         if subcommand == "status":
             _reject_unknown_fields(

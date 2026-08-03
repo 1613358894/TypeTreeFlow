@@ -2182,6 +2182,7 @@ typetreeflow coverage-pipeline preview [--checklist-tsv <species.tsv>] [--reconc
 typetreeflow coverage-pipeline build [--checklist-tsv <species.tsv>] [--reconciler-audit-tsv <reconciler_audit.tsv>] [--completion-gaps-tsv <gaps.tsv>] [--external-genomes-tsv <external_genomes.tsv>] [--archive-candidates-tsv <archive_candidates.tsv>] [--expanded-discovery-results-tsv <expanded_discovery_results.tsv>] [--manual-supplement-hints-tsv <manual_supplement_hints.tsv>] [--validate-provider-request [--provider-request-validation-base-dir <dir>]] [--curated-provider-request-tsv <provider_request.tsv>] [--provider-key <provider-key-or-alias> ...] [--external-genomes-install-target-outdir <dir>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--queue-operator-route <operator_route>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--json] [--write --outdir <dir> [--force]]
 typetreeflow coverage-pipeline status --coverage-pipeline-dir <dir> [--archive-candidates-dir <dir>] [--manual-review-import-dir <dir>] [--strict-gating-dir <dir>] [--provider-request-validation-dir <dir>] [--provider-request-external-genomes-dir <dir>] [--external-genomes-install-plan-dir <dir>] [--registration-run-dir <dir>] [--server-validation-result <coverage_handoff_server_validation_result.json>] [--queue-preview-limit <1..10>] [--queue-item-id <queue_item_id>] [--queue-operator-route <operator_route>] [--stage <operator_chain_stage>] [--expected-queue-snapshot-sha256 <sha256>] [--expected-operator-chain-snapshot-sha256 <sha256>] [--require-complete] [--json]
 typetreeflow coverage-pipeline server-validation-result validate --input <coverage_handoff_server_validation_result.json> [--json]
+typetreeflow coverage-pipeline server-validation-result review-queue --input <coverage_handoff_server_validation_result.json> [--json] [--write --out <download_smoke_review_queue.tsv> [--force]]
 ```
 
 `coverage-pipeline preview`, `build`, and `status` read only explicitly named
@@ -2844,6 +2845,18 @@ ID, accession, assembly metadata, row status, controlled blocker codes, and
 `recommended_action=review_local_fasta_quality_blockers`. It does not include
 ZIP paths, raw FASTA headers, sequence text, provider payloads, or any
 authorization to rerun downloads.
+`coverage-pipeline server-validation-result review-queue --input <json>` is the
+matching offline export adapter for that queue. By default it emits compact JSON
+and writes nothing. With `--write --out <tsv>`, it writes a single explicit TSV
+using fields `record_id`, `assembly_accession`, `assembly_level`,
+`refseq_category`, `quality_tier`, `status`, `fasta_quality_gate_blockers`, and
+`recommended_action`; valid results with no queued rows write a header-only
+file. The command validates the result JSON first, returns exit `2` without
+writing when that result is invalid, returns exit `1` for output-path or write
+failures, and only allows `--force` to replace an existing TSV whose header
+matches this schema. It remains a local handoff export and does not inspect ZIP
+files, execute downloads, contact providers, mutate workflow outputs, install
+genomes, or change strict scientific status.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.

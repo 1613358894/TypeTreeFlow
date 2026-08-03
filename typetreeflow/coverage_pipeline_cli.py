@@ -98,10 +98,16 @@ COMMAND_STATUS = "coverage-pipeline status"
 COMMAND_SERVER_VALIDATION_RESULT_VALIDATE = (
     "coverage-pipeline server-validation-result validate"
 )
+COMMAND_SERVER_VALIDATION_RESULT_REVIEW_QUEUE = (
+    "coverage-pipeline server-validation-result review-queue"
+)
 STATUS_SCHEMA_VERSION = "coverage_pipeline_status.v1"
 SERVER_VALIDATION_RESULT_SCHEMA_VERSION = "coverage_handoff_server_validation_result.v1"
 SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION = (
     "coverage_handoff_server_validation_result_validation.v1"
+)
+SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SCHEMA_VERSION = (
+    "coverage_handoff_server_validation_result_review_queue.v1"
 )
 QUEUE_PREVIEW_DEFAULT_LIMIT = 3
 QUEUE_PREVIEW_MAX_LIMIT = 10
@@ -217,6 +223,16 @@ _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_FIELDS = (
 _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_MAX_ROWS = 5
 _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_ACTION = (
     "review_local_fasta_quality_blockers"
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+    "status",
+    "fasta_quality_gate_blockers",
+    "recommended_action",
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -371,6 +387,8 @@ def run_coverage_pipeline_command(
         return 2
     if args.action == "server-validation-result-validate":
         return _run_server_validation_result_validate(args, output)
+    if args.action == "server-validation-result-review-queue":
+        return _run_server_validation_result_review_queue(args, output)
     if args.action == "status":
         return _run_status(args, output, queue_preview_limit=queue_preview_limit)
     outdir = Path(args.outdir) if getattr(args, "outdir", None) else None
@@ -735,6 +753,21 @@ def _build_parser() -> argparse.ArgumentParser:
         write=False,
         outdir=None,
         force=False,
+        validate_provider_request=False,
+        provider_request_validation_base_dir=None,
+        curated_provider_request_tsv=None,
+        external_genomes_install_target_outdir=None,
+    )
+    result_review_queue = result_actions.add_parser("review-queue", add_help=False)
+    result_review_queue.add_argument("--input", required=True)
+    result_review_queue.add_argument("--write", action="store_true")
+    result_review_queue.add_argument("--out")
+    result_review_queue.add_argument("--force", action="store_true")
+    result_review_queue.add_argument("--json", action="store_true")
+    result_review_queue.set_defaults(
+        action="server-validation-result-review-queue",
+        queue_preview_limit=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
+        outdir=None,
         validate_provider_request=False,
         provider_request_validation_base_dir=None,
         curated_provider_request_tsv=None,
@@ -1919,6 +1952,119 @@ def _run_server_validation_result_validate(
         return 1
 
 
+def _run_server_validation_result_review_queue(
+    args: argparse.Namespace, output: TextIO
+) -> int:
+    input_path = Path(args.input)
+    output_path = Path(args.out) if args.out is not None else None
+    if (
+        (args.write and output_path is None)
+        or (output_path is not None and not args.write)
+        or (args.force and not args.write)
+    ):
+        _emit(
+            _server_validation_result_review_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                validation_payload=None,
+                status="blocked",
+                diagnostic_code="invalid_command_usage",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 2
+
+    diagnostics: list[dict[str, object]] = []
+    try:
+        result = _read_json_artifact(
+            input_path,
+            component="server_validation_result",
+            diagnostics=diagnostics,
+            required=True,
+        )
+        validation = _validate_server_validation_result(result, diagnostics)
+        validation_payload = _server_validation_result_validation_payload(
+            result,
+            validation,
+            diagnostics,
+            input_path=input_path,
+        )
+    except Exception:
+        _emit(
+            _server_validation_result_review_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                validation_payload=None,
+                status="failed",
+                diagnostic_code="internal_error",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 1
+
+    if validation_payload["status"] != "pass":
+        _emit(
+            _server_validation_result_review_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                validation_payload=validation_payload,
+                status="blocked",
+                diagnostic_code="server_validation_result_invalid",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 2
+
+    queue = _safe_download_smoke_review_queue(
+        validation_payload.get("download_smoke_review_queue")
+    )
+    output_written = False
+    try:
+        if args.write:
+            assert output_path is not None
+            _write_download_smoke_review_queue_tsv(
+                output_path,
+                queue,
+                input_path=input_path,
+                force=args.force,
+            )
+            output_written = True
+    except Exception:
+        _emit(
+            _server_validation_result_review_queue_payload(
+                input_path=input_path,
+                output_path=output_path,
+                validation_payload=validation_payload,
+                status="failed",
+                diagnostic_code="review_queue_output_write_failed",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 1
+
+    _emit(
+        _server_validation_result_review_queue_payload(
+            input_path=input_path,
+            output_path=output_path,
+            validation_payload=validation_payload,
+            status="pass",
+            diagnostic_code=None,
+            output_written=output_written,
+            dry_run=not args.write,
+        ),
+        output,
+    )
+    return 0
+
+
 def _validate_server_validation_result(
     result: Mapping[str, object],
     diagnostics: list[dict[str, object]],
@@ -2483,6 +2629,189 @@ def _server_validation_download_smoke_review_queue(
             }
         )
     return queue
+
+
+def _safe_download_smoke_review_queue(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    queue: list[dict[str, object]] = []
+    allowed_keys = set(_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS)
+    for item in value:
+        if not isinstance(item, dict) or set(item) != allowed_keys:
+            continue
+        blockers = item.get("fasta_quality_gate_blockers")
+        if not isinstance(blockers, list):
+            blockers = []
+        queue.append(
+            {
+                "record_id": str(item.get("record_id", "")).strip(),
+                "assembly_accession": str(
+                    item.get("assembly_accession", "")
+                ).strip(),
+                "assembly_level": str(item.get("assembly_level", "")).strip(),
+                "refseq_category": str(item.get("refseq_category", "")).strip(),
+                "quality_tier": str(item.get("quality_tier", "")).strip(),
+                "status": str(item.get("status", "")).strip(),
+                "fasta_quality_gate_blockers": [
+                    str(blocker).strip()
+                    for blocker in blockers
+                    if str(blocker).strip()
+                ],
+                "recommended_action": str(
+                    item.get("recommended_action", "")
+                ).strip(),
+            }
+        )
+    return queue
+
+
+def _download_smoke_review_queue_tsv(
+    queue: Sequence[Mapping[str, object]],
+) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS,
+        delimiter="\t",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in queue:
+        blockers = row.get("fasta_quality_gate_blockers", [])
+        if isinstance(blockers, list):
+            blocker_text = ";".join(
+                str(blocker).strip()
+                for blocker in blockers
+                if str(blocker).strip()
+            )
+        else:
+            blocker_text = str(blockers).strip()
+        writer.writerow(
+            {
+                field: _format_tsv_value(
+                    blocker_text
+                    if field == "fasta_quality_gate_blockers"
+                    else row.get(field, "")
+                )
+                for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS
+            }
+        )
+    return output.getvalue()
+
+
+def _write_download_smoke_review_queue_tsv(
+    path: Path,
+    queue: Sequence[Mapping[str, object]],
+    *,
+    input_path: Path,
+    force: bool,
+) -> None:
+    if path.suffix.lower() != ".tsv":
+        raise ValueError("review queue output must be a TSV file")
+    if not path.parent.is_dir() or _has_symlink_component(path.parent):
+        raise ValueError("review queue output parent is unsafe")
+    if path.resolve(strict=False) == input_path.resolve(strict=False):
+        raise ValueError("review queue output cannot overwrite input")
+    if path.exists():
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("review queue output path is unsafe")
+        if not force:
+            raise FileExistsError(str(path))
+        header = path.read_text(encoding="utf-8").splitlines()[:1]
+        expected = "\t".join(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_FIELDS
+        )
+        if header != [expected]:
+            raise ValueError("existing review queue schema does not match")
+    text = _download_smoke_review_queue_tsv(queue)
+    temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temp_path.open("x", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def _server_validation_result_review_queue_payload(
+    *,
+    input_path: Path,
+    output_path: Path | None,
+    validation_payload: Mapping[str, object] | None,
+    status: str,
+    diagnostic_code: str | None,
+    output_written: bool,
+    dry_run: bool,
+) -> dict[str, object]:
+    queue = (
+        _safe_download_smoke_review_queue(
+            validation_payload.get("download_smoke_review_queue")
+        )
+        if validation_payload
+        else []
+    )
+    diagnostics = []
+    if diagnostic_code:
+        diagnostics.append(_diagnostic("server_validation_result", diagnostic_code))
+    return {
+        "schema_version": SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SCHEMA_VERSION,
+        "status": status,
+        "command": COMMAND_SERVER_VALIDATION_RESULT_REVIEW_QUEUE,
+        "input_path": str(input_path),
+        "output_path": str(output_path) if output_path else "",
+        "output_written": output_written,
+        "queue_count": (
+            _optional_nonnegative_int(
+                validation_payload.get("download_smoke_review_queue_count")
+            )
+            if validation_payload
+            else 0
+        ),
+        "queue_preview_count": len(queue),
+        "queue_preview_truncated": (
+            _optional_bool(
+                validation_payload.get("download_smoke_review_queue_preview_truncated")
+            )
+            if validation_payload
+            else False
+        ),
+        "review_queue": queue,
+        "validation_status": (
+            str(validation_payload.get("validation_status", ""))
+            if validation_payload
+            else status
+        ),
+        "download_smoke_next_action": (
+            str(validation_payload.get("download_smoke_next_action", ""))
+            if validation_payload
+            else ""
+        ),
+        "download_smoke_next_action_reasons": (
+            _safe_string_list(
+                validation_payload.get("download_smoke_next_action_reasons")
+            )
+            if validation_payload
+            else []
+        ),
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": diagnostics,
+        "dry_run": dry_run,
+        "writes_outputs": output_written,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "local_result_review_queue_export_only_no_target_execution"
+        ),
+    }
 
 
 def _optional_nonnegative_int(value: object) -> int:

@@ -789,6 +789,19 @@ such as validation status, result status, checked-surface count, boundary
 confirmation status, optional source commit, TypeTreeFlow version, runtime
 Python, evidence run path, check count, failed count, diagnostic count, and
 optional bounded download-smoke inspection observation counts and no-execution
+boundary flags. When a bounded smoke run leaves high-quality assembly metadata
+rows blocked by local FASTA quality gates, export a compact review queue with:
+
+```bash
+typetreeflow coverage-pipeline server-validation-result review-queue \
+  --input <coverage_handoff_server_validation_result.json> \
+  --write --out <download_smoke_review_queue.tsv> \
+  --json
+```
+
+The export writes only the explicit TSV path and does not inspect ZIP files,
+execute downloads, contact providers, mutate manifests, install genomes, or
+change strict scientific status.
 boundary flags so AI controllers can route the local validation result without
 parsing diagnostics. These observations can include quality-gate hit counts,
 passed/blocked row counts, controlled blocker-code counts, the active

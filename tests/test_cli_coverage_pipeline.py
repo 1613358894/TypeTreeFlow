@@ -2886,6 +2886,163 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["external_genomes_registration_applied"] is False
 
 
+def test_coverage_pipeline_server_validation_result_review_queue_dry_run(
+    capsys, tmp_path
+):
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    _write_server_validation_result(result_path, _valid_server_validation_result())
+
+    code, payload, captured = _run(
+        ["review-queue", "--input", str(result_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["schema_version"] == (
+        "coverage_handoff_server_validation_result_review_queue.v1"
+    )
+    assert payload["command"] == (
+        "coverage-pipeline server-validation-result review-queue"
+    )
+    assert payload["status"] == "pass"
+    assert payload["validation_status"] == "pass"
+    assert payload["queue_count"] == 1
+    assert payload["queue_preview_count"] == 1
+    assert payload["queue_preview_truncated"] is False
+    assert payload["review_queue"][0]["assembly_accession"] == "GCF_000001.1"
+    assert payload["review_queue"][0]["fasta_quality_gate_blockers"] == [
+        "fragmented_fasta_signal",
+        "fasta_header_fragment_keywords",
+    ]
+    assert payload["review_queue"][0]["recommended_action"] == (
+        "review_local_fasta_quality_blockers"
+    )
+    assert payload["output_path"] == ""
+    assert payload["output_written"] is False
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+
+
+def test_coverage_pipeline_server_validation_result_review_queue_writes_tsv(
+    capsys, tmp_path
+):
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    output_path = tmp_path / "download_smoke_review_queue.tsv"
+    _write_server_validation_result(result_path, _valid_server_validation_result())
+
+    code, payload, captured = _run(
+        [
+            "review-queue",
+            "--input",
+            str(result_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["output_path"] == str(output_path)
+    assert payload["output_written"] is True
+    assert payload["dry_run"] is False
+    assert payload["writes_outputs"] is True
+    rows = _read_tsv(output_path)
+    assert rows == [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": (
+                "fragmented_fasta_signal;fasta_header_fragment_keywords"
+            ),
+            "recommended_action": "review_local_fasta_quality_blockers",
+        }
+    ]
+
+
+def test_coverage_pipeline_server_validation_result_review_queue_blocks_invalid_result(
+    capsys, tmp_path
+):
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    output_path = tmp_path / "download_smoke_review_queue.tsv"
+    result = _valid_server_validation_result()
+    del result["boundary_confirmations"]
+    _write_server_validation_result(result_path, result)
+
+    code, payload, captured = _run(
+        [
+            "review-queue",
+            "--input",
+            str(result_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["validation_status"] == "blocked"
+    assert payload["output_written"] is False
+    assert not output_path.exists()
+
+
+def test_coverage_pipeline_server_validation_result_review_queue_rejects_bad_output(
+    capsys, tmp_path
+):
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    output_path = tmp_path / "download_smoke_review_queue.txt"
+    _write_server_validation_result(result_path, _valid_server_validation_result())
+
+    code, payload, captured = _run(
+        [
+            "review-queue",
+            "--input",
+            str(result_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 1
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "review_queue_output_write_failed"
+    )
+    assert payload["output_written"] is False
+    assert not output_path.exists()
+
+
 def test_coverage_pipeline_server_validation_result_validate_guides_missing_download_smoke(
     capsys, tmp_path
 ):
