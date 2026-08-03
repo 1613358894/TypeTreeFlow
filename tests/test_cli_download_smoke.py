@@ -712,6 +712,39 @@ def test_download_smoke_inspect_accepts_annotated_prepare_plan(capsys, tmp_path)
     assert rows[0]["quality_tier"] == "high"
     assert summary["selected_row_count"] == 1
     assert summary["blockers"] == ["missing_zip_outputs"]
+    execution_outdir = outdir / "execution"
+    assert summary["recommended_execution_validation_request_target"] == (
+        "download-smoke execute"
+    )
+    assert summary["recommended_execution_validation_request"] == {
+        "command": "download-smoke",
+        "subcommand": "execute",
+        "commands_manifest": str(outdir / "bounded_download_smoke_commands.tsv"),
+        "limit": 1,
+        "write": True,
+        "outdir": str(execution_outdir),
+    }
+    assert summary["recommended_execution_validation_next_command"] == (
+        "typetreeflow download-smoke execute --commands-manifest "
+        f"{outdir / 'bounded_download_smoke_commands.tsv'} "
+        f"--limit 1 --write --outdir {execution_outdir}"
+    )
+    assert "--execute" not in summary["recommended_execution_validation_command"]
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(summary["recommended_execution_validation_request"]),
+            ]
+        )
+        == 0
+    )
+    rendered = json.loads(capsys.readouterr().out)
+    assert rendered["target_argv"] == (
+        summary["recommended_execution_validation_command"][1:]
+    )
 
 
 def test_download_smoke_prepare_write_carries_inspection_quality_gates(

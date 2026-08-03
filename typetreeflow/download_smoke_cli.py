@@ -719,6 +719,10 @@ def _bounded_plan_path_for_commands_manifest(commands_manifest_path: str | Path)
     return Path(commands_manifest_path).parent / OUTPUT_PLAN_NAME
 
 
+def _bounded_commands_path_for_plan(bounded_plan_path: str | Path) -> Path:
+    return Path(bounded_plan_path).parent / OUTPUT_COMMANDS_NAME
+
+
 def _recommended_inspection_command(
     bounded_plan_path: str | Path,
     *,
@@ -1050,6 +1054,16 @@ def inspect_bounded_download_smoke_outputs(
         recommended_quality_gate_command = _recommended_inspection_command_from_request(
             recommended_quality_gate_request
         )
+    recommended_execution_validation_request: dict[str, object] = {}
+    if "missing_zip_outputs" in blockers:
+        commands_manifest_path = _bounded_commands_path_for_plan(plan_path)
+        if commands_manifest_path.exists():
+            recommended_execution_validation_request = (
+                _recommended_execution_validation_request(
+                    commands_manifest_path,
+                    limit=len(rows),
+                )
+            )
 
     ready = not blockers
     next_action, next_action_reasons = _bounded_smoke_next_action(
@@ -1207,6 +1221,18 @@ def inspect_bounded_download_smoke_outputs(
         "recommended_review_queue_request_target": "",
         "recommended_review_queue_request": {},
         "recommended_review_queue_next_command": "",
+        "recommended_execution_validation_request_target": (
+            EXECUTE_COMMAND if recommended_execution_validation_request else ""
+        ),
+        "recommended_execution_validation_request": (
+            recommended_execution_validation_request
+        ),
+        "recommended_execution_validation_next_command": _recommended_next_command(
+            recommended_execution_validation_request
+        ),
+        "recommended_execution_validation_command": _recommended_command_from_request(
+            recommended_execution_validation_request
+        ),
         "bounded_smoke_next_action": next_action,
         "bounded_smoke_next_action_reasons": next_action_reasons,
         "status_counts": dict(sorted(status_counts.items())),
