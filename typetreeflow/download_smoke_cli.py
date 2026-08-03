@@ -261,6 +261,21 @@ def run_download_smoke_command(
         result["summary"]["recommended_inspection_command"] = (  # type: ignore[index]
             _recommended_inspection_command_from_request(inspection_request)
         )
+    if args.action == "inspect":
+        summary = result["summary"]  # type: ignore[index]
+        if args.write and int(summary.get("selected_row_count", 0)) > 0:
+            review_queue_request = _recommended_review_queue_request(args.outdir)
+        else:
+            review_queue_request = {}
+        summary["recommended_review_queue_request_target"] = (  # type: ignore[index]
+            "coverage-pipeline server-validation-result review-queue"
+            if review_queue_request
+            else ""
+        )
+        summary["recommended_review_queue_request"] = review_queue_request  # type: ignore[index]
+        summary["recommended_review_queue_next_command"] = (  # type: ignore[index]
+            _recommended_next_command(review_queue_request)
+        )
     if args.action == "prepare":
         result["summary"]["selected_datasets_command_preview_only"] = True  # type: ignore[index]
         result["summary"]["handoff_checklist"] = _prepare_handoff_checklist(  # type: ignore[index]
@@ -608,6 +623,17 @@ def _recommended_inspection_command_from_request(
     return ["typetreeflow", *(str(token) for token in argv)]
 
 
+def _recommended_review_queue_request(inspection_dir: str | Path) -> dict[str, object]:
+    return {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result review-queue",
+        "download_smoke_inspection_dir": str(Path(inspection_dir)),
+        "write": True,
+        "out": "<download_smoke_review_queue.tsv>",
+        "json": True,
+    }
+
+
 def _recommended_inspection_command(
     bounded_plan_path: str | Path,
     *,
@@ -922,9 +948,10 @@ def inspect_bounded_download_smoke_outputs(
         recommendation_reasons.append("fragmented_fasta_signal_observed")
     if header_keyword_row_count and not effective_header_block:
         recommendation_reasons.append("fasta_header_fragment_keywords_observed")
+    recommended_quality_gate_request: dict[str, object] = {}
     recommended_quality_gate_command: list[str] = []
     if recommendation_reasons:
-        recommended_quality_gate_command = _recommended_inspection_command(
+        recommended_quality_gate_request = _recommended_inspection_request(
             plan_path,
             min_fasta_n50_bases=min_fasta_n50_bases,
             max_fasta_record_count=max_fasta_record_count,
@@ -934,6 +961,9 @@ def inspect_bounded_download_smoke_outputs(
             quality_profile=QUALITY_PROFILE_FRAGMENTATION,
             block_fragmented_fasta=block_fragmented_fasta,
             block_fasta_header_keywords=block_fasta_header_keywords,
+        )
+        recommended_quality_gate_command = _recommended_inspection_command_from_request(
+            recommended_quality_gate_request
         )
 
     ready = not blockers
@@ -1081,7 +1111,17 @@ def inspect_bounded_download_smoke_outputs(
             else "none"
         ),
         "quality_gate_recommendation_reasons": recommendation_reasons,
+        "recommended_quality_gate_request_target": (
+            INSPECT_COMMAND if recommended_quality_gate_request else ""
+        ),
+        "recommended_quality_gate_request": recommended_quality_gate_request,
+        "recommended_quality_gate_next_command": _recommended_next_command(
+            recommended_quality_gate_request
+        ),
         "recommended_quality_gate_command": recommended_quality_gate_command,
+        "recommended_review_queue_request_target": "",
+        "recommended_review_queue_request": {},
+        "recommended_review_queue_next_command": "",
         "bounded_smoke_next_action": next_action,
         "bounded_smoke_next_action_reasons": next_action_reasons,
         "status_counts": dict(sorted(status_counts.items())),

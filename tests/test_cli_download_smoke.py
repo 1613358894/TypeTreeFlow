@@ -1316,6 +1316,22 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
         "fragmented_fasta_signal_observed",
         "fasta_header_fragment_keywords_observed",
     ]
+    assert summary["recommended_quality_gate_request_target"] == (
+        "download-smoke inspect"
+    )
+    assert summary["recommended_quality_gate_request"] == {
+        "command": "download-smoke",
+        "subcommand": "inspect",
+        "download_plan": str(plan),
+        "quality_profile": "fragmentation",
+        "write": True,
+        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+    }
+    assert summary["recommended_quality_gate_next_command"] == (
+        "typetreeflow download-smoke inspect --download-plan "
+        f"{plan} --quality-profile fragmentation --write --outdir "
+        "<isolated-bounded-download-smoke-inspection-dir>"
+    )
     assert summary["recommended_quality_gate_command"] == [
         "typetreeflow",
         "download-smoke",
@@ -1328,6 +1344,24 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
         "--outdir",
         "<isolated-bounded-download-smoke-inspection-dir>",
     ]
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(summary["recommended_quality_gate_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == summary["recommended_quality_gate_command"][
+        1:
+    ]
+    assert summary["recommended_review_queue_request_target"] == ""
+    assert summary["recommended_review_queue_request"] == {}
+    assert summary["recommended_review_queue_next_command"] == ""
     assert summary["bounded_smoke_next_action"] == (
         "rerun_with_fragmentation_quality_gates"
     )
@@ -1850,6 +1884,48 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
         "fasta_total_bases_below_minimum": 1,
         "fragmented_fasta_signal": 1,
     }
+    assert summary["recommended_quality_gate_request_target"] == ""
+    assert summary["recommended_quality_gate_request"] == {}
+    assert summary["recommended_quality_gate_next_command"] == ""
+    assert summary["recommended_review_queue_request_target"] == (
+        "coverage-pipeline server-validation-result review-queue"
+    )
+    assert summary["recommended_review_queue_request"] == {
+        "command": "coverage-pipeline",
+        "subcommand": "server-validation-result review-queue",
+        "download_smoke_inspection_dir": str(outdir),
+        "write": True,
+        "out": "<download_smoke_review_queue.tsv>",
+        "json": True,
+    }
+    assert summary["recommended_review_queue_next_command"] == (
+        "typetreeflow coverage-pipeline server-validation-result review-queue "
+        f"--download-smoke-inspection-dir {outdir} --write --out "
+        "<download_smoke_review_queue.tsv> --json"
+    )
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(summary["recommended_review_queue_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "review-queue",
+        "--download-smoke-inspection-dir",
+        str(outdir),
+        "--write",
+        "--out",
+        "<download_smoke_review_queue.tsv>",
+        "--json",
+    ]
 
 
 def test_download_smoke_inspect_blocks_missing_invalid_and_no_genome_zips(
