@@ -39,7 +39,10 @@ Primary commands write compact JSON to stdout by default. This does not require
   and actions that remain forbidden without separate explicit approval. The
   checkpoint is a controlled continuation point, not a download failure,
   download authorization, final genome acceptance, or strict type-strain
-  promotion.
+  promotion. Top-level `next_actions` also includes a
+  `selection_review_strategy` entry so AI controllers that inspect only the
+  primary action list can route to the checkpoint strategy command before any
+  `datasets` execution.
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
   still require separate explicit authorization.
