@@ -325,6 +325,12 @@ SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS = [
     "decision_reason_counts",
     "outdir",
     "output_written",
+    "report_only_recommended_request",
+    "report_only_recommended_request_target",
+    "report_only_recommended_next_command",
+    "package_results_recommended_request",
+    "package_results_recommended_request_target",
+    "package_results_recommended_next_command",
     "diagnostic_count",
     "dry_run",
     "writes_outputs",
@@ -1252,7 +1258,10 @@ def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
                     '"external_genomes_install_plan",'
                     '"coverage_pipeline_dir":"coverage_pipeline",'
                     '"offline_readiness_dir":"readiness",'
-                    '"strict_gating_dir":"strict_gating"}'
+                    '"strict_gating_dir":"strict_gating",'
+                    '"download_smoke_inspection_dir":"download_smoke_inspection",'
+                    '"download_smoke_quality_review_dir":'
+                    '"download_smoke_quality_review"}'
                 ),
             ]
         )
@@ -1289,6 +1298,10 @@ def test_commands_render_emits_normalized_report_only_audit_argv(capsys):
         "readiness",
         "--strict-gating-dir",
         "strict_gating",
+        "--download-smoke-inspection-dir",
+        "download_smoke_inspection",
+        "--download-smoke-quality-review-dir",
+        "download_smoke_quality_review",
     ]
     assert payload["recognized"]["command"] == "verify-genus"
     assert payload["recognized"]["mode"] == "report_only"
@@ -1483,7 +1496,10 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
                     '"coverage_handoff_server_validation_result.json",'
                     '"coverage_pipeline_dir":"coverage_pipeline",'
                     '"offline_readiness_dir":"readiness",'
-                    '"strict_gating_dir":"strict_gating"}'
+                    '"strict_gating_dir":"strict_gating",'
+                    '"download_smoke_inspection_dir":"download_smoke_inspection",'
+                    '"download_smoke_quality_review_dir":'
+                    '"download_smoke_quality_review"}'
                 ),
             ]
         )
@@ -1523,6 +1539,10 @@ def test_commands_render_emits_normalized_package_results_audit_argv(capsys):
         "readiness",
         "--strict-gating-dir",
         "strict_gating",
+        "--download-smoke-inspection-dir",
+        "download_smoke_inspection",
+        "--download-smoke-quality-review-dir",
+        "download_smoke_quality_review",
     ]
     assert payload["recognized"]["command"] == "package-results"
     assert payload["recognized"]["mode"] == "packaging"

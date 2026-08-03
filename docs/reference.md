@@ -3010,6 +3010,14 @@ writes `download_smoke_quality_review.tsv`,
 `download_smoke_quality_review_diagnostics.tsv` under only that explicit
 isolated directory. Output write failures return exit `1`; `--force` may
 replace only an existing schema-matching quality-review triplet. A
+successful write also emits `report_only_recommended_request`,
+`report_only_recommended_request_target`,
+`report_only_recommended_next_command`, `package_results_recommended_request`,
+`package_results_recommended_request_target`, and
+`package_results_recommended_next_command` so AI controllers can surface the
+explicit audit triplet through report-only or package-results without guessing
+the handoff flags. Dry-run and failed validation leave those recommendation
+fields empty. A
 `bounded_smoke_quality_accepted` decision means the local bounded-smoke quality
 review accepted that row for bounded-smoke follow-up only. It does not accept a
 genome for final use, install FASTA files, mutate workflow outputs, change

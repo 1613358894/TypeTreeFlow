@@ -992,6 +992,12 @@ _SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS: list[str] = [
     "decision_reason_counts",
     "outdir",
     "output_written",
+    "report_only_recommended_request",
+    "report_only_recommended_request_target",
+    "report_only_recommended_next_command",
+    "package_results_recommended_request",
+    "package_results_recommended_request_target",
+    "package_results_recommended_next_command",
     "diagnostic_count",
     "dry_run",
     "writes_outputs",
@@ -4216,28 +4222,16 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                     argv.extend([flag, value])
         return argv
     if command == "package-results":
-        _reject_unknown_fields(
-            request,
-            {
-                "command",
-                "outdir",
-                "include",
-                "delivery_dir",
-                "failed_handoff",
-                "manual_review_import_dir",
-                "acquisition_worklist_dir",
-                "coverage_plan_dir",
-                "provider_handoff_dir",
-                "provider_request_dir",
-                "provider_request_validation_dir",
-                "provider_request_external_genomes_dir",
-                "external_genomes_install_plan_dir",
-                "server_validation_result",
-                "coverage_pipeline_dir",
-                "offline_readiness_dir",
-                "strict_gating_dir",
-            },
-        )
+        allowed = {
+            "command",
+            "outdir",
+            "include",
+            "delivery_dir",
+            "failed_handoff",
+            "server_validation_result",
+        }
+        allowed.update(key for key, _flag in _AUDIT_DIR_RENDER_FIELDS)
+        _reject_unknown_fields(request, allowed)
         argv = ["package-results", "--outdir", _required_string(request, "outdir")]
         include = _optional_string(request, "include")
         if include:

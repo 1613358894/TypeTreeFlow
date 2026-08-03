@@ -3905,6 +3905,12 @@ def test_coverage_pipeline_server_validation_result_quality_review_dry_run(
     }
     assert payload["diagnostic_count"] == 0
     assert payload["output_written"] is False
+    assert payload["report_only_recommended_request"] == {}
+    assert payload["report_only_recommended_request_target"] == ""
+    assert payload["report_only_recommended_next_command"] == ""
+    assert payload["package_results_recommended_request"] == {}
+    assert payload["package_results_recommended_request_target"] == ""
+    assert payload["package_results_recommended_next_command"] == ""
     assert payload["dry_run"] is True
     assert payload["writes_outputs"] is False
     assert payload["writes_workflow_outputs"] is False
@@ -3949,6 +3955,35 @@ def test_coverage_pipeline_server_validation_result_quality_review_writes_triple
     assert payload["status"] == "pass"
     assert payload["outdir"] == str(outdir)
     assert payload["output_written"] is True
+    assert payload["report_only_recommended_request"] == {
+        "command": "verify-genus",
+        "genus": "<Genus>",
+        "outdir": "<verify-genus-run-outdir>",
+        "resume": True,
+        "report_only": True,
+        "download_smoke_quality_review_dir": str(outdir),
+    }
+    assert payload["report_only_recommended_request_target"] == (
+        "verify-genus report-only"
+    )
+    assert payload["report_only_recommended_next_command"] == (
+        "typetreeflow verify-genus <Genus> --outdir "
+        "<verify-genus-run-outdir> --resume --report-only "
+        f"--download-smoke-quality-review-dir {outdir}"
+    )
+    assert payload["package_results_recommended_request"] == {
+        "command": "package-results",
+        "outdir": "<verify-genus-run-outdir>",
+        "include": "reports",
+        "download_smoke_quality_review_dir": str(outdir),
+    }
+    assert payload["package_results_recommended_request_target"] == (
+        "package-results reports"
+    )
+    assert payload["package_results_recommended_next_command"] == (
+        "typetreeflow package-results --outdir <verify-genus-run-outdir> "
+        f"--include reports --download-smoke-quality-review-dir {outdir}"
+    )
     rows = _read_tsv(outdir / "download_smoke_quality_review.tsv")
     assert rows[0]["bounded_smoke_quality_accepted"] == "true"
     assert rows[0]["accepted_for_final_use"] == "false"
