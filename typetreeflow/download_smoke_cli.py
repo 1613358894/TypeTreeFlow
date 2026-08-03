@@ -378,6 +378,10 @@ def run_download_smoke_command(
         ),
         outdir=str(args.outdir) if args.write else "",
     )
+    if status != "pass":
+        summary_blocking = _blocking_from_summary(result["summary"])
+        if summary_blocking:
+            payload["blocking"] = summary_blocking
     if args.action == "prepare":
         payload["bounded_download_smoke_summary"] = result["summary"]
     elif args.action == "inspect":
@@ -2359,6 +2363,18 @@ def _payload(
         else:
             payload["bounded_download_smoke_summary"] = summary
     return payload
+
+
+def _blocking_from_summary(summary: dict[str, object]) -> list[dict[str, str]]:
+    blockers = summary.get("blockers", [])
+    if not isinstance(blockers, list):
+        return []
+    result: list[dict[str, str]] = []
+    for blocker in blockers:
+        blocker_id = str(blocker).strip()
+        if blocker_id:
+            result.append({"id": blocker_id, "message": blocker_id})
+    return result
 
 
 def _payload_schema_version(command: str) -> str:

@@ -120,7 +120,8 @@ Primary commands write compact JSON to stdout by default. This does not require
   genome accession ... --include genome --filename ...` commands, records
   return codes and ZIP readiness for later inspection, and still does not
   mutate manifests, install genomes, accept final genome usability, or create
-  strict scientific deliverables.
+  strict scientific deliverables. For blocked download-smoke outputs, summary
+  `blockers` are repeated in the top-level `blocking` array for AI routing.
 
 AI-facing stdout must stay short. Long logs, reports, tables, diagnostics, and
 evidence belong in the run directory.
