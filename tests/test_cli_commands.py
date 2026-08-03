@@ -338,6 +338,7 @@ SELECTION_REVIEW_STRATEGY_SUMMARY_FIELDS = [
     "recommended_strategy",
     "recommended_quality_tier",
     "first_round_limit",
+    "bounded_smoke_outdir",
     "bounded_smoke_selected_row_count",
     "high_quality_planned_row_count",
     "draft_or_fragmented_planned_row_count",
@@ -2488,7 +2489,8 @@ def test_commands_plan_allows_selection_review_strategy_without_write(capsys):
                 "--request-json",
                 (
                     '{"command":"selection-review","subcommand":"strategy",'
-                    '"outdir":"run","limit":3,"json":true}'
+                    '"outdir":"run","limit":3,'
+                    '"bounded_smoke_outdir":"bounded","json":true}'
                 ),
             ]
         )
@@ -2504,6 +2506,8 @@ def test_commands_plan_allows_selection_review_strategy_without_write(capsys):
         "run",
         "--limit",
         "3",
+        "--bounded-smoke-outdir",
+        "bounded",
         "--json",
     ]
     assert payload["target_writes_outputs_declared"] is False

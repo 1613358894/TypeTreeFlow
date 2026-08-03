@@ -972,6 +972,7 @@ _SELECTION_REVIEW_STRATEGY_SUMMARY_FIELDS: list[str] = [
     "recommended_strategy",
     "recommended_quality_tier",
     "first_round_limit",
+    "bounded_smoke_outdir",
     "bounded_smoke_selected_row_count",
     "high_quality_planned_row_count",
     "draft_or_fragmented_planned_row_count",
@@ -2521,6 +2522,13 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "first-round bounded download-smoke row limit",
+        },
+        {
+            "name": "--bounded-smoke-outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "optional isolated output directory to render into the bounded smoke prepare handoff",
         },
         {
             "name": "--json",
@@ -4666,6 +4674,7 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "subcommand",
                 "outdir",
                 "limit",
+                "bounded_smoke_outdir",
                 "json",
             },
         )
@@ -4678,6 +4687,9 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
         limit = _optional_int(request, "limit")
         if limit is not None:
             argv.extend(["--limit", str(limit)])
+        bounded_smoke_outdir = _optional_string(request, "bounded_smoke_outdir")
+        if bounded_smoke_outdir:
+            argv.extend(["--bounded-smoke-outdir", bounded_smoke_outdir])
         return _with_flags(argv, request, {"json": "--json"})
     if command == "archive-candidates" and subcommand == "build":
         _reject_unknown_fields(

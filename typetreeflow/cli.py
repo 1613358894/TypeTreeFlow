@@ -708,7 +708,6 @@ def _verify_genus_checkpoint_guidance(
                 "id": "bounded_download_smoke_prepare",
                 "argv": [
                     "typetreeflow",
-                    "coverage-pipeline",
                     "download-smoke",
                     "prepare",
                     "--download-plan",

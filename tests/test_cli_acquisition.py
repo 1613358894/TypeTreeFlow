@@ -1410,6 +1410,12 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         str(outdir),
     ]
     smoke_prepare = commands["bounded_download_smoke_prepare"]
+    assert smoke_prepare["argv"][:4] == [
+        "typetreeflow",
+        "download-smoke",
+        "prepare",
+        "--download-plan",
+    ]
     assert "does not run datasets" in smoke_prepare["purpose"]
     assert "--quality-tier" in smoke_prepare["argv"]
     assert "run_datasets_download" in checkpoint["forbidden_without_explicit_approval"]
