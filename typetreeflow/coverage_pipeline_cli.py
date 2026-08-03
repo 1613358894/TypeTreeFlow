@@ -8263,6 +8263,9 @@ def _coverage_parent_controller_packet(
         ]
         if coverage_controller_packet.get("controller_has_blockers"):
             required_before_action.insert(0, "resolve controller_blocking_ids")
+    download_smoke_next_action = _server_validation_download_smoke_next_action(
+        result_artifact_packet
+    )
     return {
         "schema_version": "coverage_parent_controller_packet.v1",
         "available": bool(controller_available or handoff_next_available),
@@ -8713,6 +8716,15 @@ def _coverage_parent_controller_packet(
                 "download_smoke_inspection_bounded_smoke_next_action_reasons"
             )
         ),
+        "handoff_server_validation_download_smoke_next_action": (
+            download_smoke_next_action["action"]
+        ),
+        "handoff_server_validation_download_smoke_next_action_reasons": (
+            download_smoke_next_action["reasons"]
+        ),
+        "handoff_server_validation_download_smoke_next_action_source": (
+            download_smoke_next_action["source"]
+        ),
         "recommended_surface": recommended_surface,
         "recommended_action": recommended_action,
         "recommended_argv": recommended_argv,
@@ -8734,6 +8746,110 @@ def _coverage_parent_controller_packet(
         "strict_scientific_deliverable": False,
         "external_genomes_registration_applied": False,
         "execution_boundary": "metadata_only_parent_controller_no_execution",
+    }
+
+
+def _server_validation_download_smoke_next_action(
+    result_artifact_packet: Mapping[str, object],
+) -> dict[str, object]:
+    if not result_artifact_packet.get("available"):
+        return {
+            "action": "provide_server_validation_result",
+            "reasons": ["server_validation_result_not_provided"],
+            "source": "coverage_parent_controller_packet",
+        }
+    if (
+        result_artifact_packet.get("status") != "pass"
+        or result_artifact_packet.get("validation_status") != "pass"
+    ):
+        return {
+            "action": "fix_server_validation_result",
+            "reasons": ["server_validation_result_invalid_or_blocked"],
+            "source": "coverage_parent_controller_packet",
+        }
+    if result_artifact_packet.get("download_smoke_inspection_realized") is not True:
+        return {
+            "action": "run_bounded_download_smoke_inspection",
+            "reasons": ["download_smoke_inspection_not_realized"],
+            "source": "coverage_parent_controller_packet",
+        }
+    if result_artifact_packet.get("download_smoke_inspection_ready") is True:
+        return {
+            "action": "review_validated_bounded_download_smoke_outputs",
+            "reasons": ["download_smoke_inspection_ready"],
+            "source": "coverage_parent_controller_packet",
+        }
+
+    delegated_action = str(
+        result_artifact_packet.get(
+            "download_smoke_inspection_bounded_smoke_next_action", ""
+        )
+        or ""
+    ).strip()
+    delegated_reasons = _safe_string_list(
+        result_artifact_packet.get(
+            "download_smoke_inspection_bounded_smoke_next_action_reasons"
+        )
+    )
+    if delegated_action:
+        return {
+            "action": delegated_action,
+            "reasons": delegated_reasons or ["download_smoke_inspection_not_ready"],
+            "source": "download_smoke_inspection_bounded_smoke_next_action",
+        }
+
+    if (
+        _safe_int(
+            result_artifact_packet.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count",
+                0,
+            )
+        )
+        > 0
+    ):
+        return {
+            "action": "review_high_quality_metadata_fasta_quality_blockers",
+            "reasons": ["high_quality_metadata_rows_failed_local_fasta_quality_gates"],
+            "source": "coverage_parent_controller_packet",
+        }
+    if (
+        _safe_int(
+            result_artifact_packet.get(
+                "download_smoke_inspection_fasta_quality_gate_blocked_row_count",
+                0,
+            )
+        )
+        > 0
+        or _safe_int(
+            result_artifact_packet.get(
+                "download_smoke_inspection_installable_genome_fasta_not_ready_count",
+                0,
+            )
+        )
+        > 0
+    ):
+        return {
+            "action": "review_or_rerun_bounded_download_outputs",
+            "reasons": ["download_smoke_inspection_not_ready"],
+            "source": "coverage_parent_controller_packet",
+        }
+    if (
+        _safe_int(
+            result_artifact_packet.get(
+                "download_smoke_inspection_selected_row_count", 0
+            )
+        )
+        == 0
+    ):
+        return {
+            "action": "prepare_bounded_download_smoke_plan",
+            "reasons": ["download_smoke_inspection_has_no_selected_rows"],
+            "source": "coverage_parent_controller_packet",
+        }
+    return {
+        "action": "review_bounded_smoke_outputs",
+        "reasons": ["download_smoke_inspection_not_ready"],
+        "source": "coverage_parent_controller_packet",
     }
 
 

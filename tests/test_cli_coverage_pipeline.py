@@ -1787,6 +1787,15 @@ def _assert_controller_packet(
     ] == server_validation_result_template[
         "result_validation_expected_output_schema_version"
     ]
+    assert parent_packet["handoff_server_validation_download_smoke_next_action"] == (
+        "provide_server_validation_result"
+    )
+    assert parent_packet[
+        "handoff_server_validation_download_smoke_next_action_reasons"
+    ] == ["server_validation_result_not_provided"]
+    assert parent_packet[
+        "handoff_server_validation_download_smoke_next_action_source"
+    ] == "coverage_parent_controller_packet"
     if preflight_handoff["available"]:
         assert (
             parent_packet["recommended_surface"]
@@ -6734,6 +6743,21 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         "high_quality_metadata_rows_failed_local_fasta_quality_gates",
         "fragmented_fasta_signal",
     ]
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_next_action"
+    ] == "review_high_quality_metadata_fasta_quality_blockers"
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_next_action_reasons"
+    ] == [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fragmented_fasta_signal",
+    ]
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_next_action_source"
+        ]
+        == "download_smoke_inspection_bounded_smoke_next_action"
+    )
     result_status_surfaces = result_status_payload[
         "coverage_controller_inspection_summary"
     ]["surfaces"]
