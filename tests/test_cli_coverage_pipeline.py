@@ -2703,6 +2703,21 @@ def _write_download_smoke_inspection_summary(directory, payload=None):
     )
 
 
+def _write_download_smoke_inspection_rows(directory, rows):
+    fields = [
+        "record_id",
+        "assembly_accession",
+        "assembly_level",
+        "refseq_category",
+        "quality_tier",
+        "status",
+        "fasta_quality_gate_blockers",
+        "installable_genome_fasta_ready",
+        "installable_genome_fasta_not_ready_reasons",
+    ]
+    _write_tsv(directory / "bounded_download_smoke_inspection.tsv", fields, rows)
+
+
 def _valid_download_smoke_inspection_summary():
     result = _valid_server_validation_result()
     summary = {
@@ -3078,6 +3093,97 @@ def test_coverage_pipeline_review_queue_accepts_explicit_download_smoke_inspecti
     assert payload["network_access"] is False
     assert payload["external_tools"] is False
     assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+
+
+def test_coverage_pipeline_review_queue_uses_all_not_ready_inspection_rows(
+    capsys, tmp_path
+):
+    inspection_dir = tmp_path / "bounded-download-smoke-inspection"
+    _write_download_smoke_inspection_summary(inspection_dir)
+    _write_download_smoke_inspection_rows(
+        inspection_dir,
+        [
+            {
+                "record_id": "rec-high-quality-blocked",
+                "assembly_accession": "GCF_000001.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": (
+                    "fragmented_fasta_signal;fasta_header_fragment_keywords"
+                ),
+                "installable_genome_fasta_ready": "false",
+                "installable_genome_fasta_not_ready_reasons": (
+                    "fragmented_fasta_signal;fasta_header_fragment_keywords"
+                ),
+            },
+            {
+                "record_id": "rec-contig-blocked",
+                "assembly_accession": "GCF_001758365.1",
+                "assembly_level": "Contig",
+                "refseq_category": "na",
+                "quality_tier": "draft_or_fragmented",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": (
+                    "fragmented_fasta_signal;fasta_header_fragment_keywords"
+                ),
+                "installable_genome_fasta_ready": "false",
+                "installable_genome_fasta_not_ready_reasons": (
+                    "fragmented_fasta_signal;fasta_header_fragment_keywords"
+                ),
+            },
+            {
+                "record_id": "rec-ready",
+                "assembly_accession": "GCF_000008765.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "representative genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "",
+                "installable_genome_fasta_ready": "true",
+                "installable_genome_fasta_not_ready_reasons": "",
+            },
+        ],
+    )
+
+    code, payload, captured = _run(
+        [
+            "review-queue",
+            "--download-smoke-inspection-dir",
+            str(inspection_dir),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["queue_count"] == 2
+    assert [row["assembly_accession"] for row in payload["review_queue"]] == [
+        "GCF_000001.1",
+        "GCF_001758365.1",
+    ]
+    assert payload["review_queue"][1] == {
+        "record_id": "rec-contig-blocked",
+        "assembly_accession": "GCF_001758365.1",
+        "assembly_level": "Contig",
+        "refseq_category": "na",
+        "quality_tier": "draft_or_fragmented",
+        "status": "genome_fasta_present",
+        "fasta_quality_gate_blockers": [
+            "fragmented_fasta_signal",
+            "fasta_header_fragment_keywords",
+        ],
+        "recommended_action": "review_local_fasta_quality_blockers",
+    }
+    assert payload["queue_preview_truncated"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["network_access"] is False
     assert payload["strict_scientific_deliverable"] is False
 
 
