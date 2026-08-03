@@ -1,6 +1,8 @@
 import csv
 import json
 import os
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -786,6 +788,53 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     readme = (delivery / "README.md").read_text(encoding="utf-8")
     assert "Representative-only rows are exploratory" in readme
     assert "Download succeeded: 0" in readme
+
+
+def test_verify_genus_checkpoint_native_exit_zero_with_blocked_json(tmp_path):
+    outdir = tmp_path / "clostridium_limited_smoke_native"
+    lpsn_cache, discovery_cache, biosample_cache = _write_clostridium_limited_smoke_caches(
+        tmp_path
+    )
+    script = Path(__file__).resolve().parents[1] / "typetreeflow.py"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "verify-genus",
+            "Clostridium",
+            "--lpsn-cache",
+            str(lpsn_cache),
+            "--discovery-cache",
+            str(discovery_cache),
+            "--biosample-cache",
+            str(biosample_cache),
+            "--policy",
+            "representative",
+            "--enable-expanded-discovery",
+            "--outdir",
+            str(outdir),
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["command"] == "verify-genus"
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "manual_review_required"
+    assert payload["checkpoint"]["id"] == "selection_review_required"
+    assert payload["checkpoint"]["downloads_triggered"] is False
+    assert payload["checkpoint"]["providers_contacted"] is False
+    readiness = payload["download_plan_readiness_summary"]
+    assert readiness["downloads_triggered"] == 0
+    assert readiness["providers_contacted"] == 0
+    next_action = payload["next_actions"][0]["message"]
+    assert "download-smoke prepare" in next_action
+    assert "--write --outdir" in next_action
+    assert "<isolated-bounded-download-smoke-dir>" in next_action
 
 
 def test_offline_acquire_genus_dry_run_writes_key_files(tmp_path, monkeypatch):
