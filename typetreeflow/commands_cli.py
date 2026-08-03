@@ -268,7 +268,11 @@ _CATALOG_ENTRIES = (
         "command": "download-smoke",
         "subcommand": "prepare",
         "mode": "download_smoke",
-        "argv_pattern": "typetreeflow download-smoke prepare --download-plan <download_plan.tsv>",
+        "argv_pattern": (
+            "typetreeflow download-smoke prepare --download-plan "
+            "<download_plan.tsv> --quality-tier recommended --limit 1 "
+            "--write --outdir <isolated-bounded-download-smoke-dir>"
+        ),
         "json_stdout": True,
         "write_behavior": "optional_isolated_pair",
         "requires_outdir": False,
