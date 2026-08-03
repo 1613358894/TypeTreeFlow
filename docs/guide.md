@@ -1207,13 +1207,17 @@ Omit `--quality-tier` when the smoke input should follow the readiness
 recommendation without a separate manual tier choice.
 
 The command copies only `status=planned` rows into
-`bounded_download_smoke_plan.tsv` and writes
-`bounded_download_smoke_summary.json`. The summary includes selected accession
-assembly-level counts and a bounded accession quality preview so the smoke
-handoff can be checked before execution. It also previews at most five
-corresponding `datasets download genome accession` command arrays for operator
-inspection. It does not run `datasets`, access the network, contact providers,
-mutate a manifest, or authorize broad downloads.
+`bounded_download_smoke_plan.tsv`, writes
+`bounded_download_smoke_commands.tsv`, and writes
+`bounded_download_smoke_summary.json`. The command manifest contains one compact
+JSON command array per selected accession so an operator or AI controller can
+inspect the complete bounded `datasets download genome accession` handoff
+without reconstructing commands from the summary preview. The summary includes
+selected accession assembly-level counts and a bounded accession quality preview
+so the smoke handoff can be checked before execution. It also previews at most
+five corresponding command arrays for operator inspection. It does not run
+`datasets`, access the network, contact providers, mutate a manifest, or
+authorize broad downloads.
 When `prepare --write` succeeds, `recommended_inspection_command` points to the
 matching local `download-smoke inspect` command for the written bounded plan;
 choose a fresh isolated inspection `--outdir` before running it. By default,
