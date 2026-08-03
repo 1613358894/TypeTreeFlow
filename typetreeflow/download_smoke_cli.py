@@ -16,6 +16,7 @@ from typetreeflow.download_plan_readiness import (
     _normalize_refseq_category,
     _read_assembly_quality_metadata,
 )
+from typetreeflow.external.runner import CommandRunner, SubprocessRunner
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
 from typetreeflow.genomes.extract import (
     _is_genomic_fasta_name,
@@ -28,13 +29,17 @@ from typetreeflow.sources.ncbi_datasets import build_datasets_download_command
 
 COMMAND = "download-smoke prepare"
 INSPECT_COMMAND = "download-smoke inspect"
+EXECUTE_COMMAND = "download-smoke execute"
 SUMMARY_SCHEMA_VERSION = "bounded_download_smoke_input_summary.v1"
 INSPECTION_SCHEMA_VERSION = "bounded_download_smoke_inspection_summary.v1"
+EXECUTION_SCHEMA_VERSION = "bounded_download_smoke_execution_summary.v1"
 OUTPUT_PLAN_NAME = "bounded_download_smoke_plan.tsv"
 OUTPUT_COMMANDS_NAME = "bounded_download_smoke_commands.tsv"
 OUTPUT_SUMMARY_NAME = "bounded_download_smoke_summary.json"
 OUTPUT_INSPECTION_NAME = "bounded_download_smoke_inspection.tsv"
 OUTPUT_INSPECTION_SUMMARY_NAME = "bounded_download_smoke_inspection_summary.json"
+OUTPUT_EXECUTION_NAME = "bounded_download_smoke_execution.tsv"
+OUTPUT_EXECUTION_SUMMARY_NAME = "bounded_download_smoke_execution_summary.json"
 INSPECTION_PREVIEW_LIMIT = 5
 QUALITY_PROFILE_NONE = "none"
 QUALITY_PROFILE_FRAGMENTATION = "fragmentation"
@@ -53,6 +58,20 @@ BOUNDED_DOWNLOAD_SMOKE_COMMAND_FIELDS = [
     "quality_tier",
     "datasets_zip_path",
     "command_json",
+]
+EXECUTION_FIELDS = [
+    "record_id",
+    "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+    "datasets_zip_path",
+    "command_json",
+    "command_valid",
+    "executed",
+    "returncode",
+    "status",
+    "notes",
 ]
 INSPECTION_FIELDS = [
     "record_id",
@@ -118,7 +137,7 @@ def run_download_smoke_command(
         _emit(_payload("failed", "invalid_command_usage", "Invalid download-smoke usage"), output)
         return 2
 
-    if args.action not in {"prepare", "inspect"}:
+    if args.action not in {"prepare", "inspect", "execute"}:
         _emit(_payload("failed", "invalid_command_usage", "Invalid download-smoke action"), output)
         return 2
 
@@ -132,9 +151,21 @@ def run_download_smoke_command(
             output,
         )
         return 2
+    if args.action == "execute" and args.execute and not args.write:
+        _emit(
+            _payload(
+                "failed",
+                "invalid_command_usage",
+                "--execute requires --write and --outdir",
+                command=EXECUTE_COMMAND,
+                download_plan_path=str(args.commands_manifest),
+            ),
+            output,
+        )
+        return 2
 
     try:
-        command = INSPECT_COMMAND if args.action == "inspect" else COMMAND
+        command = _command_name_for_action(args.action)
         if args.action == "prepare":
             result = prepare_bounded_download_smoke_input(
                 args.download_plan,
@@ -163,7 +194,7 @@ def run_download_smoke_command(
                     args.inspection_block_fasta_header_keywords
                 ),
             )
-        else:
+        elif args.action == "inspect":
             result = inspect_bounded_download_smoke_outputs(
                 args.download_plan,
                 min_fasta_n50_bases=args.min_fasta_n50_bases,
@@ -177,14 +208,25 @@ def run_download_smoke_command(
                 block_fragmented_fasta=args.block_fragmented_fasta,
                 block_fasta_header_keywords=args.block_fasta_header_keywords,
             )
+        else:
+            result = execute_bounded_download_smoke_commands(
+                args.commands_manifest,
+                limit=args.limit,
+                execute=bool(args.execute),
+            )
     except (OSError, UnicodeError, csv.Error, ValueError) as error:
+        input_path = (
+            str(args.commands_manifest)
+            if getattr(args, "action", "") == "execute"
+            else str(args.download_plan)
+        )
         _emit(
             _payload(
                 "blocked",
                 "input_invalid",
                 str(error),
                 command=command,
-                download_plan_path=str(args.download_plan),
+                download_plan_path=input_path,
             ),
             output,
         )
@@ -220,15 +262,22 @@ def run_download_smoke_command(
             if args.action == "prepare":
                 _write_outputs(result, args.outdir)
             else:
-                _write_inspection_outputs(result, args.outdir)
+                if args.action == "inspect":
+                    _write_inspection_outputs(result, args.outdir)
+                else:
+                    _write_execution_outputs(result, args.outdir)
         except OSError as error:
             _emit(
                 _payload(
                     "failed",
                     "output_write_failed",
                     str(error),
-                    command=INSPECT_COMMAND if args.action == "inspect" else COMMAND,
-                    download_plan_path=str(args.download_plan),
+                    command=_command_name_for_action(args.action),
+                    download_plan_path=(
+                        str(args.commands_manifest)
+                        if args.action == "execute"
+                        else str(args.download_plan)
+                    ),
                     summary=result["summary"],
                     outdir=str(args.outdir),
                 ),
@@ -237,19 +286,29 @@ def run_download_smoke_command(
             return 1
 
     status = "pass" if result["summary"]["ready"] else "blocked"
-    command = INSPECT_COMMAND if args.action == "inspect" else COMMAND
+    command = _command_name_for_action(args.action)
     payload = _payload(
         status,
         "",
         result["summary"]["summary"],
         command=command,
-        download_plan_path=str(args.download_plan),
+        download_plan_path=(
+            str(args.commands_manifest)
+            if args.action == "execute"
+            else str(args.download_plan)
+        ),
         outdir=str(args.outdir) if args.write else "",
     )
     if args.action == "prepare":
         payload["bounded_download_smoke_summary"] = result["summary"]
-    else:
+    elif args.action == "inspect":
         payload["bounded_download_smoke_inspection_summary"] = result["summary"]
+    else:
+        payload["bounded_download_smoke_execution_summary"] = result["summary"]
+        payload["dry_run"] = not bool(args.execute)
+        payload["downloads_triggered"] = result["summary"].get("downloads_triggered", 0)
+        payload["network_access"] = result["summary"].get("network_access", False)
+        payload["external_tools"] = result["summary"].get("external_tools", False)
     payload["writes_outputs"] = bool(args.write)
     if args.write and args.action == "prepare":
         payload["output_files"] = {
@@ -262,14 +321,24 @@ def run_download_smoke_command(
             ),
         }
     elif args.write:
-        payload["output_files"] = {
-            "bounded_download_smoke_inspection": str(
-                Path(args.outdir) / OUTPUT_INSPECTION_NAME
-            ),
-            "bounded_download_smoke_inspection_summary": str(
-                Path(args.outdir) / OUTPUT_INSPECTION_SUMMARY_NAME
-            ),
-        }
+        if args.action == "inspect":
+            payload["output_files"] = {
+                "bounded_download_smoke_inspection": str(
+                    Path(args.outdir) / OUTPUT_INSPECTION_NAME
+                ),
+                "bounded_download_smoke_inspection_summary": str(
+                    Path(args.outdir) / OUTPUT_INSPECTION_SUMMARY_NAME
+                ),
+            }
+        else:
+            payload["output_files"] = {
+                "bounded_download_smoke_execution": str(
+                    Path(args.outdir) / OUTPUT_EXECUTION_NAME
+                ),
+                "bounded_download_smoke_execution_summary": str(
+                    Path(args.outdir) / OUTPUT_EXECUTION_SUMMARY_NAME
+                ),
+            }
     else:
         payload["output_files"] = {}
     _emit(payload, output)
@@ -977,6 +1046,185 @@ def _bounded_smoke_next_action(
     return ("review_bounded_smoke_blockers", list(blockers))
 
 
+def execute_bounded_download_smoke_commands(
+    commands_manifest_path: str | Path,
+    *,
+    limit: int,
+    execute: bool = False,
+    runner: CommandRunner | None = None,
+) -> dict[str, object]:
+    if limit <= 0:
+        raise ValueError("limit must be a positive integer")
+    manifest_path = Path(commands_manifest_path)
+    rows = _read_command_manifest_rows(manifest_path)[:limit]
+    results: list[dict[str, object]] = []
+    blockers: list[str] = []
+    effective_runner = runner or SubprocessRunner()
+    for row in rows:
+        result = _execution_row_for_manifest_row(
+            row,
+            execute=execute,
+            runner=effective_runner,
+        )
+        results.append(result)
+        status = str(result["status"])
+        if status not in {"execution_planned", "datasets_zip_ready_for_inspection"}:
+            _append_unique(blockers, status)
+    if not rows:
+        blockers.append("no_bounded_download_smoke_commands")
+    command_valid_count = sum(1 for row in results if row["command_valid"])
+    executed_count = sum(1 for row in results if row["executed"])
+    succeeded_count = sum(
+        1 for row in results if row["status"] == "datasets_zip_ready_for_inspection"
+    )
+    summary = {
+        "schema_version": EXECUTION_SCHEMA_VERSION,
+        "command": EXECUTE_COMMAND,
+        "source_commands_manifest_path": str(manifest_path),
+        "limit": limit,
+        "selected_row_count": len(rows),
+        "command_valid_count": command_valid_count,
+        "command_invalid_count": len(results) - command_valid_count,
+        "execute_requested": execute,
+        "executed_command_count": executed_count,
+        "datasets_zip_ready_for_inspection_count": succeeded_count,
+        "status_counts": _count_values(results, "status"),
+        "ready": not blockers,
+        "blockers": blockers,
+        "execution_boundary": (
+            "bounded_datasets_command_execution_only_no_manifest_mutation"
+            if execute
+            else "bounded_datasets_command_validation_only_no_download_no_network"
+        ),
+        "safe_for_unattended_download": False,
+        "downloads_triggered": executed_count,
+        "providers_contacted": 0,
+        "network_access": execute and executed_count > 0,
+        "external_tools": execute and executed_count > 0,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "recommended_next_command": [
+            "typetreeflow",
+            "download-smoke",
+            "inspect",
+            "--download-plan",
+            "<bounded_download_smoke_plan.tsv>",
+            "--quality-profile",
+            "fragmentation",
+            "--write",
+            "--outdir",
+            "<isolated-bounded-download-smoke-inspection-dir>",
+        ],
+        "summary": (
+            "Bounded datasets command manifest is valid."
+            if not execute and not blockers
+            else (
+                "Bounded datasets command execution completed; inspect ZIP outputs next."
+                if execute and not blockers
+                else "Bounded datasets command execution is blocked."
+            )
+        ),
+    }
+    return {"rows": results, "summary": summary}
+
+
+def _execution_row_for_manifest_row(
+    row: dict[str, str],
+    *,
+    execute: bool,
+    runner: CommandRunner,
+) -> dict[str, object]:
+    command = _parse_command_json(row.get("command_json", ""))
+    expected = build_datasets_download_command(
+        [row.get("assembly_accession", "").strip()],
+        row.get("datasets_zip_path", "").strip(),
+    )
+    command_valid = command == expected
+    base = {
+        "record_id": row.get("record_id", "").strip(),
+        "assembly_accession": row.get("assembly_accession", "").strip(),
+        "assembly_level": row.get("assembly_level", "").strip() or "unknown",
+        "refseq_category": row.get("refseq_category", "").strip() or "unknown",
+        "quality_tier": row.get("quality_tier", "").strip() or "unknown",
+        "datasets_zip_path": row.get("datasets_zip_path", "").strip(),
+        "command_json": json.dumps(command, separators=(",", ":")),
+        "command_valid": command_valid,
+        "executed": False,
+        "returncode": "",
+    }
+    if not command_valid:
+        return {
+            **base,
+            "status": "command_manifest_invalid",
+            "notes": "command_json does not match bounded datasets command contract",
+        }
+    if not execute:
+        return {
+            **base,
+            "status": "execution_planned",
+            "notes": "dry-run only; datasets was not executed",
+        }
+
+    command_result = runner.run(command)
+    zip_path = Path(row.get("datasets_zip_path", "").strip())
+    executed_base = {
+        **base,
+        "executed": True,
+        "returncode": command_result.returncode,
+    }
+    if command_result.returncode != 0:
+        return {
+            **executed_base,
+            "status": "datasets_command_failed",
+            "notes": f"datasets exited with return code {command_result.returncode}",
+        }
+    if not zip_path.exists():
+        return {
+            **executed_base,
+            "status": "datasets_zip_missing_after_success",
+            "notes": "datasets succeeded but expected ZIP was not found",
+        }
+    if not zipfile.is_zipfile(zip_path):
+        return {
+            **executed_base,
+            "status": "datasets_zip_invalid",
+            "notes": "datasets output is not a valid ZIP archive",
+        }
+    unsafe_member_count = count_unsafe_datasets_zip_members(zip_path)
+    if unsafe_member_count:
+        return {
+            **executed_base,
+            "status": "datasets_zip_unsafe_members",
+            "notes": f"unsafe ZIP member path count: {unsafe_member_count}",
+        }
+    return {
+        **executed_base,
+        "status": "datasets_zip_ready_for_inspection",
+        "notes": "ZIP exists and is valid; run download-smoke inspect next",
+    }
+
+
+def _parse_command_json(raw: str) -> list[str]:
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise ValueError("command_json is not valid JSON") from error
+    if not isinstance(parsed, list) or not all(
+        isinstance(item, str) for item in parsed
+    ):
+        raise ValueError("command_json must be a JSON array of strings")
+    return parsed
+
+
+def _count_values(rows: Sequence[dict[str, object]], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = str(row.get(field, "")).strip()
+        if value:
+            counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def _inspect_download_plan_row(row: dict[str, str]) -> dict[str, object]:
     zip_path = Path(row.get("datasets_zip_path", "").strip())
     zip_exists = zip_path.exists()
@@ -1400,6 +1648,19 @@ def _read_download_plan_rows(path: Path) -> list[dict[str, str]]:
         return rows
 
 
+def _read_command_manifest_rows(path: Path) -> list[dict[str, str]]:
+    if not path.is_file():
+        raise OSError("commands manifest is not a regular file")
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if reader.fieldnames != BOUNDED_DOWNLOAD_SMOKE_COMMAND_FIELDS:
+            raise ValueError("commands manifest schema does not match")
+        return [
+            {field: str(row.get(field, "")) for field in BOUNDED_DOWNLOAD_SMOKE_COMMAND_FIELDS}
+            for row in reader
+        ]
+
+
 def _planned_quality_counts(
     assembly_metadata: dict[str, tuple[str, str]],
     rows: list[dict[str, str]],
@@ -1658,6 +1919,40 @@ def _write_inspection_outputs(result: dict[str, object], outdir: str | Path) -> 
     )
 
 
+def _write_execution_outputs(result: dict[str, object], outdir: str | Path) -> None:
+    target = Path(outdir)
+    if target.exists() and any(target.iterdir()):
+        raise OSError("output directory already exists and is not empty")
+    target.mkdir(parents=True, exist_ok=True)
+    rows = result["rows"]
+    with (target / OUTPUT_EXECUTION_NAME).open(
+        "w", newline="", encoding="utf-8"
+    ) as handle:
+        writer = csv.DictWriter(handle, fieldnames=EXECUTION_FIELDS, delimiter="\t")
+        writer.writeheader()
+        for row in rows:  # type: ignore[assignment]
+            writer.writerow(
+                {
+                    "record_id": row["record_id"],
+                    "assembly_accession": row["assembly_accession"],
+                    "assembly_level": row["assembly_level"],
+                    "refseq_category": row["refseq_category"],
+                    "quality_tier": row["quality_tier"],
+                    "datasets_zip_path": row["datasets_zip_path"],
+                    "command_json": row["command_json"],
+                    "command_valid": str(bool(row["command_valid"])).lower(),
+                    "executed": str(bool(row["executed"])).lower(),
+                    "returncode": row["returncode"],
+                    "status": row["status"],
+                    "notes": row["notes"],
+                }
+            )
+    (target / OUTPUT_EXECUTION_SUMMARY_NAME).write_text(
+        json.dumps(result["summary"], sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = _JsonArgumentParser(prog="typetreeflow download-smoke", add_help=True)
     subcommands = parser.add_subparsers(dest="action", required=True)
@@ -1708,7 +2003,22 @@ def _build_parser() -> argparse.ArgumentParser:
     inspect.add_argument("--write", action="store_true")
     inspect.add_argument("--outdir", type=Path)
     inspect.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
+    execute = subcommands.add_parser("execute")
+    execute.add_argument("--commands-manifest", required=True, type=Path)
+    execute.add_argument("--limit", type=int, default=1)
+    execute.add_argument("--execute", action="store_true")
+    execute.add_argument("--write", action="store_true")
+    execute.add_argument("--outdir", type=Path)
+    execute.add_argument("--json", action="store_true", help=argparse.SUPPRESS)
     return parser
+
+
+def _command_name_for_action(action: str) -> str:
+    if action == "inspect":
+        return INSPECT_COMMAND
+    if action == "execute":
+        return EXECUTE_COMMAND
+    return COMMAND
 
 
 def _payload(
@@ -1723,11 +2033,7 @@ def _payload(
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "command": command,
-        "schema_version": (
-            "download_smoke_inspect.v1"
-            if command == INSPECT_COMMAND
-            else "download_smoke_prepare.v1"
-        ),
+        "schema_version": _payload_schema_version(command),
         "status": status,
         "summary": summary_text,
         "download_plan_path": download_plan_path,
@@ -1746,9 +2052,19 @@ def _payload(
     if summary is not None:
         if command == INSPECT_COMMAND:
             payload["bounded_download_smoke_inspection_summary"] = summary
+        elif command == EXECUTE_COMMAND:
+            payload["bounded_download_smoke_execution_summary"] = summary
         else:
             payload["bounded_download_smoke_summary"] = summary
     return payload
+
+
+def _payload_schema_version(command: str) -> str:
+    if command == INSPECT_COMMAND:
+        return "download_smoke_inspect.v1"
+    if command == EXECUTE_COMMAND:
+        return "download_smoke_execute.v1"
+    return "download_smoke_prepare.v1"
 
 
 def _emit(payload: dict[str, object], output: TextIO) -> None:

@@ -3,8 +3,13 @@ import json
 import zipfile
 
 from typetreeflow.cli import main
-from typetreeflow.download_smoke_cli import BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS
+from typetreeflow.download_smoke_cli import (
+    BOUNDED_DOWNLOAD_SMOKE_COMMAND_FIELDS,
+    BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS,
+    execute_bounded_download_smoke_commands,
+)
 from typetreeflow.genomes.download import DOWNLOAD_PLAN_FIELDS
+from typetreeflow.external.runner import CommandResult
 from typetreeflow.taxonomy.candidates import (
     AssemblyCandidate,
     write_assembly_candidates,
@@ -25,6 +30,18 @@ def _write_bounded_download_plan(path, rows):
         writer = csv.DictWriter(
             handle,
             fieldnames=BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_commands_manifest(path, rows):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=BOUNDED_DOWNLOAD_SMOKE_COMMAND_FIELDS,
             delimiter="\t",
         )
         writer.writeheader()
@@ -86,6 +103,32 @@ def _write_zip(
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr(member, content)
+
+
+def _command_row(record_id="rec-1", accession="GCF_000001.1", zip_path=None):
+    resolved_zip_path = zip_path or "cache/ncbi/rec-1.zip"
+    return {
+        "record_id": record_id,
+        "assembly_accession": accession,
+        "assembly_level": "Complete Genome",
+        "refseq_category": "reference genome",
+        "quality_tier": "high",
+        "datasets_zip_path": str(resolved_zip_path),
+        "command_json": json.dumps(
+            [
+                "datasets",
+                "download",
+                "genome",
+                "accession",
+                accession,
+                "--include",
+                "genome",
+                "--filename",
+                str(resolved_zip_path),
+            ],
+            separators=(",", ":"),
+        ),
+    }
 
 
 def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
@@ -272,6 +315,173 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     checklist = {item["id"]: item for item in summary["handoff_checklist"]}
     assert checklist["prepare_bounded_download_smoke_input"]["status"] == "written"
     assert checklist["run_bounded_datasets_download"]["requires_explicit_approval"]
+
+
+def test_download_smoke_execute_dry_run_validates_command_manifest(
+    capsys, tmp_path
+):
+    commands = tmp_path / "bounded_download_smoke_commands.tsv"
+    outdir = tmp_path / "execution"
+    _write_commands_manifest(commands, [_command_row()])
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "execute",
+                "--commands-manifest",
+                str(commands),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    rows = list(
+        csv.DictReader(
+            (outdir / "bounded_download_smoke_execution.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
+    summary = json.loads(
+        (outdir / "bounded_download_smoke_execution_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["command"] == "download-smoke execute"
+    assert payload["status"] == "pass"
+    assert payload["dry_run"] is True
+    assert payload["downloads_triggered"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["strict_scientific_deliverable"] is False
+    assert payload["output_files"] == {
+        "bounded_download_smoke_execution": str(
+            outdir / "bounded_download_smoke_execution.tsv"
+        ),
+        "bounded_download_smoke_execution_summary": str(
+            outdir / "bounded_download_smoke_execution_summary.json"
+        ),
+    }
+    assert summary["schema_version"] == "bounded_download_smoke_execution_summary.v1"
+    assert summary["execute_requested"] is False
+    assert summary["selected_row_count"] == 1
+    assert summary["command_valid_count"] == 1
+    assert summary["executed_command_count"] == 0
+    assert summary["status_counts"] == {"execution_planned": 1}
+    assert summary["ready"] is True
+    assert rows[0]["command_valid"] == "true"
+    assert rows[0]["executed"] == "false"
+    assert rows[0]["status"] == "execution_planned"
+
+
+def test_download_smoke_execute_blocks_mutated_command_manifest(capsys, tmp_path):
+    commands = tmp_path / "bounded_download_smoke_commands.tsv"
+    outdir = tmp_path / "execution"
+    _write_commands_manifest(
+        commands,
+        [
+            {
+                **_command_row(),
+                "command_json": json.dumps(["datasets", "version"]),
+            }
+        ],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "execute",
+                "--commands-manifest",
+                str(commands),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 2
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    rows = list(
+        csv.DictReader(
+            (outdir / "bounded_download_smoke_execution.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
+    summary = payload["bounded_download_smoke_execution_summary"]
+    assert payload["status"] == "blocked"
+    assert payload["downloads_triggered"] == 0
+    assert payload["network_access"] is False
+    assert summary["command_invalid_count"] == 1
+    assert summary["blockers"] == ["command_manifest_invalid"]
+    assert rows[0]["command_valid"] == "false"
+    assert rows[0]["executed"] == "false"
+    assert rows[0]["status"] == "command_manifest_invalid"
+
+
+def test_download_smoke_execute_requires_audit_outputs_for_real_execution(
+    capsys, tmp_path
+):
+    commands = tmp_path / "bounded_download_smoke_commands.tsv"
+    _write_commands_manifest(commands, [_command_row()])
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "execute",
+                "--commands-manifest",
+                str(commands),
+                "--execute",
+            ]
+        )
+        == 2
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "download-smoke execute"
+    assert payload["status"] == "failed"
+    assert payload["downloads_triggered"] == 0
+    assert payload["blocking"][0]["id"] == "invalid_command_usage"
+
+
+def test_download_smoke_execute_with_fake_runner_writes_valid_zip(tmp_path):
+    zip_path = tmp_path / "rec-1.zip"
+    commands = tmp_path / "bounded_download_smoke_commands.tsv"
+    _write_commands_manifest(commands, [_command_row(zip_path=zip_path)])
+
+    class FakeRunner:
+        def run(self, command, cwd=None):
+            _write_zip(zip_path)
+            return CommandResult(command=list(command), returncode=0)
+
+    result = execute_bounded_download_smoke_commands(
+        commands,
+        limit=1,
+        execute=True,
+        runner=FakeRunner(),
+    )
+
+    summary = result["summary"]
+    assert summary["ready"] is True
+    assert summary["execute_requested"] is True
+    assert summary["downloads_triggered"] == 1
+    assert summary["network_access"] is True
+    assert summary["external_tools"] is True
+    assert summary["datasets_zip_ready_for_inspection_count"] == 1
+    assert result["rows"][0]["status"] == "datasets_zip_ready_for_inspection"
+    assert result["rows"][0]["executed"] is True
+    assert summary["strict_scientific_deliverable"] is False
 
 
 def test_download_smoke_inspect_accepts_annotated_prepare_plan(capsys, tmp_path):

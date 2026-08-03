@@ -19,6 +19,7 @@ COMMAND_PREFLIGHT = "commands preflight"
 COMMAND_RENDER = "commands render"
 COMMAND_PLAN = "commands plan"
 _NETWORK_FLAGS = {
+    "--execute",
     "--enable-downloads",
     "--enable-entrez",
     "--enable-biosample-entrez",
@@ -27,11 +28,15 @@ _NETWORK_FLAGS = {
     "--enable-bacdive-enrichment",
 }
 _EXTERNAL_TOOL_FLAGS = {
+    "--execute",
     "--enable-barrnap",
     "--enable-fastani",
     "--enable-phylo",
 }
-_REAL_ACTION_FLAGS = set(REAL_ACTION_FLAGS.values()) | {"--enable-bacdive-enrichment"}
+_REAL_ACTION_FLAGS = set(REAL_ACTION_FLAGS.values()) | {
+    "--enable-bacdive-enrichment",
+    "--execute",
+}
 _AUDIT_DIR_RENDER_FIELDS = (
     ("manual_review_import_dir", "--manual-review-import-dir"),
     ("acquisition_worklist_dir", "--acquisition-worklist-dir"),
@@ -287,6 +292,20 @@ _CATALOG_ENTRIES = (
         "write_behavior": "optional_isolated_inspection_pair",
         "requires_outdir": False,
         "boundary": "local ZIP/FASTA inspection only; no datasets execution, provider contact, or downloads",
+    },
+    {
+        "command": "download-smoke",
+        "subcommand": "execute",
+        "mode": "download_smoke",
+        "argv_pattern": (
+            "typetreeflow download-smoke execute --commands-manifest "
+            "<bounded_download_smoke_commands.tsv> --limit 1 "
+            "[--execute] --write --outdir <isolated-bounded-download-smoke-execution-dir>"
+        ),
+        "json_stdout": True,
+        "write_behavior": "optional_isolated_execution_pair",
+        "requires_outdir": False,
+        "boundary": "bounded datasets command validation by default; --execute runs only manifest-pinned datasets commands and still requires later inspection",
     },
     {
         "command": "count-crosswalk",
@@ -1094,6 +1113,24 @@ _DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS: list[str] = [
     "manifest_mutated",
     "strict_scientific_deliverable",
 ]
+_DOWNLOAD_SMOKE_EXECUTION_SUMMARY_FIELDS: list[str] = [
+    "selected_row_count",
+    "command_valid_count",
+    "command_invalid_count",
+    "execute_requested",
+    "executed_command_count",
+    "datasets_zip_ready_for_inspection_count",
+    "status_counts",
+    "ready",
+    "blockers",
+    "recommended_next_command",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+]
 _OUTPUT_CONTRACT_CATALOG: dict[
     tuple[str, str | None],
     tuple[dict[str, object], ...],
@@ -1163,6 +1200,14 @@ _OUTPUT_CONTRACT_CATALOG: dict[
             "schema_version": "bounded_download_smoke_inspection_summary.v1",
             "purpose": "local bounded download ZIP and FASTA quality inspection pair",
             "summary_fields": _DOWNLOAD_SMOKE_INSPECTION_SUMMARY_FIELDS,
+        },
+    ),
+    ("download-smoke", "execute"): (
+        {
+            "name": "bounded_download_smoke_execution_packet",
+            "schema_version": "bounded_download_smoke_execution_summary.v1",
+            "purpose": "bounded datasets command validation or explicitly approved execution audit pair",
+            "summary_fields": _DOWNLOAD_SMOKE_EXECUTION_SUMMARY_FIELDS,
         },
     ),
     ("coverage-plan", "build"): (
@@ -2626,6 +2671,50 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
             "required": False,
             "repeatable": False,
             "purpose": "isolated bounded download-smoke inspection directory",
+        },
+        {
+            "name": "--json",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "emit compact JSON stdout",
+        },
+    ],
+    ("download-smoke", "execute"): [
+        {
+            "name": "--commands-manifest",
+            "kind": "path",
+            "required": True,
+            "repeatable": False,
+            "purpose": "bounded_download_smoke_commands.tsv input from download-smoke prepare",
+        },
+        {
+            "name": "--limit",
+            "kind": "integer",
+            "required": False,
+            "repeatable": False,
+            "purpose": "maximum manifest rows to validate or execute; defaults to 1",
+        },
+        {
+            "name": "--execute",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicitly run manifest-pinned datasets commands; omitted means dry-run validation only",
+        },
+        {
+            "name": "--write",
+            "kind": "flag",
+            "required": False,
+            "repeatable": False,
+            "purpose": "write isolated bounded download-smoke execution audit outputs",
+        },
+        {
+            "name": "--outdir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "isolated bounded download-smoke execution output directory",
         },
         {
             "name": "--json",
@@ -4671,6 +4760,37 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 argv.append("--block-fragmented-fasta")
             if _bool_flag(request, "block_fasta_header_keywords"):
                 argv.append("--block-fasta-header-keywords")
+            if _bool_flag(request, "write"):
+                argv.append("--write")
+            outdir = _optional_string(request, "outdir")
+            if outdir:
+                argv.extend(["--outdir", outdir])
+            return _with_flags(argv, request, {"json": "--json"})
+        if subcommand == "execute":
+            _reject_unknown_fields(
+                request,
+                {
+                    "command",
+                    "subcommand",
+                    "commands_manifest",
+                    "limit",
+                    "execute",
+                    "write",
+                    "outdir",
+                    "json",
+                },
+            )
+            argv = [
+                "download-smoke",
+                "execute",
+                "--commands-manifest",
+                _required_string(request, "commands_manifest"),
+            ]
+            limit = _optional_int(request, "limit")
+            if limit is not None:
+                argv.extend(["--limit", str(limit)])
+            if _bool_flag(request, "execute"):
+                argv.append("--execute")
             if _bool_flag(request, "write"):
                 argv.append("--write")
             outdir = _optional_string(request, "outdir")
