@@ -413,6 +413,7 @@ def _format_verify_genus_envelope(
             next_action,
             checkpoint=checkpoint,
             outdir=config.outdir,
+            recommended_request=recommended_request,
         ),
     }
     if checkpoint:
@@ -635,7 +636,8 @@ def _verify_genus_next_actions(
     *,
     checkpoint: dict[str, object],
     outdir: Path,
-) -> list[dict[str, str]]:
+    recommended_request: dict[str, object],
+) -> list[dict[str, object]]:
     actions = (
         [{"id": _verify_genus_action_id(next_action), "message": next_action}]
         if next_action
@@ -645,16 +647,25 @@ def _verify_genus_next_actions(
         return actions
     if any(action.get("id") == "selection_review_strategy" for action in actions):
         return actions
-    actions.append(
-        {
-            "id": "selection_review_strategy",
-            "message": (
-                "Run `typetreeflow selection-review strategy --outdir "
-                f"{outdir}` to summarize the review checkpoint and bounded "
-                "download-smoke handoff before any datasets execution."
-            ),
-        }
-    )
+    selection_review_action: dict[str, object] = {
+        "id": "selection_review_strategy",
+        "message": (
+            "Run `typetreeflow selection-review strategy --outdir "
+            f"{outdir}` to summarize the review checkpoint and bounded "
+            "download-smoke handoff before any datasets execution."
+        ),
+    }
+    if recommended_request:
+        selection_review_action.update(
+            {
+                "recommended_request_target": "selection-review strategy",
+                "recommended_request": recommended_request,
+                "recommended_next_command": _verify_genus_recommended_next_command(
+                    recommended_request
+                ),
+            }
+        )
+    actions.append(selection_review_action)
     return actions
 
 

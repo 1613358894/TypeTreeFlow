@@ -1470,6 +1470,11 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         and "selection-review strategy" in action["message"]
         for action in payload["next_actions"]
     )
+    strategy_action = next(
+        action
+        for action in payload["next_actions"]
+        if action["id"] == "selection_review_strategy"
+    )
     assert payload["recommended_request_target"] == "selection-review strategy"
     assert payload["recommended_request"] == {
         "command": "selection-review",
@@ -1481,6 +1486,32 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         "typetreeflow selection-review strategy "
         f"--outdir {outdir} --json"
     )
+    assert strategy_action["recommended_request_target"] == (
+        "selection-review strategy"
+    )
+    assert strategy_action["recommended_request"] == payload["recommended_request"]
+    assert strategy_action["recommended_next_command"] == payload[
+        "recommended_next_command"
+    ]
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(strategy_action["recommended_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "selection-review",
+        "strategy",
+        "--outdir",
+        str(outdir),
+        "--json",
+    ]
     checkpoint = payload["checkpoint"]
     assert checkpoint["id"] == "selection_review_required"
     assert checkpoint["kind"] == "review_checkpoint"

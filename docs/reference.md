@@ -43,9 +43,11 @@ Primary commands write compact JSON to stdout by default. This does not require
   `recommended_request`, and `recommended_next_command` fields point to
   `selection-review strategy --outdir ... --json` for controllers that consume
   a single machine-renderable next command. Top-level `next_actions` also
-  includes a `selection_review_strategy` entry so AI controllers that inspect
-  only the primary action list can route to the checkpoint strategy command
-  before any `datasets` execution.
+  includes a `selection_review_strategy` entry with the same
+  `recommended_request_target`, `recommended_request`, and
+  `recommended_next_command` fields so AI controllers that inspect only the
+  primary action list can route to the checkpoint strategy command before any
+  `datasets` execution.
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
   still require separate explicit authorization. When the current guidance is
