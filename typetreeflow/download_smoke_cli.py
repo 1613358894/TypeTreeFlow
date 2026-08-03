@@ -37,6 +37,12 @@ OUTPUT_INSPECTION_SUMMARY_NAME = "bounded_download_smoke_inspection_summary.json
 QUALITY_PROFILE_NONE = "none"
 QUALITY_PROFILE_FRAGMENTATION = "fragmentation"
 QUALITY_PROFILES = {QUALITY_PROFILE_NONE, QUALITY_PROFILE_FRAGMENTATION}
+BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS = [
+    *DOWNLOAD_PLAN_FIELDS,
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+]
 INSPECTION_FIELDS = [
     "record_id",
     "assembly_accession",
@@ -298,6 +304,7 @@ def prepare_bounded_download_smoke_input(
     selected = selected_pool[:limit]
     selected_quality = _selected_quality_summary(assembly_metadata, selected)
     selected_commands = _selected_datasets_command_preview(selected)
+    annotated_selected = _annotate_bounded_plan_rows(assembly_metadata, selected)
     blockers: list[str] = []
     if not selected:
         if resolved_quality_tier == "high":
@@ -380,7 +387,7 @@ def prepare_bounded_download_smoke_input(
             else "Bounded NCBI download smoke input is blocked."
         ),
     }
-    return {"rows": selected, "summary": summary}
+    return {"rows": annotated_selected, "summary": summary}
 
 
 def _recommended_inspection_command(
@@ -1166,9 +1173,15 @@ def _read_download_plan_rows(path: Path) -> list[dict[str, str]]:
         raise OSError("download plan is not a regular file")
     with path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
-        if reader.fieldnames != DOWNLOAD_PLAN_FIELDS:
+        if reader.fieldnames not in (
+            DOWNLOAD_PLAN_FIELDS,
+            BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS,
+        ):
             raise ValueError("download plan schema does not match")
-        return [{field: str(row.get(field, "")) for field in DOWNLOAD_PLAN_FIELDS} for row in reader]
+        return [
+            {field: str(row.get(field, "")) for field in DOWNLOAD_PLAN_FIELDS}
+            for row in reader
+        ]
 
 
 def _planned_quality_counts(
@@ -1229,6 +1242,26 @@ def _selected_quality_summary(
     }
 
 
+def _annotate_bounded_plan_rows(
+    assembly_metadata: dict[str, tuple[str, str]],
+    rows: list[dict[str, str]],
+) -> list[dict[str, str]]:
+    annotated: list[dict[str, str]] = []
+    for row in rows:
+        metadata = _planned_row_assembly_metadata(assembly_metadata, row)
+        assembly_level = metadata[0] or "unknown"
+        refseq_category = metadata[1] or "unknown"
+        annotated.append(
+            {
+                **{field: str(row.get(field, "")) for field in DOWNLOAD_PLAN_FIELDS},
+                "assembly_level": assembly_level,
+                "refseq_category": refseq_category,
+                "quality_tier": _quality_tier_for_assembly_level(assembly_level),
+            }
+        )
+    return annotated
+
+
 def _selected_datasets_command_preview(
     rows: list[dict[str, str]],
 ) -> dict[str, object]:
@@ -1286,7 +1319,11 @@ def _write_outputs(result: dict[str, object], outdir: str | Path) -> None:
     target.mkdir(parents=True, exist_ok=True)
     rows = result["rows"]
     with (target / OUTPUT_PLAN_NAME).open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=DOWNLOAD_PLAN_FIELDS, delimiter="\t")
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=BOUNDED_DOWNLOAD_SMOKE_PLAN_FIELDS,
+            delimiter="\t",
+        )
         writer.writeheader()
         writer.writerows(rows)  # type: ignore[arg-type]
     (target / OUTPUT_SUMMARY_NAME).write_text(
