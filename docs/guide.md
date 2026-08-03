@@ -1228,7 +1228,8 @@ instead of reconstructing strategy from paths or logs:
 ```bash
 typetreeflow selection-review strategy \
   --outdir <run> \
-  --limit 3
+  --limit 3 \
+  --bounded-smoke-outdir <workspace>/handoffs/bounded_download_smoke
 ```
 
 This command is read-only. It does not write files, run `datasets`, access the
@@ -1236,7 +1237,9 @@ network, contact providers, mutate manifests, accept genomes for final use, or
 change strict type-strain status. Its JSON recommends the safest bounded smoke
 handoff when high-quality Complete Genome or Chromosome planned rows are
 available and keeps scaffold/contig or WGS-like outputs behind later local
-inspection gates.
+inspection gates. `--bounded-smoke-outdir` only fills in the later
+`download-smoke prepare --write --outdir ...` handoff; the strategy command
+itself still writes nothing.
 
 First inspect `selection/download_plan_readiness_summary.json` (or the same
 object in `status --json`). Its planned-row assembly-quality counts separate

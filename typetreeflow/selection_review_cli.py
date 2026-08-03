@@ -65,7 +65,11 @@ def run_selection_review_command(
         return 2
 
     try:
-        payload = build_selection_review_strategy(outdir, limit=limit)
+        payload = build_selection_review_strategy(
+            outdir,
+            limit=limit,
+            bounded_smoke_outdir=args.bounded_smoke_outdir,
+        )
     except (OSError, UnicodeError, csv.Error, ValueError) as error:
         _emit(
             _payload(
@@ -86,6 +90,7 @@ def build_selection_review_strategy(
     outdir: str | Path,
     *,
     limit: int = DEFAULT_LIMIT,
+    bounded_smoke_outdir: str | Path | None = None,
 ) -> dict[str, object]:
     if limit < 1:
         raise ValueError("limit must be at least 1")
@@ -135,6 +140,9 @@ def build_selection_review_strategy(
         "recommended_strategy": strategy,
         "recommended_quality_tier": str(summary.get("quality_tier", "")),
         "first_round_limit": limit,
+        "bounded_smoke_outdir": (
+            str(Path(bounded_smoke_outdir)) if bounded_smoke_outdir else ""
+        ),
         "bounded_smoke_selected_row_count": selected_smoke_count,
         "high_quality_planned_row_count": high_count,
         "draft_or_fragmented_planned_row_count": draft_count,
@@ -153,6 +161,7 @@ def build_selection_review_strategy(
             outdir_path,
             download_plan,
             limit=limit,
+            bounded_smoke_outdir=bounded_smoke_outdir,
         ),
         "review_guidance": [
             "Review selection/user_selection.tsv before guarded downloads.",
@@ -184,6 +193,7 @@ def _build_parser() -> argparse.ArgumentParser:
     strategy = actions.add_parser("strategy", add_help=False)
     strategy.add_argument("--outdir", required=True)
     strategy.add_argument("--limit", default=str(DEFAULT_LIMIT))
+    strategy.add_argument("--bounded-smoke-outdir", default="")
     strategy.add_argument("--json", action="store_true")
     return parser
 
@@ -228,7 +238,13 @@ def _recommended_commands(
     download_plan: Path,
     *,
     limit: int,
+    bounded_smoke_outdir: str | Path | None = None,
 ) -> list[dict[str, object]]:
+    smoke_outdir = (
+        str(Path(bounded_smoke_outdir))
+        if bounded_smoke_outdir
+        else "<isolated-bounded-download-smoke-dir>"
+    )
     return [
         {
             "id": "status",
@@ -254,9 +270,10 @@ def _recommended_commands(
                 str(limit),
                 "--write",
                 "--outdir",
-                "<isolated-bounded-download-smoke-dir>",
+                smoke_outdir,
             ],
             "purpose": "write an isolated bounded smoke input package; does not run datasets",
+            "requires_operator_outdir": not bool(bounded_smoke_outdir),
         },
     ]
 

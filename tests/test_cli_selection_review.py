@@ -97,6 +97,7 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
     ]
     assert "--quality-tier" in prepare["argv"]
     assert "does not run datasets" in prepare["purpose"]
+    assert prepare["requires_operator_outdir"] is True
     assert (
         "treat_scaffold_contig_or_wgs_fasta_as_final_genome"
         in payload["forbidden_without_explicit_approval"]
@@ -104,6 +105,41 @@ def test_selection_review_strategy_outputs_bounded_high_quality_plan(tmp_path, c
     assert "Start with Complete Genome or Chromosome rows when available." in payload[
         "review_guidance"
     ]
+
+
+def test_selection_review_strategy_renders_concrete_bounded_smoke_outdir(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "clostridium_download"
+    smoke_outdir = tmp_path / "bounded_smoke"
+    _write_selection(outdir / "selection" / "user_selection.tsv")
+    _write_download_plan(outdir / "cache" / "ncbi" / "download_plan.tsv")
+
+    assert (
+        main(
+            [
+                "selection-review",
+                "strategy",
+                "--outdir",
+                str(outdir),
+                "--limit",
+                "1",
+                "--bounded-smoke-outdir",
+                str(smoke_outdir),
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    commands = {item["id"]: item for item in payload["recommended_commands"]}
+    prepare = commands["bounded_download_smoke_prepare"]
+    assert payload["bounded_smoke_outdir"] == str(smoke_outdir)
+    assert prepare["requires_operator_outdir"] is False
+    assert prepare["argv"][-2:] == ["--outdir", str(smoke_outdir)]
+    assert payload["writes_outputs"] is False
+    assert not smoke_outdir.exists()
 
 
 def test_selection_review_strategy_blocks_without_download_plan(tmp_path, capsys):
