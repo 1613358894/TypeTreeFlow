@@ -2028,18 +2028,19 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
     assert summary["recommended_review_queue_request_target"] == (
         "coverage-pipeline server-validation-result review-queue"
     )
+    review_queue_path = outdir / "download_smoke_review_queue.tsv"
     assert summary["recommended_review_queue_request"] == {
         "command": "coverage-pipeline",
         "subcommand": "server-validation-result review-queue",
         "download_smoke_inspection_dir": str(outdir),
         "write": True,
-        "out": "<download_smoke_review_queue.tsv>",
+        "out": str(review_queue_path),
         "json": True,
     }
     assert summary["recommended_review_queue_next_command"] == (
         "typetreeflow coverage-pipeline server-validation-result review-queue "
         f"--download-smoke-inspection-dir {outdir} --write --out "
-        "<download_smoke_review_queue.tsv> --json"
+        f"{review_queue_path} --json"
     )
     assert (
         main(
@@ -2061,7 +2062,7 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
         str(outdir),
         "--write",
         "--out",
-        "<download_smoke_review_queue.tsv>",
+        str(review_queue_path),
         "--json",
     ]
 

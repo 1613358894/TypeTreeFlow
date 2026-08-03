@@ -704,12 +704,13 @@ def _recommended_command_from_request(
 
 
 def _recommended_review_queue_request(inspection_dir: str | Path) -> dict[str, object]:
+    inspection_path = Path(inspection_dir)
     return {
         "command": "coverage-pipeline",
         "subcommand": "server-validation-result review-queue",
-        "download_smoke_inspection_dir": str(Path(inspection_dir)),
+        "download_smoke_inspection_dir": str(inspection_path),
         "write": True,
-        "out": "<download_smoke_review_queue.tsv>",
+        "out": str(inspection_path / "download_smoke_review_queue.tsv"),
         "json": True,
     }
 
