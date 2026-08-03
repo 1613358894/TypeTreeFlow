@@ -1297,7 +1297,9 @@ selected accession assembly-level counts and a bounded accession quality preview
 so the smoke handoff can be checked before execution. It also previews at most
 five corresponding command arrays for operator inspection. It does not run
 `datasets`, access the network, contact providers, mutate a manifest, or
-authorize broad downloads.
+authorize broad downloads. The summary `handoff_checklist` keeps bounded
+`datasets` execution and final genome acceptance as separate approval/review
+steps.
 When `prepare --write` succeeds, `recommended_inspection_command` points to the
 matching local `download-smoke inspect` command for the written bounded plan;
 choose a fresh isolated inspection `--outdir` before running it. By default,
