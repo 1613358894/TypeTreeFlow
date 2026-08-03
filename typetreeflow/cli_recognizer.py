@@ -40,6 +40,7 @@ _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
 _COVERAGE_PIPELINE_SUBCOMMANDS = {
     "build",
     "preview",
+    "server-validation-result review-queue",
     "server-validation-result validate",
     "status",
 }
@@ -396,7 +397,10 @@ def _writes_outputs_declared(
     if command == "acquisition-worklist":
         return subcommand == "build" and "--write" in tokens
     if command == "coverage-pipeline":
-        return subcommand == "build" and "--write" in tokens
+        return subcommand in {
+            "build",
+            "server-validation-result review-queue",
+        } and "--write" in tokens
     if command == "download-smoke":
         return subcommand in {"prepare", "inspect"} and "--write" in tokens
     if command == "count-crosswalk":
