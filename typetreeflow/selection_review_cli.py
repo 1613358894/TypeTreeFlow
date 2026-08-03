@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Sequence, TextIO
 
+from typetreeflow.commands_cli import render_command_request
 from typetreeflow.download_smoke_cli import prepare_bounded_download_smoke_input
 from typetreeflow.manifest import read_manifest
 from typetreeflow.workflow.paths import get_output_paths
@@ -118,6 +119,12 @@ def build_selection_review_strategy(
         unknown_count=unknown_count,
     )
     blockers = list(summary.get("blockers", [])) if isinstance(summary.get("blockers"), list) else []
+    recommended_request = _recommended_request(
+        download_plan,
+        limit=limit,
+        bounded_smoke_outdir=bounded_smoke_outdir,
+        selected_smoke_count=selected_smoke_count,
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "command": COMMAND,
@@ -163,6 +170,11 @@ def build_selection_review_strategy(
             summary.get("selected_datasets_command_preview_truncated", False)
         ),
         "selected_datasets_command_preview_only": True,
+        "recommended_request_target": (
+            "download-smoke prepare" if selected_smoke_count > 0 else ""
+        ),
+        "recommended_request": recommended_request,
+        "recommended_next_command": _recommended_next_command(recommended_request),
         "blockers": blockers,
         "review_artifacts": _review_artifacts(paths),
         "recommended_commands": _recommended_commands(
@@ -287,6 +299,40 @@ def _recommended_commands(
             "requires_operator_outdir": not bool(bounded_smoke_outdir),
         },
     ]
+
+
+def _recommended_request(
+    download_plan: Path,
+    *,
+    limit: int,
+    bounded_smoke_outdir: str | Path | None,
+    selected_smoke_count: int,
+) -> dict[str, object]:
+    if selected_smoke_count <= 0 or not bounded_smoke_outdir:
+        return {}
+    return {
+        "command": "download-smoke",
+        "subcommand": "prepare",
+        "download_plan": str(download_plan),
+        "quality_tier": "recommended",
+        "limit": limit,
+        "write": True,
+        "outdir": str(Path(bounded_smoke_outdir)),
+        "json": True,
+    }
+
+
+def _recommended_next_command(request: dict[str, object]) -> str:
+    if not request:
+        return ""
+    try:
+        rendered = render_command_request(dict(request))
+    except (TypeError, ValueError):
+        return ""
+    argv = rendered.get("target_argv")
+    if not isinstance(argv, list) or not argv:
+        return ""
+    return "typetreeflow " + " ".join(str(token) for token in argv)
 
 
 def _handoff_checklist(
