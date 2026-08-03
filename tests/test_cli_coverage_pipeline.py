@@ -6826,6 +6826,35 @@ def test_coverage_pipeline_build_writes_isolated_outputs_and_force(capsys, tmp_p
         ]
         == "download_smoke_inspection_bounded_smoke_next_action"
     )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_review_queue_count"
+        ]
+        == 1
+    )
+    assert (
+        result_status_parent[
+            "handoff_server_validation_download_smoke_review_queue_preview_truncated"
+        ]
+        is False
+    )
+    assert result_status_parent[
+        "handoff_server_validation_download_smoke_review_queue"
+    ] == [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+            "recommended_action": "review_local_fasta_quality_blockers",
+        }
+    ]
     result_status_surfaces = result_status_payload[
         "coverage_controller_inspection_summary"
     ]["surfaces"]

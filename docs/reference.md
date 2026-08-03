@@ -2856,14 +2856,21 @@ path, check count, failed count, optional observed external-registration
 realization fields, optional bounded download-smoke inspection observation
 fields including the active inspection quality profile and quality-gate blocker
 switches, high-quality assembly-metadata FASTA blocker summaries, bounded
-smoke next-action labels/reasons, safe high-quality blocked preview rows, and
-validation diagnostics. Invalid explicit results make status fail
+smoke next-action labels/reasons, safe high-quality blocked preview rows, the
+derived high-quality FASTA-quality review queue, and validation diagnostics.
+Invalid explicit results make status fail
 closed; omitting the option leaves the packet at `status=no_action`.
 The parent controller also exposes
 `handoff_server_validation_download_smoke_next_action`,
 `handoff_server_validation_download_smoke_next_action_reasons`, and
 `handoff_server_validation_download_smoke_next_action_source` as controlled
 AI/operator routing hints derived from the explicit server-validation result.
+When present,
+`handoff_server_validation_download_smoke_review_queue`,
+`handoff_server_validation_download_smoke_review_queue_count`, and
+`handoff_server_validation_download_smoke_review_queue_preview_truncated` mirror
+the validator's audit-only review queue so an AI/controller can route bounded
+FASTA-quality review without parsing preview rows.
 These fields may point to fixing or providing the result, running a bounded
 download-smoke inspection, reviewing local FASTA quality blockers, or reviewing
 validated bounded-smoke outputs; they do not authorize downloads, provider
