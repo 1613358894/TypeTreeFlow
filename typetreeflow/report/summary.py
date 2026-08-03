@@ -381,6 +381,55 @@ DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELDS = (
 )
 DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_MAX_ROWS = 5
 DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES = 5 * 1024 * 1024
+DOWNLOAD_SMOKE_QUALITY_REVIEW_SCHEMA_VERSION = "download_smoke_quality_review.v1"
+DOWNLOAD_SMOKE_QUALITY_REVIEW_MEMBERS = (
+    "download_smoke_quality_review.tsv",
+    "download_smoke_quality_review_summary.json",
+    "download_smoke_quality_review_diagnostics.tsv",
+)
+DOWNLOAD_SMOKE_QUALITY_REVIEW_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+    "status",
+    "fasta_quality_gate_blockers",
+    "recommended_action",
+    "triage_status",
+    "triage_reason",
+    "recommended_next_step",
+    "strict_upgrade_applied",
+    "quality_review_decision",
+    "decision_reason_code",
+    "reviewer_id",
+    "reviewed_at",
+    "bounded_smoke_quality_accepted",
+    "accepted_for_final_use",
+    "strict_upgrade_applied_by_review",
+    "manifest_mutation_applied",
+)
+DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS = (
+    "component",
+    "diagnostic_code",
+    "severity",
+    "record_id",
+    "assembly_accession",
+)
+DOWNLOAD_SMOKE_QUALITY_REVIEW_COUNT_FIELDS = (
+    "row_count",
+    "accepted_for_bounded_smoke_count",
+    "diagnostic_count",
+    "audit_only",
+    "accepted_for_final_use",
+    "strict_upgrade_applied",
+    "manifest_mutated",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+)
+DOWNLOAD_SMOKE_QUALITY_REVIEW_MAX_BYTES = 5 * 1024 * 1024
 DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS = (
     "record_id",
     "assembly_accession",
@@ -635,6 +684,16 @@ class DownloadSmokeInspectionAuditSummary:
     refseq_category_counts: list[tuple[str, int]]
     quality_tier_counts: list[tuple[str, int]]
     blockers: list[str]
+
+
+@dataclass(frozen=True)
+class DownloadSmokeQualityReviewAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    decision_counts: list[tuple[str, int]]
+    reason_counts: list[tuple[str, int]]
+    top_diagnostics: list[tuple[str, int]]
 
 
 def read_optional_download_smoke_inspection_audit(
@@ -955,6 +1014,210 @@ def _read_download_smoke_inspection_tsv(path: Path) -> list[dict[str, str]]:
             DOWNLOAD_SMOKE_PRE_EMPTY_FASTA_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_PRE_GATE_INSPECTION_FIELDS,
             DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS,
+        ):
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def read_optional_download_smoke_quality_review_audit(
+    directory: str | Path | None,
+) -> DownloadSmokeQualityReviewAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name
+        for name in DOWNLOAD_SMOKE_QUALITY_REVIEW_MEMBERS
+        if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    summary_data: dict[str, object] | None = None
+    summary_decision_counts: Counter[str] = Counter()
+    summary_reason_counts: Counter[str] = Counter()
+    row_decision_counts: Counter[str] = Counter()
+    row_reason_counts: Counter[str] = Counter()
+    diagnostic_codes: Counter[str] = Counter()
+    observed_rows: int | None = None
+    observed_diagnostics: int | None = None
+
+    missing = [
+        name for name in DOWNLOAD_SMOKE_QUALITY_REVIEW_MEMBERS if name not in present
+    ]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / "download_smoke_quality_review_summary.json"
+    if summary_path.exists():
+        try:
+            _validate_download_smoke_quality_review_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != DOWNLOAD_SMOKE_QUALITY_REVIEW_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            if loaded.get("status") not in {"pass", "blocked"}:
+                raise ValueError("invalid status")
+            for field in (
+                "row_count",
+                "accepted_for_bounded_smoke_count",
+                "diagnostic_count",
+                "downloads_triggered",
+                "providers_contacted",
+            ):
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            for field, expected in (
+                ("audit_only", True),
+                ("accepted_for_final_use", False),
+                ("strict_upgrade_applied", False),
+                ("manifest_mutated", False),
+                ("downloads_triggered", 0),
+                ("providers_contacted", 0),
+                ("network_access", False),
+                ("external_tools", False),
+            ):
+                actual = loaded.get(field)
+                if isinstance(expected, bool):
+                    if actual is not expected:
+                        raise ValueError(f"{field} boundary violation")
+                elif actual != expected:
+                    raise ValueError(f"{field} boundary violation")
+            for field in ("decision_counts", "decision_reason_counts"):
+                raw_counts = loaded.get(field, {})
+                if not isinstance(raw_counts, dict):
+                    raise ValueError(f"invalid {field}")
+                target = (
+                    summary_decision_counts
+                    if field == "decision_counts"
+                    else summary_reason_counts
+                )
+                for key, value in raw_counts.items():
+                    if (
+                        not isinstance(key, str)
+                        or not key.strip()
+                        or isinstance(value, bool)
+                        or not isinstance(value, int)
+                        or value < 0
+                    ):
+                        raise ValueError(f"invalid {field}")
+                    target[key.strip()] = value
+            summary_data = loaded
+            counts = {
+                field: loaded.get(field)
+                for field in DOWNLOAD_SMOKE_QUALITY_REVIEW_COUNT_FIELDS
+            }
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append("download_smoke_quality_review_summary.json malformed")
+
+    review_path = input_dir / "download_smoke_quality_review.tsv"
+    if review_path.exists():
+        try:
+            rows = _read_download_smoke_quality_review_tsv(review_path)
+            observed_rows = len(rows)
+            for row in rows:
+                for field in (
+                    "strict_upgrade_applied",
+                    "accepted_for_final_use",
+                    "strict_upgrade_applied_by_review",
+                    "manifest_mutation_applied",
+                ):
+                    if row.get(field, "").strip().lower() != "false":
+                        raise ValueError(f"{field} boundary violation")
+                decision = row.get("quality_review_decision", "").strip()
+                if decision:
+                    row_decision_counts[decision] += 1
+                reason = row.get("decision_reason_code", "").strip()
+                if reason:
+                    row_reason_counts[reason] += 1
+            valid_files.append(review_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append("download_smoke_quality_review.tsv malformed")
+
+    diagnostics_path = input_dir / "download_smoke_quality_review_diagnostics.tsv"
+    if diagnostics_path.exists():
+        try:
+            diagnostic_rows = _read_download_smoke_quality_review_diagnostics_tsv(
+                diagnostics_path
+            )
+            observed_diagnostics = len(diagnostic_rows)
+            diagnostic_codes.update(
+                row.get("diagnostic_code", "").strip()
+                for row in diagnostic_rows
+                if row.get("diagnostic_code", "").strip()
+            )
+            valid_files.append(diagnostics_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(
+                "download_smoke_quality_review_diagnostics.tsv malformed"
+            )
+
+    if summary_data is not None:
+        if observed_rows is not None and summary_data["row_count"] != observed_rows:
+            warnings.append("row_count does not match quality-review rows")
+        if (
+            observed_diagnostics is not None
+            and summary_data["diagnostic_count"] != observed_diagnostics
+        ):
+            warnings.append("diagnostic_count does not match diagnostics rows")
+
+    displayed_decision_counts = summary_decision_counts or row_decision_counts
+    displayed_reason_counts = summary_reason_counts or row_reason_counts
+    return DownloadSmokeQualityReviewAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        decision_counts=sorted(
+            displayed_decision_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+        reason_counts=sorted(
+            displayed_reason_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+        top_diagnostics=sorted(
+            diagnostic_codes.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+    )
+
+
+def _validate_download_smoke_quality_review_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > DOWNLOAD_SMOKE_QUALITY_REVIEW_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_download_smoke_quality_review_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_download_smoke_quality_review_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != DOWNLOAD_SMOKE_QUALITY_REVIEW_FIELDS:
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
+
+
+def _read_download_smoke_quality_review_diagnostics_tsv(
+    path: Path,
+) -> list[dict[str, str]]:
+    _validate_download_smoke_quality_review_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if (
+            tuple(reader.fieldnames or ())
+            != DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS
         ):
             raise ValueError("unexpected TSV header")
         rows = list(reader)
@@ -3784,6 +4047,11 @@ def build_run_summary_markdown(
     download_smoke_inspection_audit = read_optional_download_smoke_inspection_audit(
         getattr(args, "download_smoke_inspection_dir", None)
     )
+    download_smoke_quality_review_audit = (
+        read_optional_download_smoke_quality_review_audit(
+            getattr(args, "download_smoke_quality_review_dir", None)
+        )
+    )
     genome_registration_counts: list[tuple[str, int]] = []
     genome_registration_fasta_quality_summary: dict[str, object] = {}
     genome_registration_error = ""
@@ -5339,6 +5607,97 @@ def build_run_summary_markdown(
                     *[
                         f"| {_markdown_cell(blocker)} |"
                         for blocker in download_smoke_inspection_audit.blockers
+                    ],
+                ]
+            )
+
+    if download_smoke_quality_review_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Bounded Download Smoke Quality Review",
+                "",
+                (
+                    "This section is audit-only and summarizes explicit "
+                    "bounded download-smoke quality-review artifacts. It reads "
+                    "only the supplied directory; it does not run datasets, "
+                    "download genomes, contact providers, mutate manifests, "
+                    "or create strict scientific deliverables."
+                ),
+                (
+                    "`bounded_smoke_quality_accepted` is a bounded-smoke "
+                    "follow-up decision only. It is not final genome "
+                    "acceptance, not type-strain confirmation, and not a "
+                    "strict deliverable upgrade."
+                ),
+                (
+                    "`accepted_for_final_use=false`, "
+                    "`strict_upgrade_applied=false`, and "
+                    "`manifest_mutated=false` remain fixed boundaries."
+                ),
+            ]
+        )
+        if download_smoke_quality_review_audit.counts:
+            lines.append(
+                "- Counts: "
+                + "; ".join(
+                    f"{field}={_summary_bool(value) if isinstance(value, bool) else value}"
+                    for field, value in (
+                        download_smoke_quality_review_audit.counts.items()
+                    )
+                )
+            )
+        else:
+            lines.append("- Counts: not_recorded")
+        if download_smoke_quality_review_audit.warnings:
+            lines.append(
+                "- Warning: "
+                + "; ".join(download_smoke_quality_review_audit.warnings)
+            )
+        if download_smoke_quality_review_audit.present_files:
+            lines.append(
+                "- Valid audit files: "
+                + "; ".join(download_smoke_quality_review_audit.present_files)
+            )
+        if download_smoke_quality_review_audit.decision_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Quality Review Decision | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(decision)} | {count} |"
+                        for decision, count in (
+                            download_smoke_quality_review_audit.decision_counts
+                        )
+                    ],
+                ]
+            )
+        if download_smoke_quality_review_audit.reason_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Quality Review Reason | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(reason)} | {count} |"
+                        for reason, count in (
+                            download_smoke_quality_review_audit.reason_counts
+                        )
+                    ],
+                ]
+            )
+        if download_smoke_quality_review_audit.top_diagnostics:
+            lines.extend(
+                [
+                    "",
+                    "| Diagnostic Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in (
+                            download_smoke_quality_review_audit.top_diagnostics
+                        )
                     ],
                 ]
             )

@@ -527,6 +527,14 @@ inspection summaries only; they do not create completion credit or strict
 scientific deliverables.
 Failed-handoff packages exclude server-validation result artifacts.
 
+Normal `package-results --include reports` and `--include all` may copy valid
+members of the bounded download-smoke quality-review triplet only from an
+explicit `--download-smoke-quality-review-dir`. They are packaged under
+`download_smoke/` with audit-only artifact-scope rows. This is bounded-smoke
+review availability, not final genome acceptance, unattended download
+authorization, provider execution, manifest mutation, completion credit, or
+strict deliverable promotion. Failed-handoff packages exclude these artifacts.
+
 Offline readiness projection is an aggregate contract check over already
 constructed local summaries. A `ready` projection means only that synthetic
 curator-packet metadata, strict-gate state, and count-crosswalk facts are

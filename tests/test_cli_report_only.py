@@ -26,6 +26,7 @@ from tests.test_report_summary import (
     _write_offline_readiness_pair,
     _write_provider_handoff_pair,
     _write_strict_gating_triplet,
+    _write_download_smoke_quality_review_triplet,
 )
 
 
@@ -152,6 +153,43 @@ def test_report_only_explicit_strict_gating_dir_is_read_only_and_compact(
     assert not paths.reconciler_audit_path.exists()
     assert not paths.reconciler_summary_path.exists()
     assert not paths.reconciler_diagnostics_path.exists()
+
+
+def test_report_only_explicit_download_smoke_quality_review_dir_is_read_only(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    write_manifest([_record("ready", "genome_ready")], paths.manifest)
+    manifest_before = paths.manifest.read_bytes()
+    review_dir = tmp_path / "quality-review"
+    _write_download_smoke_quality_review_triplet(review_dir)
+    review_before = {path.name: path.read_bytes() for path in review_dir.iterdir()}
+
+    result = main(
+        [
+            "verify-genus",
+            "Aliivibrio",
+            "--outdir",
+            str(outdir),
+            "--resume",
+            "--report-only",
+            "--download-smoke-quality-review-dir",
+            str(review_dir),
+        ]
+    )
+
+    stdout = capsys.readouterr().out
+    assert result == 0
+    assert stdout.count("\n") <= 1
+    assert json.loads(stdout)["command"] == "verify-genus"
+    summary = paths.run_summary_path.read_text(encoding="utf-8")
+    assert "## Bounded Download Smoke Quality Review" in summary
+    assert "not final genome acceptance" in summary
+    assert paths.manifest.read_bytes() == manifest_before
+    assert {path.name: path.read_bytes() for path in review_dir.iterdir()} == review_before
+    assert not paths.completion_dir.exists()
+    assert not paths.reconciler_audit_path.exists()
 
 
 def test_report_only_without_strict_gating_dir_remains_unchanged(tmp_path):

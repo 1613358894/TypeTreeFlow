@@ -37,6 +37,7 @@ from typetreeflow.workflow.state import StageState, WorkflowState, write_run_sta
 from tests.test_report_summary import (
     _write_coverage_plan_pair,
     _write_archive_candidates_triplet,
+    _write_download_smoke_quality_review_triplet,
     _write_external_genomes_install_plan_triplet,
     _write_offline_readiness_pair,
     _write_provider_handoff_pair,
@@ -3476,6 +3477,184 @@ def test_package_results_strict_gating_is_offline_and_non_mutating(
     assert {
         path.name: path.read_bytes() for path in gating_dir.iterdir() if path.is_file()
     } == input_before
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_download_smoke_quality_review_triplet_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    review_dir = tmp_path / "quality-review"
+    _write_download_smoke_quality_review_triplet(review_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        download_smoke_quality_review_dir=review_dir,
+    )
+
+    delivered = result.delivery_dir / "download_smoke"
+    assert {path.name for path in delivered.iterdir()} == {
+        "download_smoke_quality_review.tsv",
+        "download_smoke_quality_review_summary.json",
+        "download_smoke_quality_review_diagnostics.tsv",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    review_rows = [
+        row
+        for row in scope_rows
+        if row["artifact_path"].startswith("download_smoke/download_smoke_quality_review")
+    ]
+    assert len(review_rows) == 3
+    assert {row["scope"] for row in review_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in review_rows} == {
+        "download_smoke_quality_review_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in review_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in review_rows} == {
+        "bounded download smoke quality review"
+    }
+    assert {row["not_for"] for row in review_rows} == {
+        "final genome acceptance, unattended download authorization, or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in review_rows} == {
+        "download_smoke_quality_review"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Bounded download-smoke quality-review artifacts are audit-only" in package_text
+    assert "not final genome acceptance" in package_text
+    assert "`accepted_for_final_use=false`" in package_text
+    assert "`strict_upgrade_applied=false`" in package_text
+
+
+def test_package_results_download_smoke_quality_review_is_explicit_and_missing_is_omitted(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    for name, review_dir in (
+        ("without-input", None),
+        ("missing-input", tmp_path / "missing-quality-review"),
+    ):
+        result = package_results(
+            tmp_path,
+            delivery_dir=tmp_path / f"delivery-{name}",
+            include="reports",
+            download_smoke_quality_review_dir=review_dir,
+        )
+        assert not (result.delivery_dir / "download_smoke").exists()
+        assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+        assert result.download_smoke_quality_review_warnings == []
+
+
+def test_package_results_partial_download_smoke_quality_review_warns_and_copies_valid_members(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    review_dir = tmp_path / "quality-review"
+    _write_download_smoke_quality_review_triplet(review_dir)
+    (review_dir / "download_smoke_quality_review_summary.json").write_text(
+        '{"schema_version":"download_smoke_quality_review.v1","strict_upgrade_applied":true}',
+        encoding="utf-8",
+    )
+    (review_dir / "download_smoke_quality_review_diagnostics.tsv").unlink()
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        download_smoke_quality_review_dir=review_dir,
+    )
+
+    assert (
+        result.delivery_dir
+        / "download_smoke"
+        / "download_smoke_quality_review.tsv"
+    ).exists()
+    assert not (
+        result.delivery_dir
+        / "download_smoke"
+        / "download_smoke_quality_review_summary.json"
+    ).exists()
+    assert not (
+        result.delivery_dir
+        / "download_smoke"
+        / "download_smoke_quality_review_diagnostics.tsv"
+    ).exists()
+    assert result.download_smoke_quality_review_warnings == [
+        "missing members: download_smoke_quality_review_diagnostics.tsv",
+        "download_smoke_quality_review_summary.json malformed",
+    ]
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    assert [row["artifact_path"] for row in scope_rows] == [
+        "download_smoke/download_smoke_quality_review.tsv"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "download_smoke_quality_review_summary.json malformed" in package_text
+
+
+def test_package_results_failed_handoff_excludes_download_smoke_quality_review(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    review_dir = tmp_path / "quality-review"
+    _write_download_smoke_quality_review_triplet(review_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        download_smoke_quality_review_dir=review_dir,
+    )
+
+    assert not (result.delivery_dir / "download_smoke").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Bounded Download Smoke Quality Review" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_download_smoke_quality_review_and_compact_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    review_dir = tmp_path / "quality-review"
+    _write_download_smoke_quality_review_triplet(review_dir)
+
+    assert main(
+        [
+            "package-results",
+            "--outdir",
+            str(tmp_path),
+            "--include",
+            "reports",
+            "--download-smoke-quality-review-dir",
+            str(review_dir),
+        ]
+    ) == 0
+
+    payload, output = _package_stdout_payload(capsys)
+    assert output.count("\n") == 1
+    assert payload["command"] == "package-results"
+    assert (
+        tmp_path
+        / "delivery"
+        / "download_smoke"
+        / "download_smoke_quality_review_summary.json"
+    ).exists()
 
 
 def test_package_results_omits_reconciler_outputs_gracefully_when_absent(tmp_path):

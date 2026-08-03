@@ -41,6 +41,9 @@ def run_package_results_dispatch(config: AppConfig, stdout=None) -> int | None:
             offline_readiness_dir=config.offline_readiness_dir,
             strict_gating_dir=config.strict_gating_dir,
             download_smoke_inspection_dir=config.download_smoke_inspection_dir,
+            download_smoke_quality_review_dir=(
+                config.download_smoke_quality_review_dir
+            ),
         )
     except (FileNotFoundError, ManifestError, ValueError, RuntimeError) as error:
         LOGGER.error("%s", error)
@@ -189,6 +192,17 @@ def _format_envelope(
                 "message": (
                     f"{len(result.download_smoke_inspection_warnings)} bounded "
                     "download-smoke inspection warning(s); see package README "
+                    "and handoff index"
+                ),
+            }
+        )
+    if result.download_smoke_quality_review_warnings:
+        warnings.append(
+            {
+                "id": "download_smoke_quality_review_warning",
+                "message": (
+                    f"{len(result.download_smoke_quality_review_warnings)} bounded "
+                    "download-smoke quality-review warning(s); see package README "
                     "and handoff index"
                 ),
             }

@@ -21,6 +21,7 @@ from typetreeflow.report.summary import (
     ArchiveCandidatesAuditSummary,
     BacDiveCandidateReviewSummary,
     CoveragePlanAuditSummary,
+    DownloadSmokeQualityReviewAuditSummary,
     DownloadSmokeInspectionAuditSummary,
     ExternalGenomesInstallPlanAuditSummary,
     ManualReviewImportAuditSummary,
@@ -38,6 +39,7 @@ from typetreeflow.report.summary import (
     read_optional_bacdive_candidate_review,
     read_optional_coverage_plan_audit,
     read_optional_download_smoke_inspection_audit,
+    read_optional_download_smoke_quality_review_audit,
     read_optional_external_genomes_install_plan_audit,
     read_optional_gtdb_metadata_audit,
     read_optional_manual_review_import_audit,
@@ -107,6 +109,7 @@ class DeliveryResult:
     offline_readiness_warnings: list[str] = field(default_factory=list)
     strict_gating_warnings: list[str] = field(default_factory=list)
     download_smoke_inspection_warnings: list[str] = field(default_factory=list)
+    download_smoke_quality_review_warnings: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -212,6 +215,7 @@ def package_results(
     offline_readiness_dir: str | Path | None = None,
     strict_gating_dir: str | Path | None = None,
     download_smoke_inspection_dir: str | Path | None = None,
+    download_smoke_quality_review_dir: str | Path | None = None,
 ) -> DeliveryResult:
     paths = get_output_paths(outdir)
     if failed_handoff:
@@ -330,6 +334,15 @@ def package_results(
     strict_gating_audit: StrictGatingAuditSummary | None = None
     download_smoke_inspection_outputs_copied: list[Path] = []
     download_smoke_inspection_audit: DownloadSmokeInspectionAuditSummary | None = None
+    download_smoke_quality_review_dir = _coverage_pipeline_component_dir(
+        download_smoke_quality_review_dir,
+        coverage_pipeline_dir,
+        "download_smoke_quality_review",
+    )
+    download_smoke_quality_review_outputs_copied: list[Path] = []
+    download_smoke_quality_review_audit: (
+        DownloadSmokeQualityReviewAuditSummary | None
+    ) = None
     download_readiness_outputs_copied: list[Path] = []
     if "reports" in requested:
         _copy_optional(
@@ -537,6 +550,19 @@ def package_results(
                 copied,
             )
         )
+        download_smoke_quality_review_audit = (
+            read_optional_download_smoke_quality_review_audit(
+                download_smoke_quality_review_dir
+            )
+        )
+        download_smoke_quality_review_outputs_copied = (
+            _copy_download_smoke_quality_review_outputs(
+                download_smoke_quality_review_dir,
+                download_smoke_quality_review_audit,
+                output_dir,
+                copied,
+            )
+        )
 
     _write_package_artifact_scope(
         paths,
@@ -583,6 +609,10 @@ def package_results(
             download_smoke_inspection_outputs_copied
         ),
         download_smoke_inspection_audit=download_smoke_inspection_audit,
+        download_smoke_quality_review_outputs_copied=(
+            download_smoke_quality_review_outputs_copied
+        ),
+        download_smoke_quality_review_audit=download_smoke_quality_review_audit,
         download_readiness_outputs_copied=download_readiness_outputs_copied,
     )
 
@@ -658,6 +688,7 @@ def package_results(
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
             download_smoke_inspection_audit=download_smoke_inspection_audit,
+            download_smoke_quality_review_audit=download_smoke_quality_review_audit,
         ),
         encoding="utf-8",
         newline="\n",
@@ -694,6 +725,7 @@ def package_results(
             offline_readiness_audit=offline_readiness_audit,
             strict_gating_audit=strict_gating_audit,
             download_smoke_inspection_audit=download_smoke_inspection_audit,
+            download_smoke_quality_review_audit=download_smoke_quality_review_audit,
         ),
         encoding="utf-8",
         newline="\n",
@@ -770,6 +802,11 @@ def package_results(
         download_smoke_inspection_warnings=(
             list(download_smoke_inspection_audit.warnings)
             if download_smoke_inspection_audit is not None
+            else []
+        ),
+        download_smoke_quality_review_warnings=(
+            list(download_smoke_quality_review_audit.warnings)
+            if download_smoke_quality_review_audit is not None
             else []
         ),
     )
@@ -970,6 +1007,9 @@ def build_delivery_readme(
     download_smoke_inspection_audit: (
         DownloadSmokeInspectionAuditSummary | None
     ) = None,
+    download_smoke_quality_review_audit: (
+        DownloadSmokeQualityReviewAuditSummary | None
+    ) = None,
 ) -> str:
     record_list = list(records)
     type_counts = summarize_type_confirmation_counts(record_list)
@@ -1101,6 +1141,12 @@ def build_delivery_readme(
         lines.extend(
             _download_smoke_inspection_readme_lines(download_smoke_inspection_audit)
         )
+    if download_smoke_quality_review_audit is not None:
+        lines.extend(
+            _download_smoke_quality_review_readme_lines(
+                download_smoke_quality_review_audit
+            )
+        )
     lines.extend(
         [
             "",
@@ -1231,6 +1277,9 @@ def build_handoff_index(
     strict_gating_audit: StrictGatingAuditSummary | None = None,
     download_smoke_inspection_audit: (
         DownloadSmokeInspectionAuditSummary | None
+    ) = None,
+    download_smoke_quality_review_audit: (
+        DownloadSmokeQualityReviewAuditSummary | None
     ) = None,
 ) -> str:
     record_list = list(records)
@@ -1383,6 +1432,12 @@ def build_handoff_index(
     if download_smoke_inspection_audit is not None:
         lines.extend(
             _download_smoke_inspection_handoff_lines(download_smoke_inspection_audit)
+        )
+    if download_smoke_quality_review_audit is not None:
+        lines.extend(
+            _download_smoke_quality_review_handoff_lines(
+                download_smoke_quality_review_audit
+            )
         )
     lines.extend(["", "## Included Files", ""])
     if copied_names:
@@ -2346,6 +2401,26 @@ def _copy_download_smoke_inspection_outputs(
     return copied_inspection
 
 
+def _copy_download_smoke_quality_review_outputs(
+    directory: str | Path | None,
+    audit: DownloadSmokeQualityReviewAuditSummary | None,
+    delivery_dir: Path,
+    copied: list[Path],
+) -> list[Path]:
+    if directory is None or audit is None:
+        return []
+    input_dir = Path(directory)
+    copied_review: list[Path] = []
+    for name in audit.present_files:
+        copied_path = _copy_required(
+            input_dir / name,
+            delivery_dir / "download_smoke" / name,
+        )
+        copied.append(copied_path)
+        copied_review.append(copied_path)
+    return copied_review
+
+
 def _write_package_artifact_scope(
     paths: OutputPaths,
     delivery_dir: Path,
@@ -2382,6 +2457,10 @@ def _write_package_artifact_scope(
     strict_gating_outputs_copied: list[Path],
     download_smoke_inspection_outputs_copied: list[Path],
     download_smoke_inspection_audit: DownloadSmokeInspectionAuditSummary | None,
+    download_smoke_quality_review_outputs_copied: list[Path],
+    download_smoke_quality_review_audit: (
+        DownloadSmokeQualityReviewAuditSummary | None
+    ),
     download_readiness_outputs_copied: list[Path],
 ) -> None:
     source_rows = read_artifact_scope(paths.artifact_scope_path)
@@ -2495,6 +2574,13 @@ def _write_package_artifact_scope(
             download_smoke_inspection_audit,
         )
     )
+    rows.extend(
+        _download_smoke_quality_review_artifact_scope_rows(
+            delivery_dir,
+            download_smoke_quality_review_outputs_copied,
+            download_smoke_quality_review_audit,
+        )
+    )
     if not rows:
         return
 
@@ -2516,6 +2602,7 @@ def _write_package_artifact_scope(
         or offline_readiness_outputs_copied
         or strict_gating_outputs_copied
         or download_smoke_inspection_outputs_copied
+        or download_smoke_quality_review_outputs_copied
         or download_readiness_outputs_copied
         or core_download_rows
         or not paths.artifact_scope_path.exists()
@@ -2544,6 +2631,7 @@ def _write_package_artifact_scope(
             or offline_readiness_outputs_copied
             or strict_gating_outputs_copied
             or download_smoke_inspection_outputs_copied
+            or download_smoke_quality_review_outputs_copied
             or download_readiness_outputs_copied
             or core_download_rows
             or not paths.artifact_scope_path.exists()
@@ -3625,6 +3713,88 @@ def _download_smoke_inspection_artifact_scope_rows(
                 "strict_scientific_deliverable": "false",
                 "notes": (
                     f"selected_row_count={selected_count}; " + notes
+                ),
+            }
+        )
+    return rows
+
+
+def _download_smoke_quality_review_artifact_scope_rows(
+    delivery_dir: Path,
+    copied_files: list[Path],
+    audit: DownloadSmokeQualityReviewAuditSummary | None,
+) -> list[dict[str, str]]:
+    copied_paths = {
+        path.relative_to(delivery_dir).as_posix()
+        for path in copied_files
+        if path.is_file()
+    }
+    accepted_count = 0
+    diagnostic_count = 0
+    if audit is not None:
+        value = audit.counts.get("accepted_for_bounded_smoke_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            accepted_count = value
+        value = audit.counts.get("diagnostic_count")
+        if isinstance(value, int) and not isinstance(value, bool):
+            diagnostic_count = value
+    specifications = (
+        (
+            "download_smoke/download_smoke_quality_review.tsv",
+            "download_smoke_quality_review_rows",
+            "Bounded download smoke quality-review rows",
+            66,
+            accepted_count,
+        ),
+        (
+            "download_smoke/download_smoke_quality_review_summary.json",
+            "download_smoke_quality_review_summary",
+            "Bounded download smoke quality-review summary",
+            65,
+            1,
+        ),
+        (
+            "download_smoke/download_smoke_quality_review_diagnostics.tsv",
+            "download_smoke_quality_review_diagnostics",
+            "Bounded download smoke quality-review diagnostics",
+            67,
+            diagnostic_count,
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, label, priority, count in specifications:
+        if artifact_path not in copied_paths:
+            continue
+        path = delivery_dir / Path(artifact_path)
+        record_count = count if path.suffix == ".json" else _safe_tsv_row_count(path)
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "download_smoke_quality_review_audit",
+                "record_count": str(record_count),
+                "strict_usable_count": "0",
+                "candidate_count": str(
+                    accepted_count
+                    if artifact_kind == "download_smoke_quality_review_rows"
+                    else 0
+                ),
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "bounded download smoke quality review",
+                "not_for": (
+                    "final genome acceptance, unattended download authorization, "
+                    "or strict deliverable gating"
+                ),
+                "source_artifact": "download_smoke_quality_review",
+                "consumer_priority": str(priority),
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Audit-only bounded smoke quality review; accepted rows are "
+                    "bounded-smoke follow-up decisions only and do not mutate "
+                    "manifests, accept genomes for final use, or promote strict "
+                    "deliverables."
                 ),
             }
         )
@@ -4963,6 +5133,79 @@ def _download_smoke_inspection_handoff_lines(
     if audit.warnings:
         lines.append(
             "- Bounded download-smoke inspection warning: "
+            + "; ".join(audit.warnings)
+        )
+    return lines
+
+
+def _download_smoke_quality_review_boundary_lines() -> list[str]:
+    return [
+        (
+            "- Bounded download-smoke quality-review artifacts are audit-only. "
+            "Package inclusion means review availability for a separately "
+            "authorized bounded smoke result, not final genome acceptance."
+        ),
+        (
+            "- `bounded_smoke_quality_accepted` is a bounded-smoke follow-up "
+            "decision only; it is not type-strain confirmation and not a "
+            "strict deliverable upgrade."
+        ),
+        (
+            "- `accepted_for_final_use=false`, "
+            "`strict_upgrade_applied=false`, `manifest_mutated=false`, "
+            "`downloads_triggered=0`, and `providers_contacted=0` remain "
+            "package boundaries."
+        ),
+    ]
+
+
+def _download_smoke_quality_review_readme_lines(
+    audit: DownloadSmokeQualityReviewAuditSummary,
+) -> list[str]:
+    lines = ["", "## Bounded Download Smoke Quality Review", ""]
+    lines.extend(_download_smoke_quality_review_boundary_lines())
+    if audit.counts:
+        lines.append(
+            "- Counts: "
+            + "; ".join(
+                f"{field}={_format_download_smoke_count_value(value)}"
+                for field, value in audit.counts.items()
+            )
+        )
+    if audit.decision_counts:
+        lines.append(
+            "- Quality-review decisions: "
+            + _format_download_smoke_count_value(dict(audit.decision_counts))
+        )
+    if audit.reason_counts:
+        lines.append(
+            "- Quality-review reasons: "
+            + _format_download_smoke_count_value(dict(audit.reason_counts))
+        )
+    if audit.present_files:
+        lines.append("- Copied recognized members: " + ", ".join(audit.present_files))
+    if audit.warnings:
+        lines.append("- Warning: " + "; ".join(audit.warnings))
+    return lines
+
+
+def _download_smoke_quality_review_handoff_lines(
+    audit: DownloadSmokeQualityReviewAuditSummary,
+) -> list[str]:
+    lines = _download_smoke_quality_review_boundary_lines()
+    if audit.decision_counts:
+        lines.append(
+            "- Bounded download-smoke quality-review decisions: "
+            + _format_download_smoke_count_value(dict(audit.decision_counts))
+        )
+    if audit.present_files:
+        lines.append(
+            "- Bounded download-smoke quality-review files copied: "
+            + ", ".join(audit.present_files)
+        )
+    if audit.warnings:
+        lines.append(
+            "- Bounded download-smoke quality-review warning: "
             + "; ".join(audit.warnings)
         )
     return lines

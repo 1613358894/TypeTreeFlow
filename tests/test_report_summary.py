@@ -68,12 +68,15 @@ from typetreeflow.provider_plan import (
     PROVIDER_REGISTRATION_PLAN_FIELDS,
 )
 from typetreeflow.report.summary import (
+    DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS,
+    DOWNLOAD_SMOKE_QUALITY_REVIEW_FIELDS,
     build_run_review_markdown,
     build_run_summary_markdown,
     read_optional_acquisition_worklist_audit,
     read_optional_archive_candidates_audit,
     read_optional_coverage_plan_audit,
     read_optional_download_smoke_inspection_audit,
+    read_optional_download_smoke_quality_review_audit,
     read_optional_external_genomes_install_plan_audit,
     read_optional_manual_review_import_audit,
     read_optional_offline_readiness_audit,
@@ -408,6 +411,109 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
         )
 
 
+def _write_download_smoke_quality_review_triplet(directory: Path) -> None:
+    directory.mkdir(parents=True)
+    (directory / "download_smoke_quality_review_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "download_smoke_quality_review.v1",
+                "status": "pass",
+                "row_count": 2,
+                "accepted_for_bounded_smoke_count": 1,
+                "decision_counts": {
+                    "bounded_smoke_quality_accepted": 1,
+                    "bounded_smoke_quality_rejected": 1,
+                },
+                "decision_reason_counts": {
+                    "fragmented_or_scaffold_like_fasta": 1,
+                    "header_keywords_false_positive": 1,
+                },
+                "diagnostic_count": 0,
+                "audit_only": True,
+                "accepted_for_final_use": False,
+                "strict_upgrade_applied": False,
+                "manifest_mutated": False,
+                "downloads_triggered": 0,
+                "providers_contacted": 0,
+                "network_access": False,
+                "external_tools": False,
+                "execution_boundary": (
+                    "local_fasta_quality_review_import_only_no_target_execution"
+                ),
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with (directory / "download_smoke_quality_review.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=DOWNLOAD_SMOKE_QUALITY_REVIEW_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "record_id": "ref1",
+                "assembly_accession": "GCF_000001",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "fasta_header_fragment_keywords",
+                "recommended_action": "review_local_fasta_quality_blockers",
+                "triage_status": "local_fasta_quality_review_required",
+                "triage_reason": "fasta_header_fragment_keywords",
+                "recommended_next_step": "review_fasta_header_fragment_keywords",
+                "strict_upgrade_applied": "false",
+                "quality_review_decision": "bounded_smoke_quality_accepted",
+                "decision_reason_code": "header_keywords_false_positive",
+                "reviewer_id": "synthetic_ai_reviewer",
+                "reviewed_at": "2026-08-03",
+                "bounded_smoke_quality_accepted": "true",
+                "accepted_for_final_use": "false",
+                "strict_upgrade_applied_by_review": "false",
+                "manifest_mutation_applied": "false",
+            }
+        )
+        writer.writerow(
+            {
+                "record_id": "ref2",
+                "assembly_accession": "GCF_000002",
+                "assembly_level": "Scaffold",
+                "refseq_category": "unknown",
+                "quality_tier": "draft_or_fragmented",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "fragmented_fasta_signal",
+                "recommended_action": "review_local_fasta_quality_blockers",
+                "triage_status": "local_fasta_quality_review_required",
+                "triage_reason": "fragmented_fasta_signal",
+                "recommended_next_step": "review_fragmentation_signal",
+                "strict_upgrade_applied": "false",
+                "quality_review_decision": "bounded_smoke_quality_rejected",
+                "decision_reason_code": "fragmented_or_scaffold_like_fasta",
+                "reviewer_id": "synthetic_ai_reviewer",
+                "reviewed_at": "2026-08-03",
+                "bounded_smoke_quality_accepted": "false",
+                "accepted_for_final_use": "false",
+                "strict_upgrade_applied_by_review": "false",
+                "manifest_mutation_applied": "false",
+            }
+        )
+    with (directory / "download_smoke_quality_review_diagnostics.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+
+
 def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     tmp_path,
 ):
@@ -527,6 +633,68 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
     assert "local/ref1.zip" not in markdown
     assert "local/bounded_download_smoke_plan.tsv" not in markdown
     assert "whole genome shotgun" not in markdown
+
+
+def test_download_smoke_quality_review_section_is_explicit_and_audit_only(
+    tmp_path,
+):
+    review_dir = tmp_path / "quality-review"
+    _write_download_smoke_quality_review_triplet(review_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(download_smoke_quality_review_dir=review_dir),
+    )
+
+    assert "## Bounded Download Smoke Quality Review" in markdown
+    assert "accepted_for_bounded_smoke_count=1" in markdown
+    assert "bounded_smoke_quality_rejected" in markdown
+    assert "header_keywords_false_positive" in markdown
+    assert "not final genome acceptance" in markdown
+    assert "`accepted_for_final_use=false`" in markdown
+    assert "`strict_upgrade_applied=false`" in markdown
+    assert "synthetic_ai_reviewer" not in markdown
+
+
+def test_download_smoke_quality_review_absent_without_explicit_input_or_empty_dir(
+    tmp_path,
+):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+
+    for args in (
+        None,
+        SimpleNamespace(download_smoke_quality_review_dir=tmp_path / "missing"),
+        SimpleNamespace(download_smoke_quality_review_dir=empty),
+    ):
+        markdown = build_run_summary_markdown(
+            [_record("ref1")],
+            get_output_paths(tmp_path / "run"),
+            args,
+        )
+        assert "Bounded Download Smoke Quality Review" not in markdown
+
+
+def test_download_smoke_quality_review_reader_warns_on_partial_and_malformed(
+    tmp_path,
+):
+    review_dir = tmp_path / "quality-review"
+    _write_download_smoke_quality_review_triplet(review_dir)
+    (review_dir / "download_smoke_quality_review_summary.json").write_text(
+        '{"schema_version":"download_smoke_quality_review.v1","accepted_for_final_use":true}',
+        encoding="utf-8",
+    )
+    (review_dir / "download_smoke_quality_review_diagnostics.tsv").unlink()
+
+    audit = read_optional_download_smoke_quality_review_audit(review_dir)
+
+    assert audit is not None
+    assert audit.present_files == ["download_smoke_quality_review.tsv"]
+    assert audit.warnings == [
+        "missing members: download_smoke_quality_review_diagnostics.tsv",
+        "download_smoke_quality_review_summary.json malformed",
+    ]
 
 
 def test_download_smoke_inspection_absent_without_explicit_input_or_empty_dir(
