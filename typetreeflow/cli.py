@@ -666,8 +666,24 @@ def _verify_genus_next_actions(
                 ),
             }
         )
-    actions.append(selection_review_action)
-    return actions
+    routed_actions = [selection_review_action]
+    if recommended_request:
+        for action in actions:
+            if action.get("id") == "review_user_selection":
+                action.update(
+                    {
+                        "recommended_request_target": "selection-review strategy",
+                        "recommended_request": recommended_request,
+                        "recommended_next_command": (
+                            _verify_genus_recommended_next_command(
+                                recommended_request
+                            )
+                        ),
+                    }
+                )
+            routed_actions.append(action)
+        return routed_actions
+    return routed_actions + actions
 
 
 def _verify_genus_recommended_request(

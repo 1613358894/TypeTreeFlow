@@ -876,10 +876,23 @@ def test_verify_genus_checkpoint_native_exit_zero_with_blocked_json(tmp_path):
     readiness = payload["download_plan_readiness_summary"]
     assert readiness["downloads_triggered"] == 0
     assert readiness["providers_contacted"] == 0
-    next_action = payload["next_actions"][0]["message"]
-    assert "download-smoke prepare" in next_action
-    assert "--write --outdir" in next_action
-    assert "<isolated-bounded-download-smoke-dir>" in next_action
+    first_action = payload["next_actions"][0]
+    assert first_action["id"] == "selection_review_strategy"
+    assert first_action["recommended_request_target"] == "selection-review strategy"
+    assert first_action["recommended_request"] == {
+        "command": "selection-review",
+        "subcommand": "strategy",
+        "outdir": str(outdir),
+        "bounded_smoke_outdir": str(
+            tmp_path / "handoffs" / "bounded_download_smoke"
+        ),
+        "json": True,
+    }
+    assert first_action["recommended_next_command"] == (
+        "typetreeflow selection-review strategy "
+        f"--outdir {outdir} --bounded-smoke-outdir "
+        f"{tmp_path / 'handoffs' / 'bounded_download_smoke'} --json"
+    )
 
 
 def test_offline_acquire_genus_dry_run_writes_key_files(tmp_path, monkeypatch):
@@ -1468,16 +1481,13 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert readiness["providers_contacted"] == 0
     assert readiness["manifest_mutated"] is False
     assert payload["blocking"]
-    assert payload["next_actions"][0]["id"] == "review_user_selection"
-    assert any(
-        action["id"] == "selection_review_strategy"
-        and "selection-review strategy" in action["message"]
-        for action in payload["next_actions"]
-    )
-    strategy_action = next(
+    assert payload["next_actions"][0]["id"] == "selection_review_strategy"
+    assert "selection-review strategy" in payload["next_actions"][0]["message"]
+    strategy_action = payload["next_actions"][0]
+    review_action = next(
         action
         for action in payload["next_actions"]
-        if action["id"] == "selection_review_strategy"
+        if action["id"] == "review_user_selection"
     )
     assert payload["recommended_request_target"] == "selection-review strategy"
     assert payload["recommended_request"] == {
@@ -1497,6 +1507,11 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     )
     assert strategy_action["recommended_request"] == payload["recommended_request"]
     assert strategy_action["recommended_next_command"] == payload[
+        "recommended_next_command"
+    ]
+    assert review_action["recommended_request_target"] == "selection-review strategy"
+    assert review_action["recommended_request"] == payload["recommended_request"]
+    assert review_action["recommended_next_command"] == payload[
         "recommended_next_command"
     ]
     assert (
@@ -1874,11 +1889,8 @@ def test_verify_genus_live_flags_dry_run_remains_review_checkpoint(
     assert checkpoint["id"] == "selection_review_required"
     assert checkpoint["safe_to_continue"] is True
     assert checkpoint["downloads_triggered"] is False
-    assert any(
-        action["id"] == "selection_review_strategy"
-        and "selection-review strategy" in action["message"]
-        for action in payload["next_actions"]
-    )
+    assert payload["next_actions"][0]["id"] == "selection_review_strategy"
+    assert "selection-review strategy" in payload["next_actions"][0]["message"]
     commands = {
         command["id"]: command for command in checkpoint["recommended_commands"]
     }
