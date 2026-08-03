@@ -941,6 +941,13 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
         "--outdir",
         "<isolated-bounded-download-smoke-inspection-dir>",
     ]
+    assert summary["bounded_smoke_next_action"] == (
+        "rerun_with_fragmentation_quality_gates"
+    )
+    assert summary["bounded_smoke_next_action_reasons"] == [
+        "fragmented_fasta_signal_observed",
+        "fasta_header_fragment_keywords_observed",
+    ]
     assert summary["status_counts"] == {"genome_fasta_present": 1}
     assert summary["ready"] is True
 
@@ -1012,6 +1019,14 @@ def test_download_smoke_inspect_default_quality_profile_blocks_fragmentation(
     }
     assert summary["quality_gate_recommendation"] == "none"
     assert summary["recommended_quality_gate_command"] == []
+    assert summary["bounded_smoke_next_action"] == (
+        "review_high_quality_metadata_fasta_quality_blockers"
+    )
+    assert summary["bounded_smoke_next_action_reasons"] == [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fasta_header_fragment_keywords",
+        "fragmented_fasta_signal",
+    ]
 
 
 def test_download_smoke_inspect_blocks_empty_genome_fasta_by_default(

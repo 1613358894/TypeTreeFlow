@@ -278,6 +278,13 @@ def _write_download_smoke_inspection_pair(directory: Path) -> None:
                     "fragmented_fasta_signal_observed",
                     "fasta_header_fragment_keywords_observed",
                 ],
+                "bounded_smoke_next_action": (
+                    "rerun_with_fragmentation_quality_gates"
+                ),
+                "bounded_smoke_next_action_reasons": [
+                    "fragmented_fasta_signal_observed",
+                    "fasta_header_fragment_keywords_observed",
+                ],
                 "recommended_quality_gate_command": [
                     "typetreeflow",
                     "download-smoke",
@@ -479,6 +486,16 @@ def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
         "fragmented_fasta_signal_observed, "
         "fasta_header_fragment_keywords_observed"
     ) in markdown
+    assert (
+        "- Bounded smoke next action: rerun_with_fragmentation_quality_gates"
+        in markdown
+    )
+    assert (
+        "- Bounded smoke next action reasons: "
+        "fragmented_fasta_signal_observed, "
+        "fasta_header_fragment_keywords_observed"
+        in markdown
+    )
     assert "local/bounded_download_smoke_plan.tsv" not in markdown
     assert "- Ready for bounded smoke review: false" in markdown
     assert "| genome_fasta_present | 1 |" in markdown

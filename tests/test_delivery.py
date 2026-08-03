@@ -266,6 +266,13 @@ def _write_download_smoke_inspection_pair(directory):
                     "fragmented_fasta_signal_observed",
                     "fasta_header_fragment_keywords_observed",
                 ],
+                "bounded_smoke_next_action": (
+                    "rerun_with_fragmentation_quality_gates"
+                ),
+                "bounded_smoke_next_action_reasons": [
+                    "fragmented_fasta_signal_observed",
+                    "fasta_header_fragment_keywords_observed",
+                ],
                 "recommended_quality_gate_command": [
                     "typetreeflow",
                     "download-smoke",
@@ -709,6 +716,8 @@ def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     assert "rerun_with_fragmentation_quality_gates" in package_text
     assert "fragmented_fasta_signal_observed" in package_text
     assert "fasta_header_fragment_keywords_observed" in package_text
+    assert "Bounded smoke next action" in package_text
+    assert "Bounded smoke next action reasons" in package_text
     assert "local/bounded_download_smoke_plan.tsv" not in package_text
 
 
