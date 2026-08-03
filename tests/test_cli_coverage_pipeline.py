@@ -3341,6 +3341,273 @@ def test_coverage_pipeline_server_validation_result_triage_queue_rejects_bad_out
     assert not output_path.exists()
 
 
+def _write_download_smoke_review_queue_triage(path):
+    _write_tsv(
+        path,
+        [
+            "record_id",
+            "assembly_accession",
+            "assembly_level",
+            "refseq_category",
+            "quality_tier",
+            "status",
+            "fasta_quality_gate_blockers",
+            "recommended_action",
+            "triage_status",
+            "triage_reason",
+            "recommended_next_step",
+            "strict_upgrade_applied",
+        ],
+        [
+            {
+                "record_id": "GCF_000001.1",
+                "assembly_accession": "GCF_000001.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "fasta_header_fragment_keywords",
+                "recommended_action": "review_local_fasta_quality_blockers",
+                "triage_status": "local_fasta_quality_review_required",
+                "triage_reason": "fasta_header_fragment_keywords",
+                "recommended_next_step": "review_fasta_header_fragment_keywords",
+                "strict_upgrade_applied": "false",
+            },
+            {
+                "record_id": "GCF_000002.1",
+                "assembly_accession": "GCF_000002.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "fragmented_fasta_signal",
+                "recommended_action": "review_local_fasta_quality_blockers",
+                "triage_status": "local_fasta_quality_review_required",
+                "triage_reason": "fragmented_fasta_signal",
+                "recommended_next_step": "review_fragmentation_signal",
+                "strict_upgrade_applied": "false",
+            },
+        ],
+    )
+
+
+def _write_download_smoke_quality_review_decisions(path, rows=None):
+    _write_tsv(
+        path,
+        [
+            "record_id",
+            "assembly_accession",
+            "quality_review_decision",
+            "decision_reason_code",
+            "reviewer_id",
+            "reviewed_at",
+        ],
+        rows
+        if rows is not None
+        else [
+            {
+                "record_id": "GCF_000001.1",
+                "assembly_accession": "GCF_000001.1",
+                "quality_review_decision": "bounded_smoke_quality_accepted",
+                "decision_reason_code": "header_keywords_false_positive",
+                "reviewer_id": "ai_reviewer_1",
+                "reviewed_at": "2026-08-03",
+            },
+            {
+                "record_id": "GCF_000002.1",
+                "assembly_accession": "GCF_000002.1",
+                "quality_review_decision": "bounded_smoke_quality_rejected",
+                "decision_reason_code": "fragmented_or_scaffold_like_fasta",
+                "reviewer_id": "ai_reviewer_1",
+                "reviewed_at": "2026-08-03",
+            },
+        ],
+    )
+
+
+def test_coverage_pipeline_server_validation_result_quality_review_dry_run(
+    capsys, tmp_path
+):
+    triage_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    decisions_path = tmp_path / "download_smoke_quality_review_decisions.tsv"
+    _write_download_smoke_review_queue_triage(triage_path)
+    _write_download_smoke_quality_review_decisions(decisions_path)
+
+    code, payload, captured = _run(
+        [
+            "quality-review",
+            "--triage",
+            str(triage_path),
+            "--decisions",
+            str(decisions_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["schema_version"] == "download_smoke_quality_review.v1"
+    assert payload["command"] == (
+        "coverage-pipeline server-validation-result quality-review"
+    )
+    assert payload["status"] == "pass"
+    assert payload["row_count"] == 2
+    assert payload["accepted_for_bounded_smoke_count"] == 1
+    assert payload["decision_counts"] == {
+        "bounded_smoke_quality_accepted": 1,
+        "bounded_smoke_quality_rejected": 1,
+    }
+    assert payload["diagnostic_count"] == 0
+    assert payload["output_written"] is False
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["accepted_for_final_use"] is False
+    assert payload["strict_scientific_deliverable"] is False
+    assert payload["strict_upgrade_applied"] is False
+
+
+def test_coverage_pipeline_server_validation_result_quality_review_writes_triplet(
+    capsys, tmp_path
+):
+    triage_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    decisions_path = tmp_path / "download_smoke_quality_review_decisions.tsv"
+    outdir = tmp_path / "quality_review"
+    _write_download_smoke_review_queue_triage(triage_path)
+    _write_download_smoke_quality_review_decisions(decisions_path)
+
+    code, payload, captured = _run(
+        [
+            "quality-review",
+            "--triage",
+            str(triage_path),
+            "--decisions",
+            str(decisions_path),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["outdir"] == str(outdir)
+    assert payload["output_written"] is True
+    rows = _read_tsv(outdir / "download_smoke_quality_review.tsv")
+    assert rows[0]["bounded_smoke_quality_accepted"] == "true"
+    assert rows[0]["accepted_for_final_use"] == "false"
+    assert rows[0]["strict_upgrade_applied_by_review"] == "false"
+    assert rows[0]["manifest_mutation_applied"] == "false"
+    summary = json.loads(
+        (outdir / "download_smoke_quality_review_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert summary["row_count"] == 2
+    assert summary["accepted_for_final_use"] is False
+    assert summary["strict_upgrade_applied"] is False
+    diagnostics = _read_tsv(
+        outdir / "download_smoke_quality_review_diagnostics.tsv"
+    )
+    assert diagnostics == []
+
+
+def test_coverage_pipeline_server_validation_result_quality_review_blocks_invalid_decision(
+    capsys, tmp_path
+):
+    triage_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    decisions_path = tmp_path / "download_smoke_quality_review_decisions.tsv"
+    outdir = tmp_path / "quality_review"
+    _write_download_smoke_review_queue_triage(triage_path)
+    _write_download_smoke_quality_review_decisions(
+        decisions_path,
+        [
+            {
+                "record_id": "GCF_000001.1",
+                "assembly_accession": "GCF_000001.1",
+                "quality_review_decision": "accept_final_genome",
+                "decision_reason_code": "header_keywords_false_positive",
+                "reviewer_id": "ai_reviewer_1",
+                "reviewed_at": "2026-08-03",
+            }
+        ],
+    )
+
+    code, payload, captured = _run(
+        [
+            "quality-review",
+            "--triage",
+            str(triage_path),
+            "--decisions",
+            str(decisions_path),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["output_written"] is False
+    diagnostic_codes = {row["diagnostic_code"] for row in payload["diagnostics"]}
+    assert "decision_status_invalid" in diagnostic_codes
+    assert "decision_missing_for_triage_row" in diagnostic_codes
+    assert not outdir.exists()
+
+
+def test_coverage_pipeline_server_validation_result_quality_review_rejects_bad_outdir(
+    capsys, tmp_path
+):
+    triage_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    decisions_path = tmp_path / "download_smoke_quality_review_decisions.tsv"
+    outdir = tmp_path / "quality_review"
+    _write_download_smoke_review_queue_triage(triage_path)
+    _write_download_smoke_quality_review_decisions(decisions_path)
+    outdir.write_text("not a directory", encoding="utf-8")
+
+    code, payload, captured = _run(
+        [
+            "quality-review",
+            "--triage",
+            str(triage_path),
+            "--decisions",
+            str(decisions_path),
+            "--write",
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 1
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "quality_review_output_write_failed"
+    )
+
+
 def test_coverage_pipeline_server_validation_result_validate_guides_missing_download_smoke(
     capsys, tmp_path
 ):

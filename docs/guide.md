@@ -817,6 +817,23 @@ reason, and next-step fields for AI/operator review of local FASTA quality
 blockers. It does not inspect ZIP files, read FASTA payloads, execute downloads,
 contact providers, mutate workflow outputs, install genomes, or change strict
 scientific status.
+After local AI/operator review, import a complete decision TSV with:
+
+```bash
+typetreeflow coverage-pipeline server-validation-result quality-review \
+  --triage <download_smoke_review_queue_triage.tsv> \
+  --decisions <download_smoke_quality_review_decisions.tsv> \
+  --write --outdir <download_smoke_quality_review_dir> \
+  --json
+```
+
+The decision TSV uses controlled statuses only:
+`bounded_smoke_quality_accepted`, `bounded_smoke_quality_rejected`,
+`needs_manual_fasta_quality_review`, or `needs_bounded_smoke_rerun`. The import
+requires exact `record_id` and `assembly_accession` linkage to every triage row
+and writes an isolated audit triplet only when `--write --outdir` is explicit.
+It does not accept genomes for final use, mutate manifests, install FASTA
+files, promote strict rows, or authorize downloads.
 The server-validation result includes boundary flags so AI controllers can
 route the local validation result without parsing diagnostics. These
 observations can include quality-gate hit counts,

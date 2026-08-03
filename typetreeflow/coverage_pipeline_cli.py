@@ -104,6 +104,9 @@ COMMAND_SERVER_VALIDATION_RESULT_REVIEW_QUEUE = (
 COMMAND_SERVER_VALIDATION_RESULT_TRIAGE_QUEUE = (
     "coverage-pipeline server-validation-result triage-queue"
 )
+COMMAND_SERVER_VALIDATION_RESULT_QUALITY_REVIEW = (
+    "coverage-pipeline server-validation-result quality-review"
+)
 STATUS_SCHEMA_VERSION = "coverage_pipeline_status.v1"
 SERVER_VALIDATION_RESULT_SCHEMA_VERSION = "coverage_handoff_server_validation_result.v1"
 SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION = (
@@ -114,6 +117,9 @@ SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SCHEMA_VERSION = (
 )
 SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SCHEMA_VERSION = (
     "download_smoke_review_queue_triage.v1"
+)
+SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SCHEMA_VERSION = (
+    "download_smoke_quality_review.v1"
 )
 QUEUE_PREVIEW_DEFAULT_LIMIT = 3
 QUEUE_PREVIEW_MAX_LIMIT = 10
@@ -249,6 +255,45 @@ _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS = (
 )
 _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_STATUS = (
     "local_fasta_quality_review_required"
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DECISION_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "quality_review_decision",
+    "decision_reason_code",
+    "reviewer_id",
+    "reviewed_at",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DECISIONS = (
+    "bounded_smoke_quality_accepted",
+    "bounded_smoke_quality_rejected",
+    "needs_manual_fasta_quality_review",
+    "needs_bounded_smoke_rerun",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_REASON_CODES = (
+    "header_keywords_false_positive",
+    "fragmentation_signal_false_positive",
+    "fragmented_or_scaffold_like_fasta",
+    "insufficient_quality_evidence",
+    "rerun_required",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_OUTPUT_FIELDS = (
+    *_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS,
+    "quality_review_decision",
+    "decision_reason_code",
+    "reviewer_id",
+    "reviewed_at",
+    "bounded_smoke_quality_accepted",
+    "accepted_for_final_use",
+    "strict_upgrade_applied_by_review",
+    "manifest_mutation_applied",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS = (
+    "component",
+    "diagnostic_code",
+    "severity",
+    "record_id",
+    "assembly_accession",
 )
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
@@ -407,6 +452,8 @@ def run_coverage_pipeline_command(
         return _run_server_validation_result_review_queue(args, output)
     if args.action == "server-validation-result-triage-queue":
         return _run_server_validation_result_triage_queue(args, output)
+    if args.action == "server-validation-result-quality-review":
+        return _run_server_validation_result_quality_review(args, output)
     if args.action == "status":
         return _run_status(args, output, queue_preview_limit=queue_preview_limit)
     outdir = Path(args.outdir) if getattr(args, "outdir", None) else None
@@ -801,6 +848,24 @@ def _build_parser() -> argparse.ArgumentParser:
         action="server-validation-result-triage-queue",
         queue_preview_limit=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
         outdir=None,
+        validate_provider_request=False,
+        provider_request_validation_base_dir=None,
+        curated_provider_request_tsv=None,
+        external_genomes_install_target_outdir=None,
+    )
+    result_quality_review = result_actions.add_parser(
+        "quality-review",
+        add_help=False,
+    )
+    result_quality_review.add_argument("--triage", required=True)
+    result_quality_review.add_argument("--decisions", required=True)
+    result_quality_review.add_argument("--write", action="store_true")
+    result_quality_review.add_argument("--outdir")
+    result_quality_review.add_argument("--force", action="store_true")
+    result_quality_review.add_argument("--json", action="store_true")
+    result_quality_review.set_defaults(
+        action="server-validation-result-quality-review",
+        queue_preview_limit=str(QUEUE_PREVIEW_DEFAULT_LIMIT),
         validate_provider_request=False,
         provider_request_validation_base_dir=None,
         curated_provider_request_tsv=None,
@@ -2195,6 +2260,139 @@ def _run_server_validation_result_triage_queue(
     return 0
 
 
+def _run_server_validation_result_quality_review(
+    args: argparse.Namespace, output: TextIO
+) -> int:
+    triage_path = Path(args.triage)
+    decisions_path = Path(args.decisions)
+    outdir = Path(args.outdir) if args.outdir is not None else None
+    if (
+        (args.write and outdir is None)
+        or (outdir is not None and not args.write)
+        or (args.force and not args.write)
+    ):
+        _emit(
+            _server_validation_result_quality_review_payload(
+                triage_path=triage_path,
+                decisions_path=decisions_path,
+                outdir=outdir,
+                rows=[],
+                diagnostics=[
+                    _quality_review_diagnostic(
+                        "quality_review",
+                        "invalid_command_usage",
+                    )
+                ],
+                status="blocked",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 2
+
+    try:
+        triage_rows = _read_download_smoke_review_queue_triage_tsv(triage_path)
+        decision_rows = _read_download_smoke_quality_review_decisions_tsv(
+            decisions_path
+        )
+        quality_review = _download_smoke_quality_review_rows(
+            triage_rows,
+            decision_rows,
+        )
+    except ValueError as exc:
+        _emit(
+            _server_validation_result_quality_review_payload(
+                triage_path=triage_path,
+                decisions_path=decisions_path,
+                outdir=outdir,
+                rows=[],
+                diagnostics=[
+                    _quality_review_diagnostic(
+                        "quality_review",
+                        str(exc) or "quality_review_input_invalid",
+                    )
+                ],
+                status="blocked",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 2
+    except Exception:
+        _emit(
+            _server_validation_result_quality_review_payload(
+                triage_path=triage_path,
+                decisions_path=decisions_path,
+                outdir=outdir,
+                rows=[],
+                diagnostics=[
+                    _quality_review_diagnostic("quality_review", "internal_error")
+                ],
+                status="failed",
+                output_written=False,
+                dry_run=not args.write,
+            ),
+            output,
+        )
+        return 1
+
+    status = "pass" if not quality_review["diagnostics"] else "blocked"
+    output_written = False
+    if status == "pass" and args.write:
+        try:
+            assert outdir is not None
+            _write_download_smoke_quality_review_outputs(
+                outdir,
+                rows=quality_review["rows"],
+                summary=_download_smoke_quality_review_summary(
+                    quality_review["rows"],
+                    diagnostics=[],
+                    status="pass",
+                ),
+                diagnostics=[],
+                input_paths=(triage_path, decisions_path),
+                force=args.force,
+            )
+            output_written = True
+        except Exception:
+            _emit(
+                _server_validation_result_quality_review_payload(
+                    triage_path=triage_path,
+                    decisions_path=decisions_path,
+                    outdir=outdir,
+                    rows=quality_review["rows"],
+                    diagnostics=[
+                        _quality_review_diagnostic(
+                            "quality_review",
+                            "quality_review_output_write_failed",
+                        )
+                    ],
+                    status="failed",
+                    output_written=False,
+                    dry_run=not args.write,
+                ),
+                output,
+            )
+            return 1
+
+    _emit(
+        _server_validation_result_quality_review_payload(
+            triage_path=triage_path,
+            decisions_path=decisions_path,
+            outdir=outdir,
+            rows=quality_review["rows"],
+            diagnostics=quality_review["diagnostics"],
+            status=status,
+            output_written=output_written,
+            dry_run=not args.write,
+        ),
+        output,
+    )
+    return 0 if status == "pass" else 2
+
+
 def _validate_server_validation_result(
     result: Mapping[str, object],
     diagnostics: list[dict[str, object]],
@@ -3027,6 +3225,413 @@ def _write_download_smoke_review_queue_triage_tsv(
             temp_path.unlink()
 
 
+def _read_download_smoke_review_queue_triage_tsv(path: Path) -> list[dict[str, str]]:
+    if not path.is_file() or path.is_symlink():
+        raise ValueError("triage_input_invalid")
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if reader.fieldnames != list(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS
+        ):
+            raise ValueError("triage_schema_invalid")
+        rows: list[dict[str, str]] = []
+        for raw_row in reader:
+            if raw_row is None:
+                continue
+            if None in raw_row:
+                raise ValueError("triage_row_extra_fields")
+            row = {
+                field: _format_tsv_value(raw_row.get(field, "")).strip()
+                for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS
+            }
+            if (
+                not row["record_id"]
+                or not row["assembly_accession"]
+                or not row["fasta_quality_gate_blockers"]
+                or row["triage_status"]
+                != _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_STATUS
+                or row["strict_upgrade_applied"] != "false"
+            ):
+                raise ValueError("triage_row_invalid")
+            rows.append(row)
+    return rows
+
+
+def _read_download_smoke_quality_review_decisions_tsv(
+    path: Path,
+) -> list[dict[str, str]]:
+    if not path.is_file() or path.is_symlink():
+        raise ValueError("quality_review_decisions_input_invalid")
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if reader.fieldnames != list(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DECISION_FIELDS
+        ):
+            raise ValueError("quality_review_decisions_schema_invalid")
+        rows: list[dict[str, str]] = []
+        for raw_row in reader:
+            if raw_row is None:
+                continue
+            if None in raw_row:
+                raise ValueError("quality_review_decisions_row_extra_fields")
+            rows.append(
+                {
+                    field: _format_tsv_value(raw_row.get(field, "")).strip()
+                    for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DECISION_FIELDS
+                }
+            )
+    return rows
+
+
+def _download_smoke_quality_review_rows(
+    triage_rows: Sequence[Mapping[str, str]],
+    decision_rows: Sequence[Mapping[str, str]],
+) -> dict[str, object]:
+    diagnostics: list[dict[str, str]] = []
+    triage_by_key = {
+        _quality_review_row_key(row): row
+        for row in triage_rows
+        if _quality_review_row_key(row) is not None
+    }
+    if len(triage_by_key) != len(triage_rows):
+        raise ValueError("triage_duplicate_or_invalid_linkage")
+
+    decisions_by_key: dict[tuple[str, str], Mapping[str, str]] = {}
+    for row in decision_rows:
+        key = _quality_review_row_key(row)
+        if key is None:
+            diagnostics.append(
+                _quality_review_diagnostic(
+                    "quality_review_decisions",
+                    "decision_linkage_missing",
+                    record_id=str(row.get("record_id", "")),
+                    assembly_accession=str(row.get("assembly_accession", "")),
+                )
+            )
+            continue
+        if key in decisions_by_key:
+            diagnostics.append(
+                _quality_review_diagnostic(
+                    "quality_review_decisions",
+                    "decision_duplicate",
+                    record_id=key[0],
+                    assembly_accession=key[1],
+                )
+            )
+            continue
+        decisions_by_key[key] = row
+        if key not in triage_by_key:
+            diagnostics.append(
+                _quality_review_diagnostic(
+                    "quality_review_decisions",
+                    "decision_not_in_triage",
+                    record_id=key[0],
+                    assembly_accession=key[1],
+                )
+            )
+        _validate_quality_review_decision_row(row, diagnostics)
+
+    for key in triage_by_key:
+        if key not in decisions_by_key:
+            diagnostics.append(
+                _quality_review_diagnostic(
+                    "quality_review_decisions",
+                    "decision_missing_for_triage_row",
+                    record_id=key[0],
+                    assembly_accession=key[1],
+                )
+            )
+
+    rows: list[dict[str, object]] = []
+    if diagnostics:
+        return {"rows": rows, "diagnostics": diagnostics}
+
+    for key, triage_row in triage_by_key.items():
+        decision = decisions_by_key[key]
+        quality_review_decision = str(decision["quality_review_decision"])
+        bounded_accepted = (
+            quality_review_decision == "bounded_smoke_quality_accepted"
+        )
+        rows.append(
+            {
+                **{
+                    field: triage_row.get(field, "")
+                    for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_TRIAGE_FIELDS
+                },
+                "quality_review_decision": quality_review_decision,
+                "decision_reason_code": decision["decision_reason_code"],
+                "reviewer_id": decision["reviewer_id"],
+                "reviewed_at": decision["reviewed_at"],
+                "bounded_smoke_quality_accepted": bounded_accepted,
+                "accepted_for_final_use": False,
+                "strict_upgrade_applied_by_review": False,
+                "manifest_mutation_applied": False,
+            }
+        )
+    return {"rows": rows, "diagnostics": diagnostics}
+
+
+def _quality_review_row_key(row: Mapping[str, str]) -> tuple[str, str] | None:
+    record_id = str(row.get("record_id", "")).strip()
+    accession = str(row.get("assembly_accession", "")).strip()
+    if not record_id or not accession:
+        return None
+    return (record_id, accession)
+
+
+def _validate_quality_review_decision_row(
+    row: Mapping[str, str],
+    diagnostics: list[dict[str, str]],
+) -> None:
+    record_id = str(row.get("record_id", ""))
+    accession = str(row.get("assembly_accession", ""))
+    decision = str(row.get("quality_review_decision", ""))
+    reason = str(row.get("decision_reason_code", ""))
+    reviewer = str(row.get("reviewer_id", ""))
+    reviewed_at = str(row.get("reviewed_at", ""))
+    if decision not in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DECISIONS:
+        diagnostics.append(
+            _quality_review_diagnostic(
+                "quality_review_decisions",
+                "decision_status_invalid",
+                record_id=record_id,
+                assembly_accession=accession,
+            )
+        )
+    if reason not in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_REASON_CODES:
+        diagnostics.append(
+            _quality_review_diagnostic(
+                "quality_review_decisions",
+                "decision_reason_invalid",
+                record_id=record_id,
+                assembly_accession=accession,
+            )
+        )
+    if not _quality_review_reviewer_id_is_valid(reviewer):
+        diagnostics.append(
+            _quality_review_diagnostic(
+                "quality_review_decisions",
+                "reviewer_id_invalid",
+                record_id=record_id,
+                assembly_accession=accession,
+            )
+        )
+    if not _quality_review_date_is_valid(reviewed_at):
+        diagnostics.append(
+            _quality_review_diagnostic(
+                "quality_review_decisions",
+                "reviewed_at_invalid",
+                record_id=record_id,
+                assembly_accession=accession,
+            )
+        )
+
+
+def _quality_review_reviewer_id_is_valid(value: str) -> bool:
+    if not (1 <= len(value) <= 64):
+        return False
+    return all(ch.isalnum() or ch in {"_", ".", "-"} for ch in value)
+
+
+def _quality_review_date_is_valid(value: str) -> bool:
+    parts = value.split("-")
+    if len(parts) != 3 or any(not part.isdigit() for part in parts):
+        return False
+    year, month, day = (int(part) for part in parts)
+    return 1900 <= year <= 2999 and 1 <= month <= 12 and 1 <= day <= 31
+
+
+def _download_smoke_quality_review_summary(
+    rows: Sequence[Mapping[str, object]],
+    diagnostics: Sequence[Mapping[str, str]],
+    *,
+    status: str,
+) -> dict[str, object]:
+    decision_counts = Counter(
+        str(row.get("quality_review_decision", ""))
+        for row in rows
+        if str(row.get("quality_review_decision", ""))
+    )
+    reason_counts = Counter(
+        str(row.get("decision_reason_code", ""))
+        for row in rows
+        if str(row.get("decision_reason_code", ""))
+    )
+    return {
+        "schema_version": SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SCHEMA_VERSION,
+        "status": status,
+        "row_count": len(rows),
+        "accepted_for_bounded_smoke_count": sum(
+            1 for row in rows if row.get("bounded_smoke_quality_accepted") is True
+        ),
+        "decision_counts": _sorted_count_map(decision_counts),
+        "decision_reason_counts": _sorted_count_map(reason_counts),
+        "diagnostic_count": len(diagnostics),
+        "audit_only": True,
+        "accepted_for_final_use": False,
+        "strict_upgrade_applied": False,
+        "manifest_mutated": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "execution_boundary": (
+            "local_fasta_quality_review_import_only_no_target_execution"
+        ),
+    }
+
+
+def _download_smoke_quality_review_tsv(
+    rows: Sequence[Mapping[str, object]],
+) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_OUTPUT_FIELDS,
+        delimiter="\t",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(
+            {
+                field: _format_tsv_value(row.get(field, ""))
+                for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_OUTPUT_FIELDS
+            }
+        )
+    return output.getvalue()
+
+
+def _download_smoke_quality_review_diagnostics_tsv(
+    diagnostics: Sequence[Mapping[str, str]],
+) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS,
+        delimiter="\t",
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    for row in diagnostics:
+        writer.writerow(
+            {
+                field: _format_tsv_value(row.get(field, ""))
+                for field in _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS
+            }
+        )
+    return output.getvalue()
+
+
+def _write_download_smoke_quality_review_outputs(
+    outdir: Path,
+    *,
+    rows: Sequence[Mapping[str, object]],
+    summary: Mapping[str, object],
+    diagnostics: Sequence[Mapping[str, str]],
+    input_paths: tuple[Path, Path],
+    force: bool,
+) -> None:
+    _validate_quality_review_outdir(outdir, input_paths=input_paths, force=force)
+    rendered = {
+        "download_smoke_quality_review.tsv": (
+            _download_smoke_quality_review_tsv(rows)
+        ),
+        "download_smoke_quality_review_summary.json": (
+            json.dumps(dict(summary), sort_keys=True, separators=(",", ":")) + "\n"
+        ),
+        "download_smoke_quality_review_diagnostics.tsv": (
+            _download_smoke_quality_review_diagnostics_tsv(diagnostics)
+        ),
+    }
+    stage = outdir.parent / f".{outdir.name}.quality-review-stage-{uuid.uuid4().hex}"
+    backup = outdir.parent / f".{outdir.name}.quality-review-backup-{uuid.uuid4().hex}"
+    backed_up = False
+    published = False
+    try:
+        stage.mkdir()
+        for name, text in rendered.items():
+            path = stage / name
+            with path.open("x", encoding="utf-8", newline="") as handle:
+                handle.write(text)
+                handle.flush()
+                os.fsync(handle.fileno())
+        if outdir.exists():
+            os.replace(outdir, backup)
+            backed_up = True
+        os.replace(stage, outdir)
+        published = True
+    finally:
+        if stage.exists():
+            shutil.rmtree(stage, ignore_errors=True)
+        if backed_up and not outdir.exists() and backup.exists():
+            os.replace(backup, outdir)
+        elif backup.exists() and published:
+            shutil.rmtree(backup, ignore_errors=True)
+
+
+def _validate_quality_review_outdir(
+    outdir: Path,
+    *,
+    input_paths: tuple[Path, Path],
+    force: bool,
+) -> None:
+    if not outdir.parent.is_dir() or _has_symlink_component(outdir.parent):
+        raise ValueError("quality review output parent is unsafe")
+    if outdir.is_symlink() or _has_symlink_component(outdir):
+        raise ValueError("quality review output directory is unsafe")
+    resolved = outdir.resolve(strict=False)
+    if any(resolved == path.resolve(strict=False) for path in input_paths):
+        raise ValueError("quality review output cannot overwrite input")
+    expected_names = {
+        "download_smoke_quality_review.tsv",
+        "download_smoke_quality_review_summary.json",
+        "download_smoke_quality_review_diagnostics.tsv",
+    }
+    if not outdir.exists():
+        return
+    if not outdir.is_dir() or not force:
+        raise ValueError("quality review output directory exists")
+    names = {path.name for path in outdir.iterdir()}
+    if names != expected_names:
+        raise ValueError("existing quality review output set does not match")
+    headers = {
+        "download_smoke_quality_review.tsv": "\t".join(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_OUTPUT_FIELDS
+        ),
+        "download_smoke_quality_review_diagnostics.tsv": "\t".join(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DIAGNOSTIC_FIELDS
+        ),
+    }
+    for name, expected_header in headers.items():
+        header = (outdir / name).read_text(encoding="utf-8").splitlines()[:1]
+        if header != [expected_header]:
+            raise ValueError("existing quality review output schema does not match")
+    summary = json.loads(
+        (outdir / "download_smoke_quality_review_summary.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    if summary.get("schema_version") != SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SCHEMA_VERSION:
+        raise ValueError("existing quality review summary schema does not match")
+
+
+def _quality_review_diagnostic(
+    component: str,
+    code: str,
+    *,
+    record_id: str = "",
+    assembly_accession: str = "",
+) -> dict[str, str]:
+    return {
+        "component": component,
+        "diagnostic_code": code,
+        "severity": "error",
+        "record_id": record_id,
+        "assembly_accession": assembly_accession,
+    }
+
+
 def _server_validation_result_review_queue_payload(
     *,
     input_path: Path,
@@ -3164,6 +3769,64 @@ def _server_validation_result_triage_queue_payload(
         "external_genomes_registration_applied": False,
         "execution_boundary": (
             "local_review_queue_triage_only_no_target_execution"
+        ),
+    }
+
+
+def _server_validation_result_quality_review_payload(
+    *,
+    triage_path: Path,
+    decisions_path: Path,
+    outdir: Path | None,
+    rows: Sequence[Mapping[str, object]],
+    diagnostics: Sequence[Mapping[str, str]],
+    status: str,
+    output_written: bool,
+    dry_run: bool,
+) -> dict[str, object]:
+    summary = _download_smoke_quality_review_summary(
+        rows,
+        diagnostics,
+        status=status,
+    )
+    return {
+        "schema_version": SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SCHEMA_VERSION,
+        "status": status,
+        "command": COMMAND_SERVER_VALIDATION_RESULT_QUALITY_REVIEW,
+        "triage_path": str(triage_path),
+        "decisions_path": str(decisions_path),
+        "outdir": str(outdir) if outdir else "",
+        "output_written": output_written,
+        "row_count": summary["row_count"],
+        "accepted_for_bounded_smoke_count": summary[
+            "accepted_for_bounded_smoke_count"
+        ],
+        "decision_counts": summary["decision_counts"],
+        "decision_reason_counts": summary["decision_reason_counts"],
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": [dict(row) for row in diagnostics],
+        "allowed_decisions": list(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_DECISIONS
+        ),
+        "allowed_decision_reason_codes": list(
+            _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_REASON_CODES
+        ),
+        "preview": [dict(row) for row in rows[:5]],
+        "preview_truncated": len(rows) > 5,
+        "dry_run": dry_run,
+        "writes_outputs": output_written,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "accepted_for_final_use": False,
+        "strict_scientific_deliverable": False,
+        "strict_upgrade_applied": False,
+        "external_genomes_registration_applied": False,
+        "execution_boundary": (
+            "local_fasta_quality_review_import_only_no_target_execution"
         ),
     }
 

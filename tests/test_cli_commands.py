@@ -287,6 +287,29 @@ SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS = [
+    "status",
+    "row_count",
+    "accepted_for_bounded_smoke_count",
+    "decision_counts",
+    "decision_reason_counts",
+    "outdir",
+    "output_written",
+    "diagnostic_count",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "accepted_for_final_use",
+    "strict_scientific_deliverable",
+    "strict_upgrade_applied",
+    "external_genomes_registration_applied",
+    "execution_boundary",
+]
 ACQUISITION_WORKLIST_SUMMARY_FIELDS = [
     "record_count",
     "lane_counts",
@@ -622,6 +645,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "download_smoke_review_queue_triage.v1",
             "local-only bounded FASTA-quality review queue triage",
             SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS,
+        ),
+        ("coverage-pipeline", "server-validation-result quality-review"): (
+            "download_smoke_quality_review",
+            "download_smoke_quality_review.v1",
+            "local-only bounded FASTA-quality review decision import",
+            SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS,
         ),
         ("acquisition-worklist", "build"): (
             "acquisition_worklist_packet",
@@ -1968,6 +1997,88 @@ def test_commands_recognize_accepts_coverage_pipeline_result_triage_queue(capsys
     assert _output_contract_names(payload) == {
         "download_smoke_review_queue_triage"
     }
+
+
+def test_commands_render_emits_coverage_pipeline_result_quality_review_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"coverage-pipeline",'
+                    '"subcommand":"server-validation-result quality-review",'
+                    '"triage":"download_smoke_review_queue_triage.tsv",'
+                    '"decisions":"download_smoke_quality_review_decisions.tsv",'
+                    '"write":true,'
+                    '"outdir":"quality_review",'
+                    '"force":true,'
+                    '"json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "quality-review",
+        "--triage",
+        "download_smoke_review_queue_triage.tsv",
+        "--decisions",
+        "download_smoke_quality_review_decisions.tsv",
+        "--write",
+        "--outdir",
+        "quality_review",
+        "--force",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert (
+        payload["recognized"]["subcommand"]
+        == "server-validation-result quality-review"
+    )
+    assert payload["recognized"]["mode"] == "coverage_pipeline"
+    assert payload["recognized"]["requires_outdir"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert _output_contract_names(payload) == {"download_smoke_quality_review"}
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS
+    )
+
+
+def test_commands_recognize_accepts_coverage_pipeline_result_quality_review(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "recognize",
+                "--argv-json",
+                (
+                    '["coverage-pipeline","server-validation-result",'
+                    '"quality-review","--triage","triage.tsv",'
+                    '"--decisions","decisions.tsv","--write",'
+                    '"--outdir","quality","--json"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert (
+        payload["recognized"]["subcommand"]
+        == "server-validation-result quality-review"
+    )
+    assert payload["recognized"]["invalid"] is False
+    assert payload["recognized"]["unknown"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is False
+    assert _output_contract_names(payload) == {"download_smoke_quality_review"}
 
 
 def test_commands_plan_allows_coverage_pipeline_install_plan_build_with_write_allowance(
