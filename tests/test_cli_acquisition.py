@@ -1429,6 +1429,17 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
         and "selection-review strategy" in action["message"]
         for action in payload["next_actions"]
     )
+    assert payload["recommended_request_target"] == "selection-review strategy"
+    assert payload["recommended_request"] == {
+        "command": "selection-review",
+        "subcommand": "strategy",
+        "outdir": str(outdir),
+        "json": True,
+    }
+    assert payload["recommended_next_command"] == (
+        "typetreeflow selection-review strategy "
+        f"--outdir {outdir} --json"
+    )
     checkpoint = payload["checkpoint"]
     assert checkpoint["id"] == "selection_review_required"
     assert checkpoint["kind"] == "review_checkpoint"

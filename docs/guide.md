@@ -1268,6 +1268,11 @@ typetreeflow selection-review strategy \
   --bounded-smoke-outdir <workspace>/handoffs/bounded_download_smoke
 ```
 
+Current `verify-genus` stdout also surfaces this as top-level
+`recommended_next_command` plus the matching structured `recommended_request`;
+AI controllers should follow that field before attempting any datasets
+execution.
+
 This command is read-only. It does not write files, run `datasets`, access the
 network, contact providers, mutate manifests, accept genomes for final use, or
 change strict type-strain status. Its JSON recommends the safest bounded smoke

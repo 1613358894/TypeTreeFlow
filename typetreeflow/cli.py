@@ -22,6 +22,7 @@ from typetreeflow.cli_config import (
     _normalize_command_argv,
     build_app_config_from_args,
 )
+from typetreeflow.commands_cli import render_command_request
 from typetreeflow.cli_handlers.early_commands import run_early_command_dispatch
 from typetreeflow.cli_handlers.package_results import run_package_results_dispatch
 from typetreeflow.cli_handlers.report_only import run_report_only_dispatch
@@ -385,6 +386,7 @@ def _format_verify_genus_envelope(
         reason=reason,
         state=state,
     )
+    recommended_request = _verify_genus_recommended_request(checkpoint)
     payload = {
         "command": "verify-genus",
         "schema_version": "1",
@@ -400,6 +402,13 @@ def _format_verify_genus_envelope(
         "config": _verify_genus_config_summary(config),
         "blocking": blocking,
         "warnings": warnings,
+        "recommended_request_target": (
+            "selection-review strategy" if recommended_request else ""
+        ),
+        "recommended_request": recommended_request,
+        "recommended_next_command": _verify_genus_recommended_next_command(
+            recommended_request
+        ),
         "next_actions": _verify_genus_next_actions(
             next_action,
             checkpoint=checkpoint,
@@ -647,6 +656,42 @@ def _verify_genus_next_actions(
         }
     )
     return actions
+
+
+def _verify_genus_recommended_request(
+    checkpoint: dict[str, object],
+) -> dict[str, object]:
+    if checkpoint.get("id") != "selection_review_required":
+        return {}
+    for command in checkpoint.get("recommended_commands", []):
+        if (
+            isinstance(command, dict)
+            and command.get("id") == "selection_review_strategy"
+        ):
+            argv = command.get("argv")
+            if isinstance(argv, list) and len(argv) >= 5:
+                return {
+                    "command": "selection-review",
+                    "subcommand": "strategy",
+                    "outdir": str(argv[4]),
+                    "json": True,
+                }
+    return {}
+
+
+def _verify_genus_recommended_next_command(
+    request: dict[str, object],
+) -> str:
+    if not request:
+        return ""
+    try:
+        rendered = render_command_request(dict(request))
+    except (TypeError, ValueError):
+        return ""
+    argv = rendered.get("target_argv")
+    if not isinstance(argv, list) or not argv:
+        return ""
+    return "typetreeflow " + " ".join(str(token) for token in argv)
 
 
 def _verify_genus_checkpoint_guidance(
