@@ -1424,6 +1424,11 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert readiness["manifest_mutated"] is False
     assert payload["blocking"]
     assert payload["next_actions"][0]["id"] == "review_user_selection"
+    assert any(
+        action["id"] == "selection_review_strategy"
+        and "selection-review strategy" in action["message"]
+        for action in payload["next_actions"]
+    )
     checkpoint = payload["checkpoint"]
     assert checkpoint["id"] == "selection_review_required"
     assert checkpoint["kind"] == "review_checkpoint"
@@ -1580,6 +1585,70 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert {row["strict_scientific_deliverable"] for row in reconciler_scope_rows} == {
         "false"
     }
+
+
+def test_verify_genus_live_flags_dry_run_remains_review_checkpoint(
+    tmp_path,
+    capsys,
+):
+    outdir = tmp_path / "out"
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--enable-lpsn-api",
+            "--enable-ncbi-discovery",
+            "--email",
+            "operator@example.org",
+            "--outdir",
+            str(outdir),
+            "--dry-run",
+            "--force",
+        ],
+        lpsn_client=_FakeLpsnClient(),
+        assembly_discovery_client=_FakeAssemblyDiscoveryClient(),
+    )
+
+    payload, output = _verify_genus_stdout_payload(capsys)
+    assert result == 0
+    assert output.strip().startswith("{")
+    assert payload["command"] == "verify-genus"
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "manual_review_required"
+    assert payload["counts"]["downloaded_genomes"] == 0
+    readiness = payload["download_plan_readiness_summary"]
+    assert readiness["downloads_triggered"] == 0
+    assert readiness["providers_contacted"] == 0
+    assert readiness["network_access"] is False
+    checkpoint = payload["checkpoint"]
+    assert checkpoint["id"] == "selection_review_required"
+    assert checkpoint["safe_to_continue"] is True
+    assert checkpoint["downloads_triggered"] is False
+    assert any(
+        action["id"] == "selection_review_strategy"
+        and "selection-review strategy" in action["message"]
+        for action in payload["next_actions"]
+    )
+    commands = {
+        command["id"]: command for command in checkpoint["recommended_commands"]
+    }
+    assert commands["selection_review_strategy"]["argv"] == [
+        "typetreeflow",
+        "selection-review",
+        "strategy",
+        "--outdir",
+        str(outdir),
+    ]
+    smoke_prepare = commands["bounded_download_smoke_prepare"]
+    assert smoke_prepare["argv"][:5] == [
+        "typetreeflow",
+        "download-smoke",
+        "prepare",
+        "--download-plan",
+        str(outdir / "cache" / "ncbi" / "download_plan.tsv"),
+    ]
+    assert "does not run datasets" in smoke_prepare["purpose"]
 
 
 def test_verify_genus_plan_only_profile_records_profile_without_downloads(

@@ -378,6 +378,13 @@ def _format_verify_genus_envelope(
     next_action = state.next_action if state is not None else ""
     blocking = _verify_genus_blocking_items(state, error=error)
     warnings = _verify_genus_warning_items(state)
+    checkpoint = _verify_genus_checkpoint_guidance(
+        paths,
+        config,
+        status=status,
+        reason=reason,
+        state=state,
+    )
     payload = {
         "command": "verify-genus",
         "schema_version": "1",
@@ -393,19 +400,12 @@ def _format_verify_genus_envelope(
         "config": _verify_genus_config_summary(config),
         "blocking": blocking,
         "warnings": warnings,
-        "next_actions": (
-            [{"id": _verify_genus_action_id(next_action), "message": next_action}]
-            if next_action
-            else []
+        "next_actions": _verify_genus_next_actions(
+            next_action,
+            checkpoint=checkpoint,
+            outdir=config.outdir,
         ),
     }
-    checkpoint = _verify_genus_checkpoint_guidance(
-        paths,
-        config,
-        status=status,
-        reason=reason,
-        state=state,
-    )
     if checkpoint:
         payload["checkpoint"] = checkpoint
     download_plan_path = paths.cache_dir / "ncbi" / "download_plan.tsv"
@@ -619,6 +619,34 @@ def _verify_genus_action_id(message: str) -> str:
     if "--resume" in lowered:
         return "resume_workflow"
     return "continue_workflow" if message else "none"
+
+
+def _verify_genus_next_actions(
+    next_action: str,
+    *,
+    checkpoint: dict[str, object],
+    outdir: Path,
+) -> list[dict[str, str]]:
+    actions = (
+        [{"id": _verify_genus_action_id(next_action), "message": next_action}]
+        if next_action
+        else []
+    )
+    if checkpoint.get("id") != "selection_review_required":
+        return actions
+    if any(action.get("id") == "selection_review_strategy" for action in actions):
+        return actions
+    actions.append(
+        {
+            "id": "selection_review_strategy",
+            "message": (
+                "Run `typetreeflow selection-review strategy --outdir "
+                f"{outdir}` to summarize the review checkpoint and bounded "
+                "download-smoke handoff before any datasets execution."
+            ),
+        }
+    )
+    return actions
 
 
 def _verify_genus_checkpoint_guidance(
