@@ -265,6 +265,28 @@ SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SUMMARY_FIELDS = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS = [
+    "status",
+    "queue_count",
+    "triage_row_count",
+    "triage_status_counts",
+    "fasta_quality_gate_blocker_counts",
+    "recommended_next_step_counts",
+    "output_path",
+    "output_written",
+    "diagnostic_count",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+    "external_genomes_registration_applied",
+    "execution_boundary",
+]
 ACQUISITION_WORKLIST_SUMMARY_FIELDS = [
     "record_count",
     "lane_counts",
@@ -594,6 +616,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "coverage_handoff_server_validation_result_review_queue.v1",
             "local-only bounded download-smoke review queue export",
             SERVER_VALIDATION_RESULT_REVIEW_QUEUE_SUMMARY_FIELDS,
+        ),
+        ("coverage-pipeline", "server-validation-result triage-queue"): (
+            "download_smoke_review_queue_triage",
+            "download_smoke_review_queue_triage.v1",
+            "local-only bounded FASTA-quality review queue triage",
+            SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS,
         ),
         ("acquisition-worklist", "build"): (
             "acquisition_worklist_packet",
@@ -1856,6 +1884,89 @@ def test_commands_recognize_accepts_coverage_pipeline_result_review_queue(capsys
     assert payload["recognized"]["requires_outdir"] is False
     assert _output_contract_names(payload) == {
         "coverage_handoff_server_validation_result_review_queue"
+    }
+
+
+def test_commands_render_emits_coverage_pipeline_result_triage_queue_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"coverage-pipeline",'
+                    '"subcommand":"server-validation-result triage-queue",'
+                    '"input":"download_smoke_review_queue.tsv",'
+                    '"write":true,'
+                    '"out":"download_smoke_review_queue_triage.tsv",'
+                    '"force":true,'
+                    '"json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "triage-queue",
+        "--input",
+        "download_smoke_review_queue.tsv",
+        "--write",
+        "--out",
+        "download_smoke_review_queue_triage.tsv",
+        "--force",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert (
+        payload["recognized"]["subcommand"]
+        == "server-validation-result triage-queue"
+    )
+    assert payload["recognized"]["mode"] == "coverage_pipeline"
+    assert payload["recognized"]["requires_outdir"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert _output_contract_names(payload) == {
+        "download_smoke_review_queue_triage"
+    }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS
+    )
+
+
+def test_commands_recognize_accepts_coverage_pipeline_result_triage_queue(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "recognize",
+                "--argv-json",
+                (
+                    '["coverage-pipeline","server-validation-result","triage-queue",'
+                    '"--input","download_smoke_review_queue.tsv",'
+                    '"--write","--out","download_smoke_review_queue_triage.tsv",'
+                    '"--json"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert (
+        payload["recognized"]["subcommand"]
+        == "server-validation-result triage-queue"
+    )
+    assert payload["recognized"]["invalid"] is False
+    assert payload["recognized"]["unknown"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is False
+    assert _output_contract_names(payload) == {
+        "download_smoke_review_queue_triage"
     }
 
 

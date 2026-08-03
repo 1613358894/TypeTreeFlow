@@ -41,6 +41,7 @@ _COVERAGE_PIPELINE_SUBCOMMANDS = {
     "build",
     "preview",
     "server-validation-result review-queue",
+    "server-validation-result triage-queue",
     "server-validation-result validate",
     "status",
 }
@@ -400,6 +401,7 @@ def _writes_outputs_declared(
         return subcommand in {
             "build",
             "server-validation-result review-queue",
+            "server-validation-result triage-queue",
         } and "--write" in tokens
     if command == "download-smoke":
         return subcommand in {"prepare", "inspect"} and "--write" in tokens

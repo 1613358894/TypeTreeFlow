@@ -3043,6 +3043,304 @@ def test_coverage_pipeline_server_validation_result_review_queue_rejects_bad_out
     assert not output_path.exists()
 
 
+def test_coverage_pipeline_server_validation_result_triage_queue_dry_run(
+    capsys, tmp_path
+):
+    queue_path = tmp_path / "download_smoke_review_queue.tsv"
+    _write_tsv(
+        queue_path,
+        [
+            "record_id",
+            "assembly_accession",
+            "assembly_level",
+            "refseq_category",
+            "quality_tier",
+            "status",
+            "fasta_quality_gate_blockers",
+            "recommended_action",
+        ],
+        [
+            {
+                "record_id": "GCF_000001.1",
+                "assembly_accession": "GCF_000001.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": (
+                    "fragmented_fasta_signal;fasta_header_fragment_keywords"
+                ),
+                "recommended_action": "review_local_fasta_quality_blockers",
+            }
+        ],
+    )
+
+    code, payload, captured = _run(
+        ["triage-queue", "--input", str(queue_path), "--json"],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["schema_version"] == "download_smoke_review_queue_triage.v1"
+    assert payload["command"] == (
+        "coverage-pipeline server-validation-result triage-queue"
+    )
+    assert payload["status"] == "pass"
+    assert payload["queue_count"] == 1
+    assert payload["triage_row_count"] == 1
+    assert payload["triage_status_counts"] == {
+        "local_fasta_quality_review_required": 1
+    }
+    assert payload["recommended_next_step_counts"] == {
+        "review_fragmentation_and_header_keywords": 1
+    }
+    assert payload["triage_preview"][0]["strict_upgrade_applied"] is False
+    assert payload["output_written"] is False
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+
+
+def test_coverage_pipeline_server_validation_result_triage_queue_writes_tsv(
+    capsys, tmp_path
+):
+    queue_path = tmp_path / "download_smoke_review_queue.tsv"
+    output_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    _write_tsv(
+        queue_path,
+        [
+            "record_id",
+            "assembly_accession",
+            "assembly_level",
+            "refseq_category",
+            "quality_tier",
+            "status",
+            "fasta_quality_gate_blockers",
+            "recommended_action",
+        ],
+        [
+            {
+                "record_id": "GCF_000002.1",
+                "assembly_accession": "GCF_000002.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "fasta_header_fragment_keywords",
+                "recommended_action": "review_local_fasta_quality_blockers",
+            }
+        ],
+    )
+
+    code, payload, captured = _run(
+        [
+            "triage-queue",
+            "--input",
+            str(queue_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["output_path"] == str(output_path)
+    assert payload["output_written"] is True
+    assert payload["dry_run"] is False
+    assert payload["writes_outputs"] is True
+    rows = _read_tsv(output_path)
+    assert rows == [
+        {
+            "record_id": "GCF_000002.1",
+            "assembly_accession": "GCF_000002.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": "fasta_header_fragment_keywords",
+            "recommended_action": "review_local_fasta_quality_blockers",
+            "triage_status": "local_fasta_quality_review_required",
+            "triage_reason": "fasta_header_fragment_keywords",
+            "recommended_next_step": "review_fasta_header_fragment_keywords",
+            "strict_upgrade_applied": "false",
+        }
+    ]
+
+
+def test_coverage_pipeline_server_validation_result_triage_queue_writes_empty_tsv(
+    capsys, tmp_path
+):
+    queue_path = tmp_path / "download_smoke_review_queue.tsv"
+    output_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    _write_tsv(
+        queue_path,
+        [
+            "record_id",
+            "assembly_accession",
+            "assembly_level",
+            "refseq_category",
+            "quality_tier",
+            "status",
+            "fasta_quality_gate_blockers",
+            "recommended_action",
+        ],
+        [],
+    )
+
+    code, payload, captured = _run(
+        [
+            "triage-queue",
+            "--input",
+            str(queue_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["queue_count"] == 0
+    assert payload["triage_status_counts"] == {}
+    assert payload["output_written"] is True
+    assert output_path.read_text(encoding="utf-8") == (
+        "record_id\tassembly_accession\tassembly_level\trefseq_category\t"
+        "quality_tier\tstatus\tfasta_quality_gate_blockers\t"
+        "recommended_action\ttriage_status\ttriage_reason\t"
+        "recommended_next_step\tstrict_upgrade_applied\n"
+    )
+
+
+def test_coverage_pipeline_server_validation_result_triage_queue_blocks_invalid_input(
+    capsys, tmp_path
+):
+    queue_path = tmp_path / "download_smoke_review_queue.tsv"
+    output_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    _write_tsv(
+        queue_path,
+        [
+            "record_id",
+            "assembly_accession",
+            "assembly_level",
+            "refseq_category",
+            "quality_tier",
+            "status",
+            "fasta_quality_gate_blockers",
+            "recommended_action",
+        ],
+        [
+            {
+                "record_id": "GCF_000003.1",
+                "assembly_accession": "GCF_000003.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "",
+                "recommended_action": "review_local_fasta_quality_blockers",
+            }
+        ],
+    )
+
+    code, payload, captured = _run(
+        [
+            "triage-queue",
+            "--input",
+            str(queue_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "review_queue_input_invalid"
+    )
+    assert payload["output_written"] is False
+    assert not output_path.exists()
+
+
+def test_coverage_pipeline_server_validation_result_triage_queue_rejects_bad_output(
+    capsys, tmp_path
+):
+    queue_path = tmp_path / "download_smoke_review_queue.tsv"
+    output_path = tmp_path / "download_smoke_review_queue_triage.txt"
+    _write_tsv(
+        queue_path,
+        [
+            "record_id",
+            "assembly_accession",
+            "assembly_level",
+            "refseq_category",
+            "quality_tier",
+            "status",
+            "fasta_quality_gate_blockers",
+            "recommended_action",
+        ],
+        [
+            {
+                "record_id": "GCF_000004.1",
+                "assembly_accession": "GCF_000004.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "reference genome",
+                "quality_tier": "high",
+                "status": "genome_fasta_present",
+                "fasta_quality_gate_blockers": "fragmented_fasta_signal",
+                "recommended_action": "review_local_fasta_quality_blockers",
+            }
+        ],
+    )
+
+    code, payload, captured = _run(
+        [
+            "triage-queue",
+            "--input",
+            str(queue_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 1
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "triage_queue_output_write_failed"
+    )
+    assert payload["output_written"] is False
+    assert not output_path.exists()
+
+
 def test_coverage_pipeline_server_validation_result_validate_guides_missing_download_smoke(
     capsys, tmp_path
 ):
