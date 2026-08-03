@@ -670,6 +670,12 @@ extract ZIPs, write raw sequence text or raw FASTA headers, mutate manifests,
 contact providers, create strict scientific deliverables, or decide final
 genome usability.
 
+`coverage-pipeline server-validation-result review-queue
+--download-smoke-inspection-dir <dir>` may read the explicit bounded inspection
+summary to export a local FASTA quality review queue. It is still a local
+handoff step only; it does not rerun inspection, execute downloads, install
+FASTA files, mutate manifests, or accept genomes for final use.
+
 ## Provider Boundary
 
 Provider planning is a review handoff only. It must not imply login, scraping,

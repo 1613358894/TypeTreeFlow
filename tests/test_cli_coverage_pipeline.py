@@ -2694,6 +2694,47 @@ def _write_server_validation_result(path, payload):
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_download_smoke_inspection_summary(directory, payload=None):
+    directory.mkdir(parents=True, exist_ok=True)
+    summary = payload if payload is not None else _valid_download_smoke_inspection_summary()
+    (directory / "bounded_download_smoke_inspection_summary.json").write_text(
+        json.dumps(summary),
+        encoding="utf-8",
+    )
+
+
+def _valid_download_smoke_inspection_summary():
+    result = _valid_server_validation_result()
+    summary = {
+        key.removeprefix("download_smoke_inspection_"): value
+        for key, value in result.items()
+        if key.startswith("download_smoke_inspection_")
+        and key != "download_smoke_inspection_summary_sha256"
+    }
+    summary.update(
+        {
+            "schema_version": "bounded_download_smoke_inspection_summary.v1",
+            "command": "download-smoke inspect",
+            "status": "blocked",
+            "ready": False,
+            "execution_boundary": (
+                "local_zip_inspection_only_no_download_no_network_no_extraction"
+            ),
+            "safe_for_unattended_download": False,
+            "downloads_triggered": 0,
+            "providers_contacted": 0,
+            "network_access": False,
+            "external_tools": False,
+            "manifest_mutated": False,
+            "strict_scientific_deliverable": False,
+            "summary": (
+                "Bounded NCBI download smoke ZIP outputs require local quality review."
+            ),
+        }
+    )
+    return summary
+
+
 def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     capsys, tmp_path
 ):
@@ -2977,6 +3018,129 @@ def test_coverage_pipeline_server_validation_result_review_queue_writes_tsv(
             "recommended_action": "review_local_fasta_quality_blockers",
         }
     ]
+
+
+def test_coverage_pipeline_review_queue_accepts_explicit_download_smoke_inspection_dir(
+    capsys, tmp_path
+):
+    inspection_dir = tmp_path / "bounded-download-smoke-inspection"
+    _write_download_smoke_inspection_summary(inspection_dir)
+
+    code, payload, captured = _run(
+        [
+            "review-queue",
+            "--download-smoke-inspection-dir",
+            str(inspection_dir),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["schema_version"] == (
+        "coverage_handoff_server_validation_result_review_queue.v1"
+    )
+    assert payload["status"] == "pass"
+    assert payload["validation_status"] == "pass"
+    assert payload["input_path"] == str(inspection_dir)
+    assert payload["queue_count"] == 1
+    assert payload["review_queue"] == [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+            "recommended_action": "review_local_fasta_quality_blockers",
+        }
+    ]
+    assert payload["download_smoke_next_action"] == (
+        "review_high_quality_metadata_fasta_quality_blockers"
+    )
+    assert payload["download_smoke_next_action_reasons"] == [
+        "high_quality_metadata_rows_failed_local_fasta_quality_gates",
+        "fragmented_fasta_signal",
+    ]
+    assert payload["output_written"] is False
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+
+
+def test_coverage_pipeline_review_queue_writes_from_download_smoke_inspection_dir(
+    capsys, tmp_path
+):
+    inspection_dir = tmp_path / "bounded-download-smoke-inspection"
+    output_path = tmp_path / "download_smoke_review_queue.tsv"
+    _write_download_smoke_inspection_summary(inspection_dir)
+
+    code, payload, captured = _run(
+        [
+            "review-queue",
+            "--download-smoke-inspection-dir",
+            str(inspection_dir),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["output_path"] == str(output_path)
+    assert payload["output_written"] is True
+    assert payload["writes_outputs"] is True
+    rows = _read_tsv(output_path)
+    assert rows[0]["assembly_accession"] == "GCF_000001.1"
+    assert rows[0]["recommended_action"] == "review_local_fasta_quality_blockers"
+
+
+def test_coverage_pipeline_review_queue_rejects_ambiguous_input_sources(
+    capsys, tmp_path
+):
+    result_path = tmp_path / "coverage_handoff_server_validation_result.json"
+    inspection_dir = tmp_path / "bounded-download-smoke-inspection"
+    _write_server_validation_result(result_path, _valid_server_validation_result())
+    _write_download_smoke_inspection_summary(inspection_dir)
+
+    code, payload, captured = _run(
+        [
+            "review-queue",
+            "--input",
+            str(result_path),
+            "--download-smoke-inspection-dir",
+            str(inspection_dir),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 2
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "blocked"
+    assert payload["diagnostics"][0]["diagnostic_code"] == "invalid_command_usage"
+    assert payload["output_written"] is False
 
 
 def test_coverage_pipeline_server_validation_result_review_queue_blocks_invalid_result(

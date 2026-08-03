@@ -233,7 +233,7 @@ _CATALOG_ENTRIES = (
         "command": "coverage-pipeline",
         "subcommand": "server-validation-result review-queue",
         "mode": "coverage_pipeline",
-        "argv_pattern": "typetreeflow coverage-pipeline server-validation-result review-queue --input <json> [--write --out <tsv>]",
+        "argv_pattern": "typetreeflow coverage-pipeline server-validation-result review-queue (--input <json> | --download-smoke-inspection-dir <dir>) [--write --out <tsv>]",
         "json_stdout": True,
         "write_behavior": "optional_isolated_tsv",
         "requires_outdir": False,
@@ -2350,9 +2350,16 @@ _PARAMETER_CATALOG: dict[tuple[str, str | None], list[dict[str, object]]] = {
         {
             "name": "--input",
             "kind": "path",
-            "required": True,
+            "required": False,
             "repeatable": False,
             "purpose": "explicit coverage_handoff_server_validation_result.json input",
+        },
+        {
+            "name": "--download-smoke-inspection-dir",
+            "kind": "path",
+            "required": False,
+            "repeatable": False,
+            "purpose": "explicit bounded download-smoke inspection directory input",
         },
         {
             "name": "--write",
@@ -4319,19 +4326,30 @@ def _render_target_argv(request: dict[str, object]) -> list[str]:
                 "command",
                 "subcommand",
                 "input",
+                "download_smoke_inspection_dir",
                 "write",
                 "out",
                 "force",
                 "json",
             },
         )
+        input_path = _optional_string(request, "input")
+        inspection_dir = _optional_string(request, "download_smoke_inspection_dir")
+        if (input_path is None) == (inspection_dir is None):
+            raise ValueError(
+                "Request must include exactly one of 'input' or "
+                "'download_smoke_inspection_dir'"
+            )
         argv = [
             "coverage-pipeline",
             "server-validation-result",
             "review-queue",
-            "--input",
-            _required_string(request, "input"),
         ]
+        if input_path is not None:
+            argv.extend(["--input", input_path])
+        else:
+            assert inspection_dir is not None
+            argv.extend(["--download-smoke-inspection-dir", inspection_dir])
         if _bool_flag(request, "write"):
             argv.append("--write")
         out = _optional_string(request, "out")
