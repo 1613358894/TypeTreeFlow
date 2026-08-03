@@ -1196,6 +1196,23 @@ def test_download_smoke_inspect_passes_when_selected_zip_contains_genome(
     assert summary["installable_genome_fasta_ready_count"] == 1
     assert summary["installable_genome_fasta_not_ready_count"] == 0
     assert summary["installable_genome_fasta_not_ready_reason_counts"] == {}
+    assert summary["installable_genome_fasta_ready_preview"] == [
+        {
+            "record_id": "rec-1",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "installable_genome_fasta_ready": True,
+            "installable_genome_fasta_not_ready_reasons": [],
+            "fasta_quality_gate_blockers": [],
+            "fasta_fragmentation_signal": "multi_record_fragmented",
+        }
+    ]
+    assert summary["installable_genome_fasta_ready_preview_truncated"] is False
+    assert summary["installable_genome_fasta_not_ready_preview"] == []
+    assert summary["installable_genome_fasta_not_ready_preview_truncated"] is False
     assert summary["assembly_metadata_high_quality_row_count"] == 1
     assert summary["assembly_metadata_high_quality_installable_ready_count"] == 1
     assert summary["assembly_metadata_high_quality_fasta_quality_blocked_count"] == 0
@@ -1312,6 +1329,29 @@ def test_download_smoke_inspect_default_quality_profile_blocks_fragmentation(
         "fasta_header_fragment_keywords": 1,
         "fragmented_fasta_signal": 1,
     }
+    assert summary["installable_genome_fasta_ready_preview"] == []
+    assert summary["installable_genome_fasta_ready_preview_truncated"] is False
+    assert summary["installable_genome_fasta_not_ready_preview"] == [
+        {
+            "record_id": "rec-1",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "installable_genome_fasta_ready": False,
+            "installable_genome_fasta_not_ready_reasons": [
+                "fasta_header_fragment_keywords",
+                "fragmented_fasta_signal",
+            ],
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+            "fasta_fragmentation_signal": "multi_record_fragmented",
+        }
+    ]
+    assert summary["installable_genome_fasta_not_ready_preview_truncated"] is False
     assert summary["assembly_metadata_high_quality_row_count"] == 1
     assert summary["assembly_metadata_high_quality_installable_ready_count"] == 0
     assert summary["assembly_metadata_high_quality_fasta_quality_blocked_count"] == 1

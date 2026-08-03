@@ -665,6 +665,12 @@ def inspect_bounded_download_smoke_outputs(
     installable_genome_fasta_not_ready_reason_counts = (
         _installable_genome_fasta_not_ready_reason_counts(inspections)
     )
+    installable_genome_fasta_ready_rows = [
+        row for row in inspections if row["installable_genome_fasta_ready"]
+    ]
+    installable_genome_fasta_not_ready_rows = [
+        row for row in inspections if not row["installable_genome_fasta_ready"]
+    ]
     metadata_high_quality_rows = [
         row for row in inspections if str(row.get("quality_tier", "")).strip() == "high"
     ]
@@ -896,6 +902,22 @@ def inspect_bounded_download_smoke_outputs(
         ),
         "installable_genome_fasta_not_ready_reason_counts": (
             installable_genome_fasta_not_ready_reason_counts
+        ),
+        "installable_genome_fasta_ready_preview": (
+            _installable_genome_fasta_row_preview(
+                installable_genome_fasta_ready_rows
+            )
+        ),
+        "installable_genome_fasta_ready_preview_truncated": (
+            len(installable_genome_fasta_ready_rows) > INSPECTION_PREVIEW_LIMIT
+        ),
+        "installable_genome_fasta_not_ready_preview": (
+            _installable_genome_fasta_row_preview(
+                installable_genome_fasta_not_ready_rows
+            )
+        ),
+        "installable_genome_fasta_not_ready_preview_truncated": (
+            len(installable_genome_fasta_not_ready_rows) > INSPECTION_PREVIEW_LIMIT
         ),
         "assembly_metadata_high_quality_row_count": len(
             metadata_high_quality_rows
@@ -1378,6 +1400,46 @@ def _blocked_high_quality_row_preview(
                     for blocker in raw_blockers.split(";")
                     if blocker.strip()
                 ],
+            }
+        )
+    return preview
+
+
+def _installable_genome_fasta_row_preview(
+    rows: Sequence[dict[str, object]],
+) -> list[dict[str, object]]:
+    preview: list[dict[str, object]] = []
+    for row in rows[:INSPECTION_PREVIEW_LIMIT]:
+        raw_not_ready_reasons = str(
+            row.get("installable_genome_fasta_not_ready_reasons", "")
+        ).strip()
+        raw_blockers = str(row.get("fasta_quality_gate_blockers", "")).strip()
+        preview.append(
+            {
+                "record_id": str(row.get("record_id", "")).strip(),
+                "assembly_accession": str(
+                    row.get("assembly_accession", "")
+                ).strip(),
+                "assembly_level": str(row.get("assembly_level", "")).strip(),
+                "refseq_category": str(row.get("refseq_category", "")).strip(),
+                "quality_tier": str(row.get("quality_tier", "")).strip(),
+                "status": str(row.get("status", "")).strip(),
+                "installable_genome_fasta_ready": bool(
+                    row.get("installable_genome_fasta_ready")
+                ),
+                "installable_genome_fasta_not_ready_reasons": [
+                    reason.strip()
+                    for reason in raw_not_ready_reasons.split(";")
+                    if reason.strip()
+                ],
+                "fasta_quality_gate_blockers": [
+                    blocker.strip()
+                    for blocker in raw_blockers.split(";")
+                    if blocker.strip()
+                ],
+                "fasta_fragmentation_signal": str(
+                    row.get("fasta_fragmentation_signal", "")
+                ).strip(),
             }
         )
     return preview
