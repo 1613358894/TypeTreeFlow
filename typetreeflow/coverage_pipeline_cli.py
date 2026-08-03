@@ -153,6 +153,7 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS = (
     "download_smoke_inspection_ready",
     "download_smoke_inspection_block_fragmented_fasta",
     "download_smoke_inspection_block_fasta_header_keywords",
+    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated",
 )
 _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS = (
     "check_count",
@@ -201,6 +202,19 @@ _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS = (
     "download_smoke_inspection_quality_gate_recommendation_reasons",
     "download_smoke_inspection_bounded_smoke_next_action_reasons",
 )
+_SERVER_VALIDATION_RESULT_OPTIONAL_PREVIEW_FIELDS = (
+    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+    "status",
+    "fasta_quality_gate_blockers",
+)
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_MAX_ROWS = 5
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
     "acquisition_worklist_summary": "acquisition_worklist/acquisition_worklist_summary.json",
@@ -2011,6 +2025,15 @@ def _validate_server_validation_result(
             diagnostics.append(
                 _diagnostic("server_validation_result", f"invalid_{field}")
             )
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_PREVIEW_FIELDS:
+        raw_value = result.get(field)
+        if field not in result:
+            continue
+        if not _server_validation_download_smoke_preview_is_valid(raw_value):
+            invalid_fields.append(field)
+            diagnostics.append(
+                _diagnostic("server_validation_result", f"invalid_{field}")
+            )
     if "summary" in result and not isinstance(result.get("summary"), str):
         invalid_fields.append("summary")
         diagnostics.append(_diagnostic("server_validation_result", "invalid_summary"))
@@ -2360,6 +2383,46 @@ def _safe_string_list(value: object) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
+def _server_validation_download_smoke_preview_is_valid(value: object) -> bool:
+    return _safe_server_validation_download_smoke_preview(value) is not None
+
+
+def _safe_server_validation_download_smoke_preview(
+    value: object,
+) -> list[dict[str, object]] | None:
+    if not isinstance(value, list):
+        return None
+    if len(value) > _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_MAX_ROWS:
+        return None
+    rows: list[dict[str, object]] = []
+    allowed_keys = set(_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_FIELDS)
+    string_fields = allowed_keys - {"fasta_quality_gate_blockers"}
+    for item in value:
+        if not isinstance(item, dict) or set(item) != allowed_keys:
+            return None
+        row: dict[str, object] = {}
+        for field in string_fields:
+            field_value = item.get(field)
+            if not isinstance(field_value, str):
+                return None
+            row[field] = field_value.strip()
+        blockers = item.get("fasta_quality_gate_blockers")
+        if (
+            not isinstance(blockers, list)
+            or not blockers
+            or any(
+                not isinstance(blocker, str) or not blocker.strip()
+                for blocker in blockers
+            )
+        ):
+            return None
+        row["fasta_quality_gate_blockers"] = [
+            blocker.strip() for blocker in blockers
+        ]
+        rows.append(row)
+    return rows
+
+
 def _optional_nonnegative_int(value: object) -> int:
     if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
         return value
@@ -2391,6 +2454,10 @@ def _server_validation_observation_defaults() -> dict[str, object]:
         field: []
         for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS
         if field.startswith("download_smoke_inspection_")
+    } | {
+        field: []
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_PREVIEW_FIELDS
+        if field.startswith("download_smoke_inspection_")
     }
 
 
@@ -2414,6 +2481,12 @@ def _server_validation_observation_fields(
     for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS:
         if field.startswith("download_smoke_inspection_"):
             fields[field] = _safe_string_list(result.get(field))
+    for field in _SERVER_VALIDATION_RESULT_OPTIONAL_PREVIEW_FIELDS:
+        if field.startswith("download_smoke_inspection_"):
+            fields[field] = (
+                _safe_server_validation_download_smoke_preview(result.get(field))
+                or []
+            )
     return fields
 
 
@@ -5465,6 +5538,7 @@ def _coverage_handoff_server_validation_result_contract_packet(
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS
                 + _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS
+                + _SERVER_VALIDATION_RESULT_OPTIONAL_PREVIEW_FIELDS
             )
             if field.startswith("download_smoke_inspection_")
         ],
@@ -8588,6 +8662,20 @@ def _coverage_parent_controller_packet(
                     "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
                 )
             )
+        ),
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview": (
+            _safe_server_validation_download_smoke_preview(
+                result_artifact_packet.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview"
+                )
+            )
+            or []
+        ),
+        "handoff_server_validation_download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated": (
+            result_artifact_packet.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+            )
+            is True
         ),
         "handoff_server_validation_download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts": (
             _safe_count_map(

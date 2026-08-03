@@ -74,6 +74,16 @@ _DOWNLOAD_SMOKE_INSPECTION_PREVIEW_COUNT_FIELDS = {
     _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD,
     _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD,
 }
+_DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+    "status",
+    "fasta_quality_gate_blockers",
+)
+_DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_MAX_ROWS = 5
 
 
 @dataclass(frozen=True)
@@ -159,6 +169,12 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts: (
         dict[str, int]
     ) = field(default_factory=dict)
+    download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview: (
+        list[dict[str, object]]
+    ) = field(default_factory=list)
+    download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated: (
+        bool
+    ) = False
     download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts: (
         dict[str, int]
     ) = field(default_factory=dict)
@@ -2137,6 +2153,19 @@ def _read_optional_server_validation_result(
                 )
             )
         ),
+        download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview=(
+            _safe_download_smoke_preview_value(
+                payload.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview"
+                )
+            )
+        ),
+        download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated=(
+            payload.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+            )
+            is True
+        ),
         download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts=(
             _safe_count_map_value(
                 payload.get(
@@ -4063,6 +4092,40 @@ def _safe_count_map_value(value: object) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def _safe_download_smoke_preview_value(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    if len(value) > _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_MAX_ROWS:
+        return []
+    rows: list[dict[str, object]] = []
+    allowed_keys = set(_DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELDS)
+    string_fields = allowed_keys - {"fasta_quality_gate_blockers"}
+    for item in value:
+        if not isinstance(item, dict) or set(item) != allowed_keys:
+            return []
+        row: dict[str, object] = {}
+        for field in string_fields:
+            field_value = item.get(field)
+            if not isinstance(field_value, str):
+                return []
+            row[field] = field_value.strip()
+        blockers = item.get("fasta_quality_gate_blockers")
+        if (
+            not isinstance(blockers, list)
+            or not blockers
+            or any(
+                not isinstance(blocker, str) or not blocker.strip()
+                for blocker in blockers
+            )
+        ):
+            return []
+        row["fasta_quality_gate_blockers"] = [
+            blocker.strip() for blocker in blockers
+        ]
+        rows.append(row)
+    return rows
+
+
 def _safe_string_list_value(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -4589,6 +4652,10 @@ def _server_validation_download_smoke_observations_available(
                 audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts
             ),
             bool(
+                audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview
+            ),
+            audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated,
+            bool(
                 audit.download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts
             ),
             bool(audit.download_smoke_inspection_fasta_quality_gate_blocker_counts),
@@ -4643,6 +4710,7 @@ def _server_validation_download_smoke_observation_lines(
                 audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts
             )
         ),
+        *_server_validation_download_smoke_preview_lines(audit),
         (
             "- Bounded download-smoke installable genome FASTA fragmentation signals: "
             + _format_download_smoke_count_value(
@@ -5127,6 +5195,31 @@ def _format_download_smoke_blocked_preview_lines(
             "- Assembly-metadata high-quality FASTA blocked preview truncated: true"
         )
     return lines
+
+
+def _server_validation_download_smoke_preview_lines(
+    audit: ServerValidationResultPackageSummary,
+) -> list[str]:
+    counts = {
+        _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD: (
+            audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview
+        ),
+        _DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD: (
+            audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated
+        ),
+    }
+    return [
+        line.replace(
+            "- Assembly-metadata high-quality FASTA blocked preview:",
+            "- Bounded download-smoke assembly-metadata high-quality FASTA blocked preview:",
+            1,
+        ).replace(
+            "- Assembly-metadata high-quality FASTA blocked preview truncated:",
+            "- Bounded download-smoke assembly-metadata high-quality FASTA blocked preview truncated:",
+            1,
+        )
+        for line in _format_download_smoke_blocked_preview_lines(counts)
+    ]
 
 
 def _is_non_bool_int(value: object) -> bool:
