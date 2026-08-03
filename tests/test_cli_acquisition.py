@@ -1722,6 +1722,33 @@ def test_verify_genus_checkpoint_structured_route_to_bounded_smoke_prepare(
     assert prepare_payload["strict_scientific_deliverable"] is False
     assert (smoke_outdir / "bounded_download_smoke_plan.tsv").exists()
     assert (smoke_outdir / "bounded_download_smoke_commands.tsv").exists()
+    prepare_summary = prepare_payload["bounded_download_smoke_summary"]
+    assert prepare_summary["recommended_inspection_request_target"] == (
+        "download-smoke inspect"
+    )
+    assert prepare_summary["recommended_inspection_request"]["download_plan"] == str(
+        smoke_outdir / "bounded_download_smoke_plan.tsv"
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(prepare_summary["recommended_inspection_request"]),
+            ]
+        )
+        == 0
+    )
+    inspection_render = json.loads(capsys.readouterr().out)
+    assert inspection_render["target_argv"][:4] == [
+        "download-smoke",
+        "inspect",
+        "--download-plan",
+        str(smoke_outdir / "bounded_download_smoke_plan.tsv"),
+    ]
+    assert "--write" in inspection_render["target_argv"]
 
 
 def test_verify_genus_live_flags_dry_run_remains_review_checkpoint(

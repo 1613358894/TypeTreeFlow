@@ -199,6 +199,9 @@ def test_download_smoke_prepare_dry_run_emits_bounded_json(capsys, tmp_path):
     assert summary["inspection_quality_profile"] == "fragmentation"
     assert summary["inspection_block_fragmented_fasta"] is True
     assert summary["inspection_block_fasta_header_keywords"] is True
+    assert summary["recommended_inspection_request_target"] == ""
+    assert summary["recommended_inspection_request"] == {}
+    assert summary["recommended_inspection_next_command"] == ""
     assert summary["recommended_inspection_command"] == []
 
 
@@ -297,6 +300,23 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     assert summary["inspection_quality_profile"] == "fragmentation"
     assert summary["inspection_block_fragmented_fasta"] is True
     assert summary["inspection_block_fasta_header_keywords"] is True
+    assert summary["recommended_inspection_request_target"] == (
+        "download-smoke inspect"
+    )
+    assert summary["recommended_inspection_request"] == {
+        "command": "download-smoke",
+        "subcommand": "inspect",
+        "download_plan": str(outdir / "bounded_download_smoke_plan.tsv"),
+        "quality_profile": "fragmentation",
+        "write": True,
+        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+    }
+    assert summary["recommended_inspection_next_command"] == (
+        "typetreeflow download-smoke inspect --download-plan "
+        f"{outdir / 'bounded_download_smoke_plan.tsv'} "
+        "--quality-profile fragmentation --write --outdir "
+        "<isolated-bounded-download-smoke-inspection-dir>"
+    )
     assert summary["recommended_inspection_command"] == [
         "typetreeflow",
         "download-smoke",
@@ -312,6 +332,22 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"
     ] == summary["recommended_inspection_command"]
+    assert payload["bounded_download_smoke_summary"][
+        "recommended_inspection_request"
+    ] == summary["recommended_inspection_request"]
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(summary["recommended_inspection_request"]),
+            ]
+        )
+        == 0
+    )
+    rendered = json.loads(capsys.readouterr().out)
+    assert rendered["target_argv"] == summary["recommended_inspection_command"][1:]
     checklist = {item["id"]: item for item in summary["handoff_checklist"]}
     assert checklist["prepare_bounded_download_smoke_input"]["status"] == "written"
     assert checklist["run_bounded_datasets_download"]["requires_explicit_approval"]
@@ -615,6 +651,21 @@ def test_download_smoke_prepare_write_carries_inspection_quality_gates(
         "--outdir",
         "<isolated-bounded-download-smoke-inspection-dir>",
     ]
+    assert summary["recommended_inspection_request"] == {
+        "command": "download-smoke",
+        "subcommand": "inspect",
+        "download_plan": str(outdir / "bounded_download_smoke_plan.tsv"),
+        "min_fasta_n50_bases": 50000,
+        "max_fasta_record_count": 10,
+        "max_fasta_ambiguous_bases": 100,
+        "min_fasta_total_bases": 3000000,
+        "min_fasta_longest_record_bases": 100000,
+        "quality_profile": "fragmentation",
+        "block_fragmented_fasta": True,
+        "block_fasta_header_keywords": True,
+        "write": True,
+        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+    }
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"
     ] == summary["recommended_inspection_command"]
@@ -652,6 +703,13 @@ def test_download_smoke_prepare_write_can_disable_inspection_quality_profile(
     assert summary["inspection_quality_profile"] == "none"
     assert summary["inspection_block_fragmented_fasta"] is False
     assert summary["inspection_block_fasta_header_keywords"] is False
+    assert summary["recommended_inspection_request"] == {
+        "command": "download-smoke",
+        "subcommand": "inspect",
+        "download_plan": str(outdir / "bounded_download_smoke_plan.tsv"),
+        "write": True,
+        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+    }
     assert "--quality-profile" not in summary["recommended_inspection_command"]
     assert payload["bounded_download_smoke_summary"][
         "recommended_inspection_command"

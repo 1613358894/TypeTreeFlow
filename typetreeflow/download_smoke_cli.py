@@ -10,6 +10,7 @@ import zipfile
 from pathlib import Path
 from typing import Sequence, TextIO
 
+from typetreeflow.commands_cli import render_command_request
 from typetreeflow.download_plan_readiness import (
     build_download_plan_readiness_summary,
     _normalize_assembly_level,
@@ -233,22 +234,32 @@ def run_download_smoke_command(
         return 2
 
     if args.action == "prepare" and args.write:
+        inspection_request = _recommended_inspection_request(
+            Path(args.outdir) / OUTPUT_PLAN_NAME,
+            min_fasta_n50_bases=args.inspection_min_fasta_n50_bases,
+            max_fasta_record_count=args.inspection_max_fasta_record_count,
+            max_fasta_ambiguous_bases=args.inspection_max_fasta_ambiguous_bases,
+            min_fasta_total_bases=args.inspection_min_fasta_total_bases,
+            min_fasta_longest_record_bases=(
+                args.inspection_min_fasta_longest_record_bases
+            ),
+            quality_profile=args.inspection_quality_profile,
+            block_fragmented_fasta=args.inspection_block_fragmented_fasta,
+            block_fasta_header_keywords=(
+                args.inspection_block_fasta_header_keywords
+            ),
+        )
+        result["summary"]["recommended_inspection_request_target"] = (  # type: ignore[index]
+            INSPECT_COMMAND
+        )
+        result["summary"]["recommended_inspection_request"] = (  # type: ignore[index]
+            inspection_request
+        )
+        result["summary"]["recommended_inspection_next_command"] = (  # type: ignore[index]
+            _recommended_next_command(inspection_request)
+        )
         result["summary"]["recommended_inspection_command"] = (  # type: ignore[index]
-            _recommended_inspection_command(
-                Path(args.outdir) / OUTPUT_PLAN_NAME,
-                min_fasta_n50_bases=args.inspection_min_fasta_n50_bases,
-                max_fasta_record_count=args.inspection_max_fasta_record_count,
-                max_fasta_ambiguous_bases=args.inspection_max_fasta_ambiguous_bases,
-                min_fasta_total_bases=args.inspection_min_fasta_total_bases,
-                min_fasta_longest_record_bases=(
-                    args.inspection_min_fasta_longest_record_bases
-                ),
-                quality_profile=args.inspection_quality_profile,
-                block_fragmented_fasta=args.inspection_block_fragmented_fasta,
-                block_fasta_header_keywords=(
-                    args.inspection_block_fasta_header_keywords
-                ),
-            )
+            _recommended_inspection_command_from_request(inspection_request)
         )
     if args.action == "prepare":
         result["summary"]["selected_datasets_command_preview_only"] = True  # type: ignore[index]
@@ -453,6 +464,9 @@ def prepare_bounded_download_smoke_input(
         "inspection_block_fasta_header_keywords": (
             effective_header_block
         ),
+        "recommended_inspection_request_target": "",
+        "recommended_inspection_request": {},
+        "recommended_inspection_next_command": "",
         "recommended_inspection_command": [],
         "handoff_checklist": _prepare_handoff_checklist(
             writes_outputs=False,
@@ -526,6 +540,72 @@ def _prepare_handoff_checklist(
             "purpose": "requires separate quality review; scaffold/contig/WGS-like outputs are not final acceptance",
         },
     ]
+
+
+def _recommended_inspection_request(
+    bounded_plan_path: str | Path,
+    *,
+    min_fasta_n50_bases: int = 0,
+    max_fasta_record_count: int = 0,
+    max_fasta_ambiguous_bases: int = 0,
+    min_fasta_total_bases: int = 0,
+    min_fasta_longest_record_bases: int = 0,
+    quality_profile: str = QUALITY_PROFILE_NONE,
+    block_fragmented_fasta: bool = False,
+    block_fasta_header_keywords: bool = False,
+) -> dict[str, object]:
+    request: dict[str, object] = {
+        "command": "download-smoke",
+        "subcommand": "inspect",
+        "download_plan": str(bounded_plan_path),
+        "write": True,
+        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+    }
+    if min_fasta_n50_bases > 0:
+        request["min_fasta_n50_bases"] = min_fasta_n50_bases
+    if max_fasta_record_count > 0:
+        request["max_fasta_record_count"] = max_fasta_record_count
+    if max_fasta_ambiguous_bases > 0:
+        request["max_fasta_ambiguous_bases"] = max_fasta_ambiguous_bases
+    if min_fasta_total_bases > 0:
+        request["min_fasta_total_bases"] = min_fasta_total_bases
+    if min_fasta_longest_record_bases > 0:
+        request["min_fasta_longest_record_bases"] = min_fasta_longest_record_bases
+    if quality_profile != QUALITY_PROFILE_NONE:
+        request["quality_profile"] = quality_profile
+    if block_fragmented_fasta:
+        request["block_fragmented_fasta"] = True
+    if block_fasta_header_keywords:
+        request["block_fasta_header_keywords"] = True
+    return request
+
+
+def _recommended_next_command(request: dict[str, object]) -> str:
+    if not request:
+        return ""
+    try:
+        rendered = render_command_request(dict(request))
+    except (TypeError, ValueError):
+        return ""
+    argv = rendered.get("target_argv")
+    if not isinstance(argv, list) or not argv:
+        return ""
+    return "typetreeflow " + " ".join(str(token) for token in argv)
+
+
+def _recommended_inspection_command_from_request(
+    request: dict[str, object],
+) -> list[str]:
+    if not request:
+        return []
+    try:
+        rendered = render_command_request(dict(request))
+    except (TypeError, ValueError):
+        return []
+    argv = rendered.get("target_argv")
+    if not isinstance(argv, list) or not argv:
+        return []
+    return ["typetreeflow", *(str(token) for token in argv)]
 
 
 def _recommended_inspection_command(
