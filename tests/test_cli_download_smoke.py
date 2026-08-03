@@ -655,6 +655,35 @@ def test_download_smoke_execute_with_fake_runner_writes_valid_zip(tmp_path):
     assert summary["strict_scientific_deliverable"] is False
 
 
+def test_download_smoke_execute_reports_missing_datasets_executable(tmp_path):
+    zip_path = tmp_path / "rec-1.zip"
+    commands = tmp_path / "bounded_download_smoke_commands.tsv"
+    _write_commands_manifest(commands, [_command_row(zip_path=zip_path)])
+
+    class MissingDatasetsRunner:
+        def run(self, command, cwd=None):
+            raise FileNotFoundError("datasets")
+
+    result = execute_bounded_download_smoke_commands(
+        commands,
+        limit=1,
+        execute=True,
+        runner=MissingDatasetsRunner(),
+    )
+
+    summary = result["summary"]
+    assert summary["ready"] is False
+    assert summary["blockers"] == ["datasets_executable_missing"]
+    assert summary["downloads_triggered"] == 0
+    assert summary["network_access"] is False
+    assert summary["external_tools"] is False
+    assert summary["status_counts"] == {"datasets_executable_missing": 1}
+    assert result["rows"][0]["status"] == "datasets_executable_missing"
+    assert result["rows"][0]["executed"] is False
+    assert result["rows"][0]["returncode"] == ""
+    assert "datasets executable was not found" in result["rows"][0]["notes"]
+
+
 def test_download_smoke_inspect_accepts_annotated_prepare_plan(capsys, tmp_path):
     plan = tmp_path / "cache" / "ncbi" / "download_plan.tsv"
     outdir = tmp_path / "smoke-input"
