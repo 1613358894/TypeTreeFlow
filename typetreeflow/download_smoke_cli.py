@@ -276,6 +276,26 @@ def run_download_smoke_command(
         summary["recommended_review_queue_next_command"] = (  # type: ignore[index]
             _recommended_next_command(review_queue_request)
         )
+    if args.action == "execute":
+        summary = result["summary"]  # type: ignore[index]
+        inspection_request = (
+            _recommended_inspection_request(
+                _bounded_plan_path_for_commands_manifest(args.commands_manifest),
+                quality_profile=QUALITY_PROFILE_FRAGMENTATION,
+            )
+            if args.write and int(summary.get("selected_row_count", 0)) > 0
+            else {}
+        )
+        summary["recommended_inspection_request_target"] = (  # type: ignore[index]
+            INSPECT_COMMAND if inspection_request else ""
+        )
+        summary["recommended_inspection_request"] = inspection_request  # type: ignore[index]
+        summary["recommended_inspection_next_command"] = (  # type: ignore[index]
+            _recommended_next_command(inspection_request)
+        )
+        summary["recommended_inspection_command"] = (  # type: ignore[index]
+            _recommended_inspection_command_from_request(inspection_request)
+        )
     if args.action == "prepare":
         result["summary"]["selected_datasets_command_preview_only"] = True  # type: ignore[index]
         result["summary"]["handoff_checklist"] = _prepare_handoff_checklist(  # type: ignore[index]
@@ -632,6 +652,10 @@ def _recommended_review_queue_request(inspection_dir: str | Path) -> dict[str, o
         "out": "<download_smoke_review_queue.tsv>",
         "json": True,
     }
+
+
+def _bounded_plan_path_for_commands_manifest(commands_manifest_path: str | Path) -> Path:
+    return Path(commands_manifest_path).parent / OUTPUT_PLAN_NAME
 
 
 def _recommended_inspection_command(
