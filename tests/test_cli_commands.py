@@ -2782,6 +2782,10 @@ def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys
     }
     summary_fields = payload["output_contracts"][0]["summary_fields"]
     assert "selected_datasets_command_preview_only" in summary_fields
+    assert "recommended_execution_validation_request_target" in summary_fields
+    assert "recommended_execution_validation_request" in summary_fields
+    assert "recommended_execution_validation_next_command" in summary_fields
+    assert "recommended_execution_validation_command" in summary_fields
     assert "handoff_checklist" in summary_fields
 
 
