@@ -1246,10 +1246,11 @@ contains genome FASTA members, and bounded FASTA count statistics such as record
 count, total bases, longest record bases, ambiguous bases, and a descriptive
 fragmentation signal. It also reports FASTA N50 bases as a local count-only
 audit statistic and counts controlled FASTA header keywords such as WGS,
-scaffold, and contig without copying raw header text. These values help
-reviewers notice single-record, single-dominant multi-record, or visibly
-fragmented multi-record FASTA outputs; they are not strict gates, completion
-metrics, or genome usability decisions by default. ZIP members with absolute,
+scaffold, and contig without copying raw header text. The default inspection
+quality profile is `fragmentation`, so visibly fragmented multi-record FASTA
+outputs and WGS/scaffold/contig-style headers block bounded-smoke readiness by
+default. Use `--quality-profile none` only when the inspection should remain a
+compatibility/visibility check. ZIP members with absolute,
 path-traversing, Windows-drive-prefixed, or symlink-like paths are blocked by
 default as `unsafe_zip_member_paths` before FASTA content is inspected. A genome
 FASTA member with zero records or zero bases is blocked by default as
@@ -1272,8 +1273,8 @@ quality gates such as `--min-fasta-n50-bases <bases>`,
 `--min-fasta-longest-record-bases <bases>`, `--block-fragmented-fasta`, or
 `--block-fasta-header-keywords` when a bounded smoke should fail closed on
 obviously short, ambiguous-base-heavy, scaffold/contig, or WGS-style outputs.
-The shorthand `--quality-profile fragmentation` enables both fragmentation
-gates without requiring the two explicit boolean flags.
+The default shorthand `--quality-profile fragmentation` enables both
+fragmentation gates without requiring the two explicit boolean flags.
 These optional blockers
 are local smoke acceptance criteria only; they still do not create strict
 deliverables.
@@ -1294,8 +1295,8 @@ sequence text.
 For rows that are locally installable, the summary also reports
 `installable_genome_fasta_fragmentation_signal_counts` and
 `installable_genome_fasta_header_fragment_keyword_row_count`. These fields make
-it visible when an installable FASTA is still scaffold/contig/WGS-like; they do
-not change readiness unless the matching quality gates are enabled.
+it visible when an installable FASTA is still scaffold/contig/WGS-like. Under
+the default fragmentation profile, matching quality gates are already enabled.
 If fragmented FASTA or WGS/scaffold/contig header signals are observed without
 the matching quality gates enabled, the summary keeps the current `ready`
 semantics but returns `quality_gate_recommendation` and
