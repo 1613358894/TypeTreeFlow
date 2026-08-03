@@ -1747,10 +1747,19 @@ def _classify_fasta_fragmentation(fasta_stats: dict[str, int]) -> str:
     record_count = int(fasta_stats.get("fasta_record_count", 0))
     total_bases = int(fasta_stats.get("fasta_total_bases", 0))
     longest_record = int(fasta_stats.get("fasta_longest_record_bases", 0))
+    header_fragment_keyword_count = (
+        int(fasta_stats.get("fasta_header_wgs_keyword_count", 0))
+        + int(fasta_stats.get("fasta_header_scaffold_keyword_count", 0))
+        + int(fasta_stats.get("fasta_header_contig_keyword_count", 0))
+    )
     if record_count <= 0 or total_bases <= 0:
         return FASTA_FRAGMENTATION_SIGNAL_NOT_EVALUATED
     if record_count == 1:
         return FASTA_FRAGMENTATION_SIGNAL_SINGLE_RECORD
+    if header_fragment_keyword_count > 0:
+        return FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED
+    if record_count <= 10 and longest_record * 2 >= total_bases:
+        return FASTA_FRAGMENTATION_SIGNAL_SINGLE_DOMINANT
     if longest_record * 10 >= total_bases * 9:
         return FASTA_FRAGMENTATION_SIGNAL_SINGLE_DOMINANT
     return FASTA_FRAGMENTATION_SIGNAL_FRAGMENTED
