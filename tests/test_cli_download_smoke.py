@@ -194,6 +194,7 @@ def test_download_smoke_prepare_write_outputs_isolated_pair(capsys, tmp_path):
 def test_download_smoke_inspect_accepts_annotated_prepare_plan(capsys, tmp_path):
     plan = tmp_path / "cache" / "ncbi" / "download_plan.tsv"
     outdir = tmp_path / "smoke-input"
+    inspection_outdir = tmp_path / "smoke-inspection"
     _write_download_plan(plan, [_planned_row("complete", "GCF_000002.1")])
     _write_assembly_candidates(
         tmp_path / "candidates" / "assembly_candidates.tsv",
@@ -223,14 +224,28 @@ def test_download_smoke_inspect_accepts_annotated_prepare_plan(capsys, tmp_path)
                 "inspect",
                 "--download-plan",
                 str(outdir / "bounded_download_smoke_plan.tsv"),
+                "--write",
+                "--outdir",
+                str(inspection_outdir),
             ]
         )
         == 2
     )
 
     payload = json.loads(capsys.readouterr().out)
+    rows = list(
+        csv.DictReader(
+            (inspection_outdir / "bounded_download_smoke_inspection.tsv").open(
+                newline="", encoding="utf-8"
+            ),
+            delimiter="\t",
+        )
+    )
     summary = payload["bounded_download_smoke_inspection_summary"]
     assert payload["status"] == "blocked"
+    assert rows[0]["assembly_level"] == "Complete Genome"
+    assert rows[0]["refseq_category"] == "reference genome"
+    assert rows[0]["quality_tier"] == "high"
     assert summary["selected_row_count"] == 1
     assert summary["blockers"] == ["missing_zip_outputs"]
 
@@ -1296,6 +1311,9 @@ def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
         )
     )
     assert payload["writes_outputs"] is True
+    assert rows[0]["assembly_level"] == "unknown"
+    assert rows[0]["refseq_category"] == "unknown"
+    assert rows[0]["quality_tier"] == "unknown"
     assert rows[0]["fasta_quality_gate_blockers"] == (
         "fasta_n50_below_minimum;"
         "fasta_record_count_above_maximum;"
@@ -1421,6 +1439,9 @@ def test_download_smoke_inspect_write_outputs_isolated_pair(capsys, tmp_path):
     )
     assert payload["writes_outputs"] is True
     assert rows[0]["status"] == "genome_fasta_present"
+    assert rows[0]["assembly_level"] == "unknown"
+    assert rows[0]["refseq_category"] == "unknown"
+    assert rows[0]["quality_tier"] == "unknown"
     assert rows[0]["zip_valid"] == "true"
     assert rows[0]["unsafe_zip_member_count"] == "0"
     assert rows[0]["genome_fasta_present"] == "true"
