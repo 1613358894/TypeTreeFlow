@@ -645,10 +645,12 @@ unless the task explicitly asks for them.
 report/package surface are local audit steps. They may inspect or package
 already-created bounded smoke ZIP artifacts and record bounded FASTA count
 statistics, FASTA N50 bases, controlled FASTA header keyword counts, and a
-descriptive FASTA fragmentation signal, but they do not authorize unattended
-downloads, rerun `datasets`, extract ZIPs, write raw sequence text or raw FASTA
-headers, mutate manifests, contact providers, create strict scientific
-deliverables, or decide genome usability.
+descriptive FASTA fragmentation signal. The default fragmentation quality
+profile may block bounded-smoke readiness for obvious scaffold/contig/WGS-like
+outputs, but it does not authorize unattended downloads, rerun `datasets`,
+extract ZIPs, write raw sequence text or raw FASTA headers, mutate manifests,
+contact providers, create strict scientific deliverables, or decide final
+genome usability.
 
 ## Provider Boundary
 

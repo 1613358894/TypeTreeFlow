@@ -1411,7 +1411,7 @@ def _build_parser() -> argparse.ArgumentParser:
     inspect.add_argument(
         "--quality-profile",
         choices=(QUALITY_PROFILE_NONE, QUALITY_PROFILE_FRAGMENTATION),
-        default=QUALITY_PROFILE_NONE,
+        default=QUALITY_PROFILE_FRAGMENTATION,
     )
     inspect.add_argument("--block-fragmented-fasta", action="store_true")
     inspect.add_argument("--block-fasta-header-keywords", action="store_true")
