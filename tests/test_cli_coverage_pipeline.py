@@ -3695,6 +3695,140 @@ def _write_download_smoke_quality_review_decisions(path, rows=None):
     )
 
 
+def test_coverage_pipeline_server_validation_result_quality_review_template_dry_run(
+    capsys, tmp_path
+):
+    triage_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    _write_download_smoke_review_queue_triage(triage_path)
+
+    code, payload, captured = _run(
+        [
+            "quality-review-template",
+            "--triage",
+            str(triage_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["schema_version"] == (
+        "download_smoke_quality_review_decision_template.v1"
+    )
+    assert payload["command"] == (
+        "coverage-pipeline server-validation-result quality-review-template"
+    )
+    assert payload["status"] == "pass"
+    assert payload["template_row_count"] == 2
+    assert payload["output_written"] is False
+    assert payload["dry_run"] is True
+    assert payload["writes_outputs"] is False
+    assert payload["writes_workflow_outputs"] is False
+    assert payload["template_only"] is True
+    assert payload["completed_review"] is False
+    assert payload["accepted_for_bounded_smoke_count"] == 0
+    assert payload["accepted_for_final_use"] is False
+    assert payload["downloads_triggered"] == 0
+    assert payload["providers_contacted"] == 0
+    assert payload["network_access"] is False
+    assert payload["external_tools"] is False
+    assert payload["manifest_mutated"] is False
+    assert payload["strict_scientific_deliverable"] is False
+    assert payload["strict_upgrade_applied"] is False
+    assert payload["template_preview"][0] == {
+        "record_id": "GCF_000001.1",
+        "assembly_accession": "GCF_000001.1",
+        "quality_review_decision": "",
+        "decision_reason_code": "",
+        "reviewer_id": "",
+        "reviewed_at": "",
+    }
+
+
+def test_coverage_pipeline_server_validation_result_quality_review_template_writes_tsv(
+    capsys, tmp_path
+):
+    triage_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    output_path = tmp_path / "download_smoke_quality_review_decisions.tsv"
+    _write_download_smoke_review_queue_triage(triage_path)
+
+    code, payload, captured = _run(
+        [
+            "quality-review-template",
+            "--triage",
+            str(triage_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "pass"
+    assert payload["output_path"] == str(output_path)
+    assert payload["output_written"] is True
+    assert payload["writes_outputs"] is True
+    rows = _read_tsv(output_path)
+    assert rows == [
+        {
+            "record_id": "GCF_000001.1",
+            "assembly_accession": "GCF_000001.1",
+            "quality_review_decision": "",
+            "decision_reason_code": "",
+            "reviewer_id": "",
+            "reviewed_at": "",
+        },
+        {
+            "record_id": "GCF_000002.1",
+            "assembly_accession": "GCF_000002.1",
+            "quality_review_decision": "",
+            "decision_reason_code": "",
+            "reviewer_id": "",
+            "reviewed_at": "",
+        },
+    ]
+
+
+def test_coverage_pipeline_server_validation_result_quality_review_template_rejects_bad_output(
+    capsys, tmp_path
+):
+    triage_path = tmp_path / "download_smoke_review_queue_triage.tsv"
+    output_path = tmp_path / "download_smoke_quality_review_decisions.txt"
+    _write_download_smoke_review_queue_triage(triage_path)
+
+    code, payload, captured = _run(
+        [
+            "quality-review-template",
+            "--triage",
+            str(triage_path),
+            "--write",
+            "--out",
+            str(output_path),
+            "--json",
+        ],
+        capsys,
+        action="server-validation-result",
+    )
+
+    assert code == 1
+    assert captured.err == ""
+    assert captured.out.count("\n") == 1
+    assert payload["status"] == "failed"
+    assert payload["diagnostics"][0]["diagnostic_code"] == (
+        "quality_review_template_output_write_failed"
+    )
+    assert payload["output_written"] is False
+    assert not output_path.exists()
+
+
 def test_coverage_pipeline_server_validation_result_quality_review_dry_run(
     capsys, tmp_path
 ):

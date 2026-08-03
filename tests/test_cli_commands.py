@@ -287,6 +287,30 @@ SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS = [
     "external_genomes_registration_applied",
     "execution_boundary",
 ]
+SERVER_VALIDATION_RESULT_QUALITY_REVIEW_TEMPLATE_SUMMARY_FIELDS = [
+    "status",
+    "template_row_count",
+    "template_preview_truncated",
+    "output_path",
+    "output_written",
+    "template_only",
+    "completed_review",
+    "accepted_for_bounded_smoke_count",
+    "accepted_for_final_use",
+    "diagnostic_count",
+    "dry_run",
+    "writes_outputs",
+    "writes_workflow_outputs",
+    "downloads_triggered",
+    "providers_contacted",
+    "network_access",
+    "external_tools",
+    "manifest_mutated",
+    "strict_scientific_deliverable",
+    "strict_upgrade_applied",
+    "external_genomes_registration_applied",
+    "execution_boundary",
+]
 SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SUMMARY_FIELDS = [
     "status",
     "row_count",
@@ -675,6 +699,12 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
             "download_smoke_review_queue_triage.v1",
             "local-only bounded FASTA-quality review queue triage",
             SERVER_VALIDATION_RESULT_TRIAGE_QUEUE_SUMMARY_FIELDS,
+        ),
+        ("coverage-pipeline", "server-validation-result quality-review-template"): (
+            "download_smoke_quality_review_decision_template",
+            "download_smoke_quality_review_decision_template.v1",
+            "local-only bounded FASTA-quality review decision template",
+            SERVER_VALIDATION_RESULT_QUALITY_REVIEW_TEMPLATE_SUMMARY_FIELDS,
         ),
         ("coverage-pipeline", "server-validation-result quality-review"): (
             "download_smoke_quality_review",
@@ -2134,6 +2164,92 @@ def test_commands_recognize_accepts_coverage_pipeline_result_triage_queue(capsys
     assert payload["recognized"]["requires_outdir"] is False
     assert _output_contract_names(payload) == {
         "download_smoke_review_queue_triage"
+    }
+
+
+def test_commands_render_emits_coverage_pipeline_result_quality_review_template_argv(
+    capsys,
+):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"coverage-pipeline",'
+                    '"subcommand":"server-validation-result quality-review-template",'
+                    '"triage":"download_smoke_review_queue_triage.tsv",'
+                    '"write":true,'
+                    '"out":"download_smoke_quality_review_decisions.tsv",'
+                    '"force":true,'
+                    '"json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "coverage-pipeline",
+        "server-validation-result",
+        "quality-review-template",
+        "--triage",
+        "download_smoke_review_queue_triage.tsv",
+        "--write",
+        "--out",
+        "download_smoke_quality_review_decisions.tsv",
+        "--force",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert (
+        payload["recognized"]["subcommand"]
+        == "server-validation-result quality-review-template"
+    )
+    assert payload["recognized"]["mode"] == "coverage_pipeline"
+    assert payload["recognized"]["requires_outdir"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert _output_contract_names(payload) == {
+        "download_smoke_quality_review_decision_template"
+    }
+    assert payload["output_contracts"][0]["summary_fields"] == (
+        SERVER_VALIDATION_RESULT_QUALITY_REVIEW_TEMPLATE_SUMMARY_FIELDS
+    )
+
+
+def test_commands_recognize_accepts_coverage_pipeline_result_quality_review_template(
+    capsys,
+):
+    assert (
+        main(
+            [
+                "commands",
+                "recognize",
+                "--argv-json",
+                (
+                    '["coverage-pipeline","server-validation-result",'
+                    '"quality-review-template","--triage","triage.tsv",'
+                    '"--write","--out","decisions.tsv","--json"]'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["recognized"]["command"] == "coverage-pipeline"
+    assert (
+        payload["recognized"]["subcommand"]
+        == "server-validation-result quality-review-template"
+    )
+    assert payload["recognized"]["invalid"] is False
+    assert payload["recognized"]["unknown"] is False
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert payload["recognized"]["requires_outdir"] is False
+    assert _output_contract_names(payload) == {
+        "download_smoke_quality_review_decision_template"
     }
 
 

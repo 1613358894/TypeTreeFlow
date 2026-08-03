@@ -41,6 +41,7 @@ _ACQUISITION_WORKLIST_SUBCOMMANDS = {"build"}
 _COVERAGE_PIPELINE_SUBCOMMANDS = {
     "build",
     "server-validation-result quality-review",
+    "server-validation-result quality-review-template",
     "preview",
     "server-validation-result review-queue",
     "server-validation-result triage-queue",
@@ -415,6 +416,7 @@ def _writes_outputs_declared(
         return subcommand in {
             "build",
             "server-validation-result quality-review",
+            "server-validation-result quality-review-template",
             "server-validation-result review-queue",
             "server-validation-result triage-queue",
         } and "--write" in tokens
