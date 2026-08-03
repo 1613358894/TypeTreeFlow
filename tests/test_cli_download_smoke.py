@@ -412,6 +412,46 @@ def test_download_smoke_execute_dry_run_validates_command_manifest(
     assert summary["executed_command_count"] == 0
     assert summary["status_counts"] == {"execution_planned": 1}
     assert summary["ready"] is True
+    assert summary["recommended_inspection_request_target"] == "download-smoke inspect"
+    assert summary["recommended_inspection_request"] == {
+        "command": "download-smoke",
+        "subcommand": "inspect",
+        "download_plan": str(commands.parent / "bounded_download_smoke_plan.tsv"),
+        "write": True,
+        "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
+        "quality_profile": "fragmentation",
+    }
+    assert summary["recommended_inspection_next_command"] == (
+        "typetreeflow download-smoke inspect --download-plan "
+        f"{commands.parent / 'bounded_download_smoke_plan.tsv'} "
+        "--quality-profile fragmentation --write --outdir "
+        "<isolated-bounded-download-smoke-inspection-dir>"
+    )
+    assert summary["recommended_inspection_command"] == [
+        "typetreeflow",
+        "download-smoke",
+        "inspect",
+        "--download-plan",
+        str(commands.parent / "bounded_download_smoke_plan.tsv"),
+        "--quality-profile",
+        "fragmentation",
+        "--write",
+        "--outdir",
+        "<isolated-bounded-download-smoke-inspection-dir>",
+    ]
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(summary["recommended_inspection_request"]),
+            ]
+        )
+        == 0
+    )
+    rendered = json.loads(capsys.readouterr().out)
+    assert rendered["target_argv"] == summary["recommended_inspection_command"][1:]
     assert rows[0]["command_valid"] == "true"
     assert rows[0]["executed"] == "false"
     assert rows[0]["status"] == "execution_planned"
