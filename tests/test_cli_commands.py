@@ -2660,6 +2660,8 @@ def test_commands_render_emits_download_smoke_quality_gate_argv(capsys):
     assert "assembly_metadata_high_quality_fasta_quality_blocked_count" in (
         summary_fields
     )
+    assert "recommended_quality_gate_request" in summary_fields
+    assert "recommended_review_queue_request" in summary_fields
     assert "bounded_smoke_next_action" in summary_fields
     assert "bounded_smoke_next_action_reasons" in summary_fields
 

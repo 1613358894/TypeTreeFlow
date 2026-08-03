@@ -1494,8 +1494,15 @@ the default fragmentation profile, matching quality gates are already enabled.
 If fragmented FASTA or WGS/scaffold/contig header signals are observed without
 the matching quality gates enabled, the summary keeps the current `ready`
 semantics but returns `quality_gate_recommendation` and
-`recommended_quality_gate_command` so an operator can rerun a bounded local
-inspection with the fragmentation/header gates enabled.
+`recommended_quality_gate_request_target`, `recommended_quality_gate_request`,
+and `recommended_quality_gate_next_command` so a controller can rerun a bounded
+local inspection with the fragmentation/header gates enabled through
+`commands render`; `recommended_quality_gate_command` remains available as a
+compatibility argv list. When `inspect --write` succeeds on at least one
+bounded row, `recommended_review_queue_request_target`,
+`recommended_review_queue_request`, and `recommended_review_queue_next_command`
+point to the next local `coverage-pipeline server-validation-result
+review-queue` handoff for the written inspection directory.
 The inspection does not run `datasets`, extract ZIPs, write raw sequence text,
 access the network, contact providers, or mutate workflow outputs.
 
