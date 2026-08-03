@@ -8328,6 +8328,17 @@ def _coverage_parent_controller_packet(
     download_smoke_next_action = _server_validation_download_smoke_next_action(
         result_artifact_packet
     )
+    download_smoke_review_queue = _server_validation_download_smoke_review_queue(
+        result_artifact_packet
+    )
+    download_smoke_review_queue_count = _safe_int(
+        result_artifact_packet.get(
+            "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count",
+            0,
+        )
+    )
+    if download_smoke_review_queue_count == 0:
+        download_smoke_review_queue_count = len(download_smoke_review_queue)
     return {
         "schema_version": "coverage_parent_controller_packet.v1",
         "available": bool(controller_available or handoff_next_available),
@@ -8786,6 +8797,18 @@ def _coverage_parent_controller_packet(
         ),
         "handoff_server_validation_download_smoke_next_action_source": (
             download_smoke_next_action["source"]
+        ),
+        "handoff_server_validation_download_smoke_review_queue": (
+            download_smoke_review_queue
+        ),
+        "handoff_server_validation_download_smoke_review_queue_count": (
+            download_smoke_review_queue_count
+        ),
+        "handoff_server_validation_download_smoke_review_queue_preview_truncated": (
+            result_artifact_packet.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+            )
+            is True
         ),
         "recommended_surface": recommended_surface,
         "recommended_action": recommended_action,
