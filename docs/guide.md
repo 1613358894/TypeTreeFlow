@@ -1221,6 +1221,23 @@ scope small and auditable.
 Before running a real NCBI download smoke, prepare an isolated input package
 from an existing dry-run download plan:
 
+After `verify-genus` stops with `selection_review_required`, first ask
+TypeTreeFlow to summarize the existing selection and planned-download artifacts
+instead of reconstructing strategy from paths or logs:
+
+```bash
+typetreeflow selection-review strategy \
+  --outdir <run> \
+  --limit 3
+```
+
+This command is read-only. It does not write files, run `datasets`, access the
+network, contact providers, mutate manifests, accept genomes for final use, or
+change strict type-strain status. Its JSON recommends the safest bounded smoke
+handoff when high-quality Complete Genome or Chromosome planned rows are
+available and keeps scaffold/contig or WGS-like outputs behind later local
+inspection gates.
+
 First inspect `selection/download_plan_readiness_summary.json` (or the same
 object in `status --json`). Its planned-row assembly-quality counts separate
 Complete Genome/Chromosome from Scaffold/Contig and report missing metadata as

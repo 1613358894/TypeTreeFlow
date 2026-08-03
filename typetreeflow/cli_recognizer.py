@@ -19,6 +19,7 @@ _KNOWN_TOP_LEVEL_COMMANDS = (
         "readiness",
         "acquisition-worklist",
         "coverage-pipeline",
+        "selection-review",
         "count-crosswalk",
         "archive-candidates",
         "coverage-plan",
@@ -66,6 +67,7 @@ _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
 _DOWNLOAD_SMOKE_SUBCOMMANDS = {"prepare", "inspect"}
+_SELECTION_REVIEW_SUBCOMMANDS = {"strategy"}
 _COMMANDS_SUBCOMMANDS = {"catalog", "plan", "preflight", "recognize", "render"}
 
 
@@ -87,6 +89,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
     is_readiness = first == "readiness"
     is_acquisition_worklist = first == "acquisition-worklist"
     is_coverage_pipeline = first == "coverage-pipeline"
+    is_selection_review = first == "selection-review"
     is_count_crosswalk = first == "count-crosswalk"
     is_archive_candidates = first == "archive-candidates"
     is_coverage_plan = first == "coverage-plan"
@@ -137,6 +140,15 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         unknown = (
             subcommand is not None
             and subcommand not in _COVERAGE_PIPELINE_SUBCOMMANDS
+        )
+    elif is_selection_review:
+        command = "selection-review"
+        subcommand = tokens[1] if len(tokens) > 1 else None
+        mode = "selection_review"
+        invalid = subcommand not in _SELECTION_REVIEW_SUBCOMMANDS
+        unknown = (
+            subcommand is not None
+            and subcommand not in _SELECTION_REVIEW_SUBCOMMANDS
         )
     elif is_count_crosswalk:
         command = "count-crosswalk"
@@ -294,6 +306,7 @@ def recognize_cli_command(argv: Sequence[str]) -> dict[str, object]:
         "is_readiness": is_readiness,
         "is_acquisition_worklist": is_acquisition_worklist,
         "is_coverage_pipeline": is_coverage_pipeline,
+        "is_selection_review": is_selection_review,
         "is_count_crosswalk": is_count_crosswalk,
         "is_archive_candidates": is_archive_candidates,
         "is_coverage_plan": is_coverage_plan,
@@ -477,6 +490,8 @@ def _requires_outdir(
         return subcommand == "build" and writes_outputs_declared
     if command == "coverage-pipeline":
         return subcommand == "build" and writes_outputs_declared
+    if command == "selection-review":
+        return subcommand == "strategy"
     if command == "download-smoke":
         return subcommand in {"prepare", "inspect"} and writes_outputs_declared
     if command == "count-crosswalk":
