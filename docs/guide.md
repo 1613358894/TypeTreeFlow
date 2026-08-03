@@ -1283,6 +1283,10 @@ inspection gates. `--bounded-smoke-outdir` only fills in the later
 itself still writes nothing. The JSON `selected_datasets_command_preview` field
 is preview-only, and `handoff_checklist` marks actual bounded `datasets`
 execution plus final genome acceptance as separate approval/review steps.
+When that isolated outdir is supplied, stdout also includes top-level
+`recommended_request` and `recommended_next_command` fields for the matching
+`download-smoke prepare --write` handoff. Without it, those fields stay empty
+so a controller does not guess a write location.
 
 First inspect `selection/download_plan_readiness_summary.json` (or the same
 object in `status --json`). Its planned-row assembly-quality counts separate
