@@ -878,6 +878,10 @@ def test_verify_genus_checkpoint_native_exit_zero_with_blocked_json(tmp_path):
     assert readiness["providers_contacted"] == 0
     first_action = payload["next_actions"][0]
     assert first_action["id"] == "selection_review_strategy"
+    assert "--bounded-smoke-outdir" in first_action["message"]
+    assert str(tmp_path / "handoffs" / "bounded_download_smoke") in first_action[
+        "message"
+    ]
     assert first_action["recommended_request_target"] == "selection-review strategy"
     assert first_action["recommended_request"] == {
         "command": "selection-review",
@@ -1483,6 +1487,7 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert payload["blocking"]
     assert payload["next_actions"][0]["id"] == "selection_review_strategy"
     assert "selection-review strategy" in payload["next_actions"][0]["message"]
+    assert "--bounded-smoke-outdir" in payload["next_actions"][0]["message"]
     strategy_action = payload["next_actions"][0]
     review_action = next(
         action
@@ -1891,6 +1896,7 @@ def test_verify_genus_live_flags_dry_run_remains_review_checkpoint(
     assert checkpoint["downloads_triggered"] is False
     assert payload["next_actions"][0]["id"] == "selection_review_strategy"
     assert "selection-review strategy" in payload["next_actions"][0]["message"]
+    assert "--bounded-smoke-outdir" in payload["next_actions"][0]["message"]
     commands = {
         command["id"]: command for command in checkpoint["recommended_commands"]
     }
