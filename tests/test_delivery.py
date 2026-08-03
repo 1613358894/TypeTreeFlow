@@ -10,6 +10,7 @@ import pytest
 from typetreeflow.cli import main
 from typetreeflow.delivery import DeliveryResult, package_results
 from typetreeflow.download_smoke_cli import (
+    EXECUTION_FIELDS as DOWNLOAD_SMOKE_EXECUTION_FIELDS,
     INSPECTION_FIELDS as DOWNLOAD_SMOKE_INSPECTION_FIELDS,
 )
 from typetreeflow.evidence.acquisition_worklist import (
@@ -37,6 +38,7 @@ from typetreeflow.workflow.state import StageState, WorkflowState, write_run_sta
 from tests.test_report_summary import (
     _write_coverage_plan_pair,
     _write_archive_candidates_triplet,
+    _write_download_smoke_execution_pair,
     _write_download_smoke_quality_review_triplet,
     _write_external_genomes_install_plan_triplet,
     _write_offline_readiness_pair,
@@ -649,6 +651,62 @@ def test_package_results_failed_handoff_excludes_download_readiness_summary(tmp_
 
 
 @pytest.mark.parametrize("include", ["reports", "all"])
+def test_package_results_includes_download_smoke_execution_pair_and_scope(
+    tmp_path, include
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    execution_dir = tmp_path / "isolated-download-smoke-execution"
+    _write_download_smoke_execution_pair(execution_dir)
+
+    result = package_results(
+        tmp_path,
+        include=include,
+        download_smoke_execution_dir=execution_dir,
+    )
+
+    delivered = result.delivery_dir / "download_smoke"
+    assert {path.name for path in delivered.iterdir()} == {
+        "bounded_download_smoke_execution.tsv",
+        "bounded_download_smoke_execution_summary.json",
+    }
+    scope_rows = _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    smoke_rows = [
+        row for row in scope_rows if row["artifact_path"].startswith("download_smoke/")
+    ]
+    assert len(smoke_rows) == 2
+    assert {row["scope"] for row in smoke_rows} == {"audit"}
+    assert {row["evidence_policy"] for row in smoke_rows} == {
+        "download_smoke_execution_audit"
+    }
+    assert {row["strict_scientific_deliverable"] for row in smoke_rows} == {
+        "false"
+    }
+    assert {row["recommended_use"] for row in smoke_rows} == {
+        "bounded download execution review"
+    }
+    assert {row["not_for"] for row in smoke_rows} == {
+        "final genome acceptance or strict deliverable gating"
+    }
+    assert {row["source_artifact"] for row in smoke_rows} == {
+        "download_smoke_execute"
+    }
+    assert _read_tsv(result.delivery_dir / "reports" / "artifact_scope.tsv") == scope_rows
+
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "Bounded Download Smoke Execution" in package_text
+    assert "Execution success means ZIP outputs are ready" in package_text
+    assert "does not accept genomes for final use" in package_text
+    assert "strict scientific deliverables" in package_text
+    assert "executed=1" in package_text
+    assert "downloads_triggered=1" in package_text
+    assert "zip_ready=1" in package_text
+
+
+@pytest.mark.parametrize("include", ["reports", "all"])
 def test_package_results_includes_download_smoke_inspection_pair_and_scope(
     tmp_path, include
 ):
@@ -798,6 +856,42 @@ def test_package_results_download_smoke_inspection_is_missing_safe(tmp_path):
         assert result.download_smoke_inspection_warnings == []
 
 
+def test_package_results_partial_download_smoke_execution_warns_and_copies_valid(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    execution_dir = tmp_path / "partial-download-smoke-execution"
+    _write_download_smoke_execution_pair(execution_dir)
+    (execution_dir / "bounded_download_smoke_execution_summary.json").write_text(
+        '{"schema_version":"wrong","providers_contacted":1}',
+        encoding="utf-8",
+    )
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        download_smoke_execution_dir=execution_dir,
+    )
+
+    assert (
+        result.delivery_dir / "download_smoke" / "bounded_download_smoke_execution.tsv"
+    ).exists()
+    assert not (
+        result.delivery_dir
+        / "download_smoke"
+        / "bounded_download_smoke_execution_summary.json"
+    ).exists()
+    assert result.download_smoke_execution_warnings == [
+        "bounded_download_smoke_execution_summary.json malformed"
+    ]
+    package_text = (
+        (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+        + (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    )
+    assert "bounded_download_smoke_execution_summary.json malformed" in package_text
+
+
 def test_package_results_partial_download_smoke_inspection_warns_and_copies_valid(
     tmp_path,
 ):
@@ -854,6 +948,59 @@ def test_package_results_failed_handoff_excludes_download_smoke_inspection(tmp_p
     assert "Bounded Download Smoke Inspection" not in (
         result.delivery_dir / "README_failure.md"
     ).read_text(encoding="utf-8")
+
+
+def test_package_results_failed_handoff_excludes_download_smoke_execution(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_failed_run_review_inputs(paths)
+    execution_dir = tmp_path / "download-smoke-execution"
+    _write_download_smoke_execution_pair(execution_dir)
+
+    result = package_results(
+        tmp_path,
+        include="reports",
+        failed_handoff=True,
+        download_smoke_execution_dir=execution_dir,
+    )
+
+    assert not (result.delivery_dir / "download_smoke").exists()
+    assert not (result.delivery_dir / "artifact_scope.tsv").exists()
+    assert "Bounded Download Smoke Execution" not in (
+        result.delivery_dir / "README_failure.md"
+    ).read_text(encoding="utf-8")
+
+
+def test_package_results_cli_accepts_download_smoke_execution_and_json(
+    tmp_path, capsys
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    execution_dir = tmp_path / "download-smoke-execution"
+    _write_download_smoke_execution_pair(execution_dir)
+
+    assert (
+        main(
+            [
+                "package-results",
+                "--outdir",
+                str(tmp_path),
+                "--include",
+                "reports",
+                "--download-smoke-execution-dir",
+                str(execution_dir),
+            ]
+        )
+        == 0
+    )
+    payload, raw_output = _package_stdout_payload(capsys)
+    assert raw_output.count("\n") == 1
+    assert payload["status"] in {"pass", "warning"}
+    assert (
+        tmp_path
+        / "delivery"
+        / "download_smoke"
+        / "bounded_download_smoke_execution_summary.json"
+    ).exists()
 
 
 def test_package_results_cli_accepts_download_smoke_inspection_and_json(

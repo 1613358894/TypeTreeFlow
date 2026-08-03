@@ -109,6 +109,7 @@ class AppConfig:
     archive_candidates_dir: Path | None = None
     offline_readiness_dir: Path | None = None
     strict_gating_dir: Path | None = None
+    download_smoke_execution_dir: Path | None = None
     download_smoke_inspection_dir: Path | None = None
     download_smoke_quality_review_dir: Path | None = None
 
