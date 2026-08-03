@@ -1597,9 +1597,10 @@ inclusion does not execute target commands, contact providers, trigger
 downloads, register external genomes, mutate manifests, or promote strict
 deliverables. If the result JSON includes optional bounded download-smoke
 inspection observations, package README and handoff text summarize only the
-controlled counts, quality-gate hits, passed/blocked rows, and blocker-code
-counts plus controlled quality-gate recommendation labels/reasons, never local
-recommended command paths, raw FASTA headers, or sequence content.
+controlled counts, high-quality assembly-metadata FASTA blocker summaries,
+quality-gate hits, passed/blocked rows, and blocker-code counts plus controlled
+quality-gate recommendation and bounded-smoke next-action labels/reasons, never
+local recommended command paths, raw FASTA headers, or sequence content.
 `--failed-handoff` excludes server-validation result artifacts.
 With an explicit `--offline-readiness-dir`, `--include reports` and
 `--include all` copy each validated readiness member under

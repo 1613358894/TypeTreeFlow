@@ -641,8 +641,10 @@ is omitted with a compact package warning. Valid input is copied under
 does not execute target commands, contact providers, trigger downloads,
 register external genomes, mutate manifests, or promote strict deliverables.
 When the JSON carries optional `download_smoke_inspection_` observation fields,
-README and handoff text summarize only controlled counts and quality-gate hits;
-they do not copy raw FASTA headers, sequence text, or ZIP contents.
+README and handoff text summarize only controlled counts, high-quality
+assembly-metadata FASTA blocker summaries, quality-gate hits, and bounded
+smoke next-action labels/reasons; they do not copy raw FASTA headers, sequence
+text, local command paths, or ZIP contents.
 Failed-handoff packages exclude this artifact.
 
 `--offline-readiness-dir <dir>` is accepted with `--report-only`. It is an
@@ -2819,8 +2821,9 @@ signals, FASTA header keyword rows, and installable genome FASTA ready/not-ready
 counts. It may also carry controlled installable genome FASTA fragmentation
 signal counts, installable FASTA header keyword row counts, installable genome
 FASTA not-ready reason counts, quality-gate passed/blocked row counts, a
-controlled blocker-count map, and controlled quality-gate recommendation
-labels/reasons.
+controlled blocker-count map, high-quality assembly-metadata local FASTA
+readiness and blocker counts, controlled quality-gate recommendation
+labels/reasons, and controlled bounded-smoke next-action labels/reasons.
 It does not carry local recommended quality-gate command paths.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
@@ -2833,7 +2836,9 @@ optional source commit, TypeTreeFlow version, runtime Python, evidence run
 path, check count, failed count, optional observed external-registration
 realization fields, optional bounded download-smoke inspection observation
 fields including the active inspection quality profile and quality-gate blocker
-switches, and validation diagnostics. Invalid explicit results make status fail
+switches, high-quality assembly-metadata FASTA blocker summaries, bounded
+smoke next-action labels/reasons, and validation diagnostics. Invalid explicit
+results make status fail
 closed; omitting the option leaves the packet at `status=no_action`.
 This is still a local result-shape/status read and does not execute the target
 command, contact providers, download genomes, mutate manifests, or register

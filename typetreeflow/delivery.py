@@ -122,6 +122,13 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_genome_fasta_present_count: int = 0
     download_smoke_inspection_installable_genome_fasta_ready_count: int = 0
     download_smoke_inspection_installable_genome_fasta_not_ready_count: int = 0
+    download_smoke_inspection_assembly_metadata_high_quality_row_count: int = 0
+    download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count: (
+        int
+    ) = 0
+    download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count: (
+        int
+    ) = 0
     download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count: (
         int
     ) = 0
@@ -139,6 +146,9 @@ class ServerValidationResultPackageSummary:
     download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts: (
         dict[str, int]
     ) = field(default_factory=dict)
+    download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts: (
+        dict[str, int]
+    ) = field(default_factory=dict)
     download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts: (
         dict[str, int]
     ) = field(default_factory=dict)
@@ -147,6 +157,10 @@ class ServerValidationResultPackageSummary:
     )
     download_smoke_inspection_quality_gate_recommendation: str = ""
     download_smoke_inspection_quality_gate_recommendation_reasons: list[str] = (
+        field(default_factory=list)
+    )
+    download_smoke_inspection_bounded_smoke_next_action: str = ""
+    download_smoke_inspection_bounded_smoke_next_action_reasons: list[str] = (
         field(default_factory=list)
     )
     warnings: list[str] = field(default_factory=list)
@@ -1981,6 +1995,30 @@ def _read_optional_server_validation_result(
                 )
             )
         ),
+        download_smoke_inspection_assembly_metadata_high_quality_row_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_row_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count",
+                    0,
+                )
+            )
+        ),
+        download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count=(
+            _safe_nonnegative_int_value(
+                payload.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count",
+                    0,
+                )
+            )
+        ),
         download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count=(
             _safe_nonnegative_int_value(
                 payload.get(
@@ -2082,6 +2120,13 @@ def _read_optional_server_validation_result(
                 )
             )
         ),
+        download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts=(
+            _safe_count_map_value(
+                payload.get(
+                    "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts"
+                )
+            )
+        ),
         download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts=(
             _safe_count_map_value(
                 payload.get(
@@ -2108,6 +2153,21 @@ def _read_optional_server_validation_result(
             _safe_string_list_value(
                 payload.get(
                     "download_smoke_inspection_quality_gate_recommendation_reasons"
+                )
+            )
+        ),
+        download_smoke_inspection_bounded_smoke_next_action=(
+            str(payload.get("download_smoke_inspection_bounded_smoke_next_action", ""))
+            if isinstance(
+                payload.get("download_smoke_inspection_bounded_smoke_next_action", ""),
+                str,
+            )
+            else ""
+        ),
+        download_smoke_inspection_bounded_smoke_next_action_reasons=(
+            _safe_string_list_value(
+                payload.get(
+                    "download_smoke_inspection_bounded_smoke_next_action_reasons"
                 )
             )
         ),
@@ -4497,6 +4557,9 @@ def _server_validation_download_smoke_observations_available(
             audit.download_smoke_inspection_genome_fasta_present_count,
             audit.download_smoke_inspection_installable_genome_fasta_ready_count,
             audit.download_smoke_inspection_installable_genome_fasta_not_ready_count,
+            audit.download_smoke_inspection_assembly_metadata_high_quality_row_count,
+            audit.download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count,
+            audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count,
             audit.download_smoke_inspection_installable_genome_fasta_header_fragment_keyword_row_count,
             audit.download_smoke_inspection_empty_genome_fasta_count,
             audit.download_smoke_inspection_multiple_genome_fasta_members_count,
@@ -4513,11 +4576,16 @@ def _server_validation_download_smoke_observations_available(
                 audit.download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts
             ),
             bool(
+                audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts
+            ),
+            bool(
                 audit.download_smoke_inspection_installable_genome_fasta_fragmentation_signal_counts
             ),
             bool(audit.download_smoke_inspection_fasta_quality_gate_blocker_counts),
             audit.download_smoke_inspection_quality_gate_recommendation,
             bool(audit.download_smoke_inspection_quality_gate_recommendation_reasons),
+            audit.download_smoke_inspection_bounded_smoke_next_action,
+            bool(audit.download_smoke_inspection_bounded_smoke_next_action_reasons),
         )
     )
 
@@ -4548,6 +4616,21 @@ def _server_validation_download_smoke_observation_lines(
             "- Bounded download-smoke installable genome FASTA not-ready reasons: "
             + _format_download_smoke_count_value(
                 audit.download_smoke_inspection_installable_genome_fasta_not_ready_reason_counts
+            )
+        ),
+        (
+            "- Bounded download-smoke assembly-metadata high-quality rows: "
+            "total="
+            f"{audit.download_smoke_inspection_assembly_metadata_high_quality_row_count}, "
+            "installable_ready="
+            f"{audit.download_smoke_inspection_assembly_metadata_high_quality_installable_ready_count}, "
+            "local_fasta_quality_blocked="
+            f"{audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count}"
+        ),
+        (
+            "- Bounded download-smoke assembly-metadata high-quality FASTA blocker counts: "
+            + _format_download_smoke_count_value(
+                audit.download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocker_counts
             )
         ),
         (
@@ -4602,6 +4685,16 @@ def _server_validation_download_smoke_observation_lines(
             "- Bounded FASTA quality-gate recommendation reasons: "
             + _format_download_smoke_string_list(
                 audit.download_smoke_inspection_quality_gate_recommendation_reasons
+            )
+        ),
+        (
+            "- Bounded download-smoke next action: "
+            f"{audit.download_smoke_inspection_bounded_smoke_next_action or 'none'}"
+        ),
+        (
+            "- Bounded download-smoke next action reasons: "
+            + _format_download_smoke_string_list(
+                audit.download_smoke_inspection_bounded_smoke_next_action_reasons
             )
         ),
     ]
