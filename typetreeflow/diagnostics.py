@@ -21,6 +21,7 @@ from typetreeflow.genomes.registration_quality import (
     summarize_registration_fasta_quality,
 )
 from typetreeflow.manifest import read_manifest
+from typetreeflow.selection_review_cli import default_bounded_smoke_outdir
 from typetreeflow.workflow.next_action import (
     can_refine_failed_run_state_next_action as _can_refine_failed_run_state_next_action,
 )
@@ -764,6 +765,7 @@ def _selection_review_strategy_request(
         "command": "selection-review",
         "subcommand": "strategy",
         "outdir": outdir,
+        "bounded_smoke_outdir": str(default_bounded_smoke_outdir(outdir)),
         "json": True,
     }
 
@@ -772,6 +774,13 @@ def _selection_review_strategy_next_command(request: dict[str, object]) -> str:
     outdir = str(request.get("outdir", "")).strip()
     if not outdir:
         return ""
+    bounded_smoke_outdir = str(request.get("bounded_smoke_outdir", "")).strip()
+    if bounded_smoke_outdir:
+        return (
+            "typetreeflow selection-review strategy "
+            f"--outdir {outdir} --bounded-smoke-outdir "
+            f"{bounded_smoke_outdir} --json"
+        )
     return f"typetreeflow selection-review strategy --outdir {outdir} --json"
 
 
