@@ -681,6 +681,20 @@ def _verify_genus_checkpoint_guidance(
         "review_artifacts": review_artifacts,
         "recommended_commands": [
             {
+                "id": "selection_review_strategy",
+                "argv": [
+                    "typetreeflow",
+                    "selection-review",
+                    "strategy",
+                    "--outdir",
+                    outdir,
+                ],
+                "purpose": (
+                    "summarize selection and planned-download strategy as "
+                    "compact JSON; does not write files or run datasets"
+                ),
+            },
+            {
                 "id": "status",
                 "argv": ["typetreeflow", "status", "--outdir", outdir],
                 "purpose": "inspect current workflow state as compact JSON",

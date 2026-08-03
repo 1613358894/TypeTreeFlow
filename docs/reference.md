@@ -34,11 +34,11 @@ Primary commands write compact JSON to stdout by default. This does not require
   stdout also includes `checkpoint.id=selection_review_required`. That object
   lists the review artifacts (`selection/user_selection.tsv`, `manifest.tsv`,
   `report/summary.md`, and the readiness summary when present), safe inspection
-  commands (`status`, `next-step`, and bounded `download-smoke prepare`), and
-  actions that remain forbidden without separate explicit approval. The
-  checkpoint is a controlled continuation point, not a download failure,
-  download authorization, final genome acceptance, or strict type-strain
-  promotion.
+  commands (`selection-review strategy`, `status`, `next-step`, and bounded
+  `download-smoke prepare`), and actions that remain forbidden without separate
+  explicit approval. The checkpoint is a controlled continuation point, not a
+  download failure, download authorization, final genome acceptance, or strict
+  type-strain promotion.
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
   still require separate explicit authorization.
