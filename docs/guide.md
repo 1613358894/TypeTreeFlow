@@ -799,6 +799,19 @@ typetreeflow coverage-pipeline server-validation-result review-queue \
   --json
 ```
 
+If the parent agent already has an explicit bounded `download-smoke inspect`
+directory, the same review queue can be exported without first wrapping the
+inspection summary in a server-validation-result JSON:
+
+```bash
+typetreeflow coverage-pipeline server-validation-result review-queue \
+  --download-smoke-inspection-dir <bounded_download_smoke_inspection_dir> \
+  --write --out <download_smoke_review_queue.tsv> \
+  --json
+```
+
+Use exactly one of `--input` or `--download-smoke-inspection-dir`.
+
 The export writes only the explicit TSV path and does not inspect ZIP files,
 execute downloads, contact providers, mutate manifests, install genomes, or
 change strict scientific status.

@@ -824,7 +824,8 @@ def _build_parser() -> argparse.ArgumentParser:
         external_genomes_install_target_outdir=None,
     )
     result_review_queue = result_actions.add_parser("review-queue", add_help=False)
-    result_review_queue.add_argument("--input", required=True)
+    result_review_queue.add_argument("--input")
+    result_review_queue.add_argument("--download-smoke-inspection-dir")
     result_review_queue.add_argument("--write", action="store_true")
     result_review_queue.add_argument("--out")
     result_review_queue.add_argument("--force", action="store_true")
@@ -2053,16 +2054,22 @@ def _run_server_validation_result_validate(
 def _run_server_validation_result_review_queue(
     args: argparse.Namespace, output: TextIO
 ) -> int:
-    input_path = Path(args.input)
+    input_path = Path(args.input) if args.input is not None else None
+    inspection_dir = (
+        Path(args.download_smoke_inspection_dir)
+        if args.download_smoke_inspection_dir is not None
+        else None
+    )
     output_path = Path(args.out) if args.out is not None else None
     if (
         (args.write and output_path is None)
         or (output_path is not None and not args.write)
         or (args.force and not args.write)
+        or ((input_path is None) == (inspection_dir is None))
     ):
         _emit(
             _server_validation_result_review_queue_payload(
-                input_path=input_path,
+                input_path=input_path or inspection_dir or Path(""),
                 output_path=output_path,
                 validation_payload=None,
                 status="blocked",
@@ -2076,23 +2083,32 @@ def _run_server_validation_result_review_queue(
 
     diagnostics: list[dict[str, object]] = []
     try:
-        result = _read_json_artifact(
-            input_path,
-            component="server_validation_result",
-            diagnostics=diagnostics,
-            required=True,
-        )
-        validation = _validate_server_validation_result(result, diagnostics)
-        validation_payload = _server_validation_result_validation_payload(
-            result,
-            validation,
-            diagnostics,
-            input_path=input_path,
-        )
+        if input_path is not None:
+            result = _read_json_artifact(
+                input_path,
+                component="server_validation_result",
+                diagnostics=diagnostics,
+                required=True,
+            )
+            validation = _validate_server_validation_result(result, diagnostics)
+            validation_payload = _server_validation_result_validation_payload(
+                result,
+                validation,
+                diagnostics,
+                input_path=input_path,
+            )
+            source_path = input_path
+        else:
+            assert inspection_dir is not None
+            validation_payload = _download_smoke_inspection_review_queue_payload(
+                inspection_dir,
+                diagnostics,
+            )
+            source_path = inspection_dir
     except Exception:
         _emit(
             _server_validation_result_review_queue_payload(
-                input_path=input_path,
+                input_path=input_path or inspection_dir or Path(""),
                 output_path=output_path,
                 validation_payload=None,
                 status="failed",
@@ -2107,11 +2123,15 @@ def _run_server_validation_result_review_queue(
     if validation_payload["status"] != "pass":
         _emit(
             _server_validation_result_review_queue_payload(
-                input_path=input_path,
+                input_path=source_path,
                 output_path=output_path,
                 validation_payload=validation_payload,
                 status="blocked",
-                diagnostic_code="server_validation_result_invalid",
+                diagnostic_code=(
+                    "download_smoke_inspection_input_invalid"
+                    if inspection_dir is not None
+                    else "server_validation_result_invalid"
+                ),
                 output_written=False,
                 dry_run=not args.write,
             ),
@@ -2129,14 +2149,14 @@ def _run_server_validation_result_review_queue(
             _write_download_smoke_review_queue_tsv(
                 output_path,
                 queue,
-                input_path=input_path,
+                input_path=source_path,
                 force=args.force,
             )
             output_written = True
     except Exception:
         _emit(
             _server_validation_result_review_queue_payload(
-                input_path=input_path,
+                input_path=source_path,
                 output_path=output_path,
                 validation_payload=validation_payload,
                 status="failed",
@@ -2150,7 +2170,7 @@ def _run_server_validation_result_review_queue(
 
     _emit(
         _server_validation_result_review_queue_payload(
-            input_path=input_path,
+            input_path=source_path,
             output_path=output_path,
             validation_payload=validation_payload,
             status="pass",
@@ -3896,6 +3916,160 @@ def _server_validation_observation_fields(
                 or []
             )
     return fields
+
+
+def _download_smoke_inspection_review_queue_payload(
+    input_dir: Path,
+    diagnostics: list[dict[str, object]],
+) -> dict[str, object]:
+    summary_path = input_dir / "bounded_download_smoke_inspection_summary.json"
+    summary_sha256 = ""
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        diagnostics.append(
+            _diagnostic("download_smoke_inspection", "artifact_unreadable")
+        )
+        summary = {}
+    else:
+        try:
+            summary_sha256 = hashlib.sha256(summary_path.read_bytes()).hexdigest()
+        except OSError:
+            summary_sha256 = ""
+        summary = _read_json_artifact(
+            summary_path,
+            component="download_smoke_inspection",
+            diagnostics=diagnostics,
+            required=True,
+        )
+
+    if summary and summary.get("schema_version") != (
+        "bounded_download_smoke_inspection_summary.v1"
+    ):
+        diagnostics.append(
+            _diagnostic("download_smoke_inspection", "invalid_schema_version")
+        )
+    if summary and summary.get("execution_boundary") != (
+        "local_zip_inspection_only_no_download_no_network_no_extraction"
+    ):
+        diagnostics.append(
+            _diagnostic("download_smoke_inspection", "invalid_execution_boundary")
+        )
+    for field, expected in {
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+    }.items():
+        value = summary.get(field)
+        if expected is False:
+            invalid_boundary = value is not False
+        else:
+            invalid_boundary = (
+                not isinstance(value, int)
+                or isinstance(value, bool)
+                or value != expected
+            )
+        if summary and invalid_boundary:
+            diagnostics.append(
+                _diagnostic("download_smoke_inspection", f"invalid_{field}")
+            )
+
+    observations = _server_validation_observation_defaults()
+    if summary and not diagnostics:
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_FIELDS:
+            if field == "download_smoke_inspection_summary_sha256":
+                observations[field] = summary_sha256
+            elif field.startswith("download_smoke_inspection_"):
+                suffix = field.removeprefix("download_smoke_inspection_")
+                value = summary.get(suffix, "")
+                observations[field] = value if isinstance(value, str) else ""
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_BOOL_FIELDS:
+            if field == "download_smoke_inspection_realized":
+                observations[field] = True
+            elif field.startswith("download_smoke_inspection_"):
+                suffix = field.removeprefix("download_smoke_inspection_")
+                observations[field] = _optional_bool(summary.get(suffix))
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_COUNT_FIELDS:
+            if field.startswith("download_smoke_inspection_"):
+                suffix = field.removeprefix("download_smoke_inspection_")
+                observations[field] = _optional_nonnegative_int(summary.get(suffix))
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_MAP_FIELDS:
+            if field.startswith("download_smoke_inspection_"):
+                suffix = field.removeprefix("download_smoke_inspection_")
+                observations[field] = _safe_count_map(summary.get(suffix))
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_STRING_LIST_FIELDS:
+            if field.startswith("download_smoke_inspection_"):
+                suffix = field.removeprefix("download_smoke_inspection_")
+                observations[field] = _safe_string_list(summary.get(suffix))
+        for field in _SERVER_VALIDATION_RESULT_OPTIONAL_PREVIEW_FIELDS:
+            if field.startswith("download_smoke_inspection_"):
+                suffix = field.removeprefix("download_smoke_inspection_")
+                preview = _safe_server_validation_download_smoke_preview(
+                    summary.get(suffix)
+                )
+                if summary.get(suffix, []) and preview is None:
+                    diagnostics.append(
+                        _diagnostic(
+                            "download_smoke_inspection",
+                            f"invalid_{suffix}",
+                        )
+                    )
+                observations[field] = preview or []
+
+    status = "pass" if not diagnostics else "blocked"
+    download_smoke_next_action = _server_validation_download_smoke_next_action(
+        {
+            "available": True,
+            "status": status,
+            "validation_status": status,
+            **observations,
+        }
+    )
+    download_smoke_review_queue = _server_validation_download_smoke_review_queue(
+        observations
+    )
+    download_smoke_review_queue_count = _optional_nonnegative_int(
+        observations.get(
+            "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+        )
+    )
+    if download_smoke_review_queue_count == 0:
+        download_smoke_review_queue_count = len(download_smoke_review_queue)
+    return {
+        "schema_version": SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION,
+        "status": status,
+        "command": COMMAND_SERVER_VALIDATION_RESULT_VALIDATE,
+        "input_path": str(input_dir),
+        "validation_status": status,
+        "result_schema_version": (
+            str(summary.get("schema_version", "")) if summary else ""
+        ),
+        "result_status": str(summary.get("status", "")) if summary else "",
+        **observations,
+        "download_smoke_next_action": download_smoke_next_action["action"],
+        "download_smoke_next_action_reasons": download_smoke_next_action["reasons"],
+        "download_smoke_next_action_source": download_smoke_next_action["source"],
+        "download_smoke_review_queue": download_smoke_review_queue,
+        "download_smoke_review_queue_count": download_smoke_review_queue_count,
+        "download_smoke_review_queue_preview_truncated": _optional_bool(
+            observations.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+            )
+        ),
+        "diagnostic_count": len(diagnostics),
+        "diagnostics": [dict(entry) for entry in diagnostics],
+        "dry_run": True,
+        "writes_outputs": False,
+        "writes_workflow_outputs": False,
+        "downloads_triggered": 0,
+        "providers_contacted": 0,
+        "network_access": False,
+        "external_tools": False,
+        "manifest_mutated": False,
+        "strict_scientific_deliverable": False,
+        "external_genomes_registration_applied": False,
+    }
 
 
 def _stage_repair_queue(stage: Mapping[str, object] | None) -> dict[str, object]:
