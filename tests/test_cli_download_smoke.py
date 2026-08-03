@@ -1986,6 +1986,76 @@ def test_download_smoke_inspect_optional_quality_gates_block_fragmented_fasta(
     assert summary["providers_contacted"] == 0
 
 
+def test_download_smoke_inspect_fragmentation_profile_allows_complete_multireplicon(
+    capsys,
+    tmp_path,
+):
+    zip_path = tmp_path / "cache" / "ncbi" / "rec-1.zip"
+    plan = tmp_path / "bounded_download_smoke_plan.tsv"
+    _write_zip(
+        zip_path,
+        content=(
+            ">chromosome\n"
+            + "A" * 2897536
+            + "\n>plasmid_a\n"
+            + "C" * 800000
+            + "\n>plasmid_b\n"
+            + "G" * 576182
+            + "\n"
+        ),
+    )
+    _write_bounded_download_plan(
+        plan,
+        [
+            {
+                **_bounded_row(
+                    "rec-1",
+                    "GCF_000011805.1",
+                    assembly_level="Complete Genome",
+                    refseq_category="reference genome",
+                    quality_tier="high",
+                ),
+                "datasets_zip_path": str(zip_path),
+            }
+        ],
+    )
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "inspect",
+                "--download-plan",
+                str(plan),
+                "--quality-profile",
+                "fragmentation",
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_inspection_summary"]
+    assert payload["status"] == "pass"
+    assert summary["ready"] is True
+    assert summary["blockers"] == []
+    assert summary["installable_genome_fasta_ready_count"] == 1
+    assert summary["installable_genome_fasta_not_ready_reason_counts"] == {}
+    assert summary["fasta_record_count"] == 3
+    assert summary["fasta_total_bases"] == 4273718
+    assert summary["fasta_longest_record_bases"] == 2897536
+    assert summary["fasta_max_n50_bases"] == 2897536
+    assert summary["fasta_header_wgs_keyword_count"] == 0
+    assert summary["fasta_header_scaffold_keyword_count"] == 0
+    assert summary["fasta_header_contig_keyword_count"] == 0
+    assert summary["fasta_fragmentation_signal_counts"] == {
+        "multi_record_single_dominant": 1
+    }
+    assert summary["fasta_quality_gate_blocker_counts"] == {}
+    assert summary["assembly_metadata_high_quality_installable_ready_count"] == 1
+    assert summary["assembly_metadata_high_quality_fasta_quality_blocked_count"] == 0
+
+
 def test_download_smoke_inspect_write_outputs_row_quality_gate_blockers(
     capsys,
     tmp_path,
