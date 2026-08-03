@@ -359,6 +359,16 @@ def test_download_smoke_execute_dry_run_validates_command_manifest(
     commands = tmp_path / "bounded_download_smoke_commands.tsv"
     outdir = tmp_path / "execution"
     _write_commands_manifest(commands, [_command_row()])
+    _write_bounded_download_plan(
+        tmp_path / "bounded_download_smoke_plan.tsv",
+        [
+            _bounded_row(
+                assembly_level="Complete Genome",
+                refseq_category="reference genome",
+                quality_tier="high",
+            )
+        ],
+    )
 
     assert (
         main(
@@ -421,6 +431,7 @@ def test_download_smoke_execute_dry_run_validates_command_manifest(
         "outdir": "<isolated-bounded-download-smoke-inspection-dir>",
         "quality_profile": "fragmentation",
     }
+    assert summary["recommended_inspection_request_blockers"] == []
     assert summary["recommended_inspection_next_command"] == (
         "typetreeflow download-smoke inspect --download-plan "
         f"{commands.parent / 'bounded_download_smoke_plan.tsv'} "
@@ -455,6 +466,41 @@ def test_download_smoke_execute_dry_run_validates_command_manifest(
     assert rows[0]["command_valid"] == "true"
     assert rows[0]["executed"] == "false"
     assert rows[0]["status"] == "execution_planned"
+
+
+def test_download_smoke_execute_without_sibling_plan_blocks_inspect_handoff(
+    capsys, tmp_path
+):
+    commands = tmp_path / "bounded_download_smoke_commands.tsv"
+    outdir = tmp_path / "execution"
+    _write_commands_manifest(commands, [_command_row()])
+
+    assert (
+        main(
+            [
+                "download-smoke",
+                "execute",
+                "--commands-manifest",
+                str(commands),
+                "--write",
+                "--outdir",
+                str(outdir),
+            ]
+        )
+        == 0
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    summary = payload["bounded_download_smoke_execution_summary"]
+    assert payload["status"] == "pass"
+    assert summary["ready"] is True
+    assert summary["recommended_inspection_request_target"] == ""
+    assert summary["recommended_inspection_request"] == {}
+    assert summary["recommended_inspection_request_blockers"] == [
+        "bounded_download_smoke_plan_missing"
+    ]
+    assert summary["recommended_inspection_next_command"] == ""
+    assert summary["recommended_inspection_command"] == []
 
 
 def test_download_smoke_execute_blocks_mutated_command_manifest(capsys, tmp_path):

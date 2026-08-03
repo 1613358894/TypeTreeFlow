@@ -1380,7 +1380,10 @@ step. It does not install genomes, mutate workflow manifests, accept final
 genome usability, or create strict scientific deliverables. When execution audit
 outputs are written, stdout includes `recommended_inspection_request_target`,
 `recommended_inspection_request`, and `recommended_inspection_next_command` for
-the matching local `download-smoke inspect` handoff.
+the matching local `download-smoke inspect` handoff when the sibling
+`bounded_download_smoke_plan.tsv` is present. If that plan is missing, the
+request fields stay empty and
+`recommended_inspection_request_blockers=bounded_download_smoke_plan_missing`.
 
 To surface that bounded execution audit in an existing run report or delivery
 package, pass the isolated execution directory explicitly:
