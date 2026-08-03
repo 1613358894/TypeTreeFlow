@@ -399,6 +399,15 @@ def _format_verify_genus_envelope(
             else []
         ),
     }
+    checkpoint = _verify_genus_checkpoint_guidance(
+        paths,
+        config,
+        status=status,
+        reason=reason,
+        state=state,
+    )
+    if checkpoint:
+        payload["checkpoint"] = checkpoint
     download_plan_path = paths.cache_dir / "ncbi" / "download_plan.tsv"
     if download_plan_path.exists():
         payload["download_plan_readiness_summary"] = (
@@ -427,6 +436,8 @@ def _verify_genus_public_status_reason(
         stage.status for stage in state.stages.values()
     } if state is not None else set()
     if exit_code != 0:
+        if _looks_like_selection_review_required(error):
+            return "blocked", "manual_review_required"
         if (
             state_status == "blocked_by_dependency"
             or "blocked_by_dependency" in stage_statuses
@@ -488,6 +499,18 @@ def _looks_like_missing_dependency(error: Exception | None) -> bool:
         "required executable not found" in message
         or "not found on path" in message
         or "conda install" in message
+    )
+
+
+def _looks_like_selection_review_required(error: Exception | None) -> bool:
+    if error is None:
+        return False
+    message = str(error).lower()
+    return (
+        "manual_review_required" in message
+        or "selection_review_required" in message
+        or "review selection/user_selection.tsv before enabling downloads" in message
+        or "review selection/user_selection.tsv before guarded downloads" in message
     )
 
 
@@ -570,6 +593,8 @@ def _verify_genus_public_stage_status(status: str) -> str:
 
 
 def _verify_genus_error_id(error: Exception) -> str:
+    if _looks_like_selection_review_required(error):
+        return "manual_review_required"
     if _looks_like_missing_dependency(error):
         return "dependency_missing"
     if isinstance(error, ManifestError):
@@ -594,6 +619,115 @@ def _verify_genus_action_id(message: str) -> str:
     if "--resume" in lowered:
         return "resume_workflow"
     return "continue_workflow" if message else "none"
+
+
+def _verify_genus_checkpoint_guidance(
+    paths,
+    config: AppConfig,
+    *,
+    status: str,
+    reason: str,
+    state: WorkflowState | None,
+) -> dict[str, object]:
+    next_action = state.next_action if state is not None else ""
+    if reason != "manual_review_required" and "selection/user_selection.tsv" not in (
+        next_action.lower()
+    ):
+        return {}
+    review_artifacts = [
+        {
+            "id": "user_selection",
+            "path": str(paths.user_selection_path),
+            "required": paths.user_selection_path.exists(),
+            "purpose": "review planned selected genome rows before guarded downloads",
+        },
+        {
+            "id": "manifest",
+            "path": str(paths.manifest),
+            "required": paths.manifest.exists(),
+            "purpose": "inspect planned manifest rows; not evidence of downloaded genomes",
+        },
+        {
+            "id": "summary_report",
+            "path": str(paths.run_summary_path),
+            "required": paths.run_summary_path.exists(),
+            "purpose": "read workflow summary and audit-only sections",
+        },
+    ]
+    readiness_path = paths.download_plan_readiness_summary_path
+    if readiness_path.exists():
+        review_artifacts.append(
+            {
+                "id": "download_plan_readiness_summary",
+                "path": str(readiness_path),
+                "required": True,
+                "purpose": (
+                    "inspect bounded download readiness; does not authorize "
+                    "datasets execution"
+                ),
+            }
+        )
+    outdir = str(config.outdir)
+    genus = str(config.acquire_genus or config.genus or "")
+    return {
+        "id": "selection_review_required",
+        "kind": "review_checkpoint",
+        "status": status,
+        "safe_to_continue": True,
+        "requires_review_before_downloads": True,
+        "downloads_triggered": False,
+        "providers_contacted": False,
+        "manifest_contains_downloaded_genomes": False,
+        "review_artifacts": review_artifacts,
+        "recommended_commands": [
+            {
+                "id": "status",
+                "argv": ["typetreeflow", "status", "--outdir", outdir],
+                "purpose": "inspect current workflow state as compact JSON",
+            },
+            {
+                "id": "next_step",
+                "argv": ["typetreeflow", "next-step", "--outdir", outdir],
+                "purpose": "get the next safe operator or AI-controller action",
+            },
+            {
+                "id": "bounded_download_smoke_prepare",
+                "argv": [
+                    "typetreeflow",
+                    "coverage-pipeline",
+                    "download-smoke",
+                    "prepare",
+                    "--download-plan",
+                    str(paths.cache_dir / "ncbi" / "download_plan.tsv"),
+                    "--quality-tier",
+                    "recommended",
+                ],
+                "purpose": (
+                    "prepare an inspection-only bounded download command plan; "
+                    "does not run datasets"
+                ),
+            },
+        ],
+        "guarded_download_command_template": [
+            "typetreeflow",
+            "verify-genus",
+            genus or "<Genus>",
+            "--outdir",
+            outdir,
+            "--resume",
+            "--auto-accept-selection",
+            "--enable-downloads",
+        ],
+        "forbidden_without_explicit_approval": [
+            "install_or_update_external_tools",
+            "run_datasets_download",
+            "enable_downloads",
+            "enable_entrez",
+            "run_barrnap_fastani_mafft_trimal_iqtree",
+            "treat_scaffold_contig_or_wgs_fasta_as_final_genome",
+            "treat_candidate_rows_as_strict_type_strains",
+        ],
+    }
 
 
 def _verify_genus_counts(paths, config: AppConfig) -> dict[str, object]:

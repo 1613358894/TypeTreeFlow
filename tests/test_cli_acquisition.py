@@ -1368,6 +1368,45 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     assert readiness["manifest_mutated"] is False
     assert payload["blocking"]
     assert payload["next_actions"][0]["id"] == "review_user_selection"
+    checkpoint = payload["checkpoint"]
+    assert checkpoint["id"] == "selection_review_required"
+    assert checkpoint["kind"] == "review_checkpoint"
+    assert checkpoint["safe_to_continue"] is True
+    assert checkpoint["requires_review_before_downloads"] is True
+    assert checkpoint["downloads_triggered"] is False
+    assert checkpoint["providers_contacted"] is False
+    assert checkpoint["manifest_contains_downloaded_genomes"] is False
+    assert {
+        artifact["id"] for artifact in checkpoint["review_artifacts"]
+    } >= {
+        "user_selection",
+        "manifest",
+        "summary_report",
+        "download_plan_readiness_summary",
+    }
+    commands = {
+        command["id"]: command for command in checkpoint["recommended_commands"]
+    }
+    assert commands["status"]["argv"] == [
+        "typetreeflow",
+        "status",
+        "--outdir",
+        str(outdir),
+    ]
+    assert commands["next_step"]["argv"] == [
+        "typetreeflow",
+        "next-step",
+        "--outdir",
+        str(outdir),
+    ]
+    smoke_prepare = commands["bounded_download_smoke_prepare"]
+    assert "does not run datasets" in smoke_prepare["purpose"]
+    assert "--quality-tier" in smoke_prepare["argv"]
+    assert "run_datasets_download" in checkpoint["forbidden_without_explicit_approval"]
+    assert (
+        "treat_scaffold_contig_or_wgs_fasta_as_final_genome"
+        in checkpoint["forbidden_without_explicit_approval"]
+    )
     assert paths.user_selection_path.exists()
     assert paths.download_preflight_summary_path.exists()
     assert paths.download_plan_readiness_summary_path.exists()
