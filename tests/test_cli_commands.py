@@ -756,6 +756,16 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "--request-file",
         "--request-field",
     }
+    download_smoke_prepare = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"]) == ("download-smoke", "prepare")
+    )
+    assert download_smoke_prepare["argv_pattern"] == (
+        "typetreeflow download-smoke prepare --download-plan "
+        "<download_plan.tsv> --quality-tier recommended --limit 1 "
+        "--write --outdir <isolated-bounded-download-smoke-dir>"
+    )
     external_registration = next(
         entry
         for entry in catalog
