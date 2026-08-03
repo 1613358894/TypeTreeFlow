@@ -4114,6 +4114,26 @@ def _server_validation_result_quality_review_payload(
         diagnostics,
         status=status,
     )
+    report_only_request = (
+        _quality_review_report_only_recommended_request(outdir)
+        if output_written and outdir is not None
+        else {}
+    )
+    report_only_command = (
+        _recommended_next_command_from_request(report_only_request)
+        if report_only_request
+        else ""
+    )
+    package_request = (
+        _quality_review_package_recommended_request(outdir)
+        if output_written and outdir is not None
+        else {}
+    )
+    package_command = (
+        _recommended_next_command_from_request(package_request)
+        if package_request
+        else ""
+    )
     return {
         "schema_version": SERVER_VALIDATION_RESULT_QUALITY_REVIEW_SCHEMA_VERSION,
         "status": status,
@@ -4136,6 +4156,16 @@ def _server_validation_result_quality_review_payload(
         "allowed_decision_reason_codes": list(
             _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_QUALITY_REVIEW_REASON_CODES
         ),
+        "report_only_recommended_request": report_only_request,
+        "report_only_recommended_request_target": (
+            "verify-genus report-only" if report_only_request else ""
+        ),
+        "report_only_recommended_next_command": report_only_command,
+        "package_results_recommended_request": package_request,
+        "package_results_recommended_request_target": (
+            "package-results reports" if package_request else ""
+        ),
+        "package_results_recommended_next_command": package_command,
         "preview": [dict(row) for row in rows[:5]],
         "preview_truncated": len(rows) > 5,
         "dry_run": dry_run,
@@ -4257,6 +4287,30 @@ def _quality_review_recommended_request(
         "write": True,
         "outdir": "<download_smoke_quality_review_dir>",
         "json": True,
+    }
+
+
+def _quality_review_report_only_recommended_request(
+    review_dir: Path,
+) -> dict[str, object]:
+    return {
+        "command": "verify-genus",
+        "genus": "<Genus>",
+        "outdir": "<verify-genus-run-outdir>",
+        "resume": True,
+        "report_only": True,
+        "download_smoke_quality_review_dir": str(review_dir),
+    }
+
+
+def _quality_review_package_recommended_request(
+    review_dir: Path,
+) -> dict[str, object]:
+    return {
+        "command": "package-results",
+        "outdir": "<verify-genus-run-outdir>",
+        "include": "reports",
+        "download_smoke_quality_review_dir": str(review_dir),
     }
 
 

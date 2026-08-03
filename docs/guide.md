@@ -876,6 +876,12 @@ typetreeflow verify-genus <Genus> \
 The report section is audit-only. `bounded_smoke_quality_accepted` means
 bounded-smoke follow-up acceptance only; it is not final genome acceptance,
 type-strain confirmation, or a strict deliverable upgrade.
+When the quality-review triplet is written, stdout includes renderable
+`report_only_recommended_next_command` and
+`package_results_recommended_next_command` values for surfacing the explicit
+triplet in the workflow report or report package. These commands only expose
+the audit result; they do not install genomes, mutate manifests, or accept
+rows for final use.
 The server-validation result includes boundary flags so AI controllers can
 route the local validation result without parsing diagnostics. These
 observations can include quality-gate hit counts,
