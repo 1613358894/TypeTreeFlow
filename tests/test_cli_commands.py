@@ -766,6 +766,19 @@ def test_commands_catalog_emits_stable_ai_command_catalog(capsys):
         "<download_plan.tsv> --quality-tier recommended --limit 1 "
         "--write --outdir <isolated-bounded-download-smoke-dir>"
     )
+    download_smoke_execute = next(
+        entry
+        for entry in catalog
+        if (entry["command"], entry["subcommand"]) == ("download-smoke", "execute")
+    )
+    assert download_smoke_execute["write_behavior"] == (
+        "optional_isolated_execution_pair"
+    )
+    assert "--commands-manifest" in download_smoke_execute["argv_pattern"]
+    assert "--execute" in download_smoke_execute["argv_pattern"]
+    assert "bounded_download_smoke_execution_packet" in {
+        contract["name"] for contract in download_smoke_execute["output_contracts"]
+    }
     external_registration = next(
         entry
         for entry in catalog
@@ -2425,6 +2438,51 @@ def test_commands_render_emits_download_smoke_quality_gate_argv(capsys):
     )
     assert "bounded_smoke_next_action" in summary_fields
     assert "bounded_smoke_next_action_reasons" in summary_fields
+
+
+def test_commands_render_emits_download_smoke_execute_argv(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                (
+                    '{"command":"download-smoke","subcommand":"execute",'
+                    '"commands_manifest":"commands.tsv","limit":1,'
+                    '"execute":true,"write":true,'
+                    '"outdir":"execution","json":true}'
+                ),
+            ]
+        )
+        == 0
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert payload["target_argv"] == [
+        "download-smoke",
+        "execute",
+        "--commands-manifest",
+        "commands.tsv",
+        "--limit",
+        "1",
+        "--execute",
+        "--write",
+        "--outdir",
+        "execution",
+        "--json",
+    ]
+    assert payload["recognized"]["command"] == "download-smoke"
+    assert payload["recognized"]["subcommand"] == "execute"
+    assert payload["recognized"]["mode"] == "download_smoke"
+    assert payload["recognized"]["requires_outdir"] is True
+    assert payload["recognized"]["writes_outputs_declared"] is True
+    assert _output_contract_names(payload) == {
+        "bounded_download_smoke_execution_packet"
+    }
+    summary_fields = payload["output_contracts"][0]["summary_fields"]
+    assert "datasets_zip_ready_for_inspection_count" in summary_fields
+    assert "strict_scientific_deliverable" in summary_fields
 
 
 def test_commands_plan_allows_download_smoke_prepare_with_write_allowance(capsys):
@@ -4113,6 +4171,34 @@ def test_commands_preflight_blocks_non_dry_run_real_action_flags(capsys):
     ]
     assert payload["risk"]["network_flags"] == ["--enable-downloads"]
     assert payload["risk"]["external_tool_flags"] == ["--enable-phylo"]
+
+
+def test_commands_preflight_blocks_download_smoke_execute_without_allowances(capsys):
+    assert (
+        main(
+            [
+                "commands",
+                "preflight",
+                "--allow-write",
+                "--argv-json",
+                (
+                    '["download-smoke","execute","--commands-manifest",'
+                    '"commands.tsv","--execute","--write","--outdir","execution"]'
+                ),
+            ]
+        )
+        == 2
+    )
+
+    payload, _output = _stdout_payload(capsys)
+    assert [item["id"] for item in payload["blocking"]] == [
+        "real_actions_not_allowed",
+        "network_not_allowed",
+        "external_tools_not_allowed",
+    ]
+    assert payload["risk"]["real_action_flags"] == ["--execute"]
+    assert payload["risk"]["network_flags"] == ["--execute"]
+    assert payload["risk"]["external_tool_flags"] == ["--execute"]
 
 
 def test_commands_preflight_dry_run_real_action_flags_warn_without_blocking(capsys):

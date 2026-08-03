@@ -1301,6 +1301,35 @@ five corresponding command arrays for operator inspection. It does not run
 authorize broad downloads. The summary `handoff_checklist` keeps bounded
 `datasets` execution and final genome acceptance as separate approval/review
 steps.
+
+Before running any bounded datasets command, validate the command manifest and
+write an isolated execution audit:
+
+```bash
+typetreeflow download-smoke execute \
+  --commands-manifest <handoff>/bounded_download_smoke_commands.tsv \
+  --limit 1 \
+  --write \
+  --outdir <workspace>/handoffs/bounded_download_smoke_execution
+```
+
+That default mode is validation-only: it checks that each `command_json` exactly
+matches the bounded `datasets download genome accession ... --include genome
+--filename ...` contract and still reports `downloads_triggered=0`. A separately
+approved bounded smoke can add `--execute` to run only those pinned commands:
+
+```bash
+typetreeflow download-smoke execute \
+  --commands-manifest <handoff>/bounded_download_smoke_commands.tsv \
+  --limit 1 \
+  --execute \
+  --write \
+  --outdir <workspace>/handoffs/bounded_download_smoke_execution
+```
+
+Execution success only means the ZIP is ready for the next local inspection
+step. It does not install genomes, mutate workflow manifests, accept final
+genome usability, or create strict scientific deliverables.
 When `prepare --write` succeeds, `recommended_inspection_command` points to the
 matching local `download-smoke inspect` command for the written bounded plan;
 choose a fresh isolated inspection `--outdir` before running it. By default,

@@ -66,7 +66,7 @@ _EXTERNAL_GENOMES_SUBCOMMANDS = {
 _PROVIDERS_SUBCOMMANDS = {"catalog"}
 _CURATOR_PACKET_SUBCOMMANDS = {"preflight"}
 _STRICT_GATE_STATE_SUBCOMMANDS = {"project"}
-_DOWNLOAD_SMOKE_SUBCOMMANDS = {"prepare", "inspect"}
+_DOWNLOAD_SMOKE_SUBCOMMANDS = {"execute", "inspect", "prepare"}
 _SELECTION_REVIEW_SUBCOMMANDS = {"strategy"}
 _COMMANDS_SUBCOMMANDS = {"catalog", "plan", "preflight", "recognize", "render"}
 
@@ -419,7 +419,7 @@ def _writes_outputs_declared(
             "server-validation-result triage-queue",
         } and "--write" in tokens
     if command == "download-smoke":
-        return subcommand in {"prepare", "inspect"} and "--write" in tokens
+        return subcommand in {"execute", "inspect", "prepare"} and "--write" in tokens
     if command == "count-crosswalk":
         return subcommand == "build" and "--write" in tokens
     if command == "archive-candidates":
@@ -493,7 +493,7 @@ def _requires_outdir(
     if command == "selection-review":
         return subcommand == "strategy"
     if command == "download-smoke":
-        return subcommand in {"prepare", "inspect"} and writes_outputs_declared
+        return subcommand in {"execute", "inspect", "prepare"} and writes_outputs_declared
     if command == "count-crosswalk":
         return subcommand == "build" and writes_outputs_declared
     if command == "archive-candidates":
