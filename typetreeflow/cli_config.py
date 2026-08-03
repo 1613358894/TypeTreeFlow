@@ -259,6 +259,15 @@ def build_app_config_from_args(
             "or package-results."
         )
     if (
+        args.download_smoke_execution_dir is not None
+        and not args.report_only
+        and not package_results_command
+    ):
+        raise ValueError(
+            "--download-smoke-execution-dir is only supported with "
+            "--report-only or package-results."
+        )
+    if (
         args.download_smoke_inspection_dir is not None
         and not args.report_only
         and not package_results_command
@@ -389,6 +398,7 @@ def build_app_config_from_args(
         archive_candidates_dir=args.archive_candidates_dir,
         offline_readiness_dir=args.offline_readiness_dir,
         strict_gating_dir=args.strict_gating_dir,
+        download_smoke_execution_dir=args.download_smoke_execution_dir,
         download_smoke_inspection_dir=args.download_smoke_inspection_dir,
         download_smoke_quality_review_dir=args.download_smoke_quality_review_dir,
     )

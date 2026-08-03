@@ -1330,6 +1330,27 @@ typetreeflow download-smoke execute \
 Execution success only means the ZIP is ready for the next local inspection
 step. It does not install genomes, mutate workflow manifests, accept final
 genome usability, or create strict scientific deliverables.
+
+To surface that bounded execution audit in an existing run report or delivery
+package, pass the isolated execution directory explicitly:
+
+```bash
+typetreeflow verify-genus Clostridium \
+  --outdir <workspace>/runs/clostridium \
+  --report-only \
+  --download-smoke-execution-dir <workspace>/handoffs/bounded_download_smoke_execution
+
+typetreeflow package-results \
+  --outdir <workspace>/runs/clostridium \
+  --include reports \
+  --download-smoke-execution-dir <workspace>/handoffs/bounded_download_smoke_execution
+```
+
+The report/package surface is still audit-only. It copies or summarizes the
+bounded execution audit only and does not rerun `datasets`, inspect ZIP/FASTA
+payloads, mutate manifests, contact providers, accept final genome usability, or
+create strict deliverables. A `datasets_zip_ready_for_inspection` row only means
+the next required step is local `download-smoke inspect`.
 When `prepare --write` succeeds, `recommended_inspection_command` points to the
 matching local `download-smoke inspect` command for the written bounded plan;
 choose a fresh isolated inspection `--outdir` before running it. By default,

@@ -23,8 +23,12 @@ from typetreeflow.completion_gaps import (
     summarize_completion_gap_records,
 )
 from typetreeflow.download_smoke_cli import (
+    EXECUTION_FIELDS as DOWNLOAD_SMOKE_EXECUTION_FIELDS,
+    EXECUTION_SCHEMA_VERSION as DOWNLOAD_SMOKE_EXECUTION_SCHEMA_VERSION,
     INSPECTION_FIELDS as DOWNLOAD_SMOKE_INSPECTION_FIELDS,
     INSPECTION_SCHEMA_VERSION as DOWNLOAD_SMOKE_INSPECTION_SCHEMA_VERSION,
+    OUTPUT_EXECUTION_NAME as DOWNLOAD_SMOKE_EXECUTION_NAME,
+    OUTPUT_EXECUTION_SUMMARY_NAME as DOWNLOAD_SMOKE_EXECUTION_SUMMARY_NAME,
     OUTPUT_INSPECTION_NAME as DOWNLOAD_SMOKE_INSPECTION_NAME,
     OUTPUT_INSPECTION_SUMMARY_NAME as DOWNLOAD_SMOKE_INSPECTION_SUMMARY_NAME,
 )
@@ -302,6 +306,18 @@ STRICT_GATING_COUNT_FIELDS = (
     "diagnostic_count",
 )
 STRICT_GATING_MAX_BYTES = 5 * 1024 * 1024
+DOWNLOAD_SMOKE_EXECUTION_MEMBERS = (
+    DOWNLOAD_SMOKE_EXECUTION_SUMMARY_NAME,
+    DOWNLOAD_SMOKE_EXECUTION_NAME,
+)
+DOWNLOAD_SMOKE_EXECUTION_COUNT_FIELDS = (
+    "selected_row_count",
+    "command_valid_count",
+    "command_invalid_count",
+    "executed_command_count",
+    "datasets_zip_ready_for_inspection_count",
+)
+DOWNLOAD_SMOKE_EXECUTION_MAX_BYTES = 5 * 1024 * 1024
 DOWNLOAD_SMOKE_INSPECTION_MEMBERS = (
     DOWNLOAD_SMOKE_INSPECTION_SUMMARY_NAME,
     DOWNLOAD_SMOKE_INSPECTION_NAME,
@@ -674,6 +690,15 @@ class StrictGatingAuditSummary:
 
 
 @dataclass(frozen=True)
+class DownloadSmokeExecutionAuditSummary:
+    counts: dict[str, object]
+    present_files: list[str]
+    warnings: list[str]
+    status_counts: list[tuple[str, int]]
+    returncode_counts: list[tuple[str, int]]
+
+
+@dataclass(frozen=True)
 class DownloadSmokeInspectionAuditSummary:
     counts: dict[str, object]
     present_files: list[str]
@@ -694,6 +719,169 @@ class DownloadSmokeQualityReviewAuditSummary:
     decision_counts: list[tuple[str, int]]
     reason_counts: list[tuple[str, int]]
     top_diagnostics: list[tuple[str, int]]
+
+
+def read_optional_download_smoke_execution_audit(
+    directory: str | Path | None,
+) -> DownloadSmokeExecutionAuditSummary | None:
+    if directory is None:
+        return None
+    input_dir = Path(directory)
+    if not input_dir.is_dir() or input_dir.is_symlink():
+        return None
+    present = [
+        name for name in DOWNLOAD_SMOKE_EXECUTION_MEMBERS if (input_dir / name).exists()
+    ]
+    if not present:
+        return None
+
+    warnings: list[str] = []
+    valid_files: list[str] = []
+    counts: dict[str, object] = {}
+    summary_data: dict[str, object] | None = None
+    summary_status_counts: Counter[str] = Counter()
+    row_status_counts: Counter[str] = Counter()
+    row_returncode_counts: Counter[str] = Counter()
+    observed_rows: int | None = None
+
+    missing = [name for name in DOWNLOAD_SMOKE_EXECUTION_MEMBERS if name not in present]
+    if missing:
+        warnings.append("missing members: " + ", ".join(missing))
+
+    summary_path = input_dir / DOWNLOAD_SMOKE_EXECUTION_SUMMARY_NAME
+    if summary_path.exists():
+        try:
+            _validate_download_smoke_execution_member(summary_path)
+            loaded = json.loads(summary_path.read_text(encoding="utf-8"))
+            if not isinstance(loaded, dict):
+                raise ValueError("JSON root is not an object")
+            if loaded.get("schema_version") != DOWNLOAD_SMOKE_EXECUTION_SCHEMA_VERSION:
+                raise ValueError("unsupported schema_version")
+            for field in DOWNLOAD_SMOKE_EXECUTION_COUNT_FIELDS:
+                value = loaded.get(field)
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"invalid {field}")
+            execute_requested = loaded.get("execute_requested")
+            if not isinstance(execute_requested, bool):
+                raise ValueError("invalid execute_requested")
+            if loaded.get("safe_for_unattended_download") is not False:
+                raise ValueError("safe_for_unattended_download boundary violation")
+            if loaded.get("providers_contacted") != 0:
+                raise ValueError("providers_contacted boundary violation")
+            if loaded.get("manifest_mutated") is not False:
+                raise ValueError("manifest_mutated boundary violation")
+            if loaded.get("strict_scientific_deliverable") is not False:
+                raise ValueError("strict_scientific_deliverable boundary violation")
+            downloads_triggered = loaded.get("downloads_triggered")
+            if (
+                isinstance(downloads_triggered, bool)
+                or not isinstance(downloads_triggered, int)
+                or downloads_triggered < 0
+            ):
+                raise ValueError("invalid downloads_triggered")
+            for field in ("network_access", "external_tools", "ready"):
+                if not isinstance(loaded.get(field), bool):
+                    raise ValueError(f"invalid {field}")
+            raw_status_counts = loaded.get("status_counts", {})
+            if not isinstance(raw_status_counts, dict):
+                raise ValueError("invalid status_counts")
+            for status, value in raw_status_counts.items():
+                if (
+                    not isinstance(status, str)
+                    or not status.strip()
+                    or isinstance(value, bool)
+                    or not isinstance(value, int)
+                    or value < 0
+                ):
+                    raise ValueError("invalid status_counts")
+                summary_status_counts[status.strip()] = value
+            blockers = loaded.get("blockers", [])
+            if not isinstance(blockers, list) or any(
+                not isinstance(item, str) or not item.strip() for item in blockers
+            ):
+                raise ValueError("invalid blockers")
+            summary_data = loaded
+            counts = {
+                **{
+                    field: loaded[field]
+                    for field in DOWNLOAD_SMOKE_EXECUTION_COUNT_FIELDS
+                },
+                "execute_requested": execute_requested,
+                "downloads_triggered": downloads_triggered,
+                "providers_contacted": 0,
+                "network_access": loaded["network_access"],
+                "external_tools": loaded["external_tools"],
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "safe_for_unattended_download": False,
+                "ready": loaded["ready"],
+                "blockers": [item.strip() for item in blockers],
+            }
+            valid_files.append(summary_path.name)
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+            warnings.append(f"{DOWNLOAD_SMOKE_EXECUTION_SUMMARY_NAME} malformed")
+
+    rows_path = input_dir / DOWNLOAD_SMOKE_EXECUTION_NAME
+    if rows_path.exists():
+        try:
+            rows = _read_download_smoke_execution_tsv(rows_path)
+            observed_rows = len(rows)
+            for row in rows:
+                if row.get("command_valid") not in {"true", "false"}:
+                    raise ValueError("invalid command_valid")
+                if row.get("executed") not in {"true", "false"}:
+                    raise ValueError("invalid executed")
+                status = row.get("status", "").strip()
+                if not status:
+                    raise ValueError("missing status")
+                row_status_counts[status] += 1
+                returncode = row.get("returncode", "").strip()
+                if returncode:
+                    row_returncode_counts[returncode] += 1
+            valid_files.append(rows_path.name)
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            warnings.append(f"{DOWNLOAD_SMOKE_EXECUTION_NAME} malformed")
+
+    if summary_data is not None:
+        if (
+            observed_rows is not None
+            and summary_data["selected_row_count"] != observed_rows
+        ):
+            warnings.append("selected_row_count does not match execution rows")
+        if row_status_counts and summary_status_counts != row_status_counts:
+            warnings.append("status_counts do not match execution rows")
+
+    displayed_status_counts = summary_status_counts or row_status_counts
+    return DownloadSmokeExecutionAuditSummary(
+        counts=counts,
+        present_files=valid_files,
+        warnings=warnings,
+        status_counts=sorted(
+            displayed_status_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+        returncode_counts=sorted(
+            row_returncode_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:5],
+    )
+
+
+def _validate_download_smoke_execution_member(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("member is not a regular file")
+    if path.stat().st_size > DOWNLOAD_SMOKE_EXECUTION_MAX_BYTES:
+        raise ValueError("member exceeds size limit")
+
+
+def _read_download_smoke_execution_tsv(path: Path) -> list[dict[str, str]]:
+    _validate_download_smoke_execution_member(path)
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if tuple(reader.fieldnames or ()) != tuple(DOWNLOAD_SMOKE_EXECUTION_FIELDS):
+            raise ValueError("unexpected TSV header")
+        rows = list(reader)
+    if any(None in row for row in rows):
+        raise ValueError("unexpected extra TSV fields")
+    return rows
 
 
 def read_optional_download_smoke_inspection_audit(
@@ -4044,6 +4232,9 @@ def build_run_summary_markdown(
     strict_gating_audit = read_optional_strict_gating_audit(
         getattr(args, "strict_gating_dir", None)
     )
+    download_smoke_execution_audit = read_optional_download_smoke_execution_audit(
+        getattr(args, "download_smoke_execution_dir", None)
+    )
     download_smoke_inspection_audit = read_optional_download_smoke_inspection_audit(
         getattr(args, "download_smoke_inspection_dir", None)
     )
@@ -5357,6 +5548,90 @@ def build_run_summary_markdown(
                         "and does not authorize unattended downloads or change "
                         "strict scientific deliverable policy."
                     ),
+                ]
+            )
+
+    if download_smoke_execution_audit is not None:
+        lines.extend(
+            [
+                "",
+                "## Bounded Download Smoke Execution",
+                "",
+                (
+                    "This section is audit-only. Execution success means ZIP "
+                    "outputs are ready for bounded `download-smoke inspect`; "
+                    "it does not accept genomes for final use, mutate workflow "
+                    "manifests, contact providers, or create strict deliverables."
+                ),
+            ]
+        )
+        if download_smoke_execution_audit.counts:
+            lines.extend(
+                [
+                    (
+                        "- Selected rows: "
+                        f"{download_smoke_execution_audit.counts.get('selected_row_count', 0)}"
+                    ),
+                    (
+                        "- Command validation: "
+                        f"valid={download_smoke_execution_audit.counts.get('command_valid_count', 0)}, "
+                        f"invalid={download_smoke_execution_audit.counts.get('command_invalid_count', 0)}"
+                    ),
+                    (
+                        "- Execution: "
+                        f"requested={str(download_smoke_execution_audit.counts.get('execute_requested', False)).lower()}, "
+                        f"executed={download_smoke_execution_audit.counts.get('executed_command_count', 0)}, "
+                        f"downloads_triggered={download_smoke_execution_audit.counts.get('downloads_triggered', 0)}"
+                    ),
+                    (
+                        "- ZIP ready for inspection: "
+                        f"{download_smoke_execution_audit.counts.get('datasets_zip_ready_for_inspection_count', 0)}"
+                    ),
+                    (
+                        "- Runtime boundary: "
+                        f"network_access={str(download_smoke_execution_audit.counts.get('network_access', False)).lower()}, "
+                        f"external_tools={str(download_smoke_execution_audit.counts.get('external_tools', False)).lower()}, "
+                        f"providers_contacted={download_smoke_execution_audit.counts.get('providers_contacted', 0)}, "
+                        f"manifest_mutated={str(download_smoke_execution_audit.counts.get('manifest_mutated', False)).lower()}, "
+                        f"strict_scientific_deliverable={str(download_smoke_execution_audit.counts.get('strict_scientific_deliverable', False)).lower()}"
+                    ),
+                    (
+                        "- Ready for bounded inspection handoff: "
+                        f"{str(download_smoke_execution_audit.counts.get('ready', False)).lower()}"
+                    ),
+                ]
+            )
+        if download_smoke_execution_audit.warnings:
+            lines.append(
+                "- Warning: " + "; ".join(download_smoke_execution_audit.warnings)
+            )
+        if download_smoke_execution_audit.present_files:
+            lines.append(
+                "- Audit files present: "
+                + "; ".join(download_smoke_execution_audit.present_files)
+            )
+        if download_smoke_execution_audit.status_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Execution Status | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(status)} | {count} |"
+                        for status, count in download_smoke_execution_audit.status_counts
+                    ],
+                ]
+            )
+        if download_smoke_execution_audit.returncode_counts:
+            lines.extend(
+                [
+                    "",
+                    "| Return Code | Count |",
+                    "| --- | ---: |",
+                    *[
+                        f"| {_markdown_cell(code)} | {count} |"
+                        for code, count in download_smoke_execution_audit.returncode_counts
+                    ],
                 ]
             )
 

@@ -649,6 +649,16 @@ and focused tests. Do not run live LPSN, NCBI, Entrez, provider lookups,
 datasets downloads, `barrnap`, `fastANI`, `MAFFT`, `trimAl`, or `IQ-TREE`
 unless the task explicitly asks for them.
 
+`download-smoke execute` and the matching `--download-smoke-execution-dir`
+report/package surface are bounded execution audit steps. They may record a
+separately authorized, manifest-pinned `datasets download genome accession ...`
+attempt, including controlled return-code and ZIP-ready counts. They do not
+authorize broad downloads, rerun commands during reporting or packaging, inspect
+ZIP/FASTA payloads, mutate manifests, contact providers, create strict
+scientific deliverables, or decide final genome usability. A
+`datasets_zip_ready_for_inspection` row only means the next required step is
+bounded local inspection.
+
 `download-smoke inspect` and the matching `--download-smoke-inspection-dir`
 report/package surface are local audit steps. They may inspect or package
 already-created bounded smoke ZIP artifacts and record bounded FASTA count

@@ -48,6 +48,7 @@ from typetreeflow.evidence.strict_gating import (
     STRICT_GATING_DIAGNOSTIC_FIELDS,
 )
 from typetreeflow.download_smoke_cli import (
+    EXECUTION_FIELDS as DOWNLOAD_SMOKE_EXECUTION_FIELDS,
     INSPECTION_FIELDS as DOWNLOAD_SMOKE_INSPECTION_FIELDS,
 )
 from typetreeflow.external_genomes import (
@@ -75,6 +76,7 @@ from typetreeflow.report.summary import (
     read_optional_acquisition_worklist_audit,
     read_optional_archive_candidates_audit,
     read_optional_coverage_plan_audit,
+    read_optional_download_smoke_execution_audit,
     read_optional_download_smoke_inspection_audit,
     read_optional_download_smoke_quality_review_audit,
     read_optional_external_genomes_install_plan_audit,
@@ -204,6 +206,87 @@ def _write_strict_gating_triplet(directory: Path) -> None:
                     "message": f"private-message-{index}",
                 }
             )
+
+
+def _write_download_smoke_execution_pair(directory: Path) -> None:
+    directory.mkdir(parents=True)
+    (directory / "bounded_download_smoke_execution_summary.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "bounded_download_smoke_execution_summary.v1",
+                "command": "download-smoke execute",
+                "source_commands_manifest_path": "bounded_download_smoke_commands.tsv",
+                "limit": 1,
+                "selected_row_count": 1,
+                "command_valid_count": 1,
+                "command_invalid_count": 0,
+                "execute_requested": True,
+                "executed_command_count": 1,
+                "datasets_zip_ready_for_inspection_count": 1,
+                "status_counts": {"datasets_zip_ready_for_inspection": 1},
+                "ready": True,
+                "blockers": [],
+                "execution_boundary": (
+                    "bounded_datasets_execution_only_requires_later_inspection"
+                ),
+                "safe_for_unattended_download": False,
+                "downloads_triggered": 1,
+                "providers_contacted": 0,
+                "network_access": True,
+                "external_tools": True,
+                "manifest_mutated": False,
+                "strict_scientific_deliverable": False,
+                "recommended_next_command": [
+                    "typetreeflow",
+                    "download-smoke",
+                    "inspect",
+                    "--download-plan",
+                    "bounded_download_smoke_plan.tsv",
+                ],
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with (directory / "bounded_download_smoke_execution.tsv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=DOWNLOAD_SMOKE_EXECUTION_FIELDS,
+            delimiter="\t",
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "record_id": "ref1",
+                "assembly_accession": "GCF_000001.1",
+                "assembly_level": "Complete Genome",
+                "refseq_category": "unknown",
+                "quality_tier": "high",
+                "datasets_zip_path": "downloads/ref1.zip",
+                "command_json": json.dumps(
+                    [
+                        "datasets",
+                        "download",
+                        "genome",
+                        "accession",
+                        "GCF_000001.1",
+                        "--include",
+                        "genome",
+                        "--filename",
+                        "downloads/ref1.zip",
+                    ],
+                    separators=(",", ":"),
+                ),
+                "command_valid": "true",
+                "executed": "true",
+                "returncode": "0",
+                "status": "datasets_zip_ready_for_inspection",
+                "notes": "ZIP exists and is valid; run download-smoke inspect next",
+            }
+        )
 
 
 def _write_download_smoke_inspection_pair(directory: Path) -> None:
@@ -512,6 +595,80 @@ def _write_download_smoke_quality_review_triplet(directory: Path) -> None:
             delimiter="\t",
         )
         writer.writeheader()
+
+
+def test_download_smoke_execution_section_is_explicit_bounded_and_audit_only(
+    tmp_path,
+):
+    execution_dir = tmp_path / "execution"
+    _write_download_smoke_execution_pair(execution_dir)
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(download_smoke_execution_dir=execution_dir),
+    )
+
+    assert "## Bounded Download Smoke Execution" in markdown
+    assert "ZIP outputs are ready for bounded `download-smoke inspect`" in markdown
+    assert "does not accept genomes for final use" in markdown
+    assert "- Selected rows: 1" in markdown
+    assert "valid=1, invalid=0" in markdown
+    assert "requested=true, executed=1, downloads_triggered=1" in markdown
+    assert "- ZIP ready for inspection: 1" in markdown
+    assert "network_access=true" in markdown
+    assert "external_tools=true" in markdown
+    assert "providers_contacted=0" in markdown
+    assert "manifest_mutated=false" in markdown
+    assert "strict_scientific_deliverable=false" in markdown
+    assert "| datasets_zip_ready_for_inspection | 1 |" in markdown
+    assert "| 0 | 1 |" in markdown
+    assert "bounded_download_smoke_execution_summary.json" in markdown
+    assert "bounded_download_smoke_execution.tsv" in markdown
+
+
+def test_download_smoke_execution_absent_without_explicit_input_or_empty_dir(
+    tmp_path,
+):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    for args in (
+        None,
+        SimpleNamespace(download_smoke_execution_dir=None),
+        SimpleNamespace(download_smoke_execution_dir=tmp_path / "missing"),
+        SimpleNamespace(download_smoke_execution_dir=empty),
+    ):
+        markdown = build_run_summary_markdown(
+            [_record("ref1")],
+            get_output_paths(tmp_path / f"run-{len(str(args))}"),
+            args,
+        )
+        assert "Bounded Download Smoke Execution" not in markdown
+
+
+def test_download_smoke_execution_partial_malformed_summary_warns(tmp_path):
+    execution_dir = tmp_path / "execution"
+    _write_download_smoke_execution_pair(execution_dir)
+    (execution_dir / "bounded_download_smoke_execution_summary.json").write_text(
+        '{"schema_version":"wrong","providers_contacted":1}',
+        encoding="utf-8",
+    )
+
+    audit = read_optional_download_smoke_execution_audit(execution_dir)
+    assert audit is not None
+    assert "bounded_download_smoke_execution.tsv" in audit.present_files
+    assert audit.warnings == [
+        "bounded_download_smoke_execution_summary.json malformed"
+    ]
+
+    markdown = build_run_summary_markdown(
+        [_record("ref1")],
+        get_output_paths(tmp_path / "run"),
+        SimpleNamespace(download_smoke_execution_dir=execution_dir),
+    )
+
+    assert "## Bounded Download Smoke Execution" in markdown
+    assert "bounded_download_smoke_execution_summary.json malformed" in markdown
 
 
 def test_download_smoke_inspection_section_is_explicit_bounded_and_audit_only(
