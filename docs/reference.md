@@ -2835,6 +2835,15 @@ itself. Those fields may ask the operator to fix the result, run a bounded
 download-smoke inspection, review local FASTA quality blockers, or review
 validated bounded-smoke outputs. It does not carry local recommended
 quality-gate command paths.
+When high-quality assembly metadata rows are blocked by local FASTA quality
+gates, it also emits `download_smoke_review_queue`,
+`download_smoke_review_queue_count`, and
+`download_smoke_review_queue_preview_truncated`. The queue is derived only from
+the bounded-smoke blocked preview and contains at most five rows with record
+ID, accession, assembly metadata, row status, controlled blocker codes, and
+`recommended_action=review_local_fasta_quality_blockers`. It does not include
+ZIP paths, raw FASTA headers, sequence text, provider payloads, or any
+authorization to rerun downloads.
 Passing this validator does not execute the target command, validate
 filesystem artifacts, contact providers, download genomes, mutate manifests,
 register external genomes, or promote strict scientific deliverables.

@@ -215,6 +215,9 @@ _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_FIELDS = (
     "fasta_quality_gate_blockers",
 )
 _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_BLOCKED_PREVIEW_MAX_ROWS = 5
+_SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_ACTION = (
+    "review_local_fasta_quality_blockers"
+)
 OUTPUT_PATHS = {
     "acquisition_worklist": "acquisition_worklist/acquisition_worklist.tsv",
     "acquisition_worklist_summary": "acquisition_worklist/acquisition_worklist_summary.json",
@@ -2108,6 +2111,16 @@ def _server_validation_result_validation_payload(
             **observations,
         }
     )
+    download_smoke_review_queue = _server_validation_download_smoke_review_queue(
+        observations
+    )
+    download_smoke_review_queue_count = _optional_nonnegative_int(
+        observations.get(
+            "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_count"
+        )
+    )
+    if download_smoke_review_queue_count == 0:
+        download_smoke_review_queue_count = len(download_smoke_review_queue)
     return {
         "schema_version": SERVER_VALIDATION_RESULT_VALIDATION_SCHEMA_VERSION,
         "status": status,
@@ -2167,6 +2180,13 @@ def _server_validation_result_validation_payload(
         "download_smoke_next_action": download_smoke_next_action["action"],
         "download_smoke_next_action_reasons": download_smoke_next_action["reasons"],
         "download_smoke_next_action_source": download_smoke_next_action["source"],
+        "download_smoke_review_queue": download_smoke_review_queue,
+        "download_smoke_review_queue_count": download_smoke_review_queue_count,
+        "download_smoke_review_queue_preview_truncated": _optional_bool(
+            observations.get(
+                "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+            )
+        ),
         "checked_surface_names": [str(item) for item in checked_surface_names],
         "checked_surface_count": len(checked_surface_names),
         "required_field_count": len(_SERVER_VALIDATION_RESULT_REQUIRED_FIELDS),
@@ -2432,6 +2452,37 @@ def _safe_server_validation_download_smoke_preview(
         ]
         rows.append(row)
     return rows
+
+
+def _server_validation_download_smoke_review_queue(
+    observations: Mapping[str, object],
+) -> list[dict[str, object]]:
+    preview = _safe_server_validation_download_smoke_preview(
+        observations.get(
+            "download_smoke_inspection_assembly_metadata_high_quality_fasta_quality_blocked_preview"
+        )
+    )
+    if not preview:
+        return []
+    queue: list[dict[str, object]] = []
+    for row in preview:
+        queue.append(
+            {
+                "record_id": row["record_id"],
+                "assembly_accession": row["assembly_accession"],
+                "assembly_level": row["assembly_level"],
+                "refseq_category": row["refseq_category"],
+                "quality_tier": row["quality_tier"],
+                "status": row["status"],
+                "fasta_quality_gate_blockers": row[
+                    "fasta_quality_gate_blockers"
+                ],
+                "recommended_action": (
+                    _SERVER_VALIDATION_RESULT_DOWNLOAD_SMOKE_REVIEW_QUEUE_ACTION
+                ),
+            }
+        )
+    return queue
 
 
 def _optional_nonnegative_int(value: object) -> int:

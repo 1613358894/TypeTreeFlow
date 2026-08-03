@@ -2854,6 +2854,23 @@ def test_coverage_pipeline_server_validation_result_validate_accepts_valid_json(
     assert payload["download_smoke_next_action_source"] == (
         "download_smoke_inspection_bounded_smoke_next_action"
     )
+    assert payload["download_smoke_review_queue_count"] == 1
+    assert payload["download_smoke_review_queue_preview_truncated"] is False
+    assert payload["download_smoke_review_queue"] == [
+        {
+            "record_id": "rec-high-quality-blocked",
+            "assembly_accession": "GCF_000001.1",
+            "assembly_level": "Complete Genome",
+            "refseq_category": "reference genome",
+            "quality_tier": "high",
+            "status": "genome_fasta_present",
+            "fasta_quality_gate_blockers": [
+                "fragmented_fasta_signal",
+                "fasta_header_fragment_keywords",
+            ],
+            "recommended_action": "review_local_fasta_quality_blockers",
+        }
+    ]
     assert payload["checked_surface_count"] == 2
     assert payload["diagnostic_count"] == 0
     assert payload["boundary_confirmation_status"] == "pass"
