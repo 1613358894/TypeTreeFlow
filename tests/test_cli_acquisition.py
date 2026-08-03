@@ -1598,6 +1598,132 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     }
 
 
+def test_verify_genus_checkpoint_structured_route_to_bounded_smoke_prepare(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    outdir = tmp_path / "out"
+    smoke_outdir = tmp_path / "bounded_smoke"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+
+    def fail_downloads(*args, **kwargs):
+        raise AssertionError("route smoke must not execute downloads")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_downloads)
+
+    assert (
+        main(
+            [
+                "verify-genus",
+                "Fusobacterium",
+                "--lpsn-cache",
+                str(lpsn_cache),
+                "--discovery-cache",
+                str(discovery_cache),
+                "--outdir",
+                str(outdir),
+                "--policy",
+                "balanced",
+                "--review-required",
+            ]
+        )
+        == 0
+    )
+    verify_payload, _output = _verify_genus_stdout_payload(capsys)
+    assert verify_payload["recommended_request_target"] == (
+        "selection-review strategy"
+    )
+
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(verify_payload["recommended_request"]),
+            ]
+        )
+        == 0
+    )
+    render_payload = json.loads(capsys.readouterr().out)
+    assert render_payload["target_argv"] == [
+        "selection-review",
+        "strategy",
+        "--outdir",
+        str(outdir),
+        "--json",
+    ]
+
+    strategy_request = dict(verify_payload["recommended_request"])
+    strategy_request["bounded_smoke_outdir"] = str(smoke_outdir)
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(strategy_request),
+            ]
+        )
+        == 0
+    )
+    strategy_render = json.loads(capsys.readouterr().out)
+    smoke_flag_index = strategy_render["target_argv"].index(
+        "--bounded-smoke-outdir"
+    )
+    assert strategy_render["target_argv"][smoke_flag_index + 1] == str(smoke_outdir)
+
+    assert main(strategy_render["target_argv"]) == 0
+    strategy_payload = json.loads(capsys.readouterr().out)
+    assert strategy_payload["recommended_request_target"] == (
+        "download-smoke prepare"
+    )
+    assert strategy_payload["recommended_request"]["outdir"] == str(smoke_outdir)
+    assert strategy_payload["recommended_next_command"].startswith(
+        "typetreeflow download-smoke prepare --download-plan "
+    )
+    assert strategy_payload["downloads_triggered"] is False
+    assert strategy_payload["network_access"] is False
+    assert not smoke_outdir.exists()
+
+    assert (
+        main(
+            [
+                "commands",
+                "render",
+                "--request-json",
+                json.dumps(strategy_payload["recommended_request"]),
+            ]
+        )
+        == 0
+    )
+    prepare_render = json.loads(capsys.readouterr().out)
+    assert prepare_render["target_argv"][:4] == [
+        "download-smoke",
+        "prepare",
+        "--download-plan",
+        str(outdir / "cache" / "ncbi" / "download_plan.tsv"),
+    ]
+    assert "--write" in prepare_render["target_argv"]
+    outdir_flag_index = prepare_render["target_argv"].index("--outdir")
+    assert prepare_render["target_argv"][outdir_flag_index + 1] == str(smoke_outdir)
+
+    assert main(prepare_render["target_argv"]) == 0
+    prepare_payload = json.loads(capsys.readouterr().out)
+    assert prepare_payload["command"] == "download-smoke prepare"
+    assert prepare_payload["writes_outputs"] is True
+    assert prepare_payload["downloads_triggered"] == 0
+    assert prepare_payload["providers_contacted"] == 0
+    assert prepare_payload["network_access"] is False
+    assert prepare_payload["external_tools"] is False
+    assert prepare_payload["manifest_mutated"] is False
+    assert prepare_payload["strict_scientific_deliverable"] is False
+    assert (smoke_outdir / "bounded_download_smoke_plan.tsv").exists()
+    assert (smoke_outdir / "bounded_download_smoke_commands.tsv").exists()
+
+
 def test_verify_genus_live_flags_dry_run_remains_review_checkpoint(
     tmp_path,
     capsys,
