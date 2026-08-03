@@ -364,6 +364,22 @@ DOWNLOAD_SMOKE_INSPECTION_OPTIONAL_STRING_LIST_FIELDS = (
     "quality_gate_recommendation_reasons",
     "bounded_smoke_next_action_reasons",
 )
+DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD = (
+    "assembly_metadata_high_quality_fasta_quality_blocked_preview"
+)
+DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD = (
+    "assembly_metadata_high_quality_fasta_quality_blocked_preview_truncated"
+)
+DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELDS = (
+    "record_id",
+    "assembly_accession",
+    "assembly_level",
+    "refseq_category",
+    "quality_tier",
+    "status",
+    "fasta_quality_gate_blockers",
+)
+DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_MAX_ROWS = 5
 DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES = 5 * 1024 * 1024
 DOWNLOAD_SMOKE_LEGACY_INSPECTION_FIELDS = (
     "record_id",
@@ -716,6 +732,25 @@ def read_optional_download_smoke_inspection_audit(
                         raise ValueError(f"invalid {field}")
                     values.append(item.strip())
                 optional_string_lists[field] = values
+            optional_preview: dict[str, object] = {}
+            preview = _validate_download_smoke_inspection_blocked_preview(
+                loaded.get(DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD)
+            )
+            if preview:
+                optional_preview[
+                    DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD
+                ] = preview
+            preview_truncated = loaded.get(
+                DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD
+            )
+            if preview_truncated is not None:
+                if not isinstance(preview_truncated, bool):
+                    raise ValueError(
+                        f"invalid {DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD}"
+                    )
+                optional_preview[
+                    DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD
+                ] = preview_truncated
             if loaded.get("safe_for_unattended_download") is not False:
                 raise ValueError("safe_for_unattended_download boundary violation")
             if loaded.get("downloads_triggered") != 0:
@@ -759,6 +794,7 @@ def read_optional_download_smoke_inspection_audit(
                 **optional_maps,
                 **optional_strings,
                 **optional_string_lists,
+                **optional_preview,
                 "ready": loaded.get("ready") is True,
                 "safe_for_unattended_download": False,
                 "downloads_triggered": 0,
@@ -864,6 +900,47 @@ def _validate_download_smoke_inspection_member(path: Path) -> None:
         raise ValueError("member is not a regular file")
     if path.stat().st_size > DOWNLOAD_SMOKE_INSPECTION_MAX_BYTES:
         raise ValueError("member exceeds size limit")
+
+
+def _validate_download_smoke_inspection_blocked_preview(
+    value: object,
+) -> list[dict[str, object]]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"invalid {DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD}")
+    if len(value) > DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_MAX_ROWS:
+        raise ValueError(f"invalid {DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD}")
+    rows: list[dict[str, object]] = []
+    allowed_keys = set(DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELDS)
+    string_fields = allowed_keys - {"fasta_quality_gate_blockers"}
+    for item in value:
+        if not isinstance(item, dict) or set(item) != allowed_keys:
+            raise ValueError(
+                f"invalid {DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD}"
+            )
+        row: dict[str, object] = {}
+        for field in string_fields:
+            field_value = item.get(field)
+            if not isinstance(field_value, str):
+                raise ValueError(
+                    f"invalid {DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD}"
+                )
+            row[field] = field_value.strip()
+        blockers = item.get("fasta_quality_gate_blockers")
+        if (
+            not isinstance(blockers, list)
+            or not blockers
+            or any(not isinstance(blocker, str) or not blocker.strip() for blocker in blockers)
+        ):
+            raise ValueError(
+                f"invalid {DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD}"
+            )
+        row["fasta_quality_gate_blockers"] = [
+            blocker.strip() for blocker in blockers
+        ]
+        rows.append(row)
+    return rows
 
 
 def _read_download_smoke_inspection_tsv(path: Path) -> list[dict[str, str]]:
@@ -5031,6 +5108,11 @@ def build_run_summary_markdown(
             ]
         )
         if download_smoke_inspection_audit.counts:
+            blocked_preview_lines = (
+                _download_smoke_inspection_blocked_preview_lines(
+                    download_smoke_inspection_audit.counts
+                )
+            )
             lines.extend(
                 [
                     (
@@ -5102,6 +5184,7 @@ def build_run_summary_markdown(
                             )
                         )
                     ),
+                    *blocked_preview_lines,
                     (
                         "- Installable genome FASTA fragmentation signals: "
                         + _format_count_pairs(
@@ -6783,6 +6866,46 @@ def _checklist_species_summary_key(row: dict[str, str]) -> str:
 
 def _markdown_cell(value: str) -> str:
     return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _download_smoke_inspection_blocked_preview_lines(
+    counts: dict[str, object],
+) -> list[str]:
+    preview = counts.get(DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_FIELD)
+    if not isinstance(preview, list) or not preview:
+        return []
+    lines = [
+        "",
+        "Assembly-metadata high-quality FASTA blocked preview:",
+        "",
+        (
+            "| Record ID | Assembly Accession | Assembly Level | RefSeq Category | "
+            "Quality Tier | Status | FASTA Quality Blockers |"
+        ),
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for item in preview:
+        if not isinstance(item, dict):
+            continue
+        blockers = _format_string_list(item.get("fasta_quality_gate_blockers"))
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    _markdown_cell(str(item.get("record_id", ""))),
+                    _markdown_cell(str(item.get("assembly_accession", ""))),
+                    _markdown_cell(str(item.get("assembly_level", ""))),
+                    _markdown_cell(str(item.get("refseq_category", ""))),
+                    _markdown_cell(str(item.get("quality_tier", ""))),
+                    _markdown_cell(str(item.get("status", ""))),
+                    _markdown_cell(blockers),
+                ]
+            )
+            + " |"
+        )
+    if counts.get(DOWNLOAD_SMOKE_INSPECTION_BLOCKED_PREVIEW_TRUNCATED_FIELD) is True:
+        lines.append("- Preview truncated to the first five affected rows.")
+    return lines
 
 
 def _format_count_pairs(pairs: list[tuple[str, int]]) -> str:
