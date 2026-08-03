@@ -1259,9 +1259,10 @@ blocks when no bounded smoke input is ready. Use `--quality-tier all`
 explicitly when the purpose is maximum bounded coverage rather than the safer
 default quality preference.
 For plan-only runs with ready planned NCBI rows, `status` and `next-step`
-include the `download-smoke prepare --quality-tier recommended` command as a
-bounded validation handoff. That command prepares an isolated smoke input and
-does not download genomes.
+include a `download-smoke prepare --quality-tier recommended --write --outdir`
+command template with an operator-chosen isolated bounded-smoke directory. That
+command writes an isolated smoke input and command manifest; it does not
+download genomes.
 
 ```bash
 typetreeflow download-smoke prepare \

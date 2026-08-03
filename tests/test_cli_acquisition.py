@@ -1418,6 +1418,12 @@ def test_verify_genus_plan_only_writes_review_outputs_without_explicit_dry_run(
     ]
     assert "does not run datasets" in smoke_prepare["purpose"]
     assert "--quality-tier" in smoke_prepare["argv"]
+    assert "--write" in smoke_prepare["argv"]
+    assert smoke_prepare["argv"][-2:] == [
+        "--outdir",
+        "<isolated-bounded-download-smoke-dir>",
+    ]
+    assert "operator-chosen directory" in smoke_prepare["purpose"]
     assert "run_datasets_download" in checkpoint["forbidden_without_explicit_approval"]
     assert (
         "treat_scaffold_contig_or_wgs_fasta_as_final_genome"
