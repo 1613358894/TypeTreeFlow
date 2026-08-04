@@ -295,6 +295,24 @@ def build_reconciler_audit_rows(
                     source_input_status="no_selected_genome",
                 )
             )
+        if "unselected_candidate_audit_only" in item.source_input_status:
+            row_diagnostics.append("unselected_candidate_audit_only")
+            diagnostics.append(
+                ReconcilerDiagnosticRow(
+                    species_name=item.reconciler_input.expected_species_name,
+                    assembly_accession=_assembly_accession(item),
+                    source="selection",
+                    status="audit_only",
+                    severity="warning",
+                    diagnostic_code="unselected_candidate_audit_only",
+                    message=(
+                        "the sole unselected candidate is used only to classify "
+                        "evidence; it remains unselected, unaccepted, undownloaded, "
+                        "and is not a strict scientific deliverable"
+                    ),
+                    source_input_status=item.source_input_status,
+                )
+            )
         if result.conflict_status != "none":
             row_diagnostics.append("conflict_detected")
             diagnostics.append(
@@ -420,6 +438,10 @@ def write_reconciler_diagnostics_tsv(
 def _build_work_items(audit_input: ReconcilerAuditInput) -> tuple[_AuditWorkItem, ...]:
     lpsn_by_species = {_species_key(row.species_name): row for row in audit_input.lpsn_rows}
     selected_rows = [row for row in audit_input.selection_rows if row.selected]
+    unselected_by_species: dict[str, list[SelectionEvidenceRow]] = {}
+    for row in audit_input.selection_rows:
+        if not row.selected:
+            unselected_by_species.setdefault(_species_key(row.species_name), []).append(row)
     manifest_by_assembly = {
         _accession_key(row.assembly_accession): row
         for row in audit_input.manifest_rows
@@ -487,6 +509,18 @@ def _build_work_items(audit_input: ReconcilerAuditInput) -> tuple[_AuditWorkItem
                     )
                 )
             continue
+        unselected_candidates = unselected_by_species.get(species_key, ())
+        if lpsn is not None and len(unselected_candidates) == 1:
+            items.append(
+                _work_item(
+                    selection=unselected_candidates[0],
+                    manifest=None,
+                    lpsn=lpsn,
+                    audit_input=audit_input,
+                    unselected_candidate_audit_only=True,
+                )
+            )
+            continue
         species_name = lpsn.species_name if lpsn else species_key
         items.append(_gap_work_item(species_name=species_name, lpsn=lpsn))
 
@@ -499,6 +533,7 @@ def _work_item(
     manifest: ManifestEvidenceRow | None,
     lpsn: LpsnEvidenceRow | None,
     audit_input: ReconcilerAuditInput,
+    unselected_candidate_audit_only: bool = False,
 ) -> _AuditWorkItem:
     bacdive_rows = _matching_bacdive_rows(audit_input.bacdive_rows or (), selection)
     biosample = _matching_biosample_row(audit_input.biosample_rows or (), selection)
@@ -509,6 +544,10 @@ def _work_item(
     if biosample is not None:
         source_evidence.append(_biosample_source_evidence(biosample))
     source_status = _source_input_status(audit_input, manifest)
+    if unselected_candidate_audit_only:
+        source_status = _join_list(
+            _unique(["unselected_candidate_audit_only", *_source_status_codes(source_status)])
+        )
     species_name = _first_text(
         lpsn.species_name if lpsn else "",
         selection.species_name,

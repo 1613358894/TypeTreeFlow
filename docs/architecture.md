@@ -126,8 +126,17 @@ package. Report-inclusive packages preserve existing per-species completion
 audit, summary, and gap tables under `source_audit/` and `completion/`, while
 missing artifacts remain explicitly missing rather than becoming empty tables.
 These files are scoped as completion evidence, not strict scientific
-deliverables. `handoff_index.md` helps navigation and operational handoff; it
-is not a scientific decision source.
+deliverables. Reconciler audit mapping retains a sole unselected candidate for
+candidate/conflict diagnosis when no row was selected, without adding it to the
+manifest or download plan. Status and next-step project the existing audit into
+a compact read-only scientific-gap summary with closed complete, conflict,
+missing, insufficient-linkage, candidate, representative, and unknown classes.
+Delivery README and handoff text label aggregate strict, non-strict candidate,
+conflict, and missing counts while directing readers to row-level tier/linkage
+for the specific reason and review route. Successful package execution remains
+separate from scientific completeness.
+`handoff_index.md` helps navigation and operational handoff; it is not a
+scientific decision source.
 
 ## Repository Layout
 

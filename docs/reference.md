@@ -108,6 +108,25 @@ Primary commands write compact JSON to stdout by default. This does not require
   `selection-review strategy` command before mentioning separately approved
   guarded downloads, so text-only controllers do not treat
   `--enable-downloads` as the first recovery step.
+  When `evidence/reconciler_audit.tsv` is available, both commands also emit
+  `scientific_gap_summary`. It uses the closed classifications `complete`,
+  `conflict`, `missing`, `insufficient_linkage`, `candidate`, `representative`,
+  and `unknown`, with counts and species lists plus the species still requiring
+  manual review. Candidate is not an alias for insufficient linkage; the latter
+  requires an explicit insufficient tier or name/strain-only linkage. The
+  summary validates the required TSV columns, unique non-empty species,
+  booleans, current reconciler schema version, row width, and UTF-8 before
+  emitting. It also fails closed on obvious semantic contradictions such as a
+  strict-usable row that is simultaneously conflict or missing. Malformed or
+  contradictory input leaves this optional field absent rather than publishing
+  plausible zero counts. It is
+  read-only and sets
+  `scientific_gaps_are_execution_failures=false`; it does not change run
+  status, reconciler tiers, completion, selection, or download eligibility.
+  `next-step` also directs the reader to the row-level reconciler audit and
+  completion gaps when this summary contains non-complete or manual-review
+  rows; audit-only unselected rows are not download instructions or
+  strict-upgrade requests.
   When an existing `cache/ncbi/download_plan.tsv` is present, `status` also
   emits `download_plan_readiness_summary`: an acquisition-facing, read-only
   count summary for planned NCBI downloads, existing genomes, missing
@@ -438,7 +457,12 @@ hook reads only local workflow files: `species_checklist.tsv`,
 `selection/user_selection.tsv`, `manifest.tsv`, optional
 `evidence/bacdive_enrichment.tsv`, and optional BioSample cache TSV. Missing or
 malformed optional BacDive/BioSample inputs become diagnostics and do not fail
-the workflow.
+the workflow. When a checklist species has no selected row but exactly one
+unselected local selection candidate, the audit evaluates that candidate so
+insufficient linkage or identity conflict is not collapsed into missing public
+genome. The row remains unselected and cannot enter the manifest or download
+plan through this audit-only fallback. Zero or multiple unselected candidates
+without a selected row remain a gap rather than invoking an arbitrary choice.
 
 `strict_reconciliation` is the run-state stage id for this audit-only surface.
 The stage is ordered logically after `selection` and before `gtdb_audit`.
@@ -868,9 +892,11 @@ retains the existing compact JSON contract.
 
 The primary audit output path is
 `evidence/reconciler_audit.tsv`. Its row grain is one selected-genome row per
-expected species. When no selected genome exists, the mapper may write a
-synthetic gap row with blank genome fields and
-`source_input_status=no_selected_genome`. The stable field order is:
+expected species, or the sole unselected local candidate when that is the only
+available candidate for a species. The latter is audit-only candidate/conflict
+evidence and does not select or download the accession. When no unambiguous
+candidate exists, the mapper may write a synthetic gap row with blank genome
+fields and `source_input_status=no_selected_genome`. The stable field order is:
 `schema_version`, `species_name`, `assembly_accession`,
 `strain_designation`, `biosample_accession`, `selection_policy`,
 `selection_evidence_level`, `manifest_evidence_level`,
@@ -881,6 +907,10 @@ synthetic gap row with blank genome fields and
 `selected_genome_linkage`, `conflict_status`, `reconciliation_notes`,
 `source_input_status`, `bacdive_row_count`, and `diagnostic_codes`.
 List-valued TSV fields use a stable semicolon-space delimiter.
+Sole-unselected fallback rows include
+`source_input_status=unselected_candidate_audit_only` and the same diagnostic
+code. Their manifest evidence fields remain blank; the accession is present
+only for audit classification and is not selected, accepted, or downloaded.
 
 The summary output path is
 `evidence/reconciler_summary.json`. Its JSON contract includes

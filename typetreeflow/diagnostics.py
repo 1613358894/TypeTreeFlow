@@ -16,6 +16,7 @@ from typetreeflow.download_plan_readiness import (
     build_download_plan_readiness_summary,
 )
 from typetreeflow.external.tools import IQTREE_EXECUTABLE_CANDIDATES
+from typetreeflow.evidence.reconciler_audit import RECONCILER_AUDIT_SCHEMA_VERSION
 from typetreeflow.genomes.extract import GENOME_REGISTRATION_RESULTS_FIELDS
 from typetreeflow.genomes.registration_quality import (
     summarize_registration_fasta_quality,
@@ -167,6 +168,9 @@ class WorkflowStatusSummary:
             )
         if self.genome_registration_summary:
             payload["genome_registration_summary"] = self.genome_registration_summary
+        scientific_gaps = _scientific_gap_summary(self.outdir)
+        if scientific_gaps:
+            payload["scientific_gap_summary"] = scientific_gaps
         return payload
 
 
@@ -202,7 +206,20 @@ class NextStepSummary:
             outdir=self.outdir,
             next_action=self.next_action,
         )
-        return {
+        scientific_gaps = _scientific_gap_summary(self.outdir)
+        if (
+            _scientific_gap_review_prompt_required(scientific_gaps)
+            and recommended_action.get("message")
+        ):
+            recommended_action["message"] = (
+                f"{recommended_action['message']} Also inspect "
+                "evidence/reconciler_audit.tsv and completion/gaps.tsv for "
+                "row-level classifications and any recorded manual-review or "
+                "missing-evidence requirements. "
+                "Audit-only unselected conflict, candidate, and missing rows "
+                "are not download instructions or strict upgrades."
+            )
+        payload = {
             "command": "next-step",
             "schema_version": "1",
             "status": self.status,
@@ -213,6 +230,113 @@ class NextStepSummary:
             "blocking": blocking,
             "warnings": warnings,
         }
+        if scientific_gaps:
+            payload["scientific_gap_summary"] = scientific_gaps
+        return payload
+
+
+def _scientific_gap_review_prompt_required(summary: dict[str, Any]) -> bool:
+    counts = summary.get("classification_counts", {})
+    return any(
+        name != "complete" and isinstance(count, int) and count > 0
+        for name, count in counts.items()
+    ) or summary.get("manual_review_required_count", 0) > 0
+
+
+def _scientific_gap_summary(outdir: str) -> dict[str, Any]:
+    if not outdir:
+        return {}
+    audit_path = get_output_paths(Path(outdir)).reconciler_audit_path
+    if not audit_path.exists():
+        return {}
+    required_columns = {
+        "schema_version", "species_name", "reconciled_evidence_tier",
+        "strict_usable", "requires_manual_review", "selected_genome_linkage",
+        "conflict_status", "source_input_status",
+    }
+    try:
+        with audit_path.open("r", newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle, delimiter="\t", strict=True)
+            if not reader.fieldnames or not required_columns.issubset(reader.fieldnames):
+                return {}
+            if len(reader.fieldnames) != len(set(reader.fieldnames)):
+                return {}
+            rows = list(reader)
+    except (OSError, UnicodeError, csv.Error):
+        return {}
+    categories: dict[str, list[str]] = {
+        "complete": [],
+        "conflict": [],
+        "missing": [],
+        "insufficient_linkage": [],
+        "candidate": [],
+        "representative": [],
+        "unknown": [],
+    }
+    review_required: list[str] = []
+    seen_species: set[str] = set()
+    for row in rows:
+        if None in row or any(value is None for value in row.values()):
+            return {}
+        species = row.get("species_name", "").strip()
+        tier = row.get("reconciled_evidence_tier", "").strip()
+        strict_usable = row.get("strict_usable", "").strip().lower()
+        requires_review = row.get("requires_manual_review", "").strip().lower()
+        if (
+            not species
+            or species in seen_species
+            or strict_usable not in {"true", "false"}
+            or requires_review not in {"true", "false"}
+        ):
+            return {}
+        seen_species.add(species)
+        linkage = row.get("selected_genome_linkage", "").strip()
+        conflict_status = row.get("conflict_status", "").strip()
+        source_statuses = {
+            item.strip()
+            for item in row.get("source_input_status", "").split(";")
+            if item.strip()
+        }
+        if row.get("schema_version", "").strip() != RECONCILER_AUDIT_SCHEMA_VERSION:
+            return {}
+        if strict_usable == "true" and (
+            tier in {"conflict_blocked", "missing_public_genome"}
+            or conflict_status not in {"", "none"}
+            or source_statuses & {"no_selected_genome", "missing_public_genome"}
+        ):
+            return {}
+        if strict_usable == "true":
+            categories["complete"].append(species)
+        elif tier == "conflict_blocked" or conflict_status not in {"", "none"}:
+            categories["conflict"].append(species)
+        elif tier == "missing_public_genome" or "no_selected_genome" in source_statuses:
+            categories["missing"].append(species)
+        elif tier == "insufficient_linkage" or linkage in {
+            "species_name_only_match", "strain_text_only_match",
+        }:
+            categories["insufficient_linkage"].append(species)
+        elif tier == "representative_non_type":
+            categories["representative"].append(species)
+        elif tier in {
+            "authoritative_type_material_candidate",
+            "ncbi_type_material_candidate",
+            "likely_type_material_candidate",
+        }:
+            categories["candidate"].append(species)
+        else:
+            categories["unknown"].append(species)
+        if requires_review == "true":
+            review_required.append(species)
+    return {
+        "classification_counts": {
+            name: len(species) for name, species in categories.items()
+        },
+        "species_by_classification": categories,
+        "manual_review_required_count": len(review_required),
+        "manual_review_required_species": sorted(review_required),
+        "scientific_gaps_are_execution_failures": False,
+        "source": "evidence/reconciler_audit.tsv",
+    }
 
 
 INSTALL_HINTS = {

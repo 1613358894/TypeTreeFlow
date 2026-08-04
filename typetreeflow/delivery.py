@@ -4689,6 +4689,7 @@ def _reconciler_readme_lines(
             "were unavailable; package generation still succeeds."
         )
     lines.append(f"- Counts: {_reconciler_compact_counts_summary(review)}")
+    lines.extend(_reconciler_reader_classification_lines(review))
     if review.warnings:
         lines.append(
             "- Count warnings: "
@@ -4723,6 +4724,7 @@ def _reconciler_handoff_lines(
         "- Reconciler audit counts: "
         f"{_reconciler_compact_counts_summary(review)}"
     )
+    lines.extend(_reconciler_reader_classification_lines(review))
     if review.warnings:
         lines.append(
             "- Reconciler count warnings: "
@@ -4730,6 +4732,30 @@ def _reconciler_handoff_lines(
             + "; warnings do not alter completion metrics."
         )
     return lines
+
+
+def _reconciler_reader_classification_lines(
+    review: ReconcilerAuditPackageSummary,
+) -> list[str]:
+    def count(name: str) -> str:
+        return review.counts.get(name, "unknown")
+
+    return [
+        (
+            "- Reader classification: "
+            f"complete/strict={count('strict_count')}; "
+            f"non-strict candidate={count('candidate_count')}; "
+            f"conflict={count('conflict_count')}; missing={count('gap_count')}."
+        ),
+        (
+            "- Row-level reasons and actions: inspect each reconciler tier, "
+            "linkage, conflict status, and `requires_manual_review` value in "
+            "`evidence/reconciler_audit.tsv`, together with "
+            "`completion/gaps.tsv`. Aggregate candidate counts do not imply "
+            "insufficient linkage or one shared action; none of these audit/gap "
+            "rows are strict deliverables."
+        ),
+    ]
 
 
 def _manual_review_import_readme_lines(

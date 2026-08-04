@@ -123,6 +123,17 @@ Missing optional BacDive or BioSample inputs, malformed optional rows, legacy
 manifest fields, no selected genome gap rows, and conflicts are diagnostics
 for review, not live lookup triggers or completion semantics.
 
+The reconciler expected-species universe remains LPSN/checklist-first.
+Unselected rows outside that universe cannot create audit species. When one
+expected species has no selected or manifest row and exactly one unselected
+candidate, the reconciler may use that accession only for evidence
+classification. Such a row must carry
+`source_input_status=unselected_candidate_audit_only` and the matching
+diagnostic. Curator deselection remains authoritative: the accession is not
+selected, accepted, downloaded, manifest-backed, completion-eligible, or a
+strict scientific deliverable. Multiple unselected candidates are not resolved
+by an arbitrary audit choice.
+
 Any explicit species conflict, strain conflict, culture-collection token
 conflict, BioSample conflict, or negative type-material evidence blocks
 automatic strict use with `conflict_blocked` and
