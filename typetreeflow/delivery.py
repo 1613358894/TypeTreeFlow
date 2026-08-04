@@ -229,6 +229,7 @@ def package_results(
 
     records = read_manifest(paths.manifest)
     requested = parse_include(include)
+    expanded_discovery_enabled = _expanded_discovery_enabled_for_delivery(paths)
     output_dir = Path(delivery_dir) if delivery_dir is not None else Path(outdir) / "delivery"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -400,6 +401,26 @@ def package_results(
             ),
         ):
             _copy_optional(source, destination, copied, missing)
+        if expanded_discovery_enabled:
+            for source, destination in (
+                (
+                    paths.expanded_discovery_results_path,
+                    output_dir / "completion" / "expanded_discovery_results.tsv",
+                ),
+                (
+                    paths.expanded_discovery_history_path,
+                    output_dir / "completion" / "expanded_discovery_history.tsv",
+                ),
+                (
+                    paths.rejected_candidates_path,
+                    output_dir / "completion" / "rejected_candidates.tsv",
+                ),
+                (
+                    paths.manual_supplement_hints_path,
+                    output_dir / "completion" / "manual_supplement_hints.tsv",
+                ),
+            ):
+                _copy_optional(source, destination, copied, missing)
         _copy_optional(
             paths.ani_query_vs_refs_path,
             output_dir / "reports" / "ani_query_vs_refs.tsv",
@@ -2874,6 +2895,54 @@ def _completion_artifact_scope_rows(delivery_dir: Path) -> list[dict[str, str]]:
                 ),
             }
         )
+    review_definitions = (
+        (
+            "completion/expanded_discovery_results.tsv",
+            "expanded_discovery_results",
+            "Expanded-discovery results",
+        ),
+        (
+            "completion/expanded_discovery_history.tsv",
+            "expanded_discovery_history",
+            "Expanded-discovery history",
+        ),
+        (
+            "completion/rejected_candidates.tsv",
+            "rejected_candidates",
+            "Rejected candidates",
+        ),
+        (
+            "completion/manual_supplement_hints.tsv",
+            "manual_supplement_hints",
+            "Manual supplement hints",
+        ),
+    )
+    for artifact_path, artifact_kind, label in review_definitions:
+        path = delivery_dir / artifact_path
+        if not path.exists():
+            continue
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "audit",
+                "evidence_policy": "review_only",
+                "record_count": str(_safe_tsv_row_count(path)),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": "review unresolved discovery and curator handoff evidence",
+                "not_for": "downloads, strict upgrades, or completion credit",
+                "source_artifact": "workflow_expanded_discovery_audit",
+                "consumer_priority": "50",
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Copied review-only workflow evidence; package inclusion does not "
+                    "change selection, manifests, downloads, or completion metrics."
+                ),
+            }
+        )
     return rows
 
 
@@ -4391,6 +4460,21 @@ def _read_run_state_if_available(paths: OutputPaths) -> WorkflowState | None:
         return read_run_state(paths.run_state_path)
     except (OSError, ValueError):
         return None
+
+
+def _expanded_discovery_enabled_for_delivery(paths: OutputPaths) -> bool:
+    state = _read_run_state_if_available(paths)
+    if state is None:
+        return False
+    try:
+        state_outdir = Path(state.outdir).resolve()
+        expected_outdir = paths.manifest.parent.resolve()
+    except (OSError, ValueError, TypeError):
+        return False
+    return (
+        state_outdir == expected_outdir
+        and state.config.get("enable_expanded_discovery") is True
+    )
 
 
 def _read_gtdb_audit_if_available(paths: OutputPaths):

@@ -41,8 +41,14 @@ selection bytes to a SHA-256 approval record and rechecks that binding before
 the existing guarded download transition; the independent real-action gate
 remains `--enable-downloads`. When the reviewed continuation also requests
 `--extract-16s barrnap`, it continues through the existing guarded same-genome
-16S stage after genome registration rather than ending at download. The small
-approval component also binds genus,
+16S stage after genome registration rather than ending at download. Offline
+BioSample input used to enrich the checkpoint is normalized into the
+run-local cache, so the reviewed continuation and final reconciler retain that
+supporting evidence without requiring the curator to repeat input arguments.
+Resume never substitutes a newly supplied external BioSample cache. Candidate
+assembly-to-BioSample linkage is injected only when the non-empty accession set
+is unique; ambiguous sets produce a reconciler diagnostic and no linkage.
+The small approval component also binds genus,
 absolute outdir, and the fixed selection artifact, and owns the single
 `authorized`/`running`/terminal lifecycle used by CLI and run-state projection.
 Each new approval has an attempt identifier and may carry one compact prior
@@ -125,6 +131,11 @@ and next actions. `package-results` copies available artifacts into a delivery
 package. Report-inclusive packages preserve existing per-species completion
 audit, summary, and gap tables under `source_audit/` and `completion/`, while
 missing artifacts remain explicitly missing rather than becoming empty tables.
+They also retain available expanded-discovery results/history, rejected
+candidates, and manual supplement hints under `completion/` so a successful
+download path does not erase unresolved review evidence. Inclusion is gated by
+the current identity-matched final run state's explicit
+`enable_expanded_discovery=true`; stale files alone cannot enable delivery.
 These files are scoped as completion evidence, not strict scientific
 deliverables. Reconciler audit mapping retains a sole unselected candidate for
 candidate/conflict diagnosis when no row was selected, without adding it to the

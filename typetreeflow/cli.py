@@ -2377,7 +2377,11 @@ def _build_reconciler_audit_input_from_workflow_outputs(
     diagnostics: list[ReconcilerDiagnosticRow] = []
     checklist_path = config.species_checklist or config.outdir / "species_checklist.tsv"
     lpsn_rows = _read_reconciler_lpsn_rows(checklist_path, diagnostics)
-    selection_rows = _read_reconciler_selection_rows(paths.user_selection_path, diagnostics)
+    selection_rows = _read_reconciler_selection_rows(
+        paths.user_selection_path,
+        diagnostics,
+        assembly_candidates_path=paths.assembly_candidates_path,
+    )
     manifest_rows = _read_reconciler_manifest_rows(paths.manifest, diagnostics)
     bacdive_rows = _read_reconciler_bacdive_rows(paths.bacdive_enrichment_path, diagnostics)
     biosample_path = config.biosample_cache or paths.biosample_records_path
@@ -2426,6 +2430,8 @@ def _read_reconciler_lpsn_rows(
 def _read_reconciler_selection_rows(
     path: Path,
     diagnostics: list[ReconcilerDiagnosticRow],
+    *,
+    assembly_candidates_path: Path | None = None,
 ) -> list[SelectionEvidenceRow]:
     try:
         rows = read_user_selection(path)
@@ -2439,12 +2445,57 @@ def _read_reconciler_selection_rows(
             )
         )
         return []
+    biosamples_by_accession: dict[str, set[str]] = {}
+    if assembly_candidates_path is not None and assembly_candidates_path.exists():
+        try:
+            for candidate in read_assembly_candidates(assembly_candidates_path):
+                if candidate.assembly_accession and candidate.biosample:
+                    biosamples_by_accession.setdefault(
+                        candidate.assembly_accession, set()
+                    ).add(candidate.biosample)
+        except (OSError, ValueError) as error:
+            diagnostics.append(
+                _reconciler_input_diagnostic(
+                    source="assembly_candidates",
+                    status="malformed_optional_input",
+                    code="malformed_optional_assembly_candidates_input",
+                    message=(
+                        "optional assembly candidate BioSample linkage could not be "
+                        f"read: {error}"
+                    ),
+                )
+            )
+    biosample_by_accession = {
+        accession: next(iter(biosamples))
+        for accession, biosamples in biosamples_by_accession.items()
+        if len(biosamples) == 1
+    }
+    selection_accessions = {row.assembly_accession for row in rows}
+    for accession, biosamples in sorted(biosamples_by_accession.items()):
+        if accession not in selection_accessions or len(biosamples) <= 1:
+            continue
+        diagnostics.append(
+            _reconciler_input_diagnostic(
+                source="assembly_candidates",
+                status="ambiguous_optional_linkage",
+                code="ambiguous_assembly_candidate_biosample_linkage",
+                message=(
+                    "assembly candidate accession maps to multiple BioSample "
+                    "accessions; no BioSample linkage was injected"
+                ),
+                assembly_accession=accession,
+                notes="biosample_accessions=" + ";".join(sorted(biosamples)),
+            )
+        )
     return [
         SelectionEvidenceRow(
             species_name=row.species,
             assembly_accession=row.assembly_accession,
             organism_name=row.organism_name,
             strain_designation=row.strain,
+            biosample_accession=biosample_by_accession.get(
+                row.assembly_accession, ""
+            ),
             culture_collection_tokens=tuple(
                 _split_reconciler_tokens(row.culture_collection_ids)
             ),
@@ -2704,6 +2755,28 @@ def _reconciler_input_diagnostic(
     )
 
 
+def _checkpoint_expanded_discovery_enabled(paths, config: AppConfig) -> bool:
+    if not paths.run_state_path.exists():
+        return False
+    try:
+        checkpoint = read_run_state(paths.run_state_path)
+        checkpoint_outdir = Path(checkpoint.outdir).resolve()
+        expected_outdir = paths.manifest.parent.resolve()
+    except (OSError, ValueError, TypeError):
+        return False
+    if checkpoint_outdir != expected_outdir:
+        return False
+    requested_genus = str(config.acquire_genus or config.genus or "").strip()
+    existing_genus = _detect_existing_outdir_genus(paths)
+    if (
+        not requested_genus
+        or not existing_genus
+        or existing_genus.casefold() != requested_genus.casefold()
+    ):
+        return False
+    return checkpoint.config.get("enable_expanded_discovery") is True
+
+
 def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None) -> None:
     if isinstance(error, CrossGenusOutdirError):
         return
@@ -2715,7 +2788,13 @@ def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None)
     ):
         return
     try:
-        state = _infer_run_state(paths, config, error)
+        effective_config = config
+        if (
+            _is_explicit_reviewed_download_submission(config)
+            and _checkpoint_expanded_discovery_enabled(paths, config)
+        ):
+            effective_config = replace(config, enable_expanded_discovery=True)
+        state = _infer_run_state(paths, effective_config, error)
         write_run_state(paths.run_state_path, state)
         LOGGER.info("Wrote workflow run state: %s.", paths.run_state_path)
     except Exception as state_error:  # pragma: no cover - best-effort diagnostics only
@@ -2910,6 +2989,19 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         next_action = _next_action_for_success(stages, paths, config)
 
     state_config = _run_state_config_summary(config)
+    if paths.user_selection_path.exists():
+        try:
+            persisted_selection_policies = {
+                row.selection_policy
+                for row in read_user_selection(paths.user_selection_path)
+                if row.selection_policy
+            }
+        except (OSError, ValueError):
+            persisted_selection_policies = set()
+        if len(persisted_selection_policies) == 1:
+            persisted_selection_policy = next(iter(persisted_selection_policies))
+            if persisted_selection_policy != "balanced":
+                state_config["selection_policy"] = persisted_selection_policy
     approval = _project_selection_approval(paths, config)
     if approval is not None:
         state_config["selection_approval"] = approval
@@ -2937,6 +3029,8 @@ def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
         "bacdive_max_queries": config.bacdive_max_queries,
         "gtdb_audit_enabled": _gtdb_metadata_audit_configured(config),
     }
+    if config.enable_expanded_discovery:
+        summary["enable_expanded_discovery"] = True
     return summary
 
 
@@ -4190,10 +4284,25 @@ def _run_reviewed_selection_guarded_download(
         )
     if not selection_path.exists():
         raise ValueError(f"Reviewed selection table not found: {selection_path}")
+    checkpoint_selection_policies = {
+        row.selection_policy
+        for row in read_user_selection(selection_path)
+        if row.selection_policy
+    }
+    checkpoint_selection_policy = (
+        next(iter(checkpoint_selection_policies))
+        if len(checkpoint_selection_policies) == 1
+        else config.selection_policy
+    )
+    checkpoint_biosample_cache = (
+        paths.biosample_records_path if paths.biosample_records_path.exists() else None
+    )
     checklist_path = config.outdir / "species_checklist.tsv"
     reviewed_config = replace(
         config,
         species_checklist=checklist_path if checklist_path.exists() else None,
+        selection_policy=checkpoint_selection_policy,
+        biosample_cache=checkpoint_biosample_cache,
         dry_run=True,
     )
     records = run_selection_dry_run_stage(
@@ -4400,6 +4509,16 @@ def run_candidate_discovery_stage(
         raise ValueError(
             f"Assembly candidate table already exists: {paths.assembly_candidates_path}; "
             "use --force to overwrite."
+        )
+    if (
+        config.biosample_cache is not None
+        and config.biosample_cache.resolve()
+        != paths.biosample_records_path.resolve()
+    ):
+        _copy_if_exists(
+            config.biosample_cache,
+            paths.biosample_records_path,
+            required=True,
         )
 
     checklist_entries = read_species_checklist(config.species_checklist)

@@ -1635,6 +1635,13 @@ The resume path uses the submitted bytes without regenerating selection.
 separately authorizes the guarded side effect. When `--extract-16s barrnap` is
 also explicit, the same reviewed continuation runs guarded same-genome barrnap
 after genome registration; barrnap remains separately gated by that option.
+If the checkpoint used an offline BioSample cache, the workflow retains a
+normalized run-local copy for the reviewed continuation and final reconciler.
+The continuation uses only `cache/ncbi/biosample_records.tsv`; a new external
+`--biosample-cache` argument cannot replace checkpoint evidence, and a missing
+run-local file is treated as missing optional evidence.
+BioSample type-material signals remain supporting evidence and do not resolve
+species-identity mismatches.
 The approval record progresses
 through `authorized`, `running`, and a final `succeeded`, `failed`, or
 `interrupted` outcome. A failed or interrupted record remains authorization

@@ -59,7 +59,23 @@ Primary commands write compact JSON to stdout by default. This does not require
   continuation runs the existing guarded same-genome barrnap stage after
   genome registration and records its manifest, source-audit, run-state, and
   report outputs; approval and successful execution do not alter the selected
-  rows' scientific evidence levels.
+  rows' scientific evidence levels. An offline BioSample cache used during the
+  checkpoint is retained as the run-local normalized BioSample cache. The
+  reviewed continuation and reconciler therefore preserve those supporting
+  signals without requiring the cache argument again. Reviewed continuation
+  reads only `cache/ncbi/biosample_records.tsv`; a resume-time external
+  `--biosample-cache` does not replace it, and absence is reported as missing
+  optional evidence. Multiple distinct BioSample accessions for one assembly
+  accession are ambiguous: none is injected and the reconciler emits
+  `ambiguous_assembly_candidate_biosample_linkage`. These signals still cannot
+  override a species-identity conflict or create strict evidence by themselves.
+  Normal report-inclusive packaging preserves available expanded-discovery
+  results/history, rejected candidates, and manual supplement hints under
+  `completion/` only when the current final run state explicitly records
+  `enable_expanded_discovery=true`. File existence does not enable packaging;
+  disabled files are neither copied nor listed as missing optional artifacts.
+  These remain audit/review artifacts rather than download instructions,
+  strict upgrades, or completion credit.
   An authorized reviewed selection writes
   `selection/selection_approval.json` and exposes the same object as
   `selection_approval` in compact stdout and under
