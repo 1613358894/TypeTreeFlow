@@ -124,6 +124,13 @@ Primary commands write compact JSON to stdout by default. This does not require
   `selection-review strategy` command before mentioning separately approved
   guarded downloads, so text-only controllers do not treat
   `--enable-downloads` as the first recovery step.
+  The offline installed-wheel release smoke treats the checkpoint, `status`,
+  and `next-step` JSON plus package `artifact_scope.tsv`, `handoff_index.md`,
+  and completion gap tables as one AI-consumer contract. Package presence
+  alone is not success: consumers must use the JSON execution status and
+  blockers, gap evidence, recommended action, and artifact-scope rows. Rows
+  marked `strict_scientific_deliverable=false` remain non-strict artifacts and
+  do not authorize downloads or upgrade scientific evidence.
   When `evidence/reconciler_audit.tsv` is available, both commands also emit
   `scientific_gap_summary`. It uses the closed classifications `complete`,
   `conflict`, `missing`, `insufficient_linkage`, `candidate`, `representative`,

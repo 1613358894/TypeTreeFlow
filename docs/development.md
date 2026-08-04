@@ -57,6 +57,42 @@ analysis, FastANI, MAFFT, trimAl, or IQ-TREE workflow execution.
 
 ## Release Gate
 
+The installed-wheel AI contract gate requires no package-index access. It copies
+only `pyproject.toml`, `README.md`, `LICENSE`, `NOTICE`, `typetreeflow.py`, and
+the current Python sources under `typetreeflow/` to an external temporary build tree,
+builds wheel and sdist there with `python -m build
+--no-isolation`, and installs the wheel with `pip --no-index --no-deps`. The smoke
+venv uses `--system-site-packages` so already-installed local dependencies can
+be reused without index access. This proves the current wheel can run against
+that local dependency set; it is not a dependency lock, dependency
+reproducibility proof, clean-machine deployment proof, or server validation.
+
+The gate runs the installed console entry point from an ordinary non-repository
+working directory and rejects a `typetreeflow` module resolved from the source
+checkout instead of the smoke environment's `site-packages`. Using repository
+fixtures only, it exercises the genus manual-review checkpoint, `status`,
+`next-step`, and package handoff. It validates their JSON and machine artifacts
+for blockers, review/next action, artifact paths, execution state, scientific
+gaps, and non-strict artifact scope. It never authorizes downloads, performs a
+provider lookup, applies a scientific upgrade, or invokes an external
+bioinformatics tool. Each failure names the exact gate stage and returns
+nonzero. These command and environment controls establish that the gate does
+not need index access; they are not a claim that the host is physically
+disconnected from every network.
+
+Run that slice independently with:
+
+```bash
+python scripts/release_gate.py --installed-contract-only
+```
+
+This mode reproducibly runs the allowlisted external build, installed-wheel
+origin checks, version and doctor smoke, and AI contract smoke. Its `PASS`
+means only that the installed-wheel contract slice passed. It does not run the
+full pytest suite and is not a full release-gate `PASS`. The default command
+below continues to run every release check and the complete pytest suite before
+the same installed-wheel slice; it does not skip or ignore failures.
+
 The release gate must include:
 
 ```bash
@@ -66,7 +102,7 @@ python scripts/check_docs_hygiene.py
 python typetreeflow.py --version
 typetreeflow doctor
 python -m pytest -p no:cacheprovider --basetemp .tmp_pytest_vX_Y_Z
-python -m build
+python -m build --no-isolation --outdir <temporary-directory-outside-repository>
 ```
 
 Use `python typetreeflow.py --version` to confirm the installed source version,
@@ -117,8 +153,8 @@ Keep durable rules here and release history in
 Packaging checks must stay local:
 
 ```bash
-python -m build
-python -m pip wheel . --no-deps -w .dist_test
+python -m build --no-isolation --outdir <temporary-directory-outside-repository>
+python -m pip install --no-index --no-deps <temporary-directory>/typetreeflow-*.whl
 ```
 
 Do not publish artifacts, create GitHub Releases, upload release assets, push,
