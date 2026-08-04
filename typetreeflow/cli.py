@@ -1386,7 +1386,11 @@ def main(
     return 0
 
 
-def validate_cli_argument_combinations(config: AppConfig) -> None:
+def validate_cli_argument_combinations(
+    config: AppConfig,
+    *,
+    trusted_internal_auto_accept_selection: bool = False,
+) -> None:
     if config.limit_selected is not None and not config.verify_genus:
         raise ValueError("--limit-selected is only supported by verify-genus.")
     if (
@@ -1415,6 +1419,10 @@ def validate_cli_argument_combinations(config: AppConfig) -> None:
         and config.enable_downloads
         and config.selection_tsv is not None
         and not config.resume
+        and not (
+            trusted_internal_auto_accept_selection
+            and config.auto_accept_selection
+        )
     ):
         raise ValueError(
             "verify-genus reviewed selection downloads require --resume so the "
@@ -1509,7 +1517,10 @@ def run_release_genus_verification(
                 raise RuntimeError(
                     "blocked_by_acquisition: " + str(acquisition_error)
                 )
-            validate_cli_argument_combinations(policy_config)
+            validate_cli_argument_combinations(
+                policy_config,
+                trusted_internal_auto_accept_selection=True,
+            )
             run_release_policy_verification_from_acquisition(
                 policy_paths,
                 policy_config,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 from typetreeflow.cli import main, parse_args
@@ -216,6 +217,34 @@ def test_verify_release_representative_complete_notes_are_exploratory(
     assert rows[0]["completion_status"] == "representative_complete"
     assert REPRESENTATIVE_EXPLORATORY_NOTE in rows[0]["notes"]
     assert REPRESENTATIVE_EXPLORATORY_NOTE in summary
+
+
+def test_public_verify_genus_cannot_claim_internal_auto_accept_selection(
+    tmp_path,
+    capsys,
+):
+    selection = tmp_path / "selection.tsv"
+    selection.write_text("selected\n", encoding="utf-8")
+
+    result = main(
+        [
+            "verify-genus",
+            "Fusobacterium",
+            "--outdir",
+            str(tmp_path / "out"),
+            "--selection-tsv",
+            str(selection),
+            "--auto-accept-selection",
+            "--enable-downloads",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 2
+    assert (
+        "reviewed selection downloads require --resume"
+        in payload["blocking"][0]["message"]
+    )
 
 
 def test_verify_release_genus_runs_shared_acquisition_once_for_two_policies(tmp_path):
