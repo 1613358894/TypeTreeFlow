@@ -76,6 +76,9 @@ semantics remain valid.
 README is the user entry point. Start with [docs/index.md](docs/index.md), then
 use:
 
+- [docs/product_direction.md](docs/product_direction.md): product direction,
+  current completion principles, capability tiers, and AI/core/human
+  responsibility boundaries.
 - [docs/guide.md](docs/guide.md): operator commands and recipes.
 - [docs/reference.md](docs/reference.md): CLI JSON stdout, output layout,
   schemas, statuses, stable contracts, and handoff contract.

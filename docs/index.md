@@ -5,6 +5,8 @@ and AI agents.
 
 ## Read First
 
+- Product direction, current completion phase, capability tiers, and decision
+  principles: [product_direction.md](product_direction.md)
 - Operator workflows and recipes: [guide.md](guide.md)
 - CLI stdout, output paths, TSV schemas, statuses, stable contracts, and
   handoff contract: [reference.md](reference.md)

@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_DOCS = [
     Path("docs/index.md"),
+    Path("docs/product_direction.md"),
     Path("docs/guide.md"),
     Path("docs/reference.md"),
     Path("docs/policy.md"),
@@ -29,6 +30,7 @@ TOP_LEVEL_DOCS_ALLOWLIST = {
     "guide.md",
     "index.md",
     "policy.md",
+    "product_direction.md",
     "provider_automation_policy.md",
     "release_notes_v2_2_x.md",
     "release_verification.md",

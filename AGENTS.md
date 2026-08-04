@@ -27,6 +27,8 @@ workflow. Keep changes aligned with that scope.
 ## Documentation Routes
 
 - User entry point: `README.md`, then `docs/index.md`.
+- Product direction, prioritization principles, capability tiers, and the
+  current definition of completion: `docs/product_direction.md`.
 - Operator workflows and recipes: `docs/guide.md`.
 - CLI JSON stdout, output layout, schemas, statuses, stable contracts, and
   handoff contract: `docs/reference.md`.

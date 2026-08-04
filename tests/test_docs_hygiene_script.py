@@ -151,6 +151,10 @@ def _write_docs_fixture(repo_root: Path) -> None:
         "# Docs\n\nSee [development.md](development.md).\n",
         encoding="utf-8",
     )
+    (docs / "product_direction.md").write_text(
+        "# Product Direction\n",
+        encoding="utf-8",
+    )
     (docs / "guide.md").write_text("# Guide\n", encoding="utf-8")
     (docs / "reference.md").write_text("# Reference\n", encoding="utf-8")
     (docs / "policy.md").write_text("# Policy\n", encoding="utf-8")
