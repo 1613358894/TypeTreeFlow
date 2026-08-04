@@ -264,6 +264,17 @@ from typetreeflow.workflow.state import (
     read_run_state,
     write_run_state,
 )
+from typetreeflow.workflow.selection_approval import (
+    SelectionApprovalError,
+    approval_path as reviewed_selection_approval_path,
+    new_approval,
+    read_approval,
+    read_validated_approval,
+    transition_approval,
+    validate_approval,
+    validate_approval_binding,
+    write_approval,
+)
 
 LOGGER = logging.getLogger(__name__)
 PROVIDER_REGISTRATION_PLAN_RECOMMENDED_NEXT_COMMAND = (
@@ -419,6 +430,9 @@ def _format_verify_genus_envelope(
     }
     if checkpoint:
         payload["checkpoint"] = checkpoint
+    approval = _project_selection_approval(paths, config)
+    if approval is not None:
+        payload["selection_approval"] = approval
     download_plan_path = paths.cache_dir / "ncbi" / "download_plan.tsv"
     if download_plan_path.exists():
         payload["download_plan_readiness_summary"] = (
@@ -857,7 +871,8 @@ def _verify_genus_checkpoint_guidance(
             "--outdir",
             outdir,
             "--resume",
-            "--auto-accept-selection",
+            "--selection-tsv",
+            str(paths.user_selection_path),
             "--enable-downloads",
         ],
         "forbidden_without_explicit_approval": [
@@ -1053,12 +1068,13 @@ def main(
     )
     if release_exit is not None:
         return release_exit
-    run_error: Exception | None = None
+    run_error: BaseException | None = None
     exit_code = 0
     workflow_stdout = sys.stderr if config.verify_genus else sys.stdout
     with redirect_stdout(workflow_stdout):
         try:
             validate_cli_argument_combinations(config)
+            _validate_existing_selection_approval(paths, config)
             if config.strains_per_species < 1:
                 raise ValueError("--strains-per-species must be at least 1")
             if config.limit_selected is not None and config.limit_selected < 1:
@@ -1127,7 +1143,10 @@ def main(
                     file=original_stdout,
                 )
                 return result.exit_code
-            if should_reuse_manifest(config.outdir, config.resume, config.force):
+            if (
+                should_reuse_manifest(config.outdir, config.resume, config.force)
+                and not (config.verify_genus and config.selection_tsv is not None)
+            ):
                 records = load_existing_manifest(config.outdir)
                 _run_resume_from_manifest(
                     records,
@@ -1202,7 +1221,7 @@ def main(
                 else:
                     run_selection_read_stage(config)
                 return 0
-        except (ManifestError, ValueError, RuntimeError) as error:
+        except (ManifestError, ValueError, RuntimeError, InterruptedError) as error:
             run_error = error
             if config.verify_genus and _looks_like_selection_review_required(error):
                 exit_code = 0
@@ -1211,6 +1230,16 @@ def main(
             exit_code = 2
             LOGGER.error("%s", error)
             return 2
+        except (KeyboardInterrupt, SystemExit) as error:
+            run_error = error
+            if isinstance(error, KeyboardInterrupt):
+                exit_code = 130
+            else:
+                exit_code = error.code if isinstance(error.code, int) else 1
+                if exit_code == 0:
+                    exit_code = 1
+            LOGGER.error("Guarded execution interrupted: %s", error)
+            raise
         finally:
             _write_inferred_run_state(paths, config, run_error)
             if config.verify_genus:
@@ -1373,12 +1402,23 @@ def validate_cli_argument_combinations(config: AppConfig) -> None:
         config.verify_genus
         and config.enable_downloads
         and not config.auto_accept_selection
+        and config.selection_tsv is None
     ):
         raise ValueError(
             "verify-genus --enable-downloads requires "
             "--auto-accept-selection. Omit --enable-downloads to keep the "
             "default manual review stop, or pass both flags to execute guarded "
             "downloads."
+        )
+    if (
+        config.verify_genus
+        and config.enable_downloads
+        and config.selection_tsv is not None
+        and not config.resume
+    ):
+        raise ValueError(
+            "verify-genus reviewed selection downloads require --resume so the "
+            "submitted selection is bound to the existing genus task/outdir."
         )
     if (
         config.verify_genus
@@ -1949,7 +1989,10 @@ def _effective_resume_config(config: AppConfig) -> AppConfig:
 
 
 def _validate_existing_outdir_genus(paths, config: AppConfig, requested_genus: str) -> None:
-    if config.allow_genus_change:
+    reviewed_continuation = (
+        config.verify_genus and config.resume and config.selection_tsv is not None
+    )
+    if config.allow_genus_change and not reviewed_continuation:
         return
     existing_genus = _detect_existing_outdir_genus(paths)
     if existing_genus is None:
@@ -2851,18 +2894,22 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
         status = _overall_status(stages)
         next_action = _next_action_for_success(stages, paths, config)
 
+    state_config = _run_state_config_summary(config)
+    approval = _project_selection_approval(paths, config)
+    if approval is not None:
+        state_config["selection_approval"] = approval
     return WorkflowState(
         status=status,
         outdir=_posix_path(config.outdir),
         stages=stages,
         next_action=next_action,
         errors=errors,
-        config=_run_state_config_summary(config),
+        config=state_config,
     )
 
 
 def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
-    return {
+    summary = {
         "evidence_policy": config.evidence_policy,
         "smoke_profile": config.smoke_profile or "",
         "limit_selected": config.limit_selected,
@@ -2875,6 +2922,7 @@ def _run_state_config_summary(config: AppConfig) -> dict[str, object]:
         "bacdive_max_queries": config.bacdive_max_queries,
         "gtdb_audit_enabled": _gtdb_metadata_audit_configured(config),
     }
+    return summary
 
 
 def _add_file_stage(
@@ -2998,6 +3046,8 @@ def _download_stage_state(
             outputs=[],
             summary=f"Review { _state_output_path(paths.sequence_source_audit_path, paths) }.",
         )
+    if config.enable_downloads and error is not None:
+        return StageState(status=_blocked_or_failed_status(error), outputs=[], summary=str(error))
     if (config.acquire_genus is not None or config.selection_tsv is not None) and (
         config.dry_run or not config.enable_downloads
     ):
@@ -3006,8 +3056,6 @@ def _download_stage_state(
             outputs=[],
             summary=_manual_review_download_summary(config),
         )
-    if config.enable_downloads and error is not None:
-        return StageState(status=_blocked_or_failed_status(error), outputs=[], summary=str(error))
     return None
 
 
@@ -3383,7 +3431,7 @@ def _next_action_for_error(status: str, error: Exception, paths, config: AppConf
 def _is_selection_integrity_error(error: Exception | None) -> bool:
     if error is None:
         return False
-    return _is_duplicate_selected_accession_error(error)
+    return isinstance(error, SelectionApprovalError) or _is_duplicate_selected_accession_error(error)
 
 
 def _is_duplicate_selected_accession_error(error: Exception | None) -> bool:
@@ -3514,6 +3562,8 @@ def _selection_acceptance_summary(config: AppConfig) -> str:
         return "auto_accepted_selection"
     if config.auto_accept_selection:
         return "auto_accepted_selection for planning only; downloads not enabled"
+    if config.selection_tsv is not None and config.enable_downloads:
+        return "reviewed_selection"
     return "manual_review_required"
 
 
@@ -3763,10 +3813,19 @@ def run_genus_acquisition_workflow(
         message = _existing_outdir_resume_message(paths, config)
         if message:
             raise ValueError(message)
+    reviewed_selection_submission = (
+        config.verify_genus
+        and config.resume
+        and config.selection_tsv is not None
+        and not config.auto_accept_selection
+    )
+    reviewed_selection_guarded_download = (
+        reviewed_selection_submission and config.enable_downloads
+    )
     verify_genus_guarded_download = (
         config.verify_genus
-        and config.auto_accept_selection
         and config.enable_downloads
+        and (config.auto_accept_selection or reviewed_selection_guarded_download)
     )
     if config.enable_downloads and not verify_genus_guarded_download:
         raise ValueError(
@@ -3777,6 +3836,28 @@ def run_genus_acquisition_workflow(
             else "--acquire-genus prepares a dry-run acquisition plan only; review "
             "selection/user_selection.tsv, then run --selection-tsv with "
             "--enable-downloads for guarded downloads."
+        )
+    if reviewed_selection_submission and not config.enable_downloads:
+        selection_path = Path(config.selection_tsv).resolve()
+        if selection_path != paths.user_selection_path.resolve():
+            raise ValueError(
+                "verify-genus reviewed selection must be the existing task artifact "
+                f"{paths.user_selection_path}; got {config.selection_tsv}."
+            )
+        run_selection_read_stage(config)
+        LOGGER.info(
+            "Validated submitted reviewed selection; downloads remain disabled."
+        )
+        return paths.user_selection_path
+    if reviewed_selection_guarded_download:
+        return _run_reviewed_selection_guarded_download(
+            paths,
+            config,
+            download_runner=download_runner,
+            barrnap_runner=barrnap_runner,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
+            ncbi_taxonomy_client=ncbi_taxonomy_client,
         )
     if config.lpsn_cache is None and not config.enable_lpsn_api:
         raise ValueError(
@@ -3921,6 +4002,178 @@ def run_genus_acquisition_workflow(
         workflow_label,
         genus,
         paths.user_selection_path,
+    )
+    return paths.user_selection_path
+
+
+def _selection_approval_path(paths) -> Path:
+    return reviewed_selection_approval_path(paths.manifest.parent)
+
+
+def _selection_sha256(path: Path) -> str:
+    from typetreeflow.workflow.selection_approval import selection_sha256
+
+    return selection_sha256(path)
+
+
+def _approval_genus(paths, config: AppConfig | None = None) -> str:
+    configured = (
+        ""
+        if config is None
+        else str(config.acquire_genus or config.genus or "").strip()
+    )
+    return configured or str(_detect_existing_outdir_genus(paths) or "")
+
+
+def _read_selection_approval(
+    paths, config: AppConfig | None = None
+) -> dict[str, object] | None:
+    return read_validated_approval(
+        outdir=paths.manifest.parent,
+        genus=_approval_genus(paths, config),
+        selection_path=paths.user_selection_path,
+    )
+
+
+def _is_explicit_reviewed_download_submission(config: AppConfig) -> bool:
+    return bool(
+        config.verify_genus
+        and config.resume
+        and config.selection_tsv is not None
+        and config.enable_downloads
+        and not config.auto_accept_selection
+    )
+
+
+def _validate_existing_selection_approval(paths, config: AppConfig) -> None:
+    if not config.verify_genus or not _selection_approval_path(paths).exists():
+        return
+    if _is_explicit_reviewed_download_submission(config):
+        return
+    _read_selection_approval(paths, config)
+
+
+def _project_selection_approval(
+    paths, config: AppConfig | None = None
+) -> dict[str, object] | None:
+    try:
+        return _read_selection_approval(paths, config)
+    except SelectionApprovalError:
+        return None
+
+
+def _write_reviewed_selection_approval(
+    paths,
+    selection_path: Path,
+    genus: str | None = None,
+    previous_approval: dict[str, object] | None = None,
+) -> dict[str, object]:
+    approval = new_approval(
+        outdir=paths.manifest.parent,
+        genus=genus or _approval_genus(paths),
+        selection_path=selection_path,
+        previous_approval=previous_approval,
+    )
+    write_approval(paths.manifest.parent, approval)
+    return approval
+
+
+def _validate_selection_approval(
+    paths, selection_path: Path, genus: str | None = None
+) -> dict[str, object]:
+    approval = _read_selection_approval(paths)
+    if approval is None:
+        raise SelectionApprovalError("Reviewed selection approval record is missing.")
+    return validate_approval(
+        approval,
+        outdir=paths.manifest.parent,
+        genus=genus or _approval_genus(paths),
+        selection_path=selection_path,
+    )
+
+
+def _run_reviewed_selection_guarded_download(
+    paths,
+    config: AppConfig,
+    *,
+    download_runner=None,
+    barrnap_runner=None,
+    fastani_runner=None,
+    phylo_runner=None,
+    ncbi_taxonomy_client=None,
+) -> Path:
+    selection_path = Path(config.selection_tsv).resolve()
+    expected_path = paths.user_selection_path.resolve()
+    if selection_path != expected_path:
+        raise ValueError(
+            "verify-genus reviewed selection must be the existing task artifact "
+            f"{paths.user_selection_path}; got {config.selection_tsv}."
+        )
+    if not selection_path.exists():
+        raise ValueError(f"Reviewed selection table not found: {selection_path}")
+    checklist_path = config.outdir / "species_checklist.tsv"
+    reviewed_config = replace(
+        config,
+        species_checklist=checklist_path if checklist_path.exists() else None,
+        dry_run=True,
+    )
+    records = run_selection_dry_run_stage(
+        paths, reviewed_config, ncbi_taxonomy_client=ncbi_taxonomy_client
+    )
+    download_config = replace(reviewed_config, dry_run=False, enable_downloads=True)
+    if not _source_audit_policy_allows_stage(paths, download_config, "download"):
+        raise ValueError(
+            "Sequence source audit policy blocked download stage; review "
+            f"{paths.sequence_source_audit_path}."
+        )
+    genus = str(config.acquire_genus or "").strip()
+    previous_approval = read_approval(paths.manifest.parent)
+    if previous_approval is not None:
+        previous_approval = validate_approval_binding(
+            previous_approval,
+            outdir=paths.manifest.parent,
+            genus=genus,
+        )
+    approval = _write_reviewed_selection_approval(
+        paths,
+        selection_path,
+        genus,
+        previous_approval=previous_approval,
+    )
+    approval = transition_approval(approval, "running")
+    write_approval(paths.manifest.parent, approval)
+    try:
+        run_downloads_stage(records, paths, download_config, runner=download_runner)
+        write_manifest(records, paths.manifest)
+        _run_guarded_downstream_analysis_stages(
+            records,
+            paths,
+            download_config,
+            barrnap_runner=barrnap_runner,
+            fastani_runner=fastani_runner,
+            phylo_runner=phylo_runner,
+        )
+        run_reconciler_audit_stage(paths, download_config)
+        if download_config.species_checklist is not None:
+            run_taxonomy_audit_stage(records, paths, download_config.species_checklist)
+        _write_run_summary(records, paths, download_config)
+    except BaseException as error:
+        outcome = (
+            "interrupted"
+            if isinstance(error, (KeyboardInterrupt, SystemExit, InterruptedError))
+            else "failed"
+        )
+        approval = transition_approval(
+            approval,
+            outcome,
+            error=str(error) or type(error).__name__,
+        )
+        write_approval(paths.manifest.parent, approval)
+        raise
+    approval = transition_approval(approval, "succeeded")
+    write_approval(paths.manifest.parent, approval)
+    LOGGER.info(
+        "Completed verify-genus guarded download from explicitly submitted reviewed selection."
     )
     return paths.user_selection_path
 
@@ -5286,7 +5539,11 @@ def run_selection_download_stage(paths, config: AppConfig, runner=None) -> list:
 
 def _selection_tsv_to_records(paths, config: AppConfig) -> list:
     validate_resume_force(config.resume, config.force)
-    if paths.manifest.exists() and not config.force:
+    if (
+        paths.manifest.exists()
+        and not config.force
+        and not (config.verify_genus and config.resume and config.selection_tsv is not None)
+    ):
         raise ValueError(
             f"Manifest already exists: {paths.manifest}; use --force to rebuild "
             "outputs from --selection-tsv."

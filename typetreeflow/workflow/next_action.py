@@ -59,7 +59,8 @@ def plan_only_guarded_download_next_action(paths) -> str:
         "--json` before guarded downloads. This summarizes "
         "selection/user_selection.tsv and the bounded smoke handoff without "
         "running datasets. After that review, guarded downloads still require "
-        "separate explicit approval with --auto-accept-selection --enable-downloads."
+        "separate explicit approval with --resume --selection-tsv "
+        f'"{paths.user_selection_path.resolve()}" --enable-downloads.'
     )
     bounded_smoke = _bounded_smoke_prepare_next_action(paths)
     secondary = _secondary_plan_only_handoff(paths)

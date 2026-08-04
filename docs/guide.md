@@ -1618,6 +1618,39 @@ reviewed file and `--auto-accept-selection` only for bounded exploratory smoke
 or deliberately accepted policy output. Representative records are exploratory
 and not strict type-strain confirmations.
 
+To consume the reviewed file in the same genus task, resume the same outdir and
+submit the artifact explicitly:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --outdir <workspace>/runs/fusobacterium_selection \
+  --resume \
+  --selection-tsv <workspace>/runs/fusobacterium_selection/selection/user_selection.tsv \
+  --enable-downloads
+```
+
+The resume path uses the submitted bytes without regenerating selection.
+`--selection-tsv` identifies the reviewed artifact; `--enable-downloads`
+separately authorizes the guarded side effect. The approval record progresses
+through `authorized`, `running`, and a final `succeeded`, `failed`, or
+`interrupted` outcome. A failed or interrupted record remains authorization
+history but does not claim successful consumption. Every explicit submission
+creates a new attempt; a trusted prior terminal attempt is retained as compact
+`previous_attempt` metadata, so changed reviewed bytes can be approved again
+without manually deleting the approval file. Without
+`--enable-downloads`, the reviewed file is validated but no approval record is
+created and no download runs. Changed selection bytes or malformed or
+mismatched approval bindings fail closed.
+`status` and `next-step` also recheck the current selection digest. They return
+a recovery blocker for stale or malformed approval state and for a legacy
+attempt left at `authorized` or `running`, rather than replaying an earlier
+successful state. For either orphan state, inspect existing download results,
+manifest statuses, and runner evidence first. The existing explicit reviewed
+`--resume --selection-tsv ... --enable-downloads` command then creates a new
+attempt and records whether the predecessor was abandoned before running or
+recovered from an uncertain running state. Retrying a running predecessor may
+repeat partial side effects and is therefore an explicit operator decision.
+
 ## Release Verification
 
 `verify-release-genus` runs the maintained balanced and representative release

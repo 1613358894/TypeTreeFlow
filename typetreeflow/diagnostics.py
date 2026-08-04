@@ -37,6 +37,12 @@ from typetreeflow.workflow.next_action import plan_only_guarded_download_next_ac
 from typetreeflow.workflow.next_action import refine_entrez_fallback_next_action
 from typetreeflow.workflow.next_action import zero_accepted_checklist_next_action
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.selection_approval import (
+    SelectionApprovalError,
+    approval_path as selection_approval_path,
+    read_approval,
+    validate_approval,
+)
 from typetreeflow.workflow.state import WORKFLOW_STAGES, WorkflowState, read_run_state
 
 
@@ -291,6 +297,7 @@ def doctor_exit_code(report: DoctorReport, *, strict: bool = False) -> int:
 def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
     root = _require_outdir(outdir)
     paths = get_output_paths(root)
+    _validate_selection_approval_for_diagnostics(root, paths)
     if paths.run_state_path.exists():
         summary = _summary_from_run_state(read_run_state(paths.run_state_path))
         summary = _with_status_paths(summary, root, paths.run_state_path)
@@ -360,6 +367,7 @@ def inspect_workflow_status(outdir: str | Path) -> WorkflowStatusSummary:
 def next_step_summary(outdir: str | Path) -> NextStepSummary:
     root = _require_outdir(outdir)
     paths = get_output_paths(root)
+    _validate_selection_approval_for_diagnostics(root, paths)
     checklist_next_action = zero_accepted_checklist_next_action(paths)
     if checklist_next_action:
         return NextStepSummary(
@@ -453,6 +461,11 @@ def format_error_envelope(
 ) -> str:
     message = str(error)
     error_id = _error_id(error)
+    recovery = (
+        [{"id": "renew_reviewed_selection_approval", "message": _approval_recovery(message)}]
+        if isinstance(error, SelectionApprovalError)
+        else []
+    )
     return json.dumps(
         {
             "command": command,
@@ -462,9 +475,54 @@ def format_error_envelope(
             "outdir": str(outdir),
             "blocking": [{"id": error_id, "message": message}],
             "warnings": [],
-            "next_actions": [],
+            "next_actions": recovery,
         },
         sort_keys=True,
+    )
+
+
+def _validate_selection_approval_for_diagnostics(root: Path, paths) -> None:
+    if not selection_approval_path(root).exists():
+        return
+    try:
+        approval = read_approval(root)
+        if approval is None:
+            return
+        genus = approval.get("genus")
+        if not isinstance(genus, str) or not genus:
+            raise SelectionApprovalError(
+                "Reviewed selection approval genus is missing or invalid."
+            )
+        validated = validate_approval(
+            approval,
+            outdir=root,
+            genus=genus,
+            selection_path=paths.user_selection_path,
+        )
+        if validated["lifecycle_status"] in {"authorized", "running"}:
+            raise SelectionApprovalError(
+                "Reviewed selection approval has a legacy non-terminal "
+                f"{validated['lifecycle_status']} attempt with no terminal outcome."
+            )
+    except SelectionApprovalError as error:
+        raise SelectionApprovalError(
+            f"{error} {_approval_recovery(str(error))}"
+        ) from error
+
+
+def _approval_recovery(message: str) -> str:
+    if "non-terminal" in message:
+        return (
+            "Inspect existing download results, manifest statuses, and runner evidence. "
+            "Then explicitly rerun the same genus/outdir with --resume --selection-tsv "
+            "<absolute-selection-path> --enable-downloads to abandon the orphan attempt "
+            "and create a new attempt; a prior running attempt may have performed partial "
+            "side effects, so this explicit resume carries retry risk."
+        )
+    return (
+        "Review selection/user_selection.tsv, then explicitly resubmit the same genus "
+        "and outdir with --resume --selection-tsv <absolute-selection-path> "
+        "--enable-downloads to create a new approval attempt."
     )
 
 

@@ -153,6 +153,18 @@ def test_readme_mentions_guarded_cli_flags():
         assert flag in readme
 
 
+def test_reviewed_selection_guarded_download_command_blocks_are_complete():
+    expected_block = """typetreeflow verify-genus Fusobacterium \\
+  --outdir <workspace>/runs/fusobacterium_selection \\
+  --resume \\
+  --selection-tsv <workspace>/runs/fusobacterium_selection/selection/user_selection.tsv \\
+  --enable-downloads"""
+
+    assert expected_block in _read("README.md")
+    assert expected_block in _read("docs/guide.md")
+    assert "--auto-accept-selection" not in expected_block
+
+
 def test_high_level_workflow_docs_are_current():
     readme = _read("README.md")
     cookbook = _read("docs/guide.md")

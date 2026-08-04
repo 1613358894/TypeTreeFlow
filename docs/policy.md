@@ -21,6 +21,10 @@ Do not describe `representative`, `likely_type_material`, `reference genome`,
 provider proposals, provider plans, local query rows, or external request rows
 as strict confirmed type strains. Strict type-strain wording requires evidence
 tying the genome record to the species type-strain equivalence set.
+Human approval of `selection/user_selection.tsv` is operational permission to
+consume those selected rows; it is not scientific confirmation and cannot
+promote candidate, likely, or representative evidence to strict type-strain
+status.
 
 BacDive/DSMZ enrichment is opt-in, disabled by default, and candidate-only
 unless a later reconciler proves the full chain from BacDive/DSMZ source facts

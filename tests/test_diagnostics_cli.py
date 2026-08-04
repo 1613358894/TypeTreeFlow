@@ -882,7 +882,10 @@ def test_next_step_plan_only_selected_prioritizes_selection_before_hints(
     assert output.startswith("Run `typetreeflow selection-review strategy ")
     assert "--bounded-smoke-outdir" in output
     assert "without running datasets" in output
-    assert "--auto-accept-selection --enable-downloads" in output
+    assert (
+        f'--resume --selection-tsv "{paths.user_selection_path.resolve()}" '
+        "--enable-downloads"
+    ) in output
     assert "Secondary/optional handoff:" in output
     assert "completion/manual_supplement_hints.tsv" in output
     assert output.index("selection/user_selection.tsv") < output.index(

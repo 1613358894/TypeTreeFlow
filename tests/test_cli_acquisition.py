@@ -6,7 +6,14 @@ import sys
 import zipfile
 from pathlib import Path
 
-from typetreeflow.cli import main, run_reconciler_audit_stage
+import pytest
+
+from typetreeflow.cli import (
+    _validate_selection_approval,
+    _write_reviewed_selection_approval,
+    main,
+    run_reconciler_audit_stage,
+)
 from typetreeflow.config import AppConfig
 from typetreeflow.evidence.bacdive_adapter import BacDiveHTTPError, FakeBacDiveClient
 from typetreeflow.evidence.bacdive_workflow import build_public_bacdive_live_client
@@ -24,6 +31,12 @@ from typetreeflow.taxonomy.checklist import read_species_checklist
 from typetreeflow.taxonomy.lpsn import LpsnSpeciesRecord, write_lpsn_species_cache
 from typetreeflow.taxonomy.selection import read_user_selection
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.selection_approval import (
+    SelectionApprovalError,
+    new_approval,
+    transition_approval,
+    validate_approval,
+)
 from typetreeflow.workflow.state import WorkflowState, read_run_state, write_run_state
 
 
@@ -692,7 +705,10 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     )
     assert "--bounded-smoke-outdir" in state.next_action
     assert "without running datasets" in state.next_action
-    assert "--auto-accept-selection --enable-downloads" in state.next_action
+    assert (
+        f'--resume --selection-tsv "{paths.user_selection_path.resolve()}" '
+        "--enable-downloads"
+    ) in state.next_action
     assert "Secondary/optional handoff:" in state.next_action
     assert "completion/manual_supplement_hints.tsv" in state.next_action
     assert [row.species for row in selected_rows] == ["Clostridium baratii"]
@@ -778,7 +794,10 @@ def test_clostridium_limited_smoke_keeps_representative_guard_and_handoff(
     assert next_step.startswith("Run `typetreeflow selection-review strategy ")
     assert "--bounded-smoke-outdir" in next_step
     assert "without running datasets" in next_step
-    assert "--auto-accept-selection --enable-downloads" in next_step
+    assert (
+        f'--resume --selection-tsv "{paths.user_selection_path.resolve()}" '
+        "--enable-downloads"
+    ) in next_step
     assert "download-smoke prepare" in next_step
     assert "--quality-tier recommended" in next_step
     assert "--write --outdir" in next_step
@@ -3730,6 +3749,494 @@ def test_verify_genus_guarded_download_extract_16s_barrnap_fake_success(
     assert state.stages["rrna_barrnap"].status == "succeeded"
     assert "rrna_16s_ready=2" in state.stages["rrna_barrnap"].summary
     assert "- 16S-ready records: 2" in summary
+
+
+def test_verify_genus_reviewed_selection_resume_download_is_two_stage_and_offline(
+    tmp_path, monkeypatch, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    runner = _FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+
+    first = main(
+        [
+            "verify-genus", "Fusobacterium",
+            "--lpsn-cache", str(lpsn_cache),
+            "--discovery-cache", str(discovery_cache),
+            "--outdir", str(outdir),
+        ]
+    )
+    first_payload = json.loads(capsys.readouterr().out)
+    paths = get_output_paths(outdir)
+    reviewed = paths.user_selection_path
+    reviewed_lines = reviewed.read_text(encoding="utf-8").splitlines()
+    reviewed_lines[1] = reviewed_lines[1] + " curator-reviewed"
+    reviewed.write_text("\n".join(reviewed_lines) + "\n", encoding="utf-8")
+    submitted_bytes = reviewed.read_bytes()
+
+    second = main(
+        [
+            "verify-genus", "Fusobacterium",
+            "--outdir", str(outdir),
+            "--resume",
+            "--selection-tsv", str(reviewed),
+            "--enable-downloads",
+        ],
+        download_runner=runner,
+    )
+    second_payload = json.loads(capsys.readouterr().out)
+    state = read_run_state(paths.run_state_path)
+    approval = json.loads(
+        (paths.user_selection_path.parent / "selection_approval.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert first == second == 0
+    assert first_payload["reason"] == "manual_review_required"
+    assert reviewed.read_bytes() == submitted_bytes
+    assert len(runner.commands) == 2
+    assert paths.ncbi_download_results_path.exists()
+    assert read_manifest(paths.manifest)
+    assert approval["approval_kind"] == "reviewed_selection"
+    assert approval["selection_artifact"] == "selection/user_selection.tsv"
+    assert len(approval["selection_sha256"]) == 64
+    assert approval["genus"] == "Fusobacterium"
+    assert approval["outdir"] == str(outdir.resolve())
+    assert approval["lifecycle_status"] == "succeeded"
+    assert approval["execution_error"] == ""
+    assert second_payload["selection_approval"] == approval
+    assert second_payload["config"]["auto_accept_selection"] is False
+    assert state.config["selection_approval"] == approval
+    assert state.stages["download"].status == "succeeded"
+
+
+def test_verify_genus_reviewed_selection_without_download_authorization_does_not_run(
+    tmp_path, monkeypatch
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    paths = get_output_paths(outdir)
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_downloads_stage",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("no download")),
+    )
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 0
+    assert not (paths.user_selection_path.parent / "selection_approval.json").exists()
+
+
+def test_verify_genus_reviewed_selection_digest_change_after_approval_fails_closed(
+    tmp_path
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery_records.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    paths = get_output_paths(outdir)
+    _write_reviewed_selection_approval(paths, paths.user_selection_path)
+    with paths.user_selection_path.open("a", encoding="utf-8") as handle:
+        handle.write("# changed after approval\n")
+    with pytest.raises(ValueError, match="changed after approval"):
+        _validate_selection_approval(paths, paths.user_selection_path)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda path, value: path.write_text("{bad", encoding="utf-8"), "malformed"),
+        (
+            lambda path, value: (
+                value.pop("schema_version"),
+                _write_json(path, value),
+            ),
+            "missing required",
+        ),
+        (lambda path, value: (value.__setitem__("approval_kind", "other"), _write_json(path, value)), "approval_kind mismatch"),
+        (lambda path, value: (value.__setitem__("selection_artifact", "other.tsv"), _write_json(path, value)), "selection_artifact mismatch"),
+        (lambda path, value: (value.__setitem__("genus", "Clostridium"), _write_json(path, value)), "genus mismatch"),
+        (lambda path, value: (value.__setitem__("outdir", "C:/wrong"), _write_json(path, value)), "outdir mismatch"),
+        (lambda path, value: (value.__setitem__("lifecycle_status", "unknown"), _write_json(path, value)), "lifecycle_status is invalid"),
+        (lambda path, value: (value.__setitem__("selection_sha256", "0" * 64), _write_json(path, value)), "changed after approval"),
+    ],
+)
+def test_verify_genus_corrupt_selection_approval_fails_closed_in_cli(
+    tmp_path, capsys, mutation, message
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    approval = _write_reviewed_selection_approval(
+        paths, paths.user_selection_path, "Fusobacterium"
+    )
+    approval_path = paths.user_selection_path.parent / "selection_approval.json"
+    mutation(approval_path, approval)
+
+    result = main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ])
+    payload = json.loads(capsys.readouterr().out)
+    state = read_run_state(paths.run_state_path)
+
+    assert result == 2
+    assert message in payload["blocking"][0]["message"]
+    assert "selection_approval" not in payload
+    assert "selection_approval" not in state.config
+    assert message in state.errors[0]
+
+
+def _write_json(path: Path, value: dict) -> None:
+    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def test_verify_genus_reviewed_download_failure_records_failed_outcome(
+    tmp_path, monkeypatch, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+
+    def fail_after_start(*args, **kwargs):
+        approval = json.loads(
+            (paths.user_selection_path.parent / "selection_approval.json").read_text(encoding="utf-8")
+        )
+        assert approval["lifecycle_status"] == "running"
+        raise RuntimeError("fake download failure")
+
+    monkeypatch.setattr("typetreeflow.cli.run_downloads_stage", fail_after_start)
+    result = main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ])
+    payload = json.loads(capsys.readouterr().out)
+    state = read_run_state(paths.run_state_path)
+    approval = payload["selection_approval"]
+
+    assert result == 2
+    assert approval["lifecycle_status"] == "failed"
+    assert approval["execution_error"] == "fake download failure"
+    assert state.config["selection_approval"] == approval
+    assert state.stages["download"].status == "failed"
+
+    previous_attempt_id = approval["attempt_id"]
+    _append_selection_review_note(
+        paths.user_selection_path, "newly reviewed after failure"
+    )
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_downloads_stage",
+        lambda records, paths, config, runner=None: None,
+    )
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ]) == 0
+    retried = json.loads(capsys.readouterr().out)["selection_approval"]
+    assert retried["lifecycle_status"] == "succeeded"
+    assert retried["attempt_id"] != previous_attempt_id
+    assert retried["previous_attempt"]["attempt_id"] == previous_attempt_id
+    assert retried["previous_attempt"]["lifecycle_status"] == "failed"
+
+
+def test_verify_genus_reviewed_download_interruption_is_machine_visible(
+    tmp_path, monkeypatch, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_downloads_stage",
+        lambda *args, **kwargs: (_ for _ in ()).throw(InterruptedError("fake interruption")),
+    )
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    state = read_run_state(paths.run_state_path)
+    assert payload["selection_approval"]["lifecycle_status"] == "interrupted"
+    assert state.config["selection_approval"]["execution_error"] == "fake interruption"
+
+
+def test_verify_genus_successful_approval_stale_status_then_explicit_new_attempt(
+    tmp_path, monkeypatch, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    runner = _FakeDatasetsRunner()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ], download_runner=runner) == 0
+    capsys.readouterr()
+    _append_selection_review_note(paths.user_selection_path, "new review")
+    assert main([
+        "status", "--outdir", str(outdir),
+    ]) == 2
+    status_payload = json.loads(capsys.readouterr().out)
+    assert status_payload["status"] == "failed"
+    assert "changed after approval" in status_payload["blocking"][0]["message"]
+    assert status_payload["next_actions"][0]["id"] == "renew_reviewed_selection_approval"
+    assert main([
+        "next-step", "--outdir", str(outdir),
+    ]) == 2
+    next_payload = json.loads(capsys.readouterr().out)
+    assert "--resume" in next_payload["next_actions"][0]["message"]
+
+    old_approval = json.loads(
+        (paths.user_selection_path.parent / "selection_approval.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ], download_runner=_FakeDatasetsRunner()) == 0
+    payload = json.loads(capsys.readouterr().out)
+    state = read_run_state(paths.run_state_path)
+    approval = payload["selection_approval"]
+    assert approval["lifecycle_status"] == "succeeded"
+    assert approval["attempt_id"] != old_approval["attempt_id"]
+    assert approval["previous_attempt"]["attempt_id"] == old_approval["attempt_id"]
+    assert state.config["selection_approval"] == approval
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected_status"),
+    [(KeyboardInterrupt("ctrl-c"), "interrupted"), (SystemExit(7), "interrupted")],
+)
+def test_verify_genus_base_exception_preserves_exception_and_machine_state(
+    tmp_path, monkeypatch, capsys, raised, expected_status
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_downloads_stage",
+        lambda *args, **kwargs: (_ for _ in ()).throw(raised),
+    )
+    with pytest.raises(type(raised)) as caught:
+        main([
+            "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+            "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+        ])
+    assert caught.value is raised
+    payload = json.loads(capsys.readouterr().out)
+    state = read_run_state(paths.run_state_path)
+    approval = payload["selection_approval"]
+    assert payload["status"] != "pass"
+    assert approval["lifecycle_status"] == expected_status
+    assert state.config["selection_approval"] == approval
+    assert state.stages["download"].status == "failed"
+
+
+@pytest.mark.parametrize(
+    ("source", "target"),
+    [
+        ("authorized", "succeeded"),
+        ("authorized", "failed"),
+        ("authorized", "interrupted"),
+        ("running", "authorized"),
+        ("succeeded", "running"),
+        ("failed", "authorized"),
+        ("interrupted", "running"),
+    ],
+)
+def test_selection_approval_rejects_illegal_state_transitions(
+    tmp_path, source, target
+):
+    selection = tmp_path / "selection.tsv"
+    selection.write_text("selected\n", encoding="utf-8")
+    approval = new_approval(
+        outdir=tmp_path, genus="Fusobacterium", selection_path=selection
+    )
+    approval["lifecycle_status"] = source
+    if source in {"failed", "interrupted"}:
+        approval["execution_error"] = "prior error"
+    with pytest.raises(SelectionApprovalError, match="Invalid approval lifecycle"):
+        transition_approval(approval, target)
+
+
+def test_status_and_next_step_block_malformed_and_running_approval(
+    tmp_path, monkeypatch, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    approval_path = paths.user_selection_path.parent / "selection_approval.json"
+    approval_path.write_text("{bad", encoding="utf-8")
+    assert main(["status", "--outdir", str(outdir)]) == 2
+    malformed = json.loads(capsys.readouterr().out)
+    assert "malformed" in malformed["blocking"][0]["message"]
+    assert malformed["next_actions"]
+
+    approval = _write_reviewed_selection_approval(
+        paths, paths.user_selection_path, "Fusobacterium"
+    )
+    assert main(["status", "--outdir", str(outdir)]) == 2
+    authorized = json.loads(capsys.readouterr().out)
+    assert "non-terminal authorized" in authorized["blocking"][0]["message"]
+    assert "--resume" in authorized["next_actions"][0]["message"]
+
+    authorized_id = approval["attempt_id"]
+    monkeypatch.setattr(
+        "typetreeflow.cli.run_downloads_stage",
+        lambda records, paths, config, runner=None: None,
+    )
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ]) == 0
+    recovered = json.loads(capsys.readouterr().out)["selection_approval"]
+    assert recovered["attempt_id"] != authorized_id
+    assert recovered["previous_attempt"] == {
+        "attempt_id": authorized_id,
+        "lifecycle_status": "authorized",
+        "selection_sha256": approval["selection_sha256"],
+        "execution_error": "",
+        "recovery_status": "abandoned_before_running",
+    }
+
+    approval = _write_reviewed_selection_approval(
+        paths, paths.user_selection_path, "Fusobacterium"
+    )
+    approval = transition_approval(approval, "running")
+    _write_json(approval_path, approval)
+    assert main(["next-step", "--outdir", str(outdir)]) == 2
+    running = json.loads(capsys.readouterr().out)
+    assert "non-terminal running" in running["blocking"][0]["message"]
+    assert "retry risk" in running["next_actions"][0]["message"]
+
+    running_id = approval["attempt_id"]
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ]) == 0
+    running_recovered = json.loads(capsys.readouterr().out)["selection_approval"]
+    assert running_recovered["attempt_id"] != running_id
+    assert running_recovered["previous_attempt"]["attempt_id"] == running_id
+    assert running_recovered["previous_attempt"]["lifecycle_status"] == "running"
+    assert running_recovered["previous_attempt"]["recovery_status"] == (
+        "abandoned_running_for_explicit_resume"
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda current, previous: previous.__setitem__("selection_sha256", "ABC"), "selection_sha256 is invalid"),
+        (lambda current, previous: (previous.__setitem__("lifecycle_status", "succeeded"), previous.__setitem__("execution_error", "bad")), "succeeded previous_attempt cannot carry"),
+        (lambda current, previous: (previous.__setitem__("lifecycle_status", "failed"), previous.__setitem__("execution_error", "")), "failed previous_attempt requires"),
+        (lambda current, previous: (previous.__setitem__("lifecycle_status", "interrupted"), previous.__setitem__("execution_error", "")), "interrupted previous_attempt requires"),
+        (lambda current, previous: previous.__setitem__("attempt_id", current["attempt_id"]), "must differ"),
+        (lambda current, previous: previous.__setitem__("previous_attempt", {}), "cannot contain nested"),
+    ],
+)
+def test_selection_approval_rejects_malformed_previous_attempt(
+    tmp_path, mutation, message
+):
+    selection = tmp_path / "selection.tsv"
+    selection.write_text("selected\n", encoding="utf-8")
+    prior = new_approval(
+        outdir=tmp_path, genus="Fusobacterium", selection_path=selection
+    )
+    prior = transition_approval(prior, "running")
+    prior = transition_approval(prior, "succeeded")
+    current = new_approval(
+        outdir=tmp_path,
+        genus="Fusobacterium",
+        selection_path=selection,
+        previous_approval=prior,
+    )
+    previous = current["previous_attempt"]
+    mutation(current, previous)
+    with pytest.raises(SelectionApprovalError, match=message):
+        validate_approval(
+            current,
+            outdir=tmp_path,
+            genus="Fusobacterium",
+            selection_path=selection,
+        )
+
+
+def _append_selection_review_note(path: Path, note: str) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    lines[1] = lines[1] + f" {note}"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize("allow_change", [False, True])
+def test_verify_genus_reviewed_continuation_rejects_cross_genus_even_with_override(
+    tmp_path, capsys, allow_change
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    argv = [
+        "verify-genus", "Clostridium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ]
+    if allow_change:
+        argv.append("--allow-genus-change")
+    assert main(argv) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert "different genus" in payload["blocking"][0]["message"]
 
 
 def test_verify_genus_enable_fastani_without_query_writes_explicit_stage_status(

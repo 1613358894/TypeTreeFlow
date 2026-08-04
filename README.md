@@ -191,16 +191,21 @@ evidence-first and does not claim strict completion. Review
 results package should read package-root `artifact_scope.tsv` first when that
 handoff copy is present.
 
-Run bounded guarded real work only when explicitly intended:
+After reviewing the generated file, continue the same genus task and explicitly
+submit that reviewed artifact. Selection approval and download authorization
+are separate inputs:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
-  --outdir <workspace>/runs/fusobacterium_limit4_real \
-  --email you@example.org \
-  --enable-downloads \
-  --enable-barrnap \
-  --limit-selected 4
+  --outdir <workspace>/runs/fusobacterium_selection \
+  --resume \
+  --selection-tsv <workspace>/runs/fusobacterium_selection/selection/user_selection.tsv \
+  --enable-downloads
 ```
+
+Omitting `--enable-downloads` validates the submitted selection without
+downloading. `--auto-accept-selection --enable-downloads` remains the distinct
+opt-in for accepting software-generated selection without human review.
 
 Optional guarded actions include `--enable-biosample-entrez`,
 `--enable-entrez`, `--enable-ncbi-discovery`, `--enable-ncbi-taxonomy`,

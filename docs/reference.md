@@ -50,6 +50,41 @@ Primary commands write compact JSON to stdout by default. This does not require
   `recommended_next_command` fields so AI controllers that inspect only the
   primary action list can route to the checkpoint strategy command before any
   `datasets` execution.
+  A reviewed continuation uses `verify-genus <Genus> --outdir <same> --resume
+  --selection-tsv <absolute-same-outdir>/selection/user_selection.tsv
+  --enable-downloads`. This path consumes the explicitly submitted bytes
+  without regenerating selection and does not require
+  `--auto-accept-selection`. Omitting `--enable-downloads` validates the file
+  without running downloads.
+  An authorized reviewed selection writes
+  `selection/selection_approval.json` and exposes the same object as
+  `selection_approval` in compact stdout and under
+  `run_state.json.config.selection_approval` only after full validation. The
+  object binds `approval_kind=reviewed_selection`, genus, absolute outdir,
+  `selection_artifact=selection/user_selection.tsv`, and `selection_sha256`.
+  Its `lifecycle_status` advances from `authorized` to `running`, then to
+  `succeeded`, `failed`, or `interrupted`; unsuccessful terminal states retain
+  `execution_error` as historical execution outcome, not a success claim.
+  Each explicit reviewed submission creates a new `attempt_id`. When replacing
+  a trusted terminal attempt, `previous_attempt` retains its identifier,
+  terminal status, digest, and error; the new attempt never rewrites the old
+  failure as success. A changed selection may therefore be explicitly
+  resubmitted without deleting the old approval file.
+  Malformed, incomplete, mismatched, or stale records fail closed through the
+  normal error response and are not projected as valid approval. `status` and
+  `next-step` revalidate the approval against current selection bytes and block
+  stale, malformed, or orphaned non-terminal (`authorized` or `running`)
+  records instead of replaying an old successful run state. After inspecting
+  download results, manifest statuses, and runner evidence, an operator may use
+  the same explicit reviewed `--resume` command to replace a structurally valid
+  orphan. The new record marks the prior attempt as
+  `abandoned_before_running` or `abandoned_running_for_explicit_resume`; the
+  latter records that partial side effects may exist and retry risk was
+  explicitly accepted. Keyboard interruption and process-directed
+  `SystemExit` retain their original exception behavior after writing an
+  `interrupted` approval and non-success run-state/stdout projection. Auto-accept
+  remains represented separately by
+  `config.auto_accept_selection=true`.
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
   still require separate explicit authorization. When the current guidance is

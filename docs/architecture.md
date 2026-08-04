@@ -35,6 +35,19 @@ explicit gates such as `--enable-downloads`, `--enable-barrnap`,
 `--enable-phylo`.
 The maintained command surface includes `verify-genus`, `status`, `next-step`,
 and `package-results`.
+Within `verify-genus`, the reviewed-selection resume branch is handled before
+ordinary manifest resume or acquisition replanning. It binds the submitted
+selection bytes to a SHA-256 approval record and rechecks that binding before
+the existing guarded download transition; the independent real-action gate
+remains `--enable-downloads`. The small approval component also binds genus,
+absolute outdir, and the fixed selection artifact, and owns the single
+`authorized`/`running`/terminal lifecycle used by CLI and run-state projection.
+Each new approval has an attempt identifier and may carry one compact prior
+attempt snapshot. Status diagnostics reuse the same validator before
+trusting persisted run state; they do not maintain a parallel approval log.
+The same bounded snapshot may represent an orphan `authorized` or `running`
+attempt only with its matching abandonment/recovery marker; nested history is
+rejected.
 
 Small isolated adapters such as `manual-review`, `strict-gating`, `readiness`,
 `curator-packet`, `strict-gate-state`, `archive-candidates`,
