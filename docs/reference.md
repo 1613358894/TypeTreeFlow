@@ -1169,7 +1169,10 @@ pre-redacted curator-readiness packets. It checks a repo-external packet
 directory for the required custody manifest, approval records, redaction
 attestation, manual-review TSV, and frozen reconciler audit; it verifies
 SHA-256/byte-length bindings, bounded row counts, exact schemas, and forbidden
-payload markers. The result is JSON-serializable and redaction-safe: it reports
+payload markers. Forbidden path-part checks apply to packet-relative member
+paths, not to the repo-external packet directory's parent names. Nested paths,
+symlinks or reparse members, escapes, and unexpected members remain blocking.
+The result is JSON-serializable and redaction-safe: it reports
 member names, counts, digests, and issue codes, but does not echo curator rows,
 reviewer IDs, notes, evidence summaries, or workflow outputs.
 

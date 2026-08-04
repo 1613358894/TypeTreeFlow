@@ -5,6 +5,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from typetreeflow.evidence.curator_packet import (
     APPROVAL_RECORD_FIELDS,
     CUSTODY_MANIFEST_FIELDS,
@@ -30,6 +32,18 @@ def test_valid_curator_packet_passes(tmp_path):
     assert result.curator_row_count == 3
     assert result.approval_kind_count == 4
     json.dumps(result.to_dict(), sort_keys=True)
+
+
+@pytest.mark.parametrize("external_parent_name", ("temp", "private", "cache"))
+def test_valid_packet_ignores_forbidden_names_in_external_parent(
+    tmp_path, external_parent_name
+):
+    packet = _valid_packet(tmp_path / external_parent_name)
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+
+    assert result.valid is True
+    assert _codes(result) == set()
 
 
 def test_repo_root_is_required(tmp_path):
@@ -191,6 +205,18 @@ def test_nested_directory_name_is_not_echoed(tmp_path):
     assert "nested_packet_directory" in _codes(result)
     assert "untrusted_member" in rendered
     assert "curator-a private evidence" not in rendered
+
+
+def test_forbidden_nested_directory_is_blocking_and_redacted(tmp_path):
+    packet = _valid_packet(tmp_path)
+    (packet / "private").mkdir()
+
+    result = preflight_curator_packet(packet, repo_root=_repo_root(tmp_path))
+    rendered = json.dumps(result.to_dict(), sort_keys=True)
+
+    assert _codes(result) >= {"nested_packet_directory", "forbidden_packet_member"}
+    assert "untrusted_member" in rendered
+    assert '"member": "private"' not in rendered
 
 
 def test_malformed_utf8_is_fail_closed(tmp_path):

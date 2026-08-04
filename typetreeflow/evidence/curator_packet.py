@@ -218,7 +218,7 @@ def preflight_curator_packet(
             if path.suffix.lower() in FORBIDDEN_SUFFIXES:
                 issues.append(CuratorPacketIssue("forbidden_packet_member", "untrusted_member"))
             continue
-        if _has_forbidden_path_part(path) or path.suffix.lower() in FORBIDDEN_SUFFIXES:
+        if _has_forbidden_path_part(Path(name)) or path.suffix.lower() in FORBIDDEN_SUFFIXES:
             issues.append(CuratorPacketIssue("forbidden_packet_member", name))
         if path.is_symlink():
             issues.append(CuratorPacketIssue("symlink_or_reparse_member", name))
@@ -351,6 +351,8 @@ def _flat_packet_files(
     for child in packet_path.iterdir():
         if child.is_dir():
             issues.append(CuratorPacketIssue("nested_packet_directory", "untrusted_member"))
+            if _has_forbidden_path_part(Path(child.name)):
+                issues.append(CuratorPacketIssue("forbidden_packet_member", "untrusted_member"))
             continue
         found[child.name] = child
     return found
