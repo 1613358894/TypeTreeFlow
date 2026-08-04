@@ -55,7 +55,11 @@ Primary commands write compact JSON to stdout by default. This does not require
   --enable-downloads`. This path consumes the explicitly submitted bytes
   without regenerating selection and does not require
   `--auto-accept-selection`. Omitting `--enable-downloads` validates the file
-  without running downloads.
+  without running downloads. Adding `--extract-16s barrnap` to the authorized
+  continuation runs the existing guarded same-genome barrnap stage after
+  genome registration and records its manifest, source-audit, run-state, and
+  report outputs; approval and successful execution do not alter the selected
+  rows' scientific evidence levels.
   An authorized reviewed selection writes
   `selection/selection_approval.json` and exposes the same object as
   `selection_approval` in compact stdout and under
@@ -141,7 +145,14 @@ Primary commands write compact JSON to stdout by default. This does not require
   strict type-strain status.
 - `package-results`: compact JSON with delivery directory, included artifacts,
   missing optional files, success/failure handoff status, warnings, and next
-  action.
+  action. With `--include reports` or `--include all`, existing workflow
+  completion files are copied to `source_audit/completion_audit.tsv`,
+  `source_audit/completion_summary.tsv`, `completion/gaps.tsv`,
+  `completion/uncovered_species.tsv`, and `completion/16s_gaps.tsv`. Missing
+  members are disclosed without creating replacement tables. Their artifact
+  scope is `completion_evidence` with
+  `strict_scientific_deliverable=false`; packaging does not change completion
+  metrics or strict evidence status.
 - `download-smoke prepare`: compact JSON summary for an isolated bounded NCBI
   download smoke input package. It reads only the explicit `--download-plan`
   TSV, selects up to `--limit` rows with `status=planned`, and never runs

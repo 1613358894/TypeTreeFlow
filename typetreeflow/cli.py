@@ -4144,7 +4144,24 @@ def _run_reviewed_selection_guarded_download(
     write_approval(paths.manifest.parent, approval)
     try:
         run_downloads_stage(records, paths, download_config, runner=download_runner)
+        if config.extract_16s == "barrnap":
+            rrna_config = replace(download_config, enable_barrnap=True)
+            _prepare_local_16s_if_ready(
+                records,
+                paths,
+                rrna_config,
+                runner=barrnap_runner,
+            )
         write_manifest(records, paths.manifest)
+        if config.extract_16s == "barrnap":
+            _assemble_all_16s_if_ready(
+                records,
+                paths,
+                config.query_16s,
+                evidence_policy=config.evidence_policy,
+            )
+        if download_config.species_checklist is not None:
+            run_completion_audit_stage(paths, download_config)
         _run_guarded_downstream_analysis_stages(
             records,
             paths,

@@ -3936,6 +3936,90 @@ def test_package_results_succeeds_with_missing_optional_files(tmp_path):
     assert "report/summary.md" in readme
 
 
+def test_package_results_copies_completion_evidence_and_preserves_empty_gaps(tmp_path):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+    paths.source_audit_dir.mkdir(parents=True, exist_ok=True)
+    paths.completion_dir.mkdir(parents=True, exist_ok=True)
+    completion_files = {
+        paths.completion_audit_path: (
+            "species\tstatus\nFusobacterium nucleatum\tcomplete_ncbi\n"
+        ),
+        paths.completion_summary_path: "metric\tvalue\ncomplete_ncbi\t1\n",
+        paths.completion_gaps_path: "species\treason\n",
+        paths.uncovered_species_path: "species\treason\n",
+        paths.rrna_16s_gaps_path: "species\treason\n",
+    }
+    for path, content in completion_files.items():
+        path.write_text(content, encoding="utf-8")
+
+    result = package_results(tmp_path, include="reports")
+
+    destinations = {
+        paths.completion_audit_path: result.delivery_dir
+        / "source_audit"
+        / "completion_audit.tsv",
+        paths.completion_summary_path: result.delivery_dir
+        / "source_audit"
+        / "completion_summary.tsv",
+        paths.completion_gaps_path: result.delivery_dir / "completion" / "gaps.tsv",
+        paths.uncovered_species_path: result.delivery_dir
+        / "completion"
+        / "uncovered_species.tsv",
+        paths.rrna_16s_gaps_path: result.delivery_dir
+        / "completion"
+        / "16s_gaps.tsv",
+    }
+    for source, destination in destinations.items():
+        assert destination.read_bytes() == source.read_bytes()
+        assert source.relative_to(tmp_path).as_posix() not in result.missing_optional_files
+    assert _read_tsv(destinations[paths.completion_gaps_path]) == []
+
+    scope = {
+        row["artifact_path"]: row
+        for row in _read_tsv(result.delivery_dir / "artifact_scope.tsv")
+    }
+    for artifact_path in (
+        "source_audit/completion_audit.tsv",
+        "source_audit/completion_summary.tsv",
+        "completion/gaps.tsv",
+        "completion/uncovered_species.tsv",
+        "completion/16s_gaps.tsv",
+    ):
+        assert scope[artifact_path]["scope"] == "completion_evidence"
+        assert scope[artifact_path]["strict_scientific_deliverable"] == "false"
+
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    handoff = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Completion evidence: available; gap rows=0" in readme
+    assert "Completion evidence: available; gap rows=0" in handoff
+
+
+def test_package_results_missing_completion_evidence_is_disclosed_without_empty_tables(
+    tmp_path,
+):
+    paths = get_output_paths(tmp_path)
+    _write_manifest_with_files(paths)
+
+    result = package_results(tmp_path, include="reports")
+
+    expected_missing = {
+        "source_audit/completion_audit.tsv",
+        "source_audit/completion_summary.tsv",
+        "completion/gaps.tsv",
+        "completion/uncovered_species.tsv",
+        "completion/16s_gaps.tsv",
+    }
+    assert expected_missing <= set(result.missing_optional_files)
+    assert not (result.delivery_dir / "source_audit" / "completion_audit.tsv").exists()
+    assert not (result.delivery_dir / "completion" / "gaps.tsv").exists()
+    readme = (result.delivery_dir / "README.md").read_text(encoding="utf-8")
+    handoff = (result.delivery_dir / "handoff_index.md").read_text(encoding="utf-8")
+    assert "Completion evidence: missing" in readme
+    assert "Completion evidence: missing" in handoff
+    assert "Completion evidence: available; gap rows=0" not in readme + handoff
+
+
 def test_package_results_missing_manifest_fails(tmp_path, capsys):
     with pytest.raises(ValueError, match="manifest.tsv not found") as excinfo:
         package_results(tmp_path)

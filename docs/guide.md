@@ -1626,12 +1626,16 @@ typetreeflow verify-genus Fusobacterium \
   --outdir <workspace>/runs/fusobacterium_selection \
   --resume \
   --selection-tsv <workspace>/runs/fusobacterium_selection/selection/user_selection.tsv \
-  --enable-downloads
+  --enable-downloads \
+  --extract-16s barrnap
 ```
 
 The resume path uses the submitted bytes without regenerating selection.
 `--selection-tsv` identifies the reviewed artifact; `--enable-downloads`
-separately authorizes the guarded side effect. The approval record progresses
+separately authorizes the guarded side effect. When `--extract-16s barrnap` is
+also explicit, the same reviewed continuation runs guarded same-genome barrnap
+after genome registration; barrnap remains separately gated by that option.
+The approval record progresses
 through `authorized`, `running`, and a final `succeeded`, `failed`, or
 `interrupted` outcome. A failed or interrupted record remains authorization
 history but does not claim successful consumption. Every explicit submission
@@ -1676,6 +1680,14 @@ does not mean automatic 100% coverage.
 
 Package a completed or failed run for handoff without changing scientific
 interpretation.
+
+For `--include reports` or the default `--include all`, existing completion
+evidence is copied under `source_audit/completion_audit.tsv`,
+`source_audit/completion_summary.tsv`, and `completion/{gaps,
+uncovered_species,16s_gaps}.tsv`. Missing files remain missing and are listed
+in README/handoff warnings; a present header-only gaps table is copied as an
+executed zero-gap result. These package members report completion evidence and
+do not recompute metrics or promote strict status.
 
 ```bash
 typetreeflow package-results \

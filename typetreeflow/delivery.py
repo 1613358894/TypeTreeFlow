@@ -380,6 +380,26 @@ def package_results(
             copied,
             missing,
         )
+        for source, destination in (
+            (
+                paths.completion_audit_path,
+                output_dir / "source_audit" / "completion_audit.tsv",
+            ),
+            (
+                paths.completion_summary_path,
+                output_dir / "source_audit" / "completion_summary.tsv",
+            ),
+            (paths.completion_gaps_path, output_dir / "completion" / "gaps.tsv"),
+            (
+                paths.uncovered_species_path,
+                output_dir / "completion" / "uncovered_species.tsv",
+            ),
+            (
+                paths.rrna_16s_gaps_path,
+                output_dir / "completion" / "16s_gaps.tsv",
+            ),
+        ):
+            _copy_optional(source, destination, copied, missing)
         _copy_optional(
             paths.ani_query_vs_refs_path,
             output_dir / "reports" / "ani_query_vs_refs.tsv",
@@ -691,6 +711,7 @@ def package_results(
         build_delivery_readme(
             records,
             paths,
+            delivery_dir=output_dir,
             include=requested,
             missing_optional_files=missing,
             genome_count=genome_count,
@@ -1011,6 +1032,7 @@ def build_delivery_readme(
     records: Iterable[StrainRecord],
     paths: OutputPaths,
     *,
+    delivery_dir: Path,
     include: set[str],
     missing_optional_files: list[str],
     genome_count: int,
@@ -1197,6 +1219,12 @@ def build_delivery_readme(
             "- Genome registration results: genome_registration_results.tsv when available",
             "- Run state: run_state.json when available",
             "- Reports: reports/summary.md and reports/run_review.md when requested and available",
+            "- "
+            + _completion_evidence_status(
+                delivery_dir,
+                missing_optional_files,
+                requested="reports" in include,
+            ),
             "- Artifact scope manifest: artifact_scope.tsv and reports/artifact_scope.tsv when available",
             (
                 "- Read artifact_scope.tsv before selecting any packaged 16S "
@@ -1392,6 +1420,12 @@ def build_handoff_index(
             "all_16S.fasta remains the compatibility combined FASTA."
         ),
         f"- Report: {report_status}",
+        "- "
+        + _completion_evidence_status(
+            delivery_dir,
+            missing_optional_files,
+            requested="reports" in include,
+        ),
     ]
     if registration_quality_summary:
         lines.append(
@@ -2534,6 +2568,8 @@ def _write_package_artifact_scope(
     rows = list(source_rows)
     core_download_rows = _core_download_artifact_scope_rows(delivery_dir)
     rows.extend(core_download_rows)
+    completion_rows = _completion_artifact_scope_rows(delivery_dir)
+    rows.extend(completion_rows)
     if include_bacdive:
         rows.extend(_bacdive_artifact_scope_rows(paths))
     rows.extend(
@@ -2680,6 +2716,7 @@ def _write_package_artifact_scope(
         or download_smoke_quality_review_outputs_copied
         or download_readiness_outputs_copied
         or core_download_rows
+        or completion_rows
         or not paths.artifact_scope_path.exists()
     ):
         write_artifact_scope(rows, root_scope)
@@ -2710,6 +2747,7 @@ def _write_package_artifact_scope(
             or download_smoke_quality_review_outputs_copied
             or download_readiness_outputs_copied
             or core_download_rows
+            or completion_rows
             or not paths.artifact_scope_path.exists()
         ):
             write_artifact_scope(rows, reports_scope)
@@ -2765,6 +2803,74 @@ def _core_download_artifact_scope_rows(delivery_dir: Path) -> list[dict[str, str
                 "notes": (
                     "Local ZIP extraction and reference-genome installation "
                     "outcomes; rows do not confirm strict type-strain status."
+                ),
+            }
+        )
+    return rows
+
+
+def _completion_artifact_scope_rows(delivery_dir: Path) -> list[dict[str, str]]:
+    definitions = (
+        (
+            "source_audit/completion_audit.tsv",
+            "species_completion_audit",
+            "strict_completion_audit",
+            "Per-species completion audit",
+            "review per-species completion status and evidence gaps",
+        ),
+        (
+            "source_audit/completion_summary.tsv",
+            "completion_audit_summary",
+            "strict_completion_audit",
+            "Completion audit summary",
+            "review aggregate completion status derived from the audit",
+        ),
+        (
+            "completion/gaps.tsv",
+            "completion_gaps",
+            "completion_gap_evidence",
+            "Completion gaps",
+            "review explicit per-species completion gaps",
+        ),
+        (
+            "completion/uncovered_species.tsv",
+            "uncovered_species",
+            "completion_gap_evidence",
+            "Uncovered species",
+            "review expected species without completed genome evidence",
+        ),
+        (
+            "completion/16s_gaps.tsv",
+            "rrna_16s_gaps",
+            "completion_gap_evidence",
+            "16S completion gaps",
+            "review per-species 16S evidence gaps",
+        ),
+    )
+    rows: list[dict[str, str]] = []
+    for artifact_path, artifact_kind, evidence_policy, label, use in definitions:
+        path = delivery_dir / artifact_path
+        if not path.exists():
+            continue
+        rows.append(
+            {
+                "artifact_path": artifact_path,
+                "artifact_kind": artifact_kind,
+                "scope": "completion_evidence",
+                "evidence_policy": evidence_policy,
+                "record_count": str(_safe_tsv_row_count(path)),
+                "strict_usable_count": "0",
+                "candidate_count": "0",
+                "excluded_mismatch_count": "0",
+                "artifact_label": label,
+                "recommended_use": use,
+                "not_for": "strict type-strain confirmation or completion metric mutation",
+                "source_artifact": "workflow_completion_audit",
+                "consumer_priority": "45",
+                "strict_scientific_deliverable": "false",
+                "notes": (
+                    "Copied workflow completion evidence; package inclusion and row "
+                    "counts do not recompute or change scientific status or metrics."
                 ),
             }
         )
@@ -4221,6 +4327,11 @@ def _display_optional_path(path: Path) -> str:
         "report/run_review.md",
         "run_state.json",
         "rrna/all_16S.fasta",
+        "source_audit/completion_audit.tsv",
+        "source_audit/completion_summary.tsv",
+        "completion/gaps.tsv",
+        "completion/uncovered_species.tsv",
+        "completion/16s_gaps.tsv",
     )
     normalized = text.replace("\\", "/")
     for marker in marker_paths:
@@ -5930,6 +6041,32 @@ def _relative_copied_names(delivery_dir: Path, copied_files: list[Path]) -> list
 
 def _file_status(path: Path) -> str:
     return "available" if path.exists() else "not available"
+
+
+def _completion_evidence_status(
+    delivery_dir: Path,
+    missing_optional_files: list[str],
+    *,
+    requested: bool,
+) -> str:
+    if not requested:
+        return "Completion evidence: not requested"
+    required = (
+        "source_audit/completion_audit.tsv",
+        "source_audit/completion_summary.tsv",
+        "completion/gaps.tsv",
+        "completion/uncovered_species.tsv",
+        "completion/16s_gaps.tsv",
+    )
+    missing = [
+        artifact
+        for artifact in required
+        if artifact in missing_optional_files or not (delivery_dir / artifact).exists()
+    ]
+    if missing:
+        return "Completion evidence: missing (" + ", ".join(missing) + ")"
+    gap_rows = _safe_tsv_row_count(delivery_dir / "completion" / "gaps.tsv")
+    return f"Completion evidence: available; gap rows={gap_rows}"
 
 
 def _reports_status(paths: OutputPaths, include: set[str]) -> str:

@@ -39,7 +39,10 @@ Within `verify-genus`, the reviewed-selection resume branch is handled before
 ordinary manifest resume or acquisition replanning. It binds the submitted
 selection bytes to a SHA-256 approval record and rechecks that binding before
 the existing guarded download transition; the independent real-action gate
-remains `--enable-downloads`. The small approval component also binds genus,
+remains `--enable-downloads`. When the reviewed continuation also requests
+`--extract-16s barrnap`, it continues through the existing guarded same-genome
+16S stage after genome registration rather than ending at download. The small
+approval component also binds genus,
 absolute outdir, and the fixed selection artifact, and owns the single
 `authorized`/`running`/terminal lifecycle used by CLI and run-state projection.
 Each new approval has an attempt identifier and may carry one compact prior
@@ -119,8 +122,12 @@ Reports preserve provenance distinctions between same-genome 16S and fallback
 
 Reports summarize status, evidence levels, completion gaps, fallback warnings,
 and next actions. `package-results` copies available artifacts into a delivery
-package. `handoff_index.md` helps navigation and operational handoff; it is not
-a scientific decision source.
+package. Report-inclusive packages preserve existing per-species completion
+audit, summary, and gap tables under `source_audit/` and `completion/`, while
+missing artifacts remain explicitly missing rather than becoming empty tables.
+These files are scoped as completion evidence, not strict scientific
+deliverables. `handoff_index.md` helps navigation and operational handoff; it
+is not a scientific decision source.
 
 ## Repository Layout
 
