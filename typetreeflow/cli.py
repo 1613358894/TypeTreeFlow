@@ -2839,7 +2839,15 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
     if download_stage is not None:
         stages["download"] = download_stage
 
-    rrna_stage = _rrna_stage_state(paths, config, error)
+    trusted_interrupted_approval = _trusted_interrupted_reviewed_attempt(
+        paths, config, error
+    )
+    rrna_stage = _rrna_stage_state(
+        paths,
+        config,
+        error,
+        trusted_interrupted_approval=trusted_interrupted_approval,
+    )
     if rrna_stage is not None:
         stages["rrna_barrnap"] = rrna_stage
 
@@ -2851,6 +2859,7 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
     if phylo_stage is not None:
         stages["phylo"] = phylo_stage
 
+    completion_interrupted = trusted_interrupted_approval is not None
     _add_file_stage(
         stages,
         "completion_audit",
@@ -2862,8 +2871,14 @@ def _infer_run_state(paths, config: AppConfig, error: Exception | None) -> Workf
             paths.uncovered_species_path,
             paths.rrna_16s_gaps_path,
         ],
-        "succeeded",
-        _completion_outputs_summary(paths),
+        "failed" if completion_interrupted else "succeeded",
+        (
+            "Completion audit did not finish for the interrupted attempt; existing "
+            "completion audit, summary, or gap files may come from an older attempt "
+            "and do not prove current-attempt completion."
+            if completion_interrupted
+            else _completion_outputs_summary(paths)
+        ),
     )
     _add_file_stage(
         stages,
@@ -3087,6 +3102,8 @@ def _rrna_stage_state(
     paths,
     config: AppConfig,
     error: Exception | None = None,
+    *,
+    trusted_interrupted_approval: dict[str, object] | None = None,
 ) -> StageState | None:
     outputs = [
         path
@@ -3100,6 +3117,8 @@ def _rrna_stage_state(
         )
         if path.exists()
     ]
+    outputs.extend(sorted(paths.rrna_barrnap_dir.glob("*.gff")))
+    outputs.extend(sorted(paths.rrna_sequences_dir.glob("*.16s.fasta")))
     requested = config.enable_barrnap or config.extract_16s == "barrnap"
     if not requested and not outputs:
         return None
@@ -3114,7 +3133,10 @@ def _rrna_stage_state(
                 rrna_evidence_counts["strict_usable"] += 1
             elif _truthy(row.get("has_16s", "")):
                 rrna_evidence_counts["candidate_or_blocked"] += 1
-    if (
+    interrupted_rrna = isinstance(error, InterruptedError) and requested
+    if interrupted_rrna:
+        status = "failed"
+    elif (
         error is not None
         and config.extract_16s == "barrnap"
         and "Required executable not found on PATH" in str(error)
@@ -3137,6 +3159,28 @@ def _rrna_stage_state(
         if status_counts
         else _rrna_no_records_summary(config)
     )
+    if interrupted_rrna:
+        partial_outputs = [
+            path
+            for path in outputs
+            if path.suffix == ".gff" or path.name.endswith(".16s.fasta")
+        ]
+        if trusted_interrupted_approval is not None and partial_outputs:
+            summary = (
+                "barrnap execution was interrupted; partial GFF or sequence "
+                "artifacts exist and require inspection before explicit retry."
+            )
+        elif trusted_interrupted_approval is not None:
+            summary = (
+                "The requested rRNA stage did not complete; no partial rRNA "
+                "artifacts were recorded, so barrnap execution is not known to "
+                "have started."
+            )
+        else:
+            summary = (
+                "The requested rRNA stage did not complete; the interruption "
+                "is not bound to a trusted reviewed rRNA execution attempt."
+            )
     query_summary = _local_query_rrna_summary(paths)
     if query_summary:
         summary = f"{summary}; {query_summary}"
@@ -3406,6 +3450,20 @@ def _truthy(value: object) -> bool:
 
 
 def _next_action_for_error(status: str, error: Exception, paths, config: AppConfig) -> str:
+    if _trusted_interrupted_reviewed_attempt(paths, config, error) is not None:
+        command = (
+            f'typetreeflow verify-genus {config.acquire_genus} '
+            f'--outdir "{Path(config.outdir).resolve()}" --resume '
+            f'--selection-tsv "{Path(config.selection_tsv).resolve()}" '
+            "--enable-downloads"
+        )
+        if config.extract_16s == "barrnap":
+            command += " --extract-16s barrnap"
+        return (
+            "Inspect existing download, registration, and rRNA artifacts before "
+            "retrying: partial side effects may exist and the explicit retry may "
+            f"repeat work. Then run `{command}`."
+        )
     if _is_duplicate_selected_accession_error(error):
         return (
             "Review selection/user_selection.tsv for duplicate selected "
@@ -3426,6 +3484,27 @@ def _next_action_for_error(status: str, error: Exception, paths, config: AppConf
             )
         return "Review the indicated audit or selection file, then rerun the guarded stage."
     return "Fix the reported error and rerun."
+
+
+def _trusted_interrupted_reviewed_attempt(
+    paths, config: AppConfig, error: Exception | None
+) -> dict[str, object] | None:
+    if not isinstance(error, InterruptedError):
+        return None
+    if not _is_explicit_reviewed_download_submission(config):
+        return None
+    try:
+        selection_path = Path(config.selection_tsv).resolve()
+        if selection_path != paths.user_selection_path.resolve():
+            return None
+        approval = _read_selection_approval(paths, config)
+    except (OSError, SelectionApprovalError):
+        return None
+    if approval is None or approval.get("lifecycle_status") != "interrupted":
+        return None
+    if approval.get("execution_error") != str(error):
+        return None
+    return approval
 
 
 def _is_selection_integrity_error(error: Exception | None) -> bool:

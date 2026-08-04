@@ -1645,6 +1645,12 @@ without manually deleting the approval file. Without
 `--enable-downloads`, the reviewed file is validated but no approval record is
 created and no download runs. Changed selection bytes or malformed or
 mismatched approval bindings fail closed.
+For a terminal interrupted reviewed attempt, `status` exposes any partial rRNA
+artifacts and `next-step` gives a binding-specific explicit reviewed retry.
+Inspect existing download, registration, and rRNA artifacts first because the
+retry may repeat partial side effects. Existing completion files may belong to
+an older attempt and do not prove that the interrupted attempt completed;
+approval remains operational authorization, not scientific confirmation.
 `status` and `next-step` also recheck the current selection digest. They return
 a recovery blocker for stale or malformed approval state and for a legacy
 attempt left at `authorized` or `running`, rather than replaying an earlier

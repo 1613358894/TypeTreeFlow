@@ -89,6 +89,13 @@ Primary commands write compact JSON to stdout by default. This does not require
   `interrupted` approval and non-success run-state/stdout projection. Auto-accept
   remains represented separately by
   `config.auto_accept_selection=true`.
+  For a validated terminal `interrupted` reviewed attempt, `status` reports
+  partial rRNA artifacts when present and `next-step` emits the explicit same
+  genus/outdir/selection reviewed retry. The action warns that download,
+  registration, or rRNA side effects may repeat. Completion audit, summary, or
+  gap files from an older attempt do not prove current-attempt completion, and
+  the approval remains execution authorization rather than scientific
+  confirmation.
 - `status` and `next-step`: compact JSON view of current run state and
   recovery guidance only; it does not authorize execution, and gated actions
   still require separate explicit authorization. When the current guidance is
