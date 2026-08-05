@@ -13,6 +13,17 @@ def _load_project_metadata() -> dict:
     return load_project_metadata(Path("."))
 
 
+def test_pep_639_package_metadata():
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert 'requires = ["setuptools>=77.0.0"]' in pyproject
+    assert 'license = "Apache-2.0"' in pyproject
+    assert 'license-files = ["LICENSE", "NOTICE"]' in pyproject
+    assert '"License ::' not in pyproject
+    assert Path("LICENSE").is_file()
+    assert Path("NOTICE").is_file()
+
+
 def test_package_version_matches_pyproject():
     metadata = _load_project_metadata()
 
