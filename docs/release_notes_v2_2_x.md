@@ -10,6 +10,8 @@ checklist, or verification contract.
 v2.2.41 consolidates the complete delta since the v2.2.40 tag around a bounded,
 reviewed genus-to-package loop:
 
+- Trusted reviewed-selection projections no longer re-emit the completed
+  selection checkpoint on POSIX-style paths.
 - Reviewed selection submission is separate from explicit download
   authorization. Approval attempts have a visible lifecycle, interruption can
   resume without corrupting state, and no-download projection is atomic.

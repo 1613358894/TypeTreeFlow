@@ -10,6 +10,7 @@ import pytest
 
 from typetreeflow.cli import (
     _validate_selection_approval,
+    _verify_genus_checkpoint_guidance,
     _write_reviewed_selection_approval,
     main,
     run_reconciler_audit_stage,
@@ -38,7 +39,12 @@ from typetreeflow.workflow.selection_approval import (
     transition_approval,
     validate_approval,
 )
-from typetreeflow.workflow.state import WorkflowState, read_run_state, write_run_state
+from typetreeflow.workflow.state import (
+    StageState,
+    WorkflowState,
+    read_run_state,
+    write_run_state,
+)
 
 
 BIOSAMPLE_RECOMMENDATION_TEXT = "BioSample type-material evidence coverage"
@@ -3902,6 +3908,125 @@ def test_verify_genus_reviewed_selection_without_download_authorization_does_not
     assert len(runner.commands) == 1
     assert len(_read_tsv(paths.ncbi_download_results_path)) == 1
     assert paths.user_selection_path.read_bytes() == submitted_bytes
+
+
+@pytest.mark.parametrize(
+    "selection_path",
+    (
+        "/tmp/run/selection/user_selection.tsv",
+        r"C:\\run\\selection\\user_selection.tsv",
+    ),
+)
+def test_reviewed_projection_does_not_restore_selection_checkpoint_for_path_style(
+    tmp_path, selection_path
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    paths = get_output_paths(outdir)
+    state = WorkflowState(
+        status="succeeded",
+        outdir=str(outdir.resolve()),
+        stages={
+            "selection": StageState(
+                status="succeeded",
+                summary="reviewed_selection_validated_projected; downloads_not_authorized",
+            ),
+            "download": StageState(
+                status="skipped",
+                summary="downloads_not_authorized",
+            ),
+        },
+        next_action=(
+            "Reviewed selection was validated and projected locally; downloads were "
+            "not authorized. To authorize guarded downloads, run `typetreeflow "
+            "verify-genus Fusobacterium --resume --selection-tsv "
+            f"{selection_path} --enable-downloads`."
+        ),
+        config={
+            "selection_projection": {
+                "schema_version": 1,
+                "status": "reviewed_selection_validated_projected",
+                "genus": "Fusobacterium",
+                "outdir": str(outdir.resolve()),
+                "selection_artifact": "selection/user_selection.tsv",
+                "selection_sha256": selection_sha256(paths.user_selection_path),
+                "downloads_authorized": False,
+            }
+        },
+    )
+
+    assert _verify_genus_checkpoint_guidance(
+        paths,
+        _minimal_bacdive_config(
+            verify_genus=True, acquire_genus="Fusobacterium", outdir=outdir
+        ),
+        status="pass",
+        reason="completed",
+        state=state,
+    ) == {}
+
+
+@pytest.mark.parametrize("invalid_marker", ("minimal", "stale_digest"))
+def test_untrusted_projection_marker_does_not_suppress_selection_checkpoint(
+    tmp_path, invalid_marker
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    paths = get_output_paths(outdir)
+    marker = {
+        "schema_version": 1,
+        "status": "reviewed_selection_validated_projected",
+        "genus": "Fusobacterium",
+        "outdir": str(outdir.resolve()),
+        "selection_artifact": "selection/user_selection.tsv",
+        "selection_sha256": selection_sha256(paths.user_selection_path),
+        "downloads_authorized": False,
+    }
+    if invalid_marker == "minimal":
+        marker = {
+            "status": "reviewed_selection_validated_projected",
+            "downloads_authorized": False,
+        }
+    else:
+        marker["selection_sha256"] = "0" * 64
+    state = WorkflowState(
+        status="succeeded",
+        outdir=str(outdir.resolve()),
+        stages={
+            "selection": StageState(
+                status="succeeded",
+                summary="reviewed_selection_validated_projected; downloads_not_authorized",
+            ),
+            "download": StageState(status="skipped", summary="downloads_not_authorized"),
+        },
+        next_action=(
+            "Authorize guarded downloads with --selection-tsv "
+            "/tmp/run/selection/user_selection.tsv --enable-downloads."
+        ),
+        config={"selection_projection": marker},
+    )
+
+    checkpoint = _verify_genus_checkpoint_guidance(
+        paths,
+        _minimal_bacdive_config(
+            verify_genus=True, acquire_genus="Fusobacterium", outdir=outdir
+        ),
+        status="pass",
+        reason="completed",
+        state=state,
+    )
+
+    assert checkpoint["id"] == "selection_review_required"
 
 
 @pytest.mark.parametrize(

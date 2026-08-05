@@ -276,6 +276,7 @@ from typetreeflow.workflow.selection_approval import (
     validate_approval_binding,
     write_approval,
 )
+from typetreeflow.workflow.selection_projection import validate_selection_projection
 
 LOGGER = logging.getLogger(__name__)
 PROVIDER_REGISTRATION_PLAN_RECOMMENDED_NEXT_COMMAND = (
@@ -767,6 +768,8 @@ def _verify_genus_checkpoint_guidance(
     state: WorkflowState | None,
 ) -> dict[str, object]:
     next_action = state.next_action if state is not None else ""
+    if _has_reviewed_selection_projection(paths, state):
+        return {}
     if reason != "manual_review_required" and "selection/user_selection.tsv" not in (
         next_action.lower()
     ):
@@ -886,6 +889,18 @@ def _verify_genus_checkpoint_guidance(
             "treat_candidate_rows_as_strict_type_strains",
         ],
     }
+
+
+def _has_reviewed_selection_projection(paths, state: WorkflowState | None) -> bool:
+    if state is None:
+        return False
+    try:
+        valid, _ = validate_selection_projection(
+            paths.manifest.parent, paths, state=state
+        )
+    except (OSError, TypeError, ValueError, SelectionApprovalError):
+        return False
+    return valid
 
 
 def _verify_genus_counts(paths, config: AppConfig) -> dict[str, object]:

@@ -9,6 +9,8 @@ handoff.
 
 ### Changed
 
+- Reviewed-selection projection guidance is consistent across path styles;
+  trusted projections no longer re-emit the completed selection checkpoint.
 - Reviewed selection submission and download authorization are independent
   actions. Approval attempts have an explicit lifecycle, interrupted runs can
   resume safely, and no-download projection is atomic.
