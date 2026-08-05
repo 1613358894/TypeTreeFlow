@@ -231,6 +231,19 @@ all of the following:
 Full public-genome coverage is not required for completion. Explicit,
 well-supported missing status is a valid result.
 
+### Current evidence status
+
+The current local candidate has passed the full release gate. Evidence also
+covers a bounded real download plus barrnap core loop, fixed-cache/no-download
+Clostridium pressure and projection, interruption/recovery, the installed-wheel
+AI contract, and independent AI pre-review of five bound evidence items.
+That pre-review found all five bound items evidence-supported; it is not human
+acceptance. Difficult explicit-gap evidence remains synthetic, and human curator decision,
+reviewer, handoff, and final acceptance are still outstanding. Therefore the
+Definition of Done above is not yet satisfied; this status does not claim
+whole-genus or live-provider coverage, Clostridium strict completion, or human
+acceptance.
+
 ## Definition Of Not Now
 
 Until the core completion evidence exists, the project does not prioritize:

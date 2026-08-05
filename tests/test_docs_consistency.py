@@ -165,6 +165,21 @@ def test_reviewed_selection_guarded_download_command_blocks_are_complete():
     assert "--auto-accept-selection" not in expected_block
 
 
+def test_recommended_plan_only_examples_include_reviewed_offline_inputs():
+    expected_block = """typetreeflow verify-genus Fusobacterium \\
+  --outdir <workspace>/runs/fusobacterium_selection \\
+  --lpsn-cache <local-lpsn.tsv> \\
+  --discovery-cache <local-discovery.tsv> \\
+  --smoke-profile plan-only"""
+
+    for path in ["README.md", "docs/guide.md"]:
+        docs = _read(path)
+        assert expected_block in docs
+        assert "offline example requires these reviewed local caches" in (
+            _normalize_whitespace(docs)
+        )
+
+
 def test_high_level_workflow_docs_are_current():
     readme = _read("README.md")
     cookbook = _read("docs/guide.md")

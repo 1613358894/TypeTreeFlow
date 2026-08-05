@@ -153,32 +153,27 @@ forbidden. `typetreeflow_out/` is a legacy old default path only.
 
 ## Recommended v2.2.40 workflow
 
-Plan first:
+Create a plan-only review checkpoint. This offline example requires these
+reviewed local caches; `--smoke-profile plan-only` does not inject inputs or
+authorize downloads:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
-  --outdir <workspace>/runs/fusobacterium_plan \
-  --dry-run
+  --outdir <workspace>/runs/fusobacterium_selection \
+  --lpsn-cache <local-lpsn.tsv> \
+  --discovery-cache <local-discovery.tsv> \
+  --smoke-profile plan-only
 ```
 
 Review status and next action:
 
 ```bash
-typetreeflow status --outdir <workspace>/runs/fusobacterium_plan
-typetreeflow next-step --outdir <workspace>/runs/fusobacterium_plan
+typetreeflow status --outdir <workspace>/runs/fusobacterium_selection
+typetreeflow next-step --outdir <workspace>/runs/fusobacterium_selection
 ```
 
-Prepare and review selection:
-
-```bash
-typetreeflow verify-genus Fusobacterium \
-  --outdir <workspace>/runs/fusobacterium_selection \
-  --prepare-selection \
-  --selection-policy balanced
-```
-
-Use `selection/user_selection.tsv` as the reviewed handoff file. Use
-`--selection-tsv` to supply a reviewed selection. Use
+Review `selection/user_selection.tsv` from that checkpoint. Use
+`--selection-tsv` to submit that exact reviewed selection. Use
 `--auto-accept-selection` only for bounded exploratory smoke or deliberately
 accepted policy output; exploratory representative rows are not strict
 type-strain confirmations.
@@ -191,9 +186,19 @@ evidence-first and does not claim strict completion. Review
 results package should read package-root `artifact_scope.tsv` first when that
 handoff copy is present.
 
-After reviewing the generated file, continue the same genus task and explicitly
-submit that reviewed artifact. Selection approval and download authorization
-are separate inputs:
+After reviewing the generated file, first validate and project it locally in
+the same genus task. This exits successfully when validation and local
+projection succeed, but creates no approval and performs no download:
+
+```bash
+typetreeflow verify-genus Fusobacterium \
+  --outdir <workspace>/runs/fusobacterium_selection \
+  --resume \
+  --selection-tsv <workspace>/runs/fusobacterium_selection/selection/user_selection.tsv
+```
+
+Only after that review, use a separate invocation to authorize guarded
+downloads:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \
@@ -203,8 +208,8 @@ typetreeflow verify-genus Fusobacterium \
   --enable-downloads
 ```
 
-Omitting `--enable-downloads` validates the submitted selection without
-downloading. `--auto-accept-selection --enable-downloads` remains the distinct
+Omitting `--enable-downloads` is the reviewed no-download projection above.
+`--auto-accept-selection --enable-downloads` remains the distinct
 opt-in for accepting software-generated selection without human review.
 
 Optional guarded actions include `--enable-biosample-entrez`,
@@ -405,6 +410,8 @@ gated:
 ```bash
 typetreeflow verify-genus Fusobacterium \
   --outdir <workspace>/runs/fusobacterium_downstream \
+  --resume \
+  --selection-tsv <workspace>/runs/fusobacterium_downstream/selection/user_selection.tsv \
   --email you@example.org \
   --enable-downloads \
   --enable-barrnap \

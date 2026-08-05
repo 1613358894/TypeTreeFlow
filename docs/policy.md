@@ -26,6 +26,23 @@ consume those selected rows; it is not scientific confirmation and cannot
 promote candidate, likely, or representative evidence to strict type-strain
 status.
 
+These decisions are separate and must not be inferred from one another:
+
+- selection submission identifies the exact operational selection artifact;
+- selection approval permits the core to consume that reviewed selection;
+- download authorization is the independent explicit real-action gate;
+- strict classification is a deterministic evidence result tied to the LPSN
+  type-strain equivalence set, selected-genome linkage, and conflict rules;
+- AI evidence pre-review checks evidence support and handoff readiness but is
+  neither approval nor scientific acceptance;
+- human curator acceptance records the final accountable interpretation and
+  remains required where the product Definition of Done calls for it.
+
+A successful package command or exit code `0` means only that the requested
+operation completed under its contract. Warnings, incomplete tasks, missing
+evidence, conflicts, and non-strict artifacts remain visible and cannot be
+reworded as strict completion. Package presence alone is not completion.
+
 BacDive/DSMZ enrichment is opt-in, disabled by default, and candidate-only
 unless a later reconciler proves the full chain from BacDive/DSMZ source facts
 to LPSN type-strain equivalence and selected-genome or BioSample linkage. A

@@ -42,18 +42,11 @@ the existing guarded download transition; the independent real-action gate
 remains `--enable-downloads`. Without that gate, successful validation reuses
 the selection dry-run projection to refresh selection-derived local state only;
 it creates no approval and performs no download, provider, network, external
-tool, or scientific-confirmation action. The projection disables all real-action
-clients, refreshes completion state from the projected manifest, and snapshots
-the exact projection write set. Restoration is best-effort across all tracked
-paths with atomic replacement of prior bytes; any rollback failure is surfaced
-alongside the original error instead of being hidden. The non-approval
-projection marker binds schema, genus, resolved task outdir, fixed selection
-artifact, digest, status, and `downloads_authorized=false` before diagnostics
-may treat older terminal approval history as non-current.
-Diagnostics validate this projection claim before the independent approval
-path, including tasks with no approval and zero selected manifest rows. Local
-GTDB audit output is retained as part of the projection and included in the
-same transactional write set.
+tool, or scientific-confirmation action. Projection state is transactionally
+restored on failure and is independently validated before later approval or
+diagnostic use. The exact marker fields, affected artifacts, rollback behavior,
+and failure statuses are stable contracts defined in
+[reference.md](reference.md), rather than a second architecture-level schema.
 Terminal approval records remain immutable history rather than current
 projection authorization; malformed or non-terminal records block before
 writes. When the reviewed continuation also requests
