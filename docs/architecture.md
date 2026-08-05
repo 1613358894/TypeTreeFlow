@@ -39,7 +39,24 @@ Within `verify-genus`, the reviewed-selection resume branch is handled before
 ordinary manifest resume or acquisition replanning. It binds the submitted
 selection bytes to a SHA-256 approval record and rechecks that binding before
 the existing guarded download transition; the independent real-action gate
-remains `--enable-downloads`. When the reviewed continuation also requests
+remains `--enable-downloads`. Without that gate, successful validation reuses
+the selection dry-run projection to refresh selection-derived local state only;
+it creates no approval and performs no download, provider, network, external
+tool, or scientific-confirmation action. The projection disables all real-action
+clients, refreshes completion state from the projected manifest, and snapshots
+the exact projection write set. Restoration is best-effort across all tracked
+paths with atomic replacement of prior bytes; any rollback failure is surfaced
+alongside the original error instead of being hidden. The non-approval
+projection marker binds schema, genus, resolved task outdir, fixed selection
+artifact, digest, status, and `downloads_authorized=false` before diagnostics
+may treat older terminal approval history as non-current.
+Diagnostics validate this projection claim before the independent approval
+path, including tasks with no approval and zero selected manifest rows. Local
+GTDB audit output is retained as part of the projection and included in the
+same transactional write set.
+Terminal approval records remain immutable history rather than current
+projection authorization; malformed or non-terminal records block before
+writes. When the reviewed continuation also requests
 `--extract-16s barrnap`, it continues through the existing guarded same-genome
 16S stage after genome registration rather than ending at download. Offline
 BioSample input used to enrich the checkpoint is normalized into the

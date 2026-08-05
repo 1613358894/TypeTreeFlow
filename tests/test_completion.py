@@ -145,6 +145,22 @@ def test_one_missing_species():
     assert rows[1].external_registered_genome_backed is False
 
 
+def test_strict_ncbi_accession_without_manifest_genome_presence_is_missing():
+    record = _record()
+    record.status = "genome_download_planned"
+    record.has_genome = False
+    record.genome_path = ""
+
+    rows = build_completion_audit(
+        [_entry(genus="Bacillus", species="subtilis")],
+        [record],
+    )
+
+    assert rows[0].completion_status == MISSING_GENOME
+    assert rows[0].ncbi_assembly_backed is False
+    assert summarize_completion_audit(rows).ncbi_complete_count == 0
+
+
 def test_representative_only_ncbi_record_does_not_increase_strict_completion():
     rows = build_completion_audit(
         [_entry(genus="Bacillus", species="subtilis")],

@@ -34,6 +34,7 @@ from typetreeflow.workflow.paths import get_output_paths
 from typetreeflow.workflow.selection_approval import (
     SelectionApprovalError,
     new_approval,
+    selection_sha256,
     transition_approval,
     validate_approval,
 )
@@ -3814,7 +3815,7 @@ def test_verify_genus_reviewed_selection_resume_download_is_two_stage_and_offlin
 
 
 def test_verify_genus_reviewed_selection_without_download_authorization_does_not_run(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, capsys
 ):
     outdir = tmp_path / "out"
     lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn_cache.tsv")
@@ -3823,7 +3824,21 @@ def test_verify_genus_reviewed_selection_without_download_authorization_does_not
         "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
         "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
     ]) == 0
+    capsys.readouterr()
     paths = get_output_paths(outdir)
+    checkpoint_manifest = read_manifest(paths.manifest)
+    assert len(checkpoint_manifest) == 2
+    with paths.user_selection_path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        fieldnames = list(reader.fieldnames or ())
+        rows = list(reader)
+    rows[1]["selected"] = "no"
+    with paths.user_selection_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+    submitted_bytes = paths.user_selection_path.read_bytes()
+    submitted_digest = selection_sha256(paths.user_selection_path)
     monkeypatch.setattr(
         "typetreeflow.cli.run_downloads_stage",
         lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("no download")),
@@ -3831,8 +3846,442 @@ def test_verify_genus_reviewed_selection_without_download_authorization_does_not
     assert main([
         "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
         "--selection-tsv", str(paths.user_selection_path),
-    ]) == 0
+        "--enable-ncbi-discovery", "--enable-biosample-entrez",
+        "--enable-ncbi-taxonomy", "--enable-expanded-discovery",
+        "--enable-barrnap", "--enable-entrez", "--enable-fastani",
+        "--enable-phylo", "--email", "offline@example.invalid",
+    ], assembly_discovery_client=object(), biosample_client=object(),
+       ncbi_taxonomy_client=object(), lpsn_client=object()) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert paths.user_selection_path.read_bytes() == submitted_bytes
+    assert selection_sha256(paths.user_selection_path) == submitted_digest
+    assert len(read_manifest(paths.manifest)) == 1
+    assert len(_read_tsv(paths.cache_dir / "ncbi" / "download_plan.tsv")) == 1
+    readiness = json.loads(
+        paths.download_plan_readiness_summary_path.read_text(encoding="utf-8")
+    )
+    assert readiness["total_rows"] == 1
+    assert payload["counts"]["manifest_rows"] == 1
+    assert payload["download_plan_readiness_summary"]["total_rows"] == 1
+    state = read_run_state(paths.run_state_path)
+    assert state.stages["selection"].status == "succeeded"
+    assert state.stages["download"].status == "skipped"
+    assert "reviewed_selection_validated_projected" in state.stages["selection"].summary
+    assert "downloads_not_authorized" in state.stages["download"].summary
+    assert payload["reason"] != "manual_review_required"
+    assert "selection_review_required" not in json.dumps(payload)
+    assert "--enable-downloads" in state.next_action
+    assert str(paths.user_selection_path.resolve()) in state.next_action
     assert not (paths.user_selection_path.parent / "selection_approval.json").exists()
+    assert not paths.ncbi_download_results_path.exists()
+    completion_rows = _read_tsv(paths.completion_audit_path)
+    assert len(completion_rows) == 2
+    assert sum(row["completion_status"].startswith("complete") for row in completion_rows) == 0
+
+    delivery = tmp_path / "delivery"
+    assert main([
+        "package-results", "--outdir", str(outdir),
+        "--delivery-dir", str(delivery),
+    ]) == 0
+    package = json.loads(capsys.readouterr().out)
+    assert not package["blocking"]
+    assert len(_read_tsv(delivery / "manifest.tsv")) == 1
+    assert not (delivery / "download_results.tsv").exists()
+    delivered_manifest = _read_tsv(delivery / "manifest.tsv")
+    assert delivered_manifest[0]["status"] == "genome_download_planned"
+    assert delivered_manifest[0]["has_genome"] == "false"
+
+    monkeypatch.undo()
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    runner = _FakeDatasetsRunner()
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ], download_runner=runner) == 0
+    capsys.readouterr()
+    assert len(runner.commands) == 1
+    assert len(_read_tsv(paths.ncbi_download_results_path)) == 1
+    assert paths.user_selection_path.read_bytes() == submitted_bytes
+
+
+@pytest.mark.parametrize(
+    "failure_target",
+    ("write_manifest", "run_completion_audit_stage", "write_run_state"),
+)
+def test_reviewed_selection_projection_failure_restores_all_task_files(
+    tmp_path, monkeypatch, capsys, failure_target
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    gtdb_metadata = _write_tiny_gtdb_metadata(tmp_path / "gtdb.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache),
+        "--gtdb-metadata", str(gtdb_metadata), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    with paths.user_selection_path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        fieldnames = list(reader.fieldnames or ())
+        rows = list(reader)
+    rows[1]["selected"] = "no"
+    with paths.user_selection_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+    paths.ncbi_taxonomy_plan_path.write_bytes(
+        paths.ncbi_taxonomy_plan_path.read_bytes() + b"\n"
+    )
+    paths.ncbi_taxonomy_cache_path.write_bytes(
+        paths.ncbi_taxonomy_cache_path.read_bytes() + b"\n"
+    )
+    paths.gtdb_metadata_audit_path.write_bytes(
+        paths.gtdb_metadata_audit_path.read_bytes() + b"\n"
+    )
+    if paths.completion_audit_path.exists():
+        paths.completion_audit_path.unlink()
+    before = {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    }
+    monkeypatch.setattr(
+        f"typetreeflow.cli.{failure_target}",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("projection fault")),
+    )
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+        "--gtdb-metadata", str(gtdb_metadata),
+    ]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    after = {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    }
+    assert after == before
+    assert "projection fault" in payload["summary"]
+    assert not (paths.selection_dir / "selection_approval.json").exists()
+    assert not paths.ncbi_download_results_path.exists()
+
+
+def test_reviewed_projection_rollback_removes_new_gtdb_audit(
+    tmp_path, monkeypatch, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    gtdb_metadata = _write_tiny_gtdb_metadata(tmp_path / "gtdb.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    assert not paths.gtdb_metadata_audit_path.exists()
+    monkeypatch.setattr(
+        "typetreeflow.cli.write_run_state",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("final state fault")),
+    )
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+        "--gtdb-metadata", str(gtdb_metadata),
+    ]) == 2
+    capsys.readouterr()
+    assert not paths.gtdb_metadata_audit_path.exists()
+
+
+def test_reviewed_projection_reports_rollback_failure_and_continues_restoring(
+    tmp_path, monkeypatch, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    plan_sentinel = paths.ncbi_taxonomy_plan_path.read_bytes() + b"\n"
+    cache_sentinel = paths.ncbi_taxonomy_cache_path.read_bytes() + b"\n"
+    paths.ncbi_taxonomy_plan_path.write_bytes(plan_sentinel)
+    paths.ncbi_taxonomy_cache_path.write_bytes(cache_sentinel)
+    old_summary = paths.run_summary_path.read_bytes()
+    real_replace = os.replace
+    attempted: list[Path] = []
+
+    def failing_replace(source, destination):
+        destination = Path(destination)
+        attempted.append(destination)
+        if destination == paths.ncbi_taxonomy_plan_path:
+            raise OSError("synthetic rollback replace failure")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr("typetreeflow.cli.write_run_state", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("final state fault")))
+    monkeypatch.setattr("typetreeflow.cli.os.replace", failing_replace)
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert "projection_rollback_failed" in payload["summary"]
+    assert "final state fault" in payload["summary"]
+    assert "synthetic rollback replace failure" in payload["summary"]
+    assert paths.ncbi_taxonomy_cache_path.read_bytes() == cache_sentinel
+    assert paths.run_summary_path.read_bytes() == old_summary
+    assert paths.ncbi_taxonomy_cache_path in attempted
+    assert paths.run_summary_path in attempted
+
+
+@pytest.mark.parametrize("terminal_status", ("succeeded", "failed", "interrupted"))
+def test_reviewed_projection_preserves_stale_terminal_approval_as_history(
+    tmp_path, monkeypatch, capsys, terminal_status
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    approval = _write_reviewed_selection_approval(
+        paths, paths.user_selection_path, "Fusobacterium"
+    )
+    approval = transition_approval(approval, "running")
+    approval = transition_approval(
+        approval,
+        terminal_status,
+        error="prior synthetic failure" if terminal_status != "succeeded" else "",
+    )
+    approval_path = paths.selection_dir / "selection_approval.json"
+    _write_json(approval_path, approval)
+    approval_bytes = approval_path.read_bytes()
+    with paths.user_selection_path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        fieldnames = list(reader.fieldnames or ())
+        rows = list(reader)
+    rows[1]["selected"] = "no"
+    with paths.user_selection_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert "selection_approval" not in payload
+    assert approval_path.read_bytes() == approval_bytes
+    assert len(read_manifest(paths.manifest)) == 1
+    assert main(["status", "--outdir", str(outdir)]) == 0
+    status = json.loads(capsys.readouterr().out)
+    status_action = status["next_actions"][0]["message"]
+    assert "--enable-downloads" in status_action
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+    next_step = json.loads(capsys.readouterr().out)
+    assert next_step["recommended_action"]["message"] == status_action
+
+    monkeypatch.setattr("typetreeflow.cli.require_executable", lambda name: None)
+    runner = _FakeDatasetsRunner()
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path), "--enable-downloads",
+    ], download_runner=runner) == 0
+    current = json.loads(capsys.readouterr().out)["selection_approval"]
+    assert len(runner.commands) == 1
+    assert current["previous_attempt"]["attempt_id"] == approval["attempt_id"]
+    assert current["previous_attempt"]["lifecycle_status"] == terminal_status
+
+
+@pytest.mark.parametrize(
+    "marker_mutation",
+    (
+        lambda marker, outdir: marker.__setitem__("genus", "Clostridium"),
+        lambda marker, outdir: marker.__setitem__("outdir", str(outdir / "other")),
+        lambda marker, outdir: marker.__setitem__("selection_artifact", "other.tsv"),
+        lambda marker, outdir: marker.__setitem__("schema_version", 2),
+        lambda marker, outdir: marker.__setitem__("selection_sha256", "0" * 64),
+        lambda marker, outdir: marker.__setitem__("downloads_authorized", True),
+        lambda marker, outdir: marker.__setitem__("unknown", "value"),
+        lambda marker, outdir: "malformed-marker",
+    ),
+)
+def test_stale_terminal_approval_requires_strict_task_bound_projection_marker(
+    tmp_path, capsys, marker_mutation
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    approval = _write_reviewed_selection_approval(
+        paths, paths.user_selection_path, "Fusobacterium"
+    )
+    approval = transition_approval(transition_approval(approval, "running"), "succeeded")
+    _write_json(paths.selection_dir / "selection_approval.json", approval)
+    _append_selection_review_note(paths.user_selection_path, "projected revision")
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 0
+    capsys.readouterr()
+    state_data = json.loads(paths.run_state_path.read_text(encoding="utf-8"))
+    mutated = marker_mutation(state_data["config"]["selection_projection"], outdir)
+    if mutated is not None:
+        state_data["config"]["selection_projection"] = mutated
+    _write_json(paths.run_state_path, state_data)
+
+    assert main(["status", "--outdir", str(outdir)]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert "valid task-bound reviewed-selection projection" in payload["summary"]
+
+
+@pytest.mark.parametrize(
+    "marker_mutation",
+    (
+        lambda marker, outdir: marker.__setitem__("genus", "Clostridium"),
+        lambda marker, outdir: marker.__setitem__("outdir", str(outdir / "other")),
+        lambda marker, outdir: marker.__setitem__("selection_artifact", "other.tsv"),
+        lambda marker, outdir: marker.__setitem__("schema_version", 2),
+        lambda marker, outdir: marker.__setitem__("selection_sha256", "0" * 64),
+        lambda marker, outdir: marker.__setitem__("downloads_authorized", True),
+        lambda marker, outdir: marker.__setitem__("unknown", "value"),
+        lambda marker, outdir: "malformed-marker",
+    ),
+)
+def test_projection_marker_is_validated_without_any_approval(
+    tmp_path, capsys, marker_mutation
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 0
+    capsys.readouterr()
+    assert not (paths.selection_dir / "selection_approval.json").exists()
+    state_data = json.loads(paths.run_state_path.read_text(encoding="utf-8"))
+    mutated = marker_mutation(state_data["config"]["selection_projection"], outdir)
+    if mutated is not None:
+        state_data["config"]["selection_projection"] = mutated
+    _write_json(paths.run_state_path, state_data)
+
+    for command in ("status", "next-step"):
+        assert main([command, "--outdir", str(outdir)]) == 2
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "failed"
+
+
+def test_projected_stage_without_projection_marker_fails_safe_without_approval(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 0
+    capsys.readouterr()
+    state_data = json.loads(paths.run_state_path.read_text(encoding="utf-8"))
+    del state_data["config"]["selection_projection"]
+    _write_json(paths.run_state_path, state_data)
+
+    for command in ("status", "next-step"):
+        assert main([command, "--outdir", str(outdir)]) == 2
+        capsys.readouterr()
+
+
+def test_zero_selected_reviewed_projection_has_valid_task_identity(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    with paths.user_selection_path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        fieldnames = list(reader.fieldnames or ())
+        rows = list(reader)
+    for row in rows:
+        row["selected"] = "no"
+    with paths.user_selection_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 0
+    capsys.readouterr()
+    assert read_manifest(paths.manifest) == []
+    assert main(["status", "--outdir", str(outdir)]) == 0
+    capsys.readouterr()
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+
+
+@pytest.mark.parametrize("nonterminal_status", ("authorized", "running"))
+def test_reviewed_projection_rejects_nonterminal_approval_before_writes(
+    tmp_path, capsys, nonterminal_status
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    approval = _write_reviewed_selection_approval(
+        paths, paths.user_selection_path, "Fusobacterium"
+    )
+    if nonterminal_status == "running":
+        approval = transition_approval(approval, "running")
+        _write_json(paths.selection_dir / "selection_approval.json", approval)
+    before = {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    }
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    after = {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    }
+    assert after == before
+    assert "non-terminal" in payload["summary"]
 
 
 def test_verify_genus_reviewed_selection_digest_change_after_approval_fails_closed(
@@ -3869,7 +4318,7 @@ def test_verify_genus_reviewed_selection_digest_change_after_approval_fails_clos
         (lambda path, value: (value.__setitem__("genus", "Clostridium"), _write_json(path, value)), "genus mismatch"),
         (lambda path, value: (value.__setitem__("outdir", "C:/wrong"), _write_json(path, value)), "outdir mismatch"),
         (lambda path, value: (value.__setitem__("lifecycle_status", "unknown"), _write_json(path, value)), "lifecycle_status is invalid"),
-        (lambda path, value: (value.__setitem__("selection_sha256", "0" * 64), _write_json(path, value)), "changed after approval"),
+        (lambda path, value: (value.__setitem__("selection_sha256", "0" * 64), _write_json(path, value)), "non-terminal"),
     ],
 )
 def test_verify_genus_corrupt_selection_approval_fails_closed_in_cli(
@@ -3901,7 +4350,7 @@ def test_verify_genus_corrupt_selection_approval_fails_closed_in_cli(
     assert message in payload["blocking"][0]["message"]
     assert "selection_approval" not in payload
     assert "selection_approval" not in state.config
-    assert message in state.errors[0]
+    assert state.errors == []
 
 
 def _write_json(path: Path, value: dict) -> None:

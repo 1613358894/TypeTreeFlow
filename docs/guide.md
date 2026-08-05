@@ -1650,8 +1650,25 @@ creates a new attempt; a trusted prior terminal attempt is retained as compact
 `previous_attempt` metadata, so changed reviewed bytes can be approved again
 without manually deleting the approval file. Without
 `--enable-downloads`, the reviewed file is validated but no approval record is
-created and no download runs. Changed selection bytes or malformed or
-mismatched approval bindings fail closed.
+created and no download runs. After validation, the local manifest, name map,
+download plan, readiness summary, run state, report, and command JSON are
+refreshed from only the currently selected rows. Unselected rows remain in the
+candidate, reconciler, completion, and review evidence surfaces; this local
+projection is not a download, external lookup, approval, or scientific
+confirmation. Real-action flags supplied to this no-download form are disabled
+for the projection and do not run clients or tools. A trustworthy terminal
+approval from an older selection remains immutable history but is not current
+authorization; malformed or non-terminal approval state fails before writes.
+Projection writes use a task-scoped snapshot and fail closed. Restoration is
+best-effort across every tracked path; if any restore operation fails, stdout
+reports `projection_rollback_failed` together with the original projection
+error and every rollback error for operator recovery. Changed selection bytes or malformed or
+mismatched approval bindings still fail closed for guarded download approval.
+`status` and `next-step` validate projection state independently of approval:
+a present marker, or a stage claiming reviewed projection, must have the full
+task-bound marker even when no approval has ever existed. Genus identity is
+cross-checked from the checklist, full selection table, and manifest, so a
+valid zero-selected projection remains diagnosable.
 For a terminal interrupted reviewed attempt, `status` exposes any partial rRNA
 artifacts and `next-step` gives a binding-specific explicit reviewed retry.
 Inspect existing download, registration, and rRNA artifacts first because the

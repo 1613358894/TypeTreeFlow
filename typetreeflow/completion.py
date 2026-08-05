@@ -528,11 +528,14 @@ def _is_ncbi_backed(record: StrainRecord) -> bool:
     return (
         bool(record.assembly_accession.strip())
         and not _is_external_registered_genome(record)
+        and _has_manifest_genome(record)
         and _has_strict_completion_evidence(record)
     )
 
 
 def _has_manifest_genome(record: StrainRecord) -> bool:
+    if record.status.strip() == "genome_download_planned":
+        return False
     return bool(record.has_genome or record.genome_path.strip())
 
 

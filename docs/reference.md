@@ -55,8 +55,32 @@ Primary commands write compact JSON to stdout by default. This does not require
   --enable-downloads`. This path consumes the explicitly submitted bytes
   without regenerating selection and does not require
   `--auto-accept-selection`. Omitting `--enable-downloads` validates the file
-  without running downloads. Adding `--extract-16s barrnap` to the authorized
-  continuation runs the existing guarded same-genome barrnap stage after
+  and projects its currently selected rows into the local manifest, name map,
+  download plan, readiness summary, run state, report, and JSON stdout without
+  creating approval, download-result, provider, network, or external-tool
+  effects. Unselected rows remain audit evidence and do not enter the current
+  manifest or plan. The projection forcibly disables discovery, Entrez,
+  taxonomy lookup, expanded discovery, downloads, barrnap, ANI, phylogeny, and
+  provider/tool execution even if their enable flags are also supplied. It
+  refreshes completion audit/gap outputs when the checkpoint checklist exists.
+  Existing terminal approval history is preserved but is not projected as
+  current authorization; malformed or non-terminal history fails before any
+  write. Projection snapshots include manifest/name map, download plan and
+  readiness, reconciler, completion and gaps, taxonomy plan/cache, local GTDB
+  audit, reports, and run state. Rollback attempts every tracked path using atomic replacement for
+  prior bytes; a partial rollback is explicitly reported as
+  `projection_rollback_failed` with both the original and rollback errors.
+  The run-state `selection_projection` marker is non-approval state and is
+  trusted only with its exact schema, genus, resolved outdir, fixed
+  `selection/user_selection.tsv` artifact, digest, projected status, and
+  boolean `downloads_authorized=false` binding.
+  `status` and `next-step` enforce that marker independently of approval. A
+  missing marker when stages claim projection, or any malformed marker without
+  an approval file, fails safe. Zero selected rows remain valid because task
+  genus is cross-checked from checklist and the complete selection artifact,
+  not inferred only from manifest rows.
+  Adding `--extract-16s barrnap` to the authorized continuation runs the
+  existing guarded same-genome barrnap stage after
   genome registration and records its manifest, source-audit, run-state, and
   report outputs; approval and successful execution do not alter the selected
   rows' scientific evidence levels. An offline BioSample cache used during the
@@ -1829,6 +1853,11 @@ Selection, audit, and workflow statuses include `complete_ncbi`,
 `manual_review_required`, `missing_assembly_accession`, `missing_biosample`,
 `biosample_record_not_found`, `rrna_16s_not_found`, and
 `phylo_ready_to_plan`.
+
+`complete_ncbi` requires both strict type-strain evidence and actual manifest
+genome presence. An accession with `status=genome_download_planned`,
+`has_genome=false`, and only an expected future `genome_path` remains
+`missing_genome`; planning does not increase strict completion.
 
 Expanded discovery decisions: `rejected_species_mismatch`,
 `matched_candidate`, `rejected_missing_accession`, `no_result`,

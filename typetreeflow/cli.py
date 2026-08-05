@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
 import shutil
 import sys
 from contextlib import redirect_stdout
@@ -2158,6 +2159,8 @@ def _write_run_summary(
     paths,
     config: AppConfig,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+    *,
+    generate_expanded_plan: bool = True,
 ) -> None:
     taxonomy_error: Exception | None = None
     ncbi_taxonomy_lookup_status = ""
@@ -2174,7 +2177,9 @@ def _write_run_summary(
                 paths,
                 config,
             )
-        _write_completion_gap_reports(paths)
+        _write_completion_gap_reports(
+            paths, generate_expanded_plan=generate_expanded_plan
+        )
         _write_expanded_discovery_results_if_enabled(paths, config)
     summary_args = (
         _SummaryArgsWithNcbiTaxonomyStatus(config, ncbi_taxonomy_lookup_status)
@@ -2264,10 +2269,11 @@ def _ncbi_taxonomy_error_lookup_status(paths, config: AppConfig) -> str:
     return "executed" if cache_rows else "not_executed"
 
 
-def _write_completion_gap_reports(paths) -> None:
+def _write_completion_gap_reports(paths, *, generate_expanded_plan: bool = True) -> None:
     try:
         gaps_path, uncovered_path, rrna_path = generate_completion_gap_reports(
-            paths.manifest.parent
+            paths.manifest.parent,
+            generate_expanded_plan=generate_expanded_plan,
         )
         LOGGER.info(
             "Wrote completion gap reports: %s, %s, %s.",
@@ -2792,10 +2798,12 @@ def _write_inferred_run_state(paths, config: AppConfig, error: Exception | None)
     if isinstance(error, CrossGenusOutdirError):
         return
     if (
-        error is None
-        and config.selection_tsv is not None
-        and not config.dry_run
+        config.selection_tsv is not None
         and not config.enable_downloads
+        and (
+            not config.dry_run
+            or (config.verify_genus and config.resume)
+        )
     ):
         return
     try:
@@ -3171,6 +3179,12 @@ def _download_stage_state(
     if (config.acquire_genus is not None or config.selection_tsv is not None) and (
         config.dry_run or not config.enable_downloads
     ):
+        if config.selection_tsv is not None and config.resume and not config.enable_downloads:
+            return StageState(
+                status="skipped",
+                outputs=[],
+                summary=_manual_review_download_summary(config),
+            )
         return StageState(
             status="blocked_by_manual_review",
             outputs=[],
@@ -3632,6 +3646,17 @@ def _next_action_for_success(
     checklist_next_action = zero_accepted_checklist_next_action(paths)
     if checklist_next_action:
         return checklist_next_action
+    if config.selection_tsv is not None and config.resume and not config.enable_downloads:
+        genus = str(config.acquire_genus or config.genus or _approval_genus(paths))
+        return (
+            "Reviewed selection was validated and projected locally; downloads were "
+            "not authorized. To authorize guarded downloads, run `typetreeflow "
+            f"verify-genus {genus} --outdir {_quote_cli_value(str(paths.manifest.parent.resolve()))} "
+            "--resume --selection-tsv "
+            f"{_quote_cli_value(str(paths.user_selection_path.resolve()))} "
+            "--enable-downloads`. This does not itself grant approval or change "
+            "scientific evidence."
+        )
     download = stages.get("download")
     if download is not None and download.status == "blocked_by_manual_review":
         guarded_download_action = plan_only_guarded_download_next_action(paths)
@@ -3748,6 +3773,8 @@ def _selection_acceptance_summary(config: AppConfig) -> str:
         return "auto_accepted_selection for planning only; downloads not enabled"
     if config.selection_tsv is not None and config.enable_downloads:
         return "reviewed_selection"
+    if config.selection_tsv is not None and config.resume:
+        return "reviewed_selection_validated_projected; downloads_not_authorized"
     return "manual_review_required"
 
 
@@ -3787,6 +3814,11 @@ def _gtdb_audit_summary(audit) -> str:
 
 
 def _manual_review_download_summary(config: AppConfig) -> str:
+    if config.selection_tsv is not None and config.resume and not config.enable_downloads:
+        return (
+            "reviewed_selection_validated_projected; downloads_not_authorized; "
+            "no approval or download execution occurred."
+        )
     if config.verify_genus and config.auto_accept_selection and not config.enable_downloads:
         return (
             "auto_accepted_selection for planning only; downloads were not "
@@ -4022,15 +4054,57 @@ def run_genus_acquisition_workflow(
             "--enable-downloads for guarded downloads."
         )
     if reviewed_selection_submission and not config.enable_downloads:
-        selection_path = Path(config.selection_tsv).resolve()
-        if selection_path != paths.user_selection_path.resolve():
-            raise ValueError(
-                "verify-genus reviewed selection must be the existing task artifact "
-                f"{paths.user_selection_path}; got {config.selection_tsv}."
+        reviewed_config = _reviewed_selection_projection_config(
+            paths, config, projection_safe=True
+        )
+        # Finish structural/scientific selection validation before any projection write.
+        _selection_tsv_to_records(paths, reviewed_config)
+        snapshot = _snapshot_selection_projection_files(paths)
+        try:
+            records = run_selection_dry_run_stage(
+                paths, reviewed_config, generate_expanded_plan=False
             )
-        run_selection_read_stage(config)
+            if reviewed_config.species_checklist is not None:
+                run_completion_audit_stage(paths, reviewed_config)
+            _write_run_summary(
+                records, paths, reviewed_config, generate_expanded_plan=False
+            )
+            effective_config = config
+            if _checkpoint_expanded_discovery_enabled(paths, config):
+                effective_config = replace(config, enable_expanded_discovery=True)
+            projected_state = _infer_run_state(paths, effective_config, None)
+            projected_state = replace(
+                projected_state,
+                config={
+                    **projected_state.config,
+                    "selection_projection": {
+                        "schema_version": 1,
+                        "status": "reviewed_selection_validated_projected",
+                        "genus": str(
+                            effective_config.acquire_genus
+                            or effective_config.genus
+                            or _approval_genus(paths, effective_config)
+                        ),
+                        "outdir": str(paths.manifest.parent.resolve()),
+                        "selection_artifact": "selection/user_selection.tsv",
+                        "selection_sha256": _selection_sha256(paths.user_selection_path),
+                        "downloads_authorized": False,
+                    },
+                },
+            )
+            write_run_state(paths.run_state_path, projected_state)
+        except BaseException as projection_error:
+            rollback_errors = _restore_selection_projection_files(snapshot)
+            if rollback_errors:
+                raise RuntimeError(
+                    "projection_rollback_failed: original projection error: "
+                    f"{projection_error}; rollback failures: "
+                    + "; ".join(rollback_errors)
+                ) from projection_error
+            raise
         LOGGER.info(
-            "Validated submitted reviewed selection; downloads remain disabled."
+            "Validated submitted reviewed selection and refreshed local plan state; "
+            "downloads remain disabled."
         )
         return paths.user_selection_path
     if reviewed_selection_guarded_download:
@@ -4234,6 +4308,26 @@ def _validate_existing_selection_approval(paths, config: AppConfig) -> None:
         return
     if _is_explicit_reviewed_download_submission(config):
         return
+    if (
+        config.resume
+        and config.selection_tsv is not None
+        and not config.enable_downloads
+        and not config.auto_accept_selection
+    ):
+        approval = read_approval(paths.manifest.parent)
+        if approval is None:
+            return
+        approval = validate_approval_binding(
+            approval,
+            outdir=paths.manifest.parent,
+            genus=_approval_genus(paths, config),
+        )
+        if approval["lifecycle_status"] not in {"succeeded", "failed", "interrupted"}:
+            raise SelectionApprovalError(
+                "Reviewed selection projection cannot continue while the prior "
+                "approval attempt is non-terminal."
+            )
+        return
     _read_selection_approval(paths, config)
 
 
@@ -4286,36 +4380,8 @@ def _run_reviewed_selection_guarded_download(
     phylo_runner=None,
     ncbi_taxonomy_client=None,
 ) -> Path:
+    reviewed_config = _reviewed_selection_projection_config(paths, config)
     selection_path = Path(config.selection_tsv).resolve()
-    expected_path = paths.user_selection_path.resolve()
-    if selection_path != expected_path:
-        raise ValueError(
-            "verify-genus reviewed selection must be the existing task artifact "
-            f"{paths.user_selection_path}; got {config.selection_tsv}."
-        )
-    if not selection_path.exists():
-        raise ValueError(f"Reviewed selection table not found: {selection_path}")
-    checkpoint_selection_policies = {
-        row.selection_policy
-        for row in read_user_selection(selection_path)
-        if row.selection_policy
-    }
-    checkpoint_selection_policy = (
-        next(iter(checkpoint_selection_policies))
-        if len(checkpoint_selection_policies) == 1
-        else config.selection_policy
-    )
-    checkpoint_biosample_cache = (
-        paths.biosample_records_path if paths.biosample_records_path.exists() else None
-    )
-    checklist_path = config.outdir / "species_checklist.tsv"
-    reviewed_config = replace(
-        config,
-        species_checklist=checklist_path if checklist_path.exists() else None,
-        selection_policy=checkpoint_selection_policy,
-        biosample_cache=checkpoint_biosample_cache,
-        dry_run=True,
-    )
     records = run_selection_dry_run_stage(
         paths, reviewed_config, ncbi_taxonomy_client=ncbi_taxonomy_client
     )
@@ -4392,6 +4458,116 @@ def _run_reviewed_selection_guarded_download(
         "Completed verify-genus guarded download from explicitly submitted reviewed selection."
     )
     return paths.user_selection_path
+
+
+def _reviewed_selection_projection_config(
+    paths, config: AppConfig, *, projection_safe: bool = False
+) -> AppConfig:
+    selection_path = Path(config.selection_tsv).resolve()
+    expected_path = paths.user_selection_path.resolve()
+    if selection_path != expected_path:
+        raise ValueError(
+            "verify-genus reviewed selection must be the existing task artifact "
+            f"{paths.user_selection_path}; got {config.selection_tsv}."
+        )
+    if not selection_path.exists():
+        raise ValueError(f"Reviewed selection table not found: {selection_path}")
+    checkpoint_selection_policies = {
+        row.selection_policy
+        for row in read_user_selection(selection_path)
+        if row.selection_policy
+    }
+    checkpoint_selection_policy = (
+        next(iter(checkpoint_selection_policies))
+        if len(checkpoint_selection_policies) == 1
+        else config.selection_policy
+    )
+    checkpoint_biosample_cache = (
+        paths.biosample_records_path if paths.biosample_records_path.exists() else None
+    )
+    checklist_path = config.outdir / "species_checklist.tsv"
+    reviewed = replace(
+        config,
+        species_checklist=checklist_path if checklist_path.exists() else None,
+        selection_policy=checkpoint_selection_policy,
+        biosample_cache=checkpoint_biosample_cache,
+        dry_run=True,
+    )
+    if not projection_safe:
+        return reviewed
+    return replace(
+        reviewed,
+        enable_downloads=False,
+        enable_ncbi_discovery=False,
+        enable_ncbi_taxonomy=False,
+        enable_expanded_discovery=False,
+        enable_synonym_discovery=False,
+        enrich_biosample=False,
+        enable_biosample_entrez=False,
+        enable_barrnap=False,
+        extract_16s="none",
+        enable_entrez=False,
+        enable_fastani=False,
+        enable_phylo=False,
+        enable_bacdive_enrichment=False,
+    )
+
+
+def _selection_projection_output_paths(paths) -> tuple[Path, ...]:
+    return (
+        paths.manifest,
+        paths.name_map,
+        paths.cache_dir / "ncbi" / "download_plan.tsv",
+        paths.download_preflight_summary_path,
+        paths.download_plan_readiness_summary_path,
+        paths.reconciler_audit_path,
+        paths.reconciler_summary_path,
+        paths.reconciler_diagnostics_path,
+        paths.completion_audit_path,
+        paths.completion_summary_path,
+        paths.completion_gaps_path,
+        paths.uncovered_species_path,
+        paths.rrna_16s_gaps_path,
+        paths.checklist_comparison_path,
+        paths.gtdb_metadata_audit_path,
+        paths.ncbi_taxonomy_plan_path,
+        paths.ncbi_taxonomy_cache_path,
+        paths.run_summary_path,
+        paths.run_review_path,
+        paths.artifact_scope_path,
+        paths.run_state_path,
+    )
+
+
+def _snapshot_selection_projection_files(paths) -> dict[Path, bytes | None]:
+    return {
+        path: path.read_bytes() if path.exists() else None
+        for path in _selection_projection_output_paths(paths)
+    }
+
+
+def _restore_selection_projection_files(
+    snapshot: dict[Path, bytes | None]
+) -> list[str]:
+    errors: list[str] = []
+    for path, content in snapshot.items():
+        temporary = path.with_name(path.name + ".projection-rollback.tmp")
+        try:
+            if content is None:
+                if path.exists():
+                    path.unlink()
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary.write_bytes(content)
+            os.replace(temporary, path)
+        except Exception as error:
+            errors.append(f"{path}: {error}")
+            try:
+                if temporary.exists():
+                    temporary.unlink()
+            except Exception as cleanup_error:
+                errors.append(f"{temporary}: {cleanup_error}")
+    return errors
 
 
 def _run_guarded_downstream_analysis_stages(
@@ -5711,6 +5887,8 @@ def run_selection_dry_run_stage(
     paths,
     config: AppConfig,
     ncbi_taxonomy_client: NcbiTaxonomyClient | None = None,
+    *,
+    generate_expanded_plan: bool = True,
 ) -> list:
     records = _selection_tsv_to_records(paths, config)
     _write_genome_download_plan(records, paths)
@@ -5727,6 +5905,7 @@ def run_selection_dry_run_stage(
         paths,
         config,
         ncbi_taxonomy_client=ncbi_taxonomy_client,
+        generate_expanded_plan=generate_expanded_plan,
     )
     LOGGER.info(
         "Prepared selection dry-run outputs from user selection table: "

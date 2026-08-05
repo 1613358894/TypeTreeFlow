@@ -73,7 +73,9 @@ class CompletionGapRecord:
         return {field: _sanitize_tsv_text(row.get(field, "")) for field in COMPLETION_GAP_FIELDS}
 
 
-def generate_completion_gap_reports(outdir: str | Path) -> tuple[Path, Path, Path]:
+def generate_completion_gap_reports(
+    outdir: str | Path, *, generate_expanded_plan: bool = True
+) -> tuple[Path, Path, Path]:
     root = Path(outdir)
     completion_dir = root / "completion"
     uncovered_path = completion_dir / "uncovered_species.tsv"
@@ -96,7 +98,8 @@ def generate_completion_gap_reports(outdir: str | Path) -> tuple[Path, Path, Pat
     write_completion_gap_records(uncovered_rows, uncovered_path)
     write_completion_gap_records(rrna_rows, rrna_path)
     write_completion_gap_records(all_rows, gaps_path)
-    generate_expanded_discovery_plan(root)
+    if generate_expanded_plan:
+        generate_expanded_discovery_plan(root)
     return gaps_path, uncovered_path, rrna_path
 
 
