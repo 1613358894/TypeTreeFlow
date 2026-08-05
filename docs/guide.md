@@ -1620,7 +1620,11 @@ or deliberately accepted policy output. Representative records are exploratory
 and not strict type-strain confirmations.
 
 To validate the reviewed file and project its selected rows locally without
-approval or downloads, resume the same outdir and omit `--enable-downloads`:
+approval or downloads, resume the same outdir and omit `--enable-downloads`.
+Omitting `--resume` for this task-bound artifact fails closed and leaves the
+checkpoint unchanged; the same rule applies to the legacy/public `--genus
+Fusobacterium --selection-policy review-only` form. Standalone external
+selection validation is unchanged. The reviewed `verify-genus` form is:
 
 ```bash
 typetreeflow verify-genus Fusobacterium \

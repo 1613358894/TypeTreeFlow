@@ -281,7 +281,10 @@ from typetreeflow.workflow.selection_approval import (
     validate_approval_binding,
     write_approval,
 )
-from typetreeflow.workflow.selection_projection import validate_selection_projection
+from typetreeflow.workflow.selection_projection import (
+    selection_projection_task_genus,
+    validate_selection_projection,
+)
 
 LOGGER = logging.getLogger(__name__)
 PROVIDER_REGISTRATION_PLAN_RECOMMENDED_NEXT_COMMAND = (
@@ -309,6 +312,10 @@ class PipelineResult:
     phylo_status: str = ""
     status: str = ""
     notes: list[str] = field(default_factory=list)
+
+
+class ReviewedSelectionResumeRequired(ValueError):
+    """A canonical reviewed-selection continuation omitted --resume."""
 
 
 @dataclass(frozen=True)
@@ -389,6 +396,67 @@ def _format_verify_genus_envelope(
     exit_code: int,
     error: Exception | None,
 ) -> str:
+    if isinstance(error, ReviewedSelectionResumeRequired):
+        genus = str(config.acquire_genus or config.genus or "")
+        outdir = str(paths.manifest.parent.resolve())
+        selection = str(paths.user_selection_path.resolve())
+        retry_argv = (
+            [
+                "typetreeflow",
+                "verify-genus",
+                genus,
+                "--outdir",
+                outdir,
+                "--resume",
+                "--selection-tsv",
+                selection,
+            ]
+            if config.verify_genus
+            else [
+                "typetreeflow",
+                "--genus",
+                genus,
+                "--outdir",
+                outdir,
+                "--resume",
+                "--selection-tsv",
+                selection,
+                "--selection-policy",
+                config.selection_policy,
+            ]
+        )
+        return json.dumps(
+            {
+                "command": "verify-genus" if config.verify_genus else "genus-selection",
+                "schema_version": "1",
+                "status": "failed",
+                "code": "reviewed_selection_resume_required",
+                "reason": "reviewed_selection_resume_required",
+                "summary": str(error),
+                "genus": genus,
+                "outdir": outdir,
+                "selection_artifact": selection,
+                "selection_consumed": False,
+                "selection_projected": False,
+                "selection_approved": False,
+                "downloads_authorized": False,
+                "downloads_executed": False,
+                "blocking": [
+                    {
+                        "id": "reviewed_selection_resume_required",
+                        "message": str(error),
+                    }
+                ],
+                "warnings": [],
+                "next_actions": [
+                    {
+                        "id": "resume_reviewed_selection_projection",
+                        "argv": retry_argv,
+                    }
+                ],
+            },
+            sort_keys=True,
+        )
     state = _read_verify_genus_run_state(paths)
     status, reason = _verify_genus_public_status_reason(
         state=state,
@@ -1029,6 +1097,59 @@ def _run_verify_release_genus_dispatch(
     return 0
 
 
+def _is_reviewed_selection_surface(config: AppConfig) -> bool:
+    legacy_review_surface = bool(
+        not config.verify_genus
+        and str(config.genus or "").strip()
+        and config.selection_policy == "review-only"
+    )
+    return config.verify_genus or legacy_review_surface
+
+
+def _is_task_bound_reviewed_selection(paths, config: AppConfig) -> bool:
+    if config.selection_tsv is None or not _is_reviewed_selection_surface(config):
+        return False
+    try:
+        if Path(config.selection_tsv).resolve() != paths.user_selection_path.resolve():
+            return False
+        state = read_run_state(paths.run_state_path)
+        if Path(state.outdir).resolve() != paths.manifest.parent.resolve():
+            return False
+        task_genus = selection_projection_task_genus(paths.manifest.parent, paths)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    requested_genus = str(config.acquire_genus or config.genus or "").strip()
+    return bool(
+        requested_genus
+        and task_genus.casefold() == requested_genus.casefold()
+    )
+
+
+def _missing_resume_for_bound_reviewed_selection(
+    paths, config: AppConfig, command_argv: list[str]
+) -> bool:
+    return bool(
+        not config.resume
+        and "--dry-run" not in command_argv
+        and not config.force
+        and not config.auto_accept_selection
+        and not config.enable_downloads
+        and _is_task_bound_reviewed_selection(paths, config)
+    )
+
+
+def _normalize_legacy_reviewed_selection_resume(paths, config: AppConfig) -> AppConfig:
+    if (
+        config.verify_genus
+        or not config.resume
+        or config.enable_downloads
+        or config.auto_accept_selection
+        or not _is_task_bound_reviewed_selection(paths, config)
+    ):
+        return config
+    return replace(config, verify_genus=True, acquire_genus=config.genus)
+
+
 def main(
     argv: list[str] | None = None,
     download_runner=None,
@@ -1076,6 +1197,24 @@ def main(
     )
     if release_exit is not None:
         return release_exit
+    if _missing_resume_for_bound_reviewed_selection(paths, config, command_argv):
+        error = ReviewedSelectionResumeRequired(
+            "Reviewed selection is bound to this existing verify-genus task but "
+            "--resume was omitted. The selection may have been format-validated, "
+            "but it was not projected, approved, or consumed. Rerun the indicated "
+            "same-genus task with --resume; guarded downloads remain disabled."
+        )
+        LOGGER.error("%s", error)
+        print(
+            _format_verify_genus_envelope(
+                config,
+                paths,
+                exit_code=2,
+                error=error,
+            )
+        )
+        return 2
+    config = _normalize_legacy_reviewed_selection_resume(paths, config)
     run_error: BaseException | None = None
     exit_code = 0
     workflow_stdout = sys.stderr if config.verify_genus else sys.stdout

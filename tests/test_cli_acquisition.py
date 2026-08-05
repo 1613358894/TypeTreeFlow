@@ -4438,6 +4438,178 @@ def test_zero_selected_reviewed_projection_has_valid_task_identity(
     assert main(["next-step", "--outdir", str(outdir)]) == 0
 
 
+def test_canonical_reviewed_selection_without_resume_fails_before_any_task_write(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    before = {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    }
+
+    assert main([
+        "verify-genus", "Fusobacterium", "--outdir", str(outdir),
+        "--selection-tsv", str(paths.user_selection_path),
+    ]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    after = {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    }
+    assert after == before
+    assert payload["code"] == "reviewed_selection_resume_required"
+    assert payload["reason"] == "reviewed_selection_resume_required"
+    assert payload["selection_consumed"] is False
+    assert payload["selection_projected"] is False
+    assert payload["selection_approved"] is False
+    assert payload["downloads_authorized"] is False
+    assert payload["downloads_executed"] is False
+    command = payload["next_actions"][0]["argv"]
+    assert command == [
+        "typetreeflow", "verify-genus", "Fusobacterium", "--outdir",
+        str(outdir.resolve()), "--resume", "--selection-tsv",
+        str(paths.user_selection_path.resolve()),
+    ]
+    assert "--enable-downloads" not in command
+    assert main(["status", "--outdir", str(outdir)]) == 0
+    status_payload = json.loads(capsys.readouterr().out)
+    assert status_payload["status"] != "pass"
+    assert main(["next-step", "--outdir", str(outdir)]) == 0
+    next_step_payload = json.loads(capsys.readouterr().out)
+    assert "selection-review strategy" in next_step_payload[
+        "recommended_action"
+    ]["message"]
+    assert {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    } == before
+
+
+def test_legacy_genus_canonical_reviewed_selection_without_resume_fails_closed(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+    before = {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    }
+
+    assert main([
+        "--genus", "Fusobacterium", "--outdir", str(outdir),
+        "--selection-tsv", str(paths.user_selection_path),
+        "--selection-policy", "review-only",
+    ]) == 2
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["code"] == "reviewed_selection_resume_required"
+    assert payload["reason"] == "reviewed_selection_resume_required"
+    assert payload["downloads_authorized"] is False
+    assert payload["downloads_executed"] is False
+    assert payload["next_actions"][0]["argv"] == [
+        "typetreeflow", "--genus", "Fusobacterium", "--outdir",
+        str(outdir.resolve()), "--resume", "--selection-tsv",
+        str(paths.user_selection_path.resolve()), "--selection-policy", "review-only",
+    ]
+    assert {
+        path.relative_to(outdir): path.read_bytes()
+        for path in outdir.rglob("*") if path.is_file()
+    } == before
+
+
+def test_legacy_resume_guard_excludes_standalone_and_untrusted_selection(
+    tmp_path, capsys
+):
+    checkpoint = tmp_path / "checkpoint"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(checkpoint),
+    ]) == 0
+    capsys.readouterr()
+    checkpoint_paths = get_output_paths(checkpoint)
+    checkpoint_before = {
+        path.relative_to(checkpoint): path.read_bytes()
+        for path in checkpoint.rglob("*") if path.is_file()
+    }
+
+    assert main([
+        "--outdir", str(checkpoint), "--selection-tsv",
+        str(checkpoint_paths.user_selection_path),
+    ]) == 0
+    assert {
+        path.relative_to(checkpoint): path.read_bytes()
+        for path in checkpoint.rglob("*") if path.is_file()
+    } == checkpoint_before
+
+    external_selection = tmp_path / "external_selection.tsv"
+    external_selection.write_bytes(checkpoint_paths.user_selection_path.read_bytes())
+    new_outdir = tmp_path / "new-out"
+    assert main([
+        "--genus", "Fusobacterium", "--outdir", str(new_outdir),
+        "--selection-tsv", str(external_selection),
+        "--selection-policy", "review-only",
+    ]) == 0
+    assert not new_outdir.exists()
+
+    untrusted_outdir = tmp_path / "untrusted"
+    untrusted_paths = get_output_paths(untrusted_outdir)
+    untrusted_paths.user_selection_path.parent.mkdir(parents=True)
+    untrusted_paths.user_selection_path.write_bytes(external_selection.read_bytes())
+    untrusted_before = {
+        path.relative_to(untrusted_outdir): path.read_bytes()
+        for path in untrusted_outdir.rglob("*") if path.is_file()
+    }
+    assert main([
+        "--genus", "Fusobacterium", "--outdir", str(untrusted_outdir),
+        "--selection-tsv", str(untrusted_paths.user_selection_path),
+        "--selection-policy", "review-only",
+    ]) == 0
+    assert {
+        path.relative_to(untrusted_outdir): path.read_bytes()
+        for path in untrusted_outdir.rglob("*") if path.is_file()
+    } == untrusted_before
+
+
+def test_legacy_genus_canonical_reviewed_selection_with_resume_remains_supported(
+    tmp_path, capsys
+):
+    outdir = tmp_path / "out"
+    lpsn_cache = _write_lpsn_cache(tmp_path / "lpsn.tsv")
+    discovery_cache = _write_discovery_cache(tmp_path / "discovery.tsv")
+    assert main([
+        "verify-genus", "Fusobacterium", "--lpsn-cache", str(lpsn_cache),
+        "--discovery-cache", str(discovery_cache), "--outdir", str(outdir),
+    ]) == 0
+    capsys.readouterr()
+    paths = get_output_paths(outdir)
+
+    assert main([
+        "--genus", "Fusobacterium", "--outdir", str(outdir), "--resume",
+        "--selection-tsv", str(paths.user_selection_path),
+        "--selection-policy", "review-only",
+    ]) == 0
+    assert not paths.ncbi_download_results_path.exists()
+    assert not (paths.selection_dir / "selection_approval.json").exists()
+
+
 @pytest.mark.parametrize("nonterminal_status", ("authorized", "running"))
 def test_reviewed_projection_rejects_nonterminal_approval_before_writes(
     tmp_path, capsys, nonterminal_status

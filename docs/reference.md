@@ -63,8 +63,18 @@ Primary commands write compact JSON to stdout by default. This does not require
   effects. Unselected rows remain audit evidence and do not enter the current
   manifest or plan. The projection forcibly disables discovery, Entrez,
   taxonomy lookup, expanded discovery, downloads, barrnap, ANI, phylogeny, and
-  provider/tool execution even if their enable flags are also supplied. It
-  refreshes completion audit/gap outputs when the checkpoint checklist exists.
+  provider/tool execution even if their enable flags are also supplied. On
+  either the `verify-genus <Genus>` surface or the legacy/public `--genus
+  <Genus> --selection-policy review-only` surface, a non-dry-run invocation
+  that names the canonical selection in a trusted same-genus task/outdir but
+  omits `--resume` fails before durable writes with exit 2,
+  `code=reason=reviewed_selection_resume_required`, false selection
+  consumption/projection/approval and download authorization/execution fields,
+  and a same-surface, same-genus, absolute-outdir, canonical-selection retry
+  action that adds `--resume` but not `--enable-downloads`. External selection
+  paths, new outdirs, missing task identity, and selection validation without a
+  genus remain standalone-compatible. A successful projection refreshes
+  completion audit/gap outputs when the checkpoint checklist exists.
   Existing terminal approval history is preserved but is not projected as
   current authorization; malformed or non-terminal history fails before any
   write. Projection snapshots include manifest/name map, download plan and
