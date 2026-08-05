@@ -312,8 +312,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--enable-bacdive-enrichment",
         action="store_true",
         help=(
-            "For verify-genus, enable the BacDive fake/injected-client "
-            "candidate enrichment skeleton. The live BacDive API is not wired."
+            "For verify-genus, opt in to candidate-only BacDive enrichment. "
+            "Injected fake/fixture-backed clients support offline use; without "
+            "an injected client, the public live path constructs a guarded client "
+            "for bounded culture-collection token lookups only. It uses no "
+            "credentials, writes no raw payloads, does not upgrade strict evidence "
+            "or completion, and does not download genomes."
         ),
     )
     parser.add_argument(
@@ -321,8 +325,10 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["tokens", "species", "both"],
         default="tokens",
         help=(
-            "For verify-genus BacDive fake/injected-client enrichment, choose "
-            "bounded query mode: tokens, species, or both; default: tokens."
+            "For verify-genus BacDive enrichment, choose bounded query mode: "
+            "tokens, species, or both. Injected/offline clients support all three; "
+            "the public live path is tokens-only and blocks species/both before "
+            "HTTP. Default: tokens."
         ),
     )
     parser.add_argument(
@@ -339,8 +345,9 @@ def build_parser() -> argparse.ArgumentParser:
         type=_positive_int,
         default=50,
         help=(
-            "For verify-genus BacDive fake/injected-client enrichment, positive maximum query "
-            "count; default: 50."
+            "For verify-genus BacDive enrichment, positive bounded request cap. "
+            "For the public live path, this is the total HTTP cap including lookup "
+            "and detail-fetch calls; default: 50."
         ),
     )
     parser.add_argument(

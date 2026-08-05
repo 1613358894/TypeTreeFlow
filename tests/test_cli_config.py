@@ -6,6 +6,7 @@ from typetreeflow import cli
 from typetreeflow.cli_config import _env_value as config_env_value
 from typetreeflow.cli_config import _normalize_command_argv as config_normalize_argv
 from typetreeflow.cli_config import build_app_config_from_args
+from typetreeflow.cli_parser import build_parser
 
 
 def test_cli_normalize_command_argv_compatibility_export():
@@ -14,6 +15,33 @@ def test_cli_normalize_command_argv_compatibility_export():
 
 def test_cli_env_value_compatibility_export():
     assert cli._env_value is config_env_value
+
+
+def test_bacdive_public_help_describes_guarded_live_contract():
+    parser = build_parser()
+    help_by_flag = {
+        option: action.help
+        for action in parser._actions
+        for option in action.option_strings
+        if option.startswith("--bacdive-") or option == "--enable-bacdive-enrichment"
+    }
+    enrichment_help = help_by_flag["--enable-bacdive-enrichment"]
+    query_mode_help = help_by_flag["--bacdive-query-mode"]
+    max_queries_help = help_by_flag["--bacdive-max-queries"]
+    contract_help = " ".join((enrichment_help, query_mode_help, max_queries_help)).lower()
+
+    assert "live bacdive api is not wired" not in contract_help
+    assert "fake/injected-client enrichment" not in contract_help
+    assert "candidate-only" in enrichment_help.lower()
+    assert "public live path" in contract_help
+    assert "culture-collection token lookups only" in enrichment_help.lower()
+    assert "tokens-only" in query_mode_help.lower()
+    assert "blocks species/both before http" in query_mode_help.lower()
+    assert "total http cap including lookup and detail-fetch calls" in max_queries_help.lower()
+    assert "uses no credentials" in enrichment_help.lower()
+    assert "writes no raw payloads" in enrichment_help.lower()
+    assert "does not upgrade strict evidence or completion" in enrichment_help.lower()
+    assert "does not download genomes" in enrichment_help.lower()
 
 
 def test_env_value_returns_stripped_set_value(monkeypatch):
