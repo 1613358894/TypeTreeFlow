@@ -38,6 +38,11 @@ from typetreeflow.workflow.next_action import plan_only_guarded_download_next_ac
 from typetreeflow.workflow.next_action import refine_entrez_fallback_next_action
 from typetreeflow.workflow.next_action import zero_accepted_checklist_next_action
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.public_status import (
+    public_stage_is_blocking,
+    public_stage_is_warning,
+    public_stage_status,
+)
 from typetreeflow.workflow.selection_approval import (
     SelectionApprovalError,
     approval_path as selection_approval_path,
@@ -136,7 +141,7 @@ class WorkflowStatusSummary:
         stages = [
             {
                 "id": stage_id,
-                "status": _public_stage_status(str(stage.get("status", ""))),
+                "status": public_stage_status(str(stage.get("status", ""))),
                 "summary": str(stage.get("summary", "")),
             }
             for stage_id, stage in self.stages.items()
@@ -813,7 +818,7 @@ def _public_workflow_status(
 ) -> str:
     stage_statuses = {str(stage.get("status", "")) for stage in stages.values()}
     public_stage_statuses = {
-        _public_stage_status(status) for status in stage_statuses if status
+        public_stage_status(status) for status in stage_statuses if status
     }
     if overall == "failed" or "failed" in public_stage_statuses:
         return "failed"
@@ -825,6 +830,9 @@ def _public_workflow_status(
         status.startswith("blocked_by_") for status in stage_statuses
     ) or "blocked" in public_stage_statuses:
         return "blocked"
+    strict_reconciliation = stages.get("strict_reconciliation", {})
+    if str(strict_reconciliation.get("status", "")) == "warning":
+        return "blocked"
     if overall == "succeeded":
         return "pass"
     if overall in {"partial", "skipped"}:
@@ -833,32 +841,14 @@ def _public_workflow_status(
 
 
 def _public_stage_status(status: str) -> str:
-    if status == "failed":
-        return "failed"
-    if status.startswith("blocked_by_"):
-        return "blocked"
-    if status == "skipped" or "skipped" in status or status.endswith("_no_query"):
-        return "skipped"
-    if status == "succeeded":
-        return "succeeded"
-    if status in {"planned", "running", "partial"}:
-        return "blocked"
-    if status.endswith("_failed") or status == "gtdb_metadata_load_failed":
-        return "failed"
-    if (
-        status.endswith("_ready")
-        or status.endswith("_succeeded")
-        or status.endswith("_loaded")
-    ):
-        return "succeeded"
-    return "blocked"
+    return public_stage_status(status)
 
 
 def _blocking_items(stages: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
     items = []
     for stage_id, stage in stages.items():
         status = str(stage.get("status", ""))
-        if status.startswith("blocked_by_") or status in {"failed", "partial", "planned"}:
+        if public_stage_is_blocking(status):
             items.append(
                 {
                     "id": stage_id,
@@ -873,11 +863,11 @@ def _warning_items(stages: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
     items = []
     for stage_id, stage in stages.items():
         status = str(stage.get("status", ""))
-        if status == "skipped":
+        if public_stage_is_warning(status):
             items.append(
                 {
                     "id": stage_id,
-                    "status": "skipped",
+                    "status": public_stage_status(status),
                     "summary": str(stage.get("summary", "")),
                 }
             )

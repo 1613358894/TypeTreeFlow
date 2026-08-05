@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from typetreeflow.cli import (
+    _format_verify_genus_envelope,
     _validate_selection_approval,
     _verify_genus_checkpoint_guidance,
     _write_reviewed_selection_approval,
@@ -20,7 +21,7 @@ from typetreeflow.evidence.bacdive_adapter import BacDiveHTTPError, FakeBacDiveC
 from typetreeflow.evidence.bacdive_workflow import build_public_bacdive_live_client
 from typetreeflow.external.runner import CommandResult
 from typetreeflow.external.tools import resolve_iqtree_executable
-from typetreeflow.manifest import read_manifest
+from typetreeflow.manifest import read_manifest, write_manifest
 from typetreeflow.sources.ncbi_biosample import BioSampleRecord, write_biosample_records
 from typetreeflow.taxonomy.candidate_discovery import (
     AssemblyDiscoveryRecord,
@@ -32,6 +33,7 @@ from typetreeflow.taxonomy.checklist import read_species_checklist
 from typetreeflow.taxonomy.lpsn import LpsnSpeciesRecord, write_lpsn_species_cache
 from typetreeflow.taxonomy.selection import read_user_selection
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.summary import overall_status
 from typetreeflow.workflow.selection_approval import (
     SelectionApprovalError,
     new_approval,
@@ -48,6 +50,69 @@ from typetreeflow.workflow.state import (
 
 
 BIOSAMPLE_RECOMMENDATION_TEXT = "BioSample type-material evidence coverage"
+
+
+@pytest.mark.parametrize(
+    ("stage_id", "raw_status", "public_stage", "public_overall", "warns"),
+    [
+        ("gtdb_audit", "gtdb_metadata_loaded", "succeeded", "warning", False),
+        ("gtdb_audit", "gtdb_metadata_not_loaded", "warning", "warning", True),
+        ("gtdb_audit", "gtdb_metadata_load_failed", "warning", "warning", True),
+        ("gtdb_audit", "skipped", "skipped", "pass", True),
+        ("bacdive_enrichment", "warning", "warning", "pass", True),
+    ],
+)
+def test_gtdb_public_stage_status_parity_between_verify_and_status(
+    tmp_path,
+    capsys,
+    stage_id,
+    raw_status,
+    public_stage,
+    public_overall,
+    warns,
+):
+    outdir = tmp_path / "out"
+    paths = get_output_paths(outdir)
+    outdir.mkdir(parents=True)
+    write_manifest([], paths.manifest)
+    (outdir / "species_checklist.tsv").write_text(
+        "genus\tspecies\tstatus\ttype_strain\tsource\tnotes\n",
+        encoding="utf-8",
+    )
+    stages = {
+        "lpsn_checklist": StageState(status="succeeded", summary="fixture"),
+        stage_id: StageState(status=raw_status, summary=raw_status),
+        "report": StageState(status="succeeded", summary="fixture"),
+    }
+    state = WorkflowState(
+        status=overall_status(stages),
+        outdir=str(outdir),
+        stages=stages,
+        next_action="Review optional supporting audit evidence.",
+    )
+    write_run_state(paths.run_state_path, state)
+    config = _minimal_bacdive_config(
+        acquire_genus="Fusobacterium",
+        genus="Fusobacterium",
+        outdir=outdir,
+    )
+
+    verify_payload = json.loads(
+        _format_verify_genus_envelope(config, paths, exit_code=0, error=None)
+    )
+    assert main(["status", "--outdir", str(outdir)]) == 0
+    status_payload = json.loads(capsys.readouterr().out)
+
+    status_stages = {stage["id"]: stage for stage in status_payload["stages"]}
+    assert status_stages[stage_id]["status"] == public_stage
+    assert status_payload["status"] == public_overall
+    assert verify_payload["status"] == public_overall
+    for payload in (verify_payload, status_payload):
+        assert not any(item["id"] == stage_id for item in payload["blocking"])
+        assert (
+            any(item["id"] == stage_id for item in payload["warnings"])
+            is warns
+        )
 
 
 class _FakeBioSampleClient:

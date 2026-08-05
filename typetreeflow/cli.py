@@ -265,6 +265,11 @@ from typetreeflow.workflow.state import (
     read_run_state,
     write_run_state,
 )
+from typetreeflow.workflow.public_status import (
+    public_stage_is_blocking,
+    public_stage_is_warning,
+    public_stage_status,
+)
 from typetreeflow.workflow.selection_approval import (
     SelectionApprovalError,
     approval_path as reviewed_selection_approval_path,
@@ -511,9 +516,7 @@ def _verify_genus_has_successful_guarded_download(
     blocking_or_failed = {
         status
         for status in stage_statuses
-        if status.startswith("blocked_by_")
-        or status in {"failed", "partial", "planned"}
-        or status.endswith("_failed")
+        if public_stage_is_blocking(status)
     }
     return not blocking_or_failed
 
@@ -579,10 +582,7 @@ def _verify_genus_blocking_items(
     if state is None:
         return items
     for stage_id, stage in state.stages.items():
-        if (
-            stage.status.startswith("blocked_by_")
-            or stage.status in {"failed", "partial", "planned"}
-        ):
+        if public_stage_is_blocking(stage.status):
             items.append(
                 {
                     "id": stage_id,
@@ -603,20 +603,12 @@ def _verify_genus_warning_items(state: WorkflowState | None) -> list[dict[str, s
             "summary": stage.summary,
         }
         for stage_id, stage in state.stages.items()
-        if stage.status == "skipped" or "skipped" in stage.status
+        if public_stage_is_warning(stage.status)
     ]
 
 
 def _verify_genus_public_stage_status(status: str) -> str:
-    if status == "failed" or status.endswith("_failed"):
-        return "failed"
-    if status.startswith("blocked_by_") or status in {"partial", "planned"}:
-        return "blocked"
-    if status == "skipped" or "skipped" in status or status.endswith("_no_query"):
-        return "skipped"
-    if status == "succeeded" or status.endswith("_succeeded"):
-        return "succeeded"
-    return status or "unknown"
+    return public_stage_status(status)
 
 
 def _verify_genus_error_id(error: Exception) -> str:

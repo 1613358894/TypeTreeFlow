@@ -4,6 +4,8 @@ import json
 import subprocess
 import sys
 
+import pytest
+
 from typetreeflow import diagnostics
 from typetreeflow.cli import main
 from typetreeflow.manifest import write_manifest
@@ -13,7 +15,37 @@ from typetreeflow.taxonomy.source_audit import (
     write_sequence_source_audits,
 )
 from typetreeflow.workflow.paths import get_output_paths
+from typetreeflow.workflow.public_status import public_stage_status
 from typetreeflow.workflow.state import StageState, WorkflowState, write_run_state
+
+
+def test_stage_state_rejects_analysis_skipped_status():
+    with pytest.raises(ValueError, match="Unknown workflow status: analysis_skipped"):
+        StageState(status="analysis_skipped")
+
+
+@pytest.mark.parametrize(
+    ("raw_status", "expected"),
+    [
+        ("not_started", "blocked"),
+        ("planned", "blocked"),
+        ("running", "blocked"),
+        ("succeeded", "succeeded"),
+        ("partial", "blocked"),
+        ("failed", "failed"),
+        ("skipped", "skipped"),
+        ("warning", "warning"),
+        ("blocked_by_dependency", "blocked"),
+        ("blocked_by_manual_review", "blocked"),
+        ("blocked_by_argument_conflict", "blocked"),
+        ("gtdb_metadata_loaded", "succeeded"),
+        ("gtdb_metadata_not_loaded", "warning"),
+        ("gtdb_metadata_load_failed", "warning"),
+    ],
+)
+def test_public_stage_status_contract_for_legal_raw_states(raw_status, expected):
+    StageState(status=raw_status)
+    assert public_stage_status(raw_status) == expected
 
 
 def _write_zero_accepted_lpsn_outputs(outdir):

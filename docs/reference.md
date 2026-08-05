@@ -27,7 +27,9 @@ Primary commands write compact JSON to stdout by default. This does not require
   environment, workspace/output, optional tool readiness, status, and next
   action. It performs documentation/local checks only.
 - `verify-genus` and `verify-release-genus`: compact JSON summary with command,
-  genus, outdir, status, stages, selected counts, report paths, and next action.
+  genus, outdir, status, selected counts, report paths, and next action. Relevant
+  stage outcomes are exposed through `blocking` and `warnings`; this envelope
+  does not add a top-level `stages` field.
   When `verify-genus` has written a download plan, stdout includes the same
   read-only `download_plan_readiness_summary` used by `status`.
   When `verify-genus` stops at the default selection/manual-review checkpoint,
@@ -1654,6 +1656,11 @@ Recommended layout:
 - `external_genome_install_results.tsv`: `species`, `strain`, `type_strain_id`, `external_source`, `external_source_name`, `external_genome_id`, `external_source_url`, `source_genome_fasta_path`, `installed_genome_path`, `sha256`, `is_type_material`, `status`, `notes`
 - `taxonomy/checklist_comparison.tsv`: `checklist_name`, `gtdb_name`, `genus`, `species`, `status`, `comparison_status`, `gtdb_record_id`, `assembly_accession`, `normalized_id`, `notes`, `source`, `nomenclatural_status`, `taxonomic_status`, `type_strain`, `lpsn_record_number`, `lpsn_url`
 - `taxonomy/gtdb_metadata_audit.json`: configured-only JSON audit written when `--gtdb-metadata` or `--gtdb-release` is provided. It records `metadata_path`, file status, release, `load_status`, timestamp, and coverage counts when local metadata loads successfully. When GTDB metadata audit is not configured, this artifact is not written and run-state/report/package output must not report `gtdb_metadata_not_loaded`.
+  For configured GTDB audit, raw `gtdb_metadata_not_loaded` and
+  `gtdb_metadata_load_failed` states appear as non-blocking `gtdb_audit`
+  warnings on public AI JSON surfaces. GTDB remains optional supporting audit
+  evidence; these warnings do not alter the persisted raw state, strict or
+  completion semantics, or execution authorization.
 - `taxonomy/ncbi_taxonomy_plan.tsv`: `species`, `scientific_name`, `query`, `query_reason`, `status`, `notes`
 - `taxonomy/ncbi_taxonomy_cache.tsv`: `species`, `taxid`, `scientific_name`, `rank`, `synonyms`, `equivalent_names`, `includes`, `authority`, `source`, `notes`
 - `evidence/bacdive_enrichment.tsv`: `schema_version`, `run_id`, `species`, `checklist_source`, `lpsn_type_strain_text`, `lpsn_type_strain_identifiers`, `query_index`, `query_kind`, `query`, `endpoint`, `lookup_status`, `bacdive_id`, `bacdive_species`, `strain_designation`, `culture_collection_numbers`, `dsmz_accession`, `is_type_strain`, `evidence_tier`, `reconciliation_status`, `overlapping_identifiers`, `selected_genome_linkage`, `strict_confirmed`, `source_platform`, `source_url`, `accessed_at`, `diagnostic_codes`, `notes`
