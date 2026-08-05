@@ -109,15 +109,16 @@ Use `python typetreeflow.py --version` to confirm the installed source version,
 and inspect `selection/user_selection.tsv`, `manifest.tsv`, completion gap
 tables, report summaries, and package handoff output during release review.
 
-The current 2.2.40 release gate covers the complete local test and packaging
-gate, the installed-wheel AI contract slice, evidence-first
-completion/report/package wording, scoped artifact handoff, guarded approval
-and recovery contracts, offline review/control surfaces, release consistency,
-workspace hygiene, docs hygiene, and package metadata. A local gate PASS is
-release-candidate evidence only: it does not publish artifacts, establish live
-provider coverage, supply human curator acceptance, or satisfy the product
-Definition of Done by itself. The release gate must mention workspace and
-`results/` hygiene.
+The current 2.2.41 release gate covers the complete local test and packaging
+gate, the installed-wheel AI contract slice, reviewed-selection and independent
+download authorization, approval-attempt lifecycle and interruption recovery,
+atomic no-download projection, actual-presence completion, diagnostics and AI
+handoff, curator-packet path boundaries, and the bounded download-smoke,
+coverage, provider, and archive review-only controls accumulated since the
+v2.2.40 tag. A local gate PASS is release-candidate evidence only: it does not
+publish artifacts, establish broad live-provider or whole-genus coverage,
+supply human curator acceptance, or satisfy the product Definition of Done by
+itself. The release gate must mention workspace and `results/` hygiene.
 
 ## Release Verification
 

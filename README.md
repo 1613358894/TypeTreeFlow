@@ -1,16 +1,21 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.40 release batches the P5 offline AI-control and
-coverage-planning surfaces: count crosswalks, curator-packet preflight,
-strict-gate state projection, acquisition worklist review signals, an isolated
-`archive-candidates build` audit triplet, read-only archive-candidate
-worklist integration, static provider registry metadata, a read-only
-`providers catalog` CLI, and command rendering for acquisition worklist
-archive-candidate inputs. Public archive and provider registry entries remain
-planning or metadata surfaces only; they do not contact providers, download
-genomes, write `external_genomes.tsv`, change manifests, change completion
-metrics, or promote strict type-strain evidence. The release preserves the
+workflow. The current 2.2.41 release consolidates the full post-v2.2.40 delta:
+reviewed selection and independent download authorization, approval-attempt
+lifecycle and interruption recovery, atomic no-download projection,
+actual-presence completion, package/diagnostics/AI handoff, installed-wheel and
+curator-packet path contracts, and bounded download-smoke quality and safety
+controls. Easy, synthetic difficult, and fixed-cache/no-download Clostridium
+loops cover success, explicit-gap, and pressure behavior. The difficult loop is
+synthetic; the Clostridium loop is not strict completion; bounded real evidence
+proves only an authorized download plus barrnap slice. AI pre-review support for
+5/5 bound items is not human curator acceptance, which remains unsigned, so the
+product Definition of Done remains incomplete. Coverage, provider, archive,
+and external-registration planning remains review-only or separately guarded;
+the release does not claim whole-genus completion, broad live-provider
+validation, production readiness, or complete scientific acceptance. It
+preserves the
 v2.2.39 P3f guarded strict-gating audit-only workflow, the v2.2.38 P3e
 manual-review audit-only pipeline, the v2.2.37 report-only ordering fix, the
 v2.2.36 audit-only reconciler package inclusion, the v2.2.35 compact
@@ -151,7 +156,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.40 workflow
+## Recommended v2.2.41 workflow
 
 Create a plan-only review checkpoint. This offline example requires these
 reviewed local caches; `--smoke-profile plan-only` does not inject inputs or
@@ -305,14 +310,16 @@ gap reports, package handoff, and audit-only expanded discovery:
 `completion/rejected_candidates.tsv`, and
 `completion/manual_supplement_hints.tsv`.
 
-The v2.2.40 release record batches the P5 offline AI-control and
-coverage-planning surfaces. `archive-candidates build` writes only an isolated
-review triplet, acquisition worklists may read those candidate rows as
-review-only signals, `providers catalog` exposes provider metadata without
-provider contact, including BV-BRC/PATRIC and IMG/JGI review routing, and
-command rendering can plan the corresponding offline
-commands. These surfaces do not claim live-provider validation, downloads,
-strict evidence promotion, or strict deliverable materialization.
+The v2.2.41 release record covers reviewed selection with independent download
+authorization, approval-attempt recovery, atomic no-download projection,
+actual-presence completion, installed-wheel AI/package/diagnostic handoff, and
+bounded post-tag download-smoke safety and quality controls. Coverage,
+provider, archive-candidate, and external-registration routes remain
+review-only or separately guarded. The difficult loop is synthetic;
+Clostridium evidence is fixed-cache/no-download pressure rather than strict
+completion; the bounded real slice proves only download plus barrnap. AI
+pre-review support is not human curator acceptance, and the product Definition
+of Done remains incomplete.
 
 The v2.2.39 release record batches the P3f guarded strict-gating audit-only
 workflow. Release evidence is retained outside the repository at

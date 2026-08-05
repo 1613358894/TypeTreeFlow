@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.40 / 2.2.40 release verification path uses
+The current v2.2.41 / 2.2.41 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -42,6 +42,28 @@ repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`,
 operator-run `barrnap --updatedb`, and `typetreeflow doctor`; server rehearsal
 passed the clean deployment full rerun.
+
+For v2.2.41, verification covers the complete post-v2.2.40 tag delta by theme:
+reviewed selection and independently authorized downloads, approval-attempt
+lifecycle, interruption recovery, atomic no-download projection,
+actual-presence completion, package/diagnostics/AI handoff, installed-wheel AI
+contract, full local release gate, curator-packet path boundaries, and bounded
+download-smoke safety and quality controls. Easy, synthetic difficult, and
+fixed-cache/no-download Clostridium loops cover distinct offline paths. The
+difficult loop is synthetic, Clostridium is not strict completion, and bounded
+real evidence proves only download plus barrnap. AI pre-review support for 5/5
+bound items is not human curator acceptance; human acceptance remains unsigned
+and the product Definition of Done remains incomplete. No governance-run path,
+hash, or packet file is part of the product repository.
+
+The LPSN-first baseline and strict/candidate/likely/representative/conflict/
+missing distinctions are unchanged. Coverage, provider, archive-candidate, and
+external-registration controls remain review-only or separately guarded. This
+release does not claim whole-genus completion, broad live-provider validation,
+production readiness, Clostridium strict completion, or complete scientific
+acceptance. BacDive help matches the existing guarded-live contract: explicit
+opt-in and terms/citation confirmation, bounded public tokens-only access,
+candidate-only evidence, and no automatic download or strict upgrade.
 
 For v2.2.40, the P5 AI-control and coverage-planning surfaces remain offline
 and review-only. `archive-candidates build` writes only an isolated audit
@@ -276,6 +298,12 @@ and `--discovery-cache`. Doctor readiness checks prefer `iqtree2`, accept
 keep missing barrnap DB findings blocking with `barrnap --updatedb` as the next
 action, and may report warning status when only `TYPETREEFLOW_EMAIL` is
 missing.
+
+The v2.2.41 release record references the offline product loops, installed-wheel
+contract, full local gate, and bounded download-smoke/coverage controls
+summarized above. It does not claim human curator acceptance, whole-genus or
+broad live-provider coverage, production readiness, or complete scientific
+acceptance.
 
 The v2.2.40 release record references the bounded offline P5 AI-control,
 archive-candidate, provider registry/catalog, command rendering, and

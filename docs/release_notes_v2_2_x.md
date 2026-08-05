@@ -1,9 +1,44 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.40 integration review as
+These notes consolidate the v2.2.2 through v2.2.41 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.41
+
+v2.2.41 consolidates the complete delta since the v2.2.40 tag around a bounded,
+reviewed genus-to-package loop:
+
+- Reviewed selection submission is separate from explicit download
+  authorization. Approval attempts have a visible lifecycle, interruption can
+  resume without corrupting state, and no-download projection is atomic.
+- Completion follows actual installed artifact presence, and package,
+  diagnostics, status, next-action, and AI handoff surfaces agree on blockers,
+  artifacts, and evidence scope.
+- Easy, synthetic difficult, and fixed-cache/no-download Clostridium loops
+  exercise success, explicit-gap, and pressure paths. The difficult evidence is
+  synthetic; Clostridium is not a strict-completion claim.
+- The installed-wheel AI contract, complete local release gate, and
+  curator-packet path boundary validate the packaged operator route without
+  placing governance-run paths, hashes, or packet files in this repository.
+- Post-v2.2.40 bounded download-smoke work covers planning, ZIP/FASTA safety,
+  registration and quality inspection, diagnostics, report/package handoff, and
+  next actions. Coverage, provider, archive-candidate, and external-registration
+  surfaces remain review-only or separately guarded.
+- BacDive help is aligned with the existing guarded-live contract: explicit
+  opt-in and terms/citation confirmation, bounded public tokens-only access,
+  candidate-only evidence, no raw-payload persistence, and no automatic
+  download, completion change, or strict upgrade.
+
+The LPSN-first baseline and strict/candidate/likely/representative/conflict/
+missing distinctions are unchanged. Bounded real evidence proves only an
+authorized download plus barrnap slice. Independent AI pre-review marked 5/5
+bound items supported, but that is not human curator acceptance. Human
+acceptance remains unsigned, so the product-direction Definition of Done is not
+complete. This release does not claim whole-genus completion, broad
+live-provider validation, production readiness, Clostridium strict completion,
+or complete scientific acceptance.
 
 ## v2.2.40
 

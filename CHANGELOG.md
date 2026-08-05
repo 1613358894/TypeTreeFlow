@@ -1,5 +1,53 @@
 # Changelog
 
+## v2.2.41 - 2026-08-05
+
+v2.2.41 consolidates the full post-v2.2.40 product-loop and bounded acquisition
+delta into a release candidate centered on explicit review, side-effect
+authorization, recoverability, actual delivered artifacts, and AI-readable
+handoff.
+
+### Changed
+
+- Reviewed selection submission and download authorization are independent
+  actions. Approval attempts have an explicit lifecycle, interrupted runs can
+  resume safely, and no-download projection is atomic.
+- Completion uses actual artifact presence rather than plans alone, while
+  package, diagnostics, status, next-action, and AI handoff surfaces expose the
+  same blockers and evidence scope.
+- The installed-wheel AI contract, complete local release gate, and
+  curator-packet path checks cover the packaged user route without embedding
+  governance-run paths, hashes, or packet files in the product repository.
+- Post-tag coverage work adds bounded download-smoke inspection and quality
+  gates plus provider, public-archive, external-registration, and coverage
+  routing controls. Provider and archive paths remain review-only unless an
+  existing guarded command receives its required explicit authorization.
+- BacDive help now describes the already guarded live contract consistently:
+  explicit opt-in, terms/citation confirmation, bounded tokens-only public live
+  access, candidate-only evidence, and no automatic download or strict upgrade.
+
+### Verification
+
+- Offline loops cover an easy fixture, a synthetic difficult case with explicit
+  gaps, and a fixed-cache/no-download Clostridium pressure case.
+- Bounded real evidence proves only the authorized download plus barrnap slice;
+  it is not whole-genus, broad provider, production, or complete scientific
+  acceptance evidence.
+- Independent AI pre-review found 5/5 bound evidence items supported. That is
+  not human curator acceptance; the human acceptance decision remains unsigned
+  and the product-direction Definition of Done remains incomplete.
+
+### Scientific boundary
+
+- The LPSN-first baseline and the separation among strict, candidate, likely
+  type material, representative, conflict, and missing states are unchanged.
+- The difficult loop is synthetic. The Clostridium loop is fixed-cache and
+  no-download pressure evidence, not strict completion. Provider proposals,
+  archive candidates, coverage plans, and external request rows are not strict
+  confirmed type strains.
+- This release does not claim whole-genus completion, broad live-provider
+  validation, production readiness, or complete scientific acceptance.
+
 ## v2.2.40 - 2026-07-29
 
 v2.2.40 batches the P5 offline AI-control and coverage-planning surfaces
