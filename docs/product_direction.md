@@ -233,16 +233,29 @@ well-supported missing status is a valid result.
 
 ### Current evidence status
 
-The current local candidate has passed the full release gate. Evidence also
+The v2.2.41 release passed the full local release gate before publication. Evidence also
 covers a bounded real download plus barrnap core loop, fixed-cache/no-download
 Clostridium pressure and projection, interruption/recovery, the installed-wheel
 AI contract, and independent AI pre-review of five bound evidence items.
-That pre-review found all five bound items evidence-supported; it is not human
-acceptance. Difficult explicit-gap evidence remains synthetic, and human curator decision,
-reviewer, handoff, and final acceptance are still outstanding. Therefore the
-Definition of Done above is not yet satisfied; this status does not claim
-whole-genus or live-provider coverage, Clostridium strict completion, or human
-acceptance.
+
+After the v2.2.41 release, the human user/reviewer Jude Thomas Zeng, using the
+declared reviewer category `other_qualified_human_curator`, accepted all five
+bounded benchmark interpretations. The user's decisions agreed with the AI
+pre-review, but the AI did not make them: under explicit authorization, an AI
+agent only faithfully transcribed the decisions and rationale wording and
+performed machine digest validation. This record does not independently verify
+the reviewer's real-world identity, qualifications, employment, or credentials.
+With that benchmark interpretation acceptance and finalized handoff, the
+product-convergence Definition of Done above is now satisfied under its bounded
+evidence standard.
+
+The claim ceiling is unchanged. The accepted easy result is a single retained
+strict-linkage row and bounded execution path, not whole-genus or live
+taxonomic truth. The difficult explicit-gap fixture remains synthetic rather
+than becoming real scientific evidence. Clostridium remains fixed-cache,
+no-download pressure/projection evidence with no strict completion. This status
+does not establish production readiness, broad live-provider validation, or
+whole-genus completion.
 
 ## Definition Of Not Now
 

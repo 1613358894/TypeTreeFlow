@@ -9,9 +9,12 @@ curator-packet path contracts, and bounded download-smoke quality and safety
 controls. Easy, synthetic difficult, and fixed-cache/no-download Clostridium
 loops cover success, explicit-gap, and pressure behavior. The difficult loop is
 synthetic; the Clostridium loop is not strict completion; bounded real evidence
-proves only an authorized download plus barrnap slice. AI pre-review support for
-5/5 bound items is not human curator acceptance, which remains unsigned, so the
-product Definition of Done remains incomplete. Coverage, provider, archive,
+proves only an authorized download plus barrnap slice. After the v2.2.41
+release, the human user/reviewer accepted all 5/5 bounded benchmark
+interpretations; an AI agent only faithfully transcribed those decisions under
+explicit authorization and did not make them. The product-convergence
+Definition of Done is therefore satisfied under the bounded evidence standard
+defined in [docs/product_direction.md](docs/product_direction.md). Coverage, provider, archive,
 and external-registration planning remains review-only or separately guarded;
 the release does not claim whole-genus completion, broad live-provider
 validation, production readiness, or complete scientific acceptance. It
@@ -318,8 +321,12 @@ provider, archive-candidate, and external-registration routes remain
 review-only or separately guarded. The difficult loop is synthetic;
 Clostridium evidence is fixed-cache/no-download pressure rather than strict
 completion; the bounded real slice proves only download plus barrnap. AI
-pre-review support is not human curator acceptance, and the product Definition
-of Done remains incomplete.
+pre-review support was not human curator acceptance at release time. A later
+governance record captures 5/5 bounded human-user acceptance, AI transcription
+only, and fulfillment of the product-convergence Definition of Done;
+[docs/product_direction.md](docs/product_direction.md) is authoritative for
+that current status. Release notes remain the historical record of what was
+true when v2.2.41 was published.
 
 The v2.2.39 release record batches the P3f guarded strict-gating audit-only
 workflow. Release evidence is retained outside the repository at
