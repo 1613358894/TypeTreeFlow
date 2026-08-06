@@ -109,8 +109,9 @@ Use `python typetreeflow.py --version` to confirm the installed source version,
 and inspect `selection/user_selection.tsv`, `manifest.tsv`, completion gap
 tables, report summaries, and package handoff output during release review.
 
-The current 2.2.41 release gate covers the complete local test and packaging
-gate, the installed-wheel AI contract slice, reviewed-selection and independent
+The current 2.2.42 release gate covers the complete local test and packaging
+gate, the installed-wheel AI contract slice, the post-v2.2.41 reviewed-selection
+continuation maintenance changes, reviewed-selection and independent
 download authorization, approval-attempt lifecycle and interruption recovery,
 atomic no-download projection, actual-presence completion, diagnostics and AI
 handoff, curator-packet path boundaries, and the bounded download-smoke,

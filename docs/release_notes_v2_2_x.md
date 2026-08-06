@@ -1,9 +1,27 @@
 # v2.2.x Release History
 
-These notes consolidate the v2.2.2 through v2.2.41 integration review as
+These notes consolidate the v2.2.2 through v2.2.42 integration review as
 release history. They describe user-visible behavior and historical
 verification evidence only; this document is not the current release process,
 checklist, or verification contract.
+
+## v2.2.42
+
+v2.2.42 is a bounded maintenance release over v2.2.41:
+
+- Unresumed reviewed selections fail closed instead of continuing with an
+  ambiguous execution state.
+- Public workflow-stage status semantics remain aligned across the operator and
+  AI-facing surfaces.
+- Reviewed-selection continuation logic is isolated from the main CLI module
+  and covered by focused compatibility tests; observable contracts remain
+  unchanged.
+- Packaging metadata uses the current PEP 639 license form and CI uses the
+  maintained setup-python action.
+
+The full local release gate and installed-wheel contract are the release
+evidence. This release performs no live provider lookup or real genome download
+and makes no new whole-genus, production-readiness, or strict type-strain claim.
 
 ## v2.2.41
 

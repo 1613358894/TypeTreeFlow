@@ -1,5 +1,34 @@
 # Changelog
 
+## v2.2.42 - 2026-08-06
+
+v2.2.42 is a bounded maintenance release over v2.2.41.
+
+### Changed
+
+- Unresumed reviewed selections now fail closed instead of continuing from an
+  ambiguous execution state.
+- Public workflow-stage status semantics are aligned across operator and
+  AI-facing surfaces.
+- Reviewed-selection continuation logic is isolated from the main CLI module
+  behind focused compatibility tests, without changing the public contract.
+- Packaging metadata uses the current PEP 639 license form and CI uses the
+  maintained setup-python action.
+
+### Verification
+
+- The complete local release gate, focused reviewed-selection compatibility
+  tests, and installed-wheel AI contract cover this maintenance delta.
+- Verification is offline and does not run live providers, real genome
+  downloads, or external bioinformatics tools.
+
+### Scientific boundary
+
+- LPSN-first evidence rules and strict/candidate/likely/representative/conflict/
+  missing distinctions are unchanged.
+- This release makes no new whole-genus, production-readiness, or strict
+  type-strain claim.
+
 ## v2.2.41 - 2026-08-05
 
 v2.2.41 consolidates the full post-v2.2.40 product-loop and bounded acquisition

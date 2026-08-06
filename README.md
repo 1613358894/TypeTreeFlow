@@ -1,7 +1,11 @@
 # TypeTreeFlow
 
 TypeTreeFlow is an LPSN-first type-strain genome acquisition and audit
-workflow. The current 2.2.41 release consolidates the full post-v2.2.40 delta:
+workflow. The current 2.2.42 release is a bounded maintenance release over
+v2.2.41. It preserves the reviewed-selection contract while failing closed on
+unresumed reviewed selections, aligning public workflow-stage status semantics,
+and isolating reviewed-selection continuation logic behind focused compatibility
+tests. The v2.2.41 release consolidated the full post-v2.2.40 delta:
 reviewed selection and independent download authorization, approval-attempt
 lifecycle and interruption recovery, atomic no-download projection,
 actual-presence completion, package/diagnostics/AI handoff, installed-wheel and
@@ -159,7 +163,7 @@ typetreeflow verify-genus Fusobacterium \
 `<workspace>/runs/` is for generated run outputs. Repository-root `results/` is
 forbidden. `typetreeflow_out/` is a legacy old default path only.
 
-## Recommended v2.2.41 workflow
+## Recommended v2.2.42 workflow
 
 Create a plan-only review checkpoint. This offline example requires these
 reviewed local caches; `--smoke-profile plan-only` does not inject inputs or

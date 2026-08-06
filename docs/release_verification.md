@@ -5,7 +5,7 @@ reads `docs/release_verification.md` directly. The authoritative release gate,
 verification workflow, packaging checks, and maintenance rules live in
 [development.md](development.md).
 
-The current v2.2.41 / 2.2.41 release verification path uses
+The current v2.2.42 / 2.2.42 release verification path uses
 `verify-release-genus` and the same core surfaces as `verify-genus`, `status`,
 `next-step`, and `package-results`, with a shared acquisition cache, checkpoint
 files, resume support, audit-only expanded discovery, and gap reporting. The
@@ -42,6 +42,13 @@ repository-root `results/` remains absent. The clean deployment path is
 `environment.yml`,
 operator-run `barrnap --updatedb`, and `typetreeflow doctor`; server rehearsal
 passed the clean deployment full rerun.
+
+For v2.2.42, verification covers the bounded maintenance delta after the
+v2.2.41 tag: fail-closed handling for unresumed reviewed selections, aligned
+public workflow-stage status semantics, and extraction of reviewed-selection
+continuation logic with focused compatibility tests. The scientific and
+provider boundaries remain unchanged; this release adds no live lookup or
+download claim.
 
 For v2.2.41, verification covers the complete post-v2.2.40 tag delta by theme:
 reviewed selection and independently authorized downloads, approval-attempt
