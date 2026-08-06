@@ -233,7 +233,7 @@ well-supported missing status is a valid result.
 
 ### Current evidence status
 
-The v2.2.41 release passed the full local release gate before publication. Evidence also
+The v2.2.42 release passed the full local release gate before publication. Evidence also
 covers a bounded real download plus barrnap core loop, fixed-cache/no-download
 Clostridium pressure and projection, interruption/recovery, the installed-wheel
 AI contract, and independent AI pre-review of five bound evidence items.
